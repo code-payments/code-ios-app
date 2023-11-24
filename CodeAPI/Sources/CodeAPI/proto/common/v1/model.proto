@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package code.common.v1;
+
+option go_package = "github.com/code-wallet/code-api/genproto/common/v1;common";
+option java_package = "com.codeinc.gen.common.v1";
+option objc_class_prefix = "CPBCommonV1";
+
+import "validate/validate.proto";
+
+enum AccountType {
+    UNKNOWN               = 0;
+    PRIMARY               = 1;
+    TEMPORARY_INCOMING    = 2;
+    TEMPORARY_OUTGOING    = 3;
+    BUCKET_1_KIN          = 4;
+    BUCKET_10_KIN         = 5;
+    BUCKET_100_KIN        = 6;
+    BUCKET_1_000_KIN      = 7;
+    BUCKET_10_000_KIN     = 8;
+    BUCKET_100_000_KIN    = 9;
+    BUCKET_1_000_000_KIN  = 10;
+    LEGACY_PRIMARY_2022   = 11;
+    REMOTE_SEND_GIFT_CARD = 12;
+    RELATIONSHIP          = 13;
+}
+
+message SolanaAccountId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+message Transaction {
+    // Maximum size taken from: https://github.com/solana-labs/solana/blob/39b3ac6a8d29e14faa1de73d8b46d390ad41797b/sdk/src/packet.rs#L9-L13
+    // The client-side generated ID that maps to an intent that defines a contract.
+    // Clients can treat this as a deduplication ID. The server guarantees idempotency
+    // and will treat equal IDs as the same transaction.
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 1232
+    }];
+}
+
+// Signature represents a raw binary Ed25519 signature.
+message Signature {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 64
+        max_len: 64
+    }];
+}
+
+message Blockhash {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+message Hash {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// The client-side generated ID that maps to an intent that defines a contract.
+// Clients can treat this as a deduplication ID. The server guarantees idempotency
+// and will treat equal IDs as the same transaction.
+message IntentId {
+    bytes value = 1 [(validate.rules).bytes = {
+        // Maintaining a 32-byte length for backwards compat with the rendezvous
+        // key, which acted as a dedup ID.
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// UserId is a globally unique identifier for a user from the identity service.
+message UserId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// DataContainerId is a globally unique identifier for a container where a user
+// can store a copy of their data.
+message DataContainerId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// An opaque token used to verify whether a device real
+message DeviceToken {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 16348 // todo: What's a reasonable size
+    }];
+}
+
+// AppInstallId is a unque ID tied to a client app installation. It does not
+// identify a device. Value should remain private and not be shared across
+// installs.
+message AppInstallId {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256 // todo: What's a reasonable size
+    }];
+}
+
+message PhoneNumber {
+    // E.164 phone number value. Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
+    string value = 1 [(validate.rules).string.pattern = "^\\+[1-9]\\d{1,14}$"];
+}
+
+message Locale {
+    // The ISO 639 alpha-2 language code.
+    string language = 1 [(validate.rules).string = {
+        pattern: "^[a-zA-Z]{2}$"
+    }];
+
+    // ISO 3166 alpha-2 country code.
+    string country = 2 [(validate.rules).string = {
+        pattern: "^[a-zA-Z]{2}$"
+    }];
+}
+
+// Request is a generic wrapper for gRPC requests
+message Request {
+    string version = 1;
+    string service = 2;
+    string method = 3;
+    bytes body = 4;
+}
+
+// Response is a generic wrapper for gRPC responses
+message Response {
+    Result result = 1;
+
+    bytes body = 2;
+    string message = 3;
+
+    enum Result {
+        OK = 0;
+        ERROR = 1;
+    }
+}
+
+// Domain is a hostname
+message Domain {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 253
+        hostname: true
+    }];
+}
+
+// Relationship is a set of identifiers that a user can establish a relationship
+// with.
+message Relationship {
+    oneof type {
+        common.v1.Domain domain = 1 [(validate.rules).message.required = true];
+    }
+}

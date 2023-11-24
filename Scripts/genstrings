@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+LOCALIZATION_PATH="$1"
+
+if [ ! -d "$LOCALIZATION_PATH" ]
+then
+  echo "No localization directory provided."
+  exit 1
+fi
+
+if [ -f "/usr/local/bin/swiftgen" ]
+then
+    INPUT_PATH="$LOCALIZATION_PATH/Localizable.strings"
+    OUTPUT_PATH="$LOCALIZATION_PATH/../Localized.swift"
+    OPTIONS="enumName=Localized"
+
+    arch -x86_64 swiftgen run strings -t structured-swift5 "$INPUT_PATH" --output "$OUTPUT_PATH" --param "$OPTIONS"
+fi

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+CURRENT_DIR=$(pwd)
+PROTO_DIR="$1"
+OUTPUT_DIR="$2"
+
+if [ ! -d "$PROTO_DIR" ]
+then
+  echo "No proto directory provided."
+  exit
+fi
+
+if [ ! -d "$OUTPUT_DIR" ]
+then
+  echo "No output directory provided."
+  exit
+fi
+
+echo "Proto dir: ${PROTO_DIR}"
+echo "Output dir: ${OUTPUT_DIR}"
+
+rm -rf "${OUTPUT_DIR}"
+mkdir "${OUTPUT_DIR}"
+
+# Swift gRPC Options
+# https://github.com/apple/swift-protobuf/blob/main/Documentation/PLUGIN.md
+#
+# Swift Protobuf Options
+# https://github.com/grpc/grpc-swift/blob/main/docs/plugin.md
+
+find "$PROTO_DIR" -name "*.proto" | while read PROTO_FILE
+do
+    protoc \
+        -I$PROTO_DIR \
+        "$PROTO_FILE" \
+        --grpc-swift_opt=Visibility=Public \
+        --grpc-swift_opt=FileNaming=PathToUnderscores \
+        --grpc-swift_out="$OUTPUT_DIR" \
+        --swift_opt=Visibility=Public \
+        --swift_opt=FileNaming=PathToUnderscores \
+        --swift_out="$OUTPUT_DIR"
+done

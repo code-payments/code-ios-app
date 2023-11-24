@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+# Prerequisites: 
+# brew install jq
+# chmod +x get-strings.sh
+# Set format argument: Android - "xml", iOS - "strings"
+# Set destination path
+
+PROJECT_ID=""
+API_TOKEN=""
+DESTINATION_PATH=""
+
+# Function to display usage
+usage() {
+  echo "Usage: $0 -p <project_id> -t <api_token> -d <destination_path>"
+  exit 1
+}
+
+# Parse command-line options
+while getopts "p:t:d:" opt; do
+  case $opt in
+    p) PROJECT_ID="$OPTARG" ;;
+    t) API_TOKEN="$OPTARG" ;;
+    d) DESTINATION_PATH="$OPTARG" ;;
+    *) usage ;;
+  esac
+done
+
+# Check if the required arguments are provided
+if [ -z "$PROJECT_ID" ] || [ -z "$API_TOKEN" ] || [ -z "$DESTINATION_PATH" ]; then
+  usage
+fi
+
+bundle_url=$(curl --request POST \
+  --url "https://api.lokalise.com/api2/projects/${PROJECT_ID}/files/download" \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --header "X-Api-Token: ${API_TOKEN}" \
+  --data '{"format":"strings"}' | jq -r '.bundle_url')
+
+TEMP_PATH="/tmp/com.code.strings"
+ZIP_PATH="$TEMP_PATH/strings.zip"
+
+rm -r "$TEMP_PATH"
+mkdir "$TEMP_PATH"
+
+curl -sS $bundle_url > "$ZIP_PATH"
+
+unzip -o "$ZIP_PATH" -d "$DESTINATION_PATH"
+
+cd "$DESTINATION_PATH"
+rm -r *[A-Z][A-Z].lproj
+rm -r *[A-Z][a-z][a-z][a-z].lproj
+
+rm -r "$TEMP_PATH"

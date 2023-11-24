@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+## 1. Exit if any command fails
+## ----------------------------
+
+set -e
+
+## 2. Check params
+## ---------------
+
+DEST_DIR="$1"
+
+if [ ! -d "$DEST_DIR" ]
+then
+  echo "error: No destination directory provided"
+  exit
+fi
+
+## 3. Register the cleanup function to be called on EXIT signal
+## ------------------------------------------------------------
+
+function cleanup {
+  echo "Cleaning up..."
+  rm -rf ${GIT_TEMP_PATH}
+  rm -rf ${TEMP_DIR}
+  echo "Done."
+}
+
+trap cleanup EXIT
+
+## 4. Clone repo, pull secrets
+## ---------------------------
+
+REPO_NAME="code-wallet/code-app-credentials"
+GIT_TEMP_PATH=$(mktemp -d -t "${REPO_NAME/\//_}")
+
+echo "Cloning '${REPO_NAME}'..."
+git clone -b "master" --single-branch "git@github.com:${REPO_NAME}.git" ${GIT_TEMP_PATH} --quiet
+
+## 5. Remove any remnants of git because all files in the cloned
+## repo will be copied to their respective location relative to root
+## -----------------------------------------------------------------
+
+rm -rf "${GIT_TEMP_PATH}/.git"
+rm -rf "${GIT_TEMP_PATH}/.gitignore"
+
+## 6. Find all files in the source directory and iterate over them
+## ---------------------------------------------------------------
+
+echo "note: Secrets updating..."
+
+find "$GIT_TEMP_PATH" -type f | while read -r file; do
+    # Replace the source directory path with the destination directory path
+    DEST_PATH="${file/$GIT_TEMP_PATH/$DEST_DIR}"
+
+    # Create the destination directory if it doesn't exist
+    mkdir -p "$(dirname "$DEST_PATH")"
+
+    # Move the file to the destination directory
+    cp "$file" "$DEST_PATH"
+
+    echo "Copied $DEST_PATH"
+done
+
+echo "warning: Secrets updated."

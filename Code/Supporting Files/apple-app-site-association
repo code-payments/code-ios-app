@@ -1,0 +1,49 @@
+{
+    "applinks": {
+        "apps": [],
+        "details": [
+            {
+                "appIDs": [
+                    "83VHY3GSWL.com.kin.code"
+                ],
+                "components": [
+                    {
+                        "/": "/login",
+                        "?": "data=?*",
+                        "comment": "Support for legacy login"
+                    },
+                    {
+                        "/": "/login",
+                        "#": "/e=?*",
+                        "comment": "Support for login"
+                    },
+                    {
+                        "/": "/cash",
+                        "#": "/e=?*",
+                        "comment": "Support for sends"
+                    },
+                    {
+                        "/": "/c",
+                        "#": "/e=?*",
+                        "comment": "Support for sends"
+                    },
+                    {
+                        "/": "/c",
+                        "#": "/download/e=?*",
+                        "comment": "Support for sends"
+                    },
+                    {
+                        "/": "/v1/elements/*/",
+                        "#": "/*/p=*",
+                        "comment": "Support for sdk elements."
+                    }
+                ]
+            }
+        ]
+    },
+    "webcredentials": {
+        "apps": [
+            "83VHY3GSWL.com.kin.code"
+        ]
+    }
+}

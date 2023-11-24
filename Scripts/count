@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Check if a directory path is provided
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 [directory path]"
+    exit 1
+fi
+
+# Assign the provided directory path to a variable
+dir_path=$1
+
+# Define the list of file extensions
+extensions=(".h" ".m" ".mm" ".c" ".cpp" ".swift")
+
+# Initialize total line count
+totalLines=0
+
+# Loop through each extension
+for ext in "${extensions[@]}"; do
+    # Find files with the current extension, excluding ignored directories
+    lines=$(find $dir_path -name "*$ext" -type f -not -path "*/.build/*" -exec wc -l {} + | awk '{total += $1} END {print total}')
+
+    # Add lines from current extension to total line count
+    totalLines=$((totalLines + lines))
+
+    echo "# of lines in $ext: $lines"
+done
+
+# Display the total line count
+echo "# of lines total: $totalLines"

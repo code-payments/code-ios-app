@@ -1,0 +1,196 @@
+syntax = "proto3";
+
+package code.user.v1;
+
+option go_package = "github.com/code-wallet/code-api/genproto/user/v1;user";
+option java_package = "com.codeinc.gen.user.v1";
+option objc_class_prefix = "CPBUserV1";
+
+import "common/v1/model.proto";
+import "phone/v1/phone_verification_service.proto";
+import "transaction/v2/transaction_service.proto";
+import "validate/validate.proto";
+
+service Identity {
+    // LinkAccount links an owner account to:
+    //   * the user identified and authenticated by a one-time use token
+    //   * any identifying features that support remote send
+    // Notably, this RPC has the following side effects:
+    //   * A new user is automatically created if one doesn't exist.
+    //   * Server will create a new data container for at least every unique
+    //     owner account linked to the user.
+    //   * Previous links to identifying features that support remote send are
+    //     invalidated. Relinking must occur to restore previous state.
+    rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse);
+
+    // UnlinkAccount removes links from an owner account. It will NOT remove
+    // existing associations between users, owner accounts and identifying
+    // features. Currently, the RPC will remove:
+    //   * remote send features for any applicable identifying features
+    // The following associations will remain intact to ensure owner accounts
+    // can continue to be used with a consistent login experience:
+    //   * the user continues to be associated to existing owner accounts and
+    //     identifying features
+    //   * identifying features whose remote send was disabled continue to be
+    //     associated with the owner account
+    //
+    // Client can continue mainting their current login session. Their current
+    // user and data container will remain the same.
+    //
+    // The call is guaranteed to be idempotent. It will not fail if the link is
+    // already removed by either a previous call to this RPC or by a more recent
+    // call to LinkAccount. A failure will only occur if the link between a user
+    // and the owner accout or identifying feature never existed.
+    rpc UnlinkAccount(UnlinkAccountRequest) returns (UnlinkAccountResponse);
+
+    // GetUser gets user information given a user identifier and an owner account.
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
+}
+
+message LinkAccountRequest {
+    // The public key of the owner account that will be linked to a user.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(LinkAccountRequest) without this field set
+    // using the private key of owner_account_id. This validates that the client
+    // actually owns the account.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // A one-time use token that identifies and authenticates the user.
+    oneof token {
+        // A token received after successfully verifying a phone number via a
+        // SMS code using the phone verification service.
+        phone.v1.PhoneLinkingToken phone = 3 [(validate.rules).message.required = true];
+    }
+}
+
+message LinkAccountResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The provided token is invalid. A token may be invalid for a number of
+        // reasons including: it's already been used, has been modified by the
+        // client or has expired.
+        INVALID_TOKEN = 1;
+        // The client is rate limited (eg. by IP, user ID, etc). The client should
+        // retry at a later time.
+        RATE_LIMITED = 2;
+    }
+
+    // The user that was linked to the owner account
+    User user = 2;
+
+    // The data container where the user can store a copy of their data
+    common.v1.DataContainerId data_container_id = 3;
+
+    // Field 4 is the deprecated kin_token_account_details
+    reserved 4;
+
+    // Metadata about the user based for the instance of their view
+    oneof metadata {
+        // Metadata that corresponds to a phone-based identifying feature.
+        PhoneMetadata phone = 5 [(validate.rules).message.required = true];
+    }
+}
+
+message UnlinkAccountRequest {
+    // The public key of the owner account that will be unliked.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(UnlinkAccountRequest) without this field set
+    // using the private key of owner_account_id. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    oneof identifying_feature {
+        // The phone number associated with the owner account. Remote send features
+        // will be disabled on success.
+        common.v1.PhoneNumber phone_number = 4 [(validate.rules).message.required = true];
+    }
+}
+
+message UnlinkAccountResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The client attempted to unlink an owner account or identifying feature
+        // that never had a valid association.
+        NEVER_ASSOCIATED = 1;
+    }
+}
+
+message GetUserRequest {
+    // The public key of the owner account that signed this request message.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(GetUserRequest) without this field set
+    // using the private key of owner_account_id. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The user's indentifying feature, which maps to an instance of a view.
+    oneof identifying_feature {
+        common.v1.PhoneNumber phone_number = 3 [(validate.rules).message.required = true];
+    }
+}
+
+message GetUserResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The user doesn't exist
+        NOT_FOUND = 1;
+        // The user is no longer invited
+        NOT_INVITED = 2;
+        // The user exists, but at least one of their timelock accounts is unlocked
+        UNLOCKED_TIMELOCK_ACCOUNT = 3;
+    }
+
+    // The user associated with the identifier
+    User user = 2;
+
+    // The data container where the user can store a copy of their data
+    common.v1.DataContainerId data_container_id = 3;
+
+    // Field 4 is the deprecated kin_token_account_details
+    reserved 4;
+
+    // Metadata about the user based for the instance of their view
+    oneof metadata {
+        // Metadata that corresponds to a phone-based identifying feature.
+        PhoneMetadata phone = 5 [(validate.rules).message.required = true];
+    }
+
+    // Whether client internal flags are enabled for this user
+    bool enable_internal_flags = 6;
+
+    // Set of which airdrops the user is eligible to receive
+    repeated transaction.v2.AirdropType eligible_airdrops = 7;
+}
+
+// User is the highest order of a form of identity.
+message User {
+    // The user's ID
+    common.v1.UserId id = 1 [(validate.rules).message.required = true];
+
+    // The identifying features that are associated with the user
+    View view = 2 [(validate.rules).message.required = true];
+}
+
+// View is a well-defined set of identifying features. It is contrained to having
+// exactly one feature set at a time, for now.
+message View {
+    // The phone number associated with a user.
+    //
+    // Note: This field is mandatory as of right now, since it's the only one
+    //       supported to date.
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+}
+
+message PhoneMetadata {
+    // State that determines whether a phone number is linked to the owner
+    // account. A phone number is linked if we can treat it as an alias.
+    // This is notably different from association, which answers the question
+    // of whether the number was linked at any point in time.
+    bool is_linked = 1;
+}

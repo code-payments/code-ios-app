@@ -1,0 +1,4 @@
+Vendor/* linguist-vendored
+*/*.framework/* linguist-vendored
+
+*/*.framework/* linguist-generated

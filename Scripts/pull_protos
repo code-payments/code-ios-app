@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+
+# =========================
+# Exit if any command fails
+set -e
+
+DESTINATION_PATH="$1"
+BRANCH="master"
+# BRANCH="intent-v2"
+
+if [ ! -d "$DESTINATION_PATH" ]
+then
+  echo "No destination directory provided."
+  exit
+fi
+
+REPO_NAME="code-wallet/code-api"
+
+GIT_TEMP_PATH=$(mktemp -d -t "${REPO_NAME/\//_}")
+TEMP_DIR="$DESTINATION_PATH/.temp"
+
+mkdir -p $TEMP_DIR
+
+# =============================
+# Register the cleanup function 
+# to be called on EXIT signal
+
+function cleanup {
+  echo "Cleaning up..."
+  rm -rf ${GIT_TEMP_PATH}
+  rm -rf ${TEMP_DIR}
+  echo "Done."
+}
+
+trap cleanup EXIT
+
+# ==================
+# Clone repositories
+
+echo "Cloning '${REPO_NAME}'..."
+git clone -b ${BRANCH} --single-branch "git@github.com:${REPO_NAME}.git" ${GIT_TEMP_PATH}
+
+# ================================
+# Generate protos
+
+echo "Importing Code protos in '${GIT_TEMP_PATH}'..."
+
+for path in $(find ${GIT_TEMP_PATH} -name '*.proto' | xargs -0 -n1); do
+  PROTO_PATH="${path/$GIT_TEMP_PATH\//}"
+  DST_DIR="${DESTINATION_PATH}/${PROTO_PATH}"
+  
+  mkdir -p "$(dirname $DST_DIR)"
+  cp -rf ${path} ${DST_DIR}
+
+  echo "Copied ${DST_DIR}"
+done
+
+echo "Done."

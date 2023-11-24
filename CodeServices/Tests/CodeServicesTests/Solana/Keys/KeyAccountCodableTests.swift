@@ -1,0 +1,23 @@
+//
+//  KeyAccountCodableTests.swift
+//  CodeServicesTests
+//
+//  Created by Dima Bart.
+//  Copyright © 2021 Code Inc. All rights reserved.
+//
+
+import XCTest
+@testable import CodeServices
+
+class KeyAccountCodableTests: XCTestCase {
+    
+    /// Ensures that any changes made to KeyAccount are backwards compatible
+    /// with any existing KeyAccounts persisted in Keychain. We just want to
+    /// ensure that we successfully decode the existing KeyAccount struct.
+    func testCanDecodeKeyAccount() throws {
+        let encodedAccount = Data(base64Encoded: Data(encodedAccountBase64.utf8))!
+        _ = try JSONDecoder().decode(KeyAccount.self, from: encodedAccount)
+    }
+}
+
+private let encodedAccountBase64 = "eyJkZXJpdmVkS2V5Ijp7InBhdGgiOnsiaW5kZXhlcyI6W3sidmFsdWUiOjQ0LCJoYXJkZW5lZCI6dHJ1ZX0seyJ2YWx1ZSI6NTAxLCJoYXJkZW5lZCI6dHJ1ZX0seyJ2YWx1ZSI6MCwiaGFyZGVuZWQiOnRydWV9LHsidmFsdWUiOjAsImhhcmRlbmVkIjp0cnVlfV19LCJrZXlQYWlyIjp7InNlZWQiOnsiYnl0ZXMiOlsxMjYsMTA1LDkyLDIyNSwxODksMTE1LDM4LDksMTcsMTA0LDI1MCwyMDMsMjQsNTUsMTExLDQsMTU2LDI1MSw5Miw0Nyw0MSwyMTIsNDUsMTEsMTM5LDIwLDE4MCwxMDksMTQ0LDI0NiwzMywxMTNdfSwicHVibGljS2V5Ijp7ImJ5dGVzIjpbNTgsMzYsMjQ3LDE1NywxNSwxMTAsNTAsMTI4LDIwLDE0NCwxLDMxLDY3LDIyNSwxMjMsMTg1LDE4NywxMjEsNDUsMTAwLDQxLDE4MSwxNjAsMjE5LDU0LDE3MiwyMjgsMTY1LDEzNSwxMDMsMTAwLDIwM119LCJwcml2YXRlS2V5Ijp7ImJ5dGVzIjpbOCwzLDY3LDIyMywyNCw4MiwxMjksMTg0LDIzMiwxMTEsMjAwLDYxLDI1MiwxOTEsMjE0LDIyMSwyMTYsMTQ2LDUxLDIyNiwyNDQsMjM3LDY4LDIxOCwxNTMsMjE2LDIwMSwzNywxMDksMTQ3LDI1NCwxMTIsNjIsMzcsMTE1LDg0LDU5LDI1MiwxMywxMjIsMjIxLDEyNiwxNTAsMTk0LDIwOCwxNzksMjI4LDI1LDIzNCwyMTUsMTYwLDMxLDE5MywxMzUsNzgsMzYsMjI0LDEwNSwyMDUsNjksMzksOTQsMTAsMjM0XX19fSwidG9rZW5BY2NvdW50Ijp7ImJ5dGVzIjpbMTM1LDE4NCwyMDYsMjQ1LDE2MSwyNTQsMTcwLDQ5LDIzNiwxNTQsMTk4LDEwNiwxNDIsMTgwLDc1LDE3Nyw5MiwxMjIsNjUsMTYyLDU1LDExOSwzMywxMjYsMjE2LDMxLDYxLDIzNCwxNTIsMjMsMjA5LDExNl19LCJtbmVtb25pYyI6eyJraW5kIjp7IndvcmRzMTIiOnt9fSwid29yZHMiOlsidGVhbSIsImxpcXVpZCIsInBpZWNlIiwiYmxlc3MiLCJmb3J1bSIsInJlbGVhc2UiLCJ3aXNkb20iLCJyYXciLCJleGVyY2lzZSIsInZpY3RvcnkiLCJnaXZlIiwiY3JpdGljIl19fQ=="

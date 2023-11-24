@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Scheme
+   LastUpgradeVersion = "1500"
+   version = "1.7">
+   <BuildAction
+      parallelizeBuildables = "YES"
+      buildImplicitDependencies = "NO">
+      <PreActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Initialize Secrets if Needed"
+               scriptText = "# Don&apos;t run this on GitHub, there&apos;s no point&#10;if [ &quot;$GITHUB_ACTIONS&quot; != &quot;true&quot; ]; then&#10;    cd &quot;$SOURCE_ROOT/Scripts&quot;&#10;&#10;    if [ ! -f &quot;./pull&quot; ]; then&#10;        echo &quot;note: No secrets found. Startig init.&quot;&#10;        ./init &quot;$SOURCE_ROOT&quot;&#10;    fi&#10;fi&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "9AED10FF258BE1310088D902"
+                     BuildableName = "Code.app"
+                     BlueprintName = "Code"
+                     ReferencedContainer = "container:Code.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PreActions>
+      <BuildActionEntries>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9AED10FF258BE1310088D902"
+               BuildableName = "Code.app"
+               BlueprintName = "Code"
+               ReferencedContainer = "container:Code.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CodeAPITests"
+               BuildableName = "CodeAPITests"
+               BlueprintName = "CodeAPITests"
+               ReferencedContainer = "container:CodeAPI">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      codeCoverageEnabled = "YES">
+      <CodeCoverageTargets>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "CodeAPI"
+            BuildableName = "CodeAPI"
+            BlueprintName = "CodeAPI"
+            ReferencedContainer = "container:CodeAPI">
+         </BuildableReference>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "CodeServices"
+            BuildableName = "CodeServices"
+            BlueprintName = "CodeServices"
+            ReferencedContainer = "container:CodeServices">
+         </BuildableReference>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "CodeUI"
+            BuildableName = "CodeUI"
+            BlueprintName = "CodeUI"
+            ReferencedContainer = "container:CodeUI">
+         </BuildableReference>
+      </CodeCoverageTargets>
+      <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9AED1110258BE1320088D902"
+               BuildableName = "CodeTests.xctest"
+               BlueprintName = "CodeTests"
+               ReferencedContainer = "container:Code.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CodeServicesTests"
+               BuildableName = "CodeServicesTests"
+               BlueprintName = "CodeServicesTests"
+               ReferencedContainer = "container:CodeServices">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CodeUITests"
+               BuildableName = "CodeUITests"
+               BlueprintName = "CodeUITests"
+               ReferencedContainer = "container:CodeUI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CodeAPITests"
+               BuildableName = "CodeAPITests"
+               BlueprintName = "CodeAPITests"
+               ReferencedContainer = "container:CodeAPI">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "9AED10FF258BE1310088D902"
+            BuildableName = "Code.app"
+            BlueprintName = "Code"
+            ReferencedContainer = "container:Code.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "-FIRDebugDisabled "
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "-FIRDebugEnabled"
+            isEnabled = "NO">
+         </CommandLineArgument>
+      </CommandLineArguments>
+   </LaunchAction>
+   <ProfileAction
+      buildConfiguration = "Release"
+      shouldUseLaunchSchemeArgsEnv = "YES"
+      savedToolIdentifier = ""
+      useCustomWorkingDirectory = "NO"
+      debugDocumentVersioning = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "9AED10FF258BE1310088D902"
+            BuildableName = "Code.app"
+            BlueprintName = "Code"
+            ReferencedContainer = "container:Code.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction
+      buildConfiguration = "Debug">
+   </AnalyzeAction>
+   <ArchiveAction
+      buildConfiguration = "Release"
+      revealArchiveInOrganizer = "YES">
+   </ArchiveAction>
+</Scheme>

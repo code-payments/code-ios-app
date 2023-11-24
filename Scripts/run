@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+PROTOS_ROOT_DIR="../CodeAPI/Sources/CodeAPI"
+PROTOS_DIR="../CodeAPI/Sources/CodeAPI/proto"
+DEPS_DIR="../CodeAPI/Sources/CodeAPI/proto_deps"
+GENERATED_DIR="../CodeAPI/Sources/CodeAPI/Generated"
+
+SKIP_PULL=0
+
+while getopts s: flag
+do
+    case "${flag}" in
+        s) SKIP_PULL=1;;
+    esac
+done
+
+if [[ SKIP_PULL -eq 0 ]];
+then
+    # Pull protos
+    rm -rf $PROTOS_DIR
+    ./pull_protos $PROTOS_ROOT_DIR
+
+    # Copy over proto dependencies
+    cp -a "$DEPS_DIR/." $PROTOS_DIR
+else
+    echo "warning: Skipping proto update from repo, just running code generator."
+fi
+
+# Generate Swift models
+rm -rf $GENERATED_DIR
+mkdir -p $GENERATED_DIR
+
+./generate $PROTOS_DIR $GENERATED_DIR

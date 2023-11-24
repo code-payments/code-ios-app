@@ -1,0 +1,891 @@
+//
+//  Localizable.strings
+//  Code
+//
+//  Created by Dima Bart.
+//  Copyright © 2021 Code Inc. All rights reserved.
+//
+
+
+
+
+
+// MARK: - Core -
+
+/* Suffix for currency values representing a Kin amount */
+"core.ofKin" = "of Kin";
+
+"core.kin" = "Kin";
+
+/* A title for 'and' (ie. X & Y) */
+"core.and" = "and";
+
+
+
+
+
+// MARK: - Actions -
+
+/* An action message to intruct user to move to the next step */
+"action.next" = "Next";
+
+/* OK */
+"action.ok" = "OK";
+
+/* Cancel */
+"action.cancel" = "Cancel";
+
+/* Cancel Send */
+"action.cancelSend" = "Cancel Send";
+
+/* Confirm */
+"action.confirm" = "Confirm";
+
+/* Copy */
+"action.copy" = "Copy";
+
+/* Copy address */
+"action.copyAddress" = "Copy Address";
+
+/* Copied */
+"action.copied" = "Copied";
+
+/* Paste */
+"action.paste" = "Paste";
+
+/* Send */
+"action.send" = "Send";
+
+/* Paste from clipboard */
+"action.pasteFromClipboard" = "Paste From Clipboard";
+
+/* Exit */
+"action.exit" = "Exit";
+
+/* Remind */
+"action.remind" = "Remind";
+
+/* Invite */
+"action.invite" = "Invite";
+
+/* Update */
+"action.update" = "Update";
+
+/* Log In */
+"action.logIn" = "Log In";
+
+/* Log Out */
+"action.logout" = "Log Out";
+
+/* Continue */
+"action.continue" = "Continue";
+
+/* Yes */
+"action.yes" = "Yes";
+
+/* No */
+"action.noTryAgain" = "No, Try Again";
+
+/* Delete Account */
+"action.deleteAccount" = "Delete Code Account";
+
+/* Not Now */
+"action.notNow" = "Not Now";
+
+/* Swipe to Pay */
+"action.swipeToPay" = "Swipe to Pay";
+
+/* Open Settings */
+"action.openSettings" = "Open Settings";
+
+/* Cofirmation to withdraw Kin */
+"action.yesWithdrawConfirm" = "Yes, Withdraw Kin";
+
+/* Action to withdraw */
+"action.withdrawKin" = "Withdraw Kin";
+
+/* Cofirmation that words were written down */
+"action.yesWroteThemDown" = "Yes, I Wrote Them Down";
+
+/* Cofirmation that words were written down */
+"action.wroteThemDownInstead" = "Wrote the 12 Words Down Instead?";
+
+/* Action to create an Account */
+"action.createAccount" = "Create an Account";
+
+/* Action to put the bill in the wallet */
+"action.putInWallet" = "Put in Wallet";
+
+/* Action to open invites */
+"action.invites" = "Invites";
+
+/* Action to begin the 'Give Kin' flow */
+"action.giveKin" = "Give Kin";
+
+/* Action to view account balance and transaction history */
+"action.balance" = "Balance";
+
+/* Action to allow access to the user's camera */
+"action.allowCameraAccess" = "Allow Camera Access";
+
+/* Action to allow sending push notifications */
+"action.allowPushNotifications" = "Allow Push Notifications";
+
+/* Action to allow access to contacts */
+"action.allowContacts" = "Allow Access to Contacts";
+
+/* Action to view the Access Key */
+"action.viewAccessKey" = "View Access Key";
+
+/* Action to save access key to photos */
+"action.saveAccessKey" = "Save Access Key to My Photos";
+
+/* Action to save to photos */
+"action.saveToPhotos" = "Save to Photos";
+
+/* Action to invite a friend */
+"action.invite" = "Invite";
+
+/* Action to send verification code */
+"action.sendVerificationCode" = "Send Verification Code";
+
+/* Action to recover existing account */
+"action.recoverExistingAccount" = "Recover Existing Account";
+
+/* Action to try a different code account */
+"action.tryDifferentCodeAccount" = "Try a Different Code Account";
+
+/* Action to create a new code account */
+"action.createNewCodeAccount" = "Create a New Code Account";
+
+/* Action to remove your phone number */
+"action.removeYourPhoneNumber" = "Remove Your Phone Number";
+
+/* Action to remove phone number */
+"action.removePhoneNumber" = "Remove Phone Number";
+
+/* Action to link a phone number */
+"action.linkPhoneNumber" = "Link a Phone Number";
+
+/* Action to join the waitlist */
+"action.joinWaitlist" = "Join the Waitlist";
+
+/* Action to enabled FaceID */
+"action.enableFaceID" = "Enable Face ID";
+
+/* Action to enabled TouchID */
+"action.enableTouchID" = "Enable Touch ID";
+
+/* Action to share download link */
+"action.shareDownloadLink" = "Share Download Link";
+
+/* Action to learn how to buy kin */
+"action.learnBuyKin" = "Learn How to Buy Kin";
+
+/* Action to learn how to sell kin */
+"action.learnSellKin" = "Learn How to Sell Kin";
+
+/* Action to share a video */
+"action.shareVideo" = "Share This Video";
+
+
+
+
+
+// MARK: - Titles -
+
+/* Withdraw Kin */
+"title.withdrawKin" = "Withdraw Kin";
+
+/* Privacy Policy */
+"title.privacyPolicy" = "Privacy Policy";
+
+/* Terms of Service */
+"title.termsOfService" = "Terms of Service";
+
+/* Title for transaction history item that shows that the user gave Kin */
+"title.gaveKin" = "Gave";
+
+/* Title for transaction history item that shows that the user deposited Kin */
+"title.deposited" = "Deposited";
+
+/* Title for transaction history item that shows that the user received Kin */
+"title.received" = "Received";
+
+/* Title for transaction history item that shows that the user withdrew Kin */
+"title.withdrewKin" = "Withdrew";
+
+/* Title for transaction history item that shows that the user spent Kin */
+"title.spentKin" = "Spent";
+
+/* Title for transaction history item that shows that the user sent Kin with remote send */
+"title.sent" = "Sent";
+
+/* Title for transaction history item that shows that the user paid some Kin */
+"title.paid" = "Paid";
+
+/* Title for transaction history item that shows that the user purchased using Kin */
+"title.purchased" = "Purchased";
+
+/* Title for transaction history item that shows that the user's Kin was returned from remote send */
+"title.returned" = "Returned";
+
+/* Title for transaction history item that shows that the user received a welcome bonus Kin */
+"title.welcomeBonus" = "Welcome Bonus";
+
+/* Title for transaction history item that shows that the user received a referral bonus Kin */
+"title.referralBonus" = "Referral Bonus";
+
+/* Title for unknown */
+"title.unknown" = "Unknown";
+
+/* Title for Give Kin */
+"title.giveKin" = "Give Kin";
+
+/* Title for Get Kin */
+"title.getKin" = "Get Kin";
+
+/* Title for Get More Kin */
+"title.getMoreKin" = "Get More Kin";
+
+/* Title for frequently asked questions */
+"title.faq" = "FAQ";
+
+/* Title for phone number */
+"title.phoneNumber" = "Phone Number";
+
+/* Title for linked phone number */
+"title.linked" = "Linked";
+
+/* Title for not linked phone number */
+"title.notLinked" = "Not Linked";
+
+/* Title for switching accounts */
+"title.switchAccounts" = "Switch Accounts";
+
+/* Title for beta flags */
+"title.betaFlags" = "Beta Flags";
+
+/* Title for user's account */
+"title.myAccount" = "My Account";
+
+/* Title for account balance */
+"title.balance" = "Balance";
+
+/* Title for deposit Kin */
+"title.depositKin" = "Deposit Kin";
+
+/* Title for get a friend started on Code */
+"title.getFriendStartedOnCode" = "Get a Friend Started on Code";
+
+/* Title for referring a friend and getting a reward for it */
+"title.referFriend" = "Refer a Friend, Get $5";
+
+/* Title for limited time offer */
+"title.limitedTimeOffer" = "Limited Time Offer";
+
+/* Title for withdraw Kin */
+"title.withdrawKin" = "Withdraw Kin";
+
+/* Title for Access Key */
+"title.accessKey" = "Access Key";
+
+/* Title for invite a friend */
+"title.inviteFriend" = "Invite a Friend";
+
+/* Title for enter phone number */
+"title.enterPhoneNumber" = "Enter Phone Number";
+
+/* Title for verify phone number */
+"title.verifyPhoneNumber" = "Verify Phone Number";
+
+/* Title for your access key */
+"title.yourAccessKey" = "Your Access Key";
+
+/* Title for your access key */
+"title.enterAccessKeyWords" = "Enter Access Key Words";
+
+/* Title for failed */
+"title.failed" = "Failed";
+
+/* Title for pending */
+"title.pending" = "Pending";
+
+/* Title for select a currency */
+"title.selectCurrency" = "Select a Currency";
+
+/* Title for select a country */
+"title.selectCountry" = "Select a Country";
+
+/* Title for select an account */
+"title.selectAccount" = "Select an Account";
+
+/* Title for access expired */
+"title.accessExpired" = "Access Expired";
+
+/* Title for update required */
+"title.updateRequired" = "Update Required";
+
+/* Title for recent currencies */
+"title.recentCurrencies" = "Recent Currencies";
+
+/* Title for other currencies */
+"title.otherCurrencies" = "Other Currencies";
+
+/* Title for results */
+"title.results" = "Results";
+
+/* Title for insufficient funds */
+"title.insufficientFunds" = "Insufficient Funds";
+
+/* Title for Buy and Sell Kin */
+"title.buySellKin" = "Buy & Sell Kin";
+
+
+
+
+
+// MARK: - Subtitles -
+
+/* Subtitle for on code */
+"subtitle.onCode" = "On Code";
+
+/* Subtitle to indicate that value of Kin changes */
+"subtitle.valueKinChanges" = "The value of Kin changes.";
+
+/* Subtitle to indicate that you don't have Kin yet */
+"subtitle.dontHaveKin" = "You don't have any Kin yet.";
+
+/* Subtitle for learn more */
+"subtitle.learnMore" = "Learn more";
+
+/* Subtitle for sheet showing the value of the received bill in local currency */
+"subtitle.youReceived" = "You received";
+
+/* Subtitle for sheet showing the value of the referral bonus bill in local currency */
+"subtitle.referralBonusReceived" = "Referral bonus received";
+
+/* Subtitle to guide the user to enter an amount up to the maximum account balance */
+"subtitle.enterUpTo" = "Enter up to %@";
+
+/* Subtitle to guide the user that the entered amount is above the specified maximum */
+"subtitle.canOnlyGiveUpTo" = "You can only give up to %@";
+
+/* Subtitle for number of invites available */
+"subtitle.youHaveInvitesLeft" = "Code is currently invite only. You have %d remaining.";
+
+/* Subtitle for number of invites available */
+"subtitle.inviteCount" = "%d Invites";
+
+/* Subtitle for invite code */
+"subtitle.inviteCode" = "Invite Code";
+
+/* Subtitle for invite code description */
+"subtitle.inviteCodeDescription" = "Code is currently invite only. You will need an Invite Code to access the app.";
+
+/* Subtitle for number of invites available */
+"subtitle.youHaveInvites" = "You Have %d Invites";
+
+/* Subtitle for invite text */
+"subtitle.inviteText" = "Code is a new crypto wallet app that is currently invite only. To download Code go to %@";
+
+/* Subtitle for searching for contacts */
+"subtitle.searchForContacts" = "Search contact or phone number";
+
+/* Subtitle for phone number not found in contact list */
+"subtitle.phoneNotInContacts" = "This phone number is not in your Contacts. You can still invite them to Code.";
+
+/* Subtitle for organizing your contacts */
+"subtitle.organizingContacts" = "Organizing Your Contacts";
+
+/* Subtitle for how to deposit Kin into Code */
+"subtitle.howToDeposit" = "Deposit Kin into your Code wallet by sending Kin to your Deposit Address below. Tap to copy.";
+
+/* Subtitle for phone verification */
+"subtitle.phoneVerificationDescription" = "Enter your phone number including the country code.";
+
+/* Subtitle for explaining that an SMS was sent with a verification code */
+"subtitle.smsWasSent" = "An SMS message was sent to your phone number with a verification code. Please enter the verification code above.";
+
+/* Subtitle for didn't get a verification code */
+"subtitle.didntGetCode" = "Didn't get an SMS at %@?";
+
+/* Subtitle for didn't get a verification code and an action to resend */
+"subtitle.didntGetCodeResend" = "Didn't get an SMS? Resend";
+
+/* Subtitle for requesting a new verification code in X seconds */
+"subtitle.requestNewOneIn" = "Request a new one in %@";
+
+/* Subtitle for access key description */
+"subtitle.accessKeyDescription" = "Your Access Key is the only way to access your funds. Please keep it private and safe.";
+
+/* Subtitle for access key snapshot */
+"subtitle.accessKeySnapshotDescription" = "If you're on iOS15 or above, tap and hold the QR code to log in. Alternatively you can log in manually by entering the 12 words in the Code Log In screen.";
+
+/* Subtitle for logging in with access key */
+"subtitle.loginDescription" = "Check your photos for the Access Key you saved when you first created your account.";
+
+/* Subtitle for search currencies */
+"subtitle.searchCurrencies" = "Search currencies";
+
+/* Subtitle for where to withdraw Kin */
+"subtitle.whereToWithdrawKin" = "Where would you like to withdraw your Kin to?";
+
+/* Subtitle for entering a destination address */
+"subtitle.enterDestinationAddress" = "Enter destination address";
+
+/* Subtitle for access expired */
+"subtitle.accessExpiredDescription" = "Your invitation to access Code has expired. You can log out and use a different account with a valid invitation status.";
+
+/* Subtitle for no linked phone number */
+"subtitle.noLinkedPhoneNumber" = "No Linked\nPhone Number";
+
+/* Subtitle for no linked phone number */
+"subtitle.linkedPhoneNumberDescription" = "Your phone number is linked with this Code account. Friends can find you using this phone number.";
+
+/* Subtitle for no linked phone number */
+"subtitle.noLinkedPhoneNumberDescription" = "You don't have a phone number linked to this Code account. Link one so that your friends can discover you.";
+
+/* Subtitle for update required description */
+"subtitle.updateRequiredDescription" = "We've made some changes to improve the experience. You'll need to update the app to keep using Code.";
+
+/* Subtitle for allow camera access via settings */
+"subtitle.allowCameraSettings" = "You need to allow camera access to be able to receive Kin";
+
+/* Subtitle for allow camera access via prompt */
+"subtitle.allowCameraAccess" = "Code enables you to receive Kin by pointing your camera at the digital bill on another user's phone";
+
+/* Subtitle for enabling Face ID */
+"subtitle.enableFaceID" = "Enable Face ID to further enhance the security of transaction in Code.";
+
+/* Subtitle for disabling Face ID */
+"subtitle.disableFaceID" = "Disabling Face ID requires you to verify your identity.";
+
+/* Subtitle for using Face ID to verify giving kin */
+"subtitle.giveKinFaceID" = "Verify your identity to give kin.";
+
+/* Subtitle for using Face ID to verify withdrawing kin */
+"subtitle.withdrawKinFaceID" = "Verify your identity to withdraw kin.";
+
+/* Subtitle for using Face ID to verify viewing access key */
+"subtitle.accessKeyFaceID" = "Verify your identity to view your Access Key.";
+
+/* Subtitle for delete account confirmation description */
+"subtitle.deleteAccountDescription" = "Make sure you have your Secret Recovery Phrase saved, and then enter “Delete” to delete your Code account. This action is irreversible.";
+
+/* Subtitle for confirming account deletion  */
+"subtitle.typeDelete" = "Type \"%@\"";
+
+/* Subtitle for confirming account deletion  */
+"subtitle.delete" = "Delete";
+
+/* Subtitle for confirming logout and logging in with a new account */
+"subtitle.logoutAndLoginConfirmation" = "You're currently logged into an account. Please ensure you have saved your Access Key before proceeding. Would you like to logout and login with a new account?";
+
+/* Subtitle for remote send subject (where applicable) */
+"subtitle.remoteSendSubject" = "Here's %@";
+
+/* Subtitle for remote send title for the share sheet */
+"subtitle.remoteSendShareSheetTitle" = "Send %@";
+
+/* Subtitle for a description on getting more Kin */
+"subtitle.getKin" = "Code uses the cryptocurrency Kin for payments. Here are some ways to get more Kin into your Code wallet.";
+
+/* Subtitle for a description on getting a friend started on Code */
+"subtitle.getFriendStartedOnCode" = "Get $5 of Kin for free when you get a friend to sign up for Code and you send them their first Kin.";
+
+/* Subtitle for getting your first $1 of Kin for free */
+"subtitle.getYourFirstKinFree" = "Get Your First $1 of Kin for Free";
+
+/* Subtitle for coming soon */
+"subtitle.comingSoon" = "Coming Soon";
+
+/* Subtitle for invalid token account */
+"subtitle.invalidTokenAccount" = "Invalid destination account";
+
+/* Subtitle for valid token account */
+"subtitle.validTokenAccount" = "Valid token account";
+
+/* Subtitle for valid owner account */
+"subtitle.validOwnerAccount" = "Valid owner account";
+
+/* Subtitle for no network connection */
+"subtitle.noNetworkConnection" = "No network connection";
+
+/* Subtitle for insufficient funds description for payment requests */
+"subtitle.insufficientFundsDescription" = "Please get more Kin and then try paying again";
+
+/* Subtitle for Buy and Sell Kin */
+"subtitle.buySellDescription" = "Buying and selling Kin is currently a complex process. These processes will get simpler over time. If you want to learn how to buy and sell Kin today you can watch the walk through videos below.";
+
+/* Subtitle for loading balances */
+"subtitle.loadingBalance" = "Loading your balance and transaction history";
+
+/* Subtitle for welcome bonus */
+"subtitle.chat.welcomeBonus" = "Welcome Bonus";
+
+
+
+
+
+// MARK: - Permissions -
+
+/* Message that describes why the app needs camera permissions */
+"permissions.description.camera" = "Your camera is used to receive Kin. Please allow access to the camera to proceed.";
+
+/* Message that describes why the app needs push permissions */
+"permissions.description.push" = "We need push notifications to send you timely information about your account.";
+
+
+
+
+
+// MARK: - Login -
+
+/* Description for terms of service of service and privacy policy */
+"login.description.byTapping" = "By tapping \"Create an Account\" or \"Log In\" you";
+
+/* Description for terms of service of service and privacy policy  */
+"login.description.agreeToOur" = "agree to our";
+
+
+
+
+
+// MARK: - Delete Account -
+
+/* Title for delete account, what it will do */
+"deleteAccount.title.willDo" = "What deleting will do";
+
+/* Description for delete account, what it will do */
+"deleteAccount.description.willDo" = "Remove all information associated with your account from Code's servers (phone number, contacts, transaction history)";
+
+/* Title for delete account, what it won't do */
+"deleteAccount.title.wontDo" = "What deleting won't do";
+
+/* Description for delete account, what it won't do */
+"deleteAccount.description.wontDo" = "Remove your account from the blockchain";
+
+/* Title for delete account, what will happen */
+"deleteAccount.title.willHappen" = "What will happen";
+
+/* Description for delete account, what will happen */
+"deleteAccount.description.willHappen" = "You can access your account in other crypto wallet apps using your Secret Recovery Phrase. You won't be able to use your account in Code";
+
+
+
+
+
+// MARK: - Errors -
+
+/* Title when the user has insufficient kin to give */
+"error.title.insuffiecientKin" = "Insufficient Kin";
+
+/* Description when the user has insufficient kin to give */
+"error.description.insuffiecientKin" = "To learn how to get more Kin go to the FAQ in Settings.";
+
+/* Title when the user has reached their give limit per transaction */
+"error.title.giveAmountTooLarge" = "Give Limit Reached";
+
+/* Description when the user has reached their give limit per transaction */
+"error.description.giveAmountTooLarge" = "Code is designed for small, every day transactions that are for %@ or less.";
+
+/* Title when the user has reached their daily give limit */
+"error.title.giveLimitReached" = "Daily Limit Reached";
+
+/* Description when the user has reached their daily give limit */
+"error.description.giveLimitReached" = "Code is designed for small, every day transactions. Your daily give limit will increase tomorrow.";
+
+/* Title when the encounters no internet connection */
+"error.title.noInternet" = "No Internet Connection";
+
+/* Description when the encounters no internet connection */
+"error.description.noInternet" = "Please check your internet connection or try again later.";
+
+/* Title when the user hasn't been invited yet */
+"error.title.notInvitedYet" = "You Haven't Been Invited Yet";
+
+/* Description when the user hasn't been invited yet */
+"error.description.notInvitedYet" = "To join the waitlist go to %@";
+
+/* Title when the phone number confirmation code failed to send */
+"error.title.failedToSendCode" = "Failed to Send";
+
+/* Description when the phone number confirmation code failed to send */
+"error.description.failedToSendCode" = "Something went wrong. Please ensure that you are using a phone number that was invited and that it is entered correctly.";
+
+/* Title when the phone number verification failed */
+"error.title.failedToVerifyPhone" = "Failed to Confirm";
+
+/* Description when the phone number verification failed */
+"error.description.failedToVerifyPhone" = "Something went wrong. Please try again.";
+
+/* Title when an invalid phone verification code is entered */
+"error.title.invalidVerificationCode" = "Invalid Code";
+
+/* Description when an invalid phone verification code is entered */
+"error.description.invalidVerificationCode" = "Please enter a valid code and try again.";
+
+/* Title when maximum attempts has been reached for phone verification */
+"error.title.maxAttemptsReached" = "Maximum Attempts Reached";
+
+/* Description when maximum attempts has been reached for phone verification */
+"error.description.maxAttemptsReached" = "Please re-enter your phone number and try again.";
+
+/* Title when phone verification code has timed out */
+"error.title.codeTimedOut" = "Verification Code Timed Out";
+
+/* Description when phone verification code has timed out */
+"error.description.codeTimedOut" = "Please re-enter your phone number and try again.";
+
+/* Title when save to photos fails */
+"error.title.failedToSave" = "Failed to Save";
+
+/* Description when save to photos fails */
+"error.description.failedToSave" = "Please allow Code access to Photos in Settings in order to save your Access Key.";
+
+/* Title when camera access is required */
+"error.title.cameraAccessRequired" = "Camera Access Required";
+
+/* Description when camera access is required */
+"error.description.cameraAccessRequired" = "Please allow access to the camera in Settings to use Code.";
+
+/* Title when contacts access is required */
+"error.title.contactsAccessRequired" = "Contacts Access Required";
+
+/* Description when contacts access is required */
+"error.description.contactsAccessRequired" = "Please allow access to the contacts in Settings to send invites.";
+
+/* Title when account creation failed */
+"error.title.failedToCreateAccount" = "Failed to Create Account";
+
+/* Description when account creation failed */
+"error.description.failedToCreateAccount" = "We weren't expecting that to happen. Something went wrong. Please try creating this account again.";
+
+/* Title when too many accounts are created (anti-spam) */
+"error.title.tooManyAccounts" = "Too many accounts created";
+
+/* Description when too many accounts are created (anti-spam) */
+"error.description.tooManyAccounts" = "You can only create so many new accounts each day.";
+
+/* Title when unlocked account is trying to login */
+"error.title.timelockUnlocked" = "Access Key No Longer Usable in Code";
+
+/* Description when unlocked account is trying to login */
+"error.description.timelockUnlocked" = "Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key in Code.";
+
+/* Title when contact invitation failed */
+"error.title.invitationFailed" = "Invitation Failed";
+
+/* Description when contact invitation failed */
+"error.description.invitationFailed" = "Sorry, we experienced a network issue. Please try inviting your friend again.";
+
+/* Title when no invites left to invite contacts */
+"error.title.noInvitesLeft" = "You Have No Invites";
+
+/* Description when no invites left to invite contacts */
+"error.description.noInvitesLeft" = "Code is currently invite-only. We will notify you when there are more invites available.";
+
+/* Title when withdrawal fails */
+"error.title.failedWithdrawal" = "Transaction Failed";
+
+/* Description when withdrawal fails */
+"error.description.failedWithdrawal" = "Failed to withdraw your funds. Something went wrong, please attempt your withdrawal again.";
+
+/* Title when inviting an invalid phone number */
+"error.title.invalidInvitePhone" = "Invalid Phone Number";
+
+/* Description when inviting an invalid phone number */
+"error.description.invalidInvitePhone" = "Please enter a valid phone number and try again.";
+
+/* Title when using an invalid invite code */
+"error.title.invalidInviteCode" = "Invite Code Invalid or Expired";
+
+/* Description when using an invalid invite code */
+"error.description.invalidInviteCode" = "Please enter a different Invite Code and try again.";
+
+/* Title when remote send Kin link has expired */
+"error.title.linkExpired" = "Link Expired";
+
+/* Description when remote send Kin link has expired */
+"error.description.linkExpired" = "This Kin was automatically returned to the sender because it wasn't collected within 24 hours. Please ask them to send the Kin again.";
+
+/* Title when remote send Kin has already been collected */
+"error.title.alreadyCollectedBySomeone" = "Kin Already Collected";
+
+/* Description when remote send Kin has already been collected */
+"error.description.alreadyCollectedBySomeone" = "This Kin was already collected by someone.";
+
+/* Title when remote send Kin has already been collected */
+"error.title.cashExpired" = "Cash Expired";
+
+/* Description when remote send Kin has already been collected */
+"error.description.cashExpired" = "This cash has expired.";
+
+
+
+
+
+// MARK: - Prompts -
+
+/* Title when withdrawal succeeds */
+"success.title.withdrawalComplete" = "Withrawal Successful";
+
+/* Description when withdrawal succeeds */
+"success.description.withdrawalComplete" = "Your funds have been successfully withdrawn.";
+
+
+
+
+
+// MARK: - Prompts -
+
+/* Prompt title to log out of the app */
+"prompt.title.logout" = "Are you sure you want to log out?";
+
+/* Prompt description for logout consequences */
+"prompt.description.logout" = "You can get back into this account using your Access Key";
+
+/* Prompt title to delete account */
+"prompt.title.deleteAccount" = "Are you sure you want to delete this account?";
+
+/* Prompt description to delete account */
+"prompt.description.deleteAccount" = "All funds in this account will be lost. Deleting your account is permanent and cannot be undone. Are you sure you want to delete this account?";
+
+/* Prompt title for viewing user's Access Key */
+"prompt.title.viewAccessKey" = "View Your Access Key?";
+
+/* Prompt description for viewing user's Access Key */
+"prompt.description.viewAccessKey" = "Your Access Key will grant access to your Code account. Keep it private and safe.";
+
+/* Prompt title when bypassing 'save to photos' flow */
+"prompt.title.wroteThemDown" = "Are You Sure?";
+
+/* Prompt description when bypassing 'save to photos' flow */
+"prompt.description.wroteThemDown" = "These 12 words are the only way to recover your Code account. Make sure you wrote them down, and keep them private and safe.";
+
+/* Prompt title when attempting to exit account creation */
+"prompt.title.exitAccountCreation" = "Are you sure you want to exit?";
+
+/* Prompt description when attempting to exit account creation */
+"prompt.description.exitAccountCreation" = "You will need to restart account creation and verify your phone number again.";
+
+/* Prompt title when attempting to login using an external non-Code account */
+"prompt.title.notCodeAccount" = "Not a Code Account";
+
+/* Prompt description when attempting to login using an external non-Code account */
+"prompt.description.notCodeAccount" = "Only accounts created through Code are currently supported.";
+
+/* Prompt title when confirming withdrawal */
+"prompt.title.confirmWithdrawal" = "Are you sure?";
+
+/* Prompt description when confirming withdrawal */
+"prompt.description.confirmWithdrawal" = "Withdrawals are irreversible and cannot be undone once initiated.";
+
+/* Prompt title when unlinking phone number */
+"prompt.title.unlinkPhoneNumber" = "Are you sure?";
+
+/* Prompt description when unlinking phone number */
+"prompt.description.unlinkPhoneNumber" = "Your friends will no longer be able to find you with this phone number.";
+
+/* Prompt title when confirming remote send link was sent */
+"prompt.title.didYouSendLink" = "Did you send the link?";
+
+/* Prompt description when confirming remote send link was sent */
+"prompt.description.didYouSendLink" = "Any Kin that isn't collected within 24 hours will be automatically returned to your balance.";
+
+
+
+
+
+// MARK: - FAQ -
+
+"faq.q._1" = "What is Code?";
+"faq.a._1" = "Code is a payments app that makes it simple to send money to anyone, anywhere in the world.";
+
+"faq.q._2" = "How does Code achieve this?";
+"faq.a._2" = "Code is built using blockchain technology. This enables Code to offer global payments that are fast, free, and private.";
+
+"faq.q._3" = "Why are Code payments denominated in Kin?";
+"faq.a._3" = "Kin is a cryptocurrency like Bitcoin, only optimized for small, everyday transactions. Kin is what enables payments to be fast and free.";
+
+"faq.q._4" = "Where is my Kin stored?";
+"faq.a._4" = "Your Kin is stored on the Solana blockchain. Only your Access Key can be used to access it.";
+
+"faq.q._5" = "What if I send Kin to the wrong person?";
+"faq.a._5" = "Kin is like cash. The only way to get it back is for them to give it back.";
+
+"faq.q._6" = "Are there any fees when making payments in different currencies?";
+"faq.a._6" = "No there aren't. Exchange rates are updated in real time and no fees are added.";
+
+"faq.q._7" = "How do I get more Kin?";
+"faq.a._7" = "Buying Kin is currently a bit complicated. This will get easier over time as new features are launched. For now the simplest way to buy Kin is from a friend who already has Code. You can find other ways at [reddit.com/r/buykin](https://www.reddit.com/r/buykin/)";
+
+"faq.q._8" = "Can I sell my Kin?";
+"faq.a._8" = "Yes you can. Kin can be sold on cryptocurrency exchanges. If you need help ask a friend who knows crypto.";
+
+"faq.q._9" = "Why does the value of Kin change?";
+"faq.a._9" = "Similar to other cryptocurrencies the value of Kin is based on supply and demand. If more people buy Kin the value increases. If more people sell Kin the value decreases.";
+
+"faq.q._10" = "How does Code make money?";
+"faq.a._10" = "We plan to sustain ourselves through an upcoming subscription model, similar to what Signal and Twitter do.";
+
+"faq.q._11" = "What will Code do with the money it makes?";
+"faq.a._11" = "As a not-for-profit organization all the money we make will be reinvested into our mission of driving global financial inclusion. Your support is appreciated.";
+
+
+
+
+
+// MARK: - Push Notifications -
+
+"push.title.newOnCode" = "New on Code";
+
+"push.subtitle.newSendCash" = "Send cash through any messenger app";
+
+"push.subtitle.newGetFriendStarted" = "Get a friend started on Code and get $5";
+
+"push.title.depositReceived" = "Deposit Received";
+
+"push.subtitle.depositReceived" = "%@ Kin was deposited into your account.";
+
+"push.title.kinReturned" = "Kin Returned";
+
+"push.subtitle.kinReturned" = "The %@ you sent yesterday wasn't collected. It has been automatically returned to your balance.";
+
+"push.title.referralBonus" = "Referral Bonus Received";
+
+"push.subtitle.referralBonus" = "You received %@ of Kin for sending someone their first Kin.";
+
+
+
+
+
+// MARK: - Web -
+
+"action.collectCash" = "Collect This Cash";
+
+"action.downloadNow" = "Download It Now";
+
+"subtitle.dontHaveCodeApp" = "Don't have the Code Wallet app?";
+
+"subtitle.scanThisQRCode" = "Scan this QR code with your phone's camera to download the Code Wallet app";
+
+"subtitle.someoneSendYouCash" = "Someone sent you cash";
+
+"subtitle.openAndPointCamera" = "Open the Code app and point your camera to grab this cash";
+
+
+
+
+
+// MARK: - Chat -
+
+/* Title for Code Team */
+"title.chat.codeTeam" = "Code Team";
+
+/* Title for cash transactions */
+"title.chat.cashTransactions" = "Cash Payments";
+
+/* Title for payments */
+"title.chat.payments" = "Web Payments";

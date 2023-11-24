@@ -1,0 +1,1167 @@
+syntax = "proto3";
+
+package code.transaction.v2;
+
+option go_package = "github.com/code-wallet/code-api/genproto/transaction/v2;transaction";
+option java_package = "com.codeinc.gen.transaction.v2";
+option objc_class_prefix = "APBTransactionV2";
+
+import "common/v1/model.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+service Transaction {
+    // SubmitIntent is the mechanism for client and server to agree upon a set of
+    // transactions to execute on the blockchain.
+    //
+    // Transactions are never exchanged between client and server. Instead, the
+    // required accounts and arguments for instructions known to each actor are
+    // exchanged to allow independent and local transaction construction.
+    //
+    // Client and server are expected to fully validate the intent. Proofs will
+    // be provided for any parameter requiring one. Signatures should only be
+    // generated after approval of all transactions.
+    //
+    // This RPC is not a traditional streaming endpoint. It bundles two unary calls
+    // to enable DB-level transaction semantics.
+    //
+    // The high-level happy path flow for the RPC is as follows:
+    //   1.  Client initiates a stream and sends SubmitIntentRequest.SubmitActions
+    //   2.  Server validates the intent, its actions and metadata
+    //   3a. If there are transactions requiring the user's signature, then server
+    //       returns SubmitIntentResponse.ServerParameters
+    //   3b. Otherwise, server returns SubmitIntentResponse.Success and closes the
+    //       stream
+    //   4.  For each transaction requiring the user's signature, the client locally
+    //       constructs it, performs validation and collects the signature
+    //   5.  Client sends SubmitIntentRequest.SubmitSignatures with the signature
+    //       list generated from 4
+    //   6.  Server validates all signatures are submitted and are the expected values
+    //       using locally constructed transactions.
+    //   7.  Server returns SubmitIntentResponse.Success and closes the stream
+    // In the error case:
+    //   * Server will return SubmitIntentResponse.Error and close the stream
+    //   * Client will close the stream
+    rpc SubmitIntent(stream SubmitIntentRequest) returns (stream SubmitIntentResponse);
+
+    // GetIntentMetadata gets basic metadata on an intent. It can also be used
+    // to fetch the status of submitted intents. Metadata exists only for intents
+    // that have been successfully submitted.
+    rpc GetIntentMetadata(GetIntentMetadataRequest) returns (GetIntentMetadataResponse);
+
+    // GetPrivacyUpgradeStatus gets the status of a private transaction and the
+    // ability to upgrade it to permanent privacy.
+    rpc GetPrivacyUpgradeStatus(GetPrivacyUpgradeStatusRequest) returns (GetPrivacyUpgradeStatusResponse);
+
+    // GetPrioritizedIntentsForPrivacyUpgrade allows clients to get private
+    // intent actions that can be upgraded in a secure and verifiable manner.
+    rpc GetPrioritizedIntentsForPrivacyUpgrade(GetPrioritizedIntentsForPrivacyUpgradeRequest) returns (GetPrioritizedIntentsForPrivacyUpgradeResponse);
+
+    // GetLimits gets limits for money moving intents for an owner account in an
+    // identity-aware manner
+    rpc GetLimits(GetLimitsRequest) returns (GetLimitsResponse);
+
+    // GetPaymentHistory gets an owner account's payment history inferred from intents
+    //
+    // Deprecated: Payment history has migrated to chats
+    rpc GetPaymentHistory(GetPaymentHistoryRequest) returns (GetPaymentHistoryResponse);
+
+    // CanWithdrawToAccount provides hints to clients for submitting withdraw intents.
+    // The RPC indicates if a withdrawal is possible, and how it should be performed.
+    rpc CanWithdrawToAccount(CanWithdrawToAccountRequest) returns (CanWithdrawToAccountResponse);
+
+    // Airdrop airdrops Kin to the requesting account
+    rpc Airdrop(AirdropRequest) returns (AirdropResponse);
+}
+
+//
+// Request and Response Definitions
+//
+
+message SubmitIntentRequest {
+    oneof request {
+        option (validate.required) = true;
+
+        SubmitActions submit_actions = 1;
+        SubmitSignatures submit_signatures = 2;
+    }
+
+    message SubmitActions {
+        // The globally unique client generated intent ID. Use the original intent
+        // ID when operating on actions that mutate the intent.
+        common.v1.IntentId id = 1 [(validate.rules).message.required = true];
+        
+        // The verified owner account public key
+        common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
+
+        // Additional metadata that describes the high-level intention
+        Metadata metadata = 3 [(validate.rules).message.required = true];
+
+        // The set of all ordered actions required to fulfill the intent
+        repeated Action actions = 4 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 256 // Arbitrary
+        }];
+
+        // The signature is of serialize(SubmitActions) without this field set using the
+        // private key of the owner account. This provides an authentication mechanism
+        // to the RPC.
+        common.v1.Signature signature = 5 [(validate.rules).message.required = true];
+
+        // Device token for antispam measures against fake devices
+        common.v1.DeviceToken device_token = 6;
+    }
+
+    message SubmitSignatures {
+        // The set of all signatures for each transaction requiring signature from the
+        // authority accounts.
+        repeated common.v1.Signature signatures = 1 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 256 // Assumes at most 1 client signatures per action
+        }];
+    }
+}
+
+message SubmitIntentResponse {
+    oneof response {
+        option (validate.required) = true;
+
+        ServerParameters server_parameters = 1;
+        Success          success = 2;
+        Error            error = 3;
+    }
+
+    message ServerParameters {
+        // The set of all server paremeters required to fill missing transaction
+        // details. Server guarantees to provide a message for each client action
+        // in an order consistent with the received action list. 
+        repeated ServerParameter server_parameters = 1 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 256 // Arbitrary, but must match SubmitActions.actions.max_items
+        }];
+    }
+
+    message Success {
+        Code code = 1;
+        enum Code {
+            // The intent was successfully created and is now scheduled.
+            OK = 0;
+        }
+
+       // todo: Revisit if we need side-effects. Clients are effecitively doing
+       //       local simulation now for privacy V3.
+    }
+
+    message Error {
+        Code code = 1;
+        enum Code {
+            // Denied by a guard (spam, money laundering, etc)
+            DENIED = 0;
+            // The intent is invalid.
+            INVALID_INTENT = 1;
+            // There is an issue with provided signatures.
+            SIGNATURE_ERROR = 2;
+            // Server detected client has stale state.
+            STALE_STATE = 3;
+        }
+
+        repeated ErrorDetails error_details = 2;
+    }
+}
+
+message GetIntentMetadataRequest {
+    // The intent ID to query
+    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+
+    // The verified owner account public key when not signing with the rendezvous
+    // key. Only owner accounts involved in the intent can access the metadata.
+    common.v1.SolanaAccountId owner = 2;
+
+    // The signature is of serialize(GetIntentStatusRequest) without this field set
+    // using the private key of the rendezvous or owner account. This provides an
+    // authentication mechanism to the RPC.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message GetIntentMetadataResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        NOT_FOUND = 1;
+    }
+
+    Metadata metadata = 2;
+}
+
+message GetPrivacyUpgradeStatusRequest {
+    // The intent ID
+    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+
+    // The action ID for private transaction
+    uint32 action_id = 2;
+}
+
+message GetPrivacyUpgradeStatusResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The provided intent ID doesn't exist
+        INTENT_NOT_FOUND = 1;
+        // The provided action ID doesn't exist
+        ACTION_NOT_FOUND = 2;
+        // The provided action doesn't map to a private transaction
+        INVALID_ACTION = 3;
+    }
+
+    Status status = 2;
+    enum Status {
+        UNKNOWN = 0;
+        // The transaction for the temporary private transaction was submitted and
+        // finalized. The opportunity to upgrade was missed.
+        TEMPORARY_TRANSACTION_FINALIZED = 1;
+        // The next block of transactions hasn't been created. Wait and try again
+        // later.
+        WAITING_FOR_NEXT_BLOCK = 2;
+        // The transaction can be upgraded to permanent privacy
+        READY_FOR_UPGRADE = 3;
+        // The transaction has already been upgraded
+        ALREADY_UPGRADED = 4;
+    }
+}
+
+message GetPrioritizedIntentsForPrivacyUpgradeRequest {
+    // The owner account to query against for upgradeable intents.
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // The maximum number of intents to return in the response. Default is 10.
+    uint32 limit = 2 [(validate.rules).uint32.lte = 100];
+
+    // The signature is of serialize(GetPrioritizedIntentsForPrivacyUpgradeRequest)
+    // without this field set using the private key of the owner account. This
+    // provides an authentication mechanism to the RPC.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message GetPrioritizedIntentsForPrivacyUpgradeResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        NOT_FOUND = 1;
+    }
+
+    // Ordered from highest to lowest priority
+    repeated UpgradeableIntent items = 2 [(validate.rules).repeated = {
+        max_items: 100
+    }];
+}
+
+message GetLimitsRequest {
+    // The owner account whose limits will be calculated. Any other owner accounts
+    // linked with the same identity of the owner will also be applied.
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(GetLimitsRequest) without this field set
+    // using the private key of the owner account. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // All transactions starting at this time will be incorporated into the consumed
+    // limit calculation. Clients should set this to the start of the current day in
+    // the client's current time zone (because server has no knowledge of this atm).
+    google.protobuf.Timestamp consumed_since = 3 [(validate.rules).timestamp.required = true];
+}
+
+message GetLimitsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+
+    // Remaining send limits keyed by currency
+    map<string, RemainingSendLimit> remaining_send_limits_by_currency = 2;
+
+    // Deposit limits
+    DepositLimit deposit_limit = 3;
+
+    // Micro payment limits keyed by currency
+    map<string, MicroPaymentLimit> micro_payment_limits_by_currency = 4;
+}
+
+message GetPaymentHistoryRequest {
+    // The owner account to get payment history for
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // An optional history cursor indicating where in the history to resume from.
+    Cursor cursor = 2;
+
+    // The number of results to return per request. Default is 100.
+    uint32 page_size = 3 [(validate.rules).uint32.lte = 100];
+
+    // The order in which to return history items from the cursor.
+    Direction direction = 4;
+    enum Direction {
+        // ASC direction returns all history items in ascending order.
+        ASC  = 0;
+
+        // DESC direction returns all history items in descending order.
+        DESC = 1;
+    }
+
+    // The signature is of serialize(GetPaymentHistoryRequest) without this field set
+    // using the private key of the owner account. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 5 [(validate.rules).message.required = true];
+}
+
+message GetPaymentHistoryResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        NOT_FOUND = 1;
+    }
+
+    repeated PaymentHistoryItem items = 2 [(validate.rules).repeated = {
+        max_items: 100
+    }];
+}
+
+message CanWithdrawToAccountRequest {
+   common.v1.SolanaAccountId account = 1 [(validate.rules).message.required = true];
+}
+
+message CanWithdrawToAccountResponse {
+    // Metadata so the client knows how to withdraw to the account. Server cannot
+    // provide precalculated addresses in this response to maintain non-custodial
+    // status.
+    AccountType account_type = 2;
+    enum AccountType {
+        Unknown = 0;      // Server cannot determine
+        TokenAccount = 1; // Client uses the address as is in SubmitIntent
+        OwnerAccount = 2; // Client locally derives the ATA to use in SubmitIntent
+    }
+
+    // Server-controlled flag to indicate if the account can be withdrawn to.
+    // There are several reasons server may deny it, including:
+    //  - Wrong type of Code account
+    //  - Not wanting to subsidize the creation of an ATA
+    //  - Unsupported external account type (eg. token account but of the wrong mint)
+    // This is guaranteed to be false when account_type = Unknown.
+    bool is_valid_payment_destination = 1;
+
+    // Token account requires initialization before the withdrawal can occur.
+    // Server has chosen not to subsidize the fees. The response is guaranteed
+    // to have set is_valid_payment_destination = false in this case.
+    bool requires_initialization = 3;
+}
+
+message AirdropRequest {
+    // The type of airdrop to claim
+    AirdropType airdrop_type = 1 [(validate.rules).enum = {
+        not_in: [0, 1] // UNKNOWN, GIVE_FIRST_KIN
+    }];
+
+    // The owner account to airdrop Kin to
+    common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(AirdropRequest) without this field set
+    // using the private key of the owner account. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message AirdropResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // Airdrops are unavailable
+        UNAVAILABLE = 1;
+        // The airdrop has already been claimed by the owner
+        ALREADY_CLAIMED = 2;
+    }
+
+    // Exchange data for the amount of Kin airdropped when successful
+    ExchangeData exchange_data = 2;
+}
+
+//
+// Metadata definitions
+//
+
+// Metadata describes the high-level details of an intent
+message Metadata {
+    oneof type {
+        option (validate.required) = true;
+
+        OpenAccountsMetadata             open_accounts              = 1;
+        SendPrivatePaymentMetadata       send_private_payment       = 2;
+        ReceivePaymentsPrivatelyMetadata receive_payments_privately = 3;
+        UpgradePrivacyMetadata           upgrade_privacy            = 4;
+        MigrateToPrivacy2022Metadata     migrate_to_privacy_2022    = 5;
+        SendPublicPaymentMetadata        send_public_payment        = 6;
+        ReceivePaymentsPubliclyMetadata  receive_payments_publicly  = 7;
+        EstablishRelationshipMetadata    establish_relationship     = 8;
+    }
+}
+
+// Open a set of accounts. Currently, clients should only use this for new users
+// to open all required accounts up front (buckets, incoming, and outgoing).
+//
+// Action Spec:
+//
+// actions = [OpenAccountAction(PRIMARY)]
+// for account in [TEMPORARY_INCOMING, TEMPORARY_OUTGOING, BUCKET_1_KIN, ... , BUCKET_1_000_000_KIN]
+//   actions.push_back(OpenAccountAction(account))
+//   actions.push_back(CloseDormantAccount(account))
+message OpenAccountsMetadata {
+    // Nothing is currently required
+}
+
+// Sends a payment to a destination account with initial temporary privacy. Clients
+// should also reorganize their bucket accounts and rotate their temporary outgoing
+// account.
+//
+// Action Spec (In Person Cash Payment or Withdrawal):
+//
+// actions = [
+//   // Section 1: Transfer ExchangeData.Quarks from BUCKET_X_KIN accounts to TEMPORARY_OUTGOING account with reogranizations
+//
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
+//   ...,
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
+//
+//   // Section 2: Rotate TEMPORARY_OUTGOING account
+//
+//   // Below must appear last in this exact order
+//   NoPrivacyWithdrawAction(TEMPORARY_OUTGOING[index], destination, ExchangeData.Quarks),
+//   OpenAccountAction(TEMPORARY_OUTGOING[index + 1]),
+//   CloseDormantAccount(TEMPORARY_OUTGOING[index + 1]),
+// ]
+//
+// Action Spec (Remote Send):
+//
+// actions = [
+//   // Section 1: Open REMOTE_SEND_GIFT_CARD account
+//
+//   OpenAccountAction(REMOTE_SEND_GIFT_CARD),
+//
+//   // Section 2: Transfer ExchangeData.Quarks from BUCKET_X_KIN accounts to TEMPORARY_OUTGOING account with reogranizations
+//
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
+//   ...,
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
+//
+//   // Section 3: Rotate TEMPORARY_OUTGOING account
+//
+//   // Below must appear last in this exact order
+//   NoPrivacyWithdrawAction(TEMPORARY_OUTGOING[index], REMOTE_SEND_GIFT_CARD, ExchangeData.Quarks),
+//   OpenAccountAction(TEMPORARY_OUTGOING[index + 1]),
+//   CloseDormantAccount(TEMPORARY_OUTGOING[index + 1]),
+//
+//   // Section 4: Close REMOTE_SEND_GIFT_CARD if not redeemed after period of time
+//
+//   CloseDormantAccount(REMOTE_SEND_GIFT_CARD),
+//
+// Action Spec (Micro Payment):
+//
+// actions = [
+//   // Section 1: Transfer ExchangeData.Quarks from BUCKET_X_KIN accounts to TEMPORARY_OUTGOING account with reogranizations
+//
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
+//   ...,
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
+//
+//   // Section 2: Rotate TEMPORARY_OUTGOING account
+//
+//   // Below must appear last in this exact order
+//   FeePayment(TEMPORARY_OUTGOING[index], feeAccount, $0.01 USD of Kin),
+//   NoPrivacyWithdrawAction(TEMPORARY_OUTGOING[index], destination, ExchangeData.Quarks - $0.01 USD of Kin),
+//   OpenAccountAction(TEMPORARY_OUTGOING[index + 1]),
+//   CloseDormantAccount(TEMPORARY_OUTGOING[index + 1]),
+// ]
+message SendPrivatePaymentMetadata {
+    // The destination token account to send funds to
+    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
+
+    // The exchange data of total funds being sent to the destination
+    ExchangeData exchange_data = 2 [(validate.rules).message.required = true];
+
+    // Is the payment a withdrawal? For destinations that are not Code temporary
+    // accounts, this must be set to true.
+    bool is_withdrawal = 3;
+
+    // Is the payment for a remote send?
+    bool is_remote_send = 4;
+}
+
+// Send a payment to a destination account publicly.
+//
+// Action Spec:
+//
+// actions = [NoPrivacyTransferAction(PRIMARY, destination, ExchangeData.Quarks)]
+message SendPublicPaymentMetadata {
+    // The destination token account to send funds to. This cannot be a Code
+    // temporary account.
+    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
+
+    // The exchange data of total funds being sent to the destination
+    ExchangeData exchange_data = 2 [(validate.rules).message.required = true];
+
+    // Is the payment a withdrawal? Currently, this is always true.
+    bool is_withdrawal = 3 [(validate.rules).bool.const = true];;
+}
+
+// Receive funds into an organizer with initial temporary privacy. Clients should
+// also reorganize their bucket accounts and rotate their temporary incoming account
+// as applicable. Only accounts owned and derived by a user's 12 words should operate
+// as a source in this intent type to guarantee privacy upgradeability.
+//
+// Action Spec (Payment):
+//
+// actions = [
+//   // Section 1: Transfer Quarks from TEMPORARY_INCOMING account to BUCKET_X_KIN accounts with reorganizations
+//
+//   TemporaryPrivacyTransferAction(TEMPORARY_INCOMING[index], BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   ...,
+//   TemporaryPrivacyTransferAction(TEMPORARY_INCOMING[index], BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//
+//   // Section 2: Rotate TEMPORARY_INCOMING account
+//
+//   // Below must appear last in this exact order
+//   CloseEmptyAccountAction(TEMPORARY_INCOMING[index]),
+//   OpenAccountAction(TEMPORARY_INCOMING[index + 1])
+//   CloseDormantAccount(TEMPORARY_INCOMING[index + 1]),
+// ]
+//
+// Action Spec (Deposit):
+//
+// actions = [
+//   TemporaryPrivacyTransferAction(PRIMARY, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+//   ...,
+//   TemporaryPrivacyTransferAction(PRIMARY, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
+// ]
+message ReceivePaymentsPrivatelyMetadata {
+    // The temporary incoming or primary account to receive funds from
+    common.v1.SolanaAccountId source = 1 [(validate.rules).message.required = true];
+
+    // The exact amount of Kin in quarks being received
+    uint64 quarks = 2 [(validate.rules).uint64.gt = 0];
+
+    // Is the receipt of funds from a deposti? If true, the source account must
+    // be the primary account. Otherwise, it must be from a temporary incoming
+    // account.
+    bool is_deposit = 3;
+}
+
+// Receive funds into a user-owned account publicly. All use cases of this intent
+// close the account, so all funds must be moved. Use this intent to receive payments
+// from an account not owned by a user's 12 words into a temporary incoming account,
+// which will guarantee privacy upgradeability.
+//
+// Action Spec (Remote Send):
+//
+// actions = [NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, TEMPORARY_INCOMING[latest_index], quarks)]
+message ReceivePaymentsPubliclyMetadata {
+    // The remote send gift card to receive funds from
+    common.v1.SolanaAccountId source = 1 [(validate.rules).message.required = true];
+
+    // The exact amount of Kin in quarks being received
+    uint64 quarks = 2 [(validate.rules).uint64.gt = 0];
+
+    // Is the receipt of funds from a remote send gift card? Currently, this is
+    // the only use case for this intent and validation enforces the flag to true.
+    bool is_remote_send = 3 [(validate.rules).bool.const = true];
+
+    // If is_remote_send is true, is the gift card being voided? The user owner
+    // account's 12 words that issued the gift card may only set this flag to true.
+    // Functionally, this doesn't affect the intent, but rather if we decide to show
+    // it in a user-friendly payment history.
+    bool is_issuer_voiding_gift_card = 4;
+
+    // If is_remote_send is true, the original exchange data that was provided as
+    // part of creating the gift card account. This is purely a server-provided value.
+    // SubmitIntent will disallow this being set.
+    ExchangeData exchange_data = 5;
+}
+
+// Upgrade existing private transactions from temporary to permanent privacy.
+message UpgradePrivacyMetadata {
+    // Nothing is currently required
+}
+
+// Migrates existing users prior to the privacy implementation by:
+//  1. If there are funds in the LEGACY_PRIMARY_2022 account, then move them
+//     to the new PRIMARY account, so the client can later simulate a deposit
+//     by submitting a *separate* ReceivePaymentsPrivately intent.
+//  2. Close the LEGACY_PRIMARY_2022 account.
+//
+// Prereqs:
+//  - OpenAccounts intent has been submitted
+//
+// Action spec:
+//
+// if balance == 0 {
+//    actions = [CloseEmptyAccountAction(LEGACY_PRIMARY_2022)]
+// } else {
+//    actions = [NoPrivacyWitdraw(LEGACY_PRIMARY_2022, PRIMARY, Quarks)]
+// }
+message MigrateToPrivacy2022Metadata {
+    // The exact amount of Kin in quarks being migrated. Set this to zero if
+    // the account is empty.
+    uint64 quarks = 1;
+}
+
+// Establishes a long-lived private relationship between a user and another
+// entity.
+//
+// Prereqs:
+//  - OpenAccounts intent has been submitted
+//
+// Action spec:
+//
+// actions = [OpenAccountAction(RELATIONSHIP)]
+message EstablishRelationshipMetadata {
+   common.v1.Relationship relationship = 1 [(validate.rules).message.required = true];
+}
+
+//
+// Action Definitions
+//
+
+// Action is a well-defined, ordered and small set of transactions for a unit of work
+// that the client wants to perform on the blockchain. Clients provide parameters known
+// to them in the action.
+message Action {
+    // The ID of this action, which is unique within an intent. It must match
+    // the index of the action's location in the SubmitAction's actions field.
+    uint32 id = 1;
+
+    // The type of action to perform.
+    oneof type {
+        option (validate.required) = true;
+
+        OpenAccountAction              open_account               = 2;
+        CloseEmptyAccountAction        close_empty_account        = 3;
+        CloseDormantAccountAction      close_dormant_account      = 4;
+        NoPrivacyTransferAction        no_privacy_transfer        = 5;
+        NoPrivacyWithdrawAction        no_privacy_withdraw        = 6;
+        TemporaryPrivacyTransferAction temporary_privacy_transfer = 7;
+        TemporaryPrivacyExchangeAction temporary_privacy_exchange = 8;
+        PermanentPrivacyUpgradeAction  permanent_privacy_upgrade  = 9;
+        FeePaymentAction               fee_payment                = 10;
+    }
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. timelock::Initialize
+//  Client Signature Required: No
+//
+// All OpenAccountActions for non-primary accounts must be followed with an associated
+// CloseDormantAccountAction to enable server to perform cleanup.
+message OpenAccountAction {
+    // The type of account, which will dictate its intended use
+    common.v1.AccountType account_type = 1 [(validate.rules).enum.not_in = 0];
+
+    // The owner of the account. For accounts liked to a user's 12 words, this is
+    // the verified parent owner account public key. All other account types should
+    // set this to the authority value.
+    common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
+
+    // The index used to for accounts that are derived from owner. Ignore this for
+    // the primary account.
+    uint64 index = 3;
+
+    // The public key of the private key that has authority over the opened token account
+    common.v1.SolanaAccountId authority = 4 [(validate.rules).message.required = true];
+
+    // The token account being opened
+    common.v1.SolanaAccountId token = 5 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(OpenAccountAction) without this field set
+    // using the private key of the authority account. This provides a proof
+    // of authorization to link authority to owner.
+    common.v1.Signature authority_signature = 6 [(validate.rules).message.required = true];
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. timelock::BurnDustWithAuthority (max 1 Kin)
+//    3. timelock::CloseAccounts
+//  Client Signature Required: Yes
+message CloseEmptyAccountAction {
+    // The type of account being closed
+    common.v1.AccountType account_type = 1 [(validate.rules).enum.not_in = 0];
+
+    // The public key of the private key that has authority over the token account
+    // that should be closed
+    common.v1.SolanaAccountId authority = 2 [(validate.rules).message.required = true];
+
+    // The token account being closed
+    common.v1.SolanaAccountId token = 3 [(validate.rules).message.required = true];
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. timelock::RevokeLockWithAuthority
+//    4. timelock::DeactivateLock
+//    5. timelock::Withdraw (token -> primary)
+//    6. timelock::CloseAccounts
+//  Client Signature Required: Yes
+message CloseDormantAccountAction {
+    // The type of account being closed
+    common.v1.AccountType account_type = 1 [(validate.rules).enum.not_in = 0];
+
+    // The public key of the private key that has authority over the token account
+    // that should be closed
+    common.v1.SolanaAccountId authority = 2 [(validate.rules).message.required = true];
+
+    // The token account being closed
+    common.v1.SolanaAccountId token = 3 [(validate.rules).message.required = true];
+
+    // The destination where funds are withdrawn to
+    common.v1.SolanaAccountId destination = 4  [(validate.rules).message.required = true];
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. timelock::TransferWithAuthority (source -> destination)
+//  Client Signature Required: Yes
+message NoPrivacyTransferAction {
+    // The public key of the private key that has authority over source
+    common.v1.SolanaAccountId authority = 1 [(validate.rules).message.required = true];
+
+    // The source account where funds are transferred from
+    common.v1.SolanaAccountId source = 2 [(validate.rules).message.required = true];
+
+    // The destination account where funds are transferred to
+    common.v1.SolanaAccountId destination = 3 [(validate.rules).message.required = true];
+
+    // The Kin quark amount to transfer
+    uint64 amount = 4 [(validate.rules).uint64.gt = 0];
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. timelock::RevokeLockWithAuthority
+//    4. timelock::DeactivateLock
+//    5. timelock::Withdraw (source -> destination)
+//    6. timelock::CloseAccounts
+//  Client Signature Required: Yes
+message NoPrivacyWithdrawAction {
+    // The public key of the private key that has authority over source
+    common.v1.SolanaAccountId authority = 1 [(validate.rules).message.required = true];
+
+    // The source account where funds are transferred from
+    common.v1.SolanaAccountId source = 2 [(validate.rules).message.required = true];
+
+    // The destination account where funds are transferred to
+    common.v1.SolanaAccountId destination = 3 [(validate.rules).message.required = true];
+
+    // The intended Kin quark amount to withdraw
+    uint64 amount = 4 [(validate.rules).uint64.gt = 0];
+    
+    // Whether the account is closed afterwards. This is always true, since there
+    // are no current se cases to leave it open.
+    bool should_close = 5 [(validate.rules).bool.const = true];
+}
+
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. splitter::TransferWithCommitment (treasury -> destination)
+//  Client Signature Required: No
+//
+// Transaction 2
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. timelock::TransferWithAuthority (source -> commitment)
+//  Client Signature Required: Yes
+message TemporaryPrivacyTransferAction {
+    // The public key of the private key that has authority over source
+    common.v1.SolanaAccountId authority = 1 [(validate.rules).message.required = true];
+
+    // The source account where funds are transferred from
+    common.v1.SolanaAccountId source = 2 [(validate.rules).message.required = true];
+
+    // The destination account where funds are transferred to
+    common.v1.SolanaAccountId destination = 3 [(validate.rules).message.required = true];
+
+     // The Kin quark amount to transfer
+    uint64 amount = 4 [(validate.rules).uint64.gt = 0];
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. splitter::TransferWithCommitment (treasury -> destination)
+//  Client Signature Required: No
+//
+// Transaction 2
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. timelock::TransferWithAuthority (source -> commitment)
+//  Client Signature Required: Yes
+message TemporaryPrivacyExchangeAction {
+    // The public key of the private key that has authority over source
+    common.v1.SolanaAccountId authority = 1 [(validate.rules).message.required = true];
+
+    // The source account where funds are exchanged from
+    common.v1.SolanaAccountId source = 2 [(validate.rules).message.required = true];
+
+    // The destination account where funds are exchanged to
+    common.v1.SolanaAccountId destination = 3 [(validate.rules).message.required = true];
+
+     // The Kin quark amount to exchange
+    uint64 amount = 4 [(validate.rules).uint64.gt = 0];
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. timelock::TransferWithAuthority (source -> different commitment)
+//  Client Signature Required: Yes
+message PermanentPrivacyUpgradeAction {
+    // The action ID of the temporary private transfer or exchange to upgrade
+    uint32 action_id = 1;
+}
+
+// Transaction 1
+//  Instructions:
+//    1. system::AdvanceNonce
+//    2. memo::Memo
+//    3. timelock::TransferWithAuthority (source -> fee account)
+//  Client Signature Required: Yes
+//
+// Note: This is exactly a NoPrivacyTransferAction, except the destination
+//       account is controlled by Code and provided in a server parameter.
+// Note: The fee amount is hardcoded at the client and validated by server.
+//       Currently, its set to $0.01 USD.
+message FeePaymentAction {
+    // The public key of the private key that has authority over source
+    common.v1.SolanaAccountId authority = 1 [(validate.rules).message.required = true];
+
+    // The source account where funds are transferred from
+    common.v1.SolanaAccountId source = 2 [(validate.rules).message.required = true];
+
+    // The Kin quark amount to transfer
+    uint64 amount = 3 [(validate.rules).uint64.gt = 0];
+}
+
+//
+// Server Parameter Definitions
+//
+
+// ServerParameter are a set of parameters known and returned by server that
+// enables clients to complete transaction construction. Any necessary proofs,
+// which are required to be locally verifiable, are also provided to ensure
+// safe use in the event of a malicious server.
+message ServerParameter {
+    // The action the server parameters belong to
+    uint32 action_id = 1;
+
+    // The set of nonces used for the action. Server will only provide values
+    // for transactions requiring client signatures.
+    repeated NoncedTransactionMetadata nonces = 2 [(validate.rules).repeated = {
+        max_items: 1
+    }];
+
+    // The type of server parameter which maps to the type of action requested
+    oneof type {
+        option (validate.required) = true;
+
+        OpenAccountServerParameter              open_account               = 3;
+        CloseEmptyAccountServerParameter        close_empty_account        = 4;
+        CloseDormantAccountServerParameter      close_dormant_account      = 5;
+        NoPrivacyTransferServerParameter        no_privacy_transfer        = 6;
+        NoPrivacyWithdrawServerParameter        no_privacy_withdraw        = 7;
+        TemporaryPrivacyTransferServerParameter temporary_privacy_transfer = 8;
+        TemporaryPrivacyExchangeServerParameter temporary_privacy_exchange = 9;
+        PermanentPrivacyUpgradeServerParameter  permanent_privacy_upgrade  = 10;
+        FeePaymentServerParameter               fee_payment                = 11;
+    }
+}
+
+message NoncedTransactionMetadata {
+    // The nonce account to use in the system::AdvanceNonce instruction
+    common.v1.SolanaAccountId nonce = 1 [(validate.rules).message.required = true];
+
+    // The blockhash to set in the transaction
+    common.v1.Blockhash blockhash = 2 [(validate.rules).message.required = true];
+}
+
+message OpenAccountServerParameter {
+    // There are no transactions requiring client signatures
+}
+
+message CloseEmptyAccountServerParameter {
+    // There are no action-specific server parameters
+}
+
+message CloseDormantAccountServerParameter {
+     // There are no action-specific server parameters
+}
+
+message NoPrivacyTransferServerParameter {
+    // There are no action-specific server parameters
+}
+
+message NoPrivacyWithdrawServerParameter {
+    // There are no action-specific server parameters
+}
+
+message TemporaryPrivacyTransferServerParameter {
+    // The treasury that will be used to split payments and provide a level of privacy
+    common.v1.SolanaAccountId treasury = 1 [(validate.rules).message.required = true];
+
+    // A recent root server observed from the treasury
+    common.v1.Hash recent_root = 2 [(validate.rules).message.required = true];
+}
+
+message TemporaryPrivacyExchangeServerParameter {
+    // The treasury that will be used to split payments and provide a level of privacy
+    common.v1.SolanaAccountId treasury = 1 [(validate.rules).message.required = true];
+
+    // A recent root server observed from the treasury
+    common.v1.Hash recent_root = 2 [(validate.rules).message.required = true];
+}
+
+message PermanentPrivacyUpgradeServerParameter {
+    // The new commitment that is being paid
+    common.v1.SolanaAccountId new_commitment = 1 [(validate.rules).message.required = true];
+
+    // The new commitment account's transcript. This is purely needed by client
+    // to validate merkle_root with commitment PDA logic.
+    common.v1.Hash new_commitment_transcript = 2 [(validate.rules).message.required = true];
+
+    // The new commitment account's destination. This is purely needed by client
+    // to validate merkle_root with commitment PDA logic.
+    common.v1.SolanaAccountId new_commitment_destination = 3 [(validate.rules).message.required = true];
+
+    // The new commitment account's payment amount. This is purely needed by client
+    // to validate merkle_root with commitment PDA logic.
+    uint64 new_commitment_amount = 4 [(validate.rules).uint64.gt = 0];
+
+    // The merkle root, which was the recent root used in the new commitment account
+    common.v1.Hash merkle_root = 5 [(validate.rules).message.required = true];
+
+    // The merkle proof that validates the original commitment occurred prior to
+    // the new commitment server is asking client to pay
+    repeated common.v1.Hash merkle_proof = 6 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 64
+    }];
+}
+
+message FeePaymentServerParameter {
+    // The destination account where the fee payment should be sent.
+    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
+}
+
+//
+// Structured Error Definitions
+//
+
+message ErrorDetails {
+    oneof type {
+        option (validate.required) = true;
+
+        ReasonStringErrorDetails     reason_string = 1;
+        InvalidSignatureErrorDetails invalid_signature = 2;
+    }
+}
+
+message ReasonStringErrorDetails {
+    // Human readable string indicating the failure.
+    string reason = 1 [(validate.rules).string = {
+        min_len: 1,
+        max_len: 2048, // Arbitrary
+    }];
+}
+
+message InvalidSignatureErrorDetails {
+    // The action whose signature mismatched 
+    uint32 action_id = 1; 
+
+    // The transaction the server expected to have signed.
+    common.v1.Transaction expected_transaction = 2 [(validate.rules).message.required = true];
+
+    // The signature that was provided by the client.
+    common.v1.Signature provided_signature = 3 [(validate.rules).message.required = true];
+}
+
+//
+// Other Model Definitions
+//
+
+// UpgradeableIntent is an intent whose actions can be upgraded.
+message UpgradeableIntent {
+    // The intent ID
+    common.v1.IntentId id = 1 [(validate.rules).message.required = true];
+
+    // The set of private actions that can be upgraded
+    repeated UpgradeablePrivateAction actions = 2 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 256 // Arbitrary
+    }];
+
+    message UpgradeablePrivateAction {
+        // The transaction blob that was signed by the client. Clients *MUST* use
+        // the source and destination account in the timelock::TransferWithAuthority
+        // instruction to validate all fields provided by server by locally computing
+        // the expected addresses.
+        common.v1.Transaction transaction_blob = 1 [(validate.rules).message.required = true];
+
+        // The client's signature for the transaction. Clients *MUST* use this to
+        // locally validate the transaction blob provided by server.
+        common.v1.Signature client_signature = 2 [(validate.rules).message.required = true];
+
+        // The action ID of this transaction
+        uint32 action_id = 3;
+
+        // The source account's type, which hints how to efficiently derive source
+        common.v1.AccountType source_account_type = 4 [(validate.rules).enum.not_in = 0];;
+
+        // The source account's derivation index, which hints how to efficiently derive source
+        uint64 source_derivation_index = 5;
+
+        // The original destination account that was paid by the treasury
+        common.v1.SolanaAccountId original_destination = 6 [(validate.rules).message.required = true];
+
+        // The original quark amount for the action
+        uint64 original_amount = 7 [(validate.rules).uint64.gt = 0];
+
+        // The treasury used for this the private action
+        common.v1.SolanaAccountId treasury = 8 [(validate.rules).message.required = true];
+
+        // The recent root observed at the time of intent creation for this private action
+        common.v1.Hash recent_root = 9 [(validate.rules).message.required = true];
+    }
+}
+
+message PaymentHistoryItem {
+    // The cursor position of this item.
+    Cursor cursor = 1 [(validate.rules).message.required = true];
+
+    // Exchange data related to the payment
+    ExchangeData exchange_data = 2 [(validate.rules).message.required = true];
+
+    // Is this payment a send or receive?
+    PaymentType payment_type = 3 [(validate.rules).enum.not_in = 0];
+    enum PaymentType {
+        UNKNOWN = 0;
+        SEND  = 1;
+        RECEIVE = 2;
+    }
+
+    // If the payment was a SEND, was it a withdraw?
+    bool is_withdraw = 4;
+
+    // If the payment was a RECEIVE, was it a deposit?
+    bool is_deposit = 5;
+
+    // The timestamp of the payment
+    google.protobuf.Timestamp timestamp = 6 [(validate.rules).timestamp.required = true];
+
+    // Was the payment involved in a remote send?
+    bool is_remote_send = 7;
+
+    // If payment_type is RECEIVE and is_remote_send is true, was the funds being
+    // returned back to the issuer?
+    bool is_returned = 8;
+
+    // If payment_type is RECEIVE, is this receive an airdrop part of a reward, incentive, etc.?
+    bool is_airdrop = 9;
+
+    // If is_airdrop is true, the type of airdrop received.
+    AirdropType airdrop_type = 10;
+
+    // Is this a micro payment? 
+    bool is_micro_payment = 11;
+}
+
+// ExchangeData defines an amount of Kin with currency exchange data
+message ExchangeData {
+    // ISO 4217 alpha-3 currency code.
+    string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3}$" }];
+
+    // The agreed upon exchange rate. This might not be the same as the
+    // actual exchange rate at the time of intent or fund transfer.
+    double exchange_rate = 2 [(validate.rules).double.gt = 0];
+
+    // The agreed upon transfer amount in the currency the payment was made
+    // in.
+    double native_amount = 3 [(validate.rules).double.gt = 0];
+
+    // The exact amount of quarks to send. This will be used as the source of
+    // truth for validating transaction transfer amounts.
+    uint64 quarks = 4 [(validate.rules).uint64.gt = 0];
+}
+
+message ExchangeDataWithoutRate {
+    // ISO 4217 alpha-3 currency code.
+    string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3}$" }];
+
+    // The agreed upon transfer amount in the currency the payment was made
+    // in.
+    double native_amount = 2 [(validate.rules).double.gt = 0];
+}
+
+message RemainingSendLimit {
+    // Remaining limit to apply on the next transaction
+    float next_transaction = 1;
+}
+
+message DepositLimit {
+    // Maximum quarks that may be deposited at any time. Server will guarantee
+    // this threshold will be below enforced dollar value limits, while also
+    // ensuring sufficient funds are available for a full organizer that supports
+    // max payment sends. Total dollar value limits may be spread across many deposits.
+    uint64 max_quarks = 1;
+}
+
+message MicroPaymentLimit {
+    // Maximum native amount that can be applied per micro payment transaction
+    float max_per_transaction = 1;
+
+    // Minimum native amount that can be applied per micro payment transaction
+    float min_per_transaction = 2;
+}
+
+message Cursor {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 8
+        max_len: 8
+    }];
+}
+
+enum AirdropType {
+    UNKNOWN = 0;
+    // Reward for giving someone else their first Kin
+    GIVE_FIRST_KIN = 1;
+    // Airdrop for getting a user started with first Kin balance
+    GET_FIRST_KIN = 2;
+}

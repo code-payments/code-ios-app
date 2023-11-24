@@ -1,0 +1,161 @@
+//
+//  BannerController.swift
+//  Code
+//
+//  Created by Dima Bart.
+//  Copyright © 2021 Code Inc. All rights reserved.
+//
+
+import UIKit
+import SwiftUI
+import CodeServices
+
+struct BannerContainer: View {
+    
+    @EnvironmentObject private var bannerController: BannerController
+    
+    var body: some View {
+        ZStack {}
+        .banner(bannerController.banner)
+    }
+}
+
+@MainActor
+public class BannerController: ObservableObject {
+    
+    @Published public private(set) var banner: Banner? = nil
+    
+    private var queue: [Banner] = []
+    
+    private var isPresenting: Bool = false
+    
+    private let window: UIWindow
+    
+    // MARK: - Init -
+    
+    public init() {
+        self.window = PassthroughWindow(frame: UIScreen.main.bounds)
+        
+        let container = BannerContainer()
+            .environmentObject(self)
+        
+        let controller = UIHostingController(rootView: container)
+        controller.view.backgroundColor = .clear
+        
+        window.rootViewController = controller
+        window.backgroundColor = .clear
+        window.windowLevel = UIWindow.Level(UIWindow.Level.normal.rawValue + 1)
+        window.isHidden = false
+        
+        toggle(presenting: false)
+    }
+    
+    // MARK: - Actions -
+    
+    @discardableResult
+    public func show(style: Banner.Style, title: String?, description: String?, position: Banner.Position = .top, isDismissable: Bool? = nil, actionStyle: Banner.ActionStyle = .inline, actions: [Banner.Action] = []) -> UUID {
+        let banner = Banner(
+            style: style,
+            title: title,
+            description: description,
+            position: position,
+            isDismissable: isDismissable,
+            actionStyle: actionStyle,
+            actions: actions
+        )
+        
+        show(banner)
+        
+        return banner.id
+    }
+    
+    public func dismiss(id: UUID) {
+        if banner?.id == id {
+            dismissCurrent()
+        }
+    }
+    
+    private func dismissCurrent() {
+        Task {
+            try await dismissAndConsume()
+        }
+    }
+    
+    private func show(_ banner: Banner) {
+        enque(banner)
+    }
+    
+    private func show(_ banners: [Banner]) {
+        banners.forEach { show($0) }
+    }
+            
+    // MARK: - Queue -
+    
+    private func enque(_ newBanner: Banner) {
+        if isPresenting {
+            queue.append(newBanner)
+        } else {
+            consume(newBanner)
+        }
+    }
+    
+    private func consume(_ newBanner: Banner) {
+        toggle(presenting: true)
+        
+        var consumableBanner = newBanner
+        consumableBanner.setDismissAction { [weak self] in
+            self?.dismissCurrent()
+        }
+        
+        banner = consumableBanner
+    }
+    
+    private func dismissAndConsume() async throws {
+        banner = nil
+        
+        // Should be longer than the animation
+        // to dismiss the banner
+        try await Task.delay(milliseconds: 500)
+        
+        if let nextBanner = dequeNext() {
+            consume(nextBanner)
+        } else {
+            toggle(presenting: false)
+        }
+    }
+    
+    private func dequeNext() -> Banner? {
+        guard !queue.isEmpty else {
+            return nil
+        }
+        
+        return queue.remove(at: 0)
+    }
+    
+    private func toggle(presenting: Bool) {
+        isPresenting = presenting
+    }
+}
+
+// MARK: - PassthroughWindow -
+
+private class PassthroughWindow: UIWindow {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let view = super.hitTest(point, with: event) else {
+            return nil
+        }
+        
+        // If the view is the underlying root view, ignore it
+        guard view != rootViewController?.view else {
+            return nil
+        }
+        
+        return view
+    }
+}
+
+// MARK: - Mock -
+
+extension BannerController {
+    static let mock = BannerController()
+}

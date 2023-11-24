@@ -1,0 +1,885 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		9AD5D7CA25F26CC3007388AE /* CodeScanner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5D7C025F26CC3007388AE /* CodeScanner.framework */; };
+		9AD5D7CF25F26CC3007388AE /* CodeScannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7CE25F26CC3007388AE /* CodeScannerTests.swift */; };
+		9AD5D7D125F26CC3007388AE /* CodeScanner.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7C325F26CC3007388AE /* CodeScanner.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		9AD5D80225F26CD2007388AE /* kikcode_scan_jni.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7DD25F26CD2007388AE /* kikcode_scan_jni.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D80325F26CD2007388AE /* kikcode_encoding_jni.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7DE25F26CD2007388AE /* kikcode_encoding_jni.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D80425F26CD2007388AE /* kikcode_scan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7DF25F26CD2007388AE /* kikcode_scan.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D80725F26CD2007388AE /* kikcodes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7E225F26CD2007388AE /* kikcodes.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D80825F26CD2007388AE /* kikcode_encoding_jni.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7E325F26CD2007388AE /* kikcode_encoding_jni.h */; };
+		9AD5D80925F26CD2007388AE /* scanner.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7E425F26CD2007388AE /* scanner.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D80A25F26CD2007388AE /* kikcode_constants.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7E525F26CD2007388AE /* kikcode_constants.h */; };
+		9AD5D80B25F26CD2007388AE /* scanner.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7E625F26CD2007388AE /* scanner.h */; };
+		9AD5D80C25F26CD2007388AE /* kikcode_encoding.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7E725F26CD2007388AE /* kikcode_encoding.h */; };
+		9AD5D80D25F26CD2007388AE /* kikcode_scan_jni.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7E825F26CD2007388AE /* kikcode_scan_jni.h */; };
+		9AD5D80E25F26CD2007388AE /* kikcode_scan.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7E925F26CD2007388AE /* kikcode_scan.h */; };
+		9AD5D80F25F26CD2007388AE /* kikcodes.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7EA25F26CD2007388AE /* kikcodes.h */; };
+		9AD5D81025F26CD2007388AE /* kikcode_encoding.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7EB25F26CD2007388AE /* kikcode_encoding.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D81125F26CD2007388AE /* Exception.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7ED25F26CD2007388AE /* Exception.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D81225F26CD2007388AE /* ReaderException.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7EE25F26CD2007388AE /* ReaderException.h */; };
+		9AD5D81325F26CD2007388AE /* Counted.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7F025F26CD2007388AE /* Counted.h */; };
+		9AD5D81425F26CD2007388AE /* Array.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7F125F26CD2007388AE /* Array.h */; };
+		9AD5D81525F26CD2007388AE /* IllegalArgumentException.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7F225F26CD2007388AE /* IllegalArgumentException.h */; };
+		9AD5D81625F26CD2007388AE /* GenericGF.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7F425F26CD2007388AE /* GenericGF.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D81725F26CD2007388AE /* ReedSolomonException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7F525F26CD2007388AE /* ReedSolomonException.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D81825F26CD2007388AE /* ReedSolomonDecoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7F625F26CD2007388AE /* ReedSolomonDecoder.h */; };
+		9AD5D81925F26CD2007388AE /* GenericGFPoly.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7F725F26CD2007388AE /* GenericGFPoly.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D81A25F26CD2007388AE /* GenericGF.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7F825F26CD2007388AE /* GenericGF.h */; };
+		9AD5D81B25F26CD2007388AE /* ReedSolomonDecoder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7F925F26CD2007388AE /* ReedSolomonDecoder.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D81C25F26CD2007388AE /* ReedSolomonException.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7FA25F26CD2007388AE /* ReedSolomonException.h */; };
+		9AD5D81D25F26CD2007388AE /* ReedSolomonEncoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7FB25F26CD2007388AE /* ReedSolomonEncoder.h */; };
+		9AD5D81E25F26CD2007388AE /* ReedSolomonEncoder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7FC25F26CD2007388AE /* ReedSolomonEncoder.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D81F25F26CD2007388AE /* GenericGFPoly.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7FD25F26CD2007388AE /* GenericGFPoly.h */; };
+		9AD5D82025F26CD2007388AE /* IllegalArgumentException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D7FE25F26CD2007388AE /* IllegalArgumentException.cpp */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D82125F26CD2007388AE /* ZXing.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D7FF25F26CD2007388AE /* ZXing.h */; };
+		9AD5D82225F26CD2007388AE /* IllegalStateException.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D80025F26CD2007388AE /* IllegalStateException.h */; };
+		9AD5D82325F26CD2007388AE /* Exception.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D80125F26CD2007388AE /* Exception.h */; };
+		9AD5D88525F26EE9007388AE /* Code.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D88325F26EE9007388AE /* Code.mm */; settings = {COMPILER_FLAGS = "-w"; }; };
+		9AD5D88625F26EE9007388AE /* Code.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D88425F26EE9007388AE /* Code.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		9AD5E68725F2BFD0007388AE /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E68625F2BFD0007388AE /* opencv2.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		9AD5D7CB25F26CC3007388AE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9AD5D7B725F26CC3007388AE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9AD5D7BF25F26CC3007388AE;
+			remoteInfo = CodeScanner;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		9AD5D7C025F26CC3007388AE /* CodeScanner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CodeScanner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		9AD5D7C325F26CC3007388AE /* CodeScanner.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CodeScanner.h; sourceTree = "<group>"; };
+		9AD5D7C425F26CC3007388AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		9AD5D7C925F26CC3007388AE /* CodeScannerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CodeScannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9AD5D7CE25F26CC3007388AE /* CodeScannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeScannerTests.swift; sourceTree = "<group>"; };
+		9AD5D7D025F26CC3007388AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		9AD5D7DD25F26CD2007388AE /* kikcode_scan_jni.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kikcode_scan_jni.cpp; sourceTree = "<group>"; };
+		9AD5D7DE25F26CD2007388AE /* kikcode_encoding_jni.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kikcode_encoding_jni.cpp; sourceTree = "<group>"; };
+		9AD5D7DF25F26CD2007388AE /* kikcode_scan.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kikcode_scan.cpp; sourceTree = "<group>"; };
+		9AD5D7E225F26CD2007388AE /* kikcodes.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kikcodes.cpp; sourceTree = "<group>"; };
+		9AD5D7E325F26CD2007388AE /* kikcode_encoding_jni.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kikcode_encoding_jni.h; sourceTree = "<group>"; };
+		9AD5D7E425F26CD2007388AE /* scanner.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = scanner.cpp; sourceTree = "<group>"; };
+		9AD5D7E525F26CD2007388AE /* kikcode_constants.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kikcode_constants.h; sourceTree = "<group>"; };
+		9AD5D7E625F26CD2007388AE /* scanner.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = scanner.h; sourceTree = "<group>"; };
+		9AD5D7E725F26CD2007388AE /* kikcode_encoding.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kikcode_encoding.h; sourceTree = "<group>"; };
+		9AD5D7E825F26CD2007388AE /* kikcode_scan_jni.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kikcode_scan_jni.h; sourceTree = "<group>"; };
+		9AD5D7E925F26CD2007388AE /* kikcode_scan.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kikcode_scan.h; sourceTree = "<group>"; };
+		9AD5D7EA25F26CD2007388AE /* kikcodes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = kikcodes.h; sourceTree = "<group>"; };
+		9AD5D7EB25F26CD2007388AE /* kikcode_encoding.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = kikcode_encoding.cpp; sourceTree = "<group>"; };
+		9AD5D7ED25F26CD2007388AE /* Exception.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Exception.cpp; sourceTree = "<group>"; };
+		9AD5D7EE25F26CD2007388AE /* ReaderException.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ReaderException.h; sourceTree = "<group>"; };
+		9AD5D7F025F26CD2007388AE /* Counted.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Counted.h; sourceTree = "<group>"; };
+		9AD5D7F125F26CD2007388AE /* Array.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Array.h; sourceTree = "<group>"; };
+		9AD5D7F225F26CD2007388AE /* IllegalArgumentException.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IllegalArgumentException.h; sourceTree = "<group>"; };
+		9AD5D7F425F26CD2007388AE /* GenericGF.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GenericGF.cpp; sourceTree = "<group>"; };
+		9AD5D7F525F26CD2007388AE /* ReedSolomonException.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ReedSolomonException.cpp; sourceTree = "<group>"; };
+		9AD5D7F625F26CD2007388AE /* ReedSolomonDecoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ReedSolomonDecoder.h; sourceTree = "<group>"; };
+		9AD5D7F725F26CD2007388AE /* GenericGFPoly.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GenericGFPoly.cpp; sourceTree = "<group>"; };
+		9AD5D7F825F26CD2007388AE /* GenericGF.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GenericGF.h; sourceTree = "<group>"; };
+		9AD5D7F925F26CD2007388AE /* ReedSolomonDecoder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ReedSolomonDecoder.cpp; sourceTree = "<group>"; };
+		9AD5D7FA25F26CD2007388AE /* ReedSolomonException.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ReedSolomonException.h; sourceTree = "<group>"; };
+		9AD5D7FB25F26CD2007388AE /* ReedSolomonEncoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ReedSolomonEncoder.h; sourceTree = "<group>"; };
+		9AD5D7FC25F26CD2007388AE /* ReedSolomonEncoder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ReedSolomonEncoder.cpp; sourceTree = "<group>"; };
+		9AD5D7FD25F26CD2007388AE /* GenericGFPoly.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GenericGFPoly.h; sourceTree = "<group>"; };
+		9AD5D7FE25F26CD2007388AE /* IllegalArgumentException.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = IllegalArgumentException.cpp; sourceTree = "<group>"; };
+		9AD5D7FF25F26CD2007388AE /* ZXing.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ZXing.h; sourceTree = "<group>"; };
+		9AD5D80025F26CD2007388AE /* IllegalStateException.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = IllegalStateException.h; sourceTree = "<group>"; };
+		9AD5D80125F26CD2007388AE /* Exception.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Exception.h; sourceTree = "<group>"; };
+		9AD5D88325F26EE9007388AE /* Code.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Code.mm; sourceTree = "<group>"; };
+		9AD5D88425F26EE9007388AE /* Code.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Code.h; sourceTree = "<group>"; };
+		9AD5E68625F2BFD0007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		9AD5D7BD25F26CC3007388AE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9AD5E68725F2BFD0007388AE /* opencv2.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9AD5D7C625F26CC3007388AE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9AD5D7CA25F26CC3007388AE /* CodeScanner.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		9AD5D7B625F26CC3007388AE = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7C225F26CC3007388AE /* CodeScanner */,
+				9AD5D7CD25F26CC3007388AE /* CodeScannerTests */,
+				9AD5E68525F2BFC1007388AE /* Frameworks */,
+				9AD5D7C125F26CC3007388AE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9AD5D7C125F26CC3007388AE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7C025F26CC3007388AE /* CodeScanner.framework */,
+				9AD5D7C925F26CC3007388AE /* CodeScannerTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9AD5D7C225F26CC3007388AE /* CodeScanner */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7C325F26CC3007388AE /* CodeScanner.h */,
+				9AD5D88425F26EE9007388AE /* Code.h */,
+				9AD5D88325F26EE9007388AE /* Code.mm */,
+				9AD5D7DC25F26CD2007388AE /* src */,
+				9AD5D7C425F26CC3007388AE /* Info.plist */,
+			);
+			path = CodeScanner;
+			sourceTree = "<group>";
+		};
+		9AD5D7CD25F26CC3007388AE /* CodeScannerTests */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7CE25F26CC3007388AE /* CodeScannerTests.swift */,
+				9AD5D7D025F26CC3007388AE /* Info.plist */,
+			);
+			path = CodeScannerTests;
+			sourceTree = "<group>";
+		};
+		9AD5D7DC25F26CD2007388AE /* src */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7E525F26CD2007388AE /* kikcode_constants.h */,
+				9AD5D7E825F26CD2007388AE /* kikcode_scan_jni.h */,
+				9AD5D7DD25F26CD2007388AE /* kikcode_scan_jni.cpp */,
+				9AD5D7E325F26CD2007388AE /* kikcode_encoding_jni.h */,
+				9AD5D7DE25F26CD2007388AE /* kikcode_encoding_jni.cpp */,
+				9AD5D7E925F26CD2007388AE /* kikcode_scan.h */,
+				9AD5D7DF25F26CD2007388AE /* kikcode_scan.cpp */,
+				9AD5D7EA25F26CD2007388AE /* kikcodes.h */,
+				9AD5D7E225F26CD2007388AE /* kikcodes.cpp */,
+				9AD5D7E725F26CD2007388AE /* kikcode_encoding.h */,
+				9AD5D7EB25F26CD2007388AE /* kikcode_encoding.cpp */,
+				9AD5D7E625F26CD2007388AE /* scanner.h */,
+				9AD5D7E425F26CD2007388AE /* scanner.cpp */,
+				9AD5D7EC25F26CD2007388AE /* zxing */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		9AD5D7EC25F26CD2007388AE /* zxing */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7EF25F26CD2007388AE /* common */,
+				9AD5D7FF25F26CD2007388AE /* ZXing.h */,
+				9AD5D7EE25F26CD2007388AE /* ReaderException.h */,
+				9AD5D80025F26CD2007388AE /* IllegalStateException.h */,
+				9AD5D80125F26CD2007388AE /* Exception.h */,
+				9AD5D7ED25F26CD2007388AE /* Exception.cpp */,
+			);
+			path = zxing;
+			sourceTree = "<group>";
+		};
+		9AD5D7EF25F26CD2007388AE /* common */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7F325F26CD2007388AE /* reedsolomon */,
+				9AD5D7F025F26CD2007388AE /* Counted.h */,
+				9AD5D7F125F26CD2007388AE /* Array.h */,
+				9AD5D7F225F26CD2007388AE /* IllegalArgumentException.h */,
+				9AD5D7FE25F26CD2007388AE /* IllegalArgumentException.cpp */,
+			);
+			path = common;
+			sourceTree = "<group>";
+		};
+		9AD5D7F325F26CD2007388AE /* reedsolomon */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5D7F825F26CD2007388AE /* GenericGF.h */,
+				9AD5D7F425F26CD2007388AE /* GenericGF.cpp */,
+				9AD5D7FD25F26CD2007388AE /* GenericGFPoly.h */,
+				9AD5D7F725F26CD2007388AE /* GenericGFPoly.cpp */,
+				9AD5D7FA25F26CD2007388AE /* ReedSolomonException.h */,
+				9AD5D7F525F26CD2007388AE /* ReedSolomonException.cpp */,
+				9AD5D7F625F26CD2007388AE /* ReedSolomonDecoder.h */,
+				9AD5D7F925F26CD2007388AE /* ReedSolomonDecoder.cpp */,
+				9AD5D7FB25F26CD2007388AE /* ReedSolomonEncoder.h */,
+				9AD5D7FC25F26CD2007388AE /* ReedSolomonEncoder.cpp */,
+			);
+			path = reedsolomon;
+			sourceTree = "<group>";
+		};
+		9AD5E68525F2BFC1007388AE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				9AD5E68625F2BFD0007388AE /* opencv2.framework */,
+			);
+			path = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		9AD5D7BB25F26CC3007388AE /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9AD5D81425F26CD2007388AE /* Array.h in Headers */,
+				9AD5D88625F26EE9007388AE /* Code.h in Headers */,
+				9AD5D81825F26CD2007388AE /* ReedSolomonDecoder.h in Headers */,
+				9AD5D81C25F26CD2007388AE /* ReedSolomonException.h in Headers */,
+				9AD5D81D25F26CD2007388AE /* ReedSolomonEncoder.h in Headers */,
+				9AD5D80C25F26CD2007388AE /* kikcode_encoding.h in Headers */,
+				9AD5D80F25F26CD2007388AE /* kikcodes.h in Headers */,
+				9AD5D82125F26CD2007388AE /* ZXing.h in Headers */,
+				9AD5D7D125F26CC3007388AE /* CodeScanner.h in Headers */,
+				9AD5D81A25F26CD2007388AE /* GenericGF.h in Headers */,
+				9AD5D81325F26CD2007388AE /* Counted.h in Headers */,
+				9AD5D81525F26CD2007388AE /* IllegalArgumentException.h in Headers */,
+				9AD5D80E25F26CD2007388AE /* kikcode_scan.h in Headers */,
+				9AD5D81F25F26CD2007388AE /* GenericGFPoly.h in Headers */,
+				9AD5D80D25F26CD2007388AE /* kikcode_scan_jni.h in Headers */,
+				9AD5D82225F26CD2007388AE /* IllegalStateException.h in Headers */,
+				9AD5D80B25F26CD2007388AE /* scanner.h in Headers */,
+				9AD5D80825F26CD2007388AE /* kikcode_encoding_jni.h in Headers */,
+				9AD5D80A25F26CD2007388AE /* kikcode_constants.h in Headers */,
+				9AD5D82325F26CD2007388AE /* Exception.h in Headers */,
+				9AD5D81225F26CD2007388AE /* ReaderException.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		9AD5D7BF25F26CC3007388AE /* CodeScanner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9AD5D7D425F26CC3007388AE /* Build configuration list for PBXNativeTarget "CodeScanner" */;
+			buildPhases = (
+				9AD5D7BB25F26CC3007388AE /* Headers */,
+				9AD5D7BC25F26CC3007388AE /* Sources */,
+				9AD5D7BD25F26CC3007388AE /* Frameworks */,
+				9AD5D7BE25F26CC3007388AE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CodeScanner;
+			productName = CodeScanner;
+			productReference = 9AD5D7C025F26CC3007388AE /* CodeScanner.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		9AD5D7C825F26CC3007388AE /* CodeScannerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9AD5D7D725F26CC3007388AE /* Build configuration list for PBXNativeTarget "CodeScannerTests" */;
+			buildPhases = (
+				9AD5D7C525F26CC3007388AE /* Sources */,
+				9AD5D7C625F26CC3007388AE /* Frameworks */,
+				9AD5D7C725F26CC3007388AE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9AD5D7CC25F26CC3007388AE /* PBXTargetDependency */,
+			);
+			name = CodeScannerTests;
+			productName = CodeScannerTests;
+			productReference = 9AD5D7C925F26CC3007388AE /* CodeScannerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9AD5D7B725F26CC3007388AE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 1240;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					9AD5D7BF25F26CC3007388AE = {
+						CreatedOnToolsVersion = 12.4;
+					};
+					9AD5D7C825F26CC3007388AE = {
+						CreatedOnToolsVersion = 12.4;
+					};
+				};
+			};
+			buildConfigurationList = 9AD5D7BA25F26CC3007388AE /* Build configuration list for PBXProject "CodeScanner" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 9AD5D7B625F26CC3007388AE;
+			productRefGroup = 9AD5D7C125F26CC3007388AE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9AD5D7BF25F26CC3007388AE /* CodeScanner */,
+				9AD5D7C825F26CC3007388AE /* CodeScannerTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		9AD5D7BE25F26CC3007388AE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9AD5D7C725F26CC3007388AE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9AD5D7BC25F26CC3007388AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9AD5D81B25F26CD2007388AE /* ReedSolomonDecoder.cpp in Sources */,
+				9AD5D80425F26CD2007388AE /* kikcode_scan.cpp in Sources */,
+				9AD5D88525F26EE9007388AE /* Code.mm in Sources */,
+				9AD5D81925F26CD2007388AE /* GenericGFPoly.cpp in Sources */,
+				9AD5D80725F26CD2007388AE /* kikcodes.cpp in Sources */,
+				9AD5D81E25F26CD2007388AE /* ReedSolomonEncoder.cpp in Sources */,
+				9AD5D82025F26CD2007388AE /* IllegalArgumentException.cpp in Sources */,
+				9AD5D80225F26CD2007388AE /* kikcode_scan_jni.cpp in Sources */,
+				9AD5D80925F26CD2007388AE /* scanner.cpp in Sources */,
+				9AD5D81125F26CD2007388AE /* Exception.cpp in Sources */,
+				9AD5D81025F26CD2007388AE /* kikcode_encoding.cpp in Sources */,
+				9AD5D81725F26CD2007388AE /* ReedSolomonException.cpp in Sources */,
+				9AD5D80325F26CD2007388AE /* kikcode_encoding_jni.cpp in Sources */,
+				9AD5D81625F26CD2007388AE /* GenericGF.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9AD5D7C525F26CC3007388AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9AD5D7CF25F26CC3007388AE /* CodeScannerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9AD5D7CC25F26CC3007388AE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9AD5D7BF25F26CC3007388AE /* CodeScanner */;
+			targetProxy = 9AD5D7CB25F26CC3007388AE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		9A1654EC26838335000A135E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		9A1654ED26838335000A135E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				INFOPLIST_FILE = CodeScanner/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9A1654EE26838335000A135E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = CodeScannerTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScannerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9AD390A7297C825A0020CB6B /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = "Release Development";
+		};
+		9AD390A8297C825A0020CB6B /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				INFOPLIST_FILE = CodeScanner/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release Development";
+		};
+		9AD390A9297C825A0020CB6B /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = CodeScannerTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScannerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release Development";
+		};
+		9AD5D7D225F26CC3007388AE /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Development;
+		};
+		9AD5D7D325F26CC3007388AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.4;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		9AD5D7D525F26CC3007388AE /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				INFOPLIST_FILE = CodeScanner/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Development;
+		};
+		9AD5D7D625F26CC3007388AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				INFOPLIST_FILE = CodeScanner/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACH_O_TYPE = staticlib;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9AD5D7D825F26CC3007388AE /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = CodeScannerTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScannerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Development;
+		};
+		9AD5D7D925F26CC3007388AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = CodeScannerTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScannerTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9AD5D7BA25F26CC3007388AE /* Build configuration list for PBXProject "CodeScanner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9AD5D7D225F26CC3007388AE /* Development */,
+				9A1654EC26838335000A135E /* Debug */,
+				9AD5D7D325F26CC3007388AE /* Release */,
+				9AD390A7297C825A0020CB6B /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9AD5D7D425F26CC3007388AE /* Build configuration list for PBXNativeTarget "CodeScanner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9AD5D7D525F26CC3007388AE /* Development */,
+				9A1654ED26838335000A135E /* Debug */,
+				9AD5D7D625F26CC3007388AE /* Release */,
+				9AD390A8297C825A0020CB6B /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9AD5D7D725F26CC3007388AE /* Build configuration list for PBXNativeTarget "CodeScannerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9AD5D7D825F26CC3007388AE /* Development */,
+				9A1654EE26838335000A135E /* Debug */,
+				9AD5D7D925F26CC3007388AE /* Release */,
+				9AD390A9297C825A0020CB6B /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9AD5D7B725F26CC3007388AE /* Project object */;
+}

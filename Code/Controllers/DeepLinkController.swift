@@ -1,0 +1,188 @@
+//
+//  DeepLinkController.swift
+//  Code
+//
+//  Created by Dima Bart on 2023-04-14.
+//
+
+import Foundation
+import CodeServices
+
+@MainActor
+final class DeepLinkController {
+    
+    private let sessionAuthenticator: SessionAuthenticator
+    private let abacus: Abacus
+    
+    // MARK: - Init -
+    
+    init(sessionAuthenticator: SessionAuthenticator, abacus: Abacus) {
+        self.sessionAuthenticator = sessionAuthenticator
+        self.abacus = abacus
+    }
+    
+    // MARK: - Handle -
+    
+    func handle(open url: URL) -> DeepLinkAction? {
+        guard let route = Route(url: url) else {
+            return nil
+        }
+        
+        trace(.warning, components: "Deep link: \(url.absoluteString)")
+        
+        switch route.path {
+        case .login:
+            
+            if
+                let entropy = route.fragments[.entropy],
+                let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy.value)
+            {
+                return actionForLogin(mnemonic: mnemonic)
+                
+            } else if let entropy = route.properties["data"] { // Handle legacy login links
+                
+                // Attempt base64 encoding first (deprecated) then base58
+                guard let mnemonic = MnemonicPhrase(base64EncodedEntropy: entropy) ?? MnemonicPhrase(base58EncodedEntropy: entropy) else {
+                    return nil
+                }
+                
+                return actionForLogin(mnemonic: mnemonic)
+                
+            } else {
+                return nil
+            }
+            
+        case .cash:
+            
+            if
+                let entropy = route.fragments[.entropy],
+                let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy.value)
+            {
+                let giftCard = GiftCardAccount(mnemonic: mnemonic)
+                return actionForReceiveRemoteSend(giftCard: giftCard)
+                
+            } else {
+                return nil
+            }
+            
+        case .sdk:
+            
+            if
+                let payload = route.fragments[.payload],
+                let data = Data(base64Encoded: Data(payload.value.utf8)),
+                let request = try? JSONDecoder().decode(DeepLinkPaymentRequest.self, from: data)
+            {
+                return DeepLinkAction(
+                    kind: .paymentRequest(request),
+                    sessionAuthenticator: sessionAuthenticator
+                )
+                
+            } else {
+                return nil
+            }
+            
+        default:
+            return nil
+        }
+    }
+    
+    private func actionForLogin(mnemonic: MnemonicPhrase) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .login(mnemonic),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+    
+    private func actionForReceiveRemoteSend(giftCard: GiftCardAccount) -> DeepLinkAction {
+        abacus.start(.cashLinkGrabTime)
+        return DeepLinkAction(
+            kind: .receiveRemoteSend(giftCard),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+}
+
+@MainActor
+struct DeepLinkAction {
+    
+    let kind: Kind
+    
+    var confirmationDescription: ConfirmationDescription? {
+        switch kind {
+        case .login:
+            guard sessionAuthenticator.isLoggedIn else {
+                return nil
+            }
+            
+            return .init(
+                confirmation: Localized.Action.logout,
+                title: Localized.Subtitle.logoutAndLoginConfirmation,
+                description: nil
+            )
+            
+        case .receiveRemoteSend, .paymentRequest:
+            return nil // Don't need confirmation
+        }
+    }
+    
+    private let sessionAuthenticator: SessionAuthenticator
+    
+    // MARK: - Init -
+    
+    init(kind: Kind, sessionAuthenticator: SessionAuthenticator) {
+        self.kind = kind
+        self.sessionAuthenticator = sessionAuthenticator
+    }
+    
+    // MARK: - Execute -
+    
+    func executeAction() async throws {
+        switch kind {
+        case .login(let mnemonic):
+            if case .loggedIn = sessionAuthenticator.state {
+                sessionAuthenticator.logout()
+            }
+            sessionAuthenticator.completeLogin(with: try await sessionAuthenticator.initialize(using: mnemonic))
+            
+        case .receiveRemoteSend(let giftCard):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                container.session.receiveRemoteSend(giftCard: giftCard)
+            }
+            
+        case .paymentRequest(let request):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                
+                // Delay the presentation of the bill
+                try await Task.delay(milliseconds: 500)
+                
+                let payload = Code.Payload(
+                    kind: .requestPayment,
+                    fiat: request.fiat,
+                    nonce: request.clientSecret
+                )
+                
+                container.session.attempt(payload, request: request)
+            }
+        }
+    }
+}
+
+// MARK: - Kind -
+
+extension DeepLinkAction {
+    enum Kind {
+        case login(MnemonicPhrase)
+        case receiveRemoteSend(GiftCardAccount)
+        case paymentRequest(DeepLinkPaymentRequest)
+    }
+}
+
+// MARK: - ConfirmationDescription -
+
+extension DeepLinkAction {
+    struct ConfirmationDescription {
+        var confirmation: String
+        var title: String?
+        var description: String?
+    }
+}
