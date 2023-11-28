@@ -31,7 +31,7 @@ trap cleanup EXIT
 ## 4. Clone repo, pull secrets
 ## ---------------------------
 
-REPO_NAME="code-wallet/code-app-credentials"
+REPO_NAME="code-payments/code-app-credentials"
 GIT_TEMP_PATH=$(mktemp -d -t "${REPO_NAME/\//_}")
 
 echo "Cloning '${REPO_NAME}'..."
