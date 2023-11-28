@@ -15,16 +15,18 @@ typealias AnalyticsValue = MixpanelType
 
 enum Analytics {
     
+    private static var isRegistered: Bool = false
+    
     static func initialize() {
         FirebaseApp.app()?.isDataCollectionDefaultEnabled = true
         Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
         
-        if 
-            let plist = Bundle.main.infoDictionary,
-            let mixpanel = plist["mixpanel"] as? [String: String],
-            let apiKey = mixpanel["apiKey"]
-        {
+        if let apiKey = Environment.variable(.mixpanel) {
             Mixpanel.initialize(token: apiKey)
+            isRegistered = true
+            trace(.success, components: "Starting Mixpanel...")
+        } else {
+            trace(.failure, components: "Failed to start Mixpanel. No API key provided in the '\(Environment.Variable.mixpanel.rawValue)' env variable.")
         }
     }
     
@@ -44,6 +46,7 @@ enum Analytics {
     }
     
     private static func track(_ name: String, properties: [String: AnalyticsValue]? = nil) {
+        guard isRegistered else { return }
         mixpanel.track(event: name, properties: properties)
     }
 }

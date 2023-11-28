@@ -11,11 +11,21 @@ import CodeServices
 
 enum ErrorReporting {
     
+    private static var isRegistered: Bool = false
+    
     static func initialize() {
-        Bugsnag.start()
+        if let apiKey = Environment.variable(.bugsnag) {
+            Bugsnag.start(withApiKey: apiKey)
+            isRegistered = true
+            trace(.success, components: "Starting Bugsnag...")
+        } else {
+            trace(.failure, components: "Failed to start BugSnag. No API key provided in the '\(Environment.Variable.bugsnag.rawValue)' env variable.")
+        }
     }
     
     static func breadcrumb(_ breadcrumb: Breadcrumb) {
+        guard isRegistered else { return }
+        
         Bugsnag.leaveBreadcrumb(withMessage: breadcrumb.rawValue)
     }
     
@@ -43,6 +53,8 @@ enum ErrorReporting {
     }
     
     private static func capture(_ error: Swift.Error, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
+        guard isRegistered else { return }
+        
         let swiftError = error as NSError
         
         var userInfo: [String: Any] = [:]
