@@ -274,6 +274,7 @@
 		9A557D9F28AC34A300A58BB1 /* Reachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reachability.swift; sourceTree = "<group>"; };
 		9A57221825EE92BC00B243FC /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		9A57224825EEDC4200B243FC /* DepositScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepositScreen.swift; sourceTree = "<group>"; };
+		9A592D762B17AF5500735BB0 /* base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = base.xcconfig; sourceTree = "<group>"; };
 		9A5E35E626261E190066E4C8 /* AccessKeyScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessKeyScreen.swift; sourceTree = "<group>"; };
 		9A646985275FE634008B1498 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
 		9A64698D275FF9CD008B1498 /* Events.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Events.swift; sourceTree = "<group>"; };
@@ -616,6 +617,14 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		9A592D6D2B17A7EC00735BB0 /* Configurations */ = {
+			isa = PBXGroup;
+			children = (
+				9A592D762B17AF5500735BB0 /* base.xcconfig */,
+			);
+			path = Configurations;
+			sourceTree = "<group>";
+		};
 		9A646984275FE61C008B1498 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
@@ -759,6 +768,7 @@
 			isa = PBXGroup;
 			children = (
 				9AD5E64A25F2BF3E007388AE /* Vendor */,
+				9A592D6D2B17A7EC00735BB0 /* Configurations */,
 				9AED116C258BE3AF0088D902 /* Packages */,
 				9AED1102258BE1310088D902 /* Code */,
 				9AED1114258BE1320088D902 /* CodeTests */,
@@ -927,6 +937,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9AED1125258BE1320088D902 /* Build configuration list for PBXNativeTarget "Code" */;
 			buildPhases = (
+				9A88CDD92B167B8300378AAE /* Generate Google Credentials */,
 				9AED11F32591115E0088D902 /* Generate Localized strings */,
 				9AED10FC258BE1310088D902 /* Sources */,
 				9AED10FD258BE1310088D902 /* Frameworks */,
@@ -1171,7 +1182,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\nSCRIPT=\"./pull\"\n\nif [ -f \"$SCRIPT\" ]; then\n    echo \"Lokalise script found.\"\n    ./pull\nelse\n    echo \"error: Lokalise script not found. Ensure you pull credentials before running string generation.\"\n    exit 1\nfi\n";
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./pull_strings -t \"$LOKALISE_TOKEN\" -p \"$LOKALISE_PROJECT_ID\" -d \"../Code/Supporting Files/Localization\"\n";
+		};
+		9A88CDD92B167B8300378AAE /* Generate Google Credentials */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Google Credentials";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$SOURCE_ROOT/Code/Supporting Files/GoogleService-Info.plist\"\n";
 		};
 		9AEB5FDB25CDD4CB004B3680 /* Generate Code Services */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1433,6 +1462,7 @@
 /* Begin XCBuildConfiguration section */
 		9A1654E7268381BB000A135E /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9A592D762B17AF5500735BB0 /* base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				APP_ICON_SUFFIX = "";
@@ -1576,6 +1606,7 @@
 		};
 		9A235A48297C77E100B0AADF /* Release Development */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9A592D762B17AF5500735BB0 /* base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				APP_ICON_SUFFIX = .beta;
@@ -1896,6 +1927,7 @@
 		};
 		9AED1123258BE1320088D902 /* Development */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9A592D762B17AF5500735BB0 /* base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				APP_ICON_SUFFIX = .beta;
@@ -1957,6 +1989,7 @@
 		};
 		9AED1124258BE1320088D902 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9A592D762B17AF5500735BB0 /* base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				APP_ICON_SUFFIX = "";

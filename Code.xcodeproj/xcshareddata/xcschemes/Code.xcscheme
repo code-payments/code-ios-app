@@ -9,8 +9,8 @@
          <ExecutionAction
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
-               title = "Initialize Secrets if Needed"
-               scriptText = "# Don&apos;t run this on GitHub, there&apos;s no point&#10;if [ &quot;$GITHUB_ACTIONS&quot; != &quot;true&quot; ]; then&#10;    cd &quot;$SOURCE_ROOT/Scripts&quot;&#10;&#10;    if [ ! -f &quot;./pull&quot; ]; then&#10;        echo &quot;note: No secrets found. Startig init.&quot;&#10;        ./init &quot;$SOURCE_ROOT&quot;&#10;    fi&#10;fi&#10;">
+               title = "Pull Secrets if Needed"
+               scriptText = "&quot;$SOURCE_ROOT/Scripts/pull_secrets_if_needed&quot; &quot;$SOURCE_ROOT&quot;&#10;">
                <EnvironmentBuildable>
                   <BuildableReference
                      BuildableIdentifier = "primary"
