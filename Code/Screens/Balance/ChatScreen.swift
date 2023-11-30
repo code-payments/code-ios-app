@@ -43,7 +43,7 @@ struct ChatScreen: View {
             VStack(spacing: 0) {
                 MessageList(messages: chat.messages, exchange: exchange)
                 
-                HStack(spacing: 10) {
+                HStack(spacing: 0) {
 //                    Button {} label: {
 //                        Text("Mute")
 //                            .frame(maxWidth: .infinity)
@@ -66,11 +66,39 @@ struct ChatScreen: View {
 //                            .cornerRadius(999)
 //                    }
                     
-                    CodeButton(style: .filled, title: "Mute"/*, disabled: !chat.canMute*/) {}
-                    CodeButton(style: .filled, title: "Unsubscribe"/*, disabled: !chat.canUnsubscribe*/) {}
+//                    CodeButton(style: .filled, title: "Mute"/*, disabled: !chat.canMute*/) {}
+//                    CodeButton(style: .filled, title: "Unsubscribe"/*, disabled: !chat.canUnsubscribe*/) {}
+                    VStack {
+                        Button {} label: {
+                            Text("Mute")
+                                .frame(maxWidth: .infinity)
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textSecondary)
+                                .padding(.vertical, 15)
+                                .padding(.horizontal, 30)
+                                .background(Color.white.opacity(0.01))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .hSeparator(color: .rowSeparator, position: .trailing)
+                    
+                    VStack {
+                        Button {} label: {
+                            Text("Unsubscribe")
+                                .frame(maxWidth: .infinity)
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textSecondary)
+                                .padding(.vertical, 15)
+                                .padding(.horizontal, 30)
+                                .background(Color.white.opacity(0.01))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .padding(.vertical, 10)
-                .padding(.horizontal, 20)
+                .frame(height: 60)
+//                .padding(.vertical, 10)
+//                .padding(.horizontal, 20)
+                .vSeparator(color: .rowSeparator, position: .top)
             }
             .onAppear {
                 didAppear()

@@ -24,7 +24,7 @@ public struct MessageList: View {
     // MARK: - Body -
     
     public var body: some View {
-        ScrollBox(color: .backgroundMain) {
+//        ScrollBox(color: .backgroundMain) {
             GeometryReader { g in
                 ScrollViewReader { scrollProxy in
                     ScrollView(showsIndicators: false) {
@@ -83,7 +83,7 @@ public struct MessageList: View {
                     }
                 }
             }
-        }
+//        }
     }
 }
 
