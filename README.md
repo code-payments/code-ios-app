@@ -2,8 +2,8 @@
 
 # Code iOS App
 
-[![Swift Package Manager compatible](https://img.shields.io/badge/Swift%20Package%20Manager-compatible-4BC51D.svg?style=flat)](https://swift.org/package-manager/)
-[![GitHub license](https://img.shields.io/badge/license-MIT-lightgrey.svg?style=flat)](https://github.com/code-payments/code-ios/blob/main/LICENSE)
+[![GitHub Release](https://img.shields.io/github/release/code-payments/code-ios-app.svg?style=flat)](https://github.com/code-payments/code-ios-app/releases/latest)
+[![GitHub license](https://img.shields.io/badge/license-MIT-lightgrey.svg?style=flat)](https://github.com/code-payments/code-ios-app/blob/main/LICENSE)
 
 [Code](https://getcode.com) is a mobile wallet app leveraging self-custodial blockchain technology to deliver an instant, global, and private payments experience. 
 
