@@ -28,47 +28,49 @@ public struct MessageList: View {
             GeometryReader { g in
                 ScrollViewReader { scrollProxy in
                     ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 20) {
                             
                             ForEach(messages) { message in
-                                MessageTitle(text: message.date.formattedRelatively())
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
-                                        MessageRow(width: g.messageWidth) {
-                                            switch content {
-                                            case .localized(let key):
-                                                MessageText(
-                                                    text: key.localizedStringByKey,
-                                                    location: .forIndex(index, count: message.contents.count)
-                                                )
-                                                
-                                            case .kin(let amount, let verb):
-                                                if let rate = exchange.rate(for: amount.currency) {
-                                                    MessagePayment(
-                                                        title: verb.localizedText,
-                                                        amount: amount.amountUsing(rate: rate),
+                                VStack(alignment: .leading, spacing: 8) {
+                                    MessageTitle(text: message.date.formattedRelatively())
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
+                                            MessageRow(width: g.messageWidth) {
+                                                switch content {
+                                                case .localized(let key):
+                                                    MessageText(
+                                                        text: key.localizedStringByKey,
                                                         location: .forIndex(index, count: message.contents.count)
                                                     )
-                                                } else {
-                                                    MessagePayment(
-                                                        title: "Rate Not Found",
-                                                        amount: KinAmount(kin: 0, rate: .oneToOne),
+                                                    
+                                                case .kin(let amount, let verb):
+                                                    if let rate = exchange.rate(for: amount.currency) {
+                                                        MessagePayment(
+                                                            title: verb.localizedText,
+                                                            amount: amount.amountUsing(rate: rate),
+                                                            location: .forIndex(index, count: message.contents.count)
+                                                        )
+                                                    } else {
+                                                        MessagePayment(
+                                                            title: "Rate Not Found",
+                                                            amount: KinAmount(kin: 0, rate: .oneToOne),
+                                                            location: .forIndex(index, count: message.contents.count)
+                                                        )
+                                                    }
+                                                    
+                                                case .sodiumBox:
+                                                    // TODO: Decrypt and show correct content
+                                                    MessageText(
+                                                        text: content.localizedText,
                                                         location: .forIndex(index, count: message.contents.count)
                                                     )
                                                 }
-                                                
-                                            case .sodiumBox:
-                                                // TODO: Decrypt and show correct content
-                                                MessageText(
-                                                    text: content.localizedText,
-                                                    location: .forIndex(index, count: message.contents.count)
-                                                )
                                             }
                                         }
                                     }
+                                    .id(message.id)
                                 }
-                                .id(message.id)
                             }
                             
                             Spacer()
@@ -174,7 +176,6 @@ public struct MessageText: View {
                     br: Metrics.chatMessageRadiusLarge,
                     tr: Metrics.chatMessageRadiusLarge
                 ))
-//                .cornerRadius(Metrics.chatMessageRadiusLarge)
         }
     }
 }
@@ -217,7 +218,6 @@ public struct MessageItem: View {
             br: Metrics.chatMessageRadiusLarge,
             tr: Metrics.chatMessageRadiusLarge
         ))
-//        .cornerRadius(Metrics.chatMessageRadiusLarge)
     }
 }
 
@@ -256,7 +256,6 @@ public struct MessagePayment: View {
             br: Metrics.chatMessageRadiusLarge,
             tr: Metrics.chatMessageRadiusLarge
         ))
-//        .cornerRadius(Metrics.chatMessageRadiusLarge)
     }
 }
 
@@ -396,74 +395,6 @@ private struct UnevenRoundedCorners: Shape {
         path.addLine(to: CGPoint(x: 0, y: tl))
         path.addArc(center: CGPoint(x: tl, y: tl), radius: tl,
                     startAngle: Angle(degrees: 180), endAngle: Angle(degrees: 270), clockwise: false)
-        path.closeSubpath()
-
-        return path
-    }
-}
-
-private struct ChatBubble: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-
-        let tailWidth: CGFloat = 10
-        let tailHeight: CGFloat = 15
-        let cornerRadius: CGFloat = 15
-        
-        // Start at the tail tip on the left
-        path.move(to: CGPoint(x: tailWidth, y: rect.midY))
-
-        // Line to start of tail arc
-        path.addLine(to: CGPoint(x: tailWidth, y: rect.midY - tailHeight / 2))
-
-        // Tail arc
-        path.addQuadCurve(to: CGPoint(x: 0, y: rect.midY),
-                          control: CGPoint(x: tailWidth / 2, y: rect.midY - tailHeight / 2))
-
-        path.addQuadCurve(to: CGPoint(x: tailWidth, y: rect.midY + tailHeight / 2),
-                          control: CGPoint(x: tailWidth / 2, y: rect.midY + tailHeight / 2))
-
-        // Line to bottom left corner
-        path.addLine(to: CGPoint(x: tailWidth, y: rect.maxY - cornerRadius))
-
-        // Bottom left corner
-        path.addArc(center: CGPoint(x: tailWidth + cornerRadius, y: rect.maxY - cornerRadius),
-                    radius: cornerRadius,
-                    startAngle: Angle(degrees: 180),
-                    endAngle: Angle(degrees: 90),
-                    clockwise: true)
-
-        // Bottom line
-        path.addLine(to: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY))
-
-        // Bottom right corner
-        path.addArc(center: CGPoint(x: rect.maxX - cornerRadius, y: rect.maxY - cornerRadius),
-                    radius: cornerRadius,
-                    startAngle: Angle(degrees: 90),
-                    endAngle: Angle(degrees: 0),
-                    clockwise: true)
-
-        // Right line
-        path.addLine(to: CGPoint(x: rect.maxX, y: cornerRadius))
-
-        // Top right corner
-        path.addArc(center: CGPoint(x: rect.maxX - cornerRadius, y: cornerRadius),
-                    radius: cornerRadius,
-                    startAngle: Angle(degrees: 0),
-                    endAngle: Angle(degrees: 270),
-                    clockwise: true)
-
-        // Top line
-        path.addLine(to: CGPoint(x: tailWidth + cornerRadius, y: 0))
-
-        // Top left corner
-        path.addArc(center: CGPoint(x: tailWidth + cornerRadius, y: cornerRadius),
-                    radius: cornerRadius,
-                    startAngle: Angle(degrees: 270),
-                    endAngle: Angle(degrees: 180),
-                    clockwise: true)
-
-        // Close the path
         path.closeSubpath()
 
         return path

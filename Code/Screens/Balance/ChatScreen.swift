@@ -127,15 +127,23 @@ struct ChatScreen_Previews: PreviewProvider {
         messages: [
             Chat.Message(
                 id: .mock2,
+                date: .now.adding(days: -1),
+                contents: [
+                    .localized("A tranquil lake sits in a verdant valley, reflecting the blue sky. Lush forests surround it, alive with the sounds of nature."),
+                    .kin(
+                        .exact(KinAmount(
+                            fiat: 5.00,
+                            rate: Rate(fx: 0.000014, currency: .usd)
+                        )), .received
+                    ),
+                ]
+            ),
+            Chat.Message(
+                id: .mock3,
                 date: .now,
                 contents: [
-                    .localized("Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin."),
-                    .localized("Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin.1"),
-                    .localized("Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin.2"),
-                    .localized("Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin.3"),
-                    .localized("Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin.4"),
-                    .localized("Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin. Welcome bonus! You've received a gift in Kin.5"),
-                    .localized("This is a test"),
+                    .localized("As the sun sets in the desert, golden light bathes the sand dunes. Wind shapes the landscape, ever-changing and mesmerizing."),
+                    .localized("In a cozy village, homes with thatched roofs dot the landscape. Community life thrives, marked by shared traditions and simple joys."),
                     .kin(
                         .exact(KinAmount(
                             fiat: 5.00,

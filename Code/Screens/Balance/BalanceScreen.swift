@@ -229,6 +229,8 @@ struct BalanceScreen: View {
                     )
                 )
             } label: {
+                let isUnread = chat.unreadCount > 0
+                
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 10) {
                         Text(chat.localizedTitle)
@@ -238,25 +240,25 @@ struct BalanceScreen: View {
                         
                         Spacer()
                         
-                        if chat.unreadCount > 0 {
-                            Bubble(size: .large, count: chat.unreadCount)
+                        if let latestMessage = chat.messages.last {
+                            Text(latestMessage.date.formattedRelatively())
+                                .foregroundColor(isUnread ? .textSuccess : .textSecondary)
+                                .font(.appTextSmall)
+                                .lineLimit(1)
                         }
                     }
                     .frame(height: 22) // Ensures the same height with and without Bubble
                     
-                    HStack(spacing: 5) {
+                    HStack(alignment: .center, spacing: 5) {
                         Text(chat.previewMessage)
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
-                            .lineLimit(0)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                         
-                        Spacer()
-                        
-                        if let latestMessage = chat.messages.last {
-                            Text(latestMessage.date.formattedRelatively())
-                                .foregroundColor(.textSecondary)
-                                .font(.appTextSmall)
-                                .lineLimit(1)
+                        if isUnread {
+                            Spacer()
+                            Bubble(size: .large, count: chat.unreadCount)
                         }
                     }
                 }
@@ -434,7 +436,19 @@ extension Chat {
             return "No content"
         }
         
-        return contents.map { $0.localizedText }.joined(separator: " ")
+        var filtered = contents.filter {
+            if case .localized = $0 {
+                true
+            } else {
+                false
+            }
+        }
+            
+        if filtered.isEmpty {
+            filtered = contents
+        }
+        
+        return filtered.map { $0.localizedText }.joined(separator: " ")
     }
 }
 

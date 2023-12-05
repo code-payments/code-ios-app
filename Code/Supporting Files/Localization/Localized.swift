@@ -550,7 +550,7 @@ internal enum Localized {
     /// You received
     internal static let youReceived = Localized.tr("Localizable", "subtitle.youReceived")
     internal enum Chat {
-      /// Welcome Bonus
+      /// Welcome to Code! Here is your first dollar to get you started
       internal static let welcomeBonus = Localized.tr("Localizable", "subtitle.chat.welcomeBonus")
     }
   }
