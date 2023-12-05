@@ -111,12 +111,32 @@ class HistoryController: ObservableObject {
                 owner: owner
             )
             
-            let chatIndex = chats.firstIndex { $0.id == chat.id }
-            if let chatIndex {
-                chats[chatIndex] = chats[chatIndex].resettingUnreadCount()
+            updating(chatID: chat.id) {
+                $0.resettingUnreadCount()
             }
             
             computeUnreadCount()
+        }
+    }
+    
+    func setMuted(_ muted: Bool, for chat: Chat) async throws {
+        updating(chatID: chat.id) {
+            $0.muted(muted)
+        }
+        
+        computeUnreadCount()
+        
+        try await client.setMuteState(
+            chatID: chat.id,
+            muted: muted,
+            owner: owner
+        )
+    }
+    
+    private func updating(chatID: ID, action: (Chat) -> Chat) {
+        let chatIndex = chats.firstIndex { $0.id == chatID }
+        if let chatIndex {
+            chats[chatIndex] = action(chats[chatIndex])
         }
     }
     
@@ -166,7 +186,9 @@ class HistoryController: ObservableObject {
     
     private func computeUnreadCount(for chats: [Chat]) -> Int {
         chats.reduce(into: 0) { result, chat in
-            result = result + chat.unreadCount
+            if !chat.isMuted { // Ignore muted chats
+                result = result + chat.unreadCount
+            }
         }
     }
     

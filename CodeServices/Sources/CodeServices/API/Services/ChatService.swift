@@ -95,6 +95,33 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func setMuteState(chatID: ID, muted: Bool, owner: KeyPair, completion: @escaping (Result<Void, ErrorSetMuteState>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.data.hexEncodedString())")
+        
+        let request = Code_Chat_V1_SetMuteStateRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.isMuted = muted
+            $0.owner = owner.publicKey.codeAccountID
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.setMuteState(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSetMuteState(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success, components: "Chat ID: \(chatID.data.hexEncodedString())", "Muted: \(muted)")
+                completion(.success(()))
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -115,6 +142,13 @@ public enum ErrorAdvancePointer: Int, Error {
     case ok
     case chatNotFound
     case messageNotFound
+    case unknown = -1
+}
+
+public enum ErrorSetMuteState: Int, Error {
+    case ok
+    case chatNotFound
+    case cantMute
     case unknown = -1
 }
 

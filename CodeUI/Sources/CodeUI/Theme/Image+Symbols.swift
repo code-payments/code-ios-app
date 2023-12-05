@@ -54,6 +54,8 @@ public enum SystemSymbol: String {
     case chevronRight = "chevron.right"
     
     case xmark = "xmark.app.fill"
+    
+    case speakerSlash = "speaker.slash.fill"
 }
 
 // MARK: - Symbol -

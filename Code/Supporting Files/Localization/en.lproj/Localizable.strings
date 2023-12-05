@@ -83,6 +83,15 @@
 /* Yes */
 "action.yes" = "Yes";
 
+/* Mute */
+"action.mute" = "Mute";
+
+/* Unmute */
+"action.unmute" = "Unmute";
+
+/* Unsubscribe */
+"action.unsubscribe" = "Unsubscribe";
+
 /* No */
 "action.noTryAgain" = "No, Try Again";
 

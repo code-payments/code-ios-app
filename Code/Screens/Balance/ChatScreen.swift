@@ -12,6 +12,7 @@ import CodeServices
 struct ChatScreen: View {
     
     @EnvironmentObject private var exchange: Exchange
+    @EnvironmentObject private var bannerController: BannerController
     
     @ObservedObject private var historyController: HistoryController
     
@@ -44,61 +45,21 @@ struct ChatScreen: View {
                 MessageList(messages: chat.messages, exchange: exchange)
                 
                 HStack(spacing: 0) {
-//                    Button {} label: {
-//                        Text("Mute")
-//                            .frame(maxWidth: .infinity)
-//                            .font(.appTextMedium)
-//                            .foregroundStyle(Color.backgroundMain)
-//                            .padding(.vertical, 15)
-//                            .padding(.horizontal, 30)
-//                            .background(.white)
-//                            .cornerRadius(999)
-//                    }
-//                    
-//                    Button {} label: {
-//                        Text("Unsubscribe")
-//                            .frame(maxWidth: .infinity)
-//                            .font(.appTextMedium)
-//                            .foregroundStyle(Color.backgroundMain)
-//                            .padding(.vertical, 15)
-//                            .padding(.horizontal, 30)
-//                            .background(.white)
-//                            .cornerRadius(999)
-//                    }
-                    
-//                    CodeButton(style: .filled, title: "Mute"/*, disabled: !chat.canMute*/) {}
-//                    CodeButton(style: .filled, title: "Unsubscribe"/*, disabled: !chat.canUnsubscribe*/) {}
                     VStack {
-                        Button {} label: {
-                            Text("Mute")
-                                .frame(maxWidth: .infinity)
-                                .font(.appTextMedium)
-                                .foregroundStyle(Color.textSecondary)
-                                .padding(.vertical, 15)
-                                .padding(.horizontal, 30)
-                                .background(Color.white.opacity(0.01))
-                        }
+                        button(title: muteTitle(), action: muteAction)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .hSeparator(color: .rowSeparator, position: .trailing)
                     
-                    VStack {
-                        Button {} label: {
-                            Text("Unsubscribe")
-                                .frame(maxWidth: .infinity)
-                                .font(.appTextMedium)
-                                .foregroundStyle(Color.textSecondary)
-                                .padding(.vertical, 15)
-                                .padding(.horizontal, 30)
-                                .background(Color.white.opacity(0.01))
+                    if chat.canUnsubscribe {
+                        VStack {
+                            button(title: Localized.Action.unsubscribe) {}
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .hSeparator(color: .rowSeparator, position: .leading, weight: .medium)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(height: 60)
-//                .padding(.vertical, 10)
-//                .padding(.horizontal, 20)
-                .vSeparator(color: .rowSeparator, position: .top)
+                .vSeparator(color: .rowSeparator, position: .top, weight: .medium)
             }
             .onAppear {
                 didAppear()
@@ -106,6 +67,61 @@ struct ChatScreen: View {
         }
         .navigationBarHidden(false)
         .navigationBarTitle(Text(chat.localizedTitle))
+    }
+    
+    @ViewBuilder private func button(title: String, action: @escaping VoidAction) -> some View {
+        Button {
+            action()
+        } label: {
+            Text(title)
+                .frame(maxWidth: .infinity)
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .padding(.vertical, 15)
+                .padding(.horizontal, 30)
+        }
+    }
+    
+    // MARK: - Mute -
+
+    private func muteTitle() -> String {
+        if chat.isMuted {
+            return Localized.Action.unmute
+        } else {
+            return Localized.Action.mute
+        }
+    }
+    
+    // MARK: - Actions -
+    
+    private func muteAction() {
+        let action = chat.isMuted ? Localized.Action.unmute : Localized.Action.mute
+        let inverseAction = chat.isMuted ? Localized.Action.mute : Localized.Action.unmute
+        
+        let description: String
+        if chat.isMuted { 
+            description = "You will be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction) at any time."
+        } else {
+            description = "You will not be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction) at any time."
+        }
+        
+        bannerController.show(
+            style: .error,
+            title: "\(action) \(chat.localizedTitle)?",
+            description: description,
+            position: .bottom,
+            isDismissable: false,
+            actions: [
+                .destructive(title: action, action: muteChat),
+                .cancel(title: Localized.Action.cancel),
+            ]
+        )
+    }
+    
+    private func muteChat() {
+        Task {
+            try await historyController.setMuted(!chat.isMuted, for: chat)
+        }
     }
 }
 

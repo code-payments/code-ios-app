@@ -68,6 +68,8 @@ internal enum Localized {
     internal static let logIn = Localized.tr("Localizable", "action.logIn")
     /// Log Out
     internal static let logout = Localized.tr("Localizable", "action.logout")
+    /// Mute
+    internal static let mute = Localized.tr("Localizable", "action.mute")
     /// Next
     internal static let next = Localized.tr("Localizable", "action.next")
     /// Not Now
@@ -108,6 +110,10 @@ internal enum Localized {
     internal static let swipeToPay = Localized.tr("Localizable", "action.swipeToPay")
     /// Try a Different Code Account
     internal static let tryDifferentCodeAccount = Localized.tr("Localizable", "action.tryDifferentCodeAccount")
+    /// Unmute
+    internal static let unmute = Localized.tr("Localizable", "action.unmute")
+    /// Unsubscribe
+    internal static let unsubscribe = Localized.tr("Localizable", "action.unsubscribe")
     /// Update
     internal static let update = Localized.tr("Localizable", "action.update")
     /// View Access Key

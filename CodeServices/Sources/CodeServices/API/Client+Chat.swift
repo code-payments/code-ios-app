@@ -27,4 +27,10 @@ extension Client {
             chatService.advancePointer(chatID: chatID, to: messageID, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func setMuteState(chatID: ID, muted: Bool, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.setMuteState(chatID: chatID, muted: muted, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

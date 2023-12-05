@@ -229,7 +229,7 @@ struct BalanceScreen: View {
                     )
                 )
             } label: {
-                let isUnread = chat.unreadCount > 0
+                let isUnread = !chat.isMuted && chat.unreadCount > 0
                 
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 10) {
@@ -249,12 +249,21 @@ struct BalanceScreen: View {
                     }
                     .frame(height: 22) // Ensures the same height with and without Bubble
                     
-                    HStack(alignment: .center, spacing: 5) {
+                    HStack(alignment: .top, spacing: 5) {
                         Text(chat.previewMessage)
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
+                        
+                        if chat.isMuted {
+                            Spacer()
+                            Image.system(.speakerSlash)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20, alignment: .trailing)
+                            .foregroundColor(.textSecondary)
+                        }
                         
                         if isUnread {
                             Spacer()

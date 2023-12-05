@@ -12,11 +12,13 @@ public struct VSeparator: ViewModifier {
     
     public var color: Color
     public var position: Position
+    public var weight: Weight
     public var alignment: HorizontalAlignment
     
-    public init(color: Color, position: Position = .bottom, alignment: HorizontalAlignment = .leading) {
+    public init(color: Color, position: Position, weight: Weight, alignment: HorizontalAlignment) {
         self.color     = color
         self.position  = position
+        self.weight    = weight
         self.alignment = alignment
     }
     
@@ -35,7 +37,7 @@ public struct VSeparator: ViewModifier {
     @ViewBuilder private func separator() -> some View {
         Rectangle()
             .fill(color)
-            .frame(height: Screen.pixelSize)
+            .frame(height: weight.pixelSize)
             .frame(maxWidth: .infinity)
     }
 }
@@ -52,17 +54,31 @@ extension VSeparator {
             self.rawValue = rawValue
         }
     }
+    
+    public enum Weight {
+        case regular
+        case medium
+        
+        var pixelSize: CGFloat {
+            switch self {
+            case .regular: Screen.pixelSize
+            case .medium:  Screen.pointSize
+            }
+        }
+    }
 }
 
 public struct HSeparator: ViewModifier {
     
     public var color: Color
     public var position: Position
+    public var weight: Weight
     public var alignment: VerticalAlignment
     
-    public init(color: Color, position: Position = .trailing, alignment: VerticalAlignment = .center) {
+    public init(color: Color, position: Position, weight: Weight, alignment: VerticalAlignment) {
         self.color     = color
         self.position  = position
+        self.weight    = weight
         self.alignment = alignment
     }
     
@@ -81,7 +97,7 @@ public struct HSeparator: ViewModifier {
     @ViewBuilder private func separator() -> some View {
         Rectangle()
             .fill(color)
-            .frame(width: Screen.pixelSize)
+            .frame(width: weight.pixelSize)
             .frame(maxHeight: .infinity)
     }
 }
@@ -98,9 +114,22 @@ extension HSeparator {
             self.rawValue = rawValue
         }
     }
+    
+    public enum Weight {
+        case regular
+        case medium
+        
+        var pixelSize: CGFloat {
+            switch self {
+            case .regular: Screen.pixelSize
+            case .medium:  Screen.pointSize
+            }
+        }
+    }
 }
 
 private enum Screen {
+    static var pointSize: CGFloat = 1.0
     #if canImport(UIKit)
     static var pixelSize: CGFloat = 1.0 / UIScreen.main.scale
     #else
@@ -111,11 +140,12 @@ private enum Screen {
 // MARK: - View -
 
 extension View {
-    public func vSeparator(color: Color, position: VSeparator.Position = .bottom, alignment: HorizontalAlignment = .leading) -> some View {
+    public func vSeparator(color: Color, position: VSeparator.Position = .bottom, weight: VSeparator.Weight = .regular, alignment: HorizontalAlignment = .leading) -> some View {
         modifier(
             VSeparator(
                 color: color,
                 position: position,
+                weight: weight,
                 alignment: alignment
             )
         )
@@ -123,11 +153,12 @@ extension View {
 }
  
 extension View {
-    public func hSeparator(color: Color, position: HSeparator.Position = .trailing, alignment: VerticalAlignment = .center) -> some View {
+    public func hSeparator(color: Color, position: HSeparator.Position = .trailing, weight: HSeparator.Weight = .regular, alignment: VerticalAlignment = .center) -> some View {
         modifier(
             HSeparator(
                 color: color,
                 position: position,
+                weight: weight,
                 alignment: alignment
             )
         )
@@ -144,7 +175,7 @@ struct Separator_Previews: PreviewProvider {
                     Text("Hello")
                         .foregroundColor(.white)
                         .padding([.top, .bottom], 20)
-                        .vSeparator(color: .white)
+                        .vSeparator(color: .white, weight: .medium)
                 }
             }
         }

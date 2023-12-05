@@ -24,19 +24,19 @@ public struct Chat: Equatable, Identifiable {
     public let pointer: Pointer?
     
     /// Estimated number of unread messages in this chat
-    public let unreadCount: Int
+    public var unreadCount: Int
     
     /// Can the user mute this chat?
     public let canMute: Bool
     
     /// Has the user muted this chat?
-    public let isMuted: Bool
+    public var isMuted: Bool
     
     /// Can the user unsubscribe from this chat?
     public let canUnsubscribe: Bool
 
     /// Is the user subscribed to this chat?
-    public let isSubscribed: Bool
+    public var isSubscribed: Bool
 
     /// Is this a verified chat?
     ///
@@ -61,19 +61,15 @@ public struct Chat: Equatable, Identifiable {
     }
     
     public func resettingUnreadCount() -> Chat {
-        Chat(
-            id: id,
-            cursor: cursor,
-            title: title,
-            pointer: pointer,
-            unreadCount: 0,
-            canMute: canMute,
-            isMuted: isMuted,
-            canUnsubscribe: canUnsubscribe,
-            isSubscribed: isSubscribed,
-            isVerified: isVerified,
-            messages: messages
-        )
+        var chat = self
+        chat.unreadCount = 0
+        return chat
+    }
+    
+    public func muted(_ muted: Bool) -> Chat {
+        var chat = self
+        chat.isMuted = muted
+        return chat
     }
 }
 
