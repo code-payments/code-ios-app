@@ -104,9 +104,9 @@ struct ChatScreen: View {
         
         let description: String
         if chat.isMuted { 
-            description = "You will be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction) at any time."
+            description = "You will be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction.lowercased()) at any time."
         } else {
-            description = "You will not be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction) at any time."
+            description = "You will not be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction.lowercased()) at any time."
         }
         
         bannerController.show(
