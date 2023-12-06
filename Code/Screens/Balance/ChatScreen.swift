@@ -44,22 +44,26 @@ struct ChatScreen: View {
             VStack(spacing: 0) {
                 MessageList(messages: chat.messages, exchange: exchange)
                 
-                HStack(spacing: 0) {
-                    VStack {
-                        button(title: muteTitle(), action: muteAction)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    
-                    if chat.canUnsubscribe {
-                        VStack {
-                            button(title: Localized.Action.unsubscribe) {}
+                if chat.canMute || chat.canUnsubscribe {
+                    HStack(spacing: 0) {
+                        if chat.canMute {
+                            VStack {
+                                button(title: muteTitle(), action: muteAction)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .hSeparator(color: .rowSeparator, position: .leading, weight: .medium)
+                        
+                        if chat.canUnsubscribe {
+                            VStack {
+                                button(title: Localized.Action.unsubscribe) {}
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .hSeparator(color: .rowSeparator, position: .leading, weight: .medium)
+                        }
                     }
+                    .frame(height: 60)
+                    .vSeparator(color: .rowSeparator, position: .top, weight: .medium)
                 }
-                .frame(height: 60)
-                .vSeparator(color: .rowSeparator, position: .top, weight: .medium)
             }
             .onAppear {
                 didAppear()
