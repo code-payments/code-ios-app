@@ -256,8 +256,9 @@ struct BalanceScreen: View {
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                         
+                        Spacer()
+                        
                         if chat.isMuted {
-                            Spacer()
                             Image.system(.speakerSlash)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
@@ -266,7 +267,6 @@ struct BalanceScreen: View {
                         }
                         
                         if isUnread {
-                            Spacer()
                             Bubble(size: .large, count: chat.unreadCount)
                         }
                     }
