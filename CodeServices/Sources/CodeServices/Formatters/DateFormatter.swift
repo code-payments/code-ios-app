@@ -32,15 +32,40 @@ extension DateFormatter {
         f.doesRelativeDateFormatting = true
         return f
     }()
+    
+    public static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE"
+        return f
+    }()
+
+    public static let codeDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, MMM dd"
+        return f
+    }()
 }
 
 extension Date {
     public func formattedRelatively() -> String {
-        let isFresh = self.distance(to: .now()) < 60 * 60 * 12 // 12 hours
-        if isFresh {
-            return DateFormatter.relativeTime.string(from: self)
-        } else {
+        let calendar = Calendar.current
+        let weekAgo = Date.weekAgo()
+        
+        if calendar.isDateInToday(self) || calendar.isDateInYesterday(self) {
             return DateFormatter.relativeDay.string(from: self)
+            
+        } else if self > weekAgo { // Within the last 6 days
+            return DateFormatter.weekdayFormatter.string(from: self)
+            
+        } else {
+            return DateFormatter.codeDateFormatter.string(from: self)
         }
+    }
+}
+
+private extension Date {
+    static func weekAgo() -> Date {
+        let c = Calendar.current
+        return c.date(byAdding: .day, value: -6, to: c.startOfDay(for: .now))!
     }
 }
