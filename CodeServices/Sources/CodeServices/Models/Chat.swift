@@ -127,85 +127,88 @@ extension Chat {
 // MARK: - gRPC -
 
 extension Chat.Message {
-    init(_ proto: Code_Chat_V1_ChatMessage) {
-        let contents: [Chat.Content?] = proto.content.map { content in
-            switch content.type {
-            case .localized(let string):
-                return .localized(string.key)
-                
-            case .exchangeData(let exchange):
-                
-                let verb: Chat.Verb
-                
-                switch exchange.verb {
-                case .unknown:
-                    verb = .unknown
-                case .gave:
-                    verb = .gave
-                case .received:
-                    verb = .received
-                case .withdrew:
-                    verb = .withdrew
-                case .deposited:
-                    verb = .deposited
-                case .sent:
-                    verb = .sent
-                case .returned:
-                    verb = .returned
-                case .spent:
-                    verb = .spent
-                default:
-                    verb = .unknown
-                }
-                
-                let amount: KinAmount
-                
-                switch exchange.exchangeData {
-                case .exact(let exact):
-                    guard let currency = CurrencyCode(currencyCode: exact.currency) else {
-                        return nil
-                    }
-                    
-                    amount = KinAmount(
-                        kin: Kin(quarks: exact.quarks),
-                        rate: Rate(
-                            fx: Decimal(exact.exchangeRate),
-                            currency: currency
-                        )
-                    )
-                    
-                    return .kin(.exact(amount), verb)
-                    
-                case .partial(let partial):
-                    guard let currency = CurrencyCode(currencyCode: partial.currency) else {
-                        return nil
-                    }
-                    
-                    let fiat = Fiat(
-                        currency: currency,
-                        amount: partial.nativeAmount
-                    )
-                    
-                    return .kin(.partial(fiat), verb)
-                    
-                case .none:
-                    return nil
-                }
-                
-                
-            case .naclBox:
-                return .sodiumBox
-                
-            default:
-                return nil
-            }
-        }
-        
+    public init(_ proto: Code_Chat_V1_ChatMessage) {
         self.init(
             id: .init(data: proto.messageID.value),
             date: proto.ts.date,
-            contents: contents.compactMap { $0 }
+            contents: proto.content.compactMap { Chat.Content($0) }
         )
+    }
+}
+
+extension Chat.Content {
+    
+    public init?(_ proto: Code_Chat_V1_Content) {
+        switch proto.type {
+        case .localized(let string):
+            self = .localized(string.key)
+            
+        case .exchangeData(let exchange):
+            
+            let verb: Chat.Verb
+            
+            switch exchange.verb {
+            case .unknown:
+                verb = .unknown
+            case .gave:
+                verb = .gave
+            case .received:
+                verb = .received
+            case .withdrew:
+                verb = .withdrew
+            case .deposited:
+                verb = .deposited
+            case .sent:
+                verb = .sent
+            case .returned:
+                verb = .returned
+            case .spent:
+                verb = .spent
+            default:
+                verb = .unknown
+            }
+            
+            let amount: KinAmount
+            
+            switch exchange.exchangeData {
+            case .exact(let exact):
+                guard let currency = CurrencyCode(currencyCode: exact.currency) else {
+                    return nil
+                }
+                
+                amount = KinAmount(
+                    kin: Kin(quarks: exact.quarks),
+                    rate: Rate(
+                        fx: Decimal(exact.exchangeRate),
+                        currency: currency
+                    )
+                )
+                
+                self = .kin(.exact(amount), verb)
+                
+            case .partial(let partial):
+                guard let currency = CurrencyCode(currencyCode: partial.currency) else {
+                    return nil
+                }
+                
+                let fiat = Fiat(
+                    currency: currency,
+                    amount: partial.nativeAmount
+                )
+                
+                self = .kin(.partial(fiat), verb)
+                
+            case .none:
+                return nil
+            }
+            
+            
+        case .naclBox:
+            self = .sodiumBox
+            
+        default:
+            return nil
+        }
     }
 }
 
