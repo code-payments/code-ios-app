@@ -441,7 +441,7 @@ extension Chat {
     }
     
     public var previewMessage: String {
-        guard let contents = messages.first?.contents else {
+        guard let contents = messages.last?.contents else {
             return "No content"
         }
         
