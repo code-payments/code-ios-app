@@ -164,7 +164,11 @@ extension Chat.Content {
                 verb = .returned
             case .spent:
                 verb = .spent
-            default:
+            case .paid:
+                verb = .paid
+            case .purchased:
+                verb = .purchased
+            case .UNRECOGNIZED:
                 verb = .unknown
             }
             
