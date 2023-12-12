@@ -533,6 +533,9 @@
 /* Subtitle for welcome bonus */
 "subtitle.chat.welcomeBonus" = "Welcome to Code! Here is your first dollar to get you started";
 
+/* Subtitle for welcome bonus */
+"subtitle.chat.referralBonus" = "You sent someone their first Kin! Here is your referral bonus";
+
 
 
 
