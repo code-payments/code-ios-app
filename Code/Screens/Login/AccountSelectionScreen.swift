@@ -46,78 +46,81 @@ struct AccountSelectionScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack {
-                ModalHeaderBar(title: Localized.Title.selectAccount, isPresented: $isPresented)
-                Spacer()
-                ScrollBox(color: .backgroundMain) {
-                    LazyTable(contentPadding: .scrollBox) {
-                        ForEach(accounts) { account in
-                            Button {
-                                action(account.details)
-                            } label: {
-                                HStack(alignment: .center, spacing: 15) {
-                                    CheckView(active: isSelected(for: account.details))
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        
-                                        HStack(alignment: .bottom, spacing: 10) {
-                                            Text("\(account.formattedKin()) \(Localized.Core.kin)")
-                                            if account.isNotFound {
-                                                Badge(decoration: .circle(.textError), text: "Not Found")
-                                            } else if account.organizer.isUnlocked {
-                                                Badge(decoration: .circle(.textError), text: "Unlocked")
-                                            } else if account.isMigrationRequired {
-                                                Badge(decoration: .circle(.textWarning), text: "Legacy")
+        NavigationView {
+            Background(color: .backgroundMain) {
+                VStack {
+                    ScrollBox(color: .backgroundMain) {
+                        LazyTable(contentPadding: .scrollBox) {
+                            ForEach(accounts) { account in
+                                Button {
+                                    action(account.details)
+                                } label: {
+                                    HStack(alignment: .center, spacing: 15) {
+                                        CheckView(active: isSelected(for: account.details))
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            
+                                            HStack(alignment: .bottom, spacing: 10) {
+                                                Text("\(account.formattedKin()) \(Localized.Core.kin)")
+                                                if account.isNotFound {
+                                                    Badge(decoration: .circle(.textError), text: "Not Found")
+                                                } else if account.organizer.isUnlocked {
+                                                    Badge(decoration: .circle(.textError), text: "Unlocked")
+                                                } else if account.isMigrationRequired {
+                                                    Badge(decoration: .circle(.textWarning), text: "Legacy")
+                                                }
+                                                Spacer()
+                                                Text(account.formattedFiat(rate: currentRate))
                                             }
-                                            Spacer()
-                                            Text(account.formattedFiat(rate: currentRate))
+                                            .font(.appTextMedium)
+                                            .foregroundColor(.textMain)
+                                            .padding(.bottom, 5)
+                                            
+                                            Group {
+                                                Text("Created \(DateFormatter.relative.string(from: account.details.creationDate))")
+                                                Text("On \(account.details.deviceName)")
+                                                Text(account.details.account.ownerPublicKey.base58)
+                                                    .truncationMode(.middle)
+                                            }
+                                            .font(.appTextHeading)
+                                            .foregroundColor(.textSecondary)
+                                            .multilineTextAlignment(.leading)
                                         }
-                                        .font(.appTextMedium)
-                                        .foregroundColor(.textMain)
-                                        .padding(.bottom, 5)
-                                        
-                                        Group {
-                                            Text("Created \(DateFormatter.relative.string(from: account.details.creationDate))")
-                                            Text("On \(account.details.deviceName)")
-                                            Text(account.details.account.ownerPublicKey.base58)
-                                                .truncationMode(.middle)
-                                        }
-                                        .font(.appTextHeading)
-                                        .foregroundColor(.textSecondary)
-                                        .multilineTextAlignment(.leading)
+                                        .frame(maxWidth: .infinity)
+                                        .lineLimit(1)
                                     }
-                                    .frame(maxWidth: .infinity)
-                                    .lineLimit(1)
                                 }
+                                .padding([.top, .bottom], 20)
+                                .padding(.trailing, 20)
+                                .vSeparator(color: .rowSeparator)
+                                .padding(.leading, 20)
+                                .contextMenu(ContextMenu {
+                                    Button {
+                                        copySecretPhrase(description: account.details)
+                                    } label: {
+                                        Label("Copy Secret Phrase", systemImage: SystemSymbol.doc.rawValue)
+                                    }
+
+                                    Button {
+                                        copyOwnerAddress(description: account.details)
+                                    } label: {
+                                        Label("Copy Owner Address", systemImage: SystemSymbol.doc.rawValue)
+                                    }
+
+                                    Button {
+                                        deleteAccount(description: account.details)
+                                    } label: {
+                                        Label("Delete Account", systemImage: "trash")
+                                    }
+                                })
                             }
-                            .padding([.top, .bottom], 20)
-                            .padding(.trailing, 20)
-                            .vSeparator(color: .rowSeparator)
-                            .padding(.leading, 20)
-                            .contextMenu(ContextMenu {
-                                Button {
-                                    copySecretPhrase(description: account.details)
-                                } label: {
-                                    Label("Copy Secret Phrase", systemImage: SystemSymbol.doc.rawValue)
-                                }
-                                Button {
-                                    copyOwnerAddress(description: account.details)
-                                } label: {
-                                    Label("Copy Owner Address", systemImage: SystemSymbol.doc.rawValue)
-                                }
-//                                Button {
-//                                    copyTokenAddress(description: account.details)
-//                                } label: {
-//                                    Label("Copy Token Address", systemImage: SystemSymbol.doc.rawValue)
-//                                }
-                                Button {
-                                    deleteAccount(description: account.details)
-                                } label: {
-                                    Label("Delete Account", systemImage: "trash")
-                                }
-                            })
                         }
                     }
+                }
+            }
+            .navigationBarTitle(Text(Localized.Title.selectAccount), displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
                 }
             }
         }

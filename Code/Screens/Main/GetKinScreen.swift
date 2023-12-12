@@ -38,78 +38,78 @@ struct GetKinScreen: View {
     var body: some View {
         NavigationView {
             Background(color: .backgroundMain) {
-                VStack(spacing: 0) {
-                    ModalHeaderBar(title: nil, isPresented: $isPresented)
-                    
-                    VStack(spacing: 20) {
-                        VStack(alignment: .leading, spacing: 40) {
-                            Image.asset(.graphicWallet)
-                            
-                            VStack(alignment: .leading, spacing: 20) {
-                                Text(Localized.Title.getKin)
-                                    .font(.appDisplayMedium)
-                                
-                                Text(Localized.Subtitle.getKin)
-                                    .font(.appTextMedium)
-                            }
-                        }
-                        .frame(maxHeight: .infinity)
+                VStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 40) {
+                        Image.asset(.graphicWallet)
                         
-                        VStack(spacing: 0) {
-                            row(
-                                asset: .gift,
-                                title: Localized.Subtitle.getYourFirstKinFree,
-                                subtitle: Localized.Title.limitedTimeOffer,
-                                disabled: !isEligibleForFreeKin(),
-                                strikethrough: !isEligibleForFreeKin(),
-                                accessory: getFreeKinAccessory()
-                            ) {
-                                Task {
-                                    isLoadingGetKin = true
-                                    let paymentMetadata = try await session.airdropFirstKin()
-                                    isPresented.toggle()
-                                    
-                                    try await Task.delay(milliseconds: 500)
-                                    isLoadingGetKin = false
-                                    
-                                    session.attemptSend(bill: .init(
-                                        kind: .firstKin,
-                                        amount: paymentMetadata.amount,
-                                        didReceive: true
-                                    ))
-                                }
-                            }
-                            .vSeparator(color: .rowSeparator, position: .top)
+                        VStack(alignment: .leading, spacing: 20) {
+                            Text(Localized.Title.getKin)
+                                .font(.appDisplayMedium)
                             
-                            if isEligibleForReferalIncentive() {
-                                navigationRow(
-                                    asset: .send2,
-                                    title: Localized.Title.referFriend,
-                                    subtitle: Localized.Title.limitedTimeOffer
-                                ) {
-                                    GetFriendStartedScreen()
-                                }
-                            }
-                            
-                            // No separator
-                            navigationRow(
-                                asset: .dollar,
-                                title: Localized.Title.buySellKin,
-                                subtitle: nil
-                            ) {
-                                BuyVideosScreen()
+                            Text(Localized.Subtitle.getKin)
+                                .font(.appTextMedium)
+                        }
+                    }
+                    .frame(maxHeight: .infinity)
+                    
+                    VStack(spacing: 0) {
+                        row(
+                            asset: .gift,
+                            title: Localized.Subtitle.getYourFirstKinFree,
+                            subtitle: Localized.Title.limitedTimeOffer,
+                            disabled: !isEligibleForFreeKin(),
+                            strikethrough: !isEligibleForFreeKin(),
+                            accessory: getFreeKinAccessory()
+                        ) {
+                            Task {
+                                isLoadingGetKin = true
+                                let paymentMetadata = try await session.airdropFirstKin()
+                                isPresented.toggle()
+                                
+                                try await Task.delay(milliseconds: 500)
+                                isLoadingGetKin = false
+                                
+                                session.attemptSend(bill: .init(
+                                    kind: .firstKin,
+                                    amount: paymentMetadata.amount,
+                                    didReceive: true
+                                ))
                             }
                         }
-                        .frame(maxHeight: .infinity)
+                        .vSeparator(color: .rowSeparator, position: .top)
+                        
+                        if isEligibleForReferalIncentive() {
+                            navigationRow(
+                                asset: .send2,
+                                title: Localized.Title.referFriend,
+                                subtitle: Localized.Title.limitedTimeOffer
+                            ) {
+                                GetFriendStartedScreen()
+                            }
+                        }
+                        
+                        // No separator
+                        navigationRow(
+                            asset: .dollar,
+                            title: Localized.Title.buySellKin,
+                            subtitle: nil
+                        ) {
+                            BuyVideosScreen()
+                        }
                     }
-                    .padding(.top, -20)
-                    .padding(.bottom, 20)
-                    .padding(.horizontal, 20)
-                    .foregroundColor(.textMain)
+                    .frame(maxHeight: .infinity)
+                }
+                .padding(.top, -20)
+                .padding(.bottom, 20)
+                .padding(.horizontal, 20)
+                .foregroundColor(.textMain)
+            }
+            .navigationBarTitle(Text(""), displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
                 }
             }
-            .navigationBarHidden(true)
-            .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 Analytics.open(screen: .getKin)
                 ErrorReporting.breadcrumb(.getKinScreen)

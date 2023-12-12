@@ -27,36 +27,42 @@ struct RegionSelectionScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack {
-                ModalHeaderBar(title: Localized.Title.selectCountry, isPresented: $isPresented)
-                Spacer()
-                ScrollBox(color: .backgroundMain) {
-                    LazyTable(contentPadding: .scrollBox) {
-                        ForEach(regions, id: \.region.rawValue) { regionDescription in
-                            Button {
-                                didSelectRegion(regionDescription.region)
-                            } label: {
-                                HStack(spacing: 15) {
-                                    Flag(style: .fiat(regionDescription.region))
-                                    Text(regionDescription.localizedName)
-                                        .foregroundColor(.textMain)
-                                        .lineLimit(1)
-                                        .layoutPriority(10)
-                                    Spacer()
-                                    Text("+\(regionDescription.countryCode)")
-                                        .foregroundColor(.textSecondary)
-                                        .lineLimit(1)
-                                        .layoutPriority(10)
+        NavigationView {
+            Background(color: .backgroundMain) {
+                VStack {
+                    ScrollBox(color: .backgroundMain) {
+                        LazyTable(contentPadding: .scrollBox) {
+                            ForEach(regions, id: \.region.rawValue) { regionDescription in
+                                Button {
+                                    didSelectRegion(regionDescription.region)
+                                } label: {
+                                    HStack(spacing: 15) {
+                                        Flag(style: .fiat(regionDescription.region))
+                                        Text(regionDescription.localizedName)
+                                            .foregroundColor(.textMain)
+                                            .lineLimit(1)
+                                            .layoutPriority(10)
+                                        Spacer()
+                                        Text("+\(regionDescription.countryCode)")
+                                            .foregroundColor(.textSecondary)
+                                            .lineLimit(1)
+                                            .layoutPriority(10)
+                                    }
+                                    .font(.appTextMedium)
                                 }
-                                .font(.appTextMedium)
+                                .padding([.top, .bottom], 20)
+                                .padding(.trailing, 20)
+                                .vSeparator(color: .rowSeparator)
+                                .padding(.leading, 20)
                             }
-                            .padding([.top, .bottom], 20)
-                            .padding(.trailing, 20)
-                            .vSeparator(color: .rowSeparator)
-                            .padding(.leading, 20)
                         }
                     }
+                }
+            }
+            .navigationBarTitle(Text(Localized.Title.selectCountry), displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
                 }
             }
         }

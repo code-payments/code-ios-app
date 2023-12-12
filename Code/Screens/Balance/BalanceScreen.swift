@@ -106,7 +106,6 @@ struct BalanceScreen: View {
                 GeometryReader { geometry in
                     if session.hasBalance && historyController.hasFetchedTransactions {
                         VStack(spacing: 0) {
-                            ModalHeaderBar(title: Localized.Title.balance, isPresented: $isPresented)
                             if hasTransactions {
                                 ScrollBox(color: .backgroundMain) {
                                     LazyTable(
@@ -142,14 +141,22 @@ struct BalanceScreen: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitle(Text(Localized.Title.balance), displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
+                }
+            }
         }
         .onAppear(perform: didAppear)
     }
     
     @ViewBuilder private func header() -> some View {
         VStack(alignment: .center) {
+            Flow(isActive: $isShowingFAQ) {
+                FAQScreen(isPresented: $isShowingFAQ)
+            }
+            
             Button {
                 isShowingBuckets.toggle()
             } label: {
@@ -183,9 +190,9 @@ struct BalanceScreen: View {
                         Text(Localized.Subtitle.learnMore)
                             .underline()
                     }
-                    .sheet(isPresented: $isShowingFAQ) {
-                        FAQScreen(isPresented: $isShowingFAQ)
-                    }
+//                    .sheet(isPresented: $isShowingFAQ) {
+//                        FAQScreen(isPresented: $isShowingFAQ)
+//                    }
                 }
                 .font(.appTextMedium)
                 .foregroundColor(.textSecondary)
@@ -208,9 +215,9 @@ struct BalanceScreen: View {
                     Text(Localized.Subtitle.learnMore)
                         .underline()
                 }
-                .sheet(isPresented: $isShowingFAQ) {
-                    FAQScreen(isPresented: $isShowingFAQ)
-                }
+//                .sheet(isPresented: $isShowingFAQ) {
+//                    FAQScreen(isPresented: $isShowingFAQ)
+//                }
             }
             .padding(.bottom, 150)
         }

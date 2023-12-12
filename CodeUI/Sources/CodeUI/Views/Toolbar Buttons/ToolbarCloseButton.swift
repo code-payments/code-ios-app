@@ -14,6 +14,10 @@ public struct ToolbarCloseButton: View {
     
     // MARK: - Init -
     
+    public init(binding: Binding<Bool>) {
+        self.action = { binding.wrappedValue = false }
+    }
+    
     public init(action: @escaping VoidAction) {
         self.action = action
     }

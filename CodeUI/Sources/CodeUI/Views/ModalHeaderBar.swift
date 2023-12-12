@@ -13,20 +13,20 @@ public struct ModalHeaderBar: View {
     @Binding public var isPresented: Bool
     
     public var title: String?
-    public var showHandle: Bool
+//    public var showHandle: Bool
     
-    public init(title: String?, showHandle: Bool = true, isPresented: Binding<Bool>) {
+    public init(title: String?, /*showHandle: Bool = true,*/ isPresented: Binding<Bool>) {
         self.title = title
-        self.showHandle = showHandle
+//        self.showHandle = showHandle
         self._isPresented = isPresented
     }
     
     public var body: some View {
         ZStack(alignment: .top) {
-            if showHandle {
-                HandleView()
-                    .padding(15)
-            }
+//            if showHandle {
+//                HandleView()
+//                    .padding(15)
+//            }
             HStack {
                 Spacer()
                     .frame(width: 60, height: 60, alignment: .center)

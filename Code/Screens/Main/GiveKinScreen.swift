@@ -61,98 +61,103 @@ struct GiveKinScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack(spacing: 0) {
-                ModalHeaderBar(title: title, isPresented: $isPresented)
-                    .padding([.top, .leading, .trailing], -20)
-                
-                Spacer()
-                
-                Button {
-                    isPresentingCurrencySelection.toggle()
-                } label: {
-                    VStack(spacing: 10) {
-                        HStack(spacing: 15) {
-                            AmountField(
-                                content: $amount,
-                                defaultValue: "0",
-                                flagStyle: entryRate.currency.flagStyle,
-                                formatter: .fiat(currency: entryRate.currency, minimumFractionDigits: 0),
-                                suffix: entryRate.currency != .kin ? Localized.Core.ofKin : nil
-                            )
-                            .foregroundColor(.textMain)
-                        }
-                        
-                        Group {
-                            if reachability.status == .online {
-                                if let kinAmount = enteredKinAmount(), entryRate.currency != .kin {
-                                    if hasAvailableTransactionLimit(for: kinAmount) {
-                                        KinText(kinAmount.kin.formattedTruncatedKin(), format: .large)
-                                            .fixedSize()
-                                            .foregroundColor(hasSufficientFundsToSend(for: kinAmount) ? .textSecondary : .textError)
+        NavigationView {
+            Background(color: .backgroundMain) {
+                VStack(spacing: 0) {
+                    Spacer()
+                    
+                    Button {
+                        isPresentingCurrencySelection.toggle()
+                    } label: {
+                        VStack(spacing: 10) {
+                            HStack(spacing: 15) {
+                                AmountField(
+                                    content: $amount,
+                                    defaultValue: "0",
+                                    flagStyle: entryRate.currency.flagStyle,
+                                    formatter: .fiat(currency: entryRate.currency, minimumFractionDigits: 0),
+                                    suffix: entryRate.currency != .kin ? Localized.Core.ofKin : nil
+                                )
+                                .foregroundColor(.textMain)
+                            }
+                            
+                            Group {
+                                if reachability.status == .online {
+                                    if let kinAmount = enteredKinAmount(), entryRate.currency != .kin {
+                                        if hasAvailableTransactionLimit(for: kinAmount) {
+                                            KinText(kinAmount.kin.formattedTruncatedKin(), format: .large)
+                                                .fixedSize()
+                                                .foregroundColor(hasSufficientFundsToSend(for: kinAmount) ? .textSecondary : .textError)
+                                        } else {
+                                            Text(Localized.Subtitle.canOnlyGiveUpTo(maxFiatAmount))
+                                                .fixedSize()
+                                                .foregroundColor(.textError)
+                                        }
                                     } else {
-                                        Text(Localized.Subtitle.canOnlyGiveUpTo(maxFiatAmount))
+                                        Text(Localized.Subtitle.enterUpTo(maxFiatAmount))
                                             .fixedSize()
-                                            .foregroundColor(.textError)
                                     }
                                 } else {
-                                    Text(Localized.Subtitle.enterUpTo(maxFiatAmount))
+                                    Text(Localized.Subtitle.noNetworkConnection)
                                         .fixedSize()
+                                        .foregroundColor(.textError)
                                 }
-                            } else {
-                                Text(Localized.Subtitle.noNetworkConnection)
-                                    .fixedSize()
-                                    .foregroundColor(.textError)
+                            }
+                            .font(.appTextMedium)
+                            .foregroundColor(.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .contextMenu(ContextMenu {
+                        Button(action: copy) {
+                            Label(Localized.Action.copy, systemImage: SystemSymbol.doc.rawValue)
+                        }
+                    })
+                    .sheet(isPresented: $isPresentingCurrencySelection) {
+                        CurrencySelectionScreen(
+                            viewModel: CurrencySelectionViewModel(
+                                isPresented: $isPresentingCurrencySelection,
+                                exchange: exchange
+                            )
+                        )
+                        .environmentObject(exchange)
+                    }
+                    
+                    Spacer()
+                    
+                    KeyPadView(
+                        content: $amount,
+                        configuration: supportsDecimalEntry ? .decimal() : .number(),
+                        rules: KeyPadView.CurrencyRules.code(hasDecimals: supportsDecimalEntry)
+                    )
+                    .padding([.leading, .trailing], -20)
+                    
+                    CodeButton(style: .filled, title: Localized.Action.next, disabled: isSendDisabled()) {
+                        Task {
+                            if await initiateSendOperation() {
+                                isPresented.toggle()
                             }
                         }
-                        .font(.appTextMedium)
-                        .foregroundColor(.textSecondary)
                     }
-                    .frame(maxWidth: .infinity)
+                    .padding(.top, 10)
                 }
-                .contextMenu(ContextMenu {
-                    Button(action: copy) {
-                        Label(Localized.Action.copy, systemImage: SystemSymbol.doc.rawValue)
-                    }
-                })
-                .sheet(isPresented: $isPresentingCurrencySelection) {
-                    CurrencySelectionScreen(
-                        viewModel: CurrencySelectionViewModel(
-                            isPresented: $isPresentingCurrencySelection,
-                            exchange: exchange
-                        )
-                    )
-                    .environmentObject(exchange)
-                }
-                
-                Spacer()
-                
-                KeyPadView(
-                    content: $amount,
-                    configuration: supportsDecimalEntry ? .decimal() : .number(),
-                    rules: KeyPadView.CurrencyRules.code(hasDecimals: supportsDecimalEntry)
-                )
-                .padding([.leading, .trailing], -20)
-                
-                CodeButton(style: .filled, title: Localized.Action.next, disabled: isSendDisabled()) {
-                    Task {
-                        if await initiateSendOperation() {
-                            isPresented.toggle()
-                        }
-                    }
-                }
-                .padding(.top, 10)
+                .padding(20)
             }
-            .padding(20)
-        }
-        .ignoresSafeArea(.keyboard)
-        .onChange(of: exchange.entryRate) { _ in
-            amount = ""
-        }
-        .onAppear {
-            session.receiveIfNeeded()
-            Analytics.open(screen: .giveKin)
-            ErrorReporting.breadcrumb(.giveKinScreen)
+            .navigationBarTitle(Text(title), displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
+                }
+            }
+            .ignoresSafeArea(.keyboard)
+            .onChange(of: exchange.entryRate) { _ in
+                amount = ""
+            }
+            .onAppear {
+                session.receiveIfNeeded()
+                Analytics.open(screen: .giveKin)
+                ErrorReporting.breadcrumb(.giveKinScreen)
+            }
         }
     }
     

@@ -33,10 +33,6 @@ struct FAQScreen: View {
     @ViewBuilder private func content() -> some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading) {
-                if isModal {
-                    ModalHeaderBar(title: Localized.Title.faq, isPresented: $isPresented)
-                        .padding(.bottom, -20)
-                }
                 ScrollBox(color: .backgroundMain) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 40) {
@@ -53,7 +49,6 @@ struct FAQScreen: View {
                         .padding(20)
                     }
                 }
-                .padding(.top, 20)
             }
             .foregroundColor(.textMain)
             .navigationBarTitle(Text(Localized.Title.faq), displayMode: .inline)

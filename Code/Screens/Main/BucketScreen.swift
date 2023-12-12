@@ -34,14 +34,18 @@ struct BucketScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack {
-                ModalHeaderBar(title: "Buckets", isPresented: $isPresented)
-                Spacer()
+        NavigationView {
+            Background(color: .backgroundMain) {
                 ScrollBox(color: .backgroundMain) {
                     LazyTable(contentPadding: .scrollBox) {
                         rows()
                     }
+                }
+            }
+            .navigationBarTitle(Text("Buckets"), displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
                 }
             }
         }

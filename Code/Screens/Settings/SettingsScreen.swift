@@ -51,28 +51,47 @@ struct SettingsScreen: View {
         NavigationView {
             Background(color: .backgroundMain) {
                 VStack(alignment: .center, spacing: 0) {
-                    ModalHeaderBar(title: nil, isPresented: $isPresented)
-                        .padding(.bottom, -20)
-                        .padding(.trailing, -25)
                     
-                    CodeBrand(size: .medium)
-                        .padding(.bottom, 20)
-                        .onTapGesture {
-                            if debugTapCount > 9 {
-                                if betaFlags.accessGranted {
-                                    betaFlags.setAccessGranted(false)
-                                } else {
-                                    if session.user.betaFlagsAllowed {
-                                        betaFlags.setAccessGranted(true)
-                                    }
-                                }
+                    // Header
+                    ZStack {
+                        GeometryReader { proxy in
+                            HStack {
+                                Spacer()
                                 
-                                debugTapCount = 0
-                            } else {
-                                debugTapCount += 1
+                                CodeBrand(size: .medium)
+                                    .onTapGesture {
+                                        if debugTapCount > 9 {
+                                            if betaFlags.accessGranted {
+                                                betaFlags.setAccessGranted(false)
+                                            } else {
+                                                if session.user.betaFlagsAllowed {
+                                                    betaFlags.setAccessGranted(true)
+                                                }
+                                            }
+                                            
+                                            debugTapCount = 0
+                                        } else {
+                                            debugTapCount += 1
+                                        }
+                                    }
+                                
+                                Spacer()
                             }
+                            .padding(.vertical, 20)
+                            
+                            Button {
+                                isPresented.toggle()
+                            } label: {
+                                Image.asset(.close)
+                                    .padding(20)
+                            }
+                            .frame(width: 60, height: 60)
+                            .position(x: proxy.size.width - 20, y: proxy.size.height - 57)
                         }
+                    }
+                    .frame(height: 100)
                     
+                    // Content
                     ScrollBox(color: .backgroundMain) {
                         ScrollView(showsIndicators: false) {
                             list()
@@ -81,8 +100,12 @@ struct SettingsScreen: View {
                             $0.alwaysBounceVertical = false
                         }
                     }
+                    
+                    // Footer
                     footer()
                 }
+                .padding(.top, 10)
+                .padding(.bottom, 10)
                 .padding(.horizontal, 20)
             }
             .navigationBarHidden(true)

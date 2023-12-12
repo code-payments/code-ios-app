@@ -13,6 +13,8 @@ struct CurrencySelectionScreen: View {
     
     @StateObject private var viewModel: CurrencySelectionViewModel
     
+    @State private var isPresentingSearch: Bool = false
+    
     // MARK: - Init -
     
     init(viewModel: @autoclosure @escaping () -> CurrencySelectionViewModel) {
@@ -22,15 +24,8 @@ struct CurrencySelectionScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack(spacing: 0) {
-                ModalHeaderBar(title: Localized.Title.selectCurrency, isPresented: viewModel.isPresented)
-                
-                SearchBar(content: $viewModel.searchText, isActive: $viewModel.isFocused) { searchBar in
-                    searchBar.placeholder = Localized.Subtitle.searchCurrencies
-                }
-                .padding([.leading, .trailing], 10)
-                
+        NavigationView {
+            Background(color: .backgroundMain) {
                 ScrollBox(color: .backgroundMain) {
                     List {
                         if viewModel.isSearching {
@@ -45,6 +40,17 @@ struct CurrencySelectionScreen: View {
                     .background(Color.backgroundMain)
                 }
             }
+            .navigationBarTitle(Text(Localized.Title.selectCurrency), displayMode: .inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: viewModel.isPresented)
+                }
+            }
+            .searchable(
+                text: $viewModel.searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Localized.Subtitle.searchCurrencies
+            )
         }
         .onAppear {
             Analytics.open(screen: .currencySelection)
