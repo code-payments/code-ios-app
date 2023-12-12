@@ -361,15 +361,15 @@ struct BalanceScreen: View {
         case .send:
             if transaction.isWithdrawal {
                 if transaction.isMicroPayment {
-                    return Localized.Title.spentKin
+                    return Localized.Subtitle.youSpent
                 } else {
-                    return Localized.Title.withdrewKin
+                    return Localized.Subtitle.youWithdrew
                 }
             } else {
                 if transaction.isRemoteSend {
-                    return Localized.Title.sent
+                    return Localized.Subtitle.youSent
                 } else {
-                    return Localized.Title.gaveKin
+                    return Localized.Subtitle.youGave
                 }
             }
             
@@ -387,14 +387,14 @@ struct BalanceScreen: View {
             }
             
             if transaction.isDeposit {
-                return Localized.Title.deposited
+                return Localized.Subtitle.youDeposited
             }
             
             if transaction.isReturned {
-                return Localized.Title.returned
+                return Localized.Subtitle.youReturned
             }
             
-            return Localized.Title.received
+            return Localized.Subtitle.youReceived
             
         case .unknown:
             return Localized.Title.unknown
@@ -497,23 +497,23 @@ extension Chat.Verb {
         case .unknown:
             return Localized.Title.unknown
         case .gave:
-            return Localized.Title.gaveKin
+            return Localized.Subtitle.youGave
         case .received:
-            return Localized.Title.received
+            return Localized.Subtitle.youReceived
         case .withdrew:
-            return Localized.Title.withdrewKin
+            return Localized.Subtitle.youWithdrew
         case .deposited:
-            return Localized.Title.deposited
+            return Localized.Subtitle.youDeposited
         case .sent:
-            return Localized.Title.sent
+            return Localized.Subtitle.youSent
         case .returned:
-            return Localized.Title.returned
+            return Localized.Subtitle.youReturned
         case .spent:
-            return Localized.Title.spentKin
+            return Localized.Subtitle.youSpent
         case .paid:
-            return Localized.Title.paid
+            return Localized.Subtitle.youPaid
         case .purchased:
-            return Localized.Title.purchased
+            return Localized.Subtitle.youPurchased
         }
     }
 }

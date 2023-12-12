@@ -545,6 +545,10 @@ internal enum Localized {
     internal static let whereToWithdrawKin = Localized.tr("Localizable", "subtitle.whereToWithdrawKin")
     /// Verify your identity to withdraw kin.
     internal static let withdrawKinFaceID = Localized.tr("Localizable", "subtitle.withdrawKinFaceID")
+    /// You deposited
+    internal static let youDeposited = Localized.tr("Localizable", "subtitle.youDeposited")
+    /// You gave
+    internal static let youGave = Localized.tr("Localizable", "subtitle.youGave")
     /// You Have %d Invites
     internal static func youHaveInvites(_ p1: Int) -> String {
       return Localized.tr("Localizable", "subtitle.youHaveInvites", p1)
@@ -553,12 +557,24 @@ internal enum Localized {
     internal static func youHaveInvitesLeft(_ p1: Int) -> String {
       return Localized.tr("Localizable", "subtitle.youHaveInvitesLeft", p1)
     }
+    /// You paid
+    internal static let youPaid = Localized.tr("Localizable", "subtitle.youPaid")
+    /// You gave
+    internal static let youPurchased = Localized.tr("Localizable", "subtitle.youPurchased")
     /// You received
     internal static let youReceived = Localized.tr("Localizable", "subtitle.youReceived")
+    /// You returned
+    internal static let youReturned = Localized.tr("Localizable", "subtitle.youReturned")
+    /// You sent
+    internal static let youSent = Localized.tr("Localizable", "subtitle.youSent")
+    /// You spent
+    internal static let youSpent = Localized.tr("Localizable", "subtitle.youSpent")
+    /// You withdrew
+    internal static let youWithdrew = Localized.tr("Localizable", "subtitle.youWithdrew")
     internal enum Chat {
-      /// You sent someone their first Kin! Here is your referral bonus
+      /// You sent someone their first Kin! Here is your referral bonus:
       internal static let referralBonus = Localized.tr("Localizable", "subtitle.chat.referralBonus")
-      /// Welcome to Code! Here is your first dollar to get you started
+      /// Welcome to Code! Here is your first dollar to get you started:
       internal static let welcomeBonus = Localized.tr("Localizable", "subtitle.chat.welcomeBonus")
     }
   }
@@ -585,8 +601,6 @@ internal enum Localized {
     internal static let betaFlags = Localized.tr("Localizable", "title.betaFlags")
     /// Buy & Sell Kin
     internal static let buySellKin = Localized.tr("Localizable", "title.buySellKin")
-    /// Deposited
-    internal static let deposited = Localized.tr("Localizable", "title.deposited")
     /// Deposit Kin
     internal static let depositKin = Localized.tr("Localizable", "title.depositKin")
     /// Enter Access Key Words
@@ -597,8 +611,6 @@ internal enum Localized {
     internal static let failed = Localized.tr("Localizable", "title.failed")
     /// FAQ
     internal static let faq = Localized.tr("Localizable", "title.faq")
-    /// Gave
-    internal static let gaveKin = Localized.tr("Localizable", "title.gaveKin")
     /// Get a Friend Started on Code
     internal static let getFriendStartedOnCode = Localized.tr("Localizable", "title.getFriendStartedOnCode")
     /// Get Kin
@@ -621,18 +633,12 @@ internal enum Localized {
     internal static let notLinked = Localized.tr("Localizable", "title.notLinked")
     /// Other Currencies
     internal static let otherCurrencies = Localized.tr("Localizable", "title.otherCurrencies")
-    /// Paid
-    internal static let paid = Localized.tr("Localizable", "title.paid")
     /// Pending
     internal static let pending = Localized.tr("Localizable", "title.pending")
     /// Phone Number
     internal static let phoneNumber = Localized.tr("Localizable", "title.phoneNumber")
     /// Privacy Policy
     internal static let privacyPolicy = Localized.tr("Localizable", "title.privacyPolicy")
-    /// Purchased
-    internal static let purchased = Localized.tr("Localizable", "title.purchased")
-    /// Received
-    internal static let received = Localized.tr("Localizable", "title.received")
     /// Recent Currencies
     internal static let recentCurrencies = Localized.tr("Localizable", "title.recentCurrencies")
     /// Refer a Friend, Get $5
@@ -641,18 +647,12 @@ internal enum Localized {
     internal static let referralBonus = Localized.tr("Localizable", "title.referralBonus")
     /// Results
     internal static let results = Localized.tr("Localizable", "title.results")
-    /// Returned
-    internal static let returned = Localized.tr("Localizable", "title.returned")
     /// Select an Account
     internal static let selectAccount = Localized.tr("Localizable", "title.selectAccount")
     /// Select a Country
     internal static let selectCountry = Localized.tr("Localizable", "title.selectCountry")
     /// Select a Currency
     internal static let selectCurrency = Localized.tr("Localizable", "title.selectCurrency")
-    /// Sent
-    internal static let sent = Localized.tr("Localizable", "title.sent")
-    /// Spent
-    internal static let spentKin = Localized.tr("Localizable", "title.spentKin")
     /// Switch Accounts
     internal static let switchAccounts = Localized.tr("Localizable", "title.switchAccounts")
     /// Terms of Service
@@ -667,8 +667,6 @@ internal enum Localized {
     internal static let welcomeBonus = Localized.tr("Localizable", "title.welcomeBonus")
     /// Withdraw Kin
     internal static let withdrawKin = Localized.tr("Localizable", "title.withdrawKin")
-    /// Withdrew
-    internal static let withdrewKin = Localized.tr("Localizable", "title.withdrewKin")
     /// Your Access Key
     internal static let yourAccessKey = Localized.tr("Localizable", "title.yourAccessKey")
     internal enum Chat {

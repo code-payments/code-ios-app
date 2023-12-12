@@ -212,33 +212,6 @@
 /* Terms of Service */
 "title.termsOfService" = "Terms of Service";
 
-/* Title for transaction history item that shows that the user gave Kin */
-"title.gaveKin" = "Gave";
-
-/* Title for transaction history item that shows that the user deposited Kin */
-"title.deposited" = "Deposited";
-
-/* Title for transaction history item that shows that the user received Kin */
-"title.received" = "Received";
-
-/* Title for transaction history item that shows that the user withdrew Kin */
-"title.withdrewKin" = "Withdrew";
-
-/* Title for transaction history item that shows that the user spent Kin */
-"title.spentKin" = "Spent";
-
-/* Title for transaction history item that shows that the user sent Kin with remote send */
-"title.sent" = "Sent";
-
-/* Title for transaction history item that shows that the user paid some Kin */
-"title.paid" = "Paid";
-
-/* Title for transaction history item that shows that the user purchased using Kin */
-"title.purchased" = "Purchased";
-
-/* Title for transaction history item that shows that the user's Kin was returned from remote send */
-"title.returned" = "Returned";
-
 /* Title for transaction history item that shows that the user received a welcome bonus Kin */
 "title.welcomeBonus" = "Welcome Bonus";
 
@@ -531,10 +504,37 @@
 "subtitle.loadingBalance" = "Loading your balance and transaction history";
 
 /* Subtitle for welcome bonus */
-"subtitle.chat.welcomeBonus" = "Welcome to Code! Here is your first dollar to get you started";
+"subtitle.chat.welcomeBonus" = "Welcome to Code! Here is your first dollar to get you started:";
 
 /* Subtitle for welcome bonus */
-"subtitle.chat.referralBonus" = "You sent someone their first Kin! Here is your referral bonus";
+"subtitle.chat.referralBonus" = "You sent someone their first Kin! Here is your referral bonus:";
+
+/* Subtitle for chat action */
+"subtitle.youGave" = "You gave";
+
+/* Subtitle for chat action */
+"subtitle.youReceived" = "You received";
+
+/* Subtitle for chat action */
+"subtitle.youWithdrew" = "You withdrew";
+
+/* Subtitle for chat action */
+"subtitle.youDeposited" = "You deposited";
+
+/* Subtitle for chat action */
+"subtitle.youSent" = "You sent";
+
+/* Subtitle for chat action */
+"subtitle.youReturned" = "You returned";
+
+/* Subtitle for chat action */
+"subtitle.youSpent" = "You spent";
+
+/* Subtitle for chat action */
+"subtitle.youPaid" = "You paid";
+
+/* Subtitle for chat action */
+"subtitle.youPurchased" = "You gave";
 
 
 
