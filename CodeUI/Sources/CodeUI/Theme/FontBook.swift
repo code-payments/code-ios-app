@@ -135,7 +135,9 @@ extension Font {
         switch weight {
         case .ultraLight, .thin, .light, .regular:
             return "AvenirNextLTPro-Regular"
-        case .medium, .semibold, .bold, .heavy, .black:
+        case .medium, .semibold:
+            return "AvenirNextLTPro-Medium"
+        case .bold, .heavy, .black:
             return "AvenirNextLTPro-Demi"
         default:
             fatalError("[FontBook] Failed to initialize SwiftUI app font. Unsupported font weight requested: \(weight)")

@@ -139,7 +139,7 @@ public struct MessageTitle: View {
         HStack {
             Spacer()
             Text(text)
-                .font(.appTextCaption)
+                .font(.appTextHeading)
                 .foregroundColor(.textMain)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -169,7 +169,7 @@ public struct MessageText: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(text)
-                .font(.appTextSmall)
+                .font(.appTextMessage)
                 .foregroundColor(.textMain)
                 .multilineTextAlignment(.leading)
             HStack {

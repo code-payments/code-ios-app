@@ -96,7 +96,7 @@ struct WithdrawAddressScreen: View {
                 Text(Localized.Subtitle.invalidTokenAccount)
                     .lineLimit(1)
             }
-            .font(.appTextCaption)
+            .font(.appTextHeading)
             .foregroundColor(.textError)
             
         case .owner, .token:
@@ -115,7 +115,7 @@ struct WithdrawAddressScreen: View {
                 .lineLimit(1)
                 
             }
-            .font(.appTextCaption)
+            .font(.appTextHeading)
             .foregroundColor(.textSuccess)
         }
     }
