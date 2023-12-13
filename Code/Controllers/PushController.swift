@@ -142,7 +142,13 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
             NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
         }
         
-        return [.badge, .banner, .list, .sound]
+        let isActive = await UIApplication.shared.applicationState == .active
+        
+        // Don't show notifications while active
+        let options: UNNotificationPresentationOptions = isActive ? [] : [.badge, .banner, .list, .sound]
+        
+        trace(.warning, components: "Presenting notification with: \(options)")
+        return options
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
