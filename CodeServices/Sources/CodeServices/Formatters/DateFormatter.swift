@@ -33,6 +33,14 @@ extension DateFormatter {
         return f
     }()
     
+    public static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .none
+        f.timeStyle = .short
+        f.doesRelativeDateFormatting = false
+        return f
+    }()
+    
     public static let weekdayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE"
@@ -47,6 +55,10 @@ extension DateFormatter {
 }
 
 extension Date {
+    public func formattedTime() -> String {
+        DateFormatter.timeFormatter.string(from: self)
+    }
+    
     public func formattedRelatively() -> String {
         let calendar = Calendar.current
         let weekAgo = Date.weekAgo()

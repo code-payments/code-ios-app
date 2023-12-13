@@ -41,6 +41,7 @@ public struct MessageList: View {
                                                 case .localized(let key):
                                                     MessageText(
                                                         text: key.localizedStringByKey,
+                                                        date: message.date,
                                                         location: .forIndex(index, count: message.contents.count)
                                                     )
                                                     
@@ -63,6 +64,7 @@ public struct MessageList: View {
                                                     // TODO: Decrypt and show correct content
                                                     MessageText(
                                                         text: content.localizedText,
+                                                        date: message.date,
                                                         location: .forIndex(index, count: message.contents.count)
                                                     )
                                                 }
@@ -151,32 +153,41 @@ public struct MessageTitle: View {
 public struct MessageText: View {
     
     public let text: String
+    public let date: Date
     public let location: MessageSemanticLocation
     
     // MARK: - Init -
         
-    public init(text: String, location: MessageSemanticLocation) {
+    public init(text: String, date: Date, location: MessageSemanticLocation) {
         self.text = text
+        self.date = date
         self.location = location
     }
     
     // MARK: - Body -
     
     public var body: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 5) {
             Text(text)
                 .font(.appTextSmall)
                 .foregroundColor(.textMain)
                 .multilineTextAlignment(.leading)
-                .padding(12)
-                .background(Color.backgroundItem)
-                .clipShape(UnevenRoundedCorners(
-                    tl: location.topRadius,
-                    bl: location.bottomRadius,
-                    br: Metrics.chatMessageRadiusLarge,
-                    tr: Metrics.chatMessageRadiusLarge
-                ))
+            HStack {
+                Spacer()
+                Text(date.formattedTime())
+                    .font(.appTextHeading)
+                    .foregroundColor(.textSecondary)
+            }
         }
+        .padding([.leading, .trailing, .top], 12)
+        .padding(.bottom, 8)
+        .background(Color.backgroundItem)
+        .clipShape(UnevenRoundedCorners(
+            tl: location.topRadius,
+            bl: location.bottomRadius,
+            br: Metrics.chatMessageRadiusLarge,
+            tr: Metrics.chatMessageRadiusLarge
+        ))
     }
 }
 
