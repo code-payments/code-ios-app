@@ -89,7 +89,6 @@ extension BetaFlags {
         case showConnectivityStatus
         case bucketDebugger
         case giveRequests
-        case threadedTransactions
         
         var id: String {
             localizedTitle
@@ -107,8 +106,6 @@ extension BetaFlags {
                 return "Show Connectivity Status"
             case .giveRequests:
                 return "Give Requests (Mode)"
-            case .threadedTransactions:
-                return "Threaded Transactions"
             }
         }
         
@@ -124,8 +121,6 @@ extension BetaFlags {
                 return "If enabled, a 'No Connection' badge will be shown on the scan screen when no internet connection is detected."
             case .giveRequests:
                 return "If enabled, Give Kin screen will show requests for entered amounts instead of cash bills."
-            case .threadedTransactions:
-                return "If enabled, Balance screen will show threaded transaction history."
             }
         }
     }

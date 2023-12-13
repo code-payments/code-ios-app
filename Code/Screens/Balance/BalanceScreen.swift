@@ -26,16 +26,6 @@ struct BalanceScreen: View {
     @State private var isShowingFAQ: Bool = false
     @State private var isShowingBuckets: Bool = false
     
-    private var isUsingThreadedHistory: Bool {
-        betaFlags.hasEnabled(.threadedTransactions)
-    }
-    
-    private var historicalTransactions: [HistoricalTransaction] {
-        historyController.transactions
-//        HistoricalTransaction.mock()
-//        []
-    }
-    
     private var chats: [Chat] {
         historyController.chats
 //        [
@@ -70,11 +60,7 @@ struct BalanceScreen: View {
     }
     
     private var hasTransactions: Bool {
-        if isUsingThreadedHistory {
-            !chats.isEmpty
-        } else {
-            !historicalTransactions.isEmpty
-        }
+        !chats.isEmpty
     }
     
     // MARK: - Init -
@@ -111,11 +97,7 @@ struct BalanceScreen: View {
                                     LazyTable(
                                         contentPadding: .scrollBox,
                                         content: {
-                                            if isUsingThreadedHistory {
-                                                chatsView()
-                                            } else {
-                                                transactions()
-                                            }
+                                            chatsView()
                                         },
                                         headerHeight: geometry.size.height * 0.3,
                                         header: {
@@ -280,27 +262,6 @@ struct BalanceScreen: View {
                 .vSeparator(color: .rowSeparator)
                 .padding(.leading, 20)
             }
-        }
-    }
-    
-    @ViewBuilder private func transactions() -> some View {
-        ForEach(historicalTransactions, id: \.id) { transaction in
-//            if betaFlags.hasEnabled(.showPendingTransactions) {
-//                Button {
-//                    selectTransaction(transaction)
-//                } label: {
-//                    transactionRow(for: transaction)
-//                }
-//                .padding([.trailing, .top, .bottom], 20)
-//                .vSeparator(color: .rowSeparator)
-//                .padding(.leading, 20)
-//
-//            } else {
-                transactionRow(for: transaction)
-                    .padding([.trailing, .top, .bottom], 20)
-                    .vSeparator(color: .rowSeparator)
-                    .padding(.leading, 20)
-//            }
         }
     }
     
