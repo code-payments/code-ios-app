@@ -541,6 +541,8 @@ internal enum Localized {
     internal static let validTokenAccount = Localized.tr("Localizable", "subtitle.validTokenAccount")
     /// The value of Kin changes.
     internal static let valueKinChanges = Localized.tr("Localizable", "subtitle.valueKinChanges")
+    /// was returned to you
+    internal static let wasReturnedToYou = Localized.tr("Localizable", "subtitle.wasReturnedToYou")
     /// Where would you like to withdraw your Kin to?
     internal static let whereToWithdrawKin = Localized.tr("Localizable", "subtitle.whereToWithdrawKin")
     /// Verify your identity to withdraw kin.
@@ -563,8 +565,6 @@ internal enum Localized {
     internal static let youPurchased = Localized.tr("Localizable", "subtitle.youPurchased")
     /// You received
     internal static let youReceived = Localized.tr("Localizable", "subtitle.youReceived")
-    /// You returned
-    internal static let youReturned = Localized.tr("Localizable", "subtitle.youReturned")
     /// You sent
     internal static let youSent = Localized.tr("Localizable", "subtitle.youSent")
     /// You spent

@@ -199,8 +199,6 @@ struct BalanceScreen: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(.top, 6)
-        .padding(.bottom, 15)
         .padding(.horizontal, 20)
     }
     
@@ -391,7 +389,7 @@ struct BalanceScreen: View {
             }
             
             if transaction.isReturned {
-                return Localized.Subtitle.youReturned
+                return Localized.Subtitle.wasReturnedToYou
             }
             
             return Localized.Subtitle.youReceived
@@ -507,7 +505,7 @@ extension Chat.Verb {
         case .sent:
             return Localized.Subtitle.youSent
         case .returned:
-            return Localized.Subtitle.youReturned
+            return Localized.Subtitle.wasReturnedToYou
         case .spent:
             return Localized.Subtitle.youSpent
         case .paid:

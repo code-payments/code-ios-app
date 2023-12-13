@@ -47,13 +47,13 @@ public struct MessageList: View {
                                                 case .kin(let amount, let verb):
                                                     if let rate = exchange.rate(for: amount.currency) {
                                                         MessagePayment(
-                                                            title: verb.localizedText,
+                                                            verb: verb,
                                                             amount: amount.amountUsing(rate: rate),
                                                             location: .forIndex(index, count: message.contents.count)
                                                         )
                                                     } else {
                                                         MessagePayment(
-                                                            title: "Rate Not Found",
+                                                            verb: .unknown,
                                                             amount: KinAmount(kin: 0, rate: .oneToOne),
                                                             location: .forIndex(index, count: message.contents.count)
                                                         )
@@ -223,7 +223,7 @@ public struct MessageItem: View {
 
 public struct MessagePayment: View {
     
-    public let title: String
+    public let verb: Chat.Verb
     public let amount: KinAmount
     public let location: MessageSemanticLocation
     
@@ -231,8 +231,8 @@ public struct MessagePayment: View {
     
     // MARK: - Init -
         
-    public init(title: String, amount: KinAmount, location: MessageSemanticLocation) {
-        self.title  = title
+    public init(verb: Chat.Verb, amount: KinAmount, location: MessageSemanticLocation) {
+        self.verb = verb
         self.amount = amount
         self.location = location
     }
@@ -241,11 +241,20 @@ public struct MessagePayment: View {
     
     public var body: some View {
         VStack(spacing: 10) {
-            Text(title)
-                .font(.appTextSmall)
-                .foregroundColor(.textMain)
-            
-            FiatField(size: .large, amount: amount)
+            if verb == .returned {
+                FiatField(size: .large, amount: amount)
+                
+                Text(verb.localizedText)
+                    .font(.appTextSmall)
+                    .foregroundColor(.textMain)
+                
+            } else {
+                Text(verb.localizedText)
+                    .font(.appTextSmall)
+                    .foregroundColor(.textMain)
+                
+                FiatField(size: .large, amount: amount)
+            }
         }
         .padding(20)
         .frame(maxWidth: .infinity)
@@ -406,7 +415,24 @@ private struct UnevenRoundedCorners: Shape {
 struct MessageList_Previews: PreviewProvider {
     static var previews: some View {
         Background(color: .backgroundMain) {
-            MessageList(messages: [], exchange: .mock)
+            MessageList(
+                messages: [
+                    Chat.Message(
+                        id: .mock2,
+                        date: .now,
+                        contents: [
+                            .localized("Welcome bonus! You've received a gift in Kin."),
+                            .kin(
+                                .partial(Fiat(
+                                    currency: .kin,
+                                    amount: 5.00
+                                )), .returned
+                            ),
+                        ]
+                    )
+                ],
+                exchange: .mock
+            )
         }
     }
 }

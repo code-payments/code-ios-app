@@ -525,9 +525,6 @@
 "subtitle.youSent" = "You sent";
 
 /* Subtitle for chat action */
-"subtitle.youReturned" = "You returned";
-
-/* Subtitle for chat action */
 "subtitle.youSpent" = "You spent";
 
 /* Subtitle for chat action */
@@ -535,6 +532,9 @@
 
 /* Subtitle for chat action */
 "subtitle.youPurchased" = "You gave";
+
+/* Subtitle for chat action */
+"subtitle.wasReturnedToYou" = "was returned to you";
 
 
 
