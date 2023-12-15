@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Pautkan Nombor Telefon";
 "action.logIn" = "Log Masuk";
 "action.logout" = "Log Keluar";
+"action.mute" = "Senyap";
 "action.next" = "Seterusnya";
 "action.noTryAgain" = "Tidak. Cuba Lagi";
 "action.notNow" = "Bukan Sekarang";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Kongsi Video Ini";
 "action.swipeToPay" = "Leret untuk Membayar";
 "action.tryDifferentCodeAccount" = "Cuba Akaun Code Lain";
+"action.unmute" = "Nyahsenyap";
+"action.unsubscribe" = "Buang langganan";
 "action.update" = "Kemas kini";
 "action.viewAccessKey" = "Lihat Kunci Akses";
 "action.withdrawKin" = "Keluarkan Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Beli Kin (Akan Datang)";
 "subtitle.buySellDescription" = "Membeli dan menjual Kin merupakan proses yang kompleks buat masa ini. Proses ini akan menjadi lebih mudah dari semasa ke semasa. Jika anda ingin belajar cara membeli dan menjual Kin hari ini, anda boleh menonton video di bawah.";
 "subtitle.canOnlyGiveUpTo" = "Anda hanya boleh memberi sehingga %@";
+"subtitle.chat.referralBonus" = "Anda telah menghantar Kin pertama kepada seseorang! Berikut adalah bonus rujukan anda:";
+"subtitle.chat.welcomeBonus" = "Bonus Selamat Datang";
 "subtitle.chooseCountry" = "Pilih negara";
 "subtitle.comingSoon" = "Akan datang";
 "subtitle.delete" = "Padam";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code ialah apl dompet kripto yang hanya menerima jemputan sahaja buat masa ini. Untuk memuat turun Code, pergi ke %@";
 "subtitle.learnMore" = "Ketahui lebih lanjut";
 "subtitle.linkedPhoneNumberDescription" = "Nombor telefon anda dipautkan dengan akaun Code ini. Kawan-kawan boleh mencari anda menggunakan nombor telefon ini.";
+"subtitle.loadingBalance" = "Memuatkan baki dan sejarah transaksi anda";
 "subtitle.loginDescription" = "Semak gambar anda untuk Kunci Akses yang disimpan apabila anda mula-mula mencipta akaun.";
 "subtitle.logoutAndLoginConfirmation" = "Anda sekarang telah log masuk ke akaun. Sila pastikan anda telah menyimpan Kunci Akses anda sebelum meneruskan. Adakah anda ingin mengelog keluar dan mengelog masuk dengan akaun baharu?";
 "subtitle.noLinkedPhoneNumber" = "Tiada Nombor \nTelefon Dipautkan";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Akaun pemilik sah";
 "subtitle.validTokenAccount" = "Akaun token yang sah";
 "subtitle.valueKinChanges" = "Nilai Kin berubah.";
+"subtitle.wasReturnedToYou" = "telah dikembalikan kepada anda";
 "subtitle.whereToWithdrawKin" = "Ke mana anda ingin memasukkan Kin anda?";
 "subtitle.withdrawKinFaceID" = "Sahkan identiti anda untuk mengeluarkan kin.";
+"subtitle.youDeposited" = "Anda memasukkan";
+"subtitle.youGave" = "Anda memberi";
 "subtitle.youHaveInvites" = "Anda Mempunyai %d Ajakan";
 "subtitle.youHaveInvitesLeft" = "Pada masa ini Code hanya atas ajakan sahaja. Anda tinggal %d.";
+"subtitle.youPaid" = "Anda membayar";
+"subtitle.youPurchased" = "Anda memberi";
 "subtitle.youReceived" = "Anda menerima";
+"subtitle.youSent" = "Anda menghantar";
+"subtitle.youSpent" = "Anda membelanja";
+"subtitle.youWithdrew" = "Anda mengeluarkan";
 "success.description.withdrawalComplete" = "Dana anda telah berjaya dikeluarkan.";
 "success.title.withdrawalComplete" = "Pengeluaran Berjaya";
 "title.accessExpired" = "Akses Tamat";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Bendera Beta";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Beli & Jual Kin";
+"title.chat.cashTransactions" = "Pembayaran Tunai";
+"title.chat.codeTeam" = "Pasukan Kod";
+"title.chat.payments" = "Pembayaran Web";
 "title.debugOptions" = "Pilihan Nyahpepijat";
 "title.depositKin" = "Depositkan Kin";
 "title.deposited" = "Didepositkan";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Akaun Saya";
 "title.notLinked" = "Tidak Dipautkan";
 "title.otherCurrencies" = "Mata Wang Lain";
+"title.paid" = "Dibayar";
 "title.pending" = "Belum selesai";
 "title.phoneNumber" = "Nombor Telefon";
 "title.privacyPolicy" = "Dasar Privasi";
+"title.purchased" = "Dibeli";
 "title.received" = "Diterima";
 "title.recentCurrencies" = "Mata Wang Baru";
 "title.referFriend" = "Rujuk Rakan, Dapat $5";

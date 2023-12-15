@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Yhdistä puhelinnumero";
 "action.logIn" = "Kirjaudu sisään";
 "action.logout" = "Kirjaudu ulos";
+"action.mute" = "Hiljennä";
 "action.next" = "Seuraava";
 "action.noTryAgain" = "Ei, yritä uudelleen";
 "action.notNow" = "Ei nyt";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Jaa tämä video";
 "action.swipeToPay" = "Maksa pyyhkäisemällä";
 "action.tryDifferentCodeAccount" = "Kokeile eri kooditiliä";
+"action.unmute" = "Poista mykistys";
+"action.unsubscribe" = "Lopeta tilaus";
 "action.update" = "Päivitä";
 "action.viewAccessKey" = "Näytä käyttöoikeusavain";
 "action.withdrawKin" = "Nosta kinejä";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Osta kinejä (tulossa pian)";
 "subtitle.buySellDescription" = "Kinejen ostaminen ja myyminen on monimutkainen prosessi. Nämä prosessit yksinkertaistuvat ajan mittaan. Jos haluat tietää jo tänään, kuinka kinejä voi ostaa ja myydä, kannattaa katsoa alta löytyvät opastusvideot.";
 "subtitle.canOnlyGiveUpTo" = "Voit antaa korkeintaan %@";
+"subtitle.chat.referralBonus" = "Lähetit jollekulle ensimmäisen Kinisi! Tässä suosittelijabonuksesi:";
+"subtitle.chat.welcomeBonus" = "Tervetulobonus";
 "subtitle.chooseCountry" = "Valitse maa";
 "subtitle.comingSoon" = "Tulossa pian";
 "subtitle.delete" = "Poista";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code on uusi kryptolompakkosovellus, joka on käytettävissä toistaiseksi vain kutsusta. Lataa Code täältä: %@";
 "subtitle.learnMore" = "Lue lisää";
 "subtitle.linkedPhoneNumberDescription" = "Puhelinnumerosi on yhdistetty tähän Code-tiliin. Ystäväsi voivat löytää sinut käyttämällä tätä puhelinnumeroa.";
+"subtitle.loadingBalance" = "Ladataan saldoasi ja maksuhistoriaasi";
 "subtitle.loginDescription" = "Etsi valokuvistasi käyttöoikeusavain, jonka tallensit tilisi luomisen yhteydessä.";
 "subtitle.logoutAndLoginConfirmation" = "Olet tällä hetkellä kirjautunut tilille. Varmista ennen jatkamista, että olet tallentanut käyttöavaimesi. Haluatko kirjautua ulos ja kirjautua sisään uudella tilillä?";
 "subtitle.noLinkedPhoneNumber" = "Ei yhdistettyä\npuhelinnumeroa";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Pätevä omistajan tili";
 "subtitle.validTokenAccount" = "Pätevä token-tili";
 "subtitle.valueKinChanges" = "Kinin muutosten arvo.";
+"subtitle.wasReturnedToYou" = "palautettiin sinulle";
 "subtitle.whereToWithdrawKin" = "Minne haluaisit nostaa kinejäsi?";
 "subtitle.withdrawKinFaceID" = "Vahvista henkilöllisyytesi nostaaksesi kinejä.";
+"subtitle.youDeposited" = "Talletit";
+"subtitle.youGave" = "Annoit";
 "subtitle.youHaveInvites" = "Sinulla on %d kutsua";
 "subtitle.youHaveInvitesLeft" = "Code on tällä hetkellä käytössä vain kutsusta. Sinulla on jäljellä %d.";
+"subtitle.youPaid" = "Maksoit";
+"subtitle.youPurchased" = "Annoit";
 "subtitle.youReceived" = "Sait";
+"subtitle.youSent" = "Lähetit";
+"subtitle.youSpent" = "Käytit";
+"subtitle.youWithdrew" = "Nostit";
 "success.description.withdrawalComplete" = "Rahojesi nostaminen onnistui.";
 "success.title.withdrawalComplete" = "Nosto onnistui";
 "title.accessExpired" = "Käyttöoikeus päättynyt";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Beta-liput";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Osta ja myy kinejä";
+"title.chat.cashTransactions" = "Käteismaksut";
+"title.chat.codeTeam" = "Code-tiimi";
+"title.chat.payments" = "Verkkomaksut";
 "title.debugOptions" = "Virheenkorjauksen vaihtoehdot";
 "title.depositKin" = "Talleta kinejä";
 "title.deposited" = "Talletti";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Käyttäjätilini";
 "title.notLinked" = "Ei yhdistetty";
 "title.otherCurrencies" = "Muut valuutat";
+"title.paid" = "Maksettu";
 "title.pending" = "Odottaa";
 "title.phoneNumber" = "Puhelinnumero";
 "title.privacyPolicy" = "Tietosuojakäytäntö";
+"title.purchased" = "Ostettu";
 "title.received" = "Sai";
 "title.recentCurrencies" = "Viimeaikaiset valuutat";
 "title.referFriend" = "Suosita ystävää, saat 5 $";

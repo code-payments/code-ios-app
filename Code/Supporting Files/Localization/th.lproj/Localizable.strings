@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "เชื่อมโยงหมายเลขโทรศัพท์";
 "action.logIn" = "เข้าสู่ระบบ";
 "action.logout" = "ออกจากระบบ";
+"action.mute" = "ปิดเสียง";
 "action.next" = "ต่อไป";
 "action.noTryAgain" = "ไม่, ลองอีกครั้ง";
 "action.notNow" = "ยังไม่ใช่ตอนนี้";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "แชร์วิดีโอนี้";
 "action.swipeToPay" = "ปัดเพื่อชำระเงิน";
 "action.tryDifferentCodeAccount" = "ลองใช้บัญชี Code อื่น";
+"action.unmute" = "เปิดเสียง";
+"action.unsubscribe" = "ยกเลิกการสมัครสมาชิก";
 "action.update" = "อัปเดต";
 "action.viewAccessKey" = "ดูคีย์การเข้าถึง";
 "action.withdrawKin" = "ถอน Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "ซื้อ Kin (เร็วๆ นี้)";
 "subtitle.buySellDescription" = "ขณะนี้การซื้อและการขาย Kin เป็นกระบวนการที่ซับซ้อน กระบวนการเหล่านี้จะง่ายขึ้นเมื่อเวลาผ่านไป หากคุณต้องการเรียนรู้วิธีซื้อและขาย Kin ในวันนี้ คุณสามารถชมวิดีโอแนะนำด้านล่าง";
 "subtitle.canOnlyGiveUpTo" = "คุณสามารถให้ได้ไม่เกิน %@";
+"subtitle.chat.referralBonus" = "คุณได้ส่ง Kin แรกให้กับใครบางคน! นี่คือโบนัสแนะนำของคุณ:";
+"subtitle.chat.welcomeBonus" = "โบนัสต้อนรับ";
 "subtitle.chooseCountry" = "เลือกประเทศ";
 "subtitle.comingSoon" = "จะมีให้บริการในเร็ว ๆ นี้";
 "subtitle.delete" = "ลบ";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code เป็นแอปกระเป๋าเงินคริปโตแอปใหม่ที่ขณะนี้ใช้ระบบเชิญเท่านั้น หากต้องการดาวน์โหลด Code ให้ไปที่ %@";
 "subtitle.learnMore" = "เรียนรู้เพิ่มเติม";
 "subtitle.linkedPhoneNumberDescription" = "หมายเลขโทรศัพท์ของคุณเชื่อมโยงกับบัญชี Code นี้ เพื่อน ๆ สามารถหาคุณได้โดยใช้หมายเลขโทรศัพท์นี้";
+"subtitle.loadingBalance" = "กำลังโหลดยอดคงเหลือและประวัติธุรกรรมของคุณ";
 "subtitle.loginDescription" = "ตรวจสอบรูปภาพของคุณเพื่อหาคีย์การเข้าถึงที่คุณบันทึกไว้ตอนที่สร้างบัญชีครั้งแรก";
 "subtitle.logoutAndLoginConfirmation" = "ขณะนี้คุณเข้าสู่ระบบบัญชีแล้ว โปรดตรวจสอบให้แน่ใจว่าคุณได้บันทึก Access Key ของคุณแล้วก่อนดำเนินการต่อ คุณต้องการออกจากระบบและเข้าสู่ระบบด้วยบัญชีใหม่หรือไม่?";
 "subtitle.noLinkedPhoneNumber" = "ไม่มีการเชื่อมโยง\nหมายเลขโทรศัพท์";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "บัญชีเจ้าของที่ถูกต้อง";
 "subtitle.validTokenAccount" = "บัญชีโทเค็นที่ถูกต้อง";
 "subtitle.valueKinChanges" = "ค่าของ Kin เปลี่ยนไป";
+"subtitle.wasReturnedToYou" = "ถูกส่งคืนให้คุณแล้ว";
 "subtitle.whereToWithdrawKin" = "คุณต้องการถอน Kin ของคุณไปที่ไหน";
 "subtitle.withdrawKinFaceID" = "ยืนยันตัวตนของคุณเพื่อถอน kin";
+"subtitle.youDeposited" = "คุณได้ฝาก";
+"subtitle.youGave" = "คุณได้ให้";
 "subtitle.youHaveInvites" = "คุณมี %d คำเชิญ";
 "subtitle.youHaveInvitesLeft" = "ปัจจุบันเข้า Code ได้เฉพาะผู้ได้รับคำเชิญเท่านั้น คุณมีเหลืออยู่ %d";
+"subtitle.youPaid" = "คุณได้จ่าย";
+"subtitle.youPurchased" = "คุณได้ให้";
 "subtitle.youReceived" = "คุณได้รับแล้ว";
+"subtitle.youSent" = "คุณได้ส่ง";
+"subtitle.youSpent" = "คุณได้ใช้ไป";
+"subtitle.youWithdrew" = "คุณได้ถอน";
 "success.description.withdrawalComplete" = "ถอนเงินของคุณเรียบร้อยแล้ว";
 "success.title.withdrawalComplete" = "ถอนสำเร็จ";
 "title.accessExpired" = "หมดอายุการเข้าถึงแล้ว";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "การตั้งค่าสถานะเบต้า";
 "title.bonus" = "โบนัส";
 "title.buySellKin" = "ซื้อและขาย Kin";
+"title.chat.cashTransactions" = "การชำระเงินด้วยเงินสด";
+"title.chat.codeTeam" = "ทีม Code";
+"title.chat.payments" = "การชำระเงินผ่านเว็บ";
 "title.debugOptions" = "ตัวเลือกการแก้จุดบกพร่อง";
 "title.depositKin" = "ฝาก Kin";
 "title.deposited" = "ฝากแล้ว";
@@ -257,9 +274,11 @@
 "title.myAccount" = "บัญชีของฉัน";
 "title.notLinked" = "ไม่ได้เชื่อมโยง";
 "title.otherCurrencies" = "สกุลเงินอื่น ๆ";
+"title.paid" = "ชำระแล้ว";
 "title.pending" = "อยู่ระหว่างดำเนินการ";
 "title.phoneNumber" = "หมายเลขโทรศัพท์";
 "title.privacyPolicy" = "นโยบายความเป็นส่วนตัว";
+"title.purchased" = "ซื้อแล้ว";
 "title.received" = "ได้รับแล้ว";
 "title.recentCurrencies" = "สกุลเงินล่าสุด";
 "title.referFriend" = "แนะนำเพื่อน รับ $5";

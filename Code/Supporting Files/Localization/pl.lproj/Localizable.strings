@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Linkuj numer telefonu";
 "action.logIn" = "Zaloguj się";
 "action.logout" = "Wyloguj się";
+"action.mute" = "Wycisz";
 "action.next" = "Dalej";
 "action.noTryAgain" = "Nie, spróbuj ponownie";
 "action.notNow" = "Nie teraz";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Udostępnij ten film";
 "action.swipeToPay" = "Przeciągnij, aby zapłacić";
 "action.tryDifferentCodeAccount" = "Wypróbuj inne konto Code";
+"action.unmute" = "Wyłącz wyciszenie";
+"action.unsubscribe" = "Zrezygnuj z subkrypcji";
 "action.update" = "Zaktualizuj";
 "action.viewAccessKey" = "Zobacz klucz dostępu";
 "action.withdrawKin" = "Wypłać Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Kup kin (wkrótce)";
 "subtitle.buySellDescription" = "Kupno i sprzedaż Kin jest obecnie złożonym procesem. Z czasem procesy te staną się prostsze. Jeśli chcesz dowiedzieć się, jak kupować i sprzedawać Kin już dziś, możesz obejrzeć poniższe filmy instruktażowe.";
 "subtitle.canOnlyGiveUpTo" = "Możesz dać tylko do %@";
+"subtitle.chat.referralBonus" = "Wysłałeś(-aś) komuś pierwszego Kina! Oto Twój bonus za polecenie:";
+"subtitle.chat.welcomeBonus" = "Bonus powitalny";
 "subtitle.chooseCountry" = "Wybierz kraj";
 "subtitle.comingSoon" = "Wkrótce";
 "subtitle.delete" = "Usuń";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code to nowa aplikacja-portfel krypto, obecnie dostępna tylko na zaproszenie. Żeby ją pobrać, przejdź do %@";
 "subtitle.learnMore" = "Dowiedz się więcej";
 "subtitle.linkedPhoneNumberDescription" = "Twój numer telefonu jest połączony z tym kontem Code. Znajomi mogą Cię znaleźć, używając tego numeru telefonu.";
+"subtitle.loadingBalance" = "Ładowanie salda i historii transakcji";
 "subtitle.loginDescription" = "Sprawdź w zdjęciach klucz dostępu zapisany podczas tworzenia konta.";
 "subtitle.logoutAndLoginConfirmation" = "Obecnie jesteś zalogowany(-a) do konta. Zanim przejdziesz dalej, sprawdź, czy zapisałeś(-aś) klucz dostępu. Czy chcesz się wylogować i zalogować z użyciem nowego konta?";
 "subtitle.noLinkedPhoneNumber" = "Brak połączonego\nnumeru telefonu";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Prawidłowe konto właściciela";
 "subtitle.validTokenAccount" = "Prawidłowe konto tokenu";
 "subtitle.valueKinChanges" = "Wartość Kin zmienia się.";
+"subtitle.wasReturnedToYou" = "zwrócono Ci";
 "subtitle.whereToWithdrawKin" = "Dokąd chcesz wypłacić Kin?";
 "subtitle.withdrawKinFaceID" = "Zweryfikuj tożsamość, żeby wypłacić Kin.";
+"subtitle.youDeposited" = "Zdeponowałeś(-aś)";
+"subtitle.youGave" = "Dałeś(-aś)";
 "subtitle.youHaveInvites" = "Masz %d zaproszeń";
 "subtitle.youHaveInvitesLeft" = "Code jest obecnie tylko na zaproszenie. Pozostało Ci %d.";
+"subtitle.youPaid" = "Zapłaciłeś(-aś)";
+"subtitle.youPurchased" = "Dałeś(-aś)";
 "subtitle.youReceived" = "Otrzymałeś";
+"subtitle.youSent" = "Wysłałeś(-aś)";
+"subtitle.youSpent" = "Wydałeś(-aś)";
+"subtitle.youWithdrew" = "Wypłaciłeś(-aś)";
 "success.description.withdrawalComplete" = "Twoje środki zostały wypłacone.";
 "success.title.withdrawalComplete" = "Wypłacenie powiodło się";
 "title.accessExpired" = "Dostęp wygasł";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Betaflagi";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Kupuj i sprzedawaj Kin";
+"title.chat.cashTransactions" = "Płatności gotówką";
+"title.chat.codeTeam" = "Zespół Code";
+"title.chat.payments" = "Płatności online";
 "title.debugOptions" = "Debuguj opcje";
 "title.depositKin" = "Zdeponuj Kin";
 "title.deposited" = "Zdeponowane";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Moje konto";
 "title.notLinked" = "Nielinkowane";
 "title.otherCurrencies" = "Inne waluty";
+"title.paid" = "Opłacone";
 "title.pending" = "W oczekiwaniu";
 "title.phoneNumber" = "Numer telefonu";
 "title.privacyPolicy" = "Zasady prywatności";
+"title.purchased" = "Kupione";
 "title.received" = "Otrzymane";
 "title.recentCurrencies" = "Niedawne waluty";
 "title.referFriend" = "Poleć znajomemu i otrzymaj 5 $";

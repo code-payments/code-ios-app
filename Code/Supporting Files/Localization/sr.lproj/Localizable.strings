@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Poveži broj telefona";
 "action.logIn" = "Prijavi se";
 "action.logout" = "Odjavi se";
+"action.mute" = "Искључи звук";
 "action.next" = "Sledeći";
 "action.noTryAgain" = "Не, покушајте поново";
 "action.notNow" = "Ne sada";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Дели овај видео-запис";
 "action.swipeToPay" = "Брзо превуците да бисте платили";
 "action.tryDifferentCodeAccount" = "Isprobaj drugi Code nalog";
+"action.unmute" = "Укључи звук";
+"action.unsubscribe" = "Откажи претплату";
 "action.update" = "Ažuriraj";
 "action.viewAccessKey" = "Prikaži ključ za pristup";
 "action.withdrawKin" = "Povuci Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Купи Кин (ускоро)";
 "subtitle.buySellDescription" = "Тренутно је куповина и продаја криптовалуте кин сложен процес. Током времена ће ови процеси постати једноставнији. Ако желите да сазнате како се купује и продаје кин данас, у наставку можете да погледате видео-записе који ће вас провести кроз поступак.";
 "subtitle.canOnlyGiveUpTo" = "Можете да дате највише %@";
+"subtitle.chat.referralBonus" = "Послали сте неком први Кин! Ово је ваш бонус за препоруку:";
+"subtitle.chat.welcomeBonus" = "Bonus dobrodošlice";
 "subtitle.chooseCountry" = "Izaberi zemlju";
 "subtitle.comingSoon" = "Долази ускоро";
 "subtitle.delete" = "Избриши";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code je nova aplikacija kripto novčanika koja trenutno radi samo po principu pozivnice. Kako biste preuzeli Code, idite na %@";
 "subtitle.learnMore" = "Saznaj više";
 "subtitle.linkedPhoneNumberDescription" = "Vaš broj telefona je povezan sa ovim Code nalogom. Prijatelji vas mogu pronaći pomoću ovog broja telefona.";
+"subtitle.loadingBalance" = "Učitavanje vašeg stanja i istorije transakcija";
 "subtitle.loginDescription" = "Proverite svoje fotografije za ključ za pristup koji ste sačuvali kada ste prvi put otvorili nalog.";
 "subtitle.logoutAndLoginConfirmation" = "Тренутно сте пријављени на налог. Уверите се да сте сачували свој приступни кључ пре него што наставите. Да ли желите да се одјавите и пријавите са новим налогом?";
 "subtitle.noLinkedPhoneNumber" = "Nepovezan\nBroj telefona";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Важећи налог власника";
 "subtitle.validTokenAccount" = "Важећи налог токена";
 "subtitle.valueKinChanges" = "Vrednost Kin promena.";
+"subtitle.wasReturnedToYou" = "враћено вам је";
 "subtitle.whereToWithdrawKin" = "Gde biste želeli da povučete svoj Kin?";
 "subtitle.withdrawKinFaceID" = "Potvrdite svoj identitet da biste povukli kin.";
+"subtitle.youDeposited" = "Ставили сте у депозит";
+"subtitle.youGave" = "Дали сте";
 "subtitle.youHaveInvites" = "Imate %d poziva";
 "subtitle.youHaveInvitesLeft" = "Code je trenutno samo za pozvane. Još vam je %d ostalo.";
+"subtitle.youPaid" = "Платили сте";
+"subtitle.youPurchased" = "Дали сте";
 "subtitle.youReceived" = "Dobili ste";
+"subtitle.youSent" = "Послали сте";
+"subtitle.youSpent" = "Потрошили сте";
+"subtitle.youWithdrew" = "Подигли сте";
 "success.description.withdrawalComplete" = "Vaša sredstva su uspešno povučena.";
 "success.title.withdrawalComplete" = "Povlačenje je uspelo";
 "title.accessExpired" = "Pristup je istekao";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Бета заставице";
 "title.bonus" = "Бонус";
 "title.buySellKin" = "Куповина и продаја кина";
+"title.chat.cashTransactions" = "Plaćanja u gotovini";
+"title.chat.codeTeam" = "Code tim";
+"title.chat.payments" = "Veb plaćanja";
 "title.debugOptions" = "Opcije za otklanjanje grešaka";
 "title.depositKin" = "Uloži Kin";
 "title.deposited" = "Uloženo";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Мој налог";
 "title.notLinked" = "Nije povezan";
 "title.otherCurrencies" = "Druge valute";
+"title.paid" = "Plaćeno";
 "title.pending" = "Na čekanju";
 "title.phoneNumber" = "Broj telefona";
 "title.privacyPolicy" = "Pravila o privatnosti";
+"title.purchased" = "Kupljeno";
 "title.received" = "Primljeno";
 "title.recentCurrencies" = "Nedavne valute";
 "title.referFriend" = "Препоручите пријатеља, узмите 5$";

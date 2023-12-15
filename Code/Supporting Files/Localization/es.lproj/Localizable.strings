@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Vincular un número de teléfono";
 "action.logIn" = "Iniciar sesión";
 "action.logout" = "Cerrar sesión";
+"action.mute" = "Silenciar";
 "action.next" = "Siguiente";
 "action.noTryAgain" = "No, inténtalo de nuevo";
 "action.notNow" = "Ahora no";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Compartir este vídeo";
 "action.swipeToPay" = "Deslizar para pagar";
 "action.tryDifferentCodeAccount" = "Probar con una cuenta Code diferente";
+"action.unmute" = "Anular silencio";
+"action.unsubscribe" = "Cancelar suscripción";
 "action.update" = "Actualizar";
 "action.viewAccessKey" = "Ver clave de acceso";
 "action.withdrawKin" = "Retirar Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Comprar Kin (muy pronto)";
 "subtitle.buySellDescription" = "Actualmente, comprar y vender Kin es un proceso complejo. Estos procesos se simplificarán con el tiempo. Si desea aprender hoy mismo a comprar y vender Kin, puede ver los siguientes vídeos explicativos.";
 "subtitle.canOnlyGiveUpTo" = "Solo puedes dar hasta %@";
+"subtitle.chat.referralBonus" = "¡Has enviado a alguien su primer Kin! Aquí tienes tu bonificación por recomendación:";
+"subtitle.chat.welcomeBonus" = "Bonificación de bienvenida";
 "subtitle.chooseCountry" = "Elegir un país";
 "subtitle.comingSoon" = "Próximamente";
 "subtitle.delete" = "Eliminar";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code es una nueva aplicación de monedero criptográfico a la que sólo se puede acceder por invitación. Para descargar Code, visita %@.";
 "subtitle.learnMore" = "Más información";
 "subtitle.linkedPhoneNumberDescription" = "Tu número de teléfono está vinculado a esta cuenta Code. Tus amigos pueden utilizarlo para localizarte.";
+"subtitle.loadingBalance" = "Cargando tu saldo e historial de transacciones";
 "subtitle.loginDescription" = "Busca en tus fotos la clave de acceso que guardaste al crear tu cuenta.";
 "subtitle.logoutAndLoginConfirmation" = "Actualmente estás conectado a una cuenta. Asegúrate de haber guardado tu clave de acceso antes de continuar. ¿Deseas desconectarte e iniciar sesión con una nueva cuenta?";
 "subtitle.noLinkedPhoneNumber" = "Número de teléfono\nno vinculado";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Cuenta de titular válida";
 "subtitle.validTokenAccount" = "Cuenta de token válida";
 "subtitle.valueKinChanges" = "El valor de Kin cambia.";
+"subtitle.wasReturnedToYou" = "se te ha devuelto";
 "subtitle.whereToWithdrawKin" = "¿Adónde quieres retirar tus Kin?";
 "subtitle.withdrawKinFaceID" = "Verifica tu identidad para retirar Kin.";
+"subtitle.youDeposited" = "Has depositado";
+"subtitle.youGave" = "Has dado";
 "subtitle.youHaveInvites" = "Tienes %d invitaciones";
 "subtitle.youHaveInvitesLeft" = "Actualmente, Code está disponible solo mediante invitación. Te quedan %d.";
+"subtitle.youPaid" = "Has pagado";
+"subtitle.youPurchased" = "Has dado";
 "subtitle.youReceived" = "Has recibido";
+"subtitle.youSent" = "Has enviado";
+"subtitle.youSpent" = "Has gastado";
+"subtitle.youWithdrew" = "Has retirado";
 "success.description.withdrawalComplete" = "Tus fondos se han retirado con éxito.";
 "success.title.withdrawalComplete" = "Retirada realizada con éxito";
 "title.accessExpired" = "Acceso caducado";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Banderas beta";
 "title.bonus" = "Bono";
 "title.buySellKin" = "Comprar y vender Kin";
+"title.chat.cashTransactions" = "Pagos en efectivo";
+"title.chat.codeTeam" = "Equipo de código";
+"title.chat.payments" = "Pagos por Internet";
 "title.debugOptions" = "Opciones de depuración";
 "title.depositKin" = "Depositar Kin";
 "title.deposited" = "Depositó";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Mi cuenta";
 "title.notLinked" = "No vinculado";
 "title.otherCurrencies" = "Otras divisas";
+"title.paid" = "Pagado";
 "title.pending" = "Pendiente";
 "title.phoneNumber" = "Número de teléfono";
 "title.privacyPolicy" = "Política de privacidad";
+"title.purchased" = "Comprado";
 "title.received" = "Recibió";
 "title.recentCurrencies" = "Divisas recientes";
 "title.referFriend" = "Recomienda a un amigo y consigue 5 $";

@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Conectează un număr de telefon";
 "action.logIn" = "Conectare";
 "action.logout" = "Deconectare";
+"action.mute" = "Pune în surdină";
 "action.next" = "Următorul";
 "action.noTryAgain" = "Nu, încearcă din nou";
 "action.notNow" = "Nu acum";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Partajează acest videoclip";
 "action.swipeToPay" = "Glisează pentru a plăti";
 "action.tryDifferentCodeAccount" = "Încearcă un alt cont Code";
+"action.unmute" = "Scoate din surdină";
+"action.unsubscribe" = "Dezabonare";
 "action.update" = "Actualizare";
 "action.viewAccessKey" = "Vizualizează cheia de acces";
 "action.withdrawKin" = "Retrage Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Cumpără kin (în curând)";
 "subtitle.buySellDescription" = "În prezent, cumpărarea și vânzarea de Kin constituie un proces complex. Aceste procese se vor simplifica în timp. Dacă dorești să înveți cum să cumperi și să vinzi Kin astăzi, poți viziona videoclipurile de prezentare de mai jos.";
 "subtitle.canOnlyGiveUpTo" = "Poți da cel mult %@";
+"subtitle.chat.referralBonus" = "Ai trimis cuiva primul său Kin! Iată bonusul tău de recomandare:";
+"subtitle.chat.welcomeBonus" = "Bonus de bun-venit";
 "subtitle.chooseCountry" = "Alege o țară";
 "subtitle.comingSoon" = "Urmează în curând";
 "subtitle.delete" = "Șterge";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code este o nouă aplicație de portofel criptografic, care în prezent este doar pe bază de invitație. Pentru a descărca Code, accesați %@.";
 "subtitle.learnMore" = "Află mai multe";
 "subtitle.linkedPhoneNumberDescription" = "Numărul tău de telefon este conectat la acest cont Kin. Prietenii te pot găsi folosind acest număr de telefon.";
+"subtitle.loadingBalance" = "Se încarcă soldul și istoricul tranzacțiilor";
 "subtitle.loginDescription" = "Caută în fotografii Cheia de acces pe care ai salvat-o când ai creat contul.";
 "subtitle.logoutAndLoginConfirmation" = "Momentan ești conectat la un cont. Înainte de a continua, asigură-te că ți-ai salvat cheia de acces. Dorești să te deconectezi și să te conectezi la un cont nou?";
 "subtitle.noLinkedPhoneNumber" = "Neconectat\nNumăr de telefon";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Cont de proprietar valid";
 "subtitle.validTokenAccount" = "Cont jeton valid";
 "subtitle.valueKinChanges" = "Valoarea Kin-ului se modifică.";
+"subtitle.wasReturnedToYou" = "ți s-a returnat";
 "subtitle.whereToWithdrawKin" = "Unde ai dori să-ți retragi suma în Kin?";
 "subtitle.withdrawKinFaceID" = "Verifică-ți identitatea pentru a retrage Kin.";
+"subtitle.youDeposited" = "Ai depus";
+"subtitle.youGave" = "Ai dat";
 "subtitle.youHaveInvites" = "Ai %d invitații";
 "subtitle.youHaveInvitesLeft" = "Accesul la Code este în prezent doar pe bază de invitație. Îți rămân %d.";
+"subtitle.youPaid" = "Ai plătit";
+"subtitle.youPurchased" = "Ai dat";
 "subtitle.youReceived" = "Ai primit";
+"subtitle.youSent" = "Ai trimis";
+"subtitle.youSpent" = "Ai cheltuit";
+"subtitle.youWithdrew" = "Ai retras";
 "success.description.withdrawalComplete" = "Fondurile tale au fost retrase cu succes.";
 "success.title.withdrawalComplete" = "Retragerea a avut succes";
 "title.accessExpired" = "Accesul a expirat";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Steaguri Beta";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Cumpără și vinde Kin";
+"title.chat.cashTransactions" = "Plăți în numerar";
+"title.chat.codeTeam" = "Echipa de programare";
+"title.chat.payments" = "Plăți web";
 "title.debugOptions" = "Opțiuni de depanare";
 "title.depositKin" = "Depozitează Kin";
 "title.deposited" = "Depozitat";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Contul meu";
 "title.notLinked" = "Neconectat";
 "title.otherCurrencies" = "Alte valute";
+"title.paid" = "Plătit";
 "title.pending" = "În așteptare";
 "title.phoneNumber" = "Număr de telefon";
 "title.privacyPolicy" = "Politică de confidențialitate";
+"title.purchased" = "Achiziționat";
 "title.received" = "Primit";
 "title.recentCurrencies" = "Valute folosite recent";
 "title.referFriend" = "Recomandați un prieten, primiți 5 dolari";

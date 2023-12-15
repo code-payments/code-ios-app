@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Telefon Numarası Bağla";
 "action.logIn" = "Giriş Yap";
 "action.logout" = "Çıkış Yap";
+"action.mute" = "Sesi kapat";
 "action.next" = "İleri";
 "action.noTryAgain" = "Hayır, Tekrar Dene";
 "action.notNow" = "Şimdi Değil";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Bu Videoyu Paylaş";
 "action.swipeToPay" = "Ödemek için Kaydır";
 "action.tryDifferentCodeAccount" = "Farklı Code Hesabı Dene";
+"action.unmute" = "Sesi aç";
+"action.unsubscribe" = "Abonelikten çık";
 "action.update" = "Güncelle";
 "action.viewAccessKey" = "Erişim Anahtarını Görüntüle";
 "action.withdrawKin" = "Kin Çek";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Kin Satın Al (Çok Yakında)";
 "subtitle.buySellDescription" = "Kin alıp satmak, şu anda kompleks bir süreç. Bu süreçler zamanla daha da basitleşecek. Bugün nasıl Kin alınıp satılacağını öğrenmek istiyorsanız aşağıdaki rehber videolarını izleyebilirsiniz.";
 "subtitle.canOnlyGiveUpTo" = "Yalnızca %@ tutarına kadar verebilirsin";
+"subtitle.chat.referralBonus" = "Birisine ilk Kin gönderen sen oldun! İşte referans bonusun:";
+"subtitle.chat.welcomeBonus" = "Hoş Geldiniz Bonusu";
 "subtitle.chooseCountry" = "Ülke seç";
 "subtitle.comingSoon" = "Çok Yakında";
 "subtitle.delete" = "Sil";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code, şu anda yalnızca davetle kullanılabilen yeni bir kripto cüzdan uygulamasıdır. Code'u indirmek için %@ adresine gidin.";
 "subtitle.learnMore" = "Daha fazla bilgi edin";
 "subtitle.linkedPhoneNumberDescription" = "Telefon numaran bu Code hesabıyla bağlantılıdır. Arkadaşların bu telefon numarasını kullanarak seni bulabilir.";
+"subtitle.loadingBalance" = "Bakiye ve işlem geçmişiniz yükleniyor";
 "subtitle.loginDescription" = "Hesabını ilk oluşturduğunda Erişim Anahtarı için kaydettiğin fotoğraflarını kontrol et.";
 "subtitle.logoutAndLoginConfirmation" = "Şu anda bir hesaba giriş yaptın. Lütfen devam etmeden önce Erişim Anahtarını kaydettiğinden emin ol. Oturumu kapatıp yeni bir hesapla oturum açmak ister misin?";
 "subtitle.noLinkedPhoneNumber" = "Bağlantılı Olmayan\nTelefon Numarası";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Geçerli sahip hesabı";
 "subtitle.validTokenAccount" = "Geçerli token hesabı";
 "subtitle.valueKinChanges" = "Kin değişim değeri.";
+"subtitle.wasReturnedToYou" = "sana geri döndü";
 "subtitle.whereToWithdrawKin" = "Kin'ini nereye çekmek istersin?";
 "subtitle.withdrawKinFaceID" = "Kin çekmek için kimliğini doğrula.";
+"subtitle.youDeposited" = "Yatırdın";
+"subtitle.youGave" = "Verdin";
 "subtitle.youHaveInvites" = "%d Davetin Var";
 "subtitle.youHaveInvitesLeft" = "Şu anda Code'a yalnızca davetle katılınabilir. %d süren kaldı.";
+"subtitle.youPaid" = "Ödedin";
+"subtitle.youPurchased" = "Verdin";
 "subtitle.youReceived" = "Aldığın";
+"subtitle.youSent" = "Gönderdin";
+"subtitle.youSpent" = "Harcadın";
+"subtitle.youWithdrew" = "Çektin";
 "success.description.withdrawalComplete" = "Paran başarıyla çekildi.";
 "success.title.withdrawalComplete" = "Para Çekme Başarılı";
 "title.accessExpired" = "Erişim Sona Erdi";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Beta Bayrakları";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Kin Al & Sat";
+"title.chat.cashTransactions" = "Nakit Ödemeler";
+"title.chat.codeTeam" = "Code Ekibi";
+"title.chat.payments" = "Web Ödemeleri";
 "title.debugOptions" = "Hata Ayıklama Seçenekleri";
 "title.depositKin" = "Kin Yatır";
 "title.deposited" = "Yatırdı";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Hesabım";
 "title.notLinked" = "Bağlı Değil";
 "title.otherCurrencies" = "Diğer Para Birimleri";
+"title.paid" = "Ödendi";
 "title.pending" = "Bekliyor";
 "title.phoneNumber" = "Telefon Numarası";
 "title.privacyPolicy" = "Gizlilik Politikası";
+"title.purchased" = "Satın alındı";
 "title.received" = "Aldı";
 "title.recentCurrencies" = "Son Para Birimleri";
 "title.referFriend" = "Bir Arkadaş Yönlendir, $5'ı Kazan";

@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Tautkan Nomor Telepon";
 "action.logIn" = "Masuk";
 "action.logout" = "Keluar";
+"action.mute" = "Bisukan";
 "action.next" = "Selanjutnya";
 "action.noTryAgain" = "Tidak, Coba Lagi";
 "action.notNow" = "Tidak Sekarang";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Bagikan Video Ini";
 "action.swipeToPay" = "Geser untuk membayar";
 "action.tryDifferentCodeAccount" = "Coba Akun Code Yang Berbeda";
+"action.unmute" = "Suarakan";
+"action.unsubscribe" = "Berhenti langganan";
 "action.update" = "Perbarui";
 "action.viewAccessKey" = "Lihat Kunci Akses";
 "action.withdrawKin" = "Tarik Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Beli Kin (Segera Hadir)";
 "subtitle.buySellDescription" = "Membeli dan menjual Kin saat ini merupakan proses yang rumit. Proses akan menjadi lebih sederhana seiring berjalannya waktu. Jika Anda ingin mempelajari cara membeli dan menjual Kin hari ini, Anda dapat menonton video panduan di bawah ini.";
 "subtitle.canOnlyGiveUpTo" = "Anda hanya bisa memberikan hingga %@";
+"subtitle.chat.referralBonus" = "Anda mengirim Kin pertama bagi seseorang! Ini adalah bonus referensi Anda:";
+"subtitle.chat.welcomeBonus" = "Bonus Penyambutan";
 "subtitle.chooseCountry" = "Pilih salah satu negara";
 "subtitle.comingSoon" = "Segera Hadir";
 "subtitle.delete" = "Hapus";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code adalah aplikasi dompet kripto baru yang saat ini hanya untuk undangan. Untuk mengunduh Code, silakan datang ke %@";
 "subtitle.learnMore" = "Pelajari lebih lanjut";
 "subtitle.linkedPhoneNumberDescription" = "Nomor telepon Anda ditautkan dengan akun Code ini. Teman-teman dapat menemukan Anda menggunakan nomor telepon ini.";
+"subtitle.loadingBalance" = "Memuat saldo dan riwayat transaksi Anda";
 "subtitle.loginDescription" = "Periksa Kunci Akses yang Anda simpan di foto Anda saat pertama kali membuat akun.";
 "subtitle.logoutAndLoginConfirmation" = "Anda saat ini masuk ke akun. Pastikan Anda telah menyimpan Kunci Akses Anda sebelum melanjutkan. Apakah Anda ingin keluar dan masuk dengan akun baru?";
 "subtitle.noLinkedPhoneNumber" = "Tak Ada Yang Tertaut";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Akun pemilik yang valid";
 "subtitle.validTokenAccount" = "Akun token yang valid";
 "subtitle.valueKinChanges" = "Nilai Kin berubah.";
+"subtitle.wasReturnedToYou" = "telah dikembalikan kepada Anda";
 "subtitle.whereToWithdrawKin" = "Ke mana Anda ingin menarik Kin?";
 "subtitle.withdrawKinFaceID" = "Verifikasi identitas Anda untuk menarik Kin.";
+"subtitle.youDeposited" = "Anda menyetorkan";
+"subtitle.youGave" = "Anda memberi";
 "subtitle.youHaveInvites" = "Anda memiliki %d Undangan";
 "subtitle.youHaveInvitesLeft" = "Code saat ini hanya untuk undangan. Anda memiliki %d tersisa.";
+"subtitle.youPaid" = "Anda membayar";
+"subtitle.youPurchased" = "Anda memberi";
 "subtitle.youReceived" = "Anda menerima";
+"subtitle.youSent" = "Anda mengirim";
+"subtitle.youSpent" = "Anda membelanjakan";
+"subtitle.youWithdrew" = "Anda menarik";
 "success.description.withdrawalComplete" = "Dana Anda berhasil ditarik.";
 "success.title.withdrawalComplete" = "Penarikan Berhasil";
 "title.accessExpired" = "Akses Kedaluwarsa";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Tanda Beta";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Beli & Jual Kin";
+"title.chat.cashTransactions" = "Pembayaran Tunai";
+"title.chat.codeTeam" = "Tim Code";
+"title.chat.payments" = "Pembayaran Web";
 "title.debugOptions" = "Opsi Debug";
 "title.depositKin" = "Deposit Kin";
 "title.deposited" = "Deposit";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Akun Saya";
 "title.notLinked" = "Tidak Terhubung";
 "title.otherCurrencies" = "Mata Uang Lainnya";
+"title.paid" = "Dibayar";
 "title.pending" = "Menunggu";
 "title.phoneNumber" = "Nomor Telepon";
 "title.privacyPolicy" = "Kebijakan Privasi";
+"title.purchased" = "Dibeli";
 "title.received" = "Menerima";
 "title.recentCurrencies" = "Mata Uang Terbaru";
 "title.referFriend" = "Ajak Teman, Dapatkan $5";

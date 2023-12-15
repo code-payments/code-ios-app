@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "קשר מספר טלפון";
 "action.logIn" = "התחברות";
 "action.logout" = "יציאה מהחשבון";
+"action.mute" = "השתק";
 "action.next" = "הבא";
 "action.noTryAgain" = "לא, נסה שוב";
 "action.notNow" = "לא עכשיו";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "שתפו סרטון זה";
 "action.swipeToPay" = "החליקו כדי לשלם";
 "action.tryDifferentCodeAccount" = "נסה חשבון קוד אחר";
+"action.unmute" = "בטל השתקה";
+"action.unsubscribe" = "בטל מנוי";
 "action.update" = "עדכן";
 "action.viewAccessKey" = "צפה במפתח הגישה";
 "action.withdrawKin" = "משוך קין";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "רכישת Kin (בקרוב)";
 "subtitle.buySellDescription" = "קנייה ומכירה של Kin הוא תהליך מורכב. תהליכים אלו יעשו פשוטים יותר עם הזמן. אם אתם רוצים ללמוד כיצד לקנות ולמכור Kin היום, ניתן לצפות בסרטוני ההדרכה למטה.";
 "subtitle.canOnlyGiveUpTo" = "באפשרותך לתת רק עד %@";
+"subtitle.chat.referralBonus" = "שלחת למישהו את ה-Kin הראשון שלו! הנה בונוס ההפניה שלך:";
+"subtitle.chat.welcomeBonus" = "בונוס מבורך";
 "subtitle.chooseCountry" = "בחר מדינה";
 "subtitle.comingSoon" = "יגיע בקרוב";
 "subtitle.delete" = "מחק";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code היא אפליקציית ארנק קריפטו חדשה שכרגע על בסיס הזמנה בלבד. להורדת Code יש לגשת ל: %@";
 "subtitle.learnMore" = "למד עוד";
 "subtitle.linkedPhoneNumberDescription" = "מספר הטלפון שלך מקושר עם חשבון הקוד הזה. חברים יכולים למצוא אותך באמצעות שימוש במספר הטלפון הזה.";
+"subtitle.loadingBalance" = "טוען את היתרה והיסטוריית העסקאות שלך";
 "subtitle.loginDescription" = "בדוק את התמונות של מפתח הגישה ששמרת כשיצרת לראשונה את החשבון.";
 "subtitle.logoutAndLoginConfirmation" = "הנך מחובר/ת כעת לחשבון. נא לוודא ששמרת את מפתח הגישה שלך בטרם תמשיכ/י. האם ברצונך להתנתק ולהתחבר עם חשבון חדש?";
 "subtitle.noLinkedPhoneNumber" = "אין מספר\nטלפון מקושר";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "חשבון בעלים תקף";
 "subtitle.validTokenAccount" = "חשבון אסימון תקף";
 "subtitle.valueKinChanges" = "ערך הקין משתנה.";
+"subtitle.wasReturnedToYou" = "הוחזר אליך";
 "subtitle.whereToWithdrawKin" = "לאן אתה רוצה למשוך את הקין שלך?";
 "subtitle.withdrawKinFaceID" = "אמת את הזהות שלך כדי למשוך קין.";
+"subtitle.youDeposited" = "הפקדת";
+"subtitle.youGave" = "נתת";
 "subtitle.youHaveInvites" = "יש לך %d הזמנות";
 "subtitle.youHaveInvitesLeft" = "קוד היא כרגע בהזמנה בלבד. נשארו לך %d הזמנות.";
+"subtitle.youPaid" = "שילמת";
+"subtitle.youPurchased" = "נתת";
 "subtitle.youReceived" = "קיבלת";
+"subtitle.youSent" = "שלחת";
+"subtitle.youSpent" = "הוצאת";
+"subtitle.youWithdrew" = "משכת";
 "success.description.withdrawalComplete" = "הכספים שלך נמשכו בהצלחה.";
 "success.title.withdrawalComplete" = "המשיכה עברה בהצלחה";
 "title.accessExpired" = "פג תוקף הגישה";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "דגלי בטא";
 "title.bonus" = "בונוס";
 "title.buySellKin" = "קנו ומכרו Kin";
+"title.chat.cashTransactions" = "תשלומים במזומן";
+"title.chat.codeTeam" = "צוות קוד";
+"title.chat.payments" = "תשלום באינטרנט";
 "title.debugOptions" = "אפשרויות תיקון שגיאות";
 "title.depositKin" = "הפקד קין";
 "title.deposited" = "הפקדות שבוצעו";
@@ -257,9 +274,11 @@
 "title.myAccount" = "החשבון שלי";
 "title.notLinked" = "לא מקושר";
 "title.otherCurrencies" = "סוגי מטבע אחרים";
+"title.paid" = "שולם";
 "title.pending" = "ממתין";
 "title.phoneNumber" = "מספר טלפון";
 "title.privacyPolicy" = "מדיניות פרטיות";
+"title.purchased" = "נרכש";
 "title.received" = "הפקדות שהתקבלו";
 "title.recentCurrencies" = "סוגי מטבע בשימוש לאחרונה";
 "title.referFriend" = "הפנה חבר, קבל 5$";

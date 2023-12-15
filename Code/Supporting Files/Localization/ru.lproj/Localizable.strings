@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Привязать номер телефона";
 "action.logIn" = "Войти";
 "action.logout" = "Выйти";
+"action.mute" = "Отключить звук";
 "action.next" = "Далее";
 "action.noTryAgain" = "Нет, попробовать еще раз";
 "action.notNow" = "Не сейчас";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Поделитесь этим видео";
 "action.swipeToPay" = "Проведите, чтобы оплатить";
 "action.tryDifferentCodeAccount" = "Попробовать другую учетную запись Code";
+"action.unmute" = "Включить звук";
+"action.unsubscribe" = "Отписаться";
 "action.update" = "Обновить";
 "action.viewAccessKey" = "Посмотреть ключ доступа";
 "action.withdrawKin" = "Вывести Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Купить Kin (скоро)";
 "subtitle.buySellDescription" = "Купля-продажа Kin в настоящее время представляет собой сложный процесс. Со временем эти процессы станут проще. Если вы хотите узнать, как покупать и продавать Kin сегодня, вы можете посмотреть ниже видеоинструкции.";
 "subtitle.canOnlyGiveUpTo" = "Вы можете отправить не более %@";
+"subtitle.chat.referralBonus" = "Вы послали кому-то его/ее первый Kin! Вот ваш реферальный бонус:";
+"subtitle.chat.welcomeBonus" = "Приветственный бонус";
 "subtitle.chooseCountry" = "Выбрать страну";
 "subtitle.comingSoon" = "Скоро выйдет";
 "subtitle.delete" = "Удалить";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code — это новое приложение-криптокошелек, в настоящее время доступное только по приглашениям. Чтобы загрузить Code, перейдите на %@";
 "subtitle.learnMore" = "Узнать больше";
 "subtitle.linkedPhoneNumberDescription" = "Ваш номер телефона привязан к этой учетной записи Code. Друзья смогут вас по нему найти.";
+"subtitle.loadingBalance" = "Загрузка вашего баланса и истории транзакций";
 "subtitle.loginDescription" = "Проверьте свои фото на наличие ключа доступа, который вы сохранили при создании своей учетной записи.";
 "subtitle.logoutAndLoginConfirmation" = "Вы вошли в аккаунт. Прежде чем продолжить, убедитесь, что вы сохранили ключ доступа. Хотите выйти из системы и войти под новым аккаунтом?";
 "subtitle.noLinkedPhoneNumber" = "Номер телефона\nне привязан";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Действительный счет владельца";
 "subtitle.validTokenAccount" = "Действительный счет токенов";
 "subtitle.valueKinChanges" = "Стоимость Kin меняется.";
+"subtitle.wasReturnedToYou" = "вернулось вам";
 "subtitle.whereToWithdrawKin" = "Куда хотите вывести свою Kin?";
 "subtitle.withdrawKinFaceID" = "Подтвердите свою личность, чтобы вывести kin.";
+"subtitle.youDeposited" = "Вы внесли";
+"subtitle.youGave" = "Вы отдали";
 "subtitle.youHaveInvites" = "У вас есть %d приглашений";
 "subtitle.youHaveInvitesLeft" = "К Code сейчас можно получить доступ только по приглашению. У вас осталось %d.";
+"subtitle.youPaid" = "Вы заплатили";
+"subtitle.youPurchased" = "Вы отдали";
 "subtitle.youReceived" = "Вы получили";
+"subtitle.youSent" = "Вы отправили";
+"subtitle.youSpent" = "Вы потратили";
+"subtitle.youWithdrew" = "Вы вывели";
 "success.description.withdrawalComplete" = "Ваши средства успешно выведены.";
 "success.title.withdrawalComplete" = "Выведение прошло успешно";
 "title.accessExpired" = "Время на доступ вышло";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Бета-флаги";
 "title.bonus" = "Бонус";
 "title.buySellKin" = "Купля и продажа Kin";
+"title.chat.cashTransactions" = "Платежи наличными";
+"title.chat.codeTeam" = "Команда Code";
+"title.chat.payments" = "Онлайн-платежи";
 "title.debugOptions" = "Опции отладки";
 "title.depositKin" = "Внести Kin";
 "title.deposited" = "Внес(-ла)";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Моя учетная запись";
 "title.notLinked" = "Не привязан";
 "title.otherCurrencies" = "Другие валюты";
+"title.paid" = "Оплачено";
 "title.pending" = "В ожидании";
 "title.phoneNumber" = "Номер телефона";
 "title.privacyPolicy" = "Политика конфиденциальности";
+"title.purchased" = "Куплено";
 "title.received" = "Получил(-а)";
 "title.recentCurrencies" = "Недавние валюты";
 "title.referFriend" = "Приведите друга, получите 5 долл. США";

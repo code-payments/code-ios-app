@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "電話番号をリンクする";
 "action.logIn" = "ログイン";
 "action.logout" = "ログアウト";
+"action.mute" = "ミュート";
 "action.next" = "次へ";
 "action.noTryAgain" = "いいえ,もう一度試してください";
 "action.notNow" = "後で";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "この動画をシェアする";
 "action.swipeToPay" = "スワイプして支払う";
 "action.tryDifferentCodeAccount" = "別のCodeアカウントを試す";
+"action.unmute" = "ミュート解除";
+"action.unsubscribe" = "登録解除";
 "action.update" = "更新";
 "action.viewAccessKey" = "アクセスキーを表示する";
 "action.withdrawKin" = "Kinを引き出す";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Kinを購入する（近日実装予定）";
 "subtitle.buySellDescription" = "今はKinの売買プロセスは複雑ですが,時がたつにつれ,プロセスは簡単になります。今すぐKinの売買方法を知りたい場合は,以下の説明動画をご覧ください。";
 "subtitle.canOnlyGiveUpTo" = "%@ まであきらめることができます";
+"subtitle.chat.referralBonus" = "あなたは誰かに最初のKinを送りました！紹介ボーナスは次のとおりです:";
+"subtitle.chat.welcomeBonus" = "ウェルカムボーナス";
 "subtitle.chooseCountry" = "国を選択する";
 "subtitle.comingSoon" = "もうすぐ登場";
 "subtitle.delete" = "削除";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Codeは新たな仮想通貨ウォレットアプリで,現在は招待限定となっています。Codeをダウンロードするには%@にアクセスしてください";
 "subtitle.learnMore" = "さらに詳しく";
 "subtitle.linkedPhoneNumberDescription" = "お客様の電話番号は,このCodeアカウントとリンクしています。お友達はこの電話番号を使ってお客様を見つけることができます。";
+"subtitle.loadingBalance" = "残高および取引履歴を読み込んでいます";
 "subtitle.loginDescription" = "最初にアカウントを作成したときに保存したアクセスキーが存在するかどうか写真を確認してください。";
 "subtitle.logoutAndLoginConfirmation" = "現在アカウントにログインしています。続行する前に,アクセスキーを保存していることを確認してください。ログアウトして新しいアカウントでログインしますか？";
 "subtitle.noLinkedPhoneNumber" = "リンクされた\n電話番号がありません";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "有効なオーナーアカウント";
 "subtitle.validTokenAccount" = "有効なトークンアカウント";
 "subtitle.valueKinChanges" = "Kinの値が変化します。";
+"subtitle.wasReturnedToYou" = "あなたに返された";
 "subtitle.whereToWithdrawKin" = "Kinの引き出し先を教えてください。";
 "subtitle.withdrawKinFaceID" = "Kinを引き出すために本人確認を行ってください。";
+"subtitle.youDeposited" = "入金した";
+"subtitle.youGave" = "与えた";
 "subtitle.youHaveInvites" = "お客様には%dの招待があります";
 "subtitle.youHaveInvitesLeft" = "Codeは現在招待制です。残りは%dです。";
+"subtitle.youPaid" = "支払った";
+"subtitle.youPurchased" = "与えた";
 "subtitle.youReceived" = "受け取りました";
+"subtitle.youSent" = "送信した";
+"subtitle.youSpent" = "支出した";
+"subtitle.youWithdrew" = "引き落とした";
 "success.description.withdrawalComplete" = "お客様の資金は正常に引き出されました。";
 "success.title.withdrawalComplete" = "引き出し成功";
 "title.accessExpired" = "アクセスの有効期限が切れました";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "ベータフラグ";
 "title.bonus" = "ボーナス";
 "title.buySellKin" = "Kinの購入＆売却";
+"title.chat.cashTransactions" = "現金支払い";
+"title.chat.codeTeam" = "Codeチーム";
+"title.chat.payments" = "ウェブ支払い";
 "title.debugOptions" = "デバッグオプション";
 "title.depositKin" = "Kinを入金する";
 "title.deposited" = "入金済み";
@@ -257,9 +274,11 @@
 "title.myAccount" = "マイアカウント";
 "title.notLinked" = "リンクされていません";
 "title.otherCurrencies" = "その他の通貨";
+"title.paid" = "支払い済み";
 "title.pending" = "保留中";
 "title.phoneNumber" = "電話番号";
 "title.privacyPolicy" = "プライバシーポリシー";
+"title.purchased" = "購入済み";
 "title.received" = "受信済み";
 "title.recentCurrencies" = "最近の通貨";
 "title.referFriend" = "友だちを紹介して5ドルもらおう";

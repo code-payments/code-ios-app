@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Eine Telefonnummer verknüpfen";
 "action.logIn" = "Einloggen";
 "action.logout" = "Abmelden";
+"action.mute" = "Stummschalten";
 "action.next" = "Weiter";
 "action.noTryAgain" = "Nein, erneut versuchen";
 "action.notNow" = "Nicht jetzt";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Dieses Video teilen\n";
 "action.swipeToPay" = "Zum Bezahlen wischen\n";
 "action.tryDifferentCodeAccount" = "Versuchen Sie es mit einem anderen Code-Konto";
+"action.unmute" = "Stummschaltung aufheben";
+"action.unsubscribe" = "Abbestellen";
 "action.update" = "Aktualisieren";
 "action.viewAccessKey" = "Zugriffsschlüssel anzeigen";
 "action.withdrawKin" = "Kin abheben";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Kin kaufen (demnächst verfügbar)";
 "subtitle.buySellDescription" = "Der Kauf und Verkauf von Kin ist derzeit ein komplexer Vorgang. Diese Vorgänge werden im Laufe der Zeit einfacher werden. Wenn Sie lernen möchten, wie man Kin kauft und verkauft, können Sie sich die folgenden Video-Leitführer ansehen.\n";
 "subtitle.canOnlyGiveUpTo" = "Sie können nur bis zu %@ geben";
+"subtitle.chat.referralBonus" = "Sie haben jemandem seinen ersten Kin geschickt! Hier ist Ihr Empfehlungsbonus:";
+"subtitle.chat.welcomeBonus" = "Willkommensbonus";
 "subtitle.chooseCountry" = "Land auswählen";
 "subtitle.comingSoon" = "Demnächst erhältlich";
 "subtitle.delete" = "Löschen";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code ist eine neue Krypto-Wallet-App, die derzeit nur für eingeladene Benutzer verfügbar ist. Um Code herunterzuladen, gehen Sie zu %@";
 "subtitle.learnMore" = "Mehr erfahren";
 "subtitle.linkedPhoneNumberDescription" = "Ihre Telefonnummer ist mit diesem Code-Konto verknüpft. Freunde können Sie über diese Telefonnummer finden.";
+"subtitle.loadingBalance" = "Laden des Saldos und Transaktionsverlaufs";
 "subtitle.loginDescription" = "Durchsuchen Sie Ihre Fotos nach dem Zugangsschlüssel, den Sie bei der erstmaligen Erstellung Ihres Kontos gespeichert haben.";
 "subtitle.logoutAndLoginConfirmation" = "Sie sind derzeit bei einem Konto angemeldet. Bitte stellen Sie sicher, dass Sie Ihren Zugangsschlüssel gespeichert haben, bevor Sie fortfahren. Möchten Sie sich abmelden und mit einem neuen Konto anmelden?";
 "subtitle.noLinkedPhoneNumber" = "Keine Telefonnummer vernüpft";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Gültiges Inhaberkonto";
 "subtitle.validTokenAccount" = "Gültiges Token-Konto";
 "subtitle.valueKinChanges" = "Der Wert des Kins kann schwanken.";
+"subtitle.wasReturnedToYou" = "wurde an Sie zurückgegeben";
 "subtitle.whereToWithdrawKin" = "Wohin möchten Sie Ihre abgehobenen Kin überweisen?";
 "subtitle.withdrawKinFaceID" = "Verifizieren Sie Ihre Identität, um Kin abzuheben.";
+"subtitle.youDeposited" = "Sie haben eingezahlt";
+"subtitle.youGave" = "Sie haben gegeben";
 "subtitle.youHaveInvites" = "Sie haben %d Einladungen";
 "subtitle.youHaveInvitesLeft" = "Code kann momentan nur mit Einladung genutzt werden. Sie haben noch %d übrig.";
+"subtitle.youPaid" = "Sie haben bezahlt";
+"subtitle.youPurchased" = "Sie haben gegeben";
 "subtitle.youReceived" = "Sie erhielten";
+"subtitle.youSent" = "Sie haben gesendet";
+"subtitle.youSpent" = "Sie haben ausgegeben";
+"subtitle.youWithdrew" = "Sie haben abgehoben";
 "success.description.withdrawalComplete" = "Die Abhebung Ihres Guthabens war erfolgreich.";
 "success.title.withdrawalComplete" = "Abhebung erfolgreich";
 "title.accessExpired" = "Zugang abgelaufen";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Beta-Flaggen";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Kin kaufen & verkaufen\n";
+"title.chat.cashTransactions" = "Barzahlungen";
+"title.chat.codeTeam" = "Code-Team";
+"title.chat.payments" = "Online-Zahlungen";
 "title.debugOptions" = "Debug-Optionen";
 "title.depositKin" = "Kin einzahlen";
 "title.deposited" = "Eingezahlt";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Mein Konto";
 "title.notLinked" = "Nicht verknüpft";
 "title.otherCurrencies" = "Weitere Währungen";
+"title.paid" = "Bezahlt";
 "title.pending" = "Offen";
 "title.phoneNumber" = "Telefonnummer";
 "title.privacyPolicy" = "Datenschutzrichtlinien";
+"title.purchased" = "Gekauft";
 "title.received" = "Empfangen";
 "title.recentCurrencies" = "Letzte Währungen";
 "title.referFriend" = "Empfehle Sie uns an einen Freund oder eine Freundin weiter und erhalten Sie 5 $ dafür";

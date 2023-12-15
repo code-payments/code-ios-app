@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Odkázat na telefonní číslo";
 "action.logIn" = "Přihlásit se";
 "action.logout" = "Odhlásit se";
+"action.mute" = "Ztlumit";
 "action.next" = "Dále";
 "action.noTryAgain" = "Ne, zkusit znovu";
 "action.notNow" = "Teď ne";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Sdílet toto video";
 "action.swipeToPay" = "Zaplaťte potažením";
 "action.tryDifferentCodeAccount" = "Vyzkoušet účet s jiným kódem";
+"action.unmute" = "Zrušit ztlumení";
+"action.unsubscribe" = "Zrušit odběr";
 "action.update" = "Aktualizovat";
 "action.viewAccessKey" = "Zobrazit přístupový klíč";
 "action.withdrawKin" = "Vybrat kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Koupit Kin (brzy)";
 "subtitle.buySellDescription" = "Nákup a prodej měny Kin je aktuálně složitý proces. Časem se tyto procesy zjednoduší. Pokud chcete zjistit, jak nakupovat a prodávat Kin už teď, můžete si projít instruktážní videa níže. ";
 "subtitle.canOnlyGiveUpTo" = "Můžete dát pouze %@";
+"subtitle.chat.referralBonus" = "Poslali jste někomu jejich první Kin! Tady je váš bonus za referenci:";
+"subtitle.chat.welcomeBonus" = "Bonus na uvítanou";
 "subtitle.chooseCountry" = "Zvolit zemi";
 "subtitle.comingSoon" = "Již brzy";
 "subtitle.delete" = "Odstranit";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code je nová aplikace ke kryptoměnové peněžence, která momentálně funguje pouze pro zvané. Code si stáhnete na %@";
 "subtitle.learnMore" = "Zjistit více";
 "subtitle.linkedPhoneNumberDescription" = "Vaše telefonní číslo je propojeno s tímto kódovým účtem. Přátelé vás pomocí tohoto čísla najdou.";
+"subtitle.loadingBalance" = "Načítání zůstatků a historie transakcí";
 "subtitle.loginDescription" = "Zkontrolujte snímky k přístupovému kódu, který jste si uložili při prvním vytvoření účtu.";
 "subtitle.logoutAndLoginConfirmation" = "Momentálně jste přihlášeni k účtu. Než budete pokračovat, ujistěte se, že jste uložili svůj přístupový klíč. Chcete se odhlásit a přihlásit pomocí nového účtu?";
 "subtitle.noLinkedPhoneNumber" = "Chybí propojené\ntelefonní číslo";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Platný účet vlastníka";
 "subtitle.validTokenAccount" = "Platný tokenový účet";
 "subtitle.valueKinChanges" = "Hodnota změn kinů.";
+"subtitle.wasReturnedToYou" = "vám bylo vráceno";
 "subtitle.whereToWithdrawKin" = "Kam byste si chtěli vybrat kin?";
 "subtitle.withdrawKinFaceID" = "K výběru kinu si nechejte ověřit totožnost.";
+"subtitle.youDeposited" = "Uložili jste";
+"subtitle.youGave" = "Dali jste";
 "subtitle.youHaveInvites" = "Máte %d přizvání";
 "subtitle.youHaveInvitesLeft" = "Kód je momentálně pouze na přizvání. Zbývá vám jen %d.";
+"subtitle.youPaid" = "Zaplatili jste";
+"subtitle.youPurchased" = "Dali jste";
 "subtitle.youReceived" = "Obdrželi jste";
+"subtitle.youSent" = "Poslali jste";
+"subtitle.youSpent" = "Utratili jste";
+"subtitle.youWithdrew" = "Vybrali jste";
 "success.description.withdrawalComplete" = "Úspěšně jste si vybrali peníze. ";
 "success.title.withdrawalComplete" = "Výběr proběhl úspěšně";
 "title.accessExpired" = "Přístup vypršel";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Beta příznaky";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Kupujte a prodávejte Kin";
+"title.chat.cashTransactions" = "Platby v hotovosti";
+"title.chat.codeTeam" = "Tým Code";
+"title.chat.payments" = "Internetové platby";
 "title.debugOptions" = "Možnosti odstranění chyb";
 "title.depositKin" = "Uložit kin";
 "title.deposited" = "Uloženo";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Můj účet";
 "title.notLinked" = "Nepropojené";
 "title.otherCurrencies" = "Ostatní měny";
+"title.paid" = "Placeno";
 "title.pending" = "Čeká";
 "title.phoneNumber" = "Telefonní číslo";
 "title.privacyPolicy" = "Ochrana soukromí";
+"title.purchased" = "Zakoupeno";
 "title.received" = "Obdrženo";
 "title.recentCurrencies" = "Poslední měny";
 "title.referFriend" = "Doporučte kamaráda a získejte 5 USD";

@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Associar um Número de Telefone";
 "action.logIn" = "Iniciar Sessão";
 "action.logout" = "Terminar Sessão";
+"action.mute" = "Silenciar";
 "action.next" = "Próximo";
 "action.noTryAgain" = "Não, tentar de novo";
 "action.notNow" = "Agora Não";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Partilhar este vídeo";
 "action.swipeToPay" = "Deslize para pagar";
 "action.tryDifferentCodeAccount" = "Tente uma Conta Code Diferente";
+"action.unmute" = "Ligar o som";
+"action.unsubscribe" = "Anular subscrição";
 "action.update" = "Atualizar";
 "action.viewAccessKey" = "Ver Chave de Acesso";
 "action.withdrawKin" = "Levantar Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Comprar Kin (brevemente)";
 "subtitle.buySellDescription" = "Comprar e vender Kin é neste momento um processo complexo. Este irá tornar-se mais simples ao longo do tempo. Se quiser aprender a comprar e vender Kin hoje, pode assistir ao guia nos vídeos abaixo.";
 "subtitle.canOnlyGiveUpTo" = "Apenas pode dar até %@";
+"subtitle.chat.referralBonus" = "Enviou a alguém o seu primeiro Kin! Aqui está o seu bónus de referência:";
+"subtitle.chat.welcomeBonus" = "Bónus de boas-vindas";
 "subtitle.chooseCountry" = "Escolher um país";
 "subtitle.comingSoon" = "Brevemente";
 "subtitle.delete" = "Eliminar";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "A Code é uma nova aplicação de carteira de criptomoedas com acesso exclusivo para pessoas com convite, neste momento. Para descarregar a Code vá a %@";
 "subtitle.learnMore" = "Saber mais";
 "subtitle.linkedPhoneNumberDescription" = "O seu número de telemóvel está associado a esta conta Code. Os seus amigos podem encontrá-lo utilizando este número.";
+"subtitle.loadingBalance" = "A carregar o seu saldo e histórico de transações";
 "subtitle.loginDescription" = "Procure nas suas fotos a Chave de Acesso que guardou quando criou a sua conta.";
 "subtitle.logoutAndLoginConfirmation" = "Tem sessão iniciada com uma conta. Certifique-se de que guardou a sua chave de acesso antes de continuar. Pretende terminar a sessão e iniciar sessão com uma nova conta?";
 "subtitle.noLinkedPhoneNumber" = "Nenhum Número de\nTelemóvel Associado";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Conta de proprietário válida";
 "subtitle.validTokenAccount" = "Conta de token válida";
 "subtitle.valueKinChanges" = "O valor de Kin muda.";
+"subtitle.wasReturnedToYou" = "foi-lhe devolvido";
 "subtitle.whereToWithdrawKin" = "Para onde gostaria de levantar o seu Kin?";
 "subtitle.withdrawKinFaceID" = "Verifique a sua identidade para levantar kin.";
+"subtitle.youDeposited" = "Depositou";
+"subtitle.youGave" = "Deu";
 "subtitle.youHaveInvites" = "Tem %d Convites";
 "subtitle.youHaveInvitesLeft" = "A Code neste momento só pode ser acedida através de convite. Tem %d restantes.";
+"subtitle.youPaid" = "Pagou";
+"subtitle.youPurchased" = "Deu";
 "subtitle.youReceived" = "Recebeu";
+"subtitle.youSent" = "Enviou";
+"subtitle.youSpent" = "Gastou";
+"subtitle.youWithdrew" = "Levantou";
 "success.description.withdrawalComplete" = "Os seus fundos foram levantados com sucesso.";
 "success.title.withdrawalComplete" = "Levantamento Com Sucesso";
 "title.accessExpired" = "Acesso Expirado";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Bandeiras Beta";
 "title.bonus" = "Bónus";
 "title.buySellKin" = "Comprar e Vender Kin";
+"title.chat.cashTransactions" = "Pagamentos em dinheiro";
+"title.chat.codeTeam" = "Equipa Code";
+"title.chat.payments" = "Pagamentos Web";
 "title.debugOptions" = "Opções de Depuração";
 "title.depositKin" = "Depositar Kin";
 "title.deposited" = "Depositado";
@@ -257,9 +274,11 @@
 "title.myAccount" = "A Minha Conta";
 "title.notLinked" = "Não Ligado";
 "title.otherCurrencies" = "Outras Moedas";
+"title.paid" = "Pago";
 "title.pending" = "Pendente";
 "title.phoneNumber" = "Número de Telefone";
 "title.privacyPolicy" = "Política de Privacidade";
+"title.purchased" = "Adquirido";
 "title.received" = "Recebeu";
 "title.recentCurrencies" = "Moedas Recentes";
 "title.referFriend" = "Refira a uma amigo, ganhe 5€";

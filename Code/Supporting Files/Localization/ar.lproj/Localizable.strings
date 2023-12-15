@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "إرفاق رقم الهاتف";
 "action.logIn" = "تسجيل الدخول";
 "action.logout" = "تسجيل الخروج";
+"action.mute" = "كتم الصوت";
 "action.next" = "التالي";
 "action.noTryAgain" = "لا, حاول مرة أخرى";
 "action.notNow" = "ليس الآن";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "شارك مقطع الفيديو هذا";
 "action.swipeToPay" = "مرر للدفع";
 "action.tryDifferentCodeAccount" = "تجربة حساب Code مختلف";
+"action.unmute" = "إلغاء كتم الصوت";
+"action.unsubscribe" = "إلغاء الاشتراك";
 "action.update" = "تحديث";
 "action.viewAccessKey" = "عرض مفتاح الوصول";
 "action.withdrawKin" = "سحب الأموال";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "قم بشراء Kin (مُتاحة قريبًا)";
 "subtitle.buySellDescription" = "يُعد شراء وبيع Kin حاليًا عملية معقدة. ستصبح هذه العمليات أسهل بمرور الوقت. إذا كنت تريد معرفة كيفية شراء وبيع Kin اليوم, فيمكنك مشاهدة مقاطع الفيديو أدناه.\n";
 "subtitle.canOnlyGiveUpTo" = "يمكنك إعطاء ما يصل إلى %@ فقط";
+"subtitle.chat.referralBonus" = "لقد أرسلت إلى شخص ما أول Kin له! إليك مكافأة الإحالة الخاصة بك:";
+"subtitle.chat.welcomeBonus" = "مكافأة ترحيبية";
 "subtitle.chooseCountry" = "اختر بلدًا";
 "subtitle.comingSoon" = "قريباً";
 "subtitle.delete" = "حذف";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code هو تطبيق محفظة عملات مشفرة جديد للدعوات فقط حاليًا. لتنزيل Code, انتقل إلى %@";
 "subtitle.learnMore" = "معرفة المزيد";
 "subtitle.linkedPhoneNumberDescription" = "رقم هاتفك مُرفق بحساب Code هذا. يُمكن لأصدقائك العثور عليك باستخدام رقم الهاتف هذا.";
+"subtitle.loadingBalance" = "تحميل رصيدك وسجل معاملاتك";
 "subtitle.loginDescription" = "تحقق من صورك بحثًا عن مفتاح الوصول الذي حفظته عند إنشاء حسابك لأول مرة.";
 "subtitle.logoutAndLoginConfirmation" = "أنت حاليًا مسجل الدخول في حساب. يُرجى التأكد من حفظ مفتاح الوصول الخاص بك قبل المتابعة. هل ترغب في تسجيل الخروج والدخول بحساب جديد؟";
 "subtitle.noLinkedPhoneNumber" = "رقم الهاتف\nغير مُرفق";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "حساب المالك صحيح";
 "subtitle.validTokenAccount" = "حساب الرمز صحيح";
 "subtitle.valueKinChanges" = "قيمة تغيير الأموال.";
+"subtitle.wasReturnedToYou" = "تم إرجاعه إليك";
 "subtitle.whereToWithdrawKin" = "إلى أين تريد سحب أموالك؟";
 "subtitle.withdrawKinFaceID" = "التحقق من هويتك لسحب الأموال.";
+"subtitle.youDeposited" = "لقد أودعت";
+"subtitle.youGave" = "لقد منحت";
 "subtitle.youHaveInvites" = "لديك %d دعوات";
 "subtitle.youHaveInvitesLeft" = "إن Code بالدعوة فقط في الوقت الحالي. متبقي لديك %d.";
+"subtitle.youPaid" = "لقد دفعت";
+"subtitle.youPurchased" = "لقد منحت";
 "subtitle.youReceived" = "لقد تلقيت";
+"subtitle.youSent" = "لقد أرسلت";
+"subtitle.youSpent" = "لقد أنفقت";
+"subtitle.youWithdrew" = "لقد سحبت";
 "success.description.withdrawalComplete" = "تم سحب أموالك بنجاح.";
 "success.title.withdrawalComplete" = "نجحت عملية السحب";
 "title.accessExpired" = "انتهت صلاحية إتاحة الوصول";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "علامات ميزات البرنامج";
 "title.bonus" = "المكافأة";
 "title.buySellKin" = "اشترِ وبع Kin";
+"title.chat.cashTransactions" = "مدفوعات نقدية";
+"title.chat.codeTeam" = "فريق Code";
+"title.chat.payments" = "المدفوعات عن طريق الويب";
 "title.debugOptions" = "خيارات إصلاح الأخطاء";
 "title.depositKin" = "إيداع الأموال";
 "title.deposited" = "المودعة";
@@ -257,9 +274,11 @@
 "title.myAccount" = "حسابي";
 "title.notLinked" = "غير مُرفق";
 "title.otherCurrencies" = "عملات أخرى";
+"title.paid" = "تم الدفع";
 "title.pending" = "قيد الانتظار";
 "title.phoneNumber" = "رقم الهاتف";
 "title.privacyPolicy" = "سياسة الخصوصية";
+"title.purchased" = "تم الشراء";
 "title.received" = "المستلمة";
 "title.recentCurrencies" = "العملات الأخيرة";
 "title.referFriend" = "ارسل طلب إحالة لصديق, واحصل على 5 دولارات";

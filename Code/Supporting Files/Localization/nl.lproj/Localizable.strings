@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Een telefoonnummer koppelen";
 "action.logIn" = "Inloggen";
 "action.logout" = "Uitloggen";
+"action.mute" = "Dempen";
 "action.next" = "Volgende";
 "action.noTryAgain" = "Nee, probeer het opnieuw";
 "action.notNow" = "Nu niet";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Deel deze video";
 "action.swipeToPay" = "Veeg om te betalen";
 "action.tryDifferentCodeAccount" = "Probeer een ander Code-account";
+"action.unmute" = "Dempen opheffen";
+"action.unsubscribe" = "Uitschrijven";
 "action.update" = "Updaten";
 "action.viewAccessKey" = "Toegangscode tonen";
 "action.withdrawKin" = "KIN opnemen";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Kin kopen (binnenkort beschikbaar)";
 "subtitle.buySellDescription" = "Het kopen en verkopen van Kin is momenteel een complex proces. Deze processen zullen in de toekomst eenvoudiger worden. Als je wilt leren hoe je op dit moment Kin kunt kopen en verkopen, kun je de onderstaande video's bekijken.";
 "subtitle.canOnlyGiveUpTo" = "Je kunt slechts %@ geven";
+"subtitle.chat.referralBonus" = "Je hebt iemand hun eerste Kin gestuurd! Hier is je referentiebonus:";
+"subtitle.chat.welcomeBonus" = "Welkomstbonus";
 "subtitle.chooseCountry" = "Een land kiezen";
 "subtitle.comingSoon" = "Binnenkort beschikbaar";
 "subtitle.delete" = "Verwijderen";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code is een nieuwe cryptowallet-app die momenteel invite-only is. Om Code te downloaden gaat u naar %@";
 "subtitle.learnMore" = "Meer informatie";
 "subtitle.linkedPhoneNumberDescription" = "Je telefoonnummer is gekoppeld aan dit Code-account. Vrienden kunnen je vinden via dit telefoonnummer.";
+"subtitle.loadingBalance" = "Je saldo en transactiegeschiedenis worden geladen";
 "subtitle.loginDescription" = "Controleer je foto's voor de toegangscode die je hebt opgeslagen toen je je account voor het eerst aanmaakte.";
 "subtitle.logoutAndLoginConfirmation" = "Je bent momenteel ingelogd op een account. Zorg ervoor dat je je toegangssleutel hebt opgeslagen voordat je doorgaat. Wil je uitloggen en inloggen met een nieuw account?";
 "subtitle.noLinkedPhoneNumber" = "Geen gekoppeld\ntelefoonnummer";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Geldig eigenaarsaccount";
 "subtitle.validTokenAccount" = "Geldig token-account";
 "subtitle.valueKinChanges" = "De waarde van KIN verandert.";
+"subtitle.wasReturnedToYou" = "is aan jou teruggestuurd";
 "subtitle.whereToWithdrawKin" = "Waarheen moeten je opgenomen KIN worden overgemaakt?";
 "subtitle.withdrawKinFaceID" = "Je identiteit verifiëren om KIN op te nemen.";
+"subtitle.youDeposited" = "Je stortte";
+"subtitle.youGave" = "Jij gaf";
 "subtitle.youHaveInvites" = "Je hebt %d uitnodigingen";
 "subtitle.youHaveInvitesLeft" = "Code is momenteel alleen op uitnodiging. Je hebt nog %d over.";
+"subtitle.youPaid" = "Je betaalde";
+"subtitle.youPurchased" = "Je gaf";
 "subtitle.youReceived" = "Je ontving";
+"subtitle.youSent" = "Je stuurde";
+"subtitle.youSpent" = "Je hebt uitgegeven";
+"subtitle.youWithdrew" = "Je hebt opgenomen";
 "success.description.withdrawalComplete" = "Je geldopname werd met succes uitgevoerd.";
 "success.title.withdrawalComplete" = "Geldopname gelukt";
 "title.accessExpired" = "Toegang verlopen";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Bèta-vlaggen";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Kin kopen en verkopen";
+"title.chat.cashTransactions" = "Betalingen in contanten";
+"title.chat.codeTeam" = "Code van team";
+"title.chat.payments" = "Online betalingen";
 "title.debugOptions" = "Debug-opties";
 "title.depositKin" = "KIN storten";
 "title.deposited" = "Gestort";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Mijn Account";
 "title.notLinked" = "Niet gekoppeld";
 "title.otherCurrencies" = "Andere valuta";
+"title.paid" = "Betaald";
 "title.pending" = "In behandeling";
 "title.phoneNumber" = "Telefoonnummer";
 "title.privacyPolicy" = "Privacybeleid";
+"title.purchased" = "Aangeschaft";
 "title.received" = "Ontvangen";
 "title.recentCurrencies" = "Recente valuta";
 "title.referFriend" = "Verwijs een vriend en ontvang $5";

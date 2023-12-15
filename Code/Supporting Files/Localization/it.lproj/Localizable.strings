@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Collega un numero di telefono";
 "action.logIn" = "Accedi";
 "action.logout" = "Disconnetti";
+"action.mute" = "Silenzia";
 "action.next" = "Avanti";
 "action.noTryAgain" = "No, riprova";
 "action.notNow" = "Non adesso";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Condividi questo video";
 "action.swipeToPay" = "Scorri per pagare";
 "action.tryDifferentCodeAccount" = "Prova con un account Code diverso";
+"action.unmute" = "Riattiva audio";
+"action.unsubscribe" = "Annulla l'iscrizione";
 "action.update" = "Aggiorna";
 "action.viewAccessKey" = "Visualizza chiave d'accesso";
 "action.withdrawKin" = "Preleva Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Compra Kin (in arrivo)";
 "subtitle.buySellDescription" = "La compravendita di Kin è attualmente un processo complesso. Con il tempo queste procedure diventeranno più semplici. Se vuoi imparare ad acquistare e vendere Kin oggi stesso, puoi guardare i video esplicativi sottostanti.";
 "subtitle.canOnlyGiveUpTo" = "Puoi dare solo fino a %@";
+"subtitle.chat.referralBonus" = "Hai inviato a qualcuno il loro primo Kin! Ecco il tuo bonus di riferimento:";
+"subtitle.chat.welcomeBonus" = "Bonus di benvenuto";
 "subtitle.chooseCountry" = "Scegli un paese";
 "subtitle.comingSoon" = "Prossimamente";
 "subtitle.delete" = "Cancella";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code è una nuova app per criptovalute, al momento accessibile solo su invito. Per scaricare Code vai su %@";
 "subtitle.learnMore" = "Maggiori informazioni";
 "subtitle.linkedPhoneNumberDescription" = "Il tuo numero di telefono è collegato a questo account Code. Gli amici possono trovarti tramite questo numero di telefono.";
+"subtitle.loadingBalance" = "Caricamento di saldo e cronologia delle transazioni";
 "subtitle.loginDescription" = "Controlla nelle tue foto per trovare la chiave d'accesso che hai salvato quando hai creato per la prima volta il tuo account.";
 "subtitle.logoutAndLoginConfirmation" = "In questo momento hai effettuato l'accesso ad un account. Controlla di aver salvato la chiave d'accesso prima di procedere. Desideri uscire e accedere con un nuovo account?";
 "subtitle.noLinkedPhoneNumber" = "Nessun numero di telefono collegato";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Account proprietario valido";
 "subtitle.validTokenAccount" = "Conto token valido";
 "subtitle.valueKinChanges" = "Il valore dei Kin varia.";
+"subtitle.wasReturnedToYou" = "è stato restituito a te";
 "subtitle.whereToWithdrawKin" = "Dove desideri prelevare i tuoi Kin?";
 "subtitle.withdrawKinFaceID" = "Verifica la tua identità per poter prelevare Kin.";
+"subtitle.youDeposited" = "Hai depositato";
+"subtitle.youGave" = "Hai dato";
 "subtitle.youHaveInvites" = "Hai %d inviti";
 "subtitle.youHaveInvitesLeft" = "Code è attualmente solo a invito. Ne hai %d rimanenti.";
+"subtitle.youPaid" = "Hai pagato";
+"subtitle.youPurchased" = "Hai dato";
 "subtitle.youReceived" = "Hai ricevuto";
+"subtitle.youSent" = "Hai inviato";
+"subtitle.youSpent" = "Hai speso";
+"subtitle.youWithdrew" = "Hai prelevato";
 "success.description.withdrawalComplete" = "I tuoi fondi sono stati prelevati correttamente.";
 "success.title.withdrawalComplete" = "Prelievo effettuato correttamente";
 "title.accessExpired" = "Accesso scaduto";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Bandiere beta";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Acquista e vendi Kin";
+"title.chat.cashTransactions" = "Pagamenti in denaro";
+"title.chat.codeTeam" = "Team Code";
+"title.chat.payments" = "Pagamenti web";
 "title.debugOptions" = "Opzioni di debug";
 "title.depositKin" = "Deposita Kin";
 "title.deposited" = "Depositati";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Il mio account";
 "title.notLinked" = "Non collegato";
 "title.otherCurrencies" = "Altre valute";
+"title.paid" = "Pagamenti";
 "title.pending" = "In attesa";
 "title.phoneNumber" = "Numero di telefono";
 "title.privacyPolicy" = "Informativa sulla privacy";
+"title.purchased" = "Acquisti";
 "title.received" = "Ricevuti";
 "title.recentCurrencies" = "Valute recenti";
 "title.referFriend" = "Invita un amico, ricevi 5 $";

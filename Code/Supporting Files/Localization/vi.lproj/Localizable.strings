@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Liên kết Số Điện thoại";
 "action.logIn" = "Đăng nhập";
 "action.logout" = "Đăng xuất";
+"action.mute" = "Tắt tiếng";
 "action.next" = "Tiếp theo";
 "action.noTryAgain" = "Không, Thử Lại";
 "action.notNow" = "Để Sau";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Chia sẻ Video Này";
 "action.swipeToPay" = "Vuốt để Thanh toán";
 "action.tryDifferentCodeAccount" = "Thử Tài khoản Mã Khác";
+"action.unmute" = "Bật tiếng";
+"action.unsubscribe" = "Hủy đăng ký";
 "action.update" = "Cập nhật";
 "action.viewAccessKey" = "Xem Khóa Truy cập";
 "action.withdrawKin" = "Rút Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Mua Kin (Sắp Ra mắt)";
 "subtitle.buySellDescription" = "Việc mua bán Kin hiện là một quá trình phức tạp. Các quá trình này sẽ dần trở nên đơn giản hơn. Nếu muốn tìm hiểu cách mua bán Kin ngay hôm nay, bạn có thể xem các video hướng dẫn ở bên dưới.";
 "subtitle.canOnlyGiveUpTo" = "Bạn chỉ có thể tặng tối đa %@";
+"subtitle.chat.referralBonus" = "Bạn đã gửi cho người khác Kin đầu tiên của họ! Đây là tiền thưởng giới thiệu của bạn:";
+"subtitle.chat.welcomeBonus" = "Thưởng chào mừng";
 "subtitle.chooseCountry" = "Chọn một quốc gia";
 "subtitle.comingSoon" = "Sắp ra mắt";
 "subtitle.delete" = "Xóa";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code là một ứng dụng ví tiền mã hóa mới, hiện chỉ có thể được tiếp cận qua lời mời. Để tải Code, vui lòng truy cập %@";
 "subtitle.learnMore" = "Tìm hiểu thêm";
 "subtitle.linkedPhoneNumberDescription" = "Số điện thoại của bạn được liên kết với tài khoản Mã này. Bạn bè có thể tìm thấy bạn bằng số điện thoại này.";
+"subtitle.loadingBalance" = "Đang tải số dư và lịch sử giao dịch của bạn";
 "subtitle.loginDescription" = "Kiểm tra ảnh của bạn để xem Khóa Truy cập mà bạn đã lưu khi tạo tài khoản lần đầu.";
 "subtitle.logoutAndLoginConfirmation" = "Bạn hiện đã đăng nhập vào một tài khoản. Xin vui lòng đảm bảo rằng bạn đã lưu Khóa Truy cập của mình trước khi tiếp tục. Bạn có muốn đăng xuất rồi đăng nhập bằng tài khoản mới không?";
 "subtitle.noLinkedPhoneNumber" = "Chưa Liên kết\nSố Điện thoại";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Tài khoản chủ sở hữu hợp lệ";
 "subtitle.validTokenAccount" = "Tài khoản token hợp lệ";
 "subtitle.valueKinChanges" = "Giá trị của Kin thay đổi.";
+"subtitle.wasReturnedToYou" = "được gửi trả lại bạn";
 "subtitle.whereToWithdrawKin" = "Bạn muốn rút Kin của mình về đâu?";
 "subtitle.withdrawKinFaceID" = "Xác minh danh tính của bạn để rút Kin.";
+"subtitle.youDeposited" = "Bạn đã gửi tiền";
+"subtitle.youGave" = "Bạn đã tặng";
 "subtitle.youHaveInvites" = "Bạn Có %d Lời mời";
 "subtitle.youHaveInvitesLeft" = "Mã hiện chỉ dành cho người được mời. Bạn còn lại %d.";
+"subtitle.youPaid" = "Bạn đã thanh toán";
+"subtitle.youPurchased" = "Bạn đã tặng";
 "subtitle.youReceived" = "Bạn đã nhận";
+"subtitle.youSent" = "Bạn đã gửi đi";
+"subtitle.youSpent" = "Bạn đã chi tiêu";
+"subtitle.youWithdrew" = "Bạn đã rút tiền";
 "success.description.withdrawalComplete" = "Bạn đã rút tiền của mình thành công.";
 "success.title.withdrawalComplete" = "Rút tiền Thành công";
 "title.accessExpired" = "Quyền truy cập đã Hết hạn";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Cờ thử nghiệm";
 "title.bonus" = "Thưởng";
 "title.buySellKin" = "Mua & Bán Kin";
+"title.chat.cashTransactions" = "Thanh toán tiền mặt";
+"title.chat.codeTeam" = "Đội ngũ Code";
+"title.chat.payments" = "Thanh toán trên web";
 "title.debugOptions" = "Tùy chọn Gỡ lỗi";
 "title.depositKin" = "Nạp Kin";
 "title.deposited" = "Đã nạp";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Tài khoản của Tôi";
 "title.notLinked" = "Chưa Liên kết";
 "title.otherCurrencies" = "Các Đơn vị tiền tệ khác";
+"title.paid" = "Đã thanh toán";
 "title.pending" = "Đang chờ xử lý";
 "title.phoneNumber" = "Số Điện thoại";
 "title.privacyPolicy" = "Chính sách Quyền riêng tư";
+"title.purchased" = "Đã mua";
 "title.received" = "Đã nhận";
 "title.recentCurrencies" = "Đơn vị tiền tệ Gần đây";
 "title.referFriend" = "Giới thiệu một người bạn - Nhận 5$";

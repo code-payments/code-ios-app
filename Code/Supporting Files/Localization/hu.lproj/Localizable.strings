@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Kapcsoljon telefonszámot";
 "action.logIn" = "Bejelentkezés";
 "action.logout" = "Kijelentkezés";
+"action.mute" = "Némítás";
 "action.next" = "Következő";
 "action.noTryAgain" = "Nem, próbáld újra";
 "action.notNow" = "Ne most";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Ossza meg ezt a videót";
 "action.swipeToPay" = "Fizessen húzással";
 "action.tryDifferentCodeAccount" = "Próbáljon ki egy másik kódfiókot";
+"action.unmute" = "Némítás feloldása";
+"action.unsubscribe" = "Leiratkozás";
 "action.update" = "Frissítés";
 "action.viewAccessKey" = "Hozzáférési kulcs megtekintése";
 "action.withdrawKin" = "Kin felvétele";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Vásárolj Kin-t (Hamarosan)";
 "subtitle.buySellDescription" = "A Kin vétele és eladása jelenleg bonyolult folyamat. Ezek a folyamatok idővel egyszerűsödni fognak. Ha szeretné megtanulni, hogyan vásároljon és adjon el Kin-t még ma, akkor nézze meg az alábbi videókat.";
 "subtitle.canOnlyGiveUpTo" = "Legfeljebb ennyit adhatsz: %@";
+"subtitle.chat.referralBonus" = "Elküldte valakinek az első Kin-jét! Itt van az ajánlói bónusza:";
+"subtitle.chat.welcomeBonus" = "Üdvözlő bónusz";
 "subtitle.chooseCountry" = "Válasszon egy országot";
 "subtitle.comingSoon" = "Jön hamarosan";
 "subtitle.delete" = "Törlés";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "A Code egy új kriptotárca-alkalmazás, amely jelenleg csak meghívásra használható. A Code letöltéséhez menj ide: %@";
 "subtitle.learnMore" = "Tudj meg többet";
 "subtitle.linkedPhoneNumberDescription" = "Az Ön telefonszáma ehhez a Code fiókhoz van kapcsolva. Ismerősei megtalálhatják Önt ezen a telefonszámon.";
+"subtitle.loadingBalance" = "Egyenleg és tranzakciós előzmények betöltése";
 "subtitle.loginDescription" = "Nézze meg fotóin a hozzáférési kulcsot, amelyet a fiók létrehozásakor mentett.";
 "subtitle.logoutAndLoginConfirmation" = "Jelenleg be vagy jelentkezve egy fiókkal. Mielőtt tovább lépsz, győződj meg róla, hogy a Hozzáférési kulcsodat elmentetted. Kijelentkezel és bejelentkezel egy új fiókkal?";
 "subtitle.noLinkedPhoneNumber" = "Nincs linkelve\nTelefonszám";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Érvényes tulajdonosi fiók";
 "subtitle.validTokenAccount" = "Érvényes token fiók";
 "subtitle.valueKinChanges" = "A Kin értéke változik.";
+"subtitle.wasReturnedToYou" = "viszzaküldve Önnek";
 "subtitle.whereToWithdrawKin" = "Hová szeretné visszavonni rokonát?";
 "subtitle.withdrawKinFaceID" = "Igazolja személyazonosságát annak érdekében, hogy felvehessen kint.";
+"subtitle.youDeposited" = "Ön befizetett";
+"subtitle.youGave" = "Ön adott";
 "subtitle.youHaveInvites" = "%d meghívása van";
 "subtitle.youHaveInvitesLeft" = "A kód jelenleg csak meghívásra használható. Még %d van hátra.";
+"subtitle.youPaid" = "Ön fizetett";
+"subtitle.youPurchased" = "Ön adott";
 "subtitle.youReceived" = "Ennyit kaptál";
+"subtitle.youSent" = "Ön küldött";
+"subtitle.youSpent" = "Ön elköltött";
+"subtitle.youWithdrew" = "Ön kivett";
 "success.description.withdrawalComplete" = "Az összeget sikeresen visszavontuk.";
 "success.title.withdrawalComplete" = "A visszavonás sikeres";
 "title.accessExpired" = "Hozzáférés lejárt";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Béta zászlók";
 "title.bonus" = "Bónusz";
 "title.buySellKin" = "Kin vásárlás és eladás";
+"title.chat.cashTransactions" = "Készpénzes kifizetések";
+"title.chat.codeTeam" = "Code csapat";
+"title.chat.payments" = "Webes kifizetések";
 "title.debugOptions" = "Bugmentesítő opciók";
 "title.depositKin" = "Kin küldése";
 "title.deposited" = "Pénzt átutalt";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Fiókom";
 "title.notLinked" = "Nem áll kapcsolatban";
 "title.otherCurrencies" = "Egyéb pénznemek";
+"title.paid" = "Kifizetve";
 "title.pending" = "Függőben levő";
 "title.phoneNumber" = "Telefonszám";
 "title.privacyPolicy" = "Adatvédelmi irányelvek";
+"title.purchased" = "Megvásárolva";
 "title.received" = "Fogadva";
 "title.recentCurrencies" = "Legutóbbi pénznemek";
 "title.referFriend" = "Ajánlj egy barátot, kapsz 5 dollárt";

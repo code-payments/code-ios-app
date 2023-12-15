@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Свързване на телефонен номер ";
 "action.logIn" = "Вход ";
 "action.logout" = "Изход ";
+"action.mute" = "Изключване на звука ";
 "action.next" = "Следващ ";
 "action.noTryAgain" = "Не, опитайте отново";
 "action.notNow" = "Не сега ";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Споделете този видео клип";
 "action.swipeToPay" = "Плъзнете, за да платите";
 "action.tryDifferentCodeAccount" = "Опитай различен кодов акаунт";
+"action.unmute" = "Включване на звука";
+"action.unsubscribe" = "Отписване";
 "action.update" = "Обнови ";
 "action.viewAccessKey" = "Преглед на ключа за достъп ";
 "action.withdrawKin" = "Оттегли член на семейството ";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Купете Kin (Очаквайте скоро)";
 "subtitle.buySellDescription" = "Купуването и продажбата на Kin в момента е сложен процес. Тези процеси ще се опростят с времето. Ако искате да научите как да купувате и продавате Kin днес, можете да гледате видео клиповете по - долу.";
 "subtitle.canOnlyGiveUpTo" = "Можеш да даваш само до %@";
+"subtitle.chat.referralBonus" = "Вие изпратихте на някого първия Кин! Ето вашия бонус за препоръка:";
+"subtitle.chat.welcomeBonus" = "Бонус за донре дошли";
 "subtitle.chooseCountry" = "Изберете държава ";
 "subtitle.comingSoon" = "Предстоящо";
 "subtitle.delete" = "Изтриване";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code е ново приложение крипто портфейл, което в момента е само с покана. За да изтеглите  Code, отидете на %@.";
 "subtitle.learnMore" = "Научи повече ";
 "subtitle.linkedPhoneNumberDescription" = "Вашият телефонен номер е свързан с този код на профил. Приятелите могат да те откриват чрез телефонния номер. ";
+"subtitle.loadingBalance" = "Зареждане на баланса и история на транзакциите ви";
 "subtitle.loginDescription" = "Проверка на вашите снимки за ключ за достъп, който сте съхранили при първоначалното създаване на профил. ";
 "subtitle.logoutAndLoginConfirmation" = "В момента сте влезли в акаунт. Моля, уверете се, че сте запазили своя ключ за достъп, преди да продължите. Искате ли да излезете и да влезете с нов акаунт?";
 "subtitle.noLinkedPhoneNumber" = "Няма свързани телефонни номера ";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Валидна сметка на собственика";
 "subtitle.validTokenAccount" = "Валидна жетон сметка";
 "subtitle.valueKinChanges" = "Стойност на промените на член на семейството ";
+"subtitle.wasReturnedToYou" = "Ви бяха върнати ";
 "subtitle.whereToWithdrawKin" = "До къде искате да изтеглите вашия роднина? ";
 "subtitle.withdrawKinFaceID" = "Потвърдете вашата идентичност, за да оттеглите член на семейството. ";
+"subtitle.youDeposited" = "Депозирахте";
+"subtitle.youGave" = "Дадохте ";
 "subtitle.youHaveInvites" = "Имате %d покани ";
 "subtitle.youHaveInvitesLeft" = "Кодът е само за текуща покана. Имате %d оставащи. ";
+"subtitle.youPaid" = "Платихте ";
+"subtitle.youPurchased" = "Дадохте ";
 "subtitle.youReceived" = "Вие получихте ";
+"subtitle.youSent" = "Изпратихте ";
+"subtitle.youSpent" = "Изхарчихте ";
+"subtitle.youWithdrew" = "Изтеглихте ";
 "success.description.withdrawalComplete" = "Вашите средства бяха изтеглени успешно. ";
 "success.title.withdrawalComplete" = "Успешно изтегляне на средства. ";
 "title.accessExpired" = "Изтекъл достъп ";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Бета флагчета";
 "title.bonus" = "Бонус";
 "title.buySellKin" = "Купувайте и продавайте Kin";
+"title.chat.cashTransactions" = "Парични плащания";
+"title.chat.codeTeam" = "Екипът на Code";
+"title.chat.payments" = "Уеб плащания";
 "title.debugOptions" = "Опции за отстраняване на грешки ";
 "title.depositKin" = "Задаване на член на семейството ";
 "title.deposited" = "Депозирано";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Моят профил";
 "title.notLinked" = "Не е свързан";
 "title.otherCurrencies" = "Други валути";
+"title.paid" = "Платено";
 "title.pending" = "Изчакване ";
 "title.phoneNumber" = "Телефонен номер ";
 "title.privacyPolicy" = "Политика за поверителност";
+"title.purchased" = "Закупено";
 "title.received" = "Получено ";
 "title.recentCurrencies" = "Последно използвани валути ";
 "title.referFriend" = "Препоръчай на приятел, вземи $5";

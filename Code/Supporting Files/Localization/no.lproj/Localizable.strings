@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Koble til et telefonnummer";
 "action.logIn" = "Logg inn";
 "action.logout" = "Logg ut";
+"action.mute" = "Slå av lyden";
 "action.next" = "Neste";
 "action.noTryAgain" = "Nei, prøv igjen";
 "action.notNow" = "Ikke nå";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Del denne videoen";
 "action.swipeToPay" = "Sveip for å betale";
 "action.tryDifferentCodeAccount" = "Prøv en annen kodekonto";
+"action.unmute" = "Slå på lyden";
+"action.unsubscribe" = "Avslutt abonnement";
 "action.update" = "Oppdater";
 "action.viewAccessKey" = "Se tilgangsnøkkel";
 "action.withdrawKin" = "Ta ut Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Kjøp Kin (kommer snart)";
 "subtitle.buySellDescription" = "Kjøp og salg av Kin er for tiden en kompleks prosess. Disse prosessene vil bli enklere over tid. Hvis du vil lære hvordan du kjøper og selger Kin i dag, kan du se instruksjonsvideoene nedenfor.";
 "subtitle.canOnlyGiveUpTo" = "Du kan bare gi opptil %@";
+"subtitle.chat.referralBonus" = "Du har sendt noen sin første Kin! Her er henvisningsbonusen din:";
+"subtitle.chat.welcomeBonus" = "Velkomstbonus";
 "subtitle.chooseCountry" = "Velg et land";
 "subtitle.comingSoon" = "Kommer snart";
 "subtitle.delete" = "Slett";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code er en ny lommebok-app for kryptovaluta. For tiden kun er for inviterte brukere. Gå til %@ for å laste ned Code.";
 "subtitle.learnMore" = "Lær mer";
 "subtitle.linkedPhoneNumberDescription" = "Telefonnummeret ditt er koblet til denne kodekontoen. Vennene dine kan finne deg ved å bruke dette telefonnummeret.";
+"subtitle.loadingBalance" = "Vi laster inn saldo og transaksjonshistorikk";
 "subtitle.loginDescription" = "Sjekk bildene dine for tilgangsnøkkelen du lagret da du først opprettet kontoen din.";
 "subtitle.logoutAndLoginConfirmation" = "Du er for øyeblikket logget på en konto. Sørg for at du har lagret tilgangsnøkkelen din før du fortsetter. Vil du logge ut og logge på med en ny konto?";
 "subtitle.noLinkedPhoneNumber" = "Intet koblet telefonnummer";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Gyldig eierkonto";
 "subtitle.validTokenAccount" = "Gyldig myntkonto";
 "subtitle.valueKinChanges" = "Kin-verdien forandres";
+"subtitle.wasReturnedToYou" = "ble returnert til deg";
 "subtitle.whereToWithdrawKin" = "Hvor vil du ta ut Kin til?";
 "subtitle.withdrawKinFaceID" = "Bekreft identiteten din for å ta ut Kin.";
+"subtitle.youDeposited" = "Du satte inn";
+"subtitle.youGave" = "Du ga";
 "subtitle.youHaveInvites" = "Du har %d invitasjoner";
 "subtitle.youHaveInvitesLeft" = "Koden gjelder for øyeblikket kun for invitasjoner. Du har %d igjen.";
+"subtitle.youPaid" = "Du betalte";
+"subtitle.youPurchased" = "Du ga";
 "subtitle.youReceived" = "Du mottok";
+"subtitle.youSent" = "Du sendte";
+"subtitle.youSpent" = "Du brukte";
+"subtitle.youWithdrew" = "Du tok ut";
 "success.description.withdrawalComplete" = "Midlene dine har blitt tatt ut.";
 "success.title.withdrawalComplete" = "Uttak lyktes";
 "title.accessExpired" = "Tilgang utløpt";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Beta-flagg";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Kjøp og selg Kin";
+"title.chat.cashTransactions" = "Kontantbetalinger";
+"title.chat.codeTeam" = "Kodeteam";
+"title.chat.payments" = "Nettbetalinger";
 "title.debugOptions" = "Feilsøkingsalternativer";
 "title.depositKin" = "Innskudd Kin";
 "title.deposited" = "Deponerte";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Min konto";
 "title.notLinked" = "Ikke koblet";
 "title.otherCurrencies" = "Andre valutaer";
+"title.paid" = "Betalt";
 "title.pending" = "Utestående ";
 "title.phoneNumber" = "Telefonnummer";
 "title.privacyPolicy" = "Personvernerklæring";
+"title.purchased" = "Kjøpt";
 "title.received" = "Mottok";
 "title.recentCurrencies" = "Nylige valutaer";
 "title.referFriend" = "Henvis en venn, få USD 5";

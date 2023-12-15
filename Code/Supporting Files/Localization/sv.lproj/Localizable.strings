@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Länka ett telefonnummer";
 "action.logIn" = "Logga in";
 "action.logout" = "Logga ut";
+"action.mute" = "Stäng av ljud";
 "action.next" = "Nästa";
 "action.noTryAgain" = "Nej, försök igen";
 "action.notNow" = "Inte nu";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Dela den här videon";
 "action.swipeToPay" = "Svajpa för att betala";
 "action.tryDifferentCodeAccount" = "Prova ett annat kodkonto";
+"action.unmute" = "Slå på ljud";
+"action.unsubscribe" = "Avsluta prenumeration";
 "action.update" = "Uppdatera";
 "action.viewAccessKey" = "Visa åtkomstnyckel";
 "action.withdrawKin" = "Återkalla Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Köp Kin (kommer snart)";
 "subtitle.buySellDescription" = "Att köpa och sälja Kin är för närvarande en komplicerad process. Dessa processer blir enklare med tiden. Om du vill lära dig att köpa och sälja Kin idag kan du titta på videogenomgångarna nedan.";
 "subtitle.canOnlyGiveUpTo" = "Du kan bara ge upp till %@";
+"subtitle.chat.referralBonus" = "Du har skickat en första Kin till någon! Här är din värvningsbonus:";
+"subtitle.chat.welcomeBonus" = "Välkomstbonus";
 "subtitle.chooseCountry" = "Välj ett land";
 "subtitle.comingSoon" = "Kommer snart";
 "subtitle.delete" = "Radera";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code är en ny kryptoplånboksapp som för närvarande endast är för inbjudna. Gå till %@ för att ladda ner Code";
 "subtitle.learnMore" = "Läs mer";
 "subtitle.linkedPhoneNumberDescription" = "Ditt telefonnummer är kopplat till detta kodkonto. Vänner kan hitta dig med hjälp av detta telefonnummer.";
+"subtitle.loadingBalance" = "Läser in ditt saldo och transaktionshistorik";
 "subtitle.loginDescription" = "Kontrollera dina foton för att hitta den åtkomstnyckel som du sparade när du först skapade ditt konto.";
 "subtitle.logoutAndLoginConfirmation" = "Du är för närvarande inloggad på ett konto. Kontrollera att du har sparat din kodnyckel innan du fortsätter. Vill du logga ut och logga in med ett nytt konto?";
 "subtitle.noLinkedPhoneNumber" = "Ingen länkad\nTelefonnummer";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Giltigt ägarkonto";
 "subtitle.validTokenAccount" = "Giltigt tokenkonto";
 "subtitle.valueKinChanges" = "Kins värde förändras.";
+"subtitle.wasReturnedToYou" = "returnerades till dig";
 "subtitle.whereToWithdrawKin" = "Vart vill du ta ut din Kin till?";
 "subtitle.withdrawKinFaceID" = "Verifiera din identitet för att ta ut kin.";
+"subtitle.youDeposited" = "Du har satt in";
+"subtitle.youGave" = "Du gav";
 "subtitle.youHaveInvites" = "Du har %d inbjudningar";
 "subtitle.youHaveInvitesLeft" = "Koden är för närvarande endast tillgänglig för inbjudna. Du har %d kvar.";
+"subtitle.youPaid" = "Du har betalat";
+"subtitle.youPurchased" = "Du har gett";
 "subtitle.youReceived" = "Du fick";
+"subtitle.youSent" = "Du har skickat";
+"subtitle.youSpent" = "Du har spenderat";
+"subtitle.youWithdrew" = "Du har tagit ut";
 "success.description.withdrawalComplete" = "Dina pengar har tagits ut framgångsrikt.";
 "success.title.withdrawalComplete" = "Återkallelse framgångsrik";
 "title.accessExpired" = "Access upphörde";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Betaflaggor";
 "title.bonus" = "Bonus";
 "title.buySellKin" = "Köp och sälj Kin";
+"title.chat.cashTransactions" = "Kontantbetalningar";
+"title.chat.codeTeam" = "Code-teamet";
+"title.chat.payments" = "Nätbetalningar";
 "title.debugOptions" = "Alternativ för felsökning";
 "title.depositKin" = "Insättning Kin";
 "title.deposited" = "Insatta";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Mitt konto";
 "title.notLinked" = "Inte kopplad";
 "title.otherCurrencies" = "Andra valutor";
+"title.paid" = "Betalt";
 "title.pending" = "I väntan på";
 "title.phoneNumber" = "Telefonnummer";
 "title.privacyPolicy" = "Integritetspolicy";
+"title.purchased" = "Köpt";
 "title.received" = "Mottagen";
 "title.recentCurrencies" = "Senaste valutorna";
 "title.referFriend" = "Värva en vän, få 5 USD";

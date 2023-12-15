@@ -26,6 +26,7 @@
 "action.linkPhoneNumber" = "Прив'язати номер телефону";
 "action.logIn" = "Увійти";
 "action.logout" = "Вийти";
+"action.mute" = "Вимкнути звук";
 "action.next" = "Наступне";
 "action.noTryAgain" = "Ні, спробувати ще раз";
 "action.notNow" = "Не зараз";
@@ -46,6 +47,8 @@
 "action.shareVideo" = "Поділитися цим відео";
 "action.swipeToPay" = "Проведіть, щоб оплатити";
 "action.tryDifferentCodeAccount" = "Спробуйте акаунт з іншим гаманцем Code";
+"action.unmute" = "Увімкнути звук";
+"action.unsubscribe" = "Відписатись";
 "action.update" = "Оновити";
 "action.viewAccessKey" = "Переглянути ключ доступу";
 "action.withdrawKin" = "Вивести Kin";
@@ -175,6 +178,8 @@
 "subtitle.buyKinComingSoon" = "Купити Kin (Скоро буде)";
 "subtitle.buySellDescription" = "Купівля та продаж Kin наразі є складним процесом. З часом ці процеси стануть простішими. Якщо ви хочете дізнатися, як купувати та продавати Kin сьогодні, ви можете переглянути навчальні відео нижче.";
 "subtitle.canOnlyGiveUpTo" = "Ви можете віддати тільки до %@";
+"subtitle.chat.referralBonus" = "Ви надіслали комусь їхній перший Kin! Ось ваш реферальний бонус:";
+"subtitle.chat.welcomeBonus" = "Вітальний бонус";
 "subtitle.chooseCountry" = "Вибрати країну";
 "subtitle.comingSoon" = "Скоро буде";
 "subtitle.delete" = "Видалити";
@@ -200,6 +205,7 @@
 "subtitle.inviteText" = "Code - це новий застосунок-криптогаманець, де наразі зареєструватись можна тільки за запрошенням. Щоб завантажити Code, перейдіть до %@";
 "subtitle.learnMore" = "Довідатися більше";
 "subtitle.linkedPhoneNumberDescription" = "Ваш номер телефону прив’язано до акаунту цього гаманця Code. Друзі можуть знайти вас за цим номером телефону.";
+"subtitle.loadingBalance" = "Завантаження вашого балансу та історії транзакцій";
 "subtitle.loginDescription" = "Перевірте свої фотографії на наявність ключа доступу, який ви зберегли, коли вперше створили свій акаунт.";
 "subtitle.logoutAndLoginConfirmation" = "Ви увійшли в обліковий запис в даний момент. Будь ласка, переконайтесь, що ви зберегли свій Ключ Доступу перед продовженням. Хочете вийти та увійти до нового облікового запису?";
 "subtitle.noLinkedPhoneNumber" = "Немає прив’язаного\nтелефонного номеру";
@@ -224,11 +230,19 @@
 "subtitle.validOwnerAccount" = "Дійсний рахунок власника";
 "subtitle.validTokenAccount" = "Дійсний рахунок токен";
 "subtitle.valueKinChanges" = "Значення Kin змінюється.";
+"subtitle.wasReturnedToYou" = "було повернуто вам";
 "subtitle.whereToWithdrawKin" = "Куди б ви хотіли вивести свій Kin?";
 "subtitle.withdrawKinFaceID" = "Підтвердьте свою особу, щоб вивести Kin.";
+"subtitle.youDeposited" = "Ви зробили депозит ";
+"subtitle.youGave" = "Ви дали";
 "subtitle.youHaveInvites" = "Ви маєте %d запрошень";
 "subtitle.youHaveInvitesLeft" = "Наразі Code доступний лише за запрошеннями. У вас залишилося %d.";
+"subtitle.youPaid" = "Ви сплатили";
+"subtitle.youPurchased" = "Ви дали";
 "subtitle.youReceived" = "Ви отримали";
+"subtitle.youSent" = "Ви надіслали";
+"subtitle.youSpent" = "Ви витратили";
+"subtitle.youWithdrew" = "Ви вивели";
 "success.description.withdrawalComplete" = "Ваші кошти успішно виведені.";
 "success.title.withdrawalComplete" = "Виведення успішно";
 "title.accessExpired" = "Термін дії доступу минув";
@@ -237,6 +251,9 @@
 "title.betaFlags" = "Бета прапори";
 "title.bonus" = "Бонус";
 "title.buySellKin" = "Купувати та продавати Kin";
+"title.chat.cashTransactions" = "Готівкові платежі";
+"title.chat.codeTeam" = "Команда Code";
+"title.chat.payments" = "Онлайн-платежі";
 "title.debugOptions" = "Параметри налагодження";
 "title.depositKin" = "Покласти Kin на депозит";
 "title.deposited" = "Депоновано";
@@ -257,9 +274,11 @@
 "title.myAccount" = "Мій обліковий запис";
 "title.notLinked" = "Не прив'язано";
 "title.otherCurrencies" = "Інші валюти";
+"title.paid" = "Сплачено";
 "title.pending" = "В очікуванні";
 "title.phoneNumber" = "Телефонний номер";
 "title.privacyPolicy" = "Політика конфіденційності";
+"title.purchased" = "Куплено";
 "title.received" = "Отримано";
 "title.recentCurrencies" = "Останні валюти";
 "title.referFriend" = "Порекомендуйте другу, отримайте 5 дол.";
