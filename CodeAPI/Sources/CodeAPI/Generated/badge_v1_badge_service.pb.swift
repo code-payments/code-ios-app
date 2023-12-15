@@ -25,6 +25,7 @@ public struct Code_Badge_V1_ResetBadgeCountRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// The owner account to clear badge count
   public var owner: Code_Common_V1_SolanaAccountId {
     get {return _owner ?? Code_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
@@ -34,6 +35,9 @@ public struct Code_Badge_V1_ResetBadgeCountRequest {
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
+  /// The signature is of serialize(ResetBadgeCountRequest) without this field set
+  /// using the private key of the owner account. This provides an authentication
+  /// mechanism to the RPC.
   public var signature: Code_Common_V1_Signature {
     get {return _signature ?? Code_Common_V1_Signature()}
     set {_signature = newValue}

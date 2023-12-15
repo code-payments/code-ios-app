@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.transaction.v2;
 
-option go_package = "github.com/code-wallet/code-api/genproto/transaction/v2;transaction";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/transaction/v2;transaction";
 option java_package = "com.codeinc.gen.transaction.v2";
 option objc_class_prefix = "APBTransactionV2";
 
@@ -12,7 +12,8 @@ import "validate/validate.proto";
 
 service Transaction {
     // SubmitIntent is the mechanism for client and server to agree upon a set of
-    // transactions to execute on the blockchain.
+    // client actions to execute on the blockchain using the Code sequencer for
+    // fulfillment.
     //
     // Transactions are never exchanged between client and server. Instead, the
     // required accounts and arguments for instructions known to each actor are
@@ -149,7 +150,7 @@ message SubmitIntentResponse {
         }
 
        // todo: Revisit if we need side-effects. Clients are effecitively doing
-       //       local simulation now for privacy V3.
+       //       local simulation now with the privacy solution.
     }
 
     message Error {
@@ -503,8 +504,14 @@ message SendPrivatePaymentMetadata {
 //
 // Action Spec:
 //
-// actions = [NoPrivacyTransferAction(PRIMARY, destination, ExchangeData.Quarks)]
+// source = PRIMARY or RELATIONSHIP
+// actions = [NoPrivacyTransferAction(source, destination, ExchangeData.Quarks)]
 message SendPublicPaymentMetadata {
+    // The primary or relatinship account where funds will be sent from. The primary
+    // account is assumed if this field is not set for backwards compatibility with
+    // old clients.
+    common.v1.SolanaAccountId source = 4;
+
     // The destination token account to send funds to. This cannot be a Code
     // temporary account.
     common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
@@ -513,7 +520,7 @@ message SendPublicPaymentMetadata {
     ExchangeData exchange_data = 2 [(validate.rules).message.required = true];
 
     // Is the payment a withdrawal? Currently, this is always true.
-    bool is_withdrawal = 3 [(validate.rules).bool.const = true];;
+    bool is_withdrawal = 3 [(validate.rules).bool.const = true];
 }
 
 // Receive funds into an organizer with initial temporary privacy. Clients should
@@ -542,23 +549,24 @@ message SendPublicPaymentMetadata {
 //
 // Action Spec (Deposit):
 //
+// source = PRIMARY or RELATIONSHIP
 // actions = [
-//   TemporaryPrivacyTransferAction(PRIMARY, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(source, BUCKET_X_KIN, multiple * bucketSize),
 //   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
 //   ...,
-//   TemporaryPrivacyTransferAction(PRIMARY, BUCKET_X_KIN, multiple * bucketSize),
+//   TemporaryPrivacyTransferAction(source, BUCKET_X_KIN, multiple * bucketSize),
 //   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
 // ]
 message ReceivePaymentsPrivatelyMetadata {
-    // The temporary incoming or primary account to receive funds from
+    // The temporary incoming, primary or relationship account to receive funds from
     common.v1.SolanaAccountId source = 1 [(validate.rules).message.required = true];
 
     // The exact amount of Kin in quarks being received
     uint64 quarks = 2 [(validate.rules).uint64.gt = 0];
 
-    // Is the receipt of funds from a deposti? If true, the source account must
-    // be the primary account. Otherwise, it must be from a temporary incoming
-    // account.
+    // Is the receipt of funds from a deposit? If true, the source account must
+    // be a primary or relationship account. Otherwise, it must be from a temporary
+    // incoming account.
     bool is_deposit = 3;
 }
 
@@ -678,8 +686,7 @@ message OpenAccountAction {
     // set this to the authority value.
     common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
 
-    // The index used to for accounts that are derived from owner. Ignore this for
-    // the primary account.
+    // The index used to for accounts that are derived from owner
     uint64 index = 3;
 
     // The public key of the private key that has authority over the opened token account
@@ -1035,7 +1042,7 @@ message UpgradeableIntent {
         // the expected addresses.
         common.v1.Transaction transaction_blob = 1 [(validate.rules).message.required = true];
 
-        // The client's signature for the transaction. Clients *MUST* use this to
+        // The client's signature for the transaction. Clients MUST use this to
         // locally validate the transaction blob provided by server.
         common.v1.Signature client_signature = 2 [(validate.rules).message.required = true];
 
@@ -1101,6 +1108,9 @@ message PaymentHistoryItem {
 
     // Is this a micro payment? 
     bool is_micro_payment = 11;
+
+    // The intent ID associated with this history item
+    common.v1.IntentId intent_id = 12 [(validate.rules).message.required = true];
 }
 
 // ExchangeData defines an amount of Kin with currency exchange data

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.contact.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/contact/v1;contact";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/contact/v1;contact";
 option java_package = "com.codeinc.gen.contact.v1";
 option objc_class_prefix = "CPBContactV1";
 
@@ -10,13 +10,13 @@ import "common/v1/model.proto";
 import "validate/validate.proto";
 
 service ContactList {
-    // Adds a batch of contacts to a user's contact list
+    // AddContacts adds a batch of contacts to a user's contact list
     rpc AddContacts(AddContactsRequest) returns (AddContactsResponse);
 
-    // Removes a batch of contacts from a user's contact list
+    // RemoveContacts removes a batch of contacts from a user's contact list
     rpc RemoveContacts(RemoveContactsRequest) returns (RemoveContactsResponse);
 
-    // Gets a subset of contacts from a user's contact list
+    // GetContacts gets a subset of contacts from a user's contact list
     rpc GetContacts(GetContactsRequest) returns (GetContactsResponse);
 }
 

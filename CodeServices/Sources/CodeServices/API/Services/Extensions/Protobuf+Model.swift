@@ -69,18 +69,6 @@ extension ID {
     }
 }
 
-extension DateRange.Interval {
-    var exchangeInterval: Code_Currency_V1_GetExchangeRateHistoryRequest.Interval {
-        switch self {
-        case .raw:   return .raw
-        case .hour:  return .hour
-        case .day:   return .day
-        case .week:  return .week
-        case .month: return .month
-        }
-    }
-}
-
 extension String {
     var codeVerificationCode: Code_Phone_V1_VerificationCode {
         var verificationCode = Code_Phone_V1_VerificationCode()

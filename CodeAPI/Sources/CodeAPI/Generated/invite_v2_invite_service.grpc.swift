@@ -52,7 +52,7 @@ extension Code_Invite_V2_InviteClientProtocol {
     return "code.invite.v2.Invite"
   }
 
-  /// Gets the number of invites that a user can send out.
+  /// GetInviteCount gets the number of invites that a user can send out.
   ///
   /// - Parameters:
   ///   - request: Request to send to GetInviteCount.
@@ -70,9 +70,9 @@ extension Code_Invite_V2_InviteClientProtocol {
     )
   }
 
-  /// Invites someone to join via their phone number. A phone number can only
-  /// be invited once by a unique user or invite code. This is to avoid having a
-  /// phone number consuming more than one invite count globally.
+  /// InvitePhoneNumber invites someone to join via their phone number. A phone number
+  /// can only be invited once by a unique user or invite code. This is to avoid having
+  /// a phone number consuming more than one invite count globally.
   ///
   /// - Parameters:
   ///   - request: Request to send to InvitePhoneNumber.
@@ -90,7 +90,7 @@ extension Code_Invite_V2_InviteClientProtocol {
     )
   }
 
-  /// Gets a phone number's invitation status.
+  /// GetInvitationStatus gets a phone number's invitation status.
   ///
   /// - Parameters:
   ///   - request: Request to send to GetInvitationStatus.
@@ -343,15 +343,15 @@ public enum Code_Invite_V2_InviteClientMetadata {
 public protocol Code_Invite_V2_InviteProvider: CallHandlerProvider {
   var interceptors: Code_Invite_V2_InviteServerInterceptorFactoryProtocol? { get }
 
-  /// Gets the number of invites that a user can send out.
+  /// GetInviteCount gets the number of invites that a user can send out.
   func getInviteCount(request: Code_Invite_V2_GetInviteCountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Invite_V2_GetInviteCountResponse>
 
-  /// Invites someone to join via their phone number. A phone number can only
-  /// be invited once by a unique user or invite code. This is to avoid having a
-  /// phone number consuming more than one invite count globally.
+  /// InvitePhoneNumber invites someone to join via their phone number. A phone number
+  /// can only be invited once by a unique user or invite code. This is to avoid having
+  /// a phone number consuming more than one invite count globally.
   func invitePhoneNumber(request: Code_Invite_V2_InvitePhoneNumberRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Invite_V2_InvitePhoneNumberResponse>
 
-  /// Gets a phone number's invitation status.
+  /// GetInvitationStatus gets a phone number's invitation status.
   func getInvitationStatus(request: Code_Invite_V2_GetInvitationStatusRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Invite_V2_GetInvitationStatusResponse>
 }
 
@@ -408,21 +408,21 @@ public protocol Code_Invite_V2_InviteAsyncProvider: CallHandlerProvider {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_Invite_V2_InviteServerInterceptorFactoryProtocol? { get }
 
-  /// Gets the number of invites that a user can send out.
+  /// GetInviteCount gets the number of invites that a user can send out.
   @Sendable func getInviteCount(
     request: Code_Invite_V2_GetInviteCountRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Invite_V2_GetInviteCountResponse
 
-  /// Invites someone to join via their phone number. A phone number can only
-  /// be invited once by a unique user or invite code. This is to avoid having a
-  /// phone number consuming more than one invite count globally.
+  /// InvitePhoneNumber invites someone to join via their phone number. A phone number
+  /// can only be invited once by a unique user or invite code. This is to avoid having
+  /// a phone number consuming more than one invite count globally.
   @Sendable func invitePhoneNumber(
     request: Code_Invite_V2_InvitePhoneNumberRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Invite_V2_InvitePhoneNumberResponse
 
-  /// Gets a phone number's invitation status.
+  /// GetInvitationStatus gets a phone number's invitation status.
   @Sendable func getInvitationStatus(
     request: Code_Invite_V2_GetInvitationStatusRequest,
     context: GRPCAsyncServerCallContext

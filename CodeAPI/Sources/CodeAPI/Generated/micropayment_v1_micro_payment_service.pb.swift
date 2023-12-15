@@ -46,10 +46,13 @@ public struct Code_Micropayment_V1_GetStatusResponse {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Does the payment request exist?
   public var exists: Bool = false
 
+  /// Has the user scanned the code at least once?
   public var codeScanned: Bool = false
 
+  /// Has the user sumbmitted a payment?
   public var intentSubmitted: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -92,9 +95,17 @@ public struct Code_Micropayment_V1_RegisterWebhookResponse {
   public enum Result: SwiftProtobuf.Enum {
     public typealias RawValue = Int
     case ok // = 0
+
+    /// A webhook has already been registered
     case alreadyRegistered // = 1
+
+    /// A payment request does not exist for the provided intent ID
     case paymentRequestNotFound // = 2
+
+    /// A user has already submitted a payment
     case intentExists // = 3
+
+    /// The webhook URL is invalid
     case invalidURL // = 4
     case UNRECOGNIZED(Int)
 
@@ -149,7 +160,7 @@ public struct Code_Micropayment_V1_CodifyRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The URL to codify
+  /// The URL to Codify
   public var url: String = String()
 
   /// ISO 4217 alpha-3 currency code the payment should be made in
@@ -206,6 +217,7 @@ public struct Code_Micropayment_V1_CodifyResponse {
 
   public var result: Code_Micropayment_V1_CodifyResponse.Result = .ok
 
+  /// The URL to view the content with a Code micro paywall
   public var codifiedURL: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -213,9 +225,17 @@ public struct Code_Micropayment_V1_CodifyResponse {
   public enum Result: SwiftProtobuf.Enum {
     public typealias RawValue = Int
     case ok // = 0
+
+    /// The URL to Codify is invalid
     case invalidURL // = 1
+
+    /// The primary account is invalid
     case invalidAccount // = 2
+
+    /// The currency isn't supported for micro payments
     case unsupportedCurrency // = 3
+
+    /// The payment amount exceeds the minimum/maximum allowed amount
     case nativeAmountExceedsLimit // = 4
     case UNRECOGNIZED(Int)
 

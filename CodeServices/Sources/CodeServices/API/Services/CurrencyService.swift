@@ -39,43 +39,6 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
             completion(.failure(error))
         }
     }
-    
-    func fetchExchangeRateHistory(range: DateRange, interval: DateRange.Interval, completion: @escaping (Result<[Rate], ErrorRateHistory>) -> Void) {
-        trace(.send)
-        
-        let currency = CurrencyCode.usd
-        
-        var request = Code_Currency_V1_GetExchangeRateHistoryRequest()
-        request.forSymbol = currency.rawValue
-        request.interval = interval.exchangeInterval
-        request.start = .init(date: range.start)
-        
-        if let end = range.end {
-            request.end = .init(date: end)
-        }
-        
-        let call = service.getExchangeRateHistory(request)
-        call.handle(on: queue) { response in
-            let error = ErrorRateHistory(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                let rates = response.items.compactMap {
-                    Rate(
-                        fx: Decimal($0.rate),
-                        currency: currency
-                    )
-                }
-                
-                trace(.success, components: "\(response.items.count) historical rates")
-                completion(.success(rates))
-            } else {
-                trace(.success, components: "Failed to fetch historical rates: \(error)")
-                completion(.failure(error))
-            }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
-        }
-    }
 }
 
 public enum ErrorRateHistory: Int, Error {
@@ -87,10 +50,6 @@ public enum ErrorRateHistory: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Currency_V1_CurrencyClientInterceptorFactoryProtocol {
-    func makeGetExchangeRateHistoryInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetExchangeRateHistoryRequest, Code_Currency_V1_GetExchangeRateHistoryResponse>] {
-        makeInterceptors()
-    }
-    
     func makeGetAllRatesInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>] {
         makeInterceptors()
     }

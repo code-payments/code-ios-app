@@ -15,10 +15,4 @@ extension Client {
             currencyService.fetchExchangeRates { c.resume(with: $0) }
         }
     }
-    
-    public func fetchExchangeRateHistory(range: DateRange, interval: DateRange.Interval) async throws -> [Rate] {
-        try await withCheckedThrowingContinuation { c in
-            currencyService.fetchExchangeRateHistory(range: range, interval: interval) { c.resume(with: $0) }
-        }
-    }
 }

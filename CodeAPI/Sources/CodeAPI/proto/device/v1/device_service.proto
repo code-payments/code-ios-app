@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.device.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/device/v1;device";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/device/v1;device";
 option java_package = "com.codeinc.gen.device.v1";
 option objc_class_prefix = "CPBDevicetV1";
 

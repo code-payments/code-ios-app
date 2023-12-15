@@ -2,29 +2,33 @@ syntax = "proto3";
 
 package code.common.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/common/v1;common";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/common/v1;common";
 option java_package = "com.codeinc.gen.common.v1";
 option objc_class_prefix = "CPBCommonV1";
 
 import "validate/validate.proto";
 
+// AccountType associates a type to an account, which infers how an account is used
+// within the Code ecosystem.
 enum AccountType {
-    UNKNOWN               = 0;
-    PRIMARY               = 1;
-    TEMPORARY_INCOMING    = 2;
-    TEMPORARY_OUTGOING    = 3;
-    BUCKET_1_KIN          = 4;
-    BUCKET_10_KIN         = 5;
-    BUCKET_100_KIN        = 6;
-    BUCKET_1_000_KIN      = 7;
-    BUCKET_10_000_KIN     = 8;
-    BUCKET_100_000_KIN    = 9;
-    BUCKET_1_000_000_KIN  = 10;
-    LEGACY_PRIMARY_2022   = 11;
-    REMOTE_SEND_GIFT_CARD = 12;
-    RELATIONSHIP          = 13;
+    UNKNOWN                  = 0;
+    PRIMARY                  = 1;
+    TEMPORARY_INCOMING       = 2;
+    TEMPORARY_OUTGOING       = 3;
+    BUCKET_1_KIN             = 4;
+    BUCKET_10_KIN            = 5;
+    BUCKET_100_KIN           = 6;
+    BUCKET_1_000_KIN         = 7;
+    BUCKET_10_000_KIN        = 8;
+    BUCKET_100_000_KIN       = 9;
+    BUCKET_1_000_000_KIN     = 10;
+    LEGACY_PRIMARY_2022      = 11;
+    REMOTE_SEND_GIFT_CARD    = 12;
+    RELATIONSHIP             = 13;
+    ASSOCIATED_TOKEN_ACCOUNT = 14;
 }
 
+// SolanaAccountId is a raw binary Ed25519 public key for a Solana account
 message SolanaAccountId {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 32
@@ -32,25 +36,16 @@ message SolanaAccountId {
     }];
 }
 
+// Transaction is a raw binary Solana transaction
 message Transaction {
     // Maximum size taken from: https://github.com/solana-labs/solana/blob/39b3ac6a8d29e14faa1de73d8b46d390ad41797b/sdk/src/packet.rs#L9-L13
-    // The client-side generated ID that maps to an intent that defines a contract.
-    // Clients can treat this as a deduplication ID. The server guarantees idempotency
-    // and will treat equal IDs as the same transaction.
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 1
         max_len: 1232
     }];
 }
 
-// Signature represents a raw binary Ed25519 signature.
-message Signature {
-    bytes value = 1 [(validate.rules).bytes = {
-        min_len: 64
-        max_len: 64
-    }];
-}
-
+// Blockhash is a raw binary Solana blockchash
 message Blockhash {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 32
@@ -58,26 +53,24 @@ message Blockhash {
     }];
 }
 
-message Hash {
+// Signature is a raw binary Ed25519 signature
+message Signature {
     bytes value = 1 [(validate.rules).bytes = {
-        min_len: 32
-        max_len: 32
+        min_len: 64
+        max_len: 64
     }];
 }
 
-// The client-side generated ID that maps to an intent that defines a contract.
-// Clients can treat this as a deduplication ID. The server guarantees idempotency
-// and will treat equal IDs as the same transaction.
+// IntentId is a client-side generated ID that maps to an intent to perform actions
+// on the blockchain fulfilled by the Code sequencer.
 message IntentId {
     bytes value = 1 [(validate.rules).bytes = {
-        // Maintaining a 32-byte length for backwards compat with the rendezvous
-        // key, which acted as a dedup ID.
         min_len: 32
         max_len: 32
     }];
 }
 
-// UserId is a globally unique identifier for a user from the identity service.
+// UserId is a globally unique identifier for a user
 message UserId {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 16
@@ -86,7 +79,7 @@ message UserId {
 }
 
 // DataContainerId is a globally unique identifier for a container where a user
-// can store a copy of their data.
+// can store a copy of their data
 message DataContainerId {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 16
@@ -94,7 +87,7 @@ message DataContainerId {
     }];
 }
 
-// An opaque token used to verify whether a device real
+// DeviceToken is an opaque token used to verify whether a device real
 message DeviceToken {
     string value = 1 [(validate.rules).string = {
         min_len: 1
@@ -112,20 +105,34 @@ message AppInstallId {
     }];
 }
 
+// PhoneNumber is an E.164 phone number
 message PhoneNumber {
-    // E.164 phone number value. Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
+    // Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
     string value = 1 [(validate.rules).string.pattern = "^\\+[1-9]\\d{1,14}$"];
 }
 
-message Locale {
-    // The ISO 639 alpha-2 language code.
-    string language = 1 [(validate.rules).string = {
-        pattern: "^[a-zA-Z]{2}$"
+// Domain is a hostname
+message Domain {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 253
+        hostname: true
     }];
+}
 
-    // ISO 3166 alpha-2 country code.
-    string country = 2 [(validate.rules).string = {
-        pattern: "^[a-zA-Z]{2}$"
+// Relationship is a set of identifiers that a user can establish a relationship
+// with.
+message Relationship {
+    oneof type {
+        common.v1.Domain domain = 1 [(validate.rules).message.required = true];
+    }
+}
+
+// Hash is a raw binary 32 byte hash value
+message Hash {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
     }];
 }
 
@@ -147,22 +154,5 @@ message Response {
     enum Result {
         OK = 0;
         ERROR = 1;
-    }
-}
-
-// Domain is a hostname
-message Domain {
-    string value = 1 [(validate.rules).string = {
-        min_len: 1
-        max_len: 253
-        hostname: true
-    }];
-}
-
-// Relationship is a set of identifiers that a user can establish a relationship
-// with.
-message Relationship {
-    oneof type {
-        common.v1.Domain domain = 1 [(validate.rules).message.required = true];
     }
 }

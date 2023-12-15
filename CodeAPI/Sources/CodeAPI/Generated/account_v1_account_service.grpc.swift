@@ -67,8 +67,8 @@ extension Code_Account_V1_AccountClientProtocol {
     )
   }
 
-  /// GetTokenAccountInfos returns information about token accounts relevant to
-  /// the owner account.
+  /// GetTokenAccountInfos returns token account metadata relevant to the Code owner
+  /// account.
   ///
   /// - Parameters:
   ///   - request: Request to send to GetTokenAccountInfos.
@@ -287,8 +287,8 @@ public protocol Code_Account_V1_AccountProvider: CallHandlerProvider {
   /// etc.
   func isCodeAccount(request: Code_Account_V1_IsCodeAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Account_V1_IsCodeAccountResponse>
 
-  /// GetTokenAccountInfos returns information about token accounts relevant to
-  /// the owner account.
+  /// GetTokenAccountInfos returns token account metadata relevant to the Code owner
+  /// account.
   func getTokenAccountInfos(request: Code_Account_V1_GetTokenAccountInfosRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Account_V1_GetTokenAccountInfosResponse>
 }
 
@@ -344,8 +344,8 @@ public protocol Code_Account_V1_AccountAsyncProvider: CallHandlerProvider {
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Account_V1_IsCodeAccountResponse
 
-  /// GetTokenAccountInfos returns information about token accounts relevant to
-  /// the owner account.
+  /// GetTokenAccountInfos returns token account metadata relevant to the Code owner
+  /// account.
   @Sendable func getTokenAccountInfos(
     request: Code_Account_V1_GetTokenAccountInfosRequest,
     context: GRPCAsyncServerCallContext

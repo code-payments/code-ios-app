@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.account.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/account/v1;account";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/account/v1;account";
 option java_package = "com.codeinc.gen.account.v1";
 option objc_class_prefix = "CPBAccountV1";
 
@@ -16,13 +16,13 @@ service Account {
     // etc.
     rpc IsCodeAccount(IsCodeAccountRequest) returns (IsCodeAccountResponse);
 
-    // GetTokenAccountInfos returns information about token accounts relevant to
-    // the owner account.
+    // GetTokenAccountInfos returns token account metadata relevant to the Code owner
+    // account.
     rpc GetTokenAccountInfos(GetTokenAccountInfosRequest) returns (GetTokenAccountInfosResponse);
 }
 
 message IsCodeAccountRequest {
-     // The owner account to check against.
+    // The owner account to check against.
     common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
 
     // The signature is of serialize(IsCodeAccountRequest) without this field set
@@ -38,7 +38,7 @@ message IsCodeAccountResponse {
         OK = 0;
         // The account is not a Code account.
         NOT_FOUND = 1;
-        // The account exists, but at least one timelock account is unlocked
+        // The account exists, but at least one timelock account is unlocked.
         UNLOCKED_TIMELOCK_ACCOUNT = 2;
     }
 }
@@ -99,9 +99,9 @@ message TokenAccountInfo {
         BALANCE_SOURCE_CACHE = 2;
     }
 
-    // The Kin balance in quarks, as observed by Code. This may not reflect the
-    // value on the blockchain and could be non-zero even if the account hasn't
-    // been created. Use balance_source to determine how this value was calculated.
+    // The balance in quarks, as observed by Code. This may not reflect the value
+    // on the blockchain and could be non-zero even if the account hasn't been created.
+    // Use balance_source to determine how this value was calculated.
     uint64 balance = 7;
 
     // The state of the account as it pertains to Code's ability to manage funds.
@@ -143,9 +143,9 @@ message TokenAccountInfo {
     }
 
     // For temporary incoming accounts only. Flag indicates whether client must
-    // actively try rotating it by issuing a ReceivePayments intent. In general,
-    // clients should wait as long as possible until this flag is true or requiring
-    // the funds to send their next payment.
+    // actively try rotating it by issuing a ReceivePaymentsPrivately intent. In
+    // general, clients should wait as long as possible until this flag is true
+    // or requiring the funds to send their next payment.
     bool must_rotate = 10;
 
     // Whether an account is claimed. This only applies to relevant account types
@@ -173,4 +173,17 @@ message TokenAccountInfo {
     //  3. The balance could have been received, so the total balance can show
     //     as zero.
     transaction.v2.ExchangeData original_exchange_data = 12;
+
+    // The token account's mint
+    common.v1.SolanaAccountId mint = 13;
+
+    // The number of decimals configured for the mint
+    uint32 mint_decimals = 14;
+
+    // User-friendly display name for the mint
+    string mint_display_name = 15 [(validate.rules).string.max_len = 32];
+
+    // The relationship with a third party that this account has established with.
+    // This only applies to relevant account types (eg. RELATIONSHIP).
+    common.v1.Relationship relationship = 16;
 }

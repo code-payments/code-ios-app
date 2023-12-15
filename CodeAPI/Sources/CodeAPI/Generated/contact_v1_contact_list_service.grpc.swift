@@ -52,7 +52,7 @@ extension Code_Contact_V1_ContactListClientProtocol {
     return "code.contact.v1.ContactList"
   }
 
-  /// Adds a batch of contacts to a user's contact list
+  /// AddContacts adds a batch of contacts to a user's contact list
   ///
   /// - Parameters:
   ///   - request: Request to send to AddContacts.
@@ -70,7 +70,7 @@ extension Code_Contact_V1_ContactListClientProtocol {
     )
   }
 
-  /// Removes a batch of contacts from a user's contact list
+  /// RemoveContacts removes a batch of contacts from a user's contact list
   ///
   /// - Parameters:
   ///   - request: Request to send to RemoveContacts.
@@ -88,7 +88,7 @@ extension Code_Contact_V1_ContactListClientProtocol {
     )
   }
 
-  /// Gets a subset of contacts from a user's contact list
+  /// GetContacts gets a subset of contacts from a user's contact list
   ///
   /// - Parameters:
   ///   - request: Request to send to GetContacts.
@@ -341,13 +341,13 @@ public enum Code_Contact_V1_ContactListClientMetadata {
 public protocol Code_Contact_V1_ContactListProvider: CallHandlerProvider {
   var interceptors: Code_Contact_V1_ContactListServerInterceptorFactoryProtocol? { get }
 
-  /// Adds a batch of contacts to a user's contact list
+  /// AddContacts adds a batch of contacts to a user's contact list
   func addContacts(request: Code_Contact_V1_AddContactsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Contact_V1_AddContactsResponse>
 
-  /// Removes a batch of contacts from a user's contact list
+  /// RemoveContacts removes a batch of contacts from a user's contact list
   func removeContacts(request: Code_Contact_V1_RemoveContactsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Contact_V1_RemoveContactsResponse>
 
-  /// Gets a subset of contacts from a user's contact list
+  /// GetContacts gets a subset of contacts from a user's contact list
   func getContacts(request: Code_Contact_V1_GetContactsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Contact_V1_GetContactsResponse>
 }
 
@@ -404,19 +404,19 @@ public protocol Code_Contact_V1_ContactListAsyncProvider: CallHandlerProvider {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_Contact_V1_ContactListServerInterceptorFactoryProtocol? { get }
 
-  /// Adds a batch of contacts to a user's contact list
+  /// AddContacts adds a batch of contacts to a user's contact list
   @Sendable func addContacts(
     request: Code_Contact_V1_AddContactsRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Contact_V1_AddContactsResponse
 
-  /// Removes a batch of contacts from a user's contact list
+  /// RemoveContacts removes a batch of contacts from a user's contact list
   @Sendable func removeContacts(
     request: Code_Contact_V1_RemoveContactsRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Contact_V1_RemoveContactsResponse
 
-  /// Gets a subset of contacts from a user's contact list
+  /// GetContacts gets a subset of contacts from a user's contact list
   @Sendable func getContacts(
     request: Code_Contact_V1_GetContactsRequest,
     context: GRPCAsyncServerCallContext

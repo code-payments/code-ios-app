@@ -20,6 +20,8 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+/// AccountType associates a type to an account, which infers how an account is used
+/// within the Code ecosystem.
 public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   public typealias RawValue = Int
   case unknown // = 0
@@ -36,6 +38,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   case legacyPrimary2022 // = 11
   case remoteSendGiftCard // = 12
   case relationship // = 13
+  case associatedTokenAccount // = 14
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -58,6 +61,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case 11: self = .legacyPrimary2022
     case 12: self = .remoteSendGiftCard
     case 13: self = .relationship
+    case 14: self = .associatedTokenAccount
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -78,6 +82,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case .legacyPrimary2022: return 11
     case .remoteSendGiftCard: return 12
     case .relationship: return 13
+    case .associatedTokenAccount: return 14
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -103,11 +108,13 @@ extension Code_Common_V1_AccountType: CaseIterable {
     .legacyPrimary2022,
     .remoteSendGiftCard,
     .relationship,
+    .associatedTokenAccount,
   ]
 }
 
 #endif  // swift(>=4.2)
 
+/// SolanaAccountId is a raw binary Ed25519 public key for a Solana account
 public struct Code_Common_V1_SolanaAccountId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -120,15 +127,13 @@ public struct Code_Common_V1_SolanaAccountId {
   public init() {}
 }
 
+/// Transaction is a raw binary Solana transaction
 public struct Code_Common_V1_Transaction {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Maximum size taken from: https://github.com/solana-labs/solana/blob/39b3ac6a8d29e14faa1de73d8b46d390ad41797b/sdk/src/packet.rs#L9-L13
-  /// The client-side generated ID that maps to an intent that defines a contract.
-  /// Clients can treat this as a deduplication ID. The server guarantees idempotency
-  /// and will treat equal IDs as the same transaction.
   public var value: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -136,19 +141,7 @@ public struct Code_Common_V1_Transaction {
   public init() {}
 }
 
-/// Signature represents a raw binary Ed25519 signature.
-public struct Code_Common_V1_Signature {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var value: Data = Data()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
+/// Blockhash is a raw binary Solana blockchash
 public struct Code_Common_V1_Blockhash {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -161,7 +154,8 @@ public struct Code_Common_V1_Blockhash {
   public init() {}
 }
 
-public struct Code_Common_V1_Hash {
+/// Signature is a raw binary Ed25519 signature
+public struct Code_Common_V1_Signature {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -173,9 +167,8 @@ public struct Code_Common_V1_Hash {
   public init() {}
 }
 
-/// The client-side generated ID that maps to an intent that defines a contract.
-/// Clients can treat this as a deduplication ID. The server guarantees idempotency
-/// and will treat equal IDs as the same transaction.
+/// IntentId is a client-side generated ID that maps to an intent to perform actions
+/// on the blockchain fulfilled by the Code sequencer.
 public struct Code_Common_V1_IntentId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -188,7 +181,7 @@ public struct Code_Common_V1_IntentId {
   public init() {}
 }
 
-/// UserId is a globally unique identifier for a user from the identity service.
+/// UserId is a globally unique identifier for a user
 public struct Code_Common_V1_UserId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -202,7 +195,7 @@ public struct Code_Common_V1_UserId {
 }
 
 /// DataContainerId is a globally unique identifier for a container where a user
-/// can store a copy of their data.
+/// can store a copy of their data
 public struct Code_Common_V1_DataContainerId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -215,7 +208,7 @@ public struct Code_Common_V1_DataContainerId {
   public init() {}
 }
 
-/// An opaque token used to verify whether a device real
+/// DeviceToken is an opaque token used to verify whether a device real
 public struct Code_Common_V1_DeviceToken {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -243,12 +236,13 @@ public struct Code_Common_V1_AppInstallId {
   public init() {}
 }
 
+/// PhoneNumber is an E.164 phone number
 public struct Code_Common_V1_PhoneNumber {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// E.164 phone number value. Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
+  /// Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
   public var value: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -256,16 +250,66 @@ public struct Code_Common_V1_PhoneNumber {
   public init() {}
 }
 
-public struct Code_Common_V1_Locale {
+/// Domain is a hostname
+public struct Code_Common_V1_Domain {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The ISO 639 alpha-2 language code.
-  public var language: String = String()
+  public var value: String = String()
 
-  /// ISO 3166 alpha-2 country code.
-  public var country: String = String()
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Relationship is a set of identifiers that a user can establish a relationship
+/// with.
+public struct Code_Common_V1_Relationship {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var type: Code_Common_V1_Relationship.OneOf_Type? = nil
+
+  public var domain: Code_Common_V1_Domain {
+    get {
+      if case .domain(let v)? = type {return v}
+      return Code_Common_V1_Domain()
+    }
+    set {type = .domain(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Type: Equatable {
+    case domain(Code_Common_V1_Domain)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Code_Common_V1_Relationship.OneOf_Type, rhs: Code_Common_V1_Relationship.OneOf_Type) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.domain, .domain): return {
+        guard case .domain(let l) = lhs, case .domain(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      }
+    }
+  #endif
+  }
+
+  public init() {}
+}
+
+/// Hash is a raw binary 32 byte hash value
+public struct Code_Common_V1_Hash {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var value: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -348,79 +392,25 @@ extension Code_Common_V1_Response.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
-/// Domain is a hostname
-public struct Code_Common_V1_Domain {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var value: String = String()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// Relationship is a set of identifiers that a user can establish a relationship
-/// with.
-public struct Code_Common_V1_Relationship {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var type: Code_Common_V1_Relationship.OneOf_Type? = nil
-
-  public var domain: Code_Common_V1_Domain {
-    get {
-      if case .domain(let v)? = type {return v}
-      return Code_Common_V1_Domain()
-    }
-    set {type = .domain(newValue)}
-  }
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum OneOf_Type: Equatable {
-    case domain(Code_Common_V1_Domain)
-
-  #if !swift(>=4.1)
-    public static func ==(lhs: Code_Common_V1_Relationship.OneOf_Type, rhs: Code_Common_V1_Relationship.OneOf_Type) -> Bool {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch (lhs, rhs) {
-      case (.domain, .domain): return {
-        guard case .domain(let l) = lhs, case .domain(let r) = rhs else { preconditionFailure() }
-        return l == r
-      }()
-      }
-    }
-  #endif
-  }
-
-  public init() {}
-}
-
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Code_Common_V1_AccountType: @unchecked Sendable {}
 extension Code_Common_V1_SolanaAccountId: @unchecked Sendable {}
 extension Code_Common_V1_Transaction: @unchecked Sendable {}
-extension Code_Common_V1_Signature: @unchecked Sendable {}
 extension Code_Common_V1_Blockhash: @unchecked Sendable {}
-extension Code_Common_V1_Hash: @unchecked Sendable {}
+extension Code_Common_V1_Signature: @unchecked Sendable {}
 extension Code_Common_V1_IntentId: @unchecked Sendable {}
 extension Code_Common_V1_UserId: @unchecked Sendable {}
 extension Code_Common_V1_DataContainerId: @unchecked Sendable {}
 extension Code_Common_V1_DeviceToken: @unchecked Sendable {}
 extension Code_Common_V1_AppInstallId: @unchecked Sendable {}
 extension Code_Common_V1_PhoneNumber: @unchecked Sendable {}
-extension Code_Common_V1_Locale: @unchecked Sendable {}
-extension Code_Common_V1_Request: @unchecked Sendable {}
-extension Code_Common_V1_Response: @unchecked Sendable {}
-extension Code_Common_V1_Response.Result: @unchecked Sendable {}
 extension Code_Common_V1_Domain: @unchecked Sendable {}
 extension Code_Common_V1_Relationship: @unchecked Sendable {}
 extension Code_Common_V1_Relationship.OneOf_Type: @unchecked Sendable {}
+extension Code_Common_V1_Hash: @unchecked Sendable {}
+extension Code_Common_V1_Request: @unchecked Sendable {}
+extension Code_Common_V1_Response: @unchecked Sendable {}
+extension Code_Common_V1_Response.Result: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -443,6 +433,7 @@ extension Code_Common_V1_AccountType: SwiftProtobuf._ProtoNameProviding {
     11: .same(proto: "LEGACY_PRIMARY_2022"),
     12: .same(proto: "REMOTE_SEND_GIFT_CARD"),
     13: .same(proto: "RELATIONSHIP"),
+    14: .same(proto: "ASSOCIATED_TOKEN_ACCOUNT"),
   ]
 }
 
@@ -510,38 +501,6 @@ extension Code_Common_V1_Transaction: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Code_Common_V1_Signature: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Signature"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "value"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.value.isEmpty {
-      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Common_V1_Signature, rhs: Code_Common_V1_Signature) -> Bool {
-    if lhs.value != rhs.value {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
 extension Code_Common_V1_Blockhash: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Blockhash"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -574,8 +533,8 @@ extension Code_Common_V1_Blockhash: SwiftProtobuf.Message, SwiftProtobuf._Messag
   }
 }
 
-extension Code_Common_V1_Hash: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Hash"
+extension Code_Common_V1_Signature: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Signature"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "value"),
   ]
@@ -599,7 +558,7 @@ extension Code_Common_V1_Hash: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Hash, rhs: Code_Common_V1_Hash) -> Bool {
+  public static func ==(lhs: Code_Common_V1_Signature, rhs: Code_Common_V1_Signature) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -798,11 +757,10 @@ extension Code_Common_V1_PhoneNumber: SwiftProtobuf.Message, SwiftProtobuf._Mess
   }
 }
 
-extension Code_Common_V1_Locale: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Locale"
+extension Code_Common_V1_Domain: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Domain"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "language"),
-    2: .same(proto: "country"),
+    1: .same(proto: "value"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -811,26 +769,101 @@ extension Code_Common_V1_Locale: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.language) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.country) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.language.isEmpty {
-      try visitor.visitSingularStringField(value: self.language, fieldNumber: 1)
-    }
-    if !self.country.isEmpty {
-      try visitor.visitSingularStringField(value: self.country, fieldNumber: 2)
+    if !self.value.isEmpty {
+      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Locale, rhs: Code_Common_V1_Locale) -> Bool {
-    if lhs.language != rhs.language {return false}
-    if lhs.country != rhs.country {return false}
+  public static func ==(lhs: Code_Common_V1_Domain, rhs: Code_Common_V1_Domain) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Common_V1_Relationship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Relationship"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "domain"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Code_Common_V1_Domain?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .domain(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .domain(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .domain(let v)? = self.type {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Common_V1_Relationship, rhs: Code_Common_V1_Relationship) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Common_V1_Hash: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Hash"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "value"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Common_V1_Hash, rhs: Code_Common_V1_Hash) -> Bool {
+    if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -935,84 +968,4 @@ extension Code_Common_V1_Response.Result: SwiftProtobuf._ProtoNameProviding {
     0: .same(proto: "OK"),
     1: .same(proto: "ERROR"),
   ]
-}
-
-extension Code_Common_V1_Domain: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Domain"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "value"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.value.isEmpty {
-      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Common_V1_Domain, rhs: Code_Common_V1_Domain) -> Bool {
-    if lhs.value != rhs.value {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Code_Common_V1_Relationship: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Relationship"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "domain"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try {
-        var v: Code_Common_V1_Domain?
-        var hadOneofValue = false
-        if let current = self.type {
-          hadOneofValue = true
-          if case .domain(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.type = .domain(v)
-        }
-      }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .domain(let v)? = self.type {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Common_V1_Relationship, rhs: Code_Common_V1_Relationship) -> Bool {
-    if lhs.type != rhs.type {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
 }

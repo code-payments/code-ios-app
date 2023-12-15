@@ -393,6 +393,21 @@ extension Code_Messaging_V1_SendMessageResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+/// RendezvousKey is a unique key pair, typically derived from a scan code payload,
+/// which is used to establish a secure communication channel anonymously to coordinate
+/// a flow using messages.
+public struct Code_Messaging_V1_RendezvousKey {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var value: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// MessageId identifies a message. It is only guaranteed to be unique when
 /// paired with a destination (i.e. the rendezvous public key).
 public struct Code_Messaging_V1_MessageId {
@@ -687,7 +702,7 @@ public struct Code_Messaging_V1_RequestToLogin {
   /// guarantees to perform domain verification against the verifier account.
   ///
   /// Clients should expect subdomains for future feature compatiblity, but must
-  /// use the ASCII base domain in the account derivation strategy.
+  /// use the ASCII base domain in the RELATIONSHIP account derivation strategy.
   public var domain: Code_Common_V1_Domain {
     get {return _domain ?? Code_Common_V1_Domain()}
     set {_domain = newValue}
@@ -1091,18 +1106,6 @@ public struct Code_Messaging_V1_Message {
   fileprivate var _sendMessageRequestSignature: Code_Common_V1_Signature? = nil
 }
 
-public struct Code_Messaging_V1_RendezvousKey {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var value: Data = Data()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
 public struct Code_Messaging_V1_ServerPing {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1175,6 +1178,7 @@ extension Code_Messaging_V1_AckMesssagesResponse.Result: @unchecked Sendable {}
 extension Code_Messaging_V1_SendMessageRequest: @unchecked Sendable {}
 extension Code_Messaging_V1_SendMessageResponse: @unchecked Sendable {}
 extension Code_Messaging_V1_SendMessageResponse.Result: @unchecked Sendable {}
+extension Code_Messaging_V1_RendezvousKey: @unchecked Sendable {}
 extension Code_Messaging_V1_MessageId: @unchecked Sendable {}
 extension Code_Messaging_V1_RequestToGrabBill: @unchecked Sendable {}
 extension Code_Messaging_V1_RequestToReceiveBill: @unchecked Sendable {}
@@ -1189,7 +1193,6 @@ extension Code_Messaging_V1_LoginRejected: @unchecked Sendable {}
 extension Code_Messaging_V1_AirdropReceived: @unchecked Sendable {}
 extension Code_Messaging_V1_Message: @unchecked Sendable {}
 extension Code_Messaging_V1_Message.OneOf_Kind: @unchecked Sendable {}
-extension Code_Messaging_V1_RendezvousKey: @unchecked Sendable {}
 extension Code_Messaging_V1_ServerPing: @unchecked Sendable {}
 extension Code_Messaging_V1_ClientPong: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
@@ -1661,6 +1664,38 @@ extension Code_Messaging_V1_SendMessageResponse.Result: SwiftProtobuf._ProtoName
     0: .same(proto: "OK"),
     1: .same(proto: "NO_ACTIVE_STREAM"),
   ]
+}
+
+extension Code_Messaging_V1_RendezvousKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RendezvousKey"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "value"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Messaging_V1_RendezvousKey, rhs: Code_Messaging_V1_RendezvousKey) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }
 
 extension Code_Messaging_V1_MessageId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -2417,38 +2452,6 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs._id != rhs._id {return false}
     if lhs._sendMessageRequestSignature != rhs._sendMessageRequestSignature {return false}
     if lhs.kind != rhs.kind {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Code_Messaging_V1_RendezvousKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".RendezvousKey"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "value"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.value.isEmpty {
-      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Messaging_V1_RendezvousKey, rhs: Code_Messaging_V1_RendezvousKey) -> Bool {
-    if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

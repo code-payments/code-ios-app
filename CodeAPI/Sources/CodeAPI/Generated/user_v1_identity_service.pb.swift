@@ -236,8 +236,7 @@ public struct Code_User_V1_UnlinkAccountRequest {
 
   public var identifyingFeature: Code_User_V1_UnlinkAccountRequest.OneOf_IdentifyingFeature? = nil
 
-  /// The phone number associated with the owner account. Remote send features
-  /// will be disabled on success.
+  /// The phone number associated with the owner account.
   public var phoneNumber: Code_Common_V1_PhoneNumber {
     get {
       if case .phoneNumber(let v)? = identifyingFeature {return v}
@@ -249,8 +248,7 @@ public struct Code_User_V1_UnlinkAccountRequest {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_IdentifyingFeature: Equatable {
-    /// The phone number associated with the owner account. Remote send features
-    /// will be disabled on success.
+    /// The phone number associated with the owner account.
     case phoneNumber(Code_Common_V1_PhoneNumber)
 
   #if !swift(>=4.1)

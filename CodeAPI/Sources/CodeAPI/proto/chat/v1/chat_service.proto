@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.chat.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/chat/v1;chat";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/chat/v1;chat";
 option java_package = "com.codeinc.gen.chat.v1";
 option objc_class_prefix = "CPBChatV1";
 

@@ -26,8 +26,8 @@ public struct Code_Currency_V1_GetAllRatesRequest {
   // methods supported on all messages.
 
   /// If timestamp is included, the returned rate will be the most recent available
-  /// exchange rate prior to the provided timestamp within the same day. If timestamp
-  /// is excluded, the current rate will be returned.
+  /// exchange rate prior to the provided timestamp within the same day. Otherwise,
+  /// the latest rates will be returned.
   public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
     get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_timestamp = newValue}
@@ -51,7 +51,7 @@ public struct Code_Currency_V1_GetAllRatesResponse {
 
   public var result: Code_Currency_V1_GetAllRatesResponse.Result = .ok
 
-  /// The time of the exchange rate.
+  /// The time the exchange rates were observed
   public var asOf: SwiftProtobuf.Google_Protobuf_Timestamp {
     get {return _asOf ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
     set {_asOf = newValue}
@@ -61,7 +61,7 @@ public struct Code_Currency_V1_GetAllRatesResponse {
   /// Clears the value of `asOf`. Subsequent reads from it will return its default value.
   public mutating func clearAsOf() {self._asOf = nil}
 
-  /// The price of 1 Kin in different currencies. Keyed on 3- or 4- letter lowercase currency code.
+  /// The price of 1 Kin in different currencies, keyed on 3- or 4- letter lowercase currency code.
   public var rates: Dictionary<String,Double> = [:]
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -70,7 +70,7 @@ public struct Code_Currency_V1_GetAllRatesResponse {
     public typealias RawValue = Int
     case ok // = 0
 
-    /// MISSING_DATA indicates no currency data is available for the requested timestamp.
+    /// No currency data is available for the requested timestamp.
     case missingData // = 1
     case UNRECOGNIZED(Int)
 
@@ -113,202 +113,10 @@ extension Code_Currency_V1_GetAllRatesResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
-public struct Code_Currency_V1_GetExchangeRateHistoryRequest {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// ISO 4217 alpha-3 currency code (example: 'USD').
-  public var forSymbol: String = String()
-
-  /// The frequency of the samples in the data returned. The data will be
-  /// sampled into buckets if the underlying currency exchange
-  /// data is available for the range requested. If missing, there
-  /// could be gaps in the response.
-  /// 
-  /// NOTE: the first record returned will be the current exchange rate and may not
-  /// align with the frequency selected.
-  public var interval: Code_Currency_V1_GetExchangeRateHistoryRequest.Interval = .raw
-
-  /// From timestamp (inclusive, in the past)
-  public var start: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _start ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_start = newValue}
-  }
-  /// Returns true if `start` has been explicitly set.
-  public var hasStart: Bool {return self._start != nil}
-  /// Clears the value of `start`. Subsequent reads from it will return its default value.
-  public mutating func clearStart() {self._start = nil}
-
-  /// Until timestamp (optional but must be in the future relative to the start
-  /// timestamp. If not provided the server  will default to "now")
-  public var end: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _end ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_end = newValue}
-  }
-  /// Returns true if `end` has been explicitly set.
-  public var hasEnd: Bool {return self._end != nil}
-  /// Clears the value of `end`. Subsequent reads from it will return its default value.
-  public mutating func clearEnd() {self._end = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum Interval: SwiftProtobuf.Enum {
-    public typealias RawValue = Int
-
-    /// Get the raw data stored by the database
-    case raw // = 0
-
-    /// Get hourly buckets of data (if it exists)
-    case hour // = 1
-
-    /// Get daily buckets of data (if it exists)
-    case day // = 2
-
-    /// Get weekly buckets of data (if it exists)
-    case week // = 3
-
-    /// Get monthly buckets of data (if it exists)
-    case month // = 4
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .raw
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .raw
-      case 1: self = .hour
-      case 2: self = .day
-      case 3: self = .week
-      case 4: self = .month
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .raw: return 0
-      case .hour: return 1
-      case .day: return 2
-      case .week: return 3
-      case .month: return 4
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-  }
-
-  public init() {}
-
-  fileprivate var _start: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-  fileprivate var _end: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-}
-
-#if swift(>=4.2)
-
-extension Code_Currency_V1_GetExchangeRateHistoryRequest.Interval: CaseIterable {
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Currency_V1_GetExchangeRateHistoryRequest.Interval] = [
-    .raw,
-    .hour,
-    .day,
-    .week,
-    .month,
-  ]
-}
-
-#endif  // swift(>=4.2)
-
-public struct Code_Currency_V1_GetExchangeRateHistoryResponse {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var result: Code_Currency_V1_GetExchangeRateHistoryResponse.Result = .ok
-
-  public var items: [Code_Currency_V1_ExchangeRate] = []
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum Result: SwiftProtobuf.Enum {
-    public typealias RawValue = Int
-    case ok // = 0
-    case notFound // = 1
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .ok
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .ok
-      case 1: self = .notFound
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .ok: return 0
-      case .notFound: return 1
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-  }
-
-  public init() {}
-}
-
-#if swift(>=4.2)
-
-extension Code_Currency_V1_GetExchangeRateHistoryResponse.Result: CaseIterable {
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Currency_V1_GetExchangeRateHistoryResponse.Result] = [
-    .ok,
-    .notFound,
-  ]
-}
-
-#endif  // swift(>=4.2)
-
-public struct Code_Currency_V1_ExchangeRate {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Rate of the currency in the base currency
-  public var rate: Double = 0
-
-  /// The time for the exchange rate
-  public var time: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _time ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_time = newValue}
-  }
-  /// Returns true if `time` has been explicitly set.
-  public var hasTime: Bool {return self._time != nil}
-  /// Clears the value of `time`. Subsequent reads from it will return its default value.
-  public mutating func clearTime() {self._time = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _time: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-}
-
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Code_Currency_V1_GetAllRatesRequest: @unchecked Sendable {}
 extension Code_Currency_V1_GetAllRatesResponse: @unchecked Sendable {}
 extension Code_Currency_V1_GetAllRatesResponse.Result: @unchecked Sendable {}
-extension Code_Currency_V1_GetExchangeRateHistoryRequest: @unchecked Sendable {}
-extension Code_Currency_V1_GetExchangeRateHistoryRequest.Interval: @unchecked Sendable {}
-extension Code_Currency_V1_GetExchangeRateHistoryResponse: @unchecked Sendable {}
-extension Code_Currency_V1_GetExchangeRateHistoryResponse.Result: @unchecked Sendable {}
-extension Code_Currency_V1_ExchangeRate: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -404,155 +212,4 @@ extension Code_Currency_V1_GetAllRatesResponse.Result: SwiftProtobuf._ProtoNameP
     0: .same(proto: "OK"),
     1: .same(proto: "MISSING_DATA"),
   ]
-}
-
-extension Code_Currency_V1_GetExchangeRateHistoryRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetExchangeRateHistoryRequest"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    5: .standard(proto: "for_symbol"),
-    2: .same(proto: "interval"),
-    3: .same(proto: "start"),
-    4: .same(proto: "end"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 2: try { try decoder.decodeSingularEnumField(value: &self.interval) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._start) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._end) }()
-      case 5: try { try decoder.decodeSingularStringField(value: &self.forSymbol) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.interval != .raw {
-      try visitor.visitSingularEnumField(value: self.interval, fieldNumber: 2)
-    }
-    try { if let v = self._start {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try { if let v = self._end {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
-    if !self.forSymbol.isEmpty {
-      try visitor.visitSingularStringField(value: self.forSymbol, fieldNumber: 5)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Currency_V1_GetExchangeRateHistoryRequest, rhs: Code_Currency_V1_GetExchangeRateHistoryRequest) -> Bool {
-    if lhs.forSymbol != rhs.forSymbol {return false}
-    if lhs.interval != rhs.interval {return false}
-    if lhs._start != rhs._start {return false}
-    if lhs._end != rhs._end {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Code_Currency_V1_GetExchangeRateHistoryRequest.Interval: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    0: .same(proto: "INTERVAL_RAW"),
-    1: .same(proto: "INTERVAL_HOUR"),
-    2: .same(proto: "INTERVAL_DAY"),
-    3: .same(proto: "INTERVAL_WEEK"),
-    4: .same(proto: "INTERVAL_MONTH"),
-  ]
-}
-
-extension Code_Currency_V1_GetExchangeRateHistoryResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetExchangeRateHistoryResponse"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "result"),
-    2: .same(proto: "items"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.items) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.result != .ok {
-      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
-    }
-    if !self.items.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.items, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Currency_V1_GetExchangeRateHistoryResponse, rhs: Code_Currency_V1_GetExchangeRateHistoryResponse) -> Bool {
-    if lhs.result != rhs.result {return false}
-    if lhs.items != rhs.items {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Code_Currency_V1_GetExchangeRateHistoryResponse.Result: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    0: .same(proto: "OK"),
-    1: .same(proto: "NOT_FOUND"),
-  ]
-}
-
-extension Code_Currency_V1_ExchangeRate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ExchangeRate"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    2: .same(proto: "rate"),
-    1: .same(proto: "time"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._time) }()
-      case 2: try { try decoder.decodeSingularDoubleField(value: &self.rate) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._time {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    if self.rate != 0 {
-      try visitor.visitSingularDoubleField(value: self.rate, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Currency_V1_ExchangeRate, rhs: Code_Currency_V1_ExchangeRate) -> Bool {
-    if lhs.rate != rhs.rate {return false}
-    if lhs._time != rhs._time {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
 }

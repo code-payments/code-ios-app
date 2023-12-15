@@ -52,15 +52,13 @@ extension Code_User_V1_IdentityClientProtocol {
     return "code.user.v1.Identity"
   }
 
-  /// LinkAccount links an owner account to:
-  ///   * the user identified and authenticated by a one-time use token
-  ///   * any identifying features that support remote send
+  /// LinkAccount links an owner account to the user identified and authenticated
+  /// by a one-time use token.
+  ///
   /// Notably, this RPC has the following side effects:
   ///   * A new user is automatically created if one doesn't exist.
   ///   * Server will create a new data container for at least every unique
   ///     owner account linked to the user.
-  ///   * Previous links to identifying features that support remote send are
-  ///     invalidated. Relinking must occur to restore previous state.
   ///
   /// - Parameters:
   ///   - request: Request to send to LinkAccount.
@@ -80,14 +78,12 @@ extension Code_User_V1_IdentityClientProtocol {
 
   /// UnlinkAccount removes links from an owner account. It will NOT remove
   /// existing associations between users, owner accounts and identifying
-  /// features. Currently, the RPC will remove:
-  ///   * remote send features for any applicable identifying features
+  /// features.
+  ///
   /// The following associations will remain intact to ensure owner accounts
   /// can continue to be used with a consistent login experience:
   ///   * the user continues to be associated to existing owner accounts and
   ///     identifying features
-  ///   * identifying features whose remote send was disabled continue to be
-  ///     associated with the owner account
   ///
   /// Client can continue mainting their current login session. Their current
   /// user and data container will remain the same.
@@ -366,27 +362,23 @@ public enum Code_User_V1_IdentityClientMetadata {
 public protocol Code_User_V1_IdentityProvider: CallHandlerProvider {
   var interceptors: Code_User_V1_IdentityServerInterceptorFactoryProtocol? { get }
 
-  /// LinkAccount links an owner account to:
-  ///   * the user identified and authenticated by a one-time use token
-  ///   * any identifying features that support remote send
+  /// LinkAccount links an owner account to the user identified and authenticated
+  /// by a one-time use token.
+  ///
   /// Notably, this RPC has the following side effects:
   ///   * A new user is automatically created if one doesn't exist.
   ///   * Server will create a new data container for at least every unique
   ///     owner account linked to the user.
-  ///   * Previous links to identifying features that support remote send are
-  ///     invalidated. Relinking must occur to restore previous state.
   func linkAccount(request: Code_User_V1_LinkAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_LinkAccountResponse>
 
   /// UnlinkAccount removes links from an owner account. It will NOT remove
   /// existing associations between users, owner accounts and identifying
-  /// features. Currently, the RPC will remove:
-  ///   * remote send features for any applicable identifying features
+  /// features.
+  ///
   /// The following associations will remain intact to ensure owner accounts
   /// can continue to be used with a consistent login experience:
   ///   * the user continues to be associated to existing owner accounts and
   ///     identifying features
-  ///   * identifying features whose remote send was disabled continue to be
-  ///     associated with the owner account
   ///
   /// Client can continue mainting their current login session. Their current
   /// user and data container will remain the same.
@@ -454,15 +446,13 @@ public protocol Code_User_V1_IdentityAsyncProvider: CallHandlerProvider {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_User_V1_IdentityServerInterceptorFactoryProtocol? { get }
 
-  /// LinkAccount links an owner account to:
-  ///   * the user identified and authenticated by a one-time use token
-  ///   * any identifying features that support remote send
+  /// LinkAccount links an owner account to the user identified and authenticated
+  /// by a one-time use token.
+  ///
   /// Notably, this RPC has the following side effects:
   ///   * A new user is automatically created if one doesn't exist.
   ///   * Server will create a new data container for at least every unique
   ///     owner account linked to the user.
-  ///   * Previous links to identifying features that support remote send are
-  ///     invalidated. Relinking must occur to restore previous state.
   @Sendable func linkAccount(
     request: Code_User_V1_LinkAccountRequest,
     context: GRPCAsyncServerCallContext
@@ -470,14 +460,12 @@ public protocol Code_User_V1_IdentityAsyncProvider: CallHandlerProvider {
 
   /// UnlinkAccount removes links from an owner account. It will NOT remove
   /// existing associations between users, owner accounts and identifying
-  /// features. Currently, the RPC will remove:
-  ///   * remote send features for any applicable identifying features
+  /// features.
+  ///
   /// The following associations will remain intact to ensure owner accounts
   /// can continue to be used with a consistent login experience:
   ///   * the user continues to be associated to existing owner accounts and
   ///     identifying features
-  ///   * identifying features whose remote send was disabled continue to be
-  ///     associated with the owner account
   ///
   /// Client can continue mainting their current login session. Their current
   /// user and data container will remain the same.

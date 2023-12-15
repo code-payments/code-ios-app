@@ -73,7 +73,7 @@ public struct Code_Account_V1_IsCodeAccountResponse {
     /// The account is not a Code account.
     case notFound // = 1
 
-    /// The account exists, but at least one timelock account is unlocked
+    /// The account exists, but at least one timelock account is unlocked.
     case unlockedTimelockAccount // = 2
     case UNRECOGNIZED(Int)
 
@@ -214,68 +214,92 @@ public struct Code_Account_V1_TokenAccountInfo {
 
   /// The token account's address
   public var address: Code_Common_V1_SolanaAccountId {
-    get {return _address ?? Code_Common_V1_SolanaAccountId()}
-    set {_address = newValue}
+    get {return _storage._address ?? Code_Common_V1_SolanaAccountId()}
+    set {_uniqueStorage()._address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
-  public var hasAddress: Bool {return self._address != nil}
+  public var hasAddress: Bool {return _storage._address != nil}
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
-  public mutating func clearAddress() {self._address = nil}
+  public mutating func clearAddress() {_uniqueStorage()._address = nil}
 
   /// The owner of the token account, which can also be thought of as a parent
   /// account that links to one or more token accounts. This is provided when
   /// available.
   public var owner: Code_Common_V1_SolanaAccountId {
-    get {return _owner ?? Code_Common_V1_SolanaAccountId()}
-    set {_owner = newValue}
+    get {return _storage._owner ?? Code_Common_V1_SolanaAccountId()}
+    set {_uniqueStorage()._owner = newValue}
   }
   /// Returns true if `owner` has been explicitly set.
-  public var hasOwner: Bool {return self._owner != nil}
+  public var hasOwner: Bool {return _storage._owner != nil}
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
-  public mutating func clearOwner() {self._owner = nil}
+  public mutating func clearOwner() {_uniqueStorage()._owner = nil}
 
   /// The token account's authority, which has access to moving funds for the
   /// account. This can be the owner account under certain circumstances (eg.
   /// ATA, primary account). This is provided when available.
   public var authority: Code_Common_V1_SolanaAccountId {
-    get {return _authority ?? Code_Common_V1_SolanaAccountId()}
-    set {_authority = newValue}
+    get {return _storage._authority ?? Code_Common_V1_SolanaAccountId()}
+    set {_uniqueStorage()._authority = newValue}
   }
   /// Returns true if `authority` has been explicitly set.
-  public var hasAuthority: Bool {return self._authority != nil}
+  public var hasAuthority: Bool {return _storage._authority != nil}
   /// Clears the value of `authority`. Subsequent reads from it will return its default value.
-  public mutating func clearAuthority() {self._authority = nil}
+  public mutating func clearAuthority() {_uniqueStorage()._authority = nil}
 
   /// The type of token account, which infers its intended use.
-  public var accountType: Code_Common_V1_AccountType = .unknown
+  public var accountType: Code_Common_V1_AccountType {
+    get {return _storage._accountType}
+    set {_uniqueStorage()._accountType = newValue}
+  }
 
   /// The account's derivation index for applicable account types. When this field
   /// doesn't apply, a zero value is provided.
-  public var index: UInt64 = 0
+  public var index: UInt64 {
+    get {return _storage._index}
+    set {_uniqueStorage()._index = newValue}
+  }
 
   /// The source of truth for the balance calculation.
-  public var balanceSource: Code_Account_V1_TokenAccountInfo.BalanceSource = .unknown
+  public var balanceSource: Code_Account_V1_TokenAccountInfo.BalanceSource {
+    get {return _storage._balanceSource}
+    set {_uniqueStorage()._balanceSource = newValue}
+  }
 
-  /// The Kin balance in quarks, as observed by Code. This may not reflect the
-  /// value on the blockchain and could be non-zero even if the account hasn't
-  /// been created. Use balance_source to determine how this value was calculated.
-  public var balance: UInt64 = 0
+  /// The balance in quarks, as observed by Code. This may not reflect the value
+  /// on the blockchain and could be non-zero even if the account hasn't been created.
+  /// Use balance_source to determine how this value was calculated.
+  public var balance: UInt64 {
+    get {return _storage._balance}
+    set {_uniqueStorage()._balance = newValue}
+  }
 
   /// The state of the account as it pertains to Code's ability to manage funds.
-  public var managementState: Code_Account_V1_TokenAccountInfo.ManagementState = .unknown
+  public var managementState: Code_Account_V1_TokenAccountInfo.ManagementState {
+    get {return _storage._managementState}
+    set {_uniqueStorage()._managementState = newValue}
+  }
 
   /// The state of the account on the blockchain.
-  public var blockchainState: Code_Account_V1_TokenAccountInfo.BlockchainState = .unknown
+  public var blockchainState: Code_Account_V1_TokenAccountInfo.BlockchainState {
+    get {return _storage._blockchainState}
+    set {_uniqueStorage()._blockchainState = newValue}
+  }
 
   /// For temporary incoming accounts only. Flag indicates whether client must
-  /// actively try rotating it by issuing a ReceivePayments intent. In general,
-  /// clients should wait as long as possible until this flag is true or requiring
-  /// the funds to send their next payment.
-  public var mustRotate: Bool = false
+  /// actively try rotating it by issuing a ReceivePaymentsPrivately intent. In
+  /// general, clients should wait as long as possible until this flag is true
+  /// or requiring the funds to send their next payment.
+  public var mustRotate: Bool {
+    get {return _storage._mustRotate}
+    set {_uniqueStorage()._mustRotate = newValue}
+  }
 
   /// Whether an account is claimed. This only applies to relevant account types
   /// (eg. REMOTE_SEND_GIFT_CARD).
-  public var claimState: Code_Account_V1_TokenAccountInfo.ClaimState = .unknown
+  public var claimState: Code_Account_V1_TokenAccountInfo.ClaimState {
+    get {return _storage._claimState}
+    set {_uniqueStorage()._claimState = newValue}
+  }
 
   /// For account types used as an intermediary for sending money between two
   /// users (eg. REMOTE_SEND_GIFT_CARD), this represents the original exchange
@@ -286,13 +310,46 @@ public struct Code_Account_V1_TokenAccountInfo {
   ///  3. The balance could have been received, so the total balance can show
   ///     as zero.
   public var originalExchangeData: Code_Transaction_V2_ExchangeData {
-    get {return _originalExchangeData ?? Code_Transaction_V2_ExchangeData()}
-    set {_originalExchangeData = newValue}
+    get {return _storage._originalExchangeData ?? Code_Transaction_V2_ExchangeData()}
+    set {_uniqueStorage()._originalExchangeData = newValue}
   }
   /// Returns true if `originalExchangeData` has been explicitly set.
-  public var hasOriginalExchangeData: Bool {return self._originalExchangeData != nil}
+  public var hasOriginalExchangeData: Bool {return _storage._originalExchangeData != nil}
   /// Clears the value of `originalExchangeData`. Subsequent reads from it will return its default value.
-  public mutating func clearOriginalExchangeData() {self._originalExchangeData = nil}
+  public mutating func clearOriginalExchangeData() {_uniqueStorage()._originalExchangeData = nil}
+
+  /// The token account's mint
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _storage._mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_uniqueStorage()._mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return _storage._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {_uniqueStorage()._mint = nil}
+
+  /// The number of decimals configured for the mint
+  public var mintDecimals: UInt32 {
+    get {return _storage._mintDecimals}
+    set {_uniqueStorage()._mintDecimals = newValue}
+  }
+
+  /// User-friendly display name for the mint
+  public var mintDisplayName: String {
+    get {return _storage._mintDisplayName}
+    set {_uniqueStorage()._mintDisplayName = newValue}
+  }
+
+  /// The relationship with a third party that this account has established with.
+  /// This only applies to relevant account types (eg. RELATIONSHIP).
+  public var relationship: Code_Common_V1_Relationship {
+    get {return _storage._relationship ?? Code_Common_V1_Relationship()}
+    set {_uniqueStorage()._relationship = newValue}
+  }
+  /// Returns true if `relationship` has been explicitly set.
+  public var hasRelationship: Bool {return _storage._relationship != nil}
+  /// Clears the value of `relationship`. Subsequent reads from it will return its default value.
+  public mutating func clearRelationship() {_uniqueStorage()._relationship = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -487,10 +544,7 @@ public struct Code_Account_V1_TokenAccountInfo {
 
   public init() {}
 
-  fileprivate var _address: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _originalExchangeData: Code_Transaction_V2_ExchangeData? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 #if swift(>=4.2)
@@ -741,88 +795,174 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     10: .standard(proto: "must_rotate"),
     11: .standard(proto: "claim_state"),
     12: .standard(proto: "original_exchange_data"),
+    13: .same(proto: "mint"),
+    14: .standard(proto: "mint_decimals"),
+    15: .standard(proto: "mint_display_name"),
+    16: .same(proto: "relationship"),
   ]
 
+  fileprivate class _StorageClass {
+    var _address: Code_Common_V1_SolanaAccountId? = nil
+    var _owner: Code_Common_V1_SolanaAccountId? = nil
+    var _authority: Code_Common_V1_SolanaAccountId? = nil
+    var _accountType: Code_Common_V1_AccountType = .unknown
+    var _index: UInt64 = 0
+    var _balanceSource: Code_Account_V1_TokenAccountInfo.BalanceSource = .unknown
+    var _balance: UInt64 = 0
+    var _managementState: Code_Account_V1_TokenAccountInfo.ManagementState = .unknown
+    var _blockchainState: Code_Account_V1_TokenAccountInfo.BlockchainState = .unknown
+    var _mustRotate: Bool = false
+    var _claimState: Code_Account_V1_TokenAccountInfo.ClaimState = .unknown
+    var _originalExchangeData: Code_Transaction_V2_ExchangeData? = nil
+    var _mint: Code_Common_V1_SolanaAccountId? = nil
+    var _mintDecimals: UInt32 = 0
+    var _mintDisplayName: String = String()
+    var _relationship: Code_Common_V1_Relationship? = nil
+
+    static let defaultInstance = _StorageClass()
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _address = source._address
+      _owner = source._owner
+      _authority = source._authority
+      _accountType = source._accountType
+      _index = source._index
+      _balanceSource = source._balanceSource
+      _balance = source._balance
+      _managementState = source._managementState
+      _blockchainState = source._blockchainState
+      _mustRotate = source._mustRotate
+      _claimState = source._claimState
+      _originalExchangeData = source._originalExchangeData
+      _mint = source._mint
+      _mintDecimals = source._mintDecimals
+      _mintDisplayName = source._mintDisplayName
+      _relationship = source._relationship
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._address) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._authority) }()
-      case 4: try { try decoder.decodeSingularEnumField(value: &self.accountType) }()
-      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.index) }()
-      case 6: try { try decoder.decodeSingularEnumField(value: &self.balanceSource) }()
-      case 7: try { try decoder.decodeSingularUInt64Field(value: &self.balance) }()
-      case 8: try { try decoder.decodeSingularEnumField(value: &self.managementState) }()
-      case 9: try { try decoder.decodeSingularEnumField(value: &self.blockchainState) }()
-      case 10: try { try decoder.decodeSingularBoolField(value: &self.mustRotate) }()
-      case 11: try { try decoder.decodeSingularEnumField(value: &self.claimState) }()
-      case 12: try { try decoder.decodeSingularMessageField(value: &self._originalExchangeData) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._address) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._owner) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._authority) }()
+        case 4: try { try decoder.decodeSingularEnumField(value: &_storage._accountType) }()
+        case 5: try { try decoder.decodeSingularUInt64Field(value: &_storage._index) }()
+        case 6: try { try decoder.decodeSingularEnumField(value: &_storage._balanceSource) }()
+        case 7: try { try decoder.decodeSingularUInt64Field(value: &_storage._balance) }()
+        case 8: try { try decoder.decodeSingularEnumField(value: &_storage._managementState) }()
+        case 9: try { try decoder.decodeSingularEnumField(value: &_storage._blockchainState) }()
+        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._mustRotate) }()
+        case 11: try { try decoder.decodeSingularEnumField(value: &_storage._claimState) }()
+        case 12: try { try decoder.decodeSingularMessageField(value: &_storage._originalExchangeData) }()
+        case 13: try { try decoder.decodeSingularMessageField(value: &_storage._mint) }()
+        case 14: try { try decoder.decodeSingularUInt32Field(value: &_storage._mintDecimals) }()
+        case 15: try { try decoder.decodeSingularStringField(value: &_storage._mintDisplayName) }()
+        case 16: try { try decoder.decodeSingularMessageField(value: &_storage._relationship) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._address {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._owner {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._authority {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    if self.accountType != .unknown {
-      try visitor.visitSingularEnumField(value: self.accountType, fieldNumber: 4)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._address {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._owner {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._authority {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if _storage._accountType != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._accountType, fieldNumber: 4)
+      }
+      if _storage._index != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._index, fieldNumber: 5)
+      }
+      if _storage._balanceSource != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._balanceSource, fieldNumber: 6)
+      }
+      if _storage._balance != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._balance, fieldNumber: 7)
+      }
+      if _storage._managementState != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._managementState, fieldNumber: 8)
+      }
+      if _storage._blockchainState != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._blockchainState, fieldNumber: 9)
+      }
+      if _storage._mustRotate != false {
+        try visitor.visitSingularBoolField(value: _storage._mustRotate, fieldNumber: 10)
+      }
+      if _storage._claimState != .unknown {
+        try visitor.visitSingularEnumField(value: _storage._claimState, fieldNumber: 11)
+      }
+      try { if let v = _storage._originalExchangeData {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+      } }()
+      try { if let v = _storage._mint {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+      } }()
+      if _storage._mintDecimals != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._mintDecimals, fieldNumber: 14)
+      }
+      if !_storage._mintDisplayName.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._mintDisplayName, fieldNumber: 15)
+      }
+      try { if let v = _storage._relationship {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
+      } }()
     }
-    if self.index != 0 {
-      try visitor.visitSingularUInt64Field(value: self.index, fieldNumber: 5)
-    }
-    if self.balanceSource != .unknown {
-      try visitor.visitSingularEnumField(value: self.balanceSource, fieldNumber: 6)
-    }
-    if self.balance != 0 {
-      try visitor.visitSingularUInt64Field(value: self.balance, fieldNumber: 7)
-    }
-    if self.managementState != .unknown {
-      try visitor.visitSingularEnumField(value: self.managementState, fieldNumber: 8)
-    }
-    if self.blockchainState != .unknown {
-      try visitor.visitSingularEnumField(value: self.blockchainState, fieldNumber: 9)
-    }
-    if self.mustRotate != false {
-      try visitor.visitSingularBoolField(value: self.mustRotate, fieldNumber: 10)
-    }
-    if self.claimState != .unknown {
-      try visitor.visitSingularEnumField(value: self.claimState, fieldNumber: 11)
-    }
-    try { if let v = self._originalExchangeData {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Account_V1_TokenAccountInfo, rhs: Code_Account_V1_TokenAccountInfo) -> Bool {
-    if lhs._address != rhs._address {return false}
-    if lhs._owner != rhs._owner {return false}
-    if lhs._authority != rhs._authority {return false}
-    if lhs.accountType != rhs.accountType {return false}
-    if lhs.index != rhs.index {return false}
-    if lhs.balanceSource != rhs.balanceSource {return false}
-    if lhs.balance != rhs.balance {return false}
-    if lhs.managementState != rhs.managementState {return false}
-    if lhs.blockchainState != rhs.blockchainState {return false}
-    if lhs.mustRotate != rhs.mustRotate {return false}
-    if lhs.claimState != rhs.claimState {return false}
-    if lhs._originalExchangeData != rhs._originalExchangeData {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._address != rhs_storage._address {return false}
+        if _storage._owner != rhs_storage._owner {return false}
+        if _storage._authority != rhs_storage._authority {return false}
+        if _storage._accountType != rhs_storage._accountType {return false}
+        if _storage._index != rhs_storage._index {return false}
+        if _storage._balanceSource != rhs_storage._balanceSource {return false}
+        if _storage._balance != rhs_storage._balance {return false}
+        if _storage._managementState != rhs_storage._managementState {return false}
+        if _storage._blockchainState != rhs_storage._blockchainState {return false}
+        if _storage._mustRotate != rhs_storage._mustRotate {return false}
+        if _storage._claimState != rhs_storage._claimState {return false}
+        if _storage._originalExchangeData != rhs_storage._originalExchangeData {return false}
+        if _storage._mint != rhs_storage._mint {return false}
+        if _storage._mintDecimals != rhs_storage._mintDecimals {return false}
+        if _storage._mintDisplayName != rhs_storage._mintDisplayName {return false}
+        if _storage._relationship != rhs_storage._relationship {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

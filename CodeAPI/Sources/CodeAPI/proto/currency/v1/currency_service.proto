@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.currency.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/currency/v1;currency";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/currency/v1;currency";
 option java_package = "com.codeinc.gen.currency.v1";
 option objc_class_prefix = "CPBCurrencyV1";
 
@@ -10,18 +10,14 @@ import "validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 service Currency {
-    // GetRate returns the exchange rates for Kin against all available currencies.
+    // GetAllRates returns the exchange rates for Kin against all available currencies
     rpc GetAllRates(GetAllRatesRequest) returns (GetAllRatesResponse);
-
-    // GetExchangeRateHistory returns the exchange rate for Kin given a time
-    // range, bucketing interval, and currency.
-    rpc GetExchangeRateHistory(GetExchangeRateHistoryRequest) returns (GetExchangeRateHistoryResponse);
 }
 
 message GetAllRatesRequest {
     // If timestamp is included, the returned rate will be the most recent available
-    // exchange rate prior to the provided timestamp within the same day. If timestamp
-    // is excluded, the current rate will be returned.
+    // exchange rate prior to the provided timestamp within the same day. Otherwise,
+    // the latest rates will be returned.
     google.protobuf.Timestamp timestamp = 1;
 }
 
@@ -30,73 +26,15 @@ message GetAllRatesResponse {
     enum Result {
         OK = 0;
 
-        // MISSING_DATA indicates no currency data is available for the requested timestamp.
+        // No currency data is available for the requested timestamp.
         MISSING_DATA = 1;
     }
 
-    // The time of the exchange rate.
+    // The time the exchange rates were observed
     google.protobuf.Timestamp as_of = 2 [(validate.rules).timestamp.required = true];
 
-    // The price of 1 Kin in different currencies. Keyed on 3- or 4- letter lowercase currency code.
+    // The price of 1 Kin in different currencies, keyed on 3- or 4- letter lowercase currency code.
     map<string, double> rates = 3 [(validate.rules).map.keys.string = {
         pattern: "^[a-z]{3,4}$"
     }];
-}
-
-message GetExchangeRateHistoryRequest {
-    // ISO 4217 alpha-3 currency code (example: 'USD').
-    string for_symbol = 5 [ (validate.rules).string = { pattern: "^[a-zA-Z]{3}$" }];
-
-    // The frequency of the samples in the data returned. The data will be
-    // sampled into buckets if the underlying currency exchange
-    // data is available for the range requested. If missing, there
-    // could be gaps in the response.
-    // 
-    // NOTE: the first record returned will be the current exchange rate and may not
-    // align with the frequency selected.
-    Interval interval = 2;
-    enum Interval {
-        // Get the raw data stored by the database
-        INTERVAL_RAW   = 0;
-
-        // Get hourly buckets of data (if it exists)
-        INTERVAL_HOUR  = 1;
-
-        // Get daily buckets of data (if it exists)
-        INTERVAL_DAY   = 2;
-
-        // Get weekly buckets of data (if it exists)
-        INTERVAL_WEEK  = 3;
-
-        // Get monthly buckets of data (if it exists)
-        INTERVAL_MONTH = 4;
-    }
-
-    // From timestamp (inclusive, in the past)
-    google.protobuf.Timestamp start = 3 [(validate.rules).timestamp.required = true];
-
-    // Until timestamp (optional but must be in the future relative to the start
-    // timestamp. If not provided the server  will default to "now")
-    google.protobuf.Timestamp end = 4;
-}
-
-message GetExchangeRateHistoryResponse {
-    Result result = 1;
-    enum Result {
-        OK        = 0;
-        NOT_FOUND = 1;
-    }
-
-    repeated ExchangeRate items = 2 [(validate.rules).repeated = {
-        min_items: 0
-        max_items: 4096
-    }];
-}
-
-message ExchangeRate {
-    // Rate of the currency in the base currency
-    double rate = 2;
-
-    // The time for the exchange rate
-    google.protobuf.Timestamp time = 1;
 }

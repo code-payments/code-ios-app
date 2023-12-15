@@ -42,7 +42,7 @@ extension Code_Badge_V1_BadgeClientProtocol {
     return "code.badge.v1.Badge"
   }
 
-  /// ResetBadgeCount resets an owner account's badge count back to zero
+  /// ResetBadgeCount resets an owner account's app icon badge count back to zero
   ///
   /// - Parameters:
   ///   - request: Request to send to ResetBadgeCount.
@@ -217,7 +217,7 @@ public enum Code_Badge_V1_BadgeClientMetadata {
 public protocol Code_Badge_V1_BadgeProvider: CallHandlerProvider {
   var interceptors: Code_Badge_V1_BadgeServerInterceptorFactoryProtocol? { get }
 
-  /// ResetBadgeCount resets an owner account's badge count back to zero
+  /// ResetBadgeCount resets an owner account's app icon badge count back to zero
   func resetBadgeCount(request: Code_Badge_V1_ResetBadgeCountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Badge_V1_ResetBadgeCountResponse>
 }
 
@@ -256,7 +256,7 @@ public protocol Code_Badge_V1_BadgeAsyncProvider: CallHandlerProvider {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_Badge_V1_BadgeServerInterceptorFactoryProtocol? { get }
 
-  /// ResetBadgeCount resets an owner account's badge count back to zero
+  /// ResetBadgeCount resets an owner account's app icon badge count back to zero
   @Sendable func resetBadgeCount(
     request: Code_Badge_V1_ResetBadgeCountRequest,
     context: GRPCAsyncServerCallContext

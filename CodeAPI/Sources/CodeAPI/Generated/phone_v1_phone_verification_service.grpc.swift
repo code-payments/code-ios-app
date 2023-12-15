@@ -52,9 +52,9 @@ extension Code_Phone_V1_PhoneVerificationClientProtocol {
     return "code.phone.v1.PhoneVerification"
   }
 
-  /// Sends a verification code to the provided phone number over SMS. If an
-  /// active verification is already taking place, the existing code will be
-  /// resent.
+  /// SendVerificationCode sends a verification code to the provided phone number
+  /// over SMS. If an active verification is already taking place, the existing code
+  /// will be resent.
   ///
   /// - Parameters:
   ///   - request: Request to send to SendVerificationCode.
@@ -72,8 +72,8 @@ extension Code_Phone_V1_PhoneVerificationClientProtocol {
     )
   }
 
-  /// CheckVerificationCode validates a verification code. On success, a
-  /// one-time use token to link an owner account is provided. 
+  /// CheckVerificationCode validates a verification code. On success, a one-time use
+  /// token to link an owner account is provided. 
   ///
   /// - Parameters:
   ///   - request: Request to send to CheckVerificationCode.
@@ -91,7 +91,7 @@ extension Code_Phone_V1_PhoneVerificationClientProtocol {
     )
   }
 
-  /// Gets the latest verified phone number linked to an owner account.
+  /// GetAssociatedPhoneNumber gets the latest verified phone number linked to an owner account.
   ///
   /// - Parameters:
   ///   - request: Request to send to GetAssociatedPhoneNumber.
@@ -344,16 +344,16 @@ public enum Code_Phone_V1_PhoneVerificationClientMetadata {
 public protocol Code_Phone_V1_PhoneVerificationProvider: CallHandlerProvider {
   var interceptors: Code_Phone_V1_PhoneVerificationServerInterceptorFactoryProtocol? { get }
 
-  /// Sends a verification code to the provided phone number over SMS. If an
-  /// active verification is already taking place, the existing code will be
-  /// resent.
+  /// SendVerificationCode sends a verification code to the provided phone number
+  /// over SMS. If an active verification is already taking place, the existing code
+  /// will be resent.
   func sendVerificationCode(request: Code_Phone_V1_SendVerificationCodeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Phone_V1_SendVerificationCodeResponse>
 
-  /// CheckVerificationCode validates a verification code. On success, a
-  /// one-time use token to link an owner account is provided. 
+  /// CheckVerificationCode validates a verification code. On success, a one-time use
+  /// token to link an owner account is provided. 
   func checkVerificationCode(request: Code_Phone_V1_CheckVerificationCodeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Phone_V1_CheckVerificationCodeResponse>
 
-  /// Gets the latest verified phone number linked to an owner account.
+  /// GetAssociatedPhoneNumber gets the latest verified phone number linked to an owner account.
   func getAssociatedPhoneNumber(request: Code_Phone_V1_GetAssociatedPhoneNumberRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Phone_V1_GetAssociatedPhoneNumberResponse>
 }
 
@@ -410,22 +410,22 @@ public protocol Code_Phone_V1_PhoneVerificationAsyncProvider: CallHandlerProvide
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_Phone_V1_PhoneVerificationServerInterceptorFactoryProtocol? { get }
 
-  /// Sends a verification code to the provided phone number over SMS. If an
-  /// active verification is already taking place, the existing code will be
-  /// resent.
+  /// SendVerificationCode sends a verification code to the provided phone number
+  /// over SMS. If an active verification is already taking place, the existing code
+  /// will be resent.
   @Sendable func sendVerificationCode(
     request: Code_Phone_V1_SendVerificationCodeRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Phone_V1_SendVerificationCodeResponse
 
-  /// CheckVerificationCode validates a verification code. On success, a
-  /// one-time use token to link an owner account is provided. 
+  /// CheckVerificationCode validates a verification code. On success, a one-time use
+  /// token to link an owner account is provided. 
   @Sendable func checkVerificationCode(
     request: Code_Phone_V1_CheckVerificationCodeRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Phone_V1_CheckVerificationCodeResponse
 
-  /// Gets the latest verified phone number linked to an owner account.
+  /// GetAssociatedPhoneNumber gets the latest verified phone number linked to an owner account.
   @Sendable func getAssociatedPhoneNumber(
     request: Code_Phone_V1_GetAssociatedPhoneNumberRequest,
     context: GRPCAsyncServerCallContext

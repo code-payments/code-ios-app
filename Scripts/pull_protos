@@ -5,8 +5,7 @@
 set -e
 
 DESTINATION_PATH="$1"
-BRANCH="master"
-# BRANCH="intent-v2"
+BRANCH="main"
 
 if [ ! -d "$DESTINATION_PATH" ]
 then
@@ -14,7 +13,7 @@ then
   exit
 fi
 
-REPO_NAME="code-wallet/code-api"
+REPO_NAME="code-payments/code-protobuf-api"
 
 GIT_TEMP_PATH=$(mktemp -d -t "${REPO_NAME/\//_}")
 TEMP_DIR="$DESTINATION_PATH/.temp"

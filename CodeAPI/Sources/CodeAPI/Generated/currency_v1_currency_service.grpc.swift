@@ -35,11 +35,6 @@ public protocol Code_Currency_V1_CurrencyClientProtocol: GRPCClient {
     _ request: Code_Currency_V1_GetAllRatesRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>
-
-  func getExchangeRateHistory(
-    _ request: Code_Currency_V1_GetExchangeRateHistoryRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Code_Currency_V1_GetExchangeRateHistoryRequest, Code_Currency_V1_GetExchangeRateHistoryResponse>
 }
 
 extension Code_Currency_V1_CurrencyClientProtocol {
@@ -47,7 +42,7 @@ extension Code_Currency_V1_CurrencyClientProtocol {
     return "code.currency.v1.Currency"
   }
 
-  /// GetRate returns the exchange rates for Kin against all available currencies.
+  /// GetAllRates returns the exchange rates for Kin against all available currencies
   ///
   /// - Parameters:
   ///   - request: Request to send to GetAllRates.
@@ -62,25 +57,6 @@ extension Code_Currency_V1_CurrencyClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
-    )
-  }
-
-  /// GetExchangeRateHistory returns the exchange rate for Kin given a time
-  /// range, bucketing interval, and currency.
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to GetExchangeRateHistory.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func getExchangeRateHistory(
-    _ request: Code_Currency_V1_GetExchangeRateHistoryRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Currency_V1_GetExchangeRateHistoryRequest, Code_Currency_V1_GetExchangeRateHistoryResponse> {
-    return self.makeUnaryCall(
-      path: Code_Currency_V1_CurrencyClientMetadata.Methods.getExchangeRateHistory.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetExchangeRateHistoryInterceptors() ?? []
     )
   }
 }
@@ -154,11 +130,6 @@ public protocol Code_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
     _ request: Code_Currency_V1_GetAllRatesRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>
-
-  func makeGetExchangeRateHistoryCall(
-    _ request: Code_Currency_V1_GetExchangeRateHistoryRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Currency_V1_GetExchangeRateHistoryRequest, Code_Currency_V1_GetExchangeRateHistoryResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -182,18 +153,6 @@ extension Code_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
     )
   }
-
-  public func makeGetExchangeRateHistoryCall(
-    _ request: Code_Currency_V1_GetExchangeRateHistoryRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Currency_V1_GetExchangeRateHistoryRequest, Code_Currency_V1_GetExchangeRateHistoryResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Code_Currency_V1_CurrencyClientMetadata.Methods.getExchangeRateHistory.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetExchangeRateHistoryInterceptors() ?? []
-    )
-  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -207,18 +166,6 @@ extension Code_Currency_V1_CurrencyAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
-    )
-  }
-
-  public func getExchangeRateHistory(
-    _ request: Code_Currency_V1_GetExchangeRateHistoryRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Code_Currency_V1_GetExchangeRateHistoryResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Code_Currency_V1_CurrencyClientMetadata.Methods.getExchangeRateHistory.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetExchangeRateHistoryInterceptors() ?? []
     )
   }
 }
@@ -246,9 +193,6 @@ public protocol Code_Currency_V1_CurrencyClientInterceptorFactoryProtocol: GRPCS
 
   /// - Returns: Interceptors to use when invoking 'getAllRates'.
   func makeGetAllRatesInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>]
-
-  /// - Returns: Interceptors to use when invoking 'getExchangeRateHistory'.
-  func makeGetExchangeRateHistoryInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetExchangeRateHistoryRequest, Code_Currency_V1_GetExchangeRateHistoryResponse>]
 }
 
 public enum Code_Currency_V1_CurrencyClientMetadata {
@@ -257,7 +201,6 @@ public enum Code_Currency_V1_CurrencyClientMetadata {
     fullName: "code.currency.v1.Currency",
     methods: [
       Code_Currency_V1_CurrencyClientMetadata.Methods.getAllRates,
-      Code_Currency_V1_CurrencyClientMetadata.Methods.getExchangeRateHistory,
     ]
   )
 
@@ -267,12 +210,6 @@ public enum Code_Currency_V1_CurrencyClientMetadata {
       path: "/code.currency.v1.Currency/GetAllRates",
       type: GRPCCallType.unary
     )
-
-    public static let getExchangeRateHistory = GRPCMethodDescriptor(
-      name: "GetExchangeRateHistory",
-      path: "/code.currency.v1.Currency/GetExchangeRateHistory",
-      type: GRPCCallType.unary
-    )
   }
 }
 
@@ -280,12 +217,8 @@ public enum Code_Currency_V1_CurrencyClientMetadata {
 public protocol Code_Currency_V1_CurrencyProvider: CallHandlerProvider {
   var interceptors: Code_Currency_V1_CurrencyServerInterceptorFactoryProtocol? { get }
 
-  /// GetRate returns the exchange rates for Kin against all available currencies.
+  /// GetAllRates returns the exchange rates for Kin against all available currencies
   func getAllRates(request: Code_Currency_V1_GetAllRatesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Currency_V1_GetAllRatesResponse>
-
-  /// GetExchangeRateHistory returns the exchange rate for Kin given a time
-  /// range, bucketing interval, and currency.
-  func getExchangeRateHistory(request: Code_Currency_V1_GetExchangeRateHistoryRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Currency_V1_GetExchangeRateHistoryResponse>
 }
 
 extension Code_Currency_V1_CurrencyProvider {
@@ -309,15 +242,6 @@ extension Code_Currency_V1_CurrencyProvider {
         userFunction: self.getAllRates(request:context:)
       )
 
-    case "GetExchangeRateHistory":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Currency_V1_GetExchangeRateHistoryRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Currency_V1_GetExchangeRateHistoryResponse>(),
-        interceptors: self.interceptors?.makeGetExchangeRateHistoryInterceptors() ?? [],
-        userFunction: self.getExchangeRateHistory(request:context:)
-      )
-
     default:
       return nil
     }
@@ -332,18 +256,11 @@ public protocol Code_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_Currency_V1_CurrencyServerInterceptorFactoryProtocol? { get }
 
-  /// GetRate returns the exchange rates for Kin against all available currencies.
+  /// GetAllRates returns the exchange rates for Kin against all available currencies
   @Sendable func getAllRates(
     request: Code_Currency_V1_GetAllRatesRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Currency_V1_GetAllRatesResponse
-
-  /// GetExchangeRateHistory returns the exchange rate for Kin given a time
-  /// range, bucketing interval, and currency.
-  @Sendable func getExchangeRateHistory(
-    request: Code_Currency_V1_GetExchangeRateHistoryRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Currency_V1_GetExchangeRateHistoryResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -374,15 +291,6 @@ extension Code_Currency_V1_CurrencyAsyncProvider {
         wrapping: self.getAllRates(request:context:)
       )
 
-    case "GetExchangeRateHistory":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Currency_V1_GetExchangeRateHistoryRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Currency_V1_GetExchangeRateHistoryResponse>(),
-        interceptors: self.interceptors?.makeGetExchangeRateHistoryInterceptors() ?? [],
-        wrapping: self.getExchangeRateHistory(request:context:)
-      )
-
     default:
       return nil
     }
@@ -396,10 +304,6 @@ public protocol Code_Currency_V1_CurrencyServerInterceptorFactoryProtocol {
   /// - Returns: Interceptors to use when handling 'getAllRates'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetAllRatesInterceptors() -> [ServerInterceptor<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>]
-
-  /// - Returns: Interceptors to use when handling 'getExchangeRateHistory'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetExchangeRateHistoryInterceptors() -> [ServerInterceptor<Code_Currency_V1_GetExchangeRateHistoryRequest, Code_Currency_V1_GetExchangeRateHistoryResponse>]
 }
 
 public enum Code_Currency_V1_CurrencyServerMetadata {
@@ -408,7 +312,6 @@ public enum Code_Currency_V1_CurrencyServerMetadata {
     fullName: "code.currency.v1.Currency",
     methods: [
       Code_Currency_V1_CurrencyServerMetadata.Methods.getAllRates,
-      Code_Currency_V1_CurrencyServerMetadata.Methods.getExchangeRateHistory,
     ]
   )
 
@@ -416,12 +319,6 @@ public enum Code_Currency_V1_CurrencyServerMetadata {
     public static let getAllRates = GRPCMethodDescriptor(
       name: "GetAllRates",
       path: "/code.currency.v1.Currency/GetAllRates",
-      type: GRPCCallType.unary
-    )
-
-    public static let getExchangeRateHistory = GRPCMethodDescriptor(
-      name: "GetExchangeRateHistory",
-      path: "/code.currency.v1.Currency/GetExchangeRateHistory",
       type: GRPCCallType.unary
     )
   }

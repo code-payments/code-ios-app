@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.phone.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/phone/v1;phone";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/phone/v1;phone";
 option java_package = "com.codeinc.gen.phone.v1";
 option objc_class_prefix = "CPBPhoneV1";
 
@@ -10,16 +10,16 @@ import "common/v1/model.proto";
 import "validate/validate.proto";
 
 service PhoneVerification {
-    // Sends a verification code to the provided phone number over SMS. If an
-    // active verification is already taking place, the existing code will be
-    // resent.
+    // SendVerificationCode sends a verification code to the provided phone number
+    // over SMS. If an active verification is already taking place, the existing code
+    // will be resent.
     rpc SendVerificationCode(SendVerificationCodeRequest) returns (SendVerificationCodeResponse);
 
-    // CheckVerificationCode validates a verification code. On success, a
-    // one-time use token to link an owner account is provided. 
+    // CheckVerificationCode validates a verification code. On success, a one-time use
+    // token to link an owner account is provided. 
     rpc CheckVerificationCode(CheckVerificationCodeRequest) returns (CheckVerificationCodeResponse);
 
-    // Gets the latest verified phone number linked to an owner account.
+    // GetAssociatedPhoneNumber gets the latest verified phone number linked to an owner account.
     rpc GetAssociatedPhoneNumber(GetAssociatedPhoneNumberRequest) returns (GetAssociatedPhoneNumberResponse);
 }
 

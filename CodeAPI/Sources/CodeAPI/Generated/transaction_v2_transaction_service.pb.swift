@@ -1492,11 +1492,24 @@ public struct Code_Transaction_V2_SendPrivatePaymentMetadata {
 ///
 /// Action Spec:
 ///
-/// actions = [NoPrivacyTransferAction(PRIMARY, destination, ExchangeData.Quarks)]
+/// source = PRIMARY or RELATIONSHIP
+/// actions = [NoPrivacyTransferAction(source, destination, ExchangeData.Quarks)]
 public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
+
+  /// The primary or relatinship account where funds will be sent from. The primary
+  /// account is assumed if this field is not set for backwards compatibility with
+  /// old clients.
+  public var source: Code_Common_V1_SolanaAccountId {
+    get {return _source ?? Code_Common_V1_SolanaAccountId()}
+    set {_source = newValue}
+  }
+  /// Returns true if `source` has been explicitly set.
+  public var hasSource: Bool {return self._source != nil}
+  /// Clears the value of `source`. Subsequent reads from it will return its default value.
+  public mutating func clearSource() {self._source = nil}
 
   /// The destination token account to send funds to. This cannot be a Code
   /// temporary account.
@@ -1526,6 +1539,7 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
 
   public init() {}
 
+  fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
 }
@@ -1556,11 +1570,12 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
 ///
 /// Action Spec (Deposit):
 ///
+/// source = PRIMARY or RELATIONSHIP
 /// actions = [
-///   TemporaryPrivacyTransferAction(PRIMARY, BUCKET_X_KIN, multiple * bucketSize),
+///   TemporaryPrivacyTransferAction(source, BUCKET_X_KIN, multiple * bucketSize),
 ///   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
 ///   ...,
-///   TemporaryPrivacyTransferAction(PRIMARY, BUCKET_X_KIN, multiple * bucketSize),
+///   TemporaryPrivacyTransferAction(source, BUCKET_X_KIN, multiple * bucketSize),
 ///   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
 /// ]
 public struct Code_Transaction_V2_ReceivePaymentsPrivatelyMetadata {
@@ -1568,7 +1583,7 @@ public struct Code_Transaction_V2_ReceivePaymentsPrivatelyMetadata {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The temporary incoming or primary account to receive funds from
+  /// The temporary incoming, primary or relationship account to receive funds from
   public var source: Code_Common_V1_SolanaAccountId {
     get {return _source ?? Code_Common_V1_SolanaAccountId()}
     set {_source = newValue}
@@ -1581,9 +1596,9 @@ public struct Code_Transaction_V2_ReceivePaymentsPrivatelyMetadata {
   /// The exact amount of Kin in quarks being received
   public var quarks: UInt64 = 0
 
-  /// Is the receipt of funds from a deposti? If true, the source account must
-  /// be the primary account. Otherwise, it must be from a temporary incoming
-  /// account.
+  /// Is the receipt of funds from a deposit? If true, the source account must
+  /// be a primary or relationship account. Otherwise, it must be from a temporary
+  /// incoming account.
   public var isDeposit: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1900,8 +1915,7 @@ public struct Code_Transaction_V2_OpenAccountAction {
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
-  /// The index used to for accounts that are derived from owner. Ignore this for
-  /// the primary account.
+  /// The index used to for accounts that are derived from owner
   public var index: UInt64 = 0
 
   /// The public key of the private key that has authority over the opened token account
@@ -2882,7 +2896,7 @@ public struct Code_Transaction_V2_UpgradeableIntent {
     /// Clears the value of `transactionBlob`. Subsequent reads from it will return its default value.
     public mutating func clearTransactionBlob() {self._transactionBlob = nil}
 
-    /// The client's signature for the transaction. Clients *MUST* use this to
+    /// The client's signature for the transaction. Clients MUST use this to
     /// locally validate the transaction blob provided by server.
     public var clientSignature: Code_Common_V1_Signature {
       get {return _clientSignature ?? Code_Common_V1_Signature()}
@@ -3011,6 +3025,16 @@ public struct Code_Transaction_V2_PaymentHistoryItem {
   /// Is this a micro payment? 
   public var isMicroPayment: Bool = false
 
+  /// The intent ID associated with this history item
+  public var intentID: Code_Common_V1_IntentId {
+    get {return _intentID ?? Code_Common_V1_IntentId()}
+    set {_intentID = newValue}
+  }
+  /// Returns true if `intentID` has been explicitly set.
+  public var hasIntentID: Bool {return self._intentID != nil}
+  /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
+  public mutating func clearIntentID() {self._intentID = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum PaymentType: SwiftProtobuf.Enum {
@@ -3049,6 +3073,7 @@ public struct Code_Transaction_V2_PaymentHistoryItem {
   fileprivate var _cursor: Code_Transaction_V2_Cursor? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
   fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _intentID: Code_Common_V1_IntentId? = nil
 }
 
 #if swift(>=4.2)
@@ -4583,6 +4608,7 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
 extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendPublicPaymentMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    4: .same(proto: "source"),
     1: .same(proto: "destination"),
     2: .standard(proto: "exchange_data"),
     3: .standard(proto: "is_withdrawal"),
@@ -4597,6 +4623,7 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
       case 1: try { try decoder.decodeSingularMessageField(value: &self._destination) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isWithdrawal) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       default: break
       }
     }
@@ -4616,10 +4643,14 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
     if self.isWithdrawal != false {
       try visitor.visitSingularBoolField(value: self.isWithdrawal, fieldNumber: 3)
     }
+    try { if let v = self._source {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_SendPublicPaymentMetadata, rhs: Code_Transaction_V2_SendPublicPaymentMetadata) -> Bool {
+    if lhs._source != rhs._source {return false}
     if lhs._destination != rhs._destination {return false}
     if lhs._exchangeData != rhs._exchangeData {return false}
     if lhs.isWithdrawal != rhs.isWithdrawal {return false}
@@ -6316,6 +6347,7 @@ extension Code_Transaction_V2_PaymentHistoryItem: SwiftProtobuf.Message, SwiftPr
     9: .standard(proto: "is_airdrop"),
     10: .standard(proto: "airdrop_type"),
     11: .standard(proto: "is_micro_payment"),
+    12: .standard(proto: "intent_id"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -6335,6 +6367,7 @@ extension Code_Transaction_V2_PaymentHistoryItem: SwiftProtobuf.Message, SwiftPr
       case 9: try { try decoder.decodeSingularBoolField(value: &self.isAirdrop) }()
       case 10: try { try decoder.decodeSingularEnumField(value: &self.airdropType) }()
       case 11: try { try decoder.decodeSingularBoolField(value: &self.isMicroPayment) }()
+      case 12: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
       default: break
       }
     }
@@ -6378,6 +6411,9 @@ extension Code_Transaction_V2_PaymentHistoryItem: SwiftProtobuf.Message, SwiftPr
     if self.isMicroPayment != false {
       try visitor.visitSingularBoolField(value: self.isMicroPayment, fieldNumber: 11)
     }
+    try { if let v = self._intentID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -6393,6 +6429,7 @@ extension Code_Transaction_V2_PaymentHistoryItem: SwiftProtobuf.Message, SwiftPr
     if lhs.isAirdrop != rhs.isAirdrop {return false}
     if lhs.airdropType != rhs.airdropType {return false}
     if lhs.isMicroPayment != rhs.isMicroPayment {return false}
+    if lhs._intentID != rhs._intentID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

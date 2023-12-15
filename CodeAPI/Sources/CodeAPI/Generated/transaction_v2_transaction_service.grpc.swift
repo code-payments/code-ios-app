@@ -78,7 +78,8 @@ extension Code_Transaction_V2_TransactionClientProtocol {
   }
 
   /// SubmitIntent is the mechanism for client and server to agree upon a set of
-  /// transactions to execute on the blockchain.
+  /// client actions to execute on the blockchain using the Code sequencer for
+  /// fulfillment.
   ///
   /// Transactions are never exchanged between client and server. Instead, the
   /// required accounts and arguments for instructions known to each actor are
@@ -702,7 +703,8 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   var interceptors: Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol? { get }
 
   /// SubmitIntent is the mechanism for client and server to agree upon a set of
-  /// transactions to execute on the blockchain.
+  /// client actions to execute on the blockchain using the Code sequencer for
+  /// fulfillment.
   ///
   /// Transactions are never exchanged between client and server. Instead, the
   /// required accounts and arguments for instructions known to each actor are
@@ -863,7 +865,8 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
   var interceptors: Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol? { get }
 
   /// SubmitIntent is the mechanism for client and server to agree upon a set of
-  /// transactions to execute on the blockchain.
+  /// client actions to execute on the blockchain using the Code sequencer for
+  /// fulfillment.
   ///
   /// Transactions are never exchanged between client and server. Instead, the
   /// required accounts and arguments for instructions known to each actor are

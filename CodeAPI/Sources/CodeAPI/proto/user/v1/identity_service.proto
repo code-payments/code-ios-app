@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package code.user.v1;
 
-option go_package = "github.com/code-wallet/code-api/genproto/user/v1;user";
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/user/v1;user";
 option java_package = "com.codeinc.gen.user.v1";
 option objc_class_prefix = "CPBUserV1";
 
@@ -12,27 +12,23 @@ import "transaction/v2/transaction_service.proto";
 import "validate/validate.proto";
 
 service Identity {
-    // LinkAccount links an owner account to:
-    //   * the user identified and authenticated by a one-time use token
-    //   * any identifying features that support remote send
+    // LinkAccount links an owner account to the user identified and authenticated
+    // by a one-time use token.
+    //
     // Notably, this RPC has the following side effects:
     //   * A new user is automatically created if one doesn't exist.
     //   * Server will create a new data container for at least every unique
     //     owner account linked to the user.
-    //   * Previous links to identifying features that support remote send are
-    //     invalidated. Relinking must occur to restore previous state.
     rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse);
 
     // UnlinkAccount removes links from an owner account. It will NOT remove
     // existing associations between users, owner accounts and identifying
-    // features. Currently, the RPC will remove:
-    //   * remote send features for any applicable identifying features
+    // features.
+    //
     // The following associations will remain intact to ensure owner accounts
     // can continue to be used with a consistent login experience:
     //   * the user continues to be associated to existing owner accounts and
     //     identifying features
-    //   * identifying features whose remote send was disabled continue to be
-    //     associated with the owner account
     //
     // Client can continue mainting their current login session. Their current
     // user and data container will remain the same.
@@ -103,8 +99,7 @@ message UnlinkAccountRequest {
     common.v1.Signature signature = 2 [(validate.rules).message.required = true];
 
     oneof identifying_feature {
-        // The phone number associated with the owner account. Remote send features
-        // will be disabled on success.
+        // The phone number associated with the owner account.
         common.v1.PhoneNumber phone_number = 4 [(validate.rules).message.required = true];
     }
 }

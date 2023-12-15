@@ -98,7 +98,7 @@ extension Code_Micropayment_V1_MicroPaymentClientProtocol {
     )
   }
 
-  /// Codify adds a trial micro paywall to any url
+  /// Codify adds a trial micro paywall to any URL
   ///
   /// - Parameters:
   ///   - request: Request to send to Codify.
@@ -119,7 +119,7 @@ extension Code_Micropayment_V1_MicroPaymentClientProtocol {
   /// GetPathMetadata gets codified website metadata for a given path
   ///
   /// Important Note: This RPC's current implementation is insecure and
-  /// it's sole design is to enable a micro payment PoC.
+  /// it's sole design is to enable PoC and trials.
   ///
   /// - Parameters:
   ///   - request: Request to send to GetPathMetadata.
@@ -422,13 +422,13 @@ public protocol Code_Micropayment_V1_MicroPaymentProvider: CallHandlerProvider {
   ///       at the same time. Until that's possible, we're stuck with two RPC calls.
   func registerWebhook(request: Code_Micropayment_V1_RegisterWebhookRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Micropayment_V1_RegisterWebhookResponse>
 
-  /// Codify adds a trial micro paywall to any url
+  /// Codify adds a trial micro paywall to any URL
   func codify(request: Code_Micropayment_V1_CodifyRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Micropayment_V1_CodifyResponse>
 
   /// GetPathMetadata gets codified website metadata for a given path
   ///
   /// Important Note: This RPC's current implementation is insecure and
-  /// it's sole design is to enable a micro payment PoC.
+  /// it's sole design is to enable PoC and trials.
   func getPathMetadata(request: Code_Micropayment_V1_GetPathMetadataRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Micropayment_V1_GetPathMetadataResponse>
 }
 
@@ -511,7 +511,7 @@ public protocol Code_Micropayment_V1_MicroPaymentAsyncProvider: CallHandlerProvi
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Micropayment_V1_RegisterWebhookResponse
 
-  /// Codify adds a trial micro paywall to any url
+  /// Codify adds a trial micro paywall to any URL
   @Sendable func codify(
     request: Code_Micropayment_V1_CodifyRequest,
     context: GRPCAsyncServerCallContext
@@ -520,7 +520,7 @@ public protocol Code_Micropayment_V1_MicroPaymentAsyncProvider: CallHandlerProvi
   /// GetPathMetadata gets codified website metadata for a given path
   ///
   /// Important Note: This RPC's current implementation is insecure and
-  /// it's sole design is to enable a micro payment PoC.
+  /// it's sole design is to enable PoC and trials.
   @Sendable func getPathMetadata(
     request: Code_Micropayment_V1_GetPathMetadataRequest,
     context: GRPCAsyncServerCallContext
