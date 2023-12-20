@@ -28,6 +28,8 @@ struct BucketScreen: View {
                 cluster: cluster,
                 info: info
             )
+        }.sorted { lhs, rhs in
+            lhs.sortOrder < rhs.sortOrder
         }
     }
     
@@ -180,8 +182,40 @@ private struct AccountFragment: Identifiable {
             }
         case .remoteSend:
             return "Remote Send"
-        case .relationship:
-            return "Relationship"
+        case .relationship(let domain):
+            return "\(domain.relationshipHost)"
+        }
+    }
+    
+    var sortOrder: Int {
+        switch info.accountType {
+        case .primary:
+            return 1
+        case .incoming:
+            return 2
+        case .outgoing:
+            return 3
+        case .bucket(let slotType):
+            switch slotType {
+            case .bucket1:
+                return 4
+            case .bucket10:
+                return 5
+            case .bucket100:
+                return 6
+            case .bucket1k:
+                return 7
+            case .bucket10k:
+                return 8
+            case .bucket100k:
+                return 9
+            case .bucket1m:
+                return 10
+            }
+        case .relationship(let domain):
+            return 11
+        case .remoteSend:
+            return 12
         }
     }
     

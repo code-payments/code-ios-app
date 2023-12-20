@@ -37,7 +37,7 @@ class IntentRemoteReceive: IntentType {
             destination: organizer.incomingVault
         )
         
-        currentTray.increment(.incoming, kin: amount)
+        try currentTray.increment(.incoming, kin: amount)
         
         let endBalance = currentTray.availableBalance
         

@@ -398,7 +398,10 @@ extension Chat {
     public var localizedTitle: String {
         switch title {
         case .domain(let domain):
-            return domain
+            var string = domain
+            let firstCharacter = string.prefix(1).capitalized
+            return "\(firstCharacter)\(string.suffix(string.count - 1))"
+            
         case .localized(let key):
             return key.localizedStringByKey
         case .none:
@@ -434,15 +437,17 @@ extension Chat.Content {
             return key.localizedStringByKey
             
         case .kin(let genericAmount, let verb):
+            let amount: String
+            
             switch genericAmount {
             case .exact(let kinAmount):
-                let amount = kinAmount.kin.formattedFiat(rate: kinAmount.rate, showOfKin: true)
-                return "\(verb.localizedText) \(amount)"
+                amount = kinAmount.kin.formattedFiat(rate: kinAmount.rate, showOfKin: true)
                 
             case .partial(let fiat):
-                // TODO: Proper formatting
-                return "\(fiat.currency.rawValue.uppercased()) \(fiat.amount)"
+                amount = fiat.formatted(showOfKin: true)
             }
+            
+            return "\(verb.localizedText) \(amount)"
             
         case .sodiumBox:
             return "<! encrypted content !>"

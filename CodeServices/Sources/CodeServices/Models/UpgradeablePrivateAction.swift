@@ -62,7 +62,7 @@ extension UpgradeablePrivateAction {
     init(_ proto: Code_Transaction_V2_UpgradeableIntent.UpgradeablePrivateAction) throws {
         guard
             let signature = Signature(proto.clientSignature.value),
-            let accountType = AccountType(proto.sourceAccountType),
+            let accountType = AccountType(proto.sourceAccountType, relationship: nil),
             let originalDestination = PublicKey(proto.originalDestination.value),
             let treasury = PublicKey(proto.treasury.value),
             let recentRoot = Hash(proto.recentRoot.value)

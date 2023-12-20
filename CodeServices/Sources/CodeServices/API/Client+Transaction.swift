@@ -63,6 +63,21 @@ extension Client {
         }
     }
     
+    public func receiveFromRelationship(domain: Domain, amount: Kin, organizer: Organizer) async throws {
+        let intent = try await withCheckedThrowingContinuation { c in
+            transactionService.receiveFromRelationship(
+                domain: domain,
+                amount: amount,
+                organizer: organizer,
+                completion: { c.resume(with: $0) }
+            )
+        }
+        
+        await MainActor.run {
+            organizer.set(tray: intent.resultTray)
+        }
+    }
+    
     public func withdraw(amount: KinAmount, organizer: Organizer, destination: PublicKey) async throws {
         let intent = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(
@@ -103,6 +118,14 @@ extension Client {
         
         await MainActor.run {
             organizer.set(tray: intent.resultTray)
+        }
+    }
+    
+    // MARK: - Relationship -
+    
+    public func establishRelationship(organizer: Organizer, domain: Domain) async throws {
+        _ = try await withCheckedThrowingContinuation { c in
+            transactionService.establishRelationship(organizer: organizer, domain: domain) { c.resume(with: $0) }
         }
     }
     

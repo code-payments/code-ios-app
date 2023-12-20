@@ -15,7 +15,7 @@ public struct Tray: Equatable, Codable, Hashable {
     }
     
     var availableBalance: Kin {
-        slotsBalance + availableDepositBalance + availableIncomingBalance
+        slotsBalance + availableDepositBalance + availableIncomingBalance + availableRelationshipBalance
     }
     
     var availableDepositBalance: Kin {
@@ -25,6 +25,12 @@ public struct Tray: Equatable, Codable, Hashable {
     var availableIncomingBalance: Kin {
         incoming.partialBalance
     }
+    
+    var availableRelationshipBalance: Kin {
+        relationships.publicKeys.values.reduce(into: 0) { $0 = $0 + $1.partialBalance }
+    }
+    
+    private(set) var relationships: RelationshipBox
     
     private(set) var slots : [Slot]
     
@@ -43,6 +49,8 @@ public struct Tray: Equatable, Codable, Hashable {
                 authority: .derive(using: .solana, mnemonic: mnemonic)
             )
         )
+        
+        self.relationships = RelationshipBox()
         
         self.slots = [
             Slot(type: .bucket1,    mnemonic: mnemonic),
@@ -108,9 +116,34 @@ public struct Tray: Equatable, Codable, Hashable {
         case .remoteSend:
             fatalError("Remote send account unsupported")
             
-        case .relationship:
-            fatalError("Relationship account unsupported")
+        case .relationship(let domain):
+            // TODO: Relationship should always exist but ideally we should fail gracefully
+            return relationships.relationship(for: domain)!.cluster
         }
+    }
+    
+    mutating func createRelationships(for accountInfos: [PublicKey: AccountInfo]) {
+        let relationshipInfos = accountInfos.compactMap {
+            if let _ = $0.value.relationship {
+                return $0.value
+            }
+            return nil
+        }
+        
+        relationshipInfos.forEach { info in
+            guard let domain = info.relationship?.domain else {
+                return
+            }
+            
+            createRelationship(for: domain)
+        }
+    }
+    
+    @discardableResult
+    mutating func createRelationship(for domain: Domain) -> Relationship {
+        let relationship = Relationship(domain: domain, mnemonic: mnemonic)
+        relationships.insert(relationship)
+        return relationship
     }
     
     // MARK: - Slots -
@@ -137,7 +170,7 @@ public struct Tray: Equatable, Codable, Hashable {
     
     // MARK: - Balances -
     
-    mutating func increment(_ type: AccountType, kin: Kin) {
+    mutating func increment(_ type: AccountType, kin: Kin) throws {
         switch type {
         case .primary:
             owner.partialBalance = owner.partialBalance + kin
@@ -149,12 +182,18 @@ public struct Tray: Equatable, Codable, Hashable {
             slots[slotType.rawValue].partialBalance = slots[slotType.rawValue].partialBalance + kin
         case .remoteSend:
             fatalError("Remote send account unsupported")
-        case .relationship:
-            fatalError("Relationship account unsupported")
+            
+        case .relationship(let domain):
+            guard var relationship = relationships.relationship(for: domain) else {
+                throw Error.relationshipNotFound
+            }
+            
+            relationship.partialBalance = relationship.partialBalance + kin
+            relationships.insert(relationship)
         }
     }
     
-    mutating func decrement(_ type: AccountType, kin: Kin) {
+    mutating func decrement(_ type: AccountType, kin: Kin) throws {
         switch type {
         case .primary:
             owner.partialBalance = owner.partialBalance - kin
@@ -166,8 +205,14 @@ public struct Tray: Equatable, Codable, Hashable {
             slots[slotType.rawValue].partialBalance = slots[slotType.rawValue].partialBalance - kin
         case .remoteSend:
             fatalError("Remote send account unsupported")
-        case .relationship:
-            fatalError("Relationship account unsupported")
+            
+        case .relationship(let domain):
+            guard var relationship = relationships.relationship(for: domain) else {
+                throw Error.relationshipNotFound
+            }
+            
+            relationship.partialBalance = relationship.partialBalance - kin
+            relationships.insert(relationship)
         }
     }
     
@@ -183,9 +228,22 @@ public struct Tray: Equatable, Codable, Hashable {
         slots[4].partialBalance = balances[.bucket(.bucket10k)]  ?? slots[4].partialBalance
         slots[5].partialBalance = balances[.bucket(.bucket100k)] ?? slots[5].partialBalance
         slots[6].partialBalance = balances[.bucket(.bucket1m)]   ?? slots[6].partialBalance
+        
+        balances.forEach { type, amount in
+            if case .relationship(let domain) = type {
+                setBalance(domain: domain, balance: amount)
+            }
+        }
     }
     
-    func partialBalance(for type: AccountType) -> Kin {
+    mutating private func setBalance(domain: Domain, balance: Kin) {
+        if var relationship = relationships.relationship(for: domain) {
+            relationship.partialBalance = balance
+            relationships.insert(relationship)
+        }
+    }
+    
+    func partialBalance(for type: AccountType) throws -> Kin {
         switch type {
         case .primary:
             return owner.partialBalance
@@ -202,8 +260,12 @@ public struct Tray: Equatable, Codable, Hashable {
         case .remoteSend:
             fatalError("Remote send account unsupported")
             
-        case .relationship:
-            fatalError("Relationship account unsupported")
+        case .relationship(let domain):
+            guard let relationship = relationships.relationship(for: domain) else {
+                throw Error.relationshipNotFound
+            }
+            
+            return relationship.partialBalance
         }
     }
     
@@ -307,8 +369,8 @@ public struct Tray: Equatable, Codable, Hashable {
             let amount = Kin(kin: currentSlot.billValue)!
             
             // Adjust the slot balance
-            decrement(.bucket(currentSlot.type), kin: amount)
-            increment(.bucket(smallerSlot.type), kin: amount)
+            try! decrement(.bucket(currentSlot.type), kin: amount)
+            try! increment(.bucket(smallerSlot.type), kin: amount)
             
             //print("\(padding) v Exchanging from \(currentSlot.type) to \(smallerSlot.type) \(amount) Kin")
             
@@ -385,8 +447,8 @@ public struct Tray: Equatable, Codable, Hashable {
             }
             
             // Adjust the slot balance
-            decrement(.bucket(currentSlot.type), kin: amount)
-            increment(.bucket(largerSlot.type),  kin: amount)
+            try! decrement(.bucket(currentSlot.type), kin: amount)
+            try! increment(.bucket(largerSlot.type),  kin: amount)
             
 //            slotTransfers.forEach { transfer in
 //                print("\(padding) v Exchanging from \(transfer.from) to \(transfer.to!) \(transfer.kin) Kin")
@@ -407,7 +469,7 @@ public struct Tray: Equatable, Codable, Hashable {
     // MARK: - Receive -
     
     mutating func receive(from receivingAccount: AccountType, amount: Kin) throws -> [InternalExchange] {
-        guard partialBalance(for: receivingAccount) >= amount else {
+        guard try partialBalance(for: receivingAccount) >= amount else {
             throw Error.invalidSlotBalance
         }
         
@@ -432,8 +494,8 @@ public struct Tray: Equatable, Codable, Hashable {
                     )
                 }
                 
-                decrement(receivingAccount,          kin: amountToDeposit)
-                increment(.bucket(currentSlot.type), kin: amountToDeposit)
+                try decrement(receivingAccount,          kin: amountToDeposit)
+                try increment(.bucket(currentSlot.type), kin: amountToDeposit)
                 
                 remainingAmount = remainingAmount - amountToDeposit
             }
@@ -528,8 +590,8 @@ public struct Tray: Equatable, Codable, Hashable {
                     )
                 }
                 
-                decrement(sourceBucket, kin: howMuchToSend)
-                increment(.outgoing,    kin: howMuchToSend)
+                try decrement(sourceBucket, kin: howMuchToSend)
+                try increment(.outgoing,    kin: howMuchToSend)
                 
                 remainingAmount = remainingAmount - howMuchToSend
             }
@@ -607,8 +669,8 @@ public struct Tray: Equatable, Codable, Hashable {
                 }
                 
                 // Adjust the slot balance
-                decrement(.bucket(currentSlot.type), kin: howMuchToSend)
-                increment(.outgoing,                 kin: howMuchToSend)
+                try decrement(.bucket(currentSlot.type), kin: howMuchToSend)
+                try increment(.outgoing,                 kin: howMuchToSend)
                 
                 remaining = remaining - howMuchToSend
             }
@@ -662,8 +724,8 @@ public struct Tray: Equatable, Codable, Hashable {
         )
         
         // Adjust the slot balance
-        decrement(.bucket(current.type), kin: initialSplitAmount)
-        increment(.bucket(lower.type),   kin: initialSplitAmount)
+        try decrement(.bucket(current.type), kin: initialSplitAmount)
+        try increment(.bucket(lower.type),   kin: initialSplitAmount)
         
         for i in (0...step.index - 1).reversed() {
             let currentSlot = slots[i]
@@ -682,8 +744,8 @@ public struct Tray: Equatable, Codable, Hashable {
                 )
                 
                 // Adjust the slot balance
-                decrement(.bucket(currentSlot.type), kin: splitAmount)
-                increment(.bucket(lowerSlot.type),   kin: splitAmount)
+                try decrement(.bucket(currentSlot.type), kin: splitAmount)
+                try increment(.bucket(lowerSlot.type),   kin: splitAmount)
             }
             
             let howManyFit = remaining / currentSlot.billValue
@@ -706,8 +768,8 @@ public struct Tray: Equatable, Codable, Hashable {
             )
             
             // Adjust the slot balance
-            decrement(.bucket(currentSlot.type), kin: kinToSend)
-            increment(.outgoing,                 kin: kinToSend)
+            try decrement(.bucket(currentSlot.type), kin: kinToSend)
+            try increment(.outgoing,                 kin: kinToSend)
             
             remaining = remaining - kinToSend
         }
@@ -761,6 +823,7 @@ extension Tray {
         case invalidSlotBalance
         case invalidStepIndex
         case slotAtIndexEmpty
+        case relationshipNotFound
     }
 }
 

@@ -783,9 +783,17 @@ class Session: ObservableObject {
                 throw PaymentError.messageForRendezvousNotFound
             }
             
-            // 4. Complete the transfer.
             do {
+                // 4. Establish a relationship if a domain is provided and is verified
+                if let domain = receiveRequest.domain, organizer.relationship(for: domain) == nil {
+                    // If a verifier is present, the domain
+                    // is considered verified
+                    if receiveRequest.verifier != nil {
+                        try await client.establishRelationship(organizer: organizer, domain: domain)
+                    }
+                }
                 
+                // 5. Complete the transfer.
                 try await flowController.transfer(
                     amount: updatedAmount,
                     fee: fee.kin,

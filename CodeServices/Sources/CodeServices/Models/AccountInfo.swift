@@ -63,9 +63,13 @@ public struct AccountInfo: Equatable {
     ///     as zero.
     public var originalKinAmount: KinAmount?
     
+    /// The relationship with a third party that this account has established with.
+    /// This only applies to relevant account types (eg. RELATIONSHIP).
+    public var relationship: Relationship?
+    
     // MARK: - Init -
     
-    init(index: Int, accountType: AccountType, address: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, balance: Kin, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, mustRotate: Bool, originalKinAmount: KinAmount?) {
+    init(index: Int, accountType: AccountType, address: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, balance: Kin, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, mustRotate: Bool, originalKinAmount: KinAmount?, relationship: Relationship?) {
         self.index = index
         self.accountType = accountType
         self.address = address
@@ -78,6 +82,7 @@ public struct AccountInfo: Equatable {
         self.claimState = claimState
         self.mustRotate = mustRotate
         self.originalKinAmount = originalKinAmount
+        self.relationship = relationship
     }
 }
 
@@ -166,5 +171,22 @@ extension AccountInfo {
         /// The account hasn't been claimed, but is expired. Funds will move
         /// back to the issuer. Attempting to claim it will fail.
         case expired
+    }
+}
+
+// MARK: - Relationship -
+
+extension AccountInfo {
+    public struct Relationship: Equatable {
+        
+        public let domain: Domain
+        
+        init?(domain: String) {
+            guard let domain = Domain(domain) else {
+                return nil
+            }
+            
+            self.domain = domain
+        }
     }
 }

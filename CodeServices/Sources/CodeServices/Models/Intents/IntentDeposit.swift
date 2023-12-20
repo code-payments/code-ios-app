@@ -14,26 +14,27 @@ class IntentDeposit: IntentType {
     let id: PublicKey
     let organizer: Organizer
     let amount: Kin
+    let source: AccountType
     
     let resultTray: Tray
     
     var actionGroup: ActionGroup
     
-    init(organizer: Organizer, amount: Kin) throws {
+    init(source: AccountType, organizer: Organizer, amount: Kin) throws {
         let intentID = PublicKey.generate()!
         
         self.id = intentID
         self.organizer = organizer
         self.amount = amount
+        self.source = source
         
         var currentTray = organizer.tray
         let startSlotBalance = currentTray.slotsBalance
-        let startPrimaryBalance = currentTray.availableDepositBalance
         
-        // 1. Move all funds from the incoming
+        // 1. Move all funds from the primary
         // account to appropriate slots
         
-        let transfers = try currentTray.receive(from: .primary, amount: amount).map { transfer in
+        let transfers = try currentTray.receive(from: source, amount: amount).map { transfer in
             ActionTransfer(
                 kind: .tempPrivacyTransfer,
                 intentID: intentID,
@@ -57,15 +58,10 @@ class IntentDeposit: IntentType {
         }
         
         let endSlotBalance = currentTray.slotsBalance
-        let endPrimaryBalance = currentTray.availableDepositBalance
 
         // Ensure that balances are consistent
         // with what we expect these action to do
         guard endSlotBalance - startSlotBalance == amount else {
-            throw Error.balanceMismatch
-        }
-        
-        guard startPrimaryBalance - endPrimaryBalance == amount else {
             throw Error.balanceMismatch
         }
         
@@ -93,7 +89,7 @@ extension IntentDeposit {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.receivePaymentsPrivately = .with {
-                $0.source = organizer.tray.owner.cluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.source = organizer.tray.cluster(for: source).timelockAccounts.vault.publicKey.codeAccountID
                 $0.quarks = amount.quarks
                 $0.isDeposit = true
             }

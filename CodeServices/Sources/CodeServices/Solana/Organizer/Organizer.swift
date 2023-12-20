@@ -79,6 +79,9 @@ public class Organizer {
     
     public func setAccountInfo(_ accountInfos: [PublicKey: AccountInfo]) {
         self.accountInfos = accountInfos
+        
+        tray.createRelationships(for: accountInfos)
+        
         propagateBalances()
     }
     
@@ -131,13 +134,18 @@ public class Organizer {
         tray.allAccounts()
     }
     
+    public func relationship(for domain: Domain) -> Relationship? {
+        tray.relationships.relationship(for: domain)
+    }
+    
+    public func relationshipsLargestFirst() -> [Relationship] {
+        tray.relationships.relationships(largestFirst: true)
+    }
+    
     public func mapAccounts<T>(handler: (_ cluster: AccountCluster, _ info: AccountInfo) -> T) -> [T] {
-        tray.allAccounts().compactMap { _, cluster -> T? in
-            if let info = accountInfos[cluster.timelockAccounts.vault.publicKey] {
-                return handler(cluster, info)
-            } else {
-                return nil
-            }
+        accountInfos.compactMap { _, info in
+            let cluster = tray.cluster(for: info.accountType)
+            return handler(cluster, info)
         }
     }
 }
@@ -178,7 +186,8 @@ extension Organizer {
                 blockchainState: .exists,
                 claimState: .unknown,
                 mustRotate: false,
-                originalKinAmount: nil
+                originalKinAmount: nil,
+                relationship: nil
             )
         }
         

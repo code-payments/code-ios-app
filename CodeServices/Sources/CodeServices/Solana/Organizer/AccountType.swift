@@ -15,7 +15,7 @@ public enum AccountType: Equatable, Codable, Hashable {
     case outgoing
     case bucket(SlotType)
     case remoteSend
-    case relationship
+    case relationship(Domain)
     
     var slot: SlotType? {
         if case .bucket(let slot) = self {
@@ -39,9 +39,8 @@ public enum AccountType: Equatable, Codable, Hashable {
             // and should use a standard derivation path that
             // would be compatible with other 3rd party wallets
             return .primary()
-        case .relationship:
-            // TODO: Inject domain
-            return .relationship()
+        case .relationship(let domain):
+            return .relationship(domain: domain.relationshipHost)
         }
     }
 }
@@ -62,8 +61,8 @@ extension Derive.Path {
         Derive.Path("m/44'/501'/0'/0'/\(index)'/3")!
     }
     
-    public static func relationship(/*domain: String*/) -> Derive.Path {
-        Derive.Path("m/44'/501'/0'/0'/0'/0")!//, password: domain)!
+    public static func relationship(domain: String) -> Derive.Path {
+        Derive.Path("m/44'/501'/0'/0'/0'/0", password: domain)!
     }
     
     public static func bucket1() -> Derive.Path {

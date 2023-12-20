@@ -950,7 +950,7 @@ class TrayTests: XCTestCase {
         var tray = Tray(mnemonic: mnemonic)
         let amount = 1_000_000 as Kin
         
-        tray.increment(.incoming, kin: 1_000_000)
+        try tray.increment(.incoming, kin: 1_000_000)
         let exchanges = try tray.receive(from: .incoming, amount: 1_000_000)
         
         XCTAssertEqual(exchanges.count, 1)
@@ -970,7 +970,7 @@ class TrayTests: XCTestCase {
         var tray = Tray(mnemonic: mnemonic)
         let amount = 1_234_567 as Kin
         
-        tray.increment(.incoming, kin: amount)
+        try tray.increment(.incoming, kin: amount)
         let exchanges = try tray.receive(from: .incoming, amount: amount)
         
         XCTAssertEqual(exchanges.count, 7)
@@ -997,7 +997,7 @@ class TrayTests: XCTestCase {
         var tray = Tray(mnemonic: mnemonic)
         let amount = 1_200_500 as Kin
         
-        tray.increment(.incoming, kin: amount)
+        try tray.increment(.incoming, kin: amount)
         let exchanges = try tray.receive(from: .incoming, amount: amount)
         
         XCTAssertEqual(exchanges.count, 3)
@@ -1020,7 +1020,7 @@ class TrayTests: XCTestCase {
         var tray = Tray(mnemonic: mnemonic)
         let amount = 95_800_173 as Kin
         
-        tray.increment(.incoming, kin: amount)
+        try tray.increment(.incoming, kin: amount)
         let exchanges = try tray.receive(from: .incoming, amount: amount)
         
         XCTAssertEqual(exchanges.count, 15)

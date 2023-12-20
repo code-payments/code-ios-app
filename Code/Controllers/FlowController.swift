@@ -56,16 +56,28 @@ class FlowController: ObservableObject {
     // MARK: - Transfer -
     
     private func transferPreflight(amount: Kin) async throws {
-        // We only need to receive funds if the amount is
-        // not fully available from slots balances
+        let neededKin = amount > organizer.slotsBalance ? amount - organizer.slotsBalance : 0
         
-        if amount > organizer.slotsBalance {
+        // If the there's insufficient funds in the slots
+        // we'll need to top them up from incoming, relationship
+        // and primary accounts, in that order.
+        if neededKin > 0 {
             
-            // 1. Receive funds from incoming accounts before
-            // we reach into primary / deposits
-            try await receiveFromIncoming()
+            // 1. Receive funds from incoming accounts as those
+            // will rotate more frequently than other types of accounts
+            let receivedKin = try await receiveFromIncoming()
             
-            // 2. If the amount is still larger than what's available
+            // 2. Pull funds from relationships if there's still funds
+            // missing in buckets after the receiving from primary
+            if receivedKin < neededKin {
+                
+                // This is a preflight check so we want to be efficient here. If
+                // we don't need to receive all relationships, we just need to
+                // ensure we have funds in slots for this transactions
+                try await receiveFromRelationships(upTo: neededKin - receivedKin)
+            }
+            
+            // 3. If the amount is still larger than what's available
             // in the slots, we'll need to move funds from primary
             // deposits into slots after receiving
             if amount > organizer.slotsBalance {
@@ -190,6 +202,8 @@ class FlowController: ObservableObject {
                     )
                 }
                 
+                // TODO: Pull funds from relationship accounts
+                
                 // Move funds into primary from buckets
                 try await client.transfer(
                     amount: KinAmount(kin: missingBalance, rate: .oneToOne),
@@ -260,10 +274,11 @@ class FlowController: ObservableObject {
         }
     }
     
-    private func receiveFromIncoming() async throws {
+    @discardableResult
+    private func receiveFromIncoming() async throws -> Kin {
         let incomingBalance = organizer.availableIncomingBalance.truncating()
         guard incomingBalance > 0 else {
-            return
+            return 0
         }
         
         trace(.warning, components: "Receiving from incoming: \(incomingBalance)")
@@ -272,6 +287,28 @@ class FlowController: ObservableObject {
             amount: incomingBalance,
             organizer: organizer
         )
+        
+        return incomingBalance
+    }
+    
+    private func receiveFromRelationships(upTo limit: Kin? = nil) async throws {
+        var receivedTotal: Kin = 0
+        for relationship in organizer.relationshipsLargestFirst() {
+            trace(.warning, components: "Receiving from relationships: \(relationship.partialBalance)")
+            
+            try await client.receiveFromRelationship(
+                domain: relationship.domain,
+                amount: relationship.partialBalance,
+                organizer: organizer
+            )
+            
+            receivedTotal = receivedTotal + relationship.partialBalance
+            
+            // Bail early if a limit is set
+            if let limit, receivedTotal >= limit {
+                return
+            }
+        }
     }
     
     // MARK: - Validation -

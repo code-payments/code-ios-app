@@ -115,6 +115,34 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         
         do {
             let intent = try IntentDeposit(
+                source: .primary,
+                organizer: organizer,
+                amount: amount
+            )
+            
+            submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
+                switch result {
+                case .success(let intent):
+                    trace(.success)
+                    completion(.success(intent))
+                    
+                case .failure(let error):
+                    trace(.failure, components: "Error: \(error)")
+                    completion(.failure(error))
+                }
+            }
+            
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    func receiveFromRelationship(domain: Domain, amount: Kin, organizer: Organizer, completion: @escaping (Result<IntentDeposit, Error>) -> Void) {
+        trace(.send)
+        
+        do {
+            let intent = try IntentDeposit(
+                source: .relationship(domain),
                 organizer: organizer,
                 amount: amount
             )
@@ -241,6 +269,29 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             
         } catch {
             completion(.failure(error))
+        }
+    }
+    
+    // MARK: - Relationship -
+    
+    func establishRelationship(organizer: Organizer, domain: Domain, completion: @escaping (Result<IntentEstablishRelationship, Error>) -> Void) {
+        trace(.send, components: "Domain: \(domain.urlString)", "Host: \(domain.relationshipHost)")
+        
+        let intent = IntentEstablishRelationship(
+            organizer: organizer,
+            domain: domain
+        )
+        
+        submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
+            switch result {
+            case .success(let intent):
+                trace(.success, components: "Domain: \(domain.urlString)", "Host: \(domain.relationshipHost)")
+                completion(.success(intent))
+                
+            case .failure(let error):
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
         }
     }
     

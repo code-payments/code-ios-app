@@ -36,10 +36,15 @@ public struct ReceiveRequest {
     public let signature: Signature
     public let amount: Amount
     
-    public init(account: PublicKey, signature: Signature, amount: Amount) {
+    public let domain: Domain?
+    public let verifier: PublicKey?
+    
+    public init(account: PublicKey, signature: Signature, amount: Amount, domain: Domain?, verifier: PublicKey?) {
         self.account = account
         self.signature = signature
         self.amount = amount
+        self.domain = domain
+        self.verifier = verifier
     }
 }
 
@@ -122,6 +127,25 @@ extension StreamMessage {
                 return nil
             }
             
+            let domain: Domain?
+            let verifier: PublicKey?
+            
+            if request.hasDomain {
+                guard 
+                    let validDomain = Domain(request.domain.value),
+                    let validVerifier = PublicKey(request.verifier.value)
+                else {
+                    return nil
+                }
+                
+                domain = validDomain
+                verifier = validVerifier
+                
+            } else {
+                domain = nil
+                verifier = nil
+            }
+            
             switch exchangeData {
             case .exact(let exchangeData):
                 guard let currency = CurrencyCode(currencyCode: exchangeData.currency) else {
@@ -140,7 +164,9 @@ extension StreamMessage {
                                     currency: currency
                                 )
                             )
-                        )
+                        ),
+                        domain: domain,
+                        verifier: verifier
                     )
                 )
                 
@@ -158,7 +184,9 @@ extension StreamMessage {
                                 currency: currency,
                                 amount: exchangeData.nativeAmount
                             )
-                        )
+                        ),
+                        domain: domain,
+                        verifier: verifier
                     )
                 )
             }

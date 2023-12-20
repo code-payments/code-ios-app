@@ -17,7 +17,8 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../CodeAPI"),
-        .package(url: "https://github.com/marmelroy/PhoneNumberKit", from: "3.7.4")
+        .package(url: "https://github.com/marmelroy/PhoneNumberKit", from: "3.7.4"),
+        .package(url: "https://github.com/karwa/swift-url", from: "0.4.1"),
     ],
     targets: [
         .target(
@@ -26,6 +27,8 @@ let package = Package(
                 "ed25519",
                 .product(name: "CodeAPI", package: "CodeAPI"),
                 .product(name: "PhoneNumberKit", package: "PhoneNumberKit"),
+                .product(name: "WebURL", package: "swift-url"),
+                .product(name: "WebURLFoundationExtras", package: "swift-url"),
             ]
         ),
         .target(

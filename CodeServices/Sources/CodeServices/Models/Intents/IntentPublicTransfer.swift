@@ -42,7 +42,7 @@ class IntentPublicTransfer: IntentType {
             destination: destination
         )
         
-        currentTray.decrement(.primary, kin: amount.kin)
+        try currentTray.decrement(.primary, kin: amount.kin)
         
         let endBalance = currentTray.availableBalance.truncating()
         

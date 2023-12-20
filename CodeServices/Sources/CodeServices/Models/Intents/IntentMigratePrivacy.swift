@@ -47,7 +47,8 @@ class IntentMigratePrivacy: IntentType {
                     legacy: true
                 )
             )
-            tray.increment(.primary, kin: amount)
+            
+            try! tray.increment(.primary, kin: amount)
             
         } else {
             

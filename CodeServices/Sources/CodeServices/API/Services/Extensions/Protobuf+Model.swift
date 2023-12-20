@@ -162,7 +162,7 @@ extension AccountType {
         }
     }
     
-    init?(_ accountType: Code_Common_V1_AccountType) {
+    init?(_ accountType: Code_Common_V1_AccountType, relationship: Code_Common_V1_Relationship?) {
         switch accountType {
         case .primary:
             self = .primary
@@ -189,7 +189,18 @@ extension AccountType {
         case .remoteSendGiftCard:
             self = .remoteSend
         case .relationship:
-            self = .relationship
+            guard let relationship else {
+                return nil
+            }
+            
+            guard let domain = Domain(relationship.domain.value) else {
+                return nil
+            }
+            
+            self = .relationship(domain)
+            
+        case .associatedTokenAccount:
+            return nil
         case .unknown:
             return nil
         case .UNRECOGNIZED:
@@ -201,7 +212,7 @@ extension AccountType {
 extension AccountInfo {
     init?(_ info: Code_Account_V1_TokenAccountInfo) {
         guard
-            let accountType = AccountType(info.accountType),
+            let accountType = AccountType(info.accountType, relationship: info.relationship),
             let address = PublicKey(info.address.value),
             let balanceSource = BalanceSource(info.balanceSource),
             let managementState = ManagementState(info.managementState),
@@ -228,6 +239,8 @@ extension AccountInfo {
             originalKinAmount = nil
         }
         
+        let relationship = Relationship(domain: info.relationship.domain.value)
+        
         self.init(
             index: Int(info.index),
             accountType: accountType,
@@ -240,7 +253,8 @@ extension AccountInfo {
             blockchainState: blockchainState,
             claimState: claimState,
             mustRotate: info.mustRotate,
-            originalKinAmount: originalKinAmount
+            originalKinAmount: originalKinAmount,
+            relationship: relationship
         )
     }
 }

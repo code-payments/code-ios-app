@@ -15,12 +15,27 @@ extension Kin {
     }
         
     func formattedFiat(fx: Decimal, currency: CurrencyCode, truncated: Bool = false, showOfKin: Bool) -> String {
-        let suffix = (currency == .kin) ? " \(Localized.Core.kin)" : " \(Localized.Core.ofKin)"
-        return formattedFiat(
+        formattedFiat(
             fx: fx,
             currency: currency,
             truncated: truncated,
-            suffix: showOfKin ? suffix : nil
+            suffix: showOfKin ? currency.ofKinSuffix : nil
         )
+    }
+}
+
+extension Fiat {
+    func formatted(showOfKin: Bool) -> String {
+        NumberFormatter.fiat(
+            currency: currency,
+            truncated: false,
+            suffix: currency.ofKinSuffix
+        ).string(from: amount)!
+    }
+}
+
+private extension CurrencyCode {
+    var ofKinSuffix: String {
+        (self == .kin) ? " \(Localized.Core.kin)" : " \(Localized.Core.ofKin)"
     }
 }

@@ -81,7 +81,8 @@ class OrganizerTests: XCTestCase {
                     blockchainState: .exists,
                     claimState: .unknown,
                     mustRotate: false,
-                    originalKinAmount: nil
+                    originalKinAmount: nil,
+                    relationship: nil
                 )
             ])
             
