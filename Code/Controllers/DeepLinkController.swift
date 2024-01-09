@@ -69,7 +69,7 @@ final class DeepLinkController {
             
             if
                 let payload = route.fragments[.payload],
-                let data = Data(base64Encoded: Data(payload.value.utf8)),
+                let data = payload.value.base64EncodedData(),
                 let request = try? JSONDecoder().decode(DeepLinkPaymentRequest.self, from: data)
             {
                 return DeepLinkAction(

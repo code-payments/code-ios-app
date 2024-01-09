@@ -17,3 +17,16 @@ extension String {
         return "\(padding)\(self)"
     }
 }
+
+extension String {
+    func base64EncodedData() -> Data? {
+        var data = Data(utf8)
+        let r = data.count % 4
+        if r > 0 {
+            let requiredPadding = data.count + 4 - r
+            let padding = String(repeating: "=", count: requiredPadding)
+            data.append(Data(padding.utf8))
+        }
+        return Data(base64Encoded: data)
+    }
+}
