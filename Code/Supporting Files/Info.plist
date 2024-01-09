@@ -46,7 +46,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Code enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.</string>
+	<string>Code enables you to receive Kin by pointing your camera at the digital bill displayed on another user&apos;s phone.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Access to contacts is required to send invitations.</string>
 	<key>NSFaceIDUsageDescription</key>
@@ -80,15 +80,15 @@
 	</array>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
-    <key>mixpanel</key>
-    <dict>
-        <key>apiKey</key>
-        <string>>$(MIXPANEL)</string>
-    </dict>
+	<key>mixpanel</key>
+	<dict>
+		<key>apiKey</key>
+		<string>$(MIXPANEL)</string>
+	</dict>
 	<key>bugsnag</key>
-    <dict>
-        <key>apiKey</key>
-        <string>>$(BUGSNAG)</string>
-    </dict>
+	<dict>
+		<key>apiKey</key>
+		<string>$(BUGSNAG)</string>
+	</dict>
 </dict>
 </plist>
