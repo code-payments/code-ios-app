@@ -575,6 +575,9 @@ class Session: ObservableObject {
             
         case .requestPayment:
             attemptPayment(payload, request: request)
+            
+        case .login:
+            attemptLogin(payload, request: request)
         }
     }
     
@@ -609,6 +612,76 @@ class Session: ObservableObject {
         }
         
         receiveTransaction = transaction
+    }
+    
+    // MARK: - Login -
+    
+    private func attemptLogin(_ payload: Code.Payload, request: DeepLinkPaymentRequest?) {
+        Task {
+            // 1. Fetch message metadata for this payload to get the
+            // domain for which we'll need to establish a relationship
+            let messages = try await client.fetchMessages(rendezvous: payload.rendezvous)
+            guard
+                let message = messages.first,
+                let loginAttempt = message.loginRequest
+            else {
+                trace(.failure, components: "Failed to receive login attempt. There were 0 messages for rendezvous: \(payload.rendezvous.publicKey.base58)")
+                throw PaymentError.messageForRendezvousNotFound
+            }
+            
+            presentLoginCard(
+                payload: payload,
+                domain: loginAttempt.domain,
+                request: request
+            )
+        }
+    }
+    
+    func completeLogin(for domain: Domain) async throws {
+        if organizer.relationship(for: domain) == nil {
+            try await client.establishRelationship(organizer: organizer, domain: domain)
+        } else {
+            trace(.success, components: "Skipping, relationship already exists")
+        }
+    }
+    
+    func presentLoginCard(payload: Code.Payload, domain: Domain, request: DeepLinkPaymentRequest?) {
+        sendTransaction = nil
+        presentationState = .visible(.pop)
+        billState = billState
+            .bill(
+                .login(.init(
+                    kinAmount: KinAmount(kin: 0, rate: .oneToOne),
+                    data: payload.codeData(),
+                    request: request
+                ))
+            )
+            .showLoginConfirmation(.init(payload: payload, domain: domain))
+            .hideBillButtons(true)
+
+        
+        Analytics.loginCardShown(domain: domain)
+    }
+    
+    func rejectLogin() {
+        guard let loginRendezvous = billState.loginConfirmation?.payload.rendezvous else {
+            trace(.failure, components: "Failed to reject login, no rendezvous found in login confirmation.")
+            return
+        }
+        
+        cancelLogin()
+        
+        Task {
+            try await client.rejectLogin(rendezvous: loginRendezvous)
+        }
+    }
+    
+    func cancelLogin() {
+        presentationState = .hidden(.slide)
+        billState = billState
+            .bill(nil)
+            .showLoginConfirmation(nil)
+            .hideBillButtons(false)
     }
     
     // MARK: - Request -
@@ -784,13 +857,10 @@ class Session: ObservableObject {
             }
             
             do {
-                // 4. Establish a relationship if a domain is provided and is verified
-                if let domain = receiveRequest.domain, organizer.relationship(for: domain) == nil {
-                    // If a verifier is present, the domain
-                    // is considered verified
-                    if receiveRequest.verifier != nil {
-                        try await client.establishRelationship(organizer: organizer, domain: domain)
-                    }
+                // 4. Establish a relationship if a domain is provided. If a verifier
+                // is present that means the domain has been verified by the server.
+                if let domain = receiveRequest.domain, receiveRequest.verifier != nil, organizer.relationship(for: domain) == nil {
+                    try await client.establishRelationship(organizer: organizer, domain: domain)
                 }
                 
                 // 5. Complete the transfer.
@@ -1111,6 +1181,7 @@ extension Session {
         case invalidPayloadForRequest
         case exchangeForCurrencyNotFound
         case messageForRendezvousNotFound
+        case rendezvousFailedValidation
     }
 }
 

@@ -17,11 +17,11 @@ public struct Domain: Equatable, Codable, Hashable {
     
     // MARK: - Init -
     
-    public init?(_ url: URL) {
-        self.init(url.absoluteString)
+    public init?(_ url: URL, supportSubdomains: Bool = false) {
+        self.init(url.absoluteString, supportSubdomains: supportSubdomains)
     }
     
-    public init?(_ string: String) {
+    public init?(_ string: String, supportSubdomains: Bool = false) {
         guard var url = URL(string: string) else {
             return nil
         }
@@ -31,7 +31,7 @@ public struct Domain: Equatable, Codable, Hashable {
         guard
             let webURL = WebURL(url),
             let hostname = webURL.host?.serialized,
-            let baseHost = Self.baseDomain(from: hostname)
+            let baseHost = Self.baseDomain(from: hostname, supportSubdomains: supportSubdomains)
         else {
             return nil
         }
@@ -42,7 +42,7 @@ public struct Domain: Equatable, Codable, Hashable {
     
     // MARK: - Utilities -
     
-    static func baseDomain(from hostname: String) -> String? {
+    static func baseDomain(from hostname: String, supportSubdomains: Bool) -> String? {
         let separator = "."
         let components = hostname.components(separatedBy: separator)
         
@@ -50,6 +50,14 @@ public struct Domain: Equatable, Codable, Hashable {
             return nil
         }
         
-        return components.suffix(2).joined(separator: separator)
+        //  1     2     3
+        // app.getcode.com
+        //
+        //    1     2
+        // getcode.com
+        //
+        let componentCount = supportSubdomains ? 3 : 2
+        
+        return components.suffix(componentCount).joined(separator: separator)
     }
 }

@@ -1186,6 +1186,7 @@
 		};
 		9A88CDD92B167B8300378AAE /* Generate Google Credentials */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);

@@ -371,6 +371,21 @@ struct ScanScreen: View {
                 }
                 .zIndex(5)
             }
+            
+        } else if let loginConfirmation = session.billState.loginConfirmation {
+            ModalLoginConfirmation(
+                domain: loginConfirmation.domain,
+                successAction: { [weak session] in
+                    try await session?.completeLogin(for: loginConfirmation.domain)
+                    
+                }, dismissAction: { [weak session] in
+                    session?.cancelLogin()
+                    
+                }, cancelAction: { [weak session] in
+                    session?.rejectLogin()
+                }
+            )
+            .zIndex(5)
         }
     }
     

@@ -112,14 +112,22 @@ private class _BillCanvasController: UIViewController {
                     canvasSize: canvasSize(),
                     action: action
                 )
+                
             case .request(let metadata):
-                RequestView(
+                RequestBillView(
                     currency: metadata.kinAmount.rate.currency,
                     text: metadata.kinAmount.kin.formattedFiat(rate: metadata.kinAmount.rate, showOfKin: true),
                     data: metadata.data,
                     canvasSize: canvasSize()
                 )
+                
+            case .login(let metadata):
+                LoginBillView(
+                    data: metadata.data,
+                    canvasSize: canvasSize()
+                )
             }
+            
         } else {
             BillView(
                 kin: 0,

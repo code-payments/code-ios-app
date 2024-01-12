@@ -36,7 +36,7 @@ extension Code.Payload {
                 let quarks = base.advanced(by: 1).assumingMemoryBound(to: UInt64.self).pointee
                 value = .kin(Kin(quarks: quarks))
                 
-            case .requestPayment:
+            case .requestPayment, .login:
                 let currencyIndex = base.advanced(by: 1).assumingMemoryBound(to: UInt8.self).pointee
                 
                 guard let currency = CurrencyCode(index: currencyIndex) else {

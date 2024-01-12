@@ -13,6 +13,7 @@ public struct StreamMessage {
     public enum Kind {
         case receiveRequest(ReceiveRequest)
         case paymentRequest(PaymentRequest)
+        case loginRequest(LoginRequest)
         case airdrop(Airdrop)
     }
     
@@ -58,6 +59,20 @@ public struct PaymentRequest {
     }
 }
 
+public struct LoginRequest {
+    public let domain: Domain
+    public let verifier: PublicKey
+    public let rendezvous: PublicKey
+    public let signature: Signature
+    
+    public init(domain: Domain, verifier: PublicKey, rendezvous: PublicKey, signature: Signature) {
+        self.domain = domain
+        self.verifier = verifier
+        self.rendezvous = rendezvous
+        self.signature = signature
+    }
+}
+
 public struct Airdrop {
     public let type: AirdropType
     public let date: Date
@@ -92,6 +107,14 @@ extension StreamMessage {
     public var airdrop: Airdrop? {
         if case .airdrop(let airdrop) = kind {
             return airdrop
+        } else {
+            return nil
+        }
+    }
+    
+    public var loginRequest: LoginRequest? {
+        if case .loginRequest(let loginRequest) = kind {
+            return loginRequest
         } else {
             return nil
         }
@@ -210,6 +233,25 @@ extension StreamMessage {
                             currency: currency
                         )
                     )
+                )
+            )
+            
+        case .requestToLogin(let loginRequest):
+            guard
+                let domain = Domain(loginRequest.domain.value),
+                let verifier = PublicKey(loginRequest.verifier.value),
+                let rendezvous = PublicKey(loginRequest.rendezvousKey.value),
+                let signature = Signature(loginRequest.signature.value)
+            else {
+                return nil
+            }
+            
+            self.kind = .loginRequest(
+                LoginRequest(
+                    domain: domain,
+                    verifier: verifier,
+                    rendezvous: rendezvous,
+                    signature: signature
                 )
             )
             

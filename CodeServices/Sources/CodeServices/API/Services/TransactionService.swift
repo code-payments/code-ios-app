@@ -642,7 +642,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                     completion(.success(upgradeableIntents))
                     
                 } catch {
-                    trace(.success, components: "Upgradeable intents available but deserialization failed")
+                    trace(.failure, components: "Upgradeable intents available but deserialization failed")
                     completion(.failure(.deserializationFailure))
                 }
                 

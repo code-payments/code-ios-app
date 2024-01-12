@@ -17,6 +17,16 @@ class DomainTests: XCTestCase {
         XCTAssertEqual(Domain("http://google.com")?.relationshipHost, "google.com")
         XCTAssertEqual(Domain("https://google-énçøded.com")?.relationshipHost, "xn--google-nded-t9ay6s.com")
         XCTAssertEqual(Domain("https://subdomain.💩.io")?.relationshipHost, "xn--ls8h.io")
+        
+        XCTAssertEqual(Domain("https://example-domain.com")?.relationshipHost, "example-domain.com")
+        XCTAssertEqual(Domain("https://app.example-getcode.com")?.relationshipHost, "example-getcode.com")
+        
+        // Subdomain
+        
+        XCTAssertEqual(Domain("https://app.getcode.com", supportSubdomains: false)?.relationshipHost, "getcode.com")
+        XCTAssertEqual(Domain("https://app.getcode.com", supportSubdomains: true)?.relationshipHost, "app.getcode.com")
+        XCTAssertEqual(Domain("https://💩.domain.com", supportSubdomains: false)?.relationshipHost, "domain.com")
+        XCTAssertEqual(Domain("https://💩.domain.com", supportSubdomains: true)?.relationshipHost, "xn--ls8h.domain.com")
     }
     
     func testNoScheme() {

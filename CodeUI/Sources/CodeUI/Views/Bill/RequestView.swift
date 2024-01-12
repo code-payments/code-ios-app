@@ -1,5 +1,5 @@
 //
-//  RequestView.swift
+//  RequestBillView.swift
 //  CodeUI
 //
 //  Created by Dima Bart.
@@ -11,7 +11,7 @@
 import SwiftUI
 import CodeServices
 
-public struct RequestView: View {
+public struct RequestBillView: View {
     
     public let currency: CurrencyCode
     public let text: String
@@ -251,7 +251,7 @@ private extension StrokeStyle {
 
 // MARK: - Previews -
 
-struct RequestView_Previews: PreviewProvider {
+struct RequestBillView_Previews: PreviewProvider {
     
     private static let sizes: [CGSize] = [
         CGSize(width: 414, height: 896), // iPhone 11 Pro Max
@@ -263,7 +263,7 @@ struct RequestView_Previews: PreviewProvider {
         Group {
             ForEach(sizes, id: \.width) { size in
                 Background(color: .green) {
-                    RequestView(
+                    RequestBillView(
                         currency: .gbp,
                         text: "$5.00 of Kin",
                         data: .placeholder35,

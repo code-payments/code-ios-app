@@ -101,6 +101,17 @@ extension Analytics {
     }
 }
 
+// MARK: - Login -
+
+extension Analytics {
+    static func loginCardShown(domain: Domain) {
+        track(.loginCard, properties: [
+            .state: String.shown,
+            .domain: domain.relationshipHost,
+        ])
+    }
+}
+
 extension PresentationState.Style {
     var description: String {
         switch self {
@@ -220,7 +231,8 @@ extension Analytics {
         
         // Bill
         case bill = "Bill"
-        case request = "Request"
+        case request = "Request Card"
+        case loginCard = "Login Card"
         
         // Transfer
         case transfer = "Transfer"
@@ -262,6 +274,7 @@ extension Analytics {
         case fx = "Exchange Rate"
         case animation = "Animation"
         case rendezvous = "Rendezvous"
+        case domain = "Domain"
         
         // Validation
         case type = "Type"

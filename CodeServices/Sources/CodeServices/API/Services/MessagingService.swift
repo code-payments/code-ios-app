@@ -137,9 +137,39 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
+    private func requestToLogin(domain: Domain, verifier: KeyPair, rendezvous: PublicKey) -> Code_Messaging_V1_Message {
+        .with {
+            $0.requestToLogin = .with {
+                $0.domain = .with { $0.value = domain.relationshipHost }
+                $0.rendezvousKey = rendezvous.codeRendezvousKey
+                $0.verifier = verifier.publicKey.codeAccountID
+                $0.signature = $0.sign(with: verifier)
+            }
+        }
+    }
+    
     func verifyRequestToGrabBill(destination: PublicKey, rendezvous: PublicKey, signature: Signature) -> Bool {
         let messageData = try! requestToGrabBill(destination: destination).serializedData()
         return rendezvous.verify(signature: signature, data: messageData)
+    }
+    
+    func sendRequestToLogin(domain: Domain, verifier: KeyPair, rendezvous: KeyPair, completion: @escaping (Result<Bool, Error>) -> Void) {
+        trace(.send, components:
+            "Domain: \(domain.relationshipHost)",
+            "Rendezvous: \(rendezvous.publicKey.base58)"
+        )
+        
+        let message = requestToLogin(
+            domain: domain,
+            verifier: verifier,
+            rendezvous: rendezvous.publicKey
+        )
+        
+        sendRendezvousMessage(
+            message: message,
+            rendezvous: rendezvous,
+            completion: completion
+        )
     }
     
     func sendRequestToGrabBill(destination: PublicKey, rendezvous: KeyPair, completion: @escaping (Result<Bool, Error>) -> Void) {
@@ -186,6 +216,22 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         let message: Code_Messaging_V1_Message = .with {
             $0.clientRejectedPayment = .with {
                 $0.intentID = rendezvous.publicKey.codeIntentID
+            }
+        }
+        
+        sendRendezvousMessage(
+            message: message,
+            rendezvous: rendezvous,
+            completion: completion
+        )
+    }
+    
+    func rejectLogin(rendezvous: KeyPair, completion: @escaping (Result<Bool, Error>) -> Void) {
+        trace(.send, components: "Rendezvous: \(rendezvous.publicKey.base58)")
+        
+        let message: Code_Messaging_V1_Message = .with {
+            $0.loginRejected = .with {
+                $0.timestamp = Google_Protobuf_Timestamp(date: .now())
             }
         }
         

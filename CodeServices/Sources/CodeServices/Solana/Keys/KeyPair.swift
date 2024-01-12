@@ -28,11 +28,11 @@ public struct KeyPair: Equatable, Codable, Hashable {
     /// Seed derived using BIP39 spec.
     /// Reference: https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki
     ///
-    public init(mnemonic: MnemonicPhrase, path: Derive.Path, password: String? = nil) {
+    public init(mnemonic: MnemonicPhrase, path: Derive.Path) {
         self = Derive.keyPairUsingBIP39(
             path: path,
             phrase: mnemonic.words,
-            password: password ?? ""
+            password: path.password ?? ""
         )
     }
     

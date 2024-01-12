@@ -78,5 +78,6 @@ extension Code.Payload {
         case cash           = 0
         case giftCard       = 1
         case requestPayment = 2
+        case login          = 3
     }
 }

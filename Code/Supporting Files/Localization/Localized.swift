@@ -106,6 +106,8 @@ internal enum Localized {
     internal static let shareDownloadLink = Localized.tr("Localizable", "action.shareDownloadLink")
     /// Share This Video
     internal static let shareVideo = Localized.tr("Localizable", "action.shareVideo")
+    /// Swipe to Login
+    internal static let swipeToLogin = Localized.tr("Localizable", "action.swipeToLogin")
     /// Swipe to Pay
     internal static let swipeToPay = Localized.tr("Localizable", "action.swipeToPay")
     /// Try a Different Code Account

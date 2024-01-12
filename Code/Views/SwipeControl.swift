@@ -20,13 +20,15 @@ public struct SwipeControl: View {
     
     @State private var timer: Timer? = nil
     
+    private let style: Style
     private let text: String
     private let action: ThrowingAction
     private let completion: ThrowingAction?
     
     // MARK: - Init -
     
-    public init(text: String, action: @escaping ThrowingAction, completion: ThrowingAction? = nil) {
+    public init(style: Style, text: String, action: @escaping ThrowingAction, completion: ThrowingAction? = nil) {
+        self.style = style
         self.text = text
         self.action = action
         self.completion = completion
@@ -57,7 +59,7 @@ public struct SwipeControl: View {
                         .background {
                             RoundedRectangle(cornerRadius: 5)
                                 .frame(width: geometry.size.width + Self.knobSize.width * 2, height: Self.knobSize.height)
-                                .foregroundColor(Self.railColor)
+                                .foregroundColor(style.railColor)
                                 .offset(x: Self.knobSize.width * 0.5 - geometry.size.width * 0.5 - Self.knobSize.width)
                         }
                         .offset(
@@ -145,7 +147,7 @@ public struct SwipeControl: View {
         }
         .padding(.horizontal, 4)
         .frame(height: Self.height)
-        .background(Self.railColor)
+        .background(style.railColor)
         .cornerRadius(8)
         .overlay {
             ZStack {
@@ -200,6 +202,26 @@ public struct SwipeControl: View {
     }
 }
 
+// MARK: - Style -
+
+public enum Style {
+    
+    case blue
+    case black
+    
+    private static let railColorBlue: Color  = Color(r: 17,  g: 20,  b: 42)
+    private static let railColorBlack: Color = Color(r: 32,  g: 29,  b: 29)
+    
+    var railColor: Color {
+        switch self {
+        case .blue:
+            return Self.railColorBlue
+        case .black:
+            return Self.railColorBlack
+        }
+    }
+}
+
 private enum KnobState {
     case normal
     case loading
@@ -233,8 +255,6 @@ extension SwipeControl {
     private static let padding: CGFloat = (Self.height - Self.knobSize.height) * 0.5
     
     private static let snapDistance: CGFloat = 30
-    
-    private static let railColor: Color = Color(r: 17,  g: 20,  b: 42)//Color(r: 32, g: 29, b: 29)
 }
 
 struct SwipeControl_Previews: PreviewProvider {
@@ -242,7 +262,7 @@ struct SwipeControl_Previews: PreviewProvider {
         Background(color: .backgroundMain) {
             VStack {
                 Spacer()
-                SwipeControl(text: "Swipe to Pay", action: { try await Task.delay(seconds: 2) })
+                SwipeControl(style: .black, text: "Swipe to Pay", action: { try await Task.delay(seconds: 2) })
             }
             .padding(20)
         }

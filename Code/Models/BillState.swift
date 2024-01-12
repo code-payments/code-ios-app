@@ -16,14 +16,16 @@ struct BillState: Equatable {
     var toast: Toast?
     var valuation: Valuation?
     var paymentConfirmation: PaymentConfirmation?
+    var loginConfirmation: LoginConfirmation?
     var hideBillButtons: Bool
     
-    fileprivate init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, paymentConfirmation: PaymentConfirmation? = nil, hideBillButtons: Bool = false) {
+    fileprivate init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, paymentConfirmation: PaymentConfirmation? = nil, loginConfirmation: LoginConfirmation? = nil, hideBillButtons: Bool = false) {
         self.bill                = bill
         self.shouldShowToast     = shouldShowDeposit
         self.toast               = toast
         self.valuation           = valuation
         self.paymentConfirmation = paymentConfirmation
+        self.loginConfirmation   = loginConfirmation
         self.hideBillButtons     = hideBillButtons
     }
 }
@@ -65,6 +67,12 @@ extension BillState {
         return state
     }
     
+    func showLoginConfirmation(_ loginConfirmation: LoginConfirmation?) -> BillState {
+        var state = self
+        state.loginConfirmation = loginConfirmation
+        return state
+    }
+    
     func hideBillButtons(_ value: Bool) -> BillState {
         var state = self
         state.hideBillButtons = value
@@ -100,6 +108,13 @@ extension BillState {
     }
 }
 
+extension BillState {
+    struct LoginConfirmation: Equatable {
+        var payload: Code.Payload
+        var domain: Domain
+    }
+}
+
 // MARK: - Bill (Metadata) -
 
 extension BillState {
@@ -107,11 +122,13 @@ extension BillState {
         
         case cash(Metadata)
         case request(Metadata)
+        case login(Metadata)
         
         var canSwipeToDismiss: Bool {
             switch self {
             case .cash:    return true
             case .request: return false
+            case .login:   return false
             }
         }
         
@@ -119,6 +136,7 @@ extension BillState {
             switch self {
             case .cash(let m):    return m
             case .request(let m): return m
+            case .login(let m):   return m
             }
         }
     }

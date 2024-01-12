@@ -31,6 +31,12 @@ extension Client {
         messagingService.verifyRequestToGrabBill(destination: destination, rendezvous: rendezvous, signature: signature)
     }
     
+    public func sendRequestToLogin(domain: Domain, verifier: KeyPair, rendezvous: KeyPair) async throws -> Bool {
+        try await withCheckedThrowingContinuation { c in
+            messagingService.sendRequestToLogin(domain: domain, verifier: verifier, rendezvous: rendezvous) { c.resume(with: $0) }
+        }
+    }
+    
     public func sendRequestToGrabBill(destination: PublicKey, rendezvous: KeyPair) async throws -> Bool {
         try await withCheckedThrowingContinuation { c in
             messagingService.sendRequestToGrabBill(destination: destination, rendezvous: rendezvous) { c.resume(with: $0) }
@@ -40,6 +46,12 @@ extension Client {
     public func sendRequestToReceiveBill(destination: PublicKey, fiat: Fiat, rendezvous: KeyPair) async throws -> Bool {
         try await withCheckedThrowingContinuation { c in
             messagingService.sendRequestToReceiveBill(destination: destination, fiat: fiat, rendezvous: rendezvous) { c.resume(with: $0) }
+        }
+    }
+    
+    public func rejectLogin(rendezvous: KeyPair) async throws -> Bool {
+        try await withCheckedThrowingContinuation { c in
+            messagingService.rejectLogin(rendezvous: rendezvous) { c.resume(with: $0) }
         }
     }
     

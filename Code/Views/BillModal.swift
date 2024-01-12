@@ -98,9 +98,75 @@ struct ModalPaymentConfirmation: View {
                 
                 VStack {
                     SwipeControl(
+                        style: .blue,
                         text: Localized.Action.swipeToPay,
                         action: {
                             try await paymentAction()
+                        },
+                        completion: {
+                            try await Task.delay(seconds: 1) // Checkmark delay
+                            dismissAction()
+                        }
+                    )
+                    
+                    CodeButton(
+                        style: .subtle,
+                        title: Localized.Action.cancel,
+                        action: {
+                            cancelAction()
+                        }
+                    )
+                    .padding(.bottom, -20)
+                }
+                .padding(.top, 10)
+            }
+            .padding(20)
+            .padding(.top, 5)
+            .foregroundColor(.textMain)
+            .font(.appTextMedium)
+        }
+    }
+}
+
+/// Modal to confirm a login
+///
+/// - parameters:
+///   - domain: A domain into which the user will log in
+///   - successAction: An async payment action. The dismiss handler `VoidAction` will be automatically called after this closure returns.
+///   - dismissAction: A dismiss handler
+///   - cancelAction: A cancel handler that is only called when the user rejects the payment request
+///
+struct ModalLoginConfirmation: View {
+    
+    let domain: Domain
+    let successAction: ThrowingAction
+    let dismissAction: VoidAction
+    let cancelAction: VoidAction
+    
+    // MARK: - Init -
+    
+    init(domain: Domain, successAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
+        self.domain = domain
+        self.successAction = successAction
+        self.dismissAction = dismissAction
+        self.cancelAction = cancelAction
+    }
+    
+    // MARK: - Body -
+    
+    var body: some View {
+        SheetView(edge: .bottom, backgroundColor: .black) {
+            VStack(spacing: 10) {
+                
+                Text(domain.relationshipHost)
+                    .font(.appDisplaySmall)
+                
+                VStack {
+                    SwipeControl(
+                        style: .black,
+                        text: Localized.Action.swipeToLogin,
+                        action: {
+                            try await successAction()
                         },
                         completion: {
                             try await Task.delay(seconds: 1) // Checkmark delay

@@ -104,6 +104,9 @@
 /* Swipe to Pay */
 "action.swipeToPay" = "Swipe to Pay";
 
+/* Swipe to Login */
+"action.swipeToLogin" = "Swipe to Login";
+
 /* Open Settings */
 "action.openSettings" = "Open Settings";
 
