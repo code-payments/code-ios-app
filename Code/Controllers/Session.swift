@@ -646,6 +646,10 @@ class Session: ObservableObject {
     }
     
     func presentLoginCard(payload: Code.Payload, domain: Domain, request: DeepLinkPaymentRequest?) {
+        Task {
+            try await client.codeScanned(rendezvous: payload.rendezvous)
+        }
+        
         sendTransaction = nil
         presentationState = .visible(.pop)
         billState = billState
