@@ -167,7 +167,10 @@ extension Kin {
 //    }
     
     public static func - (lhs: Self, rhs: Self) -> Kin {
-        Kin(quarks: lhs.quarks - rhs.quarks)
+        guard lhs >= rhs else {
+            return 0
+        }
+        return Kin(quarks: lhs.quarks - rhs.quarks)
     }
     
 //    public static func - (lhs: Self, rhs: Int) -> Kin {

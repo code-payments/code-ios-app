@@ -85,6 +85,12 @@ class KinTests: XCTestCase {
         XCTAssertEqual(Kin(kin: 123) / 1, 123)
     }
     
+    func testSubtraction() {
+        XCTAssertEqual(Kin(kin: 100_000) - 10, 99_990)
+        XCTAssertEqual(Kin(kin: 123) - 100, 23)
+        XCTAssertEqual(Kin(kin: 10) - 90, 0)
+    }
+    
     func testWholeKin() {
         XCTAssertFalse(Kin(quarks: 123)!.hasWholeKin)
         XCTAssertFalse(Kin(quarks: 99_000)!.hasWholeKin)
