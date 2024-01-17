@@ -60,6 +60,13 @@ struct BucketScreen: View {
     @ViewBuilder private func rows() -> some View {
         ForEach(fragments) { fragment in
             row(for: fragment)
+                .contextMenu(ContextMenu {
+                    Button {
+                        copyVaultAddress(cluster: fragment.cluster)
+                    } label: {
+                        Label("Copy Vault Address", systemImage: SystemSymbol.doc.rawValue)
+                    }
+                })
         }
     }
     
@@ -109,6 +116,12 @@ struct BucketScreen: View {
         .padding(.trailing, 20)
         .vSeparator(color: .rowSeparator)
         .padding(.leading, 20)
+    }
+    
+    // MARK: - Actions -
+    
+    private func copyVaultAddress(cluster: AccountCluster) {
+        UIPasteboard.general.string = cluster.timelockAccounts.vault.publicKey.base58
     }
 }
 
