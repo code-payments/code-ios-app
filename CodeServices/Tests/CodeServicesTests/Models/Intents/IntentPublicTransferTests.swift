@@ -32,6 +32,7 @@ class IntentPublicTransferTests: XCTestCase {
         
         let intent = try IntentPublicTransfer(
             organizer: organizer,
+            source: .primary,
             destination: destination,
             amount: amount
         )
