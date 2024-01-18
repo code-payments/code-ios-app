@@ -15,6 +15,10 @@ class FlowController: ObservableObject {
         limits == nil || limits?.isStale == true
     }
     
+    var maxDeposit: Kin {
+        limits?.maxDeposit ?? 0
+    }
+    
     private(set) var limits: Limits?
 
     private let client: Client
@@ -178,6 +182,9 @@ class FlowController: ObservableObject {
         try validate(amount: amount)
         
         let intent = KeyPair.generate()!
+        
+        var steps: [String] = []
+        steps.append("Attempting withdrawal...")
 
         do {
             
@@ -186,36 +193,60 @@ class FlowController: ObservableObject {
             // If the primary account has less Kin than the amount
             // requested for withdrawal, we'll need to execute a
             // private transfer to the primary account before we
-            // can make a public transfer to destination
+            // can make a public transfer to destination.
             if primaryBalance < amount.kin {
                 
-                let missingBalance = amount.kin - primaryBalance
+                var missingBalance = amount.kin - primaryBalance
+                steps.append("Amount exceeds primary balance.")
+                steps.append("Missing balance: \(missingBalance)")
                 
-                // It's possible that there's funds still left in
-                // an incoming account. If the amount requested for
-                // withdrawal is greater than primary + buckets, we
-                // have to receive from incoming first
-                if missingBalance > organizer.slotsBalance {
-                    try await client.receiveFromIncoming(
-                        amount: organizer.availableIncomingBalance.truncating(),
-                        organizer: organizer
-                    )
+                // 1. If we're missing funds, we'll pull funds
+                // from relationship accounts first.
+                if missingBalance > 0 {
+                    let receivedFromRelationships = try await receiveFromRelationships(upTo: missingBalance)
+                    missingBalance = missingBalance - receivedFromRelationships
+                    
+                    steps.append("Pulled from relationships: \(receivedFromRelationships)")
+                    steps.append("Missing balance: \(missingBalance)")
                 }
                 
-                // TODO: Pull funds from relationship accounts
+                // 2. It's possible that there's funds still left in
+                // an incoming account. If we're still missing funds
+                // for withdrawal, we'll pull from incoming.
+                if missingBalance > 0 {
+                    let receivedFromIncoming = try await receiveFromIncoming()
+                    missingBalance = missingBalance - receivedFromIncoming
+                    
+                    steps.append("Pulled from incoming: \(receivedFromIncoming)")
+                    steps.append("Missing balance: \(missingBalance)")
+                }
                 
-                // Move funds into primary from buckets
-                try await client.transfer(
-                    amount: KinAmount(kin: missingBalance, rate: .oneToOne),
-                    organizer: organizer,
-                    rendezvous: intent.publicKey,
-                    destination: organizer.primaryVault,
-                    isWithdrawal: true
-                )
+                // 3. In the event that it's a full withdrawal or if
+                // more funds are required, we'll need to do a private
+                // transfer from bucket accounts.
+                if missingBalance > 0 {
+                    try await client.transfer(
+                        amount: KinAmount(kin: missingBalance, rate: .oneToOne),
+                        organizer: organizer,
+                        rendezvous: intent.publicKey,
+                        destination: organizer.primaryVault,
+                        isWithdrawal: true
+                    )
+                    
+                    steps.append("Pulled from buckets: \(missingBalance)")
+                    
+                    try await fetchLimits()
+                }
                 
+                // 4. Update balances and limits after the withdrawal since
+                // it's likely that this withdrawal affected both but at the
+                // very least, we need updated balances for all accounts.
                 _ = try await fetchBalance()
             }
             
+            trace(.warning, components: steps)
+            
+            // 5. Execute withdrawal
             try await client.withdraw(
                 amount: amount,
                 organizer: organizer,
@@ -252,10 +283,10 @@ class FlowController: ObservableObject {
         
         // We want to deposit the smaller of the two: balance in the
         // primary account or the max allowed amount provided by server
-        let depositAmount = min(depositBalance, (limits?.maxDeposit ?? 0))
+        let depositAmount = min(depositBalance, maxDeposit)
         
         if depositAmount.hasWholeKin {
-            trace(.warning, components: "Receiving from primary: \(depositAmount)", "Max allowed deposit: \(limits?.maxDeposit.description ?? "nil")")
+            trace(.warning, components: "Receiving from primary: \(depositAmount)", "Max allowed deposit: \(maxDeposit)")
             
             try await client.receiveFromPrimary(
                 amount: depositAmount.truncating(),
@@ -291,9 +322,16 @@ class FlowController: ObservableObject {
         return incomingBalance
     }
     
-    private func receiveFromRelationships(upTo limit: Kin? = nil) async throws {
+    @discardableResult
+    private func receiveFromRelationships(upTo limit: Kin? = nil) async throws -> Kin {
         var receivedTotal: Kin = 0
+        
         for relationship in organizer.relationshipsLargestFirst() {
+            guard relationship.partialBalance > 0 else {
+                // Ignore empty relationship accounts
+                continue
+            }
+            
             trace(.warning, components: "Receiving from relationships: \(relationship.partialBalance)")
             
             try await client.receiveFromRelationship(
@@ -306,9 +344,11 @@ class FlowController: ObservableObject {
             
             // Bail early if a limit is set
             if let limit, receivedTotal >= limit {
-                return
+                return receivedTotal
             }
         }
+        
+        return receivedTotal
     }
     
     // MARK: - Validation -

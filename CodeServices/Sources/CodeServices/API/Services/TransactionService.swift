@@ -137,15 +137,21 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    func receiveFromRelationship(domain: Domain, amount: Kin, organizer: Organizer, completion: @escaping (Result<IntentDeposit, Error>) -> Void) {
+    func receiveFromRelationship(domain: Domain, amount: Kin, organizer: Organizer, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
         trace(.send)
         
         do {
-            let intent = try IntentDeposit(
-                source: .relationship(domain),
+            let intent = try IntentPublicTransfer(
                 organizer: organizer,
-                amount: amount
+                source: .relationship(domain),
+                destination: organizer.primaryVault,
+                amount: KinAmount(kin: amount, rate: .oneToOne)
             )
+//            let intent = try IntentDeposit(
+//                source: .relationship(domain),
+//                organizer: organizer,
+//                amount: amount
+//            )
             
             submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
                 switch result {
@@ -170,6 +176,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         do {
             let intent = try IntentPublicTransfer(
                 organizer: organizer,
+                source: .primary,
                 destination: destination,
                 amount: amount
             )

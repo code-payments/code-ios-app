@@ -225,7 +225,7 @@ private struct AccountFragment: Identifiable {
             case .bucket1m:
                 return 10
             }
-        case .relationship(let domain):
+        case .relationship:
             return 11
         case .remoteSend:
             return 12

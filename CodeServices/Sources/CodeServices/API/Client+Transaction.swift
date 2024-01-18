@@ -45,6 +45,7 @@ extension Client {
         }
         
         await MainActor.run {
+            trace(.warning, components: "Updating tray from receive: incoming")
             organizer.set(tray: intent.resultTray)
         }
     }
@@ -59,6 +60,7 @@ extension Client {
         }
         
         await MainActor.run {
+            trace(.warning, components: "Updating tray from receive: primary")
             organizer.set(tray: intent.resultTray)
         }
     }
@@ -74,6 +76,7 @@ extension Client {
         }
         
         await MainActor.run {
+            trace(.warning, components: "Updating tray from receive: relationship")
             organizer.set(tray: intent.resultTray)
         }
     }
@@ -89,6 +92,7 @@ extension Client {
         }
         
         await MainActor.run {
+            trace(.warning, components: "Updating tray from withdraw.")
             organizer.set(tray: intent.resultTray)
         }
     }
