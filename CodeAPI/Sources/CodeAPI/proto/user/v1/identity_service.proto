@@ -41,6 +41,15 @@ service Identity {
 
     // GetUser gets user information given a user identifier and an owner account.
     rpc GetUser(GetUserRequest) returns (GetUserResponse);
+
+    // LoginToThirdPartyApp logs a user into a third party app for a given intent
+    // ID. If the original request requires payment, then SubmitIntent must be called.
+    rpc LoginToThirdPartyApp(LoginToThirdPartyAppRequest) returns (LoginToThirdPartyAppResponse);
+
+    // GetLoginForThirdPartyApp gets a login for a third party app from an existing
+    // request. This endpoint supports all paths where login is possible (login on payment,
+    // raw login, etc.).
+    rpc GetLoginForThirdPartyApp(GetLoginForThirdPartyAppRequest) returns (GetLoginForThirdPartyAppResponse);
 }
 
 message LinkAccountRequest {
@@ -163,7 +172,70 @@ message GetUserResponse {
     repeated transaction.v2.AirdropType eligible_airdrops = 7;
 }
 
-// User is the highest order of a form of identity.
+message LoginToThirdPartyAppRequest {
+    // The intent ID identifying the instance of the login flow.
+    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+
+    // The relationship authority account logging in.
+    common.v1.SolanaAccountId user_id = 2 [(validate.rules).message.required = true];
+
+    // Signature of this message using the user private key, which authenticates
+    // the user.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message LoginToThirdPartyAppResponse {
+    Result result = 1;
+    enum Result {
+        // This supports idempotency. The same login with the same user will result
+        // in OK.
+        OK = 0;
+        // There is no request for the provided intent ID.
+        REQUEST_NOT_FOUND = 1;
+        // The request requires a payment. Call SubmitIntent instead.
+        PAYMENT_REQUIRED = 2;
+        // The request exists, but doesn't support login.
+        LOGIN_NOT_SUPPORTED = 3;
+        // A login with a different user already exists
+        DIFFERENT_LOGIN_EXISTS = 4;
+        // The provided account is not valid for login. It must be a relationship
+        // account with the correct identifier specified in the original request.
+        INVALID_ACCOUNT = 5;
+    }
+}
+
+message GetLoginForThirdPartyAppRequest {
+    // The intent ID identifying the instance of the login flow.
+    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+
+    // Owner account owned by the third party used in domain verification.
+    common.v1.SolanaAccountId verifier = 2 [(validate.rules).message.required = true];
+
+    // Signature of this message using the verifier private key, which in addition
+    // to domain verification, authenticates the third party.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message GetLoginForThirdPartyAppResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // There is no request for the provided intent ID.
+        REQUEST_NOT_FOUND = 1;
+        // The request exists, but doesn't support login.
+        LOGIN_NOT_SUPPORTED = 2;
+        // The intent supports login, but it hasn't been submitted. There is no
+        // logged in user yet.
+        NO_USER_LOGGED_IN = 3;
+    }
+
+    // The relationship authority account that logged in.
+    common.v1.SolanaAccountId user_id = 2;
+}
+
+// User is the highest order of a form of identity within Code.
+//
+// Note: Users outside Code are modelled as relationship accounts
 message User {
     // The user's ID
     common.v1.UserId id = 1 [(validate.rules).message.required = true];

@@ -101,6 +101,33 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func loginToThirdParty(rendezvous: PublicKey, relationship: KeyPair, completion: @escaping (Result<Void, ErrorLoginToThirdParty>) -> Void) {
+        trace(.send, components: "Rendezvous: \(rendezvous.base58)", "Relationship: \(relationship.publicKey.base58)")
+        
+        let request = Code_User_V1_LoginToThirdPartyAppRequest.with {
+            $0.intentID = rendezvous.codeIntentID
+            $0.userID = relationship.publicKey.codeAccountID
+            $0.signature = $0.sign(with: relationship)
+        }
+        
+        let call = service.loginToThirdPartyApp(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorLoginToThirdParty(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success, components: "Relationship: \(relationship.publicKey.base58)")
+                completion(.success(()))
+                
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -126,9 +153,27 @@ public enum ErrorFetchUser: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorLoginToThirdParty: Int, Error {
+    case ok
+    case requestNotFound
+    case paymentRequired
+    case loginNotSupported
+    case differentLoginExists
+    case invalidAccount
+    case unknown = -1
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_User_V1_IdentityClientInterceptorFactoryProtocol {
+    func makeLoginToThirdPartyAppInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_User_V1_LoginToThirdPartyAppRequest, CodeAPI.Code_User_V1_LoginToThirdPartyAppResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeGetLoginForThirdPartyAppInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_User_V1_GetLoginForThirdPartyAppRequest, CodeAPI.Code_User_V1_GetLoginForThirdPartyAppResponse>] {
+        makeInterceptors()
+    }
+    
     func makeGetUserInterceptors() -> [ClientInterceptor<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>] {
         makeInterceptors()
     }

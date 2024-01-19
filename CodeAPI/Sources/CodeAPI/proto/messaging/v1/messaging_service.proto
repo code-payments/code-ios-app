@@ -59,9 +59,10 @@ service Messaging {
     //      required hack because we don't have the infrastructure in place to allow multiple listens
     //      on the same stream, and the recipient needs real-time status updates.
     //   5. The user logging in receives the message (any status messages are ignored), verifies it,
-    //      then uses SendMessage to send a login attempt.
-    //   6. The third party receives sees the login attempt message, verifies it, then accepts/denies
-    //      the login attempt. The stream is closed.
+    //      then submits a login attempt.
+    //   6. The third party observes status message (eg. IntentSubmitted, ClientRejectedLogin,
+    //      WebhookCalled) for login state.
+    //   7. The third party closes the stream once the login hits a terminal state, or times out.
     rpc OpenMessageStream(OpenMessageStreamRequest) returns (stream OpenMessageStreamResponse);
 
     // OpenMessageStreamWithKeepAlive is like OpenMessageStream, but enables a ping/pong
@@ -294,7 +295,9 @@ message ClientRejectedPayment {
 message IntentSubmitted {
     common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
 
-    transaction.v2.Metadata metadata = 2 [(validate.rules).message.required = true];
+    // Metadata is available for intents where it can be safely propagated publicly.
+    // Anything else requires an additional authenticated RPC call (eg. login).
+    transaction.v2.Metadata metadata = 2;
 }
 
 // Webhook was successfully called
@@ -317,11 +320,12 @@ message RequestToLogin {
     // use the ASCII base domain in the RELATIONSHIP account derivation strategy.
     common.v1.Domain domain = 1 [(validate.rules).message.required = true];
 
-    // Random nonce to include for signing in LoginAttempt
-    common.v1.SolanaAccountId nonce = 2 [(validate.rules).message.required = true];
+    // Deprecated nonce value, which is replaced by the rendezvous_key field which
+    // is effectively derived off a random nonce.
+    reserved 2;
 
-    // Timestamp the request was created
-    google.protobuf.Timestamp timestamp = 3 [(validate.rules).timestamp.required = true];
+    // Reserved for a timestamp field, which may be used in the future.
+    reserved 3;
 
     // Owner account owned by the third party used in domain verification.
     common.v1.SolanaAccountId verifier = 4 [(validate.rules).message.required = true];
@@ -334,38 +338,10 @@ message RequestToLogin {
     RendezvousKey rendezvous_key = 6 [(validate.rules).message.required = true];
 }
 
-// Attempt to login
+// Login is rejected by the client
 //
 // This message type is only initiated by user clients
-message LoginAttempt {
-    // Derived owner account from a user's 12 words, which is uniquely used with
-    // the third party as identified by the domain.
-    common.v1.SolanaAccountId user_id = 1 [(validate.rules).message.required = true];
-
-    // Timelock vault owned by user_id where a third party can pay the user. A user
-    // can have many deposit accounts per owner account.
-    //
-    // Not supported at the moment
-    // common.v1.SolanaAccountId deposit_account = 2;
-
-    // Domain value provided in the RequestToLogin message
-    common.v1.Domain domain = 3 [(validate.rules).message.required = true];
-
-    // Nonce value provided in the RequestToLogin message
-    common.v1.SolanaAccountId nonce = 4 [(validate.rules).message.required = true];
-
-    // Timestamp the attempt was created
-    google.protobuf.Timestamp timestamp = 5 [(validate.rules).timestamp.required = true];
-
-    // Signature of this message using the user_id private key, which
-    // authenticates the user.
-    common.v1.Signature signature = 6 [(validate.rules).message.required = true];
-
-    // Rendezvous key to avoid replay attacks
-    RendezvousKey rendezvous_key = 7 [(validate.rules).message.required = true];
-}
-
-message LoginRejected {
+message ClientRejectedLogin {
     // Timestamp the login was rejected
     google.protobuf.Timestamp timestamp = 4 [(validate.rules).timestamp.required = true];
 }
@@ -423,8 +399,7 @@ message Message {
         //
 
         RequestToLogin        request_to_login         = 10;
-        LoginAttempt          login_attempt            = 11;
-        LoginRejected         login_rejected           = 12;
+        ClientRejectedLogin   client_rejected_login    = 12;
 
         //
         // Section: Airdrops
@@ -432,6 +407,8 @@ message Message {
 
         AirdropReceived       airdrop_received         = 4;
     }
+    // Reserved for deprecated LoginAttempt field
+    reserved 11;
 }
 
 message ServerPing {

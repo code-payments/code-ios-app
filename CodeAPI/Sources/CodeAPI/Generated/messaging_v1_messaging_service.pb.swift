@@ -648,6 +648,8 @@ public struct Code_Messaging_V1_IntentSubmitted {
   /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
   public mutating func clearIntentID() {self._intentID = nil}
 
+  /// Metadata is available for intents where it can be safely propagated publicly.
+  /// Anything else requires an additional authenticated RPC call (eg. login).
   public var metadata: Code_Transaction_V2_Metadata {
     get {return _metadata ?? Code_Transaction_V2_Metadata()}
     set {_metadata = newValue}
@@ -712,26 +714,6 @@ public struct Code_Messaging_V1_RequestToLogin {
   /// Clears the value of `domain`. Subsequent reads from it will return its default value.
   public mutating func clearDomain() {self._domain = nil}
 
-  /// Random nonce to include for signing in LoginAttempt
-  public var nonce: Code_Common_V1_SolanaAccountId {
-    get {return _nonce ?? Code_Common_V1_SolanaAccountId()}
-    set {_nonce = newValue}
-  }
-  /// Returns true if `nonce` has been explicitly set.
-  public var hasNonce: Bool {return self._nonce != nil}
-  /// Clears the value of `nonce`. Subsequent reads from it will return its default value.
-  public mutating func clearNonce() {self._nonce = nil}
-
-  /// Timestamp the request was created
-  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_timestamp = newValue}
-  }
-  /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
-  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
-  public mutating func clearTimestamp() {self._timestamp = nil}
-
   /// Owner account owned by the third party used in domain verification.
   public var verifier: Code_Common_V1_SolanaAccountId {
     get {return _verifier ?? Code_Common_V1_SolanaAccountId()}
@@ -768,96 +750,15 @@ public struct Code_Messaging_V1_RequestToLogin {
   public init() {}
 
   fileprivate var _domain: Code_Common_V1_Domain? = nil
-  fileprivate var _nonce: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
   fileprivate var _verifier: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
   fileprivate var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
 }
 
-/// Attempt to login
+/// Login is rejected by the client
 ///
 /// This message type is only initiated by user clients
-public struct Code_Messaging_V1_LoginAttempt {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Derived owner account from a user's 12 words, which is uniquely used with
-  /// the third party as identified by the domain.
-  public var userID: Code_Common_V1_SolanaAccountId {
-    get {return _userID ?? Code_Common_V1_SolanaAccountId()}
-    set {_userID = newValue}
-  }
-  /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
-  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
-  public mutating func clearUserID() {self._userID = nil}
-
-  /// Domain value provided in the RequestToLogin message
-  public var domain: Code_Common_V1_Domain {
-    get {return _domain ?? Code_Common_V1_Domain()}
-    set {_domain = newValue}
-  }
-  /// Returns true if `domain` has been explicitly set.
-  public var hasDomain: Bool {return self._domain != nil}
-  /// Clears the value of `domain`. Subsequent reads from it will return its default value.
-  public mutating func clearDomain() {self._domain = nil}
-
-  /// Nonce value provided in the RequestToLogin message
-  public var nonce: Code_Common_V1_SolanaAccountId {
-    get {return _nonce ?? Code_Common_V1_SolanaAccountId()}
-    set {_nonce = newValue}
-  }
-  /// Returns true if `nonce` has been explicitly set.
-  public var hasNonce: Bool {return self._nonce != nil}
-  /// Clears the value of `nonce`. Subsequent reads from it will return its default value.
-  public mutating func clearNonce() {self._nonce = nil}
-
-  /// Timestamp the attempt was created
-  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_timestamp = newValue}
-  }
-  /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
-  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
-  public mutating func clearTimestamp() {self._timestamp = nil}
-
-  /// Signature of this message using the user_id private key, which
-  /// authenticates the user.
-  public var signature: Code_Common_V1_Signature {
-    get {return _signature ?? Code_Common_V1_Signature()}
-    set {_signature = newValue}
-  }
-  /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
-  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
-  public mutating func clearSignature() {self._signature = nil}
-
-  /// Rendezvous key to avoid replay attacks
-  public var rendezvousKey: Code_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Code_Messaging_V1_RendezvousKey()}
-    set {_rendezvousKey = newValue}
-  }
-  /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
-  /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
-  public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _userID: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _domain: Code_Common_V1_Domain? = nil
-  fileprivate var _nonce: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-  fileprivate var _signature: Code_Common_V1_Signature? = nil
-  fileprivate var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
-}
-
-public struct Code_Messaging_V1_LoginRejected {
+public struct Code_Messaging_V1_ClientRejectedLogin {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -1009,20 +910,12 @@ public struct Code_Messaging_V1_Message {
     set {kind = .requestToLogin(newValue)}
   }
 
-  public var loginAttempt: Code_Messaging_V1_LoginAttempt {
+  public var clientRejectedLogin: Code_Messaging_V1_ClientRejectedLogin {
     get {
-      if case .loginAttempt(let v)? = kind {return v}
-      return Code_Messaging_V1_LoginAttempt()
+      if case .clientRejectedLogin(let v)? = kind {return v}
+      return Code_Messaging_V1_ClientRejectedLogin()
     }
-    set {kind = .loginAttempt(newValue)}
-  }
-
-  public var loginRejected: Code_Messaging_V1_LoginRejected {
-    get {
-      if case .loginRejected(let v)? = kind {return v}
-      return Code_Messaging_V1_LoginRejected()
-    }
-    set {kind = .loginRejected(newValue)}
+    set {kind = .clientRejectedLogin(newValue)}
   }
 
   public var airdropReceived: Code_Messaging_V1_AirdropReceived {
@@ -1044,8 +937,7 @@ public struct Code_Messaging_V1_Message {
     case intentSubmitted(Code_Messaging_V1_IntentSubmitted)
     case webhookCalled(Code_Messaging_V1_WebhookCalled)
     case requestToLogin(Code_Messaging_V1_RequestToLogin)
-    case loginAttempt(Code_Messaging_V1_LoginAttempt)
-    case loginRejected(Code_Messaging_V1_LoginRejected)
+    case clientRejectedLogin(Code_Messaging_V1_ClientRejectedLogin)
     case airdropReceived(Code_Messaging_V1_AirdropReceived)
 
   #if !swift(>=4.1)
@@ -1082,12 +974,8 @@ public struct Code_Messaging_V1_Message {
         guard case .requestToLogin(let l) = lhs, case .requestToLogin(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.loginAttempt, .loginAttempt): return {
-        guard case .loginAttempt(let l) = lhs, case .loginAttempt(let r) = rhs else { preconditionFailure() }
-        return l == r
-      }()
-      case (.loginRejected, .loginRejected): return {
-        guard case .loginRejected(let l) = lhs, case .loginRejected(let r) = rhs else { preconditionFailure() }
+      case (.clientRejectedLogin, .clientRejectedLogin): return {
+        guard case .clientRejectedLogin(let l) = lhs, case .clientRejectedLogin(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       case (.airdropReceived, .airdropReceived): return {
@@ -1188,8 +1076,7 @@ extension Code_Messaging_V1_ClientRejectedPayment: @unchecked Sendable {}
 extension Code_Messaging_V1_IntentSubmitted: @unchecked Sendable {}
 extension Code_Messaging_V1_WebhookCalled: @unchecked Sendable {}
 extension Code_Messaging_V1_RequestToLogin: @unchecked Sendable {}
-extension Code_Messaging_V1_LoginAttempt: @unchecked Sendable {}
-extension Code_Messaging_V1_LoginRejected: @unchecked Sendable {}
+extension Code_Messaging_V1_ClientRejectedLogin: @unchecked Sendable {}
 extension Code_Messaging_V1_AirdropReceived: @unchecked Sendable {}
 extension Code_Messaging_V1_Message: @unchecked Sendable {}
 extension Code_Messaging_V1_Message.OneOf_Kind: @unchecked Sendable {}
@@ -2020,8 +1907,6 @@ extension Code_Messaging_V1_RequestToLogin: SwiftProtobuf.Message, SwiftProtobuf
   public static let protoMessageName: String = _protobuf_package + ".RequestToLogin"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "domain"),
-    2: .same(proto: "nonce"),
-    3: .same(proto: "timestamp"),
     4: .same(proto: "verifier"),
     5: .same(proto: "signature"),
     6: .standard(proto: "rendezvous_key"),
@@ -2034,8 +1919,6 @@ extension Code_Messaging_V1_RequestToLogin: SwiftProtobuf.Message, SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._domain) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._nonce) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._verifier) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._rendezvousKey) }()
@@ -2052,12 +1935,6 @@ extension Code_Messaging_V1_RequestToLogin: SwiftProtobuf.Message, SwiftProtobuf
     try { if let v = self._domain {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._nonce {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._timestamp {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
     try { if let v = self._verifier {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
@@ -2072,8 +1949,6 @@ extension Code_Messaging_V1_RequestToLogin: SwiftProtobuf.Message, SwiftProtobuf
 
   public static func ==(lhs: Code_Messaging_V1_RequestToLogin, rhs: Code_Messaging_V1_RequestToLogin) -> Bool {
     if lhs._domain != rhs._domain {return false}
-    if lhs._nonce != rhs._nonce {return false}
-    if lhs._timestamp != rhs._timestamp {return false}
     if lhs._verifier != rhs._verifier {return false}
     if lhs._signature != rhs._signature {return false}
     if lhs._rendezvousKey != rhs._rendezvousKey {return false}
@@ -2082,74 +1957,8 @@ extension Code_Messaging_V1_RequestToLogin: SwiftProtobuf.Message, SwiftProtobuf
   }
 }
 
-extension Code_Messaging_V1_LoginAttempt: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".LoginAttempt"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "user_id"),
-    3: .same(proto: "domain"),
-    4: .same(proto: "nonce"),
-    5: .same(proto: "timestamp"),
-    6: .same(proto: "signature"),
-    7: .standard(proto: "rendezvous_key"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._domain) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._nonce) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
-      case 6: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
-      case 7: try { try decoder.decodeSingularMessageField(value: &self._rendezvousKey) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._userID {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._domain {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try { if let v = self._nonce {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
-    try { if let v = self._timestamp {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
-    try { if let v = self._signature {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
-    } }()
-    try { if let v = self._rendezvousKey {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Messaging_V1_LoginAttempt, rhs: Code_Messaging_V1_LoginAttempt) -> Bool {
-    if lhs._userID != rhs._userID {return false}
-    if lhs._domain != rhs._domain {return false}
-    if lhs._nonce != rhs._nonce {return false}
-    if lhs._timestamp != rhs._timestamp {return false}
-    if lhs._signature != rhs._signature {return false}
-    if lhs._rendezvousKey != rhs._rendezvousKey {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Code_Messaging_V1_LoginRejected: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".LoginRejected"
+extension Code_Messaging_V1_ClientRejectedLogin: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ClientRejectedLogin"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     4: .same(proto: "timestamp"),
   ]
@@ -2177,7 +1986,7 @@ extension Code_Messaging_V1_LoginRejected: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_LoginRejected, rhs: Code_Messaging_V1_LoginRejected) -> Bool {
+  public static func ==(lhs: Code_Messaging_V1_ClientRejectedLogin, rhs: Code_Messaging_V1_ClientRejectedLogin) -> Bool {
     if lhs._timestamp != rhs._timestamp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
@@ -2244,8 +2053,7 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
     8: .standard(proto: "intent_submitted"),
     9: .standard(proto: "webhook_called"),
     10: .standard(proto: "request_to_login"),
-    11: .standard(proto: "login_attempt"),
-    12: .standard(proto: "login_rejected"),
+    12: .standard(proto: "client_rejected_login"),
     4: .standard(proto: "airdrop_received"),
   ]
 
@@ -2361,30 +2169,17 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
           self.kind = .requestToLogin(v)
         }
       }()
-      case 11: try {
-        var v: Code_Messaging_V1_LoginAttempt?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .loginAttempt(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .loginAttempt(v)
-        }
-      }()
       case 12: try {
-        var v: Code_Messaging_V1_LoginRejected?
+        var v: Code_Messaging_V1_ClientRejectedLogin?
         var hadOneofValue = false
         if let current = self.kind {
           hadOneofValue = true
-          if case .loginRejected(let m) = current {v = m}
+          if case .clientRejectedLogin(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .loginRejected(v)
+          self.kind = .clientRejectedLogin(v)
         }
       }()
       default: break
@@ -2435,12 +2230,8 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
       guard case .requestToLogin(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     }()
-    case .loginAttempt?: try {
-      guard case .loginAttempt(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
-    }()
-    case .loginRejected?: try {
-      guard case .loginRejected(let v)? = self.kind else { preconditionFailure() }
+    case .clientRejectedLogin?: try {
+      guard case .clientRejectedLogin(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
     }()
     default: break

@@ -26,6 +26,8 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
+/// todo: Migrate this to a generic "request" service
+///
 /// Usage: instantiate `Code_Micropayment_V1_MicroPaymentClient`, then call methods of this protocol to make API calls.
 public protocol Code_Micropayment_V1_MicroPaymentClientProtocol: GRPCClient {
   var serviceName: String { get }
@@ -57,7 +59,7 @@ extension Code_Micropayment_V1_MicroPaymentClientProtocol {
     return "code.micropayment.v1.MicroPayment"
   }
 
-  /// GetStatus gets basic micro payment status
+  /// GetStatus gets basic request status
   ///
   /// - Parameters:
   ///   - request: Request to send to GetStatus.
@@ -75,7 +77,7 @@ extension Code_Micropayment_V1_MicroPaymentClientProtocol {
     )
   }
 
-  /// RegisterWebhook registers a webhook for a micro payment
+  /// RegisterWebhook registers a webhook for a request
   ///
   /// todo: Once Kik codes can encode the entire payment request details, we can
   ///       remove the messaging service component and have a Create RPC that
@@ -198,6 +200,7 @@ public struct Code_Micropayment_V1_MicroPaymentNIOClient: Code_Micropayment_V1_M
 }
 
 #if compiler(>=5.6)
+/// todo: Migrate this to a generic "request" service
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public protocol Code_Micropayment_V1_MicroPaymentAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
@@ -407,14 +410,16 @@ public enum Code_Micropayment_V1_MicroPaymentClientMetadata {
   }
 }
 
+/// todo: Migrate this to a generic "request" service
+///
 /// To build a server, implement a class that conforms to this protocol.
 public protocol Code_Micropayment_V1_MicroPaymentProvider: CallHandlerProvider {
   var interceptors: Code_Micropayment_V1_MicroPaymentServerInterceptorFactoryProtocol? { get }
 
-  /// GetStatus gets basic micro payment status
+  /// GetStatus gets basic request status
   func getStatus(request: Code_Micropayment_V1_GetStatusRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Micropayment_V1_GetStatusResponse>
 
-  /// RegisterWebhook registers a webhook for a micro payment
+  /// RegisterWebhook registers a webhook for a request
   ///
   /// todo: Once Kik codes can encode the entire payment request details, we can
   ///       remove the messaging service component and have a Create RPC that
@@ -488,19 +493,21 @@ extension Code_Micropayment_V1_MicroPaymentProvider {
 
 #if compiler(>=5.6)
 
+/// todo: Migrate this to a generic "request" service
+///
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public protocol Code_Micropayment_V1_MicroPaymentAsyncProvider: CallHandlerProvider {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_Micropayment_V1_MicroPaymentServerInterceptorFactoryProtocol? { get }
 
-  /// GetStatus gets basic micro payment status
+  /// GetStatus gets basic request status
   @Sendable func getStatus(
     request: Code_Micropayment_V1_GetStatusRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Micropayment_V1_GetStatusResponse
 
-  /// RegisterWebhook registers a webhook for a micro payment
+  /// RegisterWebhook registers a webhook for a request
   ///
   /// todo: Once Kik codes can encode the entire payment request details, we can
   ///       remove the messaging service component and have a Create RPC that

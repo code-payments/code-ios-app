@@ -761,6 +761,10 @@ public enum ErrorAirdrop: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol {
+    func makeSwapInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_SwapRequest, CodeAPI.Code_Transaction_V2_SwapResponse>] {
+        makeInterceptors()
+    }
+    
     func makeAirdropInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_AirdropRequest, CodeAPI.Code_Transaction_V2_AirdropResponse>] {
         makeInterceptors()
     }

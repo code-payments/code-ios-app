@@ -99,8 +99,8 @@ public struct Code_Micropayment_V1_RegisterWebhookResponse {
     /// A webhook has already been registered
     case alreadyRegistered // = 1
 
-    /// A payment request does not exist for the provided intent ID
-    case paymentRequestNotFound // = 2
+    /// A request does not exist for the provided intent ID
+    case requestNotFound // = 2
 
     /// A user has already submitted a payment
     case intentExists // = 3
@@ -117,7 +117,7 @@ public struct Code_Micropayment_V1_RegisterWebhookResponse {
       switch rawValue {
       case 0: self = .ok
       case 1: self = .alreadyRegistered
-      case 2: self = .paymentRequestNotFound
+      case 2: self = .requestNotFound
       case 3: self = .intentExists
       case 4: self = .invalidURL
       default: self = .UNRECOGNIZED(rawValue)
@@ -128,7 +128,7 @@ public struct Code_Micropayment_V1_RegisterWebhookResponse {
       switch self {
       case .ok: return 0
       case .alreadyRegistered: return 1
-      case .paymentRequestNotFound: return 2
+      case .requestNotFound: return 2
       case .intentExists: return 3
       case .invalidURL: return 4
       case .UNRECOGNIZED(let i): return i
@@ -147,7 +147,7 @@ extension Code_Micropayment_V1_RegisterWebhookResponse.Result: CaseIterable {
   public static var allCases: [Code_Micropayment_V1_RegisterWebhookResponse.Result] = [
     .ok,
     .alreadyRegistered,
-    .paymentRequestNotFound,
+    .requestNotFound,
     .intentExists,
     .invalidURL,
   ]
@@ -546,7 +546,7 @@ extension Code_Micropayment_V1_RegisterWebhookResponse.Result: SwiftProtobuf._Pr
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "OK"),
     1: .same(proto: "ALREADY_REGISTERED"),
-    2: .same(proto: "PAYMENT_REQUEST_NOT_FOUND"),
+    2: .same(proto: "REQUEST_NOT_FOUND"),
     3: .same(proto: "INTENT_EXISTS"),
     4: .same(proto: "INVALID_URL"),
   ]

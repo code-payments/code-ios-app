@@ -637,14 +637,6 @@ class Session: ObservableObject {
         }
     }
     
-    func completeLogin(for domain: Domain) async throws {
-        if organizer.relationship(for: domain) == nil {
-            try await client.establishRelationship(organizer: organizer, domain: domain)
-        } else {
-            trace(.success, components: "Skipping, relationship already exists")
-        }
-    }
-    
     func presentLoginCard(payload: Code.Payload, domain: Domain, request: DeepLinkPaymentRequest?) {
         Task {
             try await client.codeScanned(rendezvous: payload.rendezvous)
@@ -665,6 +657,27 @@ class Session: ObservableObject {
 
         
         Analytics.loginCardShown(domain: domain)
+    }
+    
+    func completeLogin(for domain: Domain, rendezvous: PublicKey) async throws {
+        let relationship: Relationship
+        
+        // 1. If the relationship already exists, we'll have
+        // a local reference and we can skip the intent RPC
+        if let r = organizer.relationship(for: domain) {
+            trace(.success, components: "Skipping, relationship already exists")
+            relationship = r
+        } else {
+            trace(.warning, components: "Relationship doesn't exist. Creating relationship to: \(domain.relationshipHost)")
+            relationship = try await client.establishRelationship(organizer: organizer, domain: domain)
+        }
+        
+        // 2. Perform the login using the relationship
+        // private key to sign the request
+        try await client.loginToThirdParty(
+            rendezvous: rendezvous,
+            relationship: relationship.cluster.authority.keyPair
+        )
     }
     
     func rejectLogin() {

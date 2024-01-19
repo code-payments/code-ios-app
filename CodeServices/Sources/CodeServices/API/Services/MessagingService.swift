@@ -230,7 +230,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         trace(.send, components: "Rendezvous: \(rendezvous.publicKey.base58)")
         
         let message: Code_Messaging_V1_Message = .with {
-            $0.loginRejected = .with {
+            $0.clientRejectedLogin = .with {
                 $0.timestamp = Google_Protobuf_Timestamp(date: .now())
             }
         }

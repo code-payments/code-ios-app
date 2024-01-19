@@ -109,9 +109,10 @@ extension Code_Messaging_V1_MessagingClientProtocol {
   ///      required hack because we don't have the infrastructure in place to allow multiple listens
   ///      on the same stream, and the recipient needs real-time status updates.
   ///   5. The user logging in receives the message (any status messages are ignored), verifies it,
-  ///      then uses SendMessage to send a login attempt.
-  ///   6. The third party receives sees the login attempt message, verifies it, then accepts/denies
-  ///      the login attempt. The stream is closed.
+  ///      then submits a login attempt.
+  ///   6. The third party observes status message (eg. IntentSubmitted, ClientRejectedLogin,
+  ///      WebhookCalled) for login state.
+  ///   7. The third party closes the stream once the login hits a terminal state, or times out.
   ///
   /// - Parameters:
   ///   - request: Request to send to OpenMessageStream.
@@ -605,9 +606,10 @@ public protocol Code_Messaging_V1_MessagingProvider: CallHandlerProvider {
   ///      required hack because we don't have the infrastructure in place to allow multiple listens
   ///      on the same stream, and the recipient needs real-time status updates.
   ///   5. The user logging in receives the message (any status messages are ignored), verifies it,
-  ///      then uses SendMessage to send a login attempt.
-  ///   6. The third party receives sees the login attempt message, verifies it, then accepts/denies
-  ///      the login attempt. The stream is closed.
+  ///      then submits a login attempt.
+  ///   6. The third party observes status message (eg. IntentSubmitted, ClientRejectedLogin,
+  ///      WebhookCalled) for login state.
+  ///   7. The third party closes the stream once the login hits a terminal state, or times out.
   func openMessageStream(request: Code_Messaging_V1_OpenMessageStreamRequest, context: StreamingResponseCallContext<Code_Messaging_V1_OpenMessageStreamResponse>) -> EventLoopFuture<GRPCStatus>
 
   /// OpenMessageStreamWithKeepAlive is like OpenMessageStream, but enables a ping/pong
@@ -770,9 +772,10 @@ public protocol Code_Messaging_V1_MessagingAsyncProvider: CallHandlerProvider {
   ///      required hack because we don't have the infrastructure in place to allow multiple listens
   ///      on the same stream, and the recipient needs real-time status updates.
   ///   5. The user logging in receives the message (any status messages are ignored), verifies it,
-  ///      then uses SendMessage to send a login attempt.
-  ///   6. The third party receives sees the login attempt message, verifies it, then accepts/denies
-  ///      the login attempt. The stream is closed.
+  ///      then submits a login attempt.
+  ///   6. The third party observes status message (eg. IntentSubmitted, ClientRejectedLogin,
+  ///      WebhookCalled) for login state.
+  ///   7. The third party closes the stream once the login hits a terminal state, or times out.
   @Sendable func openMessageStream(
     request: Code_Messaging_V1_OpenMessageStreamRequest,
     responseStream: GRPCAsyncResponseStreamWriter<Code_Messaging_V1_OpenMessageStreamResponse>,

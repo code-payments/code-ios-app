@@ -376,7 +376,10 @@ struct ScanScreen: View {
             ModalLoginConfirmation(
                 domain: loginConfirmation.domain,
                 successAction: { [weak session] in
-                    try await session?.completeLogin(for: loginConfirmation.domain)
+                    try await session?.completeLogin(
+                        for: loginConfirmation.domain,
+                        rendezvous: loginConfirmation.payload.rendezvous.publicKey
+                    )
                     
                 }, dismissAction: { [weak session] in
                     session?.cancelLogin()

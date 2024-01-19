@@ -127,10 +127,13 @@ extension Client {
     
     // MARK: - Relationship -
     
-    public func establishRelationship(organizer: Organizer, domain: Domain) async throws {
-        _ = try await withCheckedThrowingContinuation { c in
+    @discardableResult
+    public func establishRelationship(organizer: Organizer, domain: Domain) async throws -> Relationship {
+        let intent = try await withCheckedThrowingContinuation { c in
             transactionService.establishRelationship(organizer: organizer, domain: domain) { c.resume(with: $0) }
         }
+        
+        return intent.relationship
     }
     
     // MARK: - AirDrop -

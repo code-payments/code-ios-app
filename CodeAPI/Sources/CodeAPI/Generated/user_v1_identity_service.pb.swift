@@ -519,7 +519,260 @@ extension Code_User_V1_GetUserResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
-/// User is the highest order of a form of identity.
+public struct Code_User_V1_LoginToThirdPartyAppRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The intent ID identifying the instance of the login flow.
+  public var intentID: Code_Common_V1_IntentId {
+    get {return _intentID ?? Code_Common_V1_IntentId()}
+    set {_intentID = newValue}
+  }
+  /// Returns true if `intentID` has been explicitly set.
+  public var hasIntentID: Bool {return self._intentID != nil}
+  /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
+  public mutating func clearIntentID() {self._intentID = nil}
+
+  /// The relationship authority account logging in.
+  public var userID: Code_Common_V1_SolanaAccountId {
+    get {return _userID ?? Code_Common_V1_SolanaAccountId()}
+    set {_userID = newValue}
+  }
+  /// Returns true if `userID` has been explicitly set.
+  public var hasUserID: Bool {return self._userID != nil}
+  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
+  public mutating func clearUserID() {self._userID = nil}
+
+  /// Signature of this message using the user private key, which authenticates
+  /// the user.
+  public var signature: Code_Common_V1_Signature {
+    get {return _signature ?? Code_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _intentID: Code_Common_V1_IntentId? = nil
+  fileprivate var _userID: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Code_Common_V1_Signature? = nil
+}
+
+public struct Code_User_V1_LoginToThirdPartyAppResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_User_V1_LoginToThirdPartyAppResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+
+    /// This supports idempotency. The same login with the same user will result
+    /// in OK.
+    case ok // = 0
+
+    /// There is no request for the provided intent ID.
+    case requestNotFound // = 1
+
+    /// The request requires a payment. Call SubmitIntent instead.
+    case paymentRequired // = 2
+
+    /// The request exists, but doesn't support login.
+    case loginNotSupported // = 3
+
+    /// A login with a different user already exists
+    case differentLoginExists // = 4
+
+    /// The provided account is not valid for login. It must be a relationship
+    /// account with the correct identifier specified in the original request.
+    case invalidAccount // = 5
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .requestNotFound
+      case 2: self = .paymentRequired
+      case 3: self = .loginNotSupported
+      case 4: self = .differentLoginExists
+      case 5: self = .invalidAccount
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .requestNotFound: return 1
+      case .paymentRequired: return 2
+      case .loginNotSupported: return 3
+      case .differentLoginExists: return 4
+      case .invalidAccount: return 5
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_User_V1_LoginToThirdPartyAppResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_User_V1_LoginToThirdPartyAppResponse.Result] = [
+    .ok,
+    .requestNotFound,
+    .paymentRequired,
+    .loginNotSupported,
+    .differentLoginExists,
+    .invalidAccount,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Code_User_V1_GetLoginForThirdPartyAppRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The intent ID identifying the instance of the login flow.
+  public var intentID: Code_Common_V1_IntentId {
+    get {return _intentID ?? Code_Common_V1_IntentId()}
+    set {_intentID = newValue}
+  }
+  /// Returns true if `intentID` has been explicitly set.
+  public var hasIntentID: Bool {return self._intentID != nil}
+  /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
+  public mutating func clearIntentID() {self._intentID = nil}
+
+  /// Owner account owned by the third party used in domain verification.
+  public var verifier: Code_Common_V1_SolanaAccountId {
+    get {return _verifier ?? Code_Common_V1_SolanaAccountId()}
+    set {_verifier = newValue}
+  }
+  /// Returns true if `verifier` has been explicitly set.
+  public var hasVerifier: Bool {return self._verifier != nil}
+  /// Clears the value of `verifier`. Subsequent reads from it will return its default value.
+  public mutating func clearVerifier() {self._verifier = nil}
+
+  /// Signature of this message using the verifier private key, which in addition
+  /// to domain verification, authenticates the third party.
+  public var signature: Code_Common_V1_Signature {
+    get {return _signature ?? Code_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _intentID: Code_Common_V1_IntentId? = nil
+  fileprivate var _verifier: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Code_Common_V1_Signature? = nil
+}
+
+public struct Code_User_V1_GetLoginForThirdPartyAppResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_User_V1_GetLoginForThirdPartyAppResponse.Result = .ok
+
+  /// The relationship authority account that logged in.
+  public var userID: Code_Common_V1_SolanaAccountId {
+    get {return _userID ?? Code_Common_V1_SolanaAccountId()}
+    set {_userID = newValue}
+  }
+  /// Returns true if `userID` has been explicitly set.
+  public var hasUserID: Bool {return self._userID != nil}
+  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
+  public mutating func clearUserID() {self._userID = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+
+    /// There is no request for the provided intent ID.
+    case requestNotFound // = 1
+
+    /// The request exists, but doesn't support login.
+    case loginNotSupported // = 2
+
+    /// The intent supports login, but it hasn't been submitted. There is no
+    /// logged in user yet.
+    case noUserLoggedIn // = 3
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .requestNotFound
+      case 2: self = .loginNotSupported
+      case 3: self = .noUserLoggedIn
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .requestNotFound: return 1
+      case .loginNotSupported: return 2
+      case .noUserLoggedIn: return 3
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+
+  fileprivate var _userID: Code_Common_V1_SolanaAccountId? = nil
+}
+
+#if swift(>=4.2)
+
+extension Code_User_V1_GetLoginForThirdPartyAppResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_User_V1_GetLoginForThirdPartyAppResponse.Result] = [
+    .ok,
+    .requestNotFound,
+    .loginNotSupported,
+    .noUserLoggedIn,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+/// User is the highest order of a form of identity within Code.
+///
+/// Note: Users outside Code are modelled as relationship accounts
 public struct Code_User_V1_User {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -611,6 +864,12 @@ extension Code_User_V1_GetUserRequest.OneOf_IdentifyingFeature: @unchecked Senda
 extension Code_User_V1_GetUserResponse: @unchecked Sendable {}
 extension Code_User_V1_GetUserResponse.OneOf_Metadata: @unchecked Sendable {}
 extension Code_User_V1_GetUserResponse.Result: @unchecked Sendable {}
+extension Code_User_V1_LoginToThirdPartyAppRequest: @unchecked Sendable {}
+extension Code_User_V1_LoginToThirdPartyAppResponse: @unchecked Sendable {}
+extension Code_User_V1_LoginToThirdPartyAppResponse.Result: @unchecked Sendable {}
+extension Code_User_V1_GetLoginForThirdPartyAppRequest: @unchecked Sendable {}
+extension Code_User_V1_GetLoginForThirdPartyAppResponse: @unchecked Sendable {}
+extension Code_User_V1_GetLoginForThirdPartyAppResponse.Result: @unchecked Sendable {}
 extension Code_User_V1_User: @unchecked Sendable {}
 extension Code_User_V1_View: @unchecked Sendable {}
 extension Code_User_V1_PhoneMetadata: @unchecked Sendable {}
@@ -997,6 +1256,196 @@ extension Code_User_V1_GetUserResponse.Result: SwiftProtobuf._ProtoNameProviding
     1: .same(proto: "NOT_FOUND"),
     2: .same(proto: "NOT_INVITED"),
     3: .same(proto: "UNLOCKED_TIMELOCK_ACCOUNT"),
+  ]
+}
+
+extension Code_User_V1_LoginToThirdPartyAppRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LoginToThirdPartyAppRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "intent_id"),
+    2: .standard(proto: "user_id"),
+    3: .same(proto: "signature"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._intentID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._userID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_User_V1_LoginToThirdPartyAppRequest, rhs: Code_User_V1_LoginToThirdPartyAppRequest) -> Bool {
+    if lhs._intentID != rhs._intentID {return false}
+    if lhs._userID != rhs._userID {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_User_V1_LoginToThirdPartyAppResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LoginToThirdPartyAppResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_User_V1_LoginToThirdPartyAppResponse, rhs: Code_User_V1_LoginToThirdPartyAppResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_User_V1_LoginToThirdPartyAppResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "REQUEST_NOT_FOUND"),
+    2: .same(proto: "PAYMENT_REQUIRED"),
+    3: .same(proto: "LOGIN_NOT_SUPPORTED"),
+    4: .same(proto: "DIFFERENT_LOGIN_EXISTS"),
+    5: .same(proto: "INVALID_ACCOUNT"),
+  ]
+}
+
+extension Code_User_V1_GetLoginForThirdPartyAppRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetLoginForThirdPartyAppRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "intent_id"),
+    2: .same(proto: "verifier"),
+    3: .same(proto: "signature"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._verifier) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._intentID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._verifier {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_User_V1_GetLoginForThirdPartyAppRequest, rhs: Code_User_V1_GetLoginForThirdPartyAppRequest) -> Bool {
+    if lhs._intentID != rhs._intentID {return false}
+    if lhs._verifier != rhs._verifier {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_User_V1_GetLoginForThirdPartyAppResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetLoginForThirdPartyAppResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .standard(proto: "user_id"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try { if let v = self._userID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_User_V1_GetLoginForThirdPartyAppResponse, rhs: Code_User_V1_GetLoginForThirdPartyAppResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs._userID != rhs._userID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_User_V1_GetLoginForThirdPartyAppResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "REQUEST_NOT_FOUND"),
+    2: .same(proto: "LOGIN_NOT_SUPPORTED"),
+    3: .same(proto: "NO_USER_LOGGED_IN"),
   ]
 }
 

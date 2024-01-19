@@ -14,6 +14,7 @@ class IntentEstablishRelationship: IntentType {
     let id: PublicKey
     let domain: Domain
     let resultTray: Tray
+    let relationship: Relationship
     
     var actionGroup: ActionGroup
     
@@ -32,6 +33,7 @@ class IntentEstablishRelationship: IntentType {
         
         self.actionGroup = ActionGroup(actions: [openAccount])
         self.resultTray  = currentTray
+        self.relationship = relationship
     }
 }
 

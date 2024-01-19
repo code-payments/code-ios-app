@@ -45,6 +45,16 @@ public protocol Code_User_V1_IdentityClientProtocol: GRPCClient {
     _ request: Code_User_V1_GetUserRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>
+
+  func loginToThirdPartyApp(
+    _ request: Code_User_V1_LoginToThirdPartyAppRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse>
+
+  func getLoginForThirdPartyApp(
+    _ request: Code_User_V1_GetLoginForThirdPartyAppRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>
 }
 
 extension Code_User_V1_IdentityClientProtocol {
@@ -124,6 +134,45 @@ extension Code_User_V1_IdentityClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUserInterceptors() ?? []
+    )
+  }
+
+  /// LoginToThirdPartyApp logs a user into a third party app for a given intent
+  /// ID. If the original request requires payment, then SubmitIntent must be called.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to LoginToThirdPartyApp.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func loginToThirdPartyApp(
+    _ request: Code_User_V1_LoginToThirdPartyAppRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse> {
+    return self.makeUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.loginToThirdPartyApp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLoginToThirdPartyAppInterceptors() ?? []
+    )
+  }
+
+  /// GetLoginForThirdPartyApp gets a login for a third party app from an existing
+  /// request. This endpoint supports all paths where login is possible (login on payment,
+  /// raw login, etc.).
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetLoginForThirdPartyApp.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getLoginForThirdPartyApp(
+    _ request: Code_User_V1_GetLoginForThirdPartyAppRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse> {
+    return self.makeUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.getLoginForThirdPartyApp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? []
     )
   }
 }
@@ -207,6 +256,16 @@ public protocol Code_User_V1_IdentityAsyncClientProtocol: GRPCClient {
     _ request: Code_User_V1_GetUserRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>
+
+  func makeLoginToThirdPartyAppCall(
+    _ request: Code_User_V1_LoginToThirdPartyAppRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse>
+
+  func makeGetLoginForThirdPartyAppCall(
+    _ request: Code_User_V1_GetLoginForThirdPartyAppRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -254,6 +313,30 @@ extension Code_User_V1_IdentityAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetUserInterceptors() ?? []
     )
   }
+
+  public func makeLoginToThirdPartyAppCall(
+    _ request: Code_User_V1_LoginToThirdPartyAppRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.loginToThirdPartyApp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLoginToThirdPartyAppInterceptors() ?? []
+    )
+  }
+
+  public func makeGetLoginForThirdPartyAppCall(
+    _ request: Code_User_V1_GetLoginForThirdPartyAppRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.getLoginForThirdPartyApp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -293,6 +376,30 @@ extension Code_User_V1_IdentityAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetUserInterceptors() ?? []
     )
   }
+
+  public func loginToThirdPartyApp(
+    _ request: Code_User_V1_LoginToThirdPartyAppRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_User_V1_LoginToThirdPartyAppResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.loginToThirdPartyApp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLoginToThirdPartyAppInterceptors() ?? []
+    )
+  }
+
+  public func getLoginForThirdPartyApp(
+    _ request: Code_User_V1_GetLoginForThirdPartyAppRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_User_V1_GetLoginForThirdPartyAppResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.getLoginForThirdPartyApp.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -324,6 +431,12 @@ public protocol Code_User_V1_IdentityClientInterceptorFactoryProtocol: GRPCSenda
 
   /// - Returns: Interceptors to use when invoking 'getUser'.
   func makeGetUserInterceptors() -> [ClientInterceptor<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'loginToThirdPartyApp'.
+  func makeLoginToThirdPartyAppInterceptors() -> [ClientInterceptor<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getLoginForThirdPartyApp'.
+  func makeGetLoginForThirdPartyAppInterceptors() -> [ClientInterceptor<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>]
 }
 
 public enum Code_User_V1_IdentityClientMetadata {
@@ -334,6 +447,8 @@ public enum Code_User_V1_IdentityClientMetadata {
       Code_User_V1_IdentityClientMetadata.Methods.linkAccount,
       Code_User_V1_IdentityClientMetadata.Methods.unlinkAccount,
       Code_User_V1_IdentityClientMetadata.Methods.getUser,
+      Code_User_V1_IdentityClientMetadata.Methods.loginToThirdPartyApp,
+      Code_User_V1_IdentityClientMetadata.Methods.getLoginForThirdPartyApp,
     ]
   )
 
@@ -353,6 +468,18 @@ public enum Code_User_V1_IdentityClientMetadata {
     public static let getUser = GRPCMethodDescriptor(
       name: "GetUser",
       path: "/code.user.v1.Identity/GetUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let loginToThirdPartyApp = GRPCMethodDescriptor(
+      name: "LoginToThirdPartyApp",
+      path: "/code.user.v1.Identity/LoginToThirdPartyApp",
+      type: GRPCCallType.unary
+    )
+
+    public static let getLoginForThirdPartyApp = GRPCMethodDescriptor(
+      name: "GetLoginForThirdPartyApp",
+      path: "/code.user.v1.Identity/GetLoginForThirdPartyApp",
       type: GRPCCallType.unary
     )
   }
@@ -391,6 +518,15 @@ public protocol Code_User_V1_IdentityProvider: CallHandlerProvider {
 
   /// GetUser gets user information given a user identifier and an owner account.
   func getUser(request: Code_User_V1_GetUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_GetUserResponse>
+
+  /// LoginToThirdPartyApp logs a user into a third party app for a given intent
+  /// ID. If the original request requires payment, then SubmitIntent must be called.
+  func loginToThirdPartyApp(request: Code_User_V1_LoginToThirdPartyAppRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_LoginToThirdPartyAppResponse>
+
+  /// GetLoginForThirdPartyApp gets a login for a third party app from an existing
+  /// request. This endpoint supports all paths where login is possible (login on payment,
+  /// raw login, etc.).
+  func getLoginForThirdPartyApp(request: Code_User_V1_GetLoginForThirdPartyAppRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_GetLoginForThirdPartyAppResponse>
 }
 
 extension Code_User_V1_IdentityProvider {
@@ -430,6 +566,24 @@ extension Code_User_V1_IdentityProvider {
         responseSerializer: ProtobufSerializer<Code_User_V1_GetUserResponse>(),
         interceptors: self.interceptors?.makeGetUserInterceptors() ?? [],
         userFunction: self.getUser(request:context:)
+      )
+
+    case "LoginToThirdPartyApp":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_LoginToThirdPartyAppRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_LoginToThirdPartyAppResponse>(),
+        interceptors: self.interceptors?.makeLoginToThirdPartyAppInterceptors() ?? [],
+        userFunction: self.loginToThirdPartyApp(request:context:)
+      )
+
+    case "GetLoginForThirdPartyApp":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_GetLoginForThirdPartyAppRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_GetLoginForThirdPartyAppResponse>(),
+        interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? [],
+        userFunction: self.getLoginForThirdPartyApp(request:context:)
       )
 
     default:
@@ -484,6 +638,21 @@ public protocol Code_User_V1_IdentityAsyncProvider: CallHandlerProvider {
     request: Code_User_V1_GetUserRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_User_V1_GetUserResponse
+
+  /// LoginToThirdPartyApp logs a user into a third party app for a given intent
+  /// ID. If the original request requires payment, then SubmitIntent must be called.
+  @Sendable func loginToThirdPartyApp(
+    request: Code_User_V1_LoginToThirdPartyAppRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_User_V1_LoginToThirdPartyAppResponse
+
+  /// GetLoginForThirdPartyApp gets a login for a third party app from an existing
+  /// request. This endpoint supports all paths where login is possible (login on payment,
+  /// raw login, etc.).
+  @Sendable func getLoginForThirdPartyApp(
+    request: Code_User_V1_GetLoginForThirdPartyAppRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_User_V1_GetLoginForThirdPartyAppResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -532,6 +701,24 @@ extension Code_User_V1_IdentityAsyncProvider {
         wrapping: self.getUser(request:context:)
       )
 
+    case "LoginToThirdPartyApp":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_LoginToThirdPartyAppRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_LoginToThirdPartyAppResponse>(),
+        interceptors: self.interceptors?.makeLoginToThirdPartyAppInterceptors() ?? [],
+        wrapping: self.loginToThirdPartyApp(request:context:)
+      )
+
+    case "GetLoginForThirdPartyApp":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_GetLoginForThirdPartyAppRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_GetLoginForThirdPartyAppResponse>(),
+        interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? [],
+        wrapping: self.getLoginForThirdPartyApp(request:context:)
+      )
+
     default:
       return nil
     }
@@ -553,6 +740,14 @@ public protocol Code_User_V1_IdentityServerInterceptorFactoryProtocol {
   /// - Returns: Interceptors to use when handling 'getUser'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetUserInterceptors() -> [ServerInterceptor<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>]
+
+  /// - Returns: Interceptors to use when handling 'loginToThirdPartyApp'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeLoginToThirdPartyAppInterceptors() -> [ServerInterceptor<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getLoginForThirdPartyApp'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetLoginForThirdPartyAppInterceptors() -> [ServerInterceptor<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>]
 }
 
 public enum Code_User_V1_IdentityServerMetadata {
@@ -563,6 +758,8 @@ public enum Code_User_V1_IdentityServerMetadata {
       Code_User_V1_IdentityServerMetadata.Methods.linkAccount,
       Code_User_V1_IdentityServerMetadata.Methods.unlinkAccount,
       Code_User_V1_IdentityServerMetadata.Methods.getUser,
+      Code_User_V1_IdentityServerMetadata.Methods.loginToThirdPartyApp,
+      Code_User_V1_IdentityServerMetadata.Methods.getLoginForThirdPartyApp,
     ]
   )
 
@@ -582,6 +779,18 @@ public enum Code_User_V1_IdentityServerMetadata {
     public static let getUser = GRPCMethodDescriptor(
       name: "GetUser",
       path: "/code.user.v1.Identity/GetUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let loginToThirdPartyApp = GRPCMethodDescriptor(
+      name: "LoginToThirdPartyApp",
+      path: "/code.user.v1.Identity/LoginToThirdPartyApp",
+      type: GRPCCallType.unary
+    )
+
+    public static let getLoginForThirdPartyApp = GRPCMethodDescriptor(
+      name: "GetLoginForThirdPartyApp",
+      path: "/code.user.v1.Identity/GetLoginForThirdPartyApp",
       type: GRPCCallType.unary
     )
   }

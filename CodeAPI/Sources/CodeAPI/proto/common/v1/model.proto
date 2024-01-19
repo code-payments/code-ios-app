@@ -36,6 +36,16 @@ message SolanaAccountId {
     }];
 }
 
+// InstructionAccount is an account public key used within the context of
+// an instruction.
+message InstructionAccount {
+    SolanaAccountId account = 1 [(validate.rules).message.required = true];
+
+    bool is_signer = 2;
+
+    bool is_writable = 3;
+}
+
 // Transaction is a raw binary Solana transaction
 message Transaction {
     // Maximum size taken from: https://github.com/solana-labs/solana/blob/39b3ac6a8d29e14faa1de73d8b46d390ad41797b/sdk/src/packet.rs#L9-L13
@@ -70,7 +80,9 @@ message IntentId {
     }];
 }
 
-// UserId is a globally unique identifier for a user
+// UserId is a globally unique identifier for a user within Code
+//
+// Note: Users outside Code are modelled as relationship accounts
 message UserId {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 16

@@ -70,6 +70,11 @@ public protocol Code_Transaction_V2_TransactionClientProtocol: GRPCClient {
     _ request: Code_Transaction_V2_AirdropRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>
+
+  func swap(
+    callOptions: CallOptions?,
+    handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
 }
 
 extension Code_Transaction_V2_TransactionClientProtocol {
@@ -262,6 +267,37 @@ extension Code_Transaction_V2_TransactionClientProtocol {
       interceptors: self.interceptors?.makeAirdropInterceptors() ?? []
     )
   }
+
+  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+  /// closely. However, due to the time-sensitive nature and unreliability of
+  /// swaps, they do not fit within the broader intent system. This results in
+  /// a few key differences:
+  ///  * Transactions are submitted on a best-effort basis outside of the Code
+  ///    Sequencer within the RPC handler
+  ///  * Balance changes are applied after the transaction has finalized
+  ///  * Transactions use recent blockhashes over a nonce
+  ///
+  /// Note: Currently limited to swapping USDC to Kin.
+  /// Note: Kin is deposited into the primary account.
+  ///
+  /// Callers should use the `send` method on the returned object to send messages
+  /// to the server. The caller should send an `.end` after the final message has been sent.
+  ///
+  /// - Parameters:
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
+  public func swap(
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse> {
+    return self.makeBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
+      handler: handler
+    )
+  }
 }
 
 #if compiler(>=5.6)
@@ -367,6 +403,10 @@ public protocol Code_Transaction_V2_TransactionAsyncClientProtocol: GRPCClient {
     _ request: Code_Transaction_V2_AirdropRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>
+
+  func makeSwapCall(
+    callOptions: CallOptions?
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -470,6 +510,16 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeAirdropInterceptors() ?? []
+    )
+  }
+
+  public func makeSwapCall(
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse> {
+    return self.makeAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
     )
   }
 }
@@ -583,6 +633,30 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       interceptors: self.interceptors?.makeAirdropInterceptors() ?? []
     )
   }
+
+  public func swap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_SwapResponse> where RequestStream: Sequence, RequestStream.Element == Code_Transaction_V2_SwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
+    )
+  }
+
+  public func swap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_SwapResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Code_Transaction_V2_SwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -629,6 +703,9 @@ public protocol Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol:
 
   /// - Returns: Interceptors to use when invoking 'airdrop'.
   func makeAirdropInterceptors() -> [ClientInterceptor<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'swap'.
+  func makeSwapInterceptors() -> [ClientInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionClientMetadata {
@@ -644,6 +721,7 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       Code_Transaction_V2_TransactionClientMetadata.Methods.getPaymentHistory,
       Code_Transaction_V2_TransactionClientMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionClientMetadata.Methods.airdrop,
+      Code_Transaction_V2_TransactionClientMetadata.Methods.swap,
     ]
   )
 
@@ -694,6 +772,12 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       name: "Airdrop",
       path: "/code.transaction.v2.Transaction/Airdrop",
       type: GRPCCallType.unary
+    )
+
+    public static let swap = GRPCMethodDescriptor(
+      name: "Swap",
+      path: "/code.transaction.v2.Transaction/Swap",
+      type: GRPCCallType.bidirectionalStreaming
     )
   }
 }
@@ -764,6 +848,19 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
 
   /// Airdrop airdrops Kin to the requesting account
   func airdrop(request: Code_Transaction_V2_AirdropRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_AirdropResponse>
+
+  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+  /// closely. However, due to the time-sensitive nature and unreliability of
+  /// swaps, they do not fit within the broader intent system. This results in
+  /// a few key differences:
+  ///  * Transactions are submitted on a best-effort basis outside of the Code
+  ///    Sequencer within the RPC handler
+  ///  * Balance changes are applied after the transaction has finalized
+  ///  * Transactions use recent blockhashes over a nonce
+  ///
+  /// Note: Currently limited to swapping USDC to Kin.
+  /// Note: Kin is deposited into the primary account.
+  func swap(context: StreamingResponseCallContext<Code_Transaction_V2_SwapResponse>) -> EventLoopFuture<(StreamEvent<Code_Transaction_V2_SwapRequest>) -> Void>
 }
 
 extension Code_Transaction_V2_TransactionProvider {
@@ -848,6 +945,15 @@ extension Code_Transaction_V2_TransactionProvider {
         responseSerializer: ProtobufSerializer<Code_Transaction_V2_AirdropResponse>(),
         interceptors: self.interceptors?.makeAirdropInterceptors() ?? [],
         userFunction: self.airdrop(request:context:)
+      )
+
+    case "Swap":
+      return BidirectionalStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_SwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_SwapResponse>(),
+        interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
+        observerFactory: self.swap(context:)
       )
 
     default:
@@ -951,6 +1057,23 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
     request: Code_Transaction_V2_AirdropRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Transaction_V2_AirdropResponse
+
+  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+  /// closely. However, due to the time-sensitive nature and unreliability of
+  /// swaps, they do not fit within the broader intent system. This results in
+  /// a few key differences:
+  ///  * Transactions are submitted on a best-effort basis outside of the Code
+  ///    Sequencer within the RPC handler
+  ///  * Balance changes are applied after the transaction has finalized
+  ///  * Transactions use recent blockhashes over a nonce
+  ///
+  /// Note: Currently limited to swapping USDC to Kin.
+  /// Note: Kin is deposited into the primary account.
+  @Sendable func swap(
+    requestStream: GRPCAsyncRequestStream<Code_Transaction_V2_SwapRequest>,
+    responseStream: GRPCAsyncResponseStreamWriter<Code_Transaction_V2_SwapResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -1044,6 +1167,15 @@ extension Code_Transaction_V2_TransactionAsyncProvider {
         wrapping: self.airdrop(request:context:)
       )
 
+    case "Swap":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_SwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_SwapResponse>(),
+        interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
+        wrapping: self.swap(requestStream:responseStream:context:)
+      )
+
     default:
       return nil
     }
@@ -1085,6 +1217,10 @@ public protocol Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol 
   /// - Returns: Interceptors to use when handling 'airdrop'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeAirdropInterceptors() -> [ServerInterceptor<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>]
+
+  /// - Returns: Interceptors to use when handling 'swap'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSwapInterceptors() -> [ServerInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionServerMetadata {
@@ -1100,6 +1236,7 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       Code_Transaction_V2_TransactionServerMetadata.Methods.getPaymentHistory,
       Code_Transaction_V2_TransactionServerMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionServerMetadata.Methods.airdrop,
+      Code_Transaction_V2_TransactionServerMetadata.Methods.swap,
     ]
   )
 
@@ -1150,6 +1287,12 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       name: "Airdrop",
       path: "/code.transaction.v2.Transaction/Airdrop",
       type: GRPCCallType.unary
+    )
+
+    public static let swap = GRPCMethodDescriptor(
+      name: "Swap",
+      path: "/code.transaction.v2.Transaction/Swap",
+      type: GRPCCallType.bidirectionalStreaming
     )
   }
 }

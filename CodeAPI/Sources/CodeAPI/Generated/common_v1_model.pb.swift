@@ -127,6 +127,33 @@ public struct Code_Common_V1_SolanaAccountId {
   public init() {}
 }
 
+/// InstructionAccount is an account public key used within the context of
+/// an instruction.
+public struct Code_Common_V1_InstructionAccount {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var account: Code_Common_V1_SolanaAccountId {
+    get {return _account ?? Code_Common_V1_SolanaAccountId()}
+    set {_account = newValue}
+  }
+  /// Returns true if `account` has been explicitly set.
+  public var hasAccount: Bool {return self._account != nil}
+  /// Clears the value of `account`. Subsequent reads from it will return its default value.
+  public mutating func clearAccount() {self._account = nil}
+
+  public var isSigner: Bool = false
+
+  public var isWritable: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _account: Code_Common_V1_SolanaAccountId? = nil
+}
+
 /// Transaction is a raw binary Solana transaction
 public struct Code_Common_V1_Transaction {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -181,7 +208,9 @@ public struct Code_Common_V1_IntentId {
   public init() {}
 }
 
-/// UserId is a globally unique identifier for a user
+/// UserId is a globally unique identifier for a user within Code
+///
+/// Note: Users outside Code are modelled as relationship accounts
 public struct Code_Common_V1_UserId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -395,6 +424,7 @@ extension Code_Common_V1_Response.Result: CaseIterable {
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Code_Common_V1_AccountType: @unchecked Sendable {}
 extension Code_Common_V1_SolanaAccountId: @unchecked Sendable {}
+extension Code_Common_V1_InstructionAccount: @unchecked Sendable {}
 extension Code_Common_V1_Transaction: @unchecked Sendable {}
 extension Code_Common_V1_Blockhash: @unchecked Sendable {}
 extension Code_Common_V1_Signature: @unchecked Sendable {}
@@ -464,6 +494,54 @@ extension Code_Common_V1_SolanaAccountId: SwiftProtobuf.Message, SwiftProtobuf._
 
   public static func ==(lhs: Code_Common_V1_SolanaAccountId, rhs: Code_Common_V1_SolanaAccountId) -> Bool {
     if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Common_V1_InstructionAccount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".InstructionAccount"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "account"),
+    2: .standard(proto: "is_signer"),
+    3: .standard(proto: "is_writable"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._account) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.isSigner) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.isWritable) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._account {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.isSigner != false {
+      try visitor.visitSingularBoolField(value: self.isSigner, fieldNumber: 2)
+    }
+    if self.isWritable != false {
+      try visitor.visitSingularBoolField(value: self.isWritable, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Common_V1_InstructionAccount, rhs: Code_Common_V1_InstructionAccount) -> Bool {
+    if lhs._account != rhs._account {return false}
+    if lhs.isSigner != rhs.isSigner {return false}
+    if lhs.isWritable != rhs.isWritable {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

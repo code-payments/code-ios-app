@@ -27,4 +27,10 @@ extension Client {
             identityService.fetchUser(phone: phone, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func loginToThirdParty(rendezvous: PublicKey, relationship: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            identityService.loginToThirdParty(rendezvous: rendezvous, relationship: relationship) { c.resume(with: $0) }
+        }
+    }
 }

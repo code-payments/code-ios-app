@@ -73,6 +73,19 @@ service Transaction {
 
     // Airdrop airdrops Kin to the requesting account
     rpc Airdrop(AirdropRequest) returns (AirdropResponse);
+
+    // Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+    // closely. However, due to the time-sensitive nature and unreliability of
+    // swaps, they do not fit within the broader intent system. This results in
+    // a few key differences:
+    //  * Transactions are submitted on a best-effort basis outside of the Code
+    //    Sequencer within the RPC handler
+    //  * Balance changes are applied after the transaction has finalized
+    //  * Transactions use recent blockhashes over a nonce
+    //
+    // Note: Currently limited to swapping USDC to Kin.
+    // Note: Kin is deposited into the primary account.
+    rpc Swap(stream SwapRequest) returns (stream SwapResponse);
 }
 
 //
@@ -382,6 +395,124 @@ message AirdropResponse {
 
     // Exchange data for the amount of Kin airdropped when successful
     ExchangeData exchange_data = 2;
+}
+
+message SwapRequest {
+    oneof request {
+        option (validate.required) = true;
+
+        Initiate        initiate         = 1;
+        SubmitSignature submit_signature = 2;
+    }
+
+    message Initiate {
+        // The verified owner account public key
+        common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+        // The user authority account that will sign to authorize the swap. Ideally,
+        // this is an account derived off the owner account that is solely responsible
+        // for swapping.
+        common.v1.SolanaAccountId swap_authority = 2 [(validate.rules).message.required = true];
+
+        // Maximum amount to swap from the source mint, in quarks. If value is set to zero,
+        // the entire amount will be swapped.
+        uint64 limit = 3;
+
+        // Whether the client wants the RPC to wait for blockchain status. If false,
+        // then the RPC will return Success when the swap is submitted to the blockchain.
+        // Otherwise, the RPC will observe and report back the status of the transaction. 
+        bool wait_for_blockchain_status = 4;
+
+        // The signature is of serialize(Initiate) without this field set using the
+        // private key of the owner account. This provides an authentication mechanism
+        // to the RPC.
+        common.v1.Signature signature = 5 [(validate.rules).message.required = true];
+    }
+
+    message SubmitSignature {
+        // The signature for the locally constructed swap transaction
+        common.v1.Signature signature = 1 [(validate.rules).message.required = true];
+    }
+}
+
+message SwapResponse {
+    oneof response {
+        option (validate.required) = true;
+
+        ServerParameters server_paramenters = 1;
+        Success          success            = 2;
+        Error            error              = 3;
+    }
+
+    message ServerParameters {
+        // Subisdizer account that will be paying for the swap
+        common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
+
+        // Recent blockhash
+        common.v1.Blockhash recent_blockhash = 2 [(validate.rules).message.required = true];
+
+        // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
+        // instruction. If the value is 0, then the instruction can be omitted.
+        uint64 compute_unit_limit = 3;
+
+        // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
+        // instruction. If the value is 0, then the instruction can be omitted.
+        uint64 compute_unit_price = 4;
+
+        // On-chain program that will be performing the swap
+        common.v1.SolanaAccountId swap_program = 5 [(validate.rules).message.required = true];
+
+        // Accounts provided to the swap instruction
+        repeated common.v1.InstructionAccount swap_ixn_accounts = 6 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 64
+        }];
+
+        // Instruction data for the swap instruction
+        bytes swap_ixn_data = 7 [(validate.rules).bytes = {
+            min_len: 1
+            max_len: 256 // Arbitrary
+        }];
+
+        // Maximum quarks that will be sent out of the source account after
+        // executing the swap. If not, the validation instruction will cause
+        // the transaction to fail.
+        uint64 max_to_send = 8 [(validate.rules).uint64.gt = 0];
+
+        // Minimum quarks that will be received into the destination account
+        // after executing the swap. If not, the validation instruction will
+        // cause the transaction to fail.
+        uint64 min_to_receive = 9 [(validate.rules).uint64.gt = 0];
+
+        // Nonce to use in swap validator state account PDA
+        common.v1.SolanaAccountId nonce = 10 [(validate.rules).message.required = true];
+    }
+
+    message Success {
+        Code code = 1;
+        enum Code {
+            // The swap was submitted to the blockchain.
+            SWAP_SUBMITTED = 0;
+            // The swap was finalized on the blockchain.
+            SWAP_FINALIZED = 1;
+        }
+    }
+
+    message Error {
+        Code code = 1;
+        enum Code {
+            // Denied by a guard (spam, money laundering, etc)
+            DENIED = 0;
+            // There is an issue with the provided signature.
+            SIGNATURE_ERROR = 2;
+            // An amount to swap to/from is invalid
+            INVALID_SWAP_AMOUNT = 3;
+            // The submitted swap transaction failed. Attempt the swap again.
+            SWAP_FAILED = 4;
+        }
+
+        repeated ErrorDetails error_details = 2;
+    }
 }
 
 //

@@ -9,11 +9,12 @@ option objc_class_prefix = "APBMicroPaymentV1";
 import "common/v1/model.proto";
 import "validate/validate.proto";
 
+// todo: Migrate this to a generic "request" service
 service MicroPayment {
-    // GetStatus gets basic micro payment status
+    // GetStatus gets basic request status
     rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
 
-    // RegisterWebhook registers a webhook for a micro payment
+    // RegisterWebhook registers a webhook for a request
     //
     // todo: Once Kik codes can encode the entire payment request details, we can
     //       remove the messaging service component and have a Create RPC that
@@ -64,8 +65,8 @@ message RegisterWebhookResponse {
         OK = 0;
         // A webhook has already been registered
         ALREADY_REGISTERED = 1;
-        // A payment request does not exist for the provided intent ID
-        PAYMENT_REQUEST_NOT_FOUND = 2;
+        // A request does not exist for the provided intent ID
+        REQUEST_NOT_FOUND = 2;
         // A user has already submitted a payment
         INTENT_EXISTS = 3;
         // The webhook URL is invalid
