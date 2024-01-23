@@ -28,6 +28,10 @@ public struct Fiat: Equatable, Hashable, Codable {
     }
 }
 
+extension Fiat {
+    public static let zero = Fiat(currency: .usd, amount: Decimal(0))
+}
+
 public enum GenericAmount: Equatable, Hashable {
     
     case exact(KinAmount)

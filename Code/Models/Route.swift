@@ -67,7 +67,8 @@ extension Route {
         
         case login
         case cash
-        case sdk
+        case paymentRequest
+        case loginRequest
         case unknown(String)
         
         init?(path: String) {
@@ -81,7 +82,9 @@ extension Route {
             case "cash", "c":
                 self = .cash
             case "payment-request-modal-desktop", "payment-request-modal-mobile":
-                self = .sdk
+                self = .paymentRequest
+            case "login-request-modal-desktop", "login-request-modal-mobile":
+                self = .loginRequest
             default:
                 self = .unknown(url.lastPathComponent)
             }

@@ -65,15 +65,31 @@ final class DeepLinkController {
                 return nil
             }
             
-        case .sdk:
+        case .paymentRequest:
             
             if
                 let payload = route.fragments[.payload],
                 let data = payload.value.base64EncodedData(),
-                let request = try? JSONDecoder().decode(DeepLinkPaymentRequest.self, from: data)
+                let request = try? JSONDecoder().decode(DeepLinkRequest.self, from: data)
             {
                 return DeepLinkAction(
                     kind: .paymentRequest(request),
+                    sessionAuthenticator: sessionAuthenticator
+                )
+                
+            } else {
+                return nil
+            }
+            
+        case .loginRequest:
+            
+            if
+                let payload = route.fragments[.payload],
+                let data = payload.value.base64EncodedData(),
+                let request = try? JSONDecoder().decode(DeepLinkRequest.self, from: data)
+            {
+                return DeepLinkAction(
+                    kind: .loginRequest(request),
                     sessionAuthenticator: sessionAuthenticator
                 )
                 
@@ -120,7 +136,7 @@ struct DeepLinkAction {
                 description: nil
             )
             
-        case .receiveRemoteSend, .paymentRequest:
+        case .receiveRemoteSend, .paymentRequest, .loginRequest:
             return nil // Don't need confirmation
         }
     }
@@ -150,14 +166,28 @@ struct DeepLinkAction {
             }
             
         case .paymentRequest(let request):
+            if case .loggedIn(let container) = sessionAuthenticator.state, let paymentRequest = request.paymentRequest {
+                // Delay the presentation of the bill
+                try await Task.delay(milliseconds: 500)
+                
+                let payload = Code.Payload(
+                    kind: .requestPayment,
+                    fiat: paymentRequest.fiat,
+                    nonce: request.clientSecret
+                )
+                
+                container.session.attempt(payload, request: request)
+            }
+            
+        case .loginRequest(let request):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 
                 // Delay the presentation of the bill
                 try await Task.delay(milliseconds: 500)
                 
                 let payload = Code.Payload(
-                    kind: .requestPayment,
-                    fiat: request.fiat,
+                    kind: .login,
+                    kin: 0,
                     nonce: request.clientSecret
                 )
                 
@@ -173,7 +203,8 @@ extension DeepLinkAction {
     enum Kind {
         case login(MnemonicPhrase)
         case receiveRemoteSend(GiftCardAccount)
-        case paymentRequest(DeepLinkPaymentRequest)
+        case paymentRequest(DeepLinkRequest)
+        case loginRequest(DeepLinkRequest)
     }
 }
 

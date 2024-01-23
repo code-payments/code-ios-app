@@ -536,7 +536,7 @@ class Session: ObservableObject {
     
     // MARK: - Receive -
     
-    func attempt(_ payload: Code.Payload, request: DeepLinkPaymentRequest?) {
+    func attempt(_ payload: Code.Payload, request: DeepLinkRequest?) {
         guard canInitiateSend() else {
             trace(.warning, components: "Can't initiate send.")
             return
@@ -616,7 +616,7 @@ class Session: ObservableObject {
     
     // MARK: - Login -
     
-    private func attemptLogin(_ payload: Code.Payload, request: DeepLinkPaymentRequest?) {
+    private func attemptLogin(_ payload: Code.Payload, request: DeepLinkRequest?) {
         Task {
             // 1. Fetch message metadata for this payload to get the
             // domain for which we'll need to establish a relationship
@@ -637,7 +637,7 @@ class Session: ObservableObject {
         }
     }
     
-    func presentLoginCard(payload: Code.Payload, domain: Domain, request: DeepLinkPaymentRequest?) {
+    func presentLoginCard(payload: Code.Payload, domain: Domain, request: DeepLinkRequest?) {
         Task {
             try await client.codeScanned(rendezvous: payload.rendezvous)
         }
@@ -686,14 +686,24 @@ class Session: ObservableObject {
             return
         }
         
-        cancelLogin()
+        cancelLogin(rejected: true)
         
         Task {
             try await client.rejectLogin(rendezvous: loginRendezvous)
         }
     }
     
-    func cancelLogin() {
+    func cancelLogin(rejected: Bool) {
+        if rejected {
+            if let cancelURL = billState.bill?.metadata.request?.confirmParameters.cancelURL {
+                cancelURL.openWithApplication()
+            }
+        } else {
+            if let successURL = billState.bill?.metadata.request?.confirmParameters.successURL {
+                successURL.openWithApplication()
+            }
+        }
+        
         presentationState = .hidden(.slide)
         billState = billState
             .bill(nil)
@@ -703,7 +713,7 @@ class Session: ObservableObject {
     
     // MARK: - Request -
     
-    private func attemptPayment(_ payload: Code.Payload, request: DeepLinkPaymentRequest?) {
+    private func attemptPayment(_ payload: Code.Payload, request: DeepLinkRequest?) {
         guard case .fiat(let fiat) = payload.value else {
             return
         }
@@ -726,7 +736,7 @@ class Session: ObservableObject {
         )
     }
     
-    func presentRequest(amount: KinAmount, payload: Code.Payload?, request: DeepLinkPaymentRequest?) {
+    func presentRequest(amount: KinAmount, payload: Code.Payload?, request: DeepLinkRequest?) {
         let code: Code.Payload
         
         if let payload {
@@ -792,8 +802,8 @@ class Session: ObservableObject {
             Analytics.requestHidden(amount: amount)
             
             if rejected {
-                if !ignoreRedirect, let cancelURL = bill.metadata.request?.cancelURL {
-                    UIApplication.shared.open(cancelURL)
+                if !ignoreRedirect, let cancelURL = bill.metadata.request?.confirmParameters.cancelURL {
+                    cancelURL.openWithApplication()
                 }
                 
             } else {
@@ -802,8 +812,8 @@ class Session: ObservableObject {
                     isDeposit: false
                 )
                 
-                if !ignoreRedirect, let successURL = bill.metadata.request?.successURL {
-                    UIApplication.shared.open(successURL)
+                if !ignoreRedirect, let successURL = bill.metadata.request?.confirmParameters.successURL {
+                    successURL.openWithApplication()
                 }
             }
         }

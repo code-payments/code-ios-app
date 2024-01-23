@@ -95,11 +95,11 @@ struct BuyVideosScreen: View {
     }
     
     private func openBuyVideo() {
-        UIApplication.shared.open(.videoBuyKin)
+        URL.videoBuyKin.openWithApplication()
     }
     
     private func openSellVideo() {
-        UIApplication.shared.open(.videoSellKin)
+        URL.videoSellKin.openWithApplication()
     }
     
     private func share(_ url: URL) {

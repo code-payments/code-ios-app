@@ -146,6 +146,6 @@ extension BillState {
     struct Metadata: Equatable {
         var kinAmount: KinAmount
         var data: Data
-        var request: DeepLinkPaymentRequest?
+        var request: DeepLinkRequest?
     }
 }

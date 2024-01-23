@@ -382,7 +382,7 @@ struct ScanScreen: View {
                     )
                     
                 }, dismissAction: { [weak session] in
-                    session?.cancelLogin()
+                    session?.cancelLogin(rejected: false)
                     
                 }, cancelAction: { [weak session] in
                     session?.rejectLogin()

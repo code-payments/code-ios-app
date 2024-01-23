@@ -116,7 +116,7 @@
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
 		9A9A273C27D00F76005EBBC6 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9A273B27D00F76005EBBC6 /* AccountManager.swift */; };
 		9A9A273F27D28AEE005EBBC6 /* AccountSelectionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9A273E27D28AEE005EBBC6 /* AccountSelectionScreen.swift */; };
-		9A9C16C92AAF971D00B1A964 /* DeepLinkPaymentRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9C16C82AAF971D00B1A964 /* DeepLinkPaymentRequest.swift */; };
+		9A9C16C92AAF971D00B1A964 /* DeepLinkRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */; };
 		9A9C16CB2AAF9CE600B1A964 /* DeepLinkPaymentRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9C16CA2AAF9CE600B1A964 /* DeepLinkPaymentRequestTests.swift */; };
 		9A9DF7C3274ED7950031E219 /* StatusController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9DF7C2274ED7950031E219 /* StatusController.swift */; };
 		9A9DF7C9275155BE0031E219 /* UpgradeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9DF7C8275155BE0031E219 /* UpgradeScreen.swift */; };
@@ -347,7 +347,7 @@
 		9A9469BA27A090E10028F27E /* MessageController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageController.swift; sourceTree = "<group>"; };
 		9A9A273B27D00F76005EBBC6 /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountManager.swift; sourceTree = "<group>"; };
 		9A9A273E27D28AEE005EBBC6 /* AccountSelectionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSelectionScreen.swift; sourceTree = "<group>"; };
-		9A9C16C82AAF971D00B1A964 /* DeepLinkPaymentRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkPaymentRequest.swift; sourceTree = "<group>"; };
+		9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkRequest.swift; sourceTree = "<group>"; };
 		9A9C16CA2AAF9CE600B1A964 /* DeepLinkPaymentRequestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkPaymentRequestTests.swift; sourceTree = "<group>"; };
 		9A9DF7C2274ED7950031E219 /* StatusController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusController.swift; sourceTree = "<group>"; };
 		9A9DF7C8275155BE0031E219 /* UpgradeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradeScreen.swift; sourceTree = "<group>"; };
@@ -904,7 +904,7 @@
 				9AB7C5C625E7F8730007B3D5 /* BillState.swift */,
 				9A084D7126165CDC00F3C9B9 /* Stopwatch.swift */,
 				9A1168A827BE9C4500948F3D /* Contact.swift */,
-				9A9C16C82AAF971D00B1A964 /* DeepLinkPaymentRequest.swift */,
+				9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1290,7 +1290,7 @@
 				9ACFA30C2A4A0FAD0057A5DF /* Abacus.swift in Sources */,
 				9A57221925EE92BC00B243FC /* SettingsScreen.swift in Sources */,
 				9AB7C59825E59F700007B3D5 /* String+Decimal.swift in Sources */,
-				9A9C16C92AAF971D00B1A964 /* DeepLinkPaymentRequest.swift in Sources */,
+				9A9C16C92AAF971D00B1A964 /* DeepLinkRequest.swift in Sources */,
 				9AEFE85425B74A4A001FCB19 /* ScanScreen.swift in Sources */,
 				9A18C735289C099000B39AF6 /* WithdrawViewModel.swift in Sources */,
 				9A301D1629B92E94006BA3F6 /* FlowController.swift in Sources */,
