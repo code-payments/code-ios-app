@@ -1,5 +1,5 @@
 //
-//  DeepLinkPaymentRequestTests.swift
+//  DeepLinkRequestTests.swift
 //  CodeTests
 //
 //  Created by Dima Bart on 2023-09-11.
@@ -9,9 +9,9 @@ import XCTest
 @testable import CodeServices
 @testable import Code
 
-class DeepLinkPaymentRequestTests: XCTestCase {
+class DeepLinkRequestTests: XCTestCase {
     
-    func testDecode() throws {
+    func testDecodePaymentRequest() throws {
         let json = """
         {
           "mode": "payment",
@@ -30,17 +30,17 @@ class DeepLinkPaymentRequestTests: XCTestCase {
         }
         """
         
-        let request = try JSONDecoder().decode(DeepLinkPaymentRequest.self, from: Data(json.utf8))
+        let request = try JSONDecoder().decode(DeepLinkRequest.self, from: Data(json.utf8))
         
         XCTAssertEqual(request.mode, .payment)
-        XCTAssertEqual(request.fiat, Fiat(currency: .usd, amount: 0.25))
         XCTAssertEqual(request.clientSecret, Base58.toBytes("9rSkG4cUdx7D1AW").data)
-        XCTAssertEqual(request.destination, PublicKey(base58: "E8otxw1CVX9bfyddKu3ZB3BVLa4VVF9J7CTPdnUwT9jR")!)
-        XCTAssertEqual(request.successURL?.absoluteString, "https://example.com/success")
-        XCTAssertEqual(request.cancelURL?.absoluteString, "https://example.com/cancel")
+        XCTAssertEqual(request.paymentRequest?.fiat, Fiat(currency: .usd, amount: 0.25))
+        XCTAssertEqual(request.paymentRequest?.destination, PublicKey(base58: "E8otxw1CVX9bfyddKu3ZB3BVLa4VVF9J7CTPdnUwT9jR")!)
+        XCTAssertEqual(request.confirmParameters.successURL?.absoluteString, "https://example.com/success")
+        XCTAssertEqual(request.confirmParameters.cancelURL?.absoluteString, "https://example.com/cancel")
     }
     
-    func testDecodeNoParams() throws {
+    func testDecodePaymentRequestNoParams() throws {
         let json = """
         {
           "mode": "payment",
@@ -54,37 +54,87 @@ class DeepLinkPaymentRequestTests: XCTestCase {
         }
         """
         
-        let request = try JSONDecoder().decode(DeepLinkPaymentRequest.self, from: Data(json.utf8))
+        let request = try JSONDecoder().decode(DeepLinkRequest.self, from: Data(json.utf8))
         
         XCTAssertEqual(request.mode, .payment)
-        XCTAssertEqual(request.fiat, Fiat(currency: .usd, amount: 0.25))
         XCTAssertEqual(request.clientSecret, Base58.toBytes("9rSkG4cUdx7D1AW").data)
-        XCTAssertEqual(request.destination, PublicKey(base58: "E8otxw1CVX9bfyddKu3ZB3BVLa4VVF9J7CTPdnUwT9jR")!)
-        XCTAssertNil(request.successURL)
-        XCTAssertNil(request.cancelURL)
+        XCTAssertEqual(request.paymentRequest?.fiat, Fiat(currency: .usd, amount: 0.25))
+        XCTAssertEqual(request.paymentRequest?.destination, PublicKey(base58: "E8otxw1CVX9bfyddKu3ZB3BVLa4VVF9J7CTPdnUwT9jR")!)
+        XCTAssertNil(request.confirmParameters.successURL)
+        XCTAssertNil(request.confirmParameters.cancelURL)
     }
     
-    func testEncode() throws {
-        let request = DeepLinkPaymentRequest(
-            mode: .payment,
-            fiat: Fiat(currency: .usd, amount: 0.25),
-            destination: PublicKey(base58: "E8otxw1CVX9bfyddKu3ZB3BVLa4VVF9J7CTPdnUwT9jR")!,
-            clientSecret: Base58.toBytes("9rSkG4cUdx7D1AW").data,
-            successURL: URL(string: "https://example.com/success")!,
-            cancelURL: URL(string: "https://example.com/cancel")!
-        )
+    func testDecodeLoginRequest() throws {
+        let json = """
+        {
+            "mode": "login",
+            "login": {
+                "verifier": "5TSdPcPLe9CovF5ZK8gfv1kmSpHc9GuWkaDUK2sqC33X",
+                "domain": "getcode.com"
+            },
+            "confirmParams": {
+                "success": {
+                    "url": "https://example.com/success"
+                },
+                "cancel": {
+                    "url": "https://example.com/cancel"
+                }
+            },
+            "locale": "en",
+            "clientSecret": "9rSkG4cUdx7D1AW"
+        }
+        """
         
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
-        let json = try encoder.encode(request)
+        let request = try JSONDecoder().decode(DeepLinkRequest.self, from: Data(json.utf8))
         
-        let decodedRequest = try JSONDecoder().decode(DeepLinkPaymentRequest.self, from: json)
+        XCTAssertEqual(request.mode, .login)
+        XCTAssertEqual(request.clientSecret, Base58.toBytes("9rSkG4cUdx7D1AW").data)
+        XCTAssertEqual(request.loginRequest?.verifier, PublicKey(base58: "5TSdPcPLe9CovF5ZK8gfv1kmSpHc9GuWkaDUK2sqC33X")!)
+        XCTAssertEqual(request.loginRequest?.domain, Domain("getcode.com"))
         
-        XCTAssertEqual(decodedRequest.mode, request.mode)
-        XCTAssertEqual(decodedRequest.fiat, request.fiat)
-        XCTAssertEqual(decodedRequest.clientSecret, request.clientSecret)
-        XCTAssertEqual(decodedRequest.destination, request.destination)
-        XCTAssertEqual(decodedRequest.successURL, request.successURL)
-        XCTAssertEqual(decodedRequest.cancelURL, request.cancelURL)
+        XCTAssertNil(request.paymentRequest)
+        
+        XCTAssertEqual(request.confirmParameters.successURL?.absoluteString, "https://example.com/success")
+        XCTAssertEqual(request.confirmParameters.cancelURL?.absoluteString, "https://example.com/cancel")
+    }
+    
+    func testCompleteRequest() throws {
+        let json = """
+        {
+            "mode": "login",
+            "currency": "usd",
+            "destination": "E8otxw1CVX9bfyddKu3ZB3BVLa4VVF9J7CTPdnUwT9jR",
+            "amount": 0.25,
+            "clientSecret": "9rSkG4cUdx7D1AW",
+            "login": {
+                "verifier": "5TSdPcPLe9CovF5ZK8gfv1kmSpHc9GuWkaDUK2sqC33X",
+                "domain": "getcode.com"
+            },
+            "confirmParams": {
+                "success": {
+                    "url": "https://example.com/success"
+                },
+                "cancel": {
+                    "url": "https://example.com/cancel"
+                }
+            },
+            "locale": "en",
+            "clientSecret": "9rSkG4cUdx7D1AW"
+        }
+        """
+        
+        let request = try JSONDecoder().decode(DeepLinkRequest.self, from: Data(json.utf8))
+        
+        XCTAssertEqual(request.mode, .login)
+        XCTAssertEqual(request.clientSecret, Base58.toBytes("9rSkG4cUdx7D1AW").data)
+        
+        XCTAssertEqual(request.paymentRequest?.fiat, Fiat(currency: .usd, amount: 0.25))
+        XCTAssertEqual(request.paymentRequest?.destination, PublicKey(base58: "E8otxw1CVX9bfyddKu3ZB3BVLa4VVF9J7CTPdnUwT9jR")!)
+        
+        XCTAssertEqual(request.loginRequest?.verifier, PublicKey(base58: "5TSdPcPLe9CovF5ZK8gfv1kmSpHc9GuWkaDUK2sqC33X")!)
+        XCTAssertEqual(request.loginRequest?.domain, Domain("getcode.com"))
+        
+        XCTAssertEqual(request.confirmParameters.successURL?.absoluteString, "https://example.com/success")
+        XCTAssertEqual(request.confirmParameters.cancelURL?.absoluteString, "https://example.com/cancel")
     }
 }
