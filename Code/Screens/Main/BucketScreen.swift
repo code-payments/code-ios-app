@@ -29,7 +29,11 @@ struct BucketScreen: View {
                 info: info
             )
         }.sorted { lhs, rhs in
-            lhs.sortOrder < rhs.sortOrder
+            if case .relationship = lhs.info.accountType, case .relationship = rhs.info.accountType {
+                return lhs.accountType.caseInsensitiveCompare(rhs.accountType) == .orderedAscending
+            } else {
+                return lhs.sortOrder < rhs.sortOrder
+            }
         }
     }
     
