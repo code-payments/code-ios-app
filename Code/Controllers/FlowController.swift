@@ -52,7 +52,7 @@ class FlowController: ObservableObject {
         let infos = try await client.fetchAccountInfos(owner: organizer.ownerKeyPair)
         organizer.setAccountInfo(infos)
         
-        try await receiveFromIncomingIfRotationRequired()
+        try await receiveFromIncoming()
         
         return organizer.availableBalance
     }
@@ -274,7 +274,7 @@ class FlowController: ObservableObject {
     
     func receiveIfNeeded() async throws {
         try await receiveFromPrimaryIfWithinLimits()
-        try await receiveFromIncomingIfRotationRequired()
+        try await receiveFromIncoming()
     }
     
     private func receiveFromPrimaryIfWithinLimits() async throws {
@@ -301,14 +301,6 @@ class FlowController: ObservableObject {
         }
     }
     
-    private func receiveFromIncomingIfRotationRequired() async throws {
-        // Server will set this to `true` if the account
-        // has more than 1 transaction + other heuristics
-        if organizer.shouldRotateIncoming {
-            try await receiveFromIncoming()
-        }
-    }
-    
     func availableIncomingAmount() -> Kin {
         organizer.availableIncomingBalance.truncating()
     }
@@ -317,10 +309,9 @@ class FlowController: ObservableObject {
     private func receiveFromIncoming() async throws -> Kin {
         let incomingBalance = availableIncomingAmount()
         guard incomingBalance > 0 else {
+            trace(.warning, components: "Skipping receiving from incoming, zero balance.")
             return 0
         }
-        
-        trace(.warning, components: "Receiving from incoming: \(incomingBalance)")
         
         try await client.receiveFromIncoming(
             amount: incomingBalance,

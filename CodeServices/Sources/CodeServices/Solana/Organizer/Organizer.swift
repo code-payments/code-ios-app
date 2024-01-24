@@ -27,10 +27,6 @@ public class Organizer {
         tray.availableIncomingBalance
     }
     
-    public var shouldRotateIncoming: Bool {
-        info(for: .incoming)?.mustRotate ?? false
-    }
-    
     public var ownerKeyPair: KeyPair {
         tray.owner.cluster.authority.keyPair
     }
