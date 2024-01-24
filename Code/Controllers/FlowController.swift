@@ -210,21 +210,25 @@ class FlowController: ObservableObject {
                     steps.append("Missing balance: \(missingBalance)")
                 }
                 
-                // 2. It's possible that there's funds still left in
-                // an incoming account. If we're still missing funds
-                // for withdrawal, we'll pull from incoming.
+                // 2. If we still need funds to fulfill the withdrawal
+                // it's likely that they are stuck in incoming and bucket
+                // accounts. We'll need to pull those out into primary.
                 if missingBalance > 0 {
-                    let receivedFromIncoming = try await receiveFromIncoming()
-                    missingBalance = missingBalance - receivedFromIncoming
                     
-                    steps.append("Pulled from incoming: \(receivedFromIncoming)")
-                    steps.append("Missing balance: \(missingBalance)")
-                }
-                
-                // 3. In the event that it's a full withdrawal or if
-                // more funds are required, we'll need to do a private
-                // transfer from bucket accounts.
-                if missingBalance > 0 {
+                    // 3. It's possible that there's funds still left in
+                    // an incoming account. If we're still missing funds
+                    // for withdrawal, we'll pull from incoming.
+                    if availableIncomingAmount() > 0 {
+                        let receivedFromIncoming = try await receiveFromIncoming()
+                        
+                        steps.append("Pulled from incoming: \(receivedFromIncoming)")
+                        steps.append("Missing balance: \(missingBalance)")
+                    }
+                    
+                    
+                    // 4. In the event that it's a full withdrawal or if
+                    // more funds are required, we'll need to do a private
+                    // transfer from bucket accounts.
                     try await client.transfer(
                         amount: KinAmount(kin: missingBalance, rate: .oneToOne),
                         organizer: organizer,
@@ -238,7 +242,7 @@ class FlowController: ObservableObject {
                     try await fetchLimits()
                 }
                 
-                // 4. Update balances and limits after the withdrawal since
+                // 5. Update balances and limits after the withdrawal since
                 // it's likely that this withdrawal affected both but at the
                 // very least, we need updated balances for all accounts.
                 _ = try await fetchBalance()
@@ -305,9 +309,13 @@ class FlowController: ObservableObject {
         }
     }
     
+    func availableIncomingAmount() -> Kin {
+        organizer.availableIncomingBalance.truncating()
+    }
+    
     @discardableResult
     private func receiveFromIncoming() async throws -> Kin {
-        let incomingBalance = organizer.availableIncomingBalance.truncating()
+        let incomingBalance = availableIncomingAmount()
         guard incomingBalance > 0 else {
             return 0
         }
