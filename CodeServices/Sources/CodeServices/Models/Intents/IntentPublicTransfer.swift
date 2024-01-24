@@ -21,12 +21,19 @@ class IntentPublicTransfer: IntentType {
     
     var actionGroup: ActionGroup
     
-    init(organizer: Organizer, source: AccountType, destination: PublicKey, amount: KinAmount) throws {
+    init(organizer: Organizer, source: AccountType, destination: Destination, amount: KinAmount) throws {
         self.id = PublicKey.generate()!
         self.organizer = organizer
         self.sourceCluster = organizer.tray.cluster(for: source)
-        self.destination = destination
         self.amount = amount
+        
+        switch destination {
+        case .local(let accountType):
+            self.destination = organizer.tray.cluster(for: accountType).timelockAccounts.vault.publicKey
+            
+        case .external(let publicKey):
+            self.destination = publicKey
+        }
         
         var currentTray = organizer.tray
         
@@ -40,13 +47,26 @@ class IntentPublicTransfer: IntentType {
             intentID: id,
             amount: amount.kin,
             source: sourceCluster,
-            destination: destination
+            destination: self.destination
         )
         
-        try currentTray.decrement(.primary, kin: amount.kin)
+        try currentTray.decrement(source, kin: amount.kin)
+        
+        // If moving funds to an already known account
+        // we should update the balance accordingly
+        if case .local(let accountType) = destination {
+            try currentTray.increment(accountType, kin: amount.kin)
+        }
         
         self.actionGroup = ActionGroup(actions: [transfer])
         self.resultTray  = currentTray
+    }
+}
+
+extension IntentPublicTransfer {
+    enum Destination: Equatable, Hashable {
+        case local(AccountType)
+        case external(PublicKey)
     }
 }
 

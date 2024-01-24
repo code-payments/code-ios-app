@@ -734,6 +734,10 @@ class Session: ObservableObject {
             payload: payload,
             request: request
         )
+        
+        // Ensure that we preemptively pull funds into the
+        // correct account before we attempt to pay a request
+        receiveIfNeeded()
     }
     
     func presentRequest(amount: KinAmount, payload: Code.Payload?, request: DeepLinkRequest?) {

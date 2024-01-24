@@ -27,6 +27,10 @@ public class Organizer {
         tray.availableIncomingBalance
     }
     
+    var availableRelationshipBalance: Kin {
+        tray.availableRelationshipBalance
+    }
+    
     public var ownerKeyPair: KeyPair {
         tray.owner.cluster.authority.keyPair
     }

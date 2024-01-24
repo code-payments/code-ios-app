@@ -273,6 +273,9 @@ class FlowController: ObservableObject {
     // MARK: - Receives -
     
     func receiveIfNeeded() async throws {
+        if organizer.slotsBalance < maxDeposit {
+            try await receiveFromRelationships(upTo: maxDeposit)
+        }
         try await receiveFromPrimaryIfWithinLimits()
         try await receiveFromIncoming()
     }

@@ -144,7 +144,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             let intent = try IntentPublicTransfer(
                 organizer: organizer,
                 source: .relationship(domain),
-                destination: organizer.primaryVault,
+                destination: .local(.primary),
                 amount: KinAmount(kin: amount, rate: .oneToOne)
             )
 //            let intent = try IntentDeposit(
@@ -177,7 +177,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             let intent = try IntentPublicTransfer(
                 organizer: organizer,
                 source: .primary,
-                destination: destination,
+                destination: .external(destination),
                 amount: amount
             )
             
