@@ -15,6 +15,12 @@ public struct Domain: Equatable, Codable, Hashable {
     public let relationshipHost: String
     public let urlString: String
     
+    public var displayTitle: String {
+        var string = relationshipHost
+        let firstCharacter = relationshipHost.prefix(1).capitalized
+        return "\(firstCharacter)\(relationshipHost.suffix(string.count - 1))"
+    }
+    
     // MARK: - Init -
     
     public init?(_ url: URL, supportSubdomains: Bool = false) {

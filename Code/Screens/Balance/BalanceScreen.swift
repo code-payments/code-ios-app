@@ -22,7 +22,6 @@ struct BalanceScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var betaFlags: BetaFlags
     
-//    @State private var selectedTransaction: TransactionSelection?
     @State private var isShowingFAQ: Bool = false
     @State private var isShowingBuckets: Bool = false
     
@@ -80,7 +79,6 @@ struct BalanceScreen: View {
     }
     
     private func fetchHistory() {
-        historyController.fetchDelta()
         historyController.fetchChats()
     }
     
@@ -90,7 +88,7 @@ struct BalanceScreen: View {
         NavigationView {
             Background(color: .backgroundMain) {
                 GeometryReader { geometry in
-                    if session.hasBalance && historyController.hasFetchedTransactions {
+                    if session.hasBalance && historyController.hasFetchedChats {
                         VStack(spacing: 0) {
                             if hasTransactions {
                                 ScrollBox(color: .backgroundMain) {
@@ -227,8 +225,8 @@ struct BalanceScreen: View {
                         
                         Spacer()
                         
-                        if let latestMessage = chat.messages.last {
-                            Text(latestMessage.date.formattedRelatively())
+                        if let newestMessage = chat.newestMessage {
+                            Text(newestMessage.date.formattedRelatively())
                                 .foregroundColor(isUnread ? .textSuccess : .textSecondary)
                                 .font(.appTextSmall)
                                 .lineLimit(1)
@@ -265,114 +263,6 @@ struct BalanceScreen: View {
         }
     }
     
-    @ViewBuilder private func transactionRow(for transaction: HistoricalTransaction) -> some View {
-        HStack {
-            VStack(alignment: .leading) {
-                HStack(spacing: 10) {
-                    Text(title(for: transaction))
-                        .foregroundColor(.textMain)
-                        .font(.appTextMedium)
-                        .lineLimit(1)
-                    
-                    Spacer()
-                    
-                    CurrencyText(
-                        currency: transaction.kinAmount.rate.currency,
-                        text: formattedFiatAmount(
-                            kin: transaction.kinAmount.kin,
-                            rate: transaction.kinAmount.rate
-                        )
-                    )
-                    .foregroundColor(.textMain)
-                    .font(.appTextMedium)
-//                    Flag(style: transaction.kinAmount.rate.currency.flagStyle, size: .small)
-//                    Text(formattedFiatAmount(
-//                        kin: transaction.kinAmount.kin,
-//                        rate: transaction.kinAmount.rate
-//                    ))
-//                    .foregroundColor(.textMain)
-//                    .font(.appTextMedium)
-//                    .lineLimit(1)
-//                    .layoutPriority(10)
-                }
-                HStack(spacing: 5) {
-                    Text(DateFormatter.relative.string(from: transaction.date))
-                        .foregroundColor(.textSecondary)
-                        .font(.appTextSmall)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer()
-                    KinText(formattedKinAmount(
-                        kin: transaction.kinAmount.kin,
-                        currency: transaction.kinAmount.rate.currency
-                    ), format: .large)
-                    .foregroundColor(.textSecondary)
-                    .font(.appTextSmall)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                }
-            }
-        }
-    }
-    
-    private func title(for transaction: HistoricalTransaction) -> String {
-        switch transaction.paymentType {
-        case .send:
-            if transaction.isWithdrawal {
-                if transaction.isMicroPayment {
-                    return Localized.Subtitle.youSpent
-                } else {
-                    return Localized.Subtitle.youWithdrew
-                }
-            } else {
-                if transaction.isRemoteSend {
-                    return Localized.Subtitle.youSent
-                } else {
-                    return Localized.Subtitle.youGave
-                }
-            }
-            
-        case .receive:
-            
-            if let airdropType = transaction.airdropType {
-                switch airdropType {
-                case .unknown:
-                    break
-                case .giveFirstKin:
-                    return Localized.Title.referralBonus
-                case .getFirstKin:
-                    return Localized.Title.welcomeBonus
-                }    
-            }
-            
-            if transaction.isDeposit {
-                return Localized.Subtitle.youDeposited
-            }
-            
-            if transaction.isReturned {
-                return Localized.Subtitle.wasReturnedToYou
-            }
-            
-            return Localized.Subtitle.youReceived
-            
-        case .unknown:
-            return Localized.Title.unknown
-        }
-    }
-    
-    // MARK: - Actions -
-    
-//    private func selectTransaction(_ transaction: HistoricalTransaction) {
-//        guard let signature = transaction.transactionSignature else {
-//            return
-//        }
-//
-//        selectedTransaction = TransactionSelection(
-//            transaction: transaction,
-//            url: .solscanTransaction(with: signature)
-//        )
-//    }
-    
     // MARK: - Formatting -
     
     private func formattedFiatAmount(kin: Kin, rate: Rate) -> String {
@@ -398,10 +288,7 @@ extension Chat {
     public var localizedTitle: String {
         switch title {
         case .domain(let domain):
-            var string = domain
-            let firstCharacter = string.prefix(1).capitalized
-            return "\(firstCharacter)\(string.suffix(string.count - 1))"
-            
+            return domain.displayTitle
         case .localized(let key):
             return key.localizedStringByKey
         case .none:
@@ -410,7 +297,7 @@ extension Chat {
     }
     
     public var previewMessage: String {
-        guard let contents = messages.last?.contents else {
+        guard let contents = newestMessage?.contents else {
             return "No content"
         }
         
@@ -482,16 +369,6 @@ extension Chat.Verb {
     }
 }
 
-// MARK: -  Title BalanceDescription -
-
-private struct TransactionSelection: Identifiable {
-    var transaction: HistoricalTransaction
-    var url: URL
-    var id: ID {
-        transaction.id
-    }
-}
-
 // MARK: - Previews -
 
 struct BalanceScreen_Previews: PreviewProvider {
@@ -504,27 +381,5 @@ struct BalanceScreen_Previews: PreviewProvider {
             )
         }
         .environmentObjectsForSession()
-    }
-}
-
-private extension HistoricalTransaction {
-    static func mock() -> [HistoricalTransaction] {
-        (0..<3).flatMap { _ in
-            [
-                HistoricalTransaction(
-                    id: .random,
-                    paymentType: .receive,
-                    date: .now(),
-                    kinAmount: KinAmount(kin: 357_142, rate: Rate(fx: 0.000014, currency: .usd)),
-                    nativeAmount: 5.00,
-                    isDeposit: false,
-                    isWithdrawal: false,
-                    isRemoteSend: false,
-                    isReturned: false,
-                    isMicroPayment: false,
-                    airdropType: nil
-                ),
-            ]
-        }
     }
 }

@@ -16,9 +16,9 @@ extension Client {
         }
     }
     
-    public func fetchMessages(chatID: ID, owner: KeyPair) async throws -> [Chat.Message] {
+    public func fetchMessages(chatID: ID, owner: KeyPair, direction: MessageDirection = .ascending(from: nil), pageSize: Int) async throws -> [Chat.Message] {
         try await withCheckedThrowingContinuation { c in
-            chatService.fetchMessages(chatID: chatID, owner: owner) { c.resume(with: $0) }
+            chatService.fetchMessages(chatID: chatID, owner: owner, direction: direction, pageSize: pageSize) { c.resume(with: $0) }
         }
     }
     

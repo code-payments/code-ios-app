@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-public struct Chat: Equatable, Identifiable {
+public class Chat: Identifiable, ObservableObject {
     
     /// Unique chat identifier
     public let id: ID
@@ -44,7 +44,17 @@ public struct Chat: Equatable, Identifiable {
     /// different verification statuses. They should be treated separately.
     public let isVerified: Bool
     
-    public var messages: [Message] = []
+    @Published public private(set) var messages: [Message] = []
+    
+    public var oldestMessage: Message? {
+        messages.first
+    }
+    
+    public var newestMessage: Message? {
+        messages.last
+    }
+    
+    // MARK: - Init -
     
     public init(id: ID, cursor: ID, title: Title?, pointer: Pointer?, unreadCount: Int, canMute: Bool, isMuted: Bool, canUnsubscribe: Bool, isSubscribed: Bool, isVerified: Bool, messages: [Message]) {
         self.id = id
@@ -60,23 +70,41 @@ public struct Chat: Equatable, Identifiable {
         self.messages = messages
     }
     
-    public func resettingUnreadCount() -> Chat {
-        var chat = self
-        chat.unreadCount = 0
-        return chat
+    public func resetUnreadCount() {
+        unreadCount = 0
     }
     
-    public func muted(_ muted: Bool) -> Chat {
-        var chat = self
-        chat.isMuted = muted
-        return chat
+    public func mute(_ muted: Bool) {
+        isMuted = muted
+    }
+    
+    // MARK: - Messages -
+    
+    public func setMessages(_ messages: [Message]) {
+        self.messages = messages.sorted { lhs, rhs in
+            lhs.date < rhs.date // Desc
+        }
+    }
+}
+
+extension Chat: CustomDebugStringConvertible, CustomStringConvertible {
+    public var description: String {
+        let messages = messages.map { message in
+            "\(message.date) \(message.id.data.hexEncodedString())"
+        }.joined(separator: "\n")
+        
+        return "\(id.data.hexEncodedString()) (\(String(describing: title))\n\(messages)"
+    }
+    
+    public var debugDescription: String {
+        description
     }
 }
 
 extension Chat {
     public enum Title: Equatable {
         case localized(String)
-        case domain(String)
+        case domain(Domain)
     }
 }
 
@@ -217,7 +245,7 @@ extension Chat.Content {
 }
 
 extension Chat {
-    init(_ proto: Code_Chat_V1_ChatMetadata) {
+    convenience init(_ proto: Code_Chat_V1_ChatMetadata) {
         
         let title: Title?
         
@@ -225,7 +253,11 @@ extension Chat {
         case .localized(let content):
             title = .localized(content.key)
         case .domain(let domain):
-            title = .domain(domain.value)
+            if let validDomain = Domain(domain.value) {
+                title = .domain(validDomain)
+            } else {
+                title = nil
+            }
         default:
             title = nil
         }

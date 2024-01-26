@@ -14,9 +14,8 @@ struct ChatScreen: View {
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var bannerController: BannerController
     
+    @ObservedObject private var chat: Chat
     @ObservedObject private var historyController: HistoryController
-    
-    private let chat: Chat
     
     // MARK: - Init -
     
@@ -27,6 +26,7 @@ struct ChatScreen: View {
     
     private func didAppear() {
         advanceReadPointer()
+        fetchAllMessages()
     }
     
     private func advanceReadPointer() {
@@ -34,6 +34,12 @@ struct ChatScreen: View {
             Task {
                 try await historyController.advanceReadPointer(for: chat)
             }
+        }
+    }
+    
+    private func fetchAllMessages() {
+        Task {
+            try await historyController.fetchAllMessages(for: chat)
         }
     }
     
@@ -136,7 +142,7 @@ struct ChatScreen_Previews: PreviewProvider {
     private static let chat = Chat(
         id: .mock,
         cursor: .mock1,
-        title: .domain("wsj.com"),
+        title: .domain(Domain("wsj.com")!),
         pointer: .unknown,
         unreadCount: 0,
         canMute: false,

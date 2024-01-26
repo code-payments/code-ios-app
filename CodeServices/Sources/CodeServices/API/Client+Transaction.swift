@@ -205,14 +205,6 @@ extension Client {
         }
     }
     
-    // MARK: - History -
-    
-    public func fetchPaymentHistory(owner: KeyPair, after id: ID? = nil, pageSize: Int) async throws -> [HistoricalTransaction] {
-        try await withCheckedThrowingContinuation { c in
-            transactionService.fetchPaymentHistory(owner: owner, after: id, pageSize: pageSize) { c.resume(with: $0) }
-        }
-    }
-    
     // MARK: - Withdrawals -
     
     public func fetchDestinationMetadata(destination: PublicKey) async -> DestinationMetadata {

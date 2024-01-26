@@ -39,12 +39,28 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchMessages(chatID: ID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())")
+    func fetchMessages(chatID: ID, owner: KeyPair, direction: MessageDirection, pageSize: Int, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())", "Page size: \(pageSize)")
         
         let request = Code_Chat_V1_GetMessagesRequest.with {
-            $0.chatID = .with { $0.value = chatID.data }
-            $0.owner = owner.publicKey.codeAccountID
+            $0.chatID   = .with { $0.value = chatID.data }
+            $0.owner    = owner.publicKey.codeAccountID
+            $0.pageSize = UInt32(pageSize)
+            
+            switch direction {
+            case .ascending(let id):
+                $0.direction = .asc
+                if let id {
+                    $0.cursor = .with { $0.value = id.data }
+                }
+                
+            case .descending(let id):
+                $0.direction = .desc
+                if let id {
+                    $0.cursor = .with { $0.value = id.data }
+                }
+            }
+            
             $0.signature = $0.sign(with: owner)
         }
         
@@ -124,17 +140,24 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
     }
 }
 
+// MARK: - Types -
+
+public enum MessageDirection {
+    case ascending(from: ID?)
+    case descending(upTo: ID?)
+}
+
 // MARK: - Errors -
 
 public enum ErrorFetchChats: Int, Error {
     case ok
-    case notFount
+    case notFound
     case unknown = -1
 }
 
 public enum ErrorFetchMessages: Int, Error {
     case ok
-    case notFount
+    case notFound
     case unknown = -1
 }
 

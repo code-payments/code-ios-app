@@ -331,36 +331,6 @@ extension AccountInfo.ClaimState {
     }
 }
 
-extension HistoricalTransaction {
-    init?(_ item: Code_Transaction_V2_PaymentHistoryItem) {
-        guard
-            let currency = CurrencyCode(currencyCode: item.exchangeData.currency)
-        else {
-            return nil
-        }
-        
-        self.init(
-            id: .init(data: item.cursor.value),
-            paymentType: PaymentType(rawValue: item.paymentType.rawValue) ?? .unknown,
-            date: item.timestamp.date,
-            kinAmount: KinAmount(
-                kin: Kin(quarks: item.exchangeData.quarks),
-                rate: Rate(
-                    fx: Decimal(item.exchangeData.exchangeRate),
-                    currency: currency
-                )
-            ),
-            nativeAmount: Decimal(item.exchangeData.nativeAmount),
-            isDeposit: item.isDeposit,
-            isWithdrawal: item.isWithdraw,
-            isRemoteSend: item.isRemoteSend,
-            isReturned: item.isReturned,
-            isMicroPayment: item.isMicroPayment,
-            airdropType: item.isAirdrop ? AirdropType(item.airdropType) : nil // Only include airdrop type for airdrops
-        )
-    }
-}
-
 extension IntentMetadata {
     init?(_ metadata: Code_Transaction_V2_Metadata) {
         guard let type = metadata.type else {

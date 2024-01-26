@@ -158,7 +158,7 @@ struct ModalLoginConfirmation: View {
         SheetView(edge: .bottom, backgroundColor: .black) {
             VStack(spacing: 10) {
                 
-                Text(domain.relationshipHost)
+                Text(domain.displayTitle)
                     .font(.appDisplaySmall)
                 
                 VStack {

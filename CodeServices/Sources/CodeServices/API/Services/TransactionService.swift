@@ -554,44 +554,6 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    // MARK: - History -
-    
-    func fetchPaymentHistory(owner: KeyPair, after id: ID? = nil, pageSize: Int, completion: @escaping (Result<[HistoricalTransaction], ErrorPaymentHistory>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Cursor: \(id ?? .null)")
-        
-        let request = Code_Transaction_V2_GetPaymentHistoryRequest.with {
-            $0.owner     = owner.publicKey.codeAccountID
-            $0.direction = .asc
-            $0.pageSize  = UInt32(pageSize)
-            
-            if let id = id {
-                $0.cursor = id.codeCursor
-            }
-            
-            $0.signature = $0.sign(with: owner)
-        }
-        
-        let call = service.getPaymentHistory(request)
-        call.handle(on: queue) { response in
-            trace(.success, components: "Fetched \(response.items.count) historical payments.")
-            let error = ErrorPaymentHistory(rawValue: response.result.rawValue) ?? .unknown
-            switch error {
-            case .ok:
-                let transactions = response.items.compactMap { HistoricalTransaction($0) }
-                completion(.success(transactions))
-                
-            case .notFound:
-                completion(.success([]))
-                
-            case .unknown:
-                completion(.failure(error))
-            }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
-        }
-    }
-    
     // MARK: - Withdrawals -
     
     func fetchDestinationMetadata(destination: PublicKey, completion: @escaping (Result<DestinationMetadata, Never>) -> Void) {

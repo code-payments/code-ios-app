@@ -11,9 +11,7 @@ import CodeServices
 @MainActor
 class HistoryController: ObservableObject {
     
-    @Published private(set) var hasFetchedTransactions: Bool = false
-    
-    @Published private(set) var transactions: [HistoricalTransaction] = []
+    @Published private(set) var hasFetchedChats: Bool = false
     
     @Published private(set) var chats: [Chat] = []
     
@@ -44,85 +42,53 @@ class HistoryController: ObservableObject {
     
     // MARK: - Fetch -
     
-    func fetchDelta() {
-        // Transactions are displayed in reverse order
-        guard let latestTransaction = transactions.first else {
-            fetchAll()
-            return
-        }
-        
-        Task {
-            let delta = try await fetchAllTransactions(after: latestTransaction.id)
-            transactions.append(contentsOf: delta)
-            transactions = transactions.sortedByDateDescending()
-            hasFetchedTransactions = true
-        }
-    }
-    
-    func fetchAll() {
-        Task {
-            transactions = try await fetchAllTransactions()
-            hasFetchedTransactions = true
-        }
-    }
-    
     func fetchChats() {
         Task {
             try await fetchAllChats()
         }
     }
     
+//    func updateChats() {
+//        Task {
+//            try await updateAllChats()
+//        }
+//    }
+    
     private func fetchAllChats() async throws {
         chats = try await fetchChats()
-        computeUnreadCount()
+        hasFetchedChats = true
         
-        hasFetchedTransactions = true
+        computeUnreadCount()
     }
+    
+//    private func updateAllChats() async throws {
+//        chats = try await updatingChats(chats: chats)
+//        
+//        computeUnreadCount()
+//    }
     
     private func computeUnreadCount() {
         unreadCount = computeUnreadCount(for: chats)
     }
     
-    @CronActor
-    private func fetchAllTransactions(after id: ID? = nil) async throws -> [HistoricalTransaction] {
-        var container: [HistoricalTransaction] = []
-        
-        var currentID: ID? = id
-        while true {
-            let transactions = try await client.fetchPaymentHistory(owner: owner, after: currentID, pageSize: pageSize)
-            guard !transactions.isEmpty else {
-                break
-            }
-            
-            container.append(contentsOf: transactions)
-            currentID = transactions.last!.id
-        }
-        
-        return container.sortedByDateDescending()
-    }
-    
     // MARK: - Chats -
     
     func advanceReadPointer(for chat: Chat) async throws {
-        if let lastMessage = chat.messages.last {
+        if let newestMessage = chat.newestMessage {
             try await client.advancePointer(
                 chatID: chat.id,
-                to: lastMessage.id,
+                to: newestMessage.id,
                 owner: owner
             )
             
-            updating(chatID: chat.id) {
-                $0.resettingUnreadCount()
-            }
+            chat.resetUnreadCount()
             
             computeUnreadCount()
         }
     }
     
     func setMuted(_ muted: Bool, for chat: Chat) async throws {
-        updating(chatID: chat.id) {
-            $0.muted(muted)
-        }
+        chat.mute(muted)
         
         computeUnreadCount()
         
@@ -133,26 +99,67 @@ class HistoryController: ObservableObject {
         )
     }
     
-    private func updating(chatID: ID, action: (Chat) -> Chat) {
-        let chatIndex = chats.firstIndex { $0.id == chatID }
-        if let chatIndex {
-            chats[chatIndex] = action(chats[chatIndex])
+    func chat(for chatID: ID) -> Chat? {
+        chats.first { $0.id == chatID }
+    }
+    
+    private func setMessages(messages: [Chat.Message], for chatID: ID) {
+        chat(for: chatID)?.setMessages(messages)
+    }
+    
+    private func computeUnreadCount(for chats: [Chat]) -> Int {
+        chats.reduce(into: 0) { result, chat in
+            if !chat.isMuted { // Ignore muted chats
+                result = result + chat.unreadCount
+            }
         }
     }
+    
+    // MARK: - Fetching -
     
     @CronActor
     private func fetchChats() async throws -> [Chat] {
         let chats = try await client.fetchChats(owner: owner)
-        
+        return try await fetchInitialMessages(for: chats)
+    }
+    
+//    @CronActor
+//    private func updatingChats(chats: [Chat]) async throws -> [Chat] {
+//        let existingChats = chats.elementsKeyed(by: \.id)
+//        let newChats = try await client.fetchChats(owner: owner)
+//        
+//        for newChat in newChats {
+//            if let existingChat = existingChats[newChat.id] {
+//                newChat.setMessages(existingChat.messages)
+//            }
+//        }
+//        
+//        let filledChats = try await fetchInitialMessages(for: newChats)
+//        
+//        return filledChats.sortedByMessageOrder()
+//    }
+    
+    @CronActor
+    private func fetchInitialMessages(for chats: [Chat]) async throws -> [Chat] {
         var container: [Chat] = []
         
         await withTaskGroup(of: (Chat, [Chat.Message]).self) { group in
             chats.forEach { chat in
                 group.addTask {
+                    
+                    // Only fetch messages for chats that don't have any
+                    // messages. All messages will be fetch on open anyway
+                    guard chat.messages.isEmpty else {
+                        return (chat, chat.messages)
+                    }
+                            
                     do {
-                        let messages = try await self.client.fetchMessages(chatID: chat.id, owner: self.owner).sorted { lhs, rhs in
-                            lhs.date < rhs.date // Desc
-                        }
+                        let messages = try await self.client.fetchMessages(
+                            chatID: chat.id,
+                            owner: self.owner,
+                            direction: .descending(upTo: chat.oldestMessage?.id),
+                            pageSize: 100
+                        )
                         
                         return (chat, messages)
                     } catch {
@@ -162,13 +169,57 @@ class HistoryController: ObservableObject {
             }
             
             for await (chat, messages) in group {
-                var completeChat = chat
-                completeChat.messages = messages
-                container.append(completeChat)
+                chat.setMessages(messages)
+                container.append(chat)
             }
         }
         
-        return container.sorted { lhs, rhs in
+        return container.sortedByMessageOrder()
+    }
+    
+    @CronActor
+    func fetchAllMessages(for chat: Chat) async throws {
+        var container: [Chat.Message] = []
+        
+        let pageSize = 100
+        
+        var currentID: ID? = nil
+        while true {
+            let messages = try? await self.client.fetchMessages(
+                chatID: chat.id,
+                owner: self.owner,
+                direction: .descending(upTo: currentID),
+                pageSize: pageSize
+            )
+            
+            guard let messages else {
+                break
+            }
+            
+            container.append(contentsOf: messages)
+            
+            guard messages.count >= pageSize else {
+                // If the number of messags fetched
+                // is less than the page, it's the end
+                break
+            }
+            
+            currentID = messages.last!.id
+        }
+        
+        await setMessages(messages: container, for: chat.id)
+    }
+    
+    // MARK: - Notifications -
+    
+    func pushNotificationReceived() {
+        fetchChats()
+    }
+}
+
+extension Array where Element == Chat {
+    func sortedByMessageOrder() -> [Element] {
+        sorted { lhs, rhs in
             let leftDate  = lhs.messages.last?.date
             let rightDate = rhs.messages.last?.date
             
@@ -181,30 +232,6 @@ class HistoryController: ObservableObject {
             } else {
                 return false
             }
-        }
-    }
-    
-    private func computeUnreadCount(for chats: [Chat]) -> Int {
-        chats.reduce(into: 0) { result, chat in
-            if !chat.isMuted { // Ignore muted chats
-                result = result + chat.unreadCount
-            }
-        }
-    }
-    
-    // MARK: - Notifications -
-    
-    func pushNotificationReceived() {
-        fetchDelta()
-    }
-}
-
-// MARK: - HistoricalTransaction Array -
-
-private extension Array where Element == HistoricalTransaction {
-    func sortedByDateDescending() -> [Element] {
-        sorted {
-            $0.date > $1.date
         }
     }
 }

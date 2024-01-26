@@ -87,7 +87,6 @@ class Session: ObservableObject {
         
         poll()
         
-        historyController.fetchAll()
         historyController.fetchChats()
         
         Task {
