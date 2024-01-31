@@ -37,10 +37,14 @@ struct ActionWithdraw: ActionType {
             throw Error.missingConfigurations
         }
         
+        guard let timelock = cluster.timelock else {
+            throw Error.invalidTimelockAccounts
+        }
+        
         return configs.map { config in
             TransactionBuilder.closeDormantAccount(
                 authority: cluster.authority.keyPair.publicKey,
-                timelockDerivedAccounts: cluster.timelockAccounts,
+                timelockDerivedAccounts: cluster.timelock!,
                 destination: destination,
                 nonce: config.nonce,
                 recentBlockhash: config.blockhash,
@@ -54,6 +58,7 @@ struct ActionWithdraw: ActionType {
 extension ActionWithdraw {
     enum Error: Swift.Error {
         case missingConfigurations
+        case invalidTimelockAccounts
     }
 }
 
@@ -77,14 +82,14 @@ extension ActionWithdraw {
                 $0.closeDormantAccount = .with {
                     $0.accountType = type.accountType
                     $0.authority = cluster.authority.keyPair.publicKey.codeAccountID
-                    $0.token = cluster.timelockAccounts.vault.publicKey.codeAccountID
+                    $0.token = cluster.vaultPublicKey.codeAccountID
                     $0.destination = destination.codeAccountID
                 }
                 
             case .noPrivacyWithdraw(let amount):
                 $0.noPrivacyWithdraw = .with {
                     $0.authority = cluster.authority.keyPair.publicKey.codeAccountID
-                    $0.source = cluster.timelockAccounts.vault.publicKey.codeAccountID
+                    $0.source = cluster.vaultPublicKey.codeAccountID
                     $0.destination = destination.codeAccountID
                     $0.amount = amount.quarks
                     $0.shouldClose = true

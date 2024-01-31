@@ -28,6 +28,7 @@ class IntentMigratePrivacy: IntentType {
         
         let legacyCluster = AccountCluster(
             authority: .derive(using: .solana, mnemonic: organizer.mnemonic),
+            kind: .timelock,
             legacy: true
         )
         

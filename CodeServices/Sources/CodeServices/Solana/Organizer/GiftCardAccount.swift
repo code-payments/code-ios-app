@@ -18,7 +18,8 @@ public struct GiftCardAccount: Codable, Hashable, Equatable {
         self.init(
             mnemonic: mnemonicPhrase,
             cluster: AccountCluster(
-                authority: .derive(using: .solana, mnemonic: mnemonicPhrase)
+                authority: .derive(using: .solana, mnemonic: mnemonicPhrase),
+                kind: .timelock
             )
         )
     }

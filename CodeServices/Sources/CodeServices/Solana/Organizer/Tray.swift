@@ -38,6 +38,8 @@ public struct Tray: Equatable, Codable, Hashable {
     private(set) var incoming: PartialAccount
     private(set) var outgoing: PartialAccount
     
+    private(set) var swap: PartialAccount
+    
     private let mnemonic: MnemonicPhrase
     
     // MARK: - Init -
@@ -46,7 +48,15 @@ public struct Tray: Equatable, Codable, Hashable {
         self.mnemonic = mnemonic
         self.owner = PartialAccount(
             cluster: AccountCluster(
-                authority: .derive(using: .solana, mnemonic: mnemonic)
+                authority: .derive(using: .primary(), mnemonic: mnemonic),
+                kind: .timelock
+            )
+        )
+        
+        self.swap = PartialAccount(
+            cluster: AccountCluster(
+                authority: .derive(using: .swap(), mnemonic: mnemonic),
+                kind: .usdc
             )
         )
         
@@ -82,7 +92,7 @@ public struct Tray: Equatable, Codable, Hashable {
             incoming = PartialAccount(cluster: .incoming(for: index, mnemonic: mnemonic))
         case .outgoing:
             outgoing = PartialAccount(cluster: .outgoing(for: index, mnemonic: mnemonic))
-        case .primary, .bucket, .remoteSend, .relationship:
+        case .primary, .bucket, .remoteSend, .relationship, .swap:
             fatalError("Unsupported.")
         }
     }
@@ -97,6 +107,10 @@ public struct Tray: Equatable, Codable, Hashable {
         ] + slots.map {
             (.bucket($0.type), $0.cluster)
         }
+    }
+    
+    func publicKey(for accountType: AccountType) -> PublicKey {
+        cluster(for: accountType).vaultPublicKey
     }
     
     func cluster(for accountType: AccountType) -> AccountCluster {
@@ -119,6 +133,9 @@ public struct Tray: Equatable, Codable, Hashable {
         case .relationship(let domain):
             // TODO: Relationship should always exist but ideally we should fail gracefully
             return relationships.relationship(for: domain)!.cluster
+            
+        case .swap:
+            return swap.cluster
         }
     }
     
@@ -190,6 +207,9 @@ public struct Tray: Equatable, Codable, Hashable {
             
             relationship.partialBalance = relationship.partialBalance + kin
             relationships.insert(relationship)
+            
+        case .swap:
+            swap.partialBalance = swap.partialBalance + kin
         }
     }
     
@@ -213,6 +233,9 @@ public struct Tray: Equatable, Codable, Hashable {
             
             relationship.partialBalance = relationship.partialBalance - kin
             relationships.insert(relationship)
+            
+        case .swap:
+            swap.partialBalance = swap.partialBalance - kin
         }
     }
     
@@ -266,6 +289,9 @@ public struct Tray: Equatable, Codable, Hashable {
             }
             
             return relationship.partialBalance
+            
+        case .swap:
+            return swap.partialBalance
         }
     }
     
@@ -866,7 +892,8 @@ private extension AccountCluster {
             authority: .derive(
                 using: .bucketIncoming(using: index),
                 mnemonic: mnemonic
-            )
+            ),
+            kind: .timelock
         )
     }
     
@@ -876,7 +903,8 @@ private extension AccountCluster {
             authority: .derive(
                 using: .bucketOutgoing(using: index),
                 mnemonic: mnemonic
-            )
+            ),
+            kind: .timelock
         )
     }
 }
@@ -912,11 +940,11 @@ extension Tray {
         print(" --------------------------------------------------------------------------------------------------------------------------------- ")
         
         accounts.forEach { account, name in
-            print("| \(name) | \(String(account.cluster.index).padded(4))  | \(account.cluster.timelockAccounts.state.publicKey.base58.padded(44)) | \(account.cluster.timelockAccounts.vault.publicKey.base58.padded(44)) | \(f.string(from: NSNumber(value: account.partialBalance.truncatedKinValue))!.padded(13)) |")
+            print("| \(name) | \(String(account.cluster.index).padded(4))  | \(account.cluster.timelock!.state.publicKey.base58.padded(44)) | \(account.cluster.vaultPublicKey.base58.padded(44)) | \(f.string(from: NSNumber(value: account.partialBalance.truncatedKinValue))!.padded(13)) |")
         }
         
         slots.forEach { account, name in
-            print("| \(name) | \(String(account.cluster.index).padded(4))  | \(account.cluster.timelockAccounts.state.publicKey.base58.padded(44)) | \(account.cluster.timelockAccounts.vault.publicKey.base58.padded(44)) | \(f.string(from: NSNumber(value: account.partialBalance.truncatedKinValue))!.padded(13)) |")
+            print("| \(name) | \(String(account.cluster.index).padded(4))  | \(account.cluster.timelock!.state.publicKey.base58.padded(44)) | \(account.cluster.vaultPublicKey.base58.padded(44)) | \(f.string(from: NSNumber(value: account.partialBalance.truncatedKinValue))!.padded(13)) |")
         }
         
         print(" ---------------------------------------------------------------------------------------------------------------------------------")
@@ -938,11 +966,11 @@ extension Tray {
     }
     
     private func string(named name: String, for partialAccount: PartialAccount) -> String {
-        "\(name) \(partialAccount.cluster.timelockAccounts.vault.publicKey.base58.padded(44)) \(partialAccount.partialBalance.description)"
+        "\(name) \(partialAccount.cluster.vaultPublicKey.base58.padded(44)) \(partialAccount.partialBalance.description)"
     }
     
     private func string(named name: String, for slot: Slot) -> String {
-        "\(name) \(slot.cluster.timelockAccounts.vault.publicKey.base58.padded(44)) \(slot.partialBalance.description)"
+        "\(name) \(slot.cluster.vaultPublicKey.base58.padded(44)) \(slot.partialBalance.description)"
     }
 }
 

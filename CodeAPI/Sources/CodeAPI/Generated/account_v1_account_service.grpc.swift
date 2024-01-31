@@ -40,6 +40,11 @@ public protocol Code_Account_V1_AccountClientProtocol: GRPCClient {
     _ request: Code_Account_V1_GetTokenAccountInfosRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>
+
+  func linkAdditionalAccounts(
+    _ request: Code_Account_V1_LinkAdditionalAccountsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse>
 }
 
 extension Code_Account_V1_AccountClientProtocol {
@@ -83,6 +88,27 @@ extension Code_Account_V1_AccountClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? []
+    )
+  }
+
+  /// LinkAdditionalAccounts allows a client to declare additional accounts to
+  /// be tracked and used within Code. The accounts declared in this RPC are not
+  /// managed by Code (ie. not a Timelock account), created externally and cannot
+  /// be linked automatically (ie. authority derived off user 12 words).
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to LinkAdditionalAccounts.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func linkAdditionalAccounts(
+    _ request: Code_Account_V1_LinkAdditionalAccountsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse> {
+    return self.makeUnaryCall(
+      path: Code_Account_V1_AccountClientMetadata.Methods.linkAdditionalAccounts.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkAdditionalAccountsInterceptors() ?? []
     )
   }
 }
@@ -161,6 +187,11 @@ public protocol Code_Account_V1_AccountAsyncClientProtocol: GRPCClient {
     _ request: Code_Account_V1_GetTokenAccountInfosRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>
+
+  func makeLinkAdditionalAccountsCall(
+    _ request: Code_Account_V1_LinkAdditionalAccountsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -196,6 +227,18 @@ extension Code_Account_V1_AccountAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? []
     )
   }
+
+  public func makeLinkAdditionalAccountsCall(
+    _ request: Code_Account_V1_LinkAdditionalAccountsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Account_V1_AccountClientMetadata.Methods.linkAdditionalAccounts.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkAdditionalAccountsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -221,6 +264,18 @@ extension Code_Account_V1_AccountAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? []
+    )
+  }
+
+  public func linkAdditionalAccounts(
+    _ request: Code_Account_V1_LinkAdditionalAccountsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Account_V1_LinkAdditionalAccountsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Account_V1_AccountClientMetadata.Methods.linkAdditionalAccounts.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkAdditionalAccountsInterceptors() ?? []
     )
   }
 }
@@ -251,6 +306,9 @@ public protocol Code_Account_V1_AccountClientInterceptorFactoryProtocol: GRPCSen
 
   /// - Returns: Interceptors to use when invoking 'getTokenAccountInfos'.
   func makeGetTokenAccountInfosInterceptors() -> [ClientInterceptor<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'linkAdditionalAccounts'.
+  func makeLinkAdditionalAccountsInterceptors() -> [ClientInterceptor<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse>]
 }
 
 public enum Code_Account_V1_AccountClientMetadata {
@@ -260,6 +318,7 @@ public enum Code_Account_V1_AccountClientMetadata {
     methods: [
       Code_Account_V1_AccountClientMetadata.Methods.isCodeAccount,
       Code_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos,
+      Code_Account_V1_AccountClientMetadata.Methods.linkAdditionalAccounts,
     ]
   )
 
@@ -273,6 +332,12 @@ public enum Code_Account_V1_AccountClientMetadata {
     public static let getTokenAccountInfos = GRPCMethodDescriptor(
       name: "GetTokenAccountInfos",
       path: "/code.account.v1.Account/GetTokenAccountInfos",
+      type: GRPCCallType.unary
+    )
+
+    public static let linkAdditionalAccounts = GRPCMethodDescriptor(
+      name: "LinkAdditionalAccounts",
+      path: "/code.account.v1.Account/LinkAdditionalAccounts",
       type: GRPCCallType.unary
     )
   }
@@ -290,6 +355,12 @@ public protocol Code_Account_V1_AccountProvider: CallHandlerProvider {
   /// GetTokenAccountInfos returns token account metadata relevant to the Code owner
   /// account.
   func getTokenAccountInfos(request: Code_Account_V1_GetTokenAccountInfosRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Account_V1_GetTokenAccountInfosResponse>
+
+  /// LinkAdditionalAccounts allows a client to declare additional accounts to
+  /// be tracked and used within Code. The accounts declared in this RPC are not
+  /// managed by Code (ie. not a Timelock account), created externally and cannot
+  /// be linked automatically (ie. authority derived off user 12 words).
+  func linkAdditionalAccounts(request: Code_Account_V1_LinkAdditionalAccountsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Account_V1_LinkAdditionalAccountsResponse>
 }
 
 extension Code_Account_V1_AccountProvider {
@@ -322,6 +393,15 @@ extension Code_Account_V1_AccountProvider {
         userFunction: self.getTokenAccountInfos(request:context:)
       )
 
+    case "LinkAdditionalAccounts":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Account_V1_LinkAdditionalAccountsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Account_V1_LinkAdditionalAccountsResponse>(),
+        interceptors: self.interceptors?.makeLinkAdditionalAccountsInterceptors() ?? [],
+        userFunction: self.linkAdditionalAccounts(request:context:)
+      )
+
     default:
       return nil
     }
@@ -350,6 +430,15 @@ public protocol Code_Account_V1_AccountAsyncProvider: CallHandlerProvider {
     request: Code_Account_V1_GetTokenAccountInfosRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Account_V1_GetTokenAccountInfosResponse
+
+  /// LinkAdditionalAccounts allows a client to declare additional accounts to
+  /// be tracked and used within Code. The accounts declared in this RPC are not
+  /// managed by Code (ie. not a Timelock account), created externally and cannot
+  /// be linked automatically (ie. authority derived off user 12 words).
+  @Sendable func linkAdditionalAccounts(
+    request: Code_Account_V1_LinkAdditionalAccountsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Account_V1_LinkAdditionalAccountsResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -389,6 +478,15 @@ extension Code_Account_V1_AccountAsyncProvider {
         wrapping: self.getTokenAccountInfos(request:context:)
       )
 
+    case "LinkAdditionalAccounts":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Account_V1_LinkAdditionalAccountsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Account_V1_LinkAdditionalAccountsResponse>(),
+        interceptors: self.interceptors?.makeLinkAdditionalAccountsInterceptors() ?? [],
+        wrapping: self.linkAdditionalAccounts(request:context:)
+      )
+
     default:
       return nil
     }
@@ -406,6 +504,10 @@ public protocol Code_Account_V1_AccountServerInterceptorFactoryProtocol {
   /// - Returns: Interceptors to use when handling 'getTokenAccountInfos'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetTokenAccountInfosInterceptors() -> [ServerInterceptor<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>]
+
+  /// - Returns: Interceptors to use when handling 'linkAdditionalAccounts'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeLinkAdditionalAccountsInterceptors() -> [ServerInterceptor<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse>]
 }
 
 public enum Code_Account_V1_AccountServerMetadata {
@@ -415,6 +517,7 @@ public enum Code_Account_V1_AccountServerMetadata {
     methods: [
       Code_Account_V1_AccountServerMetadata.Methods.isCodeAccount,
       Code_Account_V1_AccountServerMetadata.Methods.getTokenAccountInfos,
+      Code_Account_V1_AccountServerMetadata.Methods.linkAdditionalAccounts,
     ]
   )
 
@@ -428,6 +531,12 @@ public enum Code_Account_V1_AccountServerMetadata {
     public static let getTokenAccountInfos = GRPCMethodDescriptor(
       name: "GetTokenAccountInfos",
       path: "/code.account.v1.Account/GetTokenAccountInfos",
+      type: GRPCCallType.unary
+    )
+
+    public static let linkAdditionalAccounts = GRPCMethodDescriptor(
+      name: "LinkAdditionalAccounts",
+      path: "/code.account.v1.Account/LinkAdditionalAccounts",
       type: GRPCCallType.unary
     )
   }

@@ -46,7 +46,7 @@ extension GiftCardVault {
 
 private extension GiftCardAccount {
     var keychainKey: String {
-        cluster.timelockAccounts.vault.publicKey.base58
+        cluster.vaultPublicKey.base58
     }
 }
 

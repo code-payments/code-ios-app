@@ -39,6 +39,10 @@ struct ActionTransfer: ActionType {
             throw Error.missingServerParameter
         }
         
+        guard let timelock = source.timelock else {
+            throw Error.invalidSource
+        }
+        
         let resolvedDestination: PublicKey
         
         if case .tempPrivacy(let tempPrivacyParameter) = serverParameter.parameter {
@@ -59,7 +63,7 @@ struct ActionTransfer: ActionType {
         
         return serverParameter.configs.map { config in
             TransactionBuilder.transfer(
-                timelockDerivedAccounts: source.timelockAccounts,
+                timelockDerivedAccounts: timelock,
                 destination: resolvedDestination,
                 amount: amount,
                 nonce: config.nonce,
@@ -73,6 +77,7 @@ struct ActionTransfer: ActionType {
 extension ActionTransfer {
     enum Error: Swift.Error {
         case missingServerParameter
+        case invalidSource
     }
 }
 
@@ -96,7 +101,7 @@ extension ActionTransfer {
             switch kind {
             case .tempPrivacyTransfer:
                 $0.temporaryPrivacyTransfer = .with {
-                    $0.source = source.timelockAccounts.vault.publicKey.codeAccountID
+                    $0.source = source.vaultPublicKey.codeAccountID
                     $0.destination = destination.codeAccountID
                     $0.authority = source.authority.keyPair.publicKey.codeAccountID
                     $0.amount = amount.quarks
@@ -104,7 +109,7 @@ extension ActionTransfer {
                 
             case .tempPrivacyExchange:
                 $0.temporaryPrivacyExchange = .with {
-                    $0.source = source.timelockAccounts.vault.publicKey.codeAccountID
+                    $0.source = source.vaultPublicKey.codeAccountID
                     $0.destination = destination.codeAccountID
                     $0.authority = source.authority.keyPair.publicKey.codeAccountID
                     $0.amount = amount.quarks
@@ -112,7 +117,7 @@ extension ActionTransfer {
                 
             case .noPrivacyTransfer:
                 $0.noPrivacyTransfer = .with {
-                    $0.source = source.timelockAccounts.vault.publicKey.codeAccountID
+                    $0.source = source.vaultPublicKey.codeAccountID
                     $0.destination = destination.codeAccountID
                     $0.authority = source.authority.keyPair.publicKey.codeAccountID
                     $0.amount = amount.quarks

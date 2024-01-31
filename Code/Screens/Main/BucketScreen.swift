@@ -87,7 +87,7 @@ struct BucketScreen: View {
                 }
                 .font(.appTextMedium)
                 
-                Text(fragment.cluster.timelockAccounts.vault.publicKey.base58)
+                Text(fragment.cluster.vaultPublicKey.base58)
                     .font(.appTextSmall)
                     .foregroundColor(.textSecondary)
                     .truncationMode(.middle)
@@ -125,7 +125,7 @@ struct BucketScreen: View {
     // MARK: - Actions -
     
     private func copyVaultAddress(cluster: AccountCluster) {
-        UIPasteboard.general.string = cluster.timelockAccounts.vault.publicKey.base58
+        UIPasteboard.general.string = cluster.vaultPublicKey.base58
     }
 }
 
@@ -199,6 +199,8 @@ private struct AccountFragment: Identifiable {
             }
         case .remoteSend:
             return "Remote Send"
+        case .swap:
+            return "Swap (USDC)"
         case .relationship(let domain):
             return "\(domain.relationshipHost)"
         }
@@ -229,10 +231,12 @@ private struct AccountFragment: Identifiable {
             case .bucket1m:
                 return 10
             }
-        case .relationship:
+        case .swap:
             return 11
-        case .remoteSend:
+        case .relationship:
             return 12
+        case .remoteSend:
+            return 13
         }
     }
     

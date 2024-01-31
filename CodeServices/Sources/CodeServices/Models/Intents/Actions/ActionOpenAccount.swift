@@ -44,7 +44,7 @@ extension ActionOpenAccount {
                 $0.owner = owner.codeAccountID
                 $0.accountType = type.accountType
                 $0.authority = accountCluster.authority.keyPair.publicKey.codeAccountID
-                $0.token = accountCluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.token = accountCluster.vaultPublicKey.codeAccountID
                 $0.authoritySignature = $0.sign(with: accountCluster.authority.keyPair)
             }
         }

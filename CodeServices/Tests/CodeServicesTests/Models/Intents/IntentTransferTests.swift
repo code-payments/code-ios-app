@@ -86,43 +86,43 @@ class IntentPrivateTransferTests: XCTestCase {
         try intent.action(at: 0, of: ActionTransfer.self) { action in
             XCTAssertEqual(action.kind, .tempPrivacyExchange)
             XCTAssertEqual(action.amount, 1_000_000)
-            XCTAssertEqual(action.destination, organizer.tray.slots[5].cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.slots[5].cluster.vaultPublicKey)
         }
         
         try intent.action(at: 1, of: ActionTransfer.self) { action in
             XCTAssertEqual(action.kind, .tempPrivacyExchange)
             XCTAssertEqual(action.amount, 100_000)
-            XCTAssertEqual(action.destination, organizer.tray.slots[4].cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.slots[4].cluster.vaultPublicKey)
         }
         
         try intent.action(at: 2, of: ActionTransfer.self) { action in
             XCTAssertEqual(action.kind, .tempPrivacyTransfer)
             XCTAssertEqual(action.amount, 500_000)
-            XCTAssertEqual(action.destination, organizer.tray.outgoing.cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.outgoing.cluster.vaultPublicKey)
         }
         
         try intent.action(at: 3, of: ActionTransfer.self) { action in
             XCTAssertEqual(action.kind, .tempPrivacyExchange)
             XCTAssertEqual(action.amount, 10_000)
-            XCTAssertEqual(action.destination, organizer.tray.slots[3].cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.slots[3].cluster.vaultPublicKey)
         }
         
         try intent.action(at: 4, of: ActionTransfer.self) { action in
             XCTAssertEqual(action.kind, .tempPrivacyExchange)
             XCTAssertEqual(action.amount, 1_000)
-            XCTAssertEqual(action.destination, organizer.tray.slots[2].cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.slots[2].cluster.vaultPublicKey)
         }
         
         try intent.action(at: 5, of: ActionTransfer.self) { action in
             XCTAssertEqual(action.kind, .tempPrivacyExchange)
             XCTAssertEqual(action.amount, 100)
-            XCTAssertEqual(action.destination, organizer.tray.slots[1].cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.slots[1].cluster.vaultPublicKey)
         }
         
         try intent.action(at: 6, of: ActionTransfer.self) { action in
             XCTAssertEqual(action.kind, .tempPrivacyExchange)
             XCTAssertEqual(action.amount, 10)
-            XCTAssertEqual(action.destination, organizer.tray.slots[0].cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.slots[0].cluster.vaultPublicKey)
         }
         
         try intent.action(at: 7, of: ActionWithdraw.self) { action in
@@ -139,7 +139,7 @@ class IntentPrivateTransferTests: XCTestCase {
         try intent.action(at: 9, of: ActionWithdraw.self) { action in
             XCTAssertEqual(action.kind, .closeDormantAccount(.outgoing))
             XCTAssertEqual(action.cluster, resultTray.outgoing.cluster)
-            XCTAssertEqual(action.destination, organizer.tray.owner.cluster.timelockAccounts.vault.publicKey)
+            XCTAssertEqual(action.destination, organizer.tray.owner.cluster.vaultPublicKey)
         }
     }
 }

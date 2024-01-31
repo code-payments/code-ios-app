@@ -652,7 +652,7 @@ public struct DestinationMetadata {
             
         case .owner:
             self.hasResolvedDestination = true
-            self.resolvedDestination = AssociatedTokenAccount(owner: destination).ata.publicKey
+            self.resolvedDestination = AssociatedTokenAccount(owner: destination, mint: Mint.kin).ata.publicKey
         }
     }
 }

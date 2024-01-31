@@ -51,7 +51,7 @@ class IntentRemoteSend: IntentType {
                     intentID: rendezvous,
                     amount: transfer.kin,
                     source: sourceCluster,
-                    destination: currentTray.slot(for: slotType).cluster.timelockAccounts.vault.publicKey
+                    destination: currentTray.slot(for: slotType).cluster.vaultPublicKey
                 )
                 
             } else {
@@ -60,7 +60,7 @@ class IntentRemoteSend: IntentType {
                     intentID: rendezvous,
                     amount: transfer.kin,
                     source: sourceCluster,
-                    destination: currentTray.outgoing.cluster.timelockAccounts.vault.publicKey
+                    destination: currentTray.outgoing.cluster.vaultPublicKey
                 )
             }
         }
@@ -71,7 +71,7 @@ class IntentRemoteSend: IntentType {
         let outgoing = ActionWithdraw(
             kind: .noPrivacyWithdraw(amount.kin),
             cluster: currentTray.outgoing.cluster,
-            destination: giftCard.cluster.timelockAccounts.vault.publicKey
+            destination: giftCard.cluster.vaultPublicKey
         )
         
         // 4. Redistribute the funds to optimize for a
@@ -83,7 +83,7 @@ class IntentRemoteSend: IntentType {
                 intentID: rendezvous,
                 amount: exchange.kin,
                 source: currentTray.cluster(for: exchange.from),
-                destination: currentTray.cluster(for: exchange.to!).timelockAccounts.vault.publicKey // Exchanges always provide destination accounts
+                destination: currentTray.cluster(for: exchange.to!).vaultPublicKey // Exchanges always provide destination accounts
             )
         }
         
@@ -102,7 +102,7 @@ class IntentRemoteSend: IntentType {
             ActionWithdraw(
                 kind: .closeDormantAccount(.outgoing),
                 cluster: newOutgoing.cluster,
-                destination: currentTray.owner.cluster.timelockAccounts.vault.publicKey
+                destination: currentTray.owner.cluster.vaultPublicKey
             ),
         ]
         
@@ -111,7 +111,7 @@ class IntentRemoteSend: IntentType {
         let closeGiftCard = ActionWithdraw(
             kind: .closeDormantAccount(.remoteSend),
             cluster: giftCard.cluster,
-            destination: currentTray.owner.cluster.timelockAccounts.vault.publicKey
+            destination: currentTray.owner.cluster.vaultPublicKey
         )
         
         let endBalance = currentTray.slotsBalance
@@ -148,7 +148,7 @@ extension IntentRemoteSend {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.sendPrivatePayment = .with {
-                $0.destination  = giftCard.cluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.destination  = giftCard.cluster.vaultPublicKey.codeAccountID
                 $0.isWithdrawal = false
                 $0.isRemoteSend = true
                 $0.exchangeData = .with {

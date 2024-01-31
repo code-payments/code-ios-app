@@ -35,18 +35,20 @@ public class Organizer {
         tray.owner.cluster.authority.keyPair
     }
     
+    public var swapKeyPair: KeyPair {
+        tray.swap.cluster.authority.keyPair
+    }
+    
     public var primaryVault: PublicKey {
-        tray.owner.cluster.timelockAccounts.vault.publicKey
+        tray.owner.cluster.vaultPublicKey
     }
     
     public var incomingVault: PublicKey {
-        tray.incoming.cluster.timelockAccounts.vault.publicKey
+        tray.incoming.cluster.vaultPublicKey
     }
     
-    public var isUnlocked: Bool {
-        accountInfos.firstIndex { address, info in
-            info.managementState != .locked
-        } != nil
+    public var isUnuseable: Bool {
+        accountInfos.firstIndex { _, info in info.unuseable } != nil
     }
     
     public var hasAccountInfos: Bool {
@@ -73,7 +75,7 @@ public class Organizer {
     // MARK: - Balances & Accounts -
     
     public func info(for accountType: AccountType) -> AccountInfo? {
-        let account = tray.cluster(for: accountType).timelockAccounts.vault.publicKey
+        let account = tray.cluster(for: accountType).vaultPublicKey
         return accountInfos[account]
     }
     
@@ -89,9 +91,9 @@ public class Organizer {
         var balances: [AccountType: Kin] = [:]
         
         for (vaultPublicKey, info) in accountInfos {
-            let cluster = tray.cluster(for: info.accountType)
+            let localPublicKey = tray.publicKey(for: info.accountType)
             
-            if cluster.timelockAccounts.vault.publicKey == vaultPublicKey {
+            if localPublicKey == vaultPublicKey {
                 balances[info.accountType] = info.balance
             } else {
                 
@@ -107,16 +109,16 @@ public class Organizer {
                     trace(.warning, components: "Updating \(info.accountType) index to: \(info.index)")
                     
                     // Ensure that the account matches
-                    let cluster = tray.cluster(for: info.accountType)
+                    let localPublicKey = tray.publicKey(for: info.accountType)
                     
-                    guard cluster.timelockAccounts.vault.publicKey == vaultPublicKey else {
+                    guard localPublicKey == vaultPublicKey else {
                         trace(.failure, components: "Indexed account mismatch. This isn't suppose to happen.")
                         continue
                     }
                     
                     balances[info.accountType] = info.balance
                     
-                case .primary, .bucket, .remoteSend, .relationship:
+                case .primary, .bucket, .remoteSend, .relationship, .swap:
                     trace(.failure, components: "Non-indexed account mismatch. Account doesn't match server-provided account. Something is definitely wrong.")
                 }
             }
@@ -174,10 +176,10 @@ extension Organizer {
         var infos: [PublicKey: AccountInfo] = [:]
         
         organizer.allAccounts().forEach { type, cluster in
-            infos[cluster.timelockAccounts.vault.publicKey] = AccountInfo(
+            infos[cluster.vaultPublicKey] = AccountInfo(
                 index: cluster.index,
                 accountType: type,
-                address: cluster.timelockAccounts.vault.publicKey,
+                address: cluster.vaultPublicKey,
                 owner: nil,
                 authority: nil,
                 balanceSource: .blockchain,

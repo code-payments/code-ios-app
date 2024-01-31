@@ -37,9 +37,13 @@ struct ActionFeePayment: ActionType {
             throw Error.missingFeeParameter
         }
         
+        guard let timelock = cluster.timelock else {
+            throw Error.invalidTimelockAccounts
+        }
+        
         return configs.map { config in
             TransactionBuilder.transfer(
-                timelockDerivedAccounts: cluster.timelockAccounts,
+                timelockDerivedAccounts: timelock,
                 destination: destination,
                 amount: amount,
                 nonce: config.nonce,
@@ -54,6 +58,7 @@ extension ActionFeePayment {
     enum Error: Swift.Error {
         case missingConfigurations
         case missingFeeParameter
+        case invalidTimelockAccounts
     }
 }
 
@@ -65,7 +70,7 @@ extension ActionFeePayment {
             $0.id = UInt32(id)
             $0.feePayment = .with {
                 $0.authority = cluster.authority.keyPair.publicKey.codeAccountID
-                $0.source = cluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.source = cluster.vaultPublicKey.codeAccountID
                 $0.amount = amount.quarks
             }
         }

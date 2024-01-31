@@ -35,9 +35,13 @@ struct ActionCloseEmptyAccount: ActionType {
             throw Error.missingConfigurations
         }
         
+        guard let timelock = cluster.timelock else {
+            throw Error.invalidTimelockAccounts
+        }
+        
         return configs.map { config in
             TransactionBuilder.closeEmptyAccount(
-                timelockDerivedAccounts: cluster.timelockAccounts,
+                timelockDerivedAccounts: timelock,
                 maxDustAmount: 1,
                 nonce: config.nonce,
                 recentBlockhash: config.blockhash,
@@ -50,6 +54,7 @@ struct ActionCloseEmptyAccount: ActionType {
 extension ActionCloseEmptyAccount {
     enum Error: Swift.Error {
         case missingConfigurations
+        case invalidTimelockAccounts
     }
 }
 
@@ -62,7 +67,7 @@ extension ActionCloseEmptyAccount {
             $0.closeEmptyAccount = .with {
                 $0.accountType = legacy ? .legacyPrimary2022 : type.accountType
                 $0.authority = cluster.authority.keyPair.publicKey.codeAccountID
-                $0.token = cluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.token = cluster.vaultPublicKey.codeAccountID
             }
         }
     }

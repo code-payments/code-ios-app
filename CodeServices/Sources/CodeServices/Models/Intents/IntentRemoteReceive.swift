@@ -64,7 +64,7 @@ extension IntentRemoteReceive {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.receivePaymentsPublicly = .with {
-                $0.source = giftCard.cluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.source = giftCard.cluster.vaultPublicKey.codeAccountID
                 $0.quarks = amount.quarks
                 $0.isRemoteSend = true
                 $0.isIssuerVoidingGiftCard = isVoidingGiftCard

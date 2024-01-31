@@ -18,7 +18,10 @@ public struct Slot: Equatable, Codable, Hashable {
     init(partialBalance: Kin = 0, type: SlotType, mnemonic: MnemonicPhrase) {
         self.partialBalance = partialBalance
         self.type = type
-        self.cluster = AccountCluster(authority: .derive(using: type.derivationPath, mnemonic: mnemonic))
+        self.cluster = AccountCluster(
+            authority: .derive(using: type.derivationPath, mnemonic: mnemonic),
+            kind: .timelock
+        )
     }
     
     func billCount() -> Int {

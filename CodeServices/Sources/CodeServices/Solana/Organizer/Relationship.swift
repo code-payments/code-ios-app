@@ -22,8 +22,8 @@ public struct Relationship: Equatable, Codable, Hashable {
         self.partialBalance = partialBalance
         self.domain = domain
         self.cluster = AccountCluster(
-            authority: .derive(using: .relationship(domain: domain.relationshipHost),
-            mnemonic: mnemonic)
+            authority: .derive(using: .relationship(domain: domain.relationshipHost), mnemonic: mnemonic),
+            kind: .timelock
         )
     }
 }

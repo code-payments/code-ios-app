@@ -54,7 +54,7 @@ class IntentPrivateTransfer: IntentType {
                     intentID: rendezvous,
                     amount: transfer.kin,
                     source: sourceCluster,
-                    destination: currentTray.slot(for: slotType).cluster.timelockAccounts.vault.publicKey
+                    destination: currentTray.slot(for: slotType).cluster.vaultPublicKey
                 )
                 
             } else {
@@ -63,7 +63,7 @@ class IntentPrivateTransfer: IntentType {
                     intentID: rendezvous,
                     amount: transfer.kin,
                     source: sourceCluster,
-                    destination: currentTray.outgoing.cluster.timelockAccounts.vault.publicKey
+                    destination: currentTray.outgoing.cluster.vaultPublicKey
                 )
             }
         }
@@ -96,7 +96,7 @@ class IntentPrivateTransfer: IntentType {
                 intentID: rendezvous,
                 amount: exchange.kin,
                 source: currentTray.cluster(for: exchange.from),
-                destination: currentTray.cluster(for: exchange.to!).timelockAccounts.vault.publicKey // Exchanges always provide destination accounts
+                destination: currentTray.cluster(for: exchange.to!).vaultPublicKey // Exchanges always provide destination accounts
             )
         }
         
@@ -115,7 +115,7 @@ class IntentPrivateTransfer: IntentType {
             ActionWithdraw(
                 kind: .closeDormantAccount(.outgoing),
                 cluster: newOutgoing.cluster,
-                destination: currentTray.owner.cluster.timelockAccounts.vault.publicKey
+                destination: currentTray.owner.cluster.vaultPublicKey
             ),
         ]
         

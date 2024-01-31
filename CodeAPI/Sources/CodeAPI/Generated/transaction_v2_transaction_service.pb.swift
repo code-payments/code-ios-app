@@ -1450,7 +1450,7 @@ public struct Code_Transaction_V2_SwapResponse {
 
     /// Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
     /// instruction. If the value is 0, then the instruction can be omitted.
-    public var computeUnitLimit: UInt64 = 0
+    public var computeUnitLimit: UInt32 = 0
 
     /// Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
     /// instruction. If the value is 0, then the instruction can be omitted.
@@ -1566,8 +1566,8 @@ public struct Code_Transaction_V2_SwapResponse {
       /// There is an issue with the provided signature.
       case signatureError // = 2
 
-      /// An amount to swap to/from is invalid
-      case invalidSwapAmount // = 3
+      /// The swap failed server-side validation
+      case invalidSwap // = 3
 
       /// The submitted swap transaction failed. Attempt the swap again.
       case swapFailed // = 4
@@ -1581,7 +1581,7 @@ public struct Code_Transaction_V2_SwapResponse {
         switch rawValue {
         case 0: self = .denied
         case 2: self = .signatureError
-        case 3: self = .invalidSwapAmount
+        case 3: self = .invalidSwap
         case 4: self = .swapFailed
         default: self = .UNRECOGNIZED(rawValue)
         }
@@ -1591,7 +1591,7 @@ public struct Code_Transaction_V2_SwapResponse {
         switch self {
         case .denied: return 0
         case .signatureError: return 2
-        case .invalidSwapAmount: return 3
+        case .invalidSwap: return 3
         case .swapFailed: return 4
         case .UNRECOGNIZED(let i): return i
         }
@@ -1620,7 +1620,7 @@ extension Code_Transaction_V2_SwapResponse.Error.Code: CaseIterable {
   public static var allCases: [Code_Transaction_V2_SwapResponse.Error.Code] = [
     .denied,
     .signatureError,
-    .invalidSwapAmount,
+    .invalidSwap,
     .swapFailed,
   ]
 }
@@ -5039,7 +5039,7 @@ extension Code_Transaction_V2_SwapResponse.ServerParameters: SwiftProtobuf.Messa
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._payer) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._recentBlockhash) }()
-      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.computeUnitLimit) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.computeUnitLimit) }()
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.computeUnitPrice) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._swapProgram) }()
       case 6: try { try decoder.decodeRepeatedMessageField(value: &self.swapIxnAccounts) }()
@@ -5064,7 +5064,7 @@ extension Code_Transaction_V2_SwapResponse.ServerParameters: SwiftProtobuf.Messa
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
     if self.computeUnitLimit != 0 {
-      try visitor.visitSingularUInt64Field(value: self.computeUnitLimit, fieldNumber: 3)
+      try visitor.visitSingularUInt32Field(value: self.computeUnitLimit, fieldNumber: 3)
     }
     if self.computeUnitPrice != 0 {
       try visitor.visitSingularUInt64Field(value: self.computeUnitPrice, fieldNumber: 4)
@@ -5187,7 +5187,7 @@ extension Code_Transaction_V2_SwapResponse.Error.Code: SwiftProtobuf._ProtoNameP
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "DENIED"),
     2: .same(proto: "SIGNATURE_ERROR"),
-    3: .same(proto: "INVALID_SWAP_AMOUNT"),
+    3: .same(proto: "INVALID_SWAP"),
     4: .same(proto: "SWAP_FAILED"),
   ]
 }

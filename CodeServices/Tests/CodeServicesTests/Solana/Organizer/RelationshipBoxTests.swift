@@ -35,7 +35,7 @@ class RelationshipBoxTests: XCTestCase {
         box.insert(relationship)
         
         XCTAssertEqual(box.relationship(for: domain), relationship)
-        XCTAssertEqual(box.relationship(for: relationship.cluster.timelockAccounts.vault.publicKey), relationship)
+        XCTAssertEqual(box.relationship(for: relationship.cluster.vaultPublicKey), relationship)
     }
     
     func testGetSorted() {
@@ -72,7 +72,7 @@ class RelationshipBoxTests: XCTestCase {
         XCTAssertEqual(box.domains.count, 0)
         
         box.insert(relationship)
-        box.remove(publicKey: relationship.cluster.timelockAccounts.vault.publicKey)
+        box.remove(publicKey: relationship.cluster.vaultPublicKey)
         
         XCTAssertEqual(box.publicKeys.count, 0)
         XCTAssertEqual(box.domains.count, 0)

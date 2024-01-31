@@ -207,6 +207,110 @@ extension Code_Account_V1_GetTokenAccountInfosResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Code_Account_V1_LinkAdditionalAccountsRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The owner account to link to
+  public var owner: Code_Common_V1_SolanaAccountId {
+    get {return _owner ?? Code_Common_V1_SolanaAccountId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {return self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
+  /// The authority account derived off the user's 12 words, which contains
+  /// the USDC ATA (and potentially others in the future) that will be used
+  /// in swaps.
+  public var swapAuthority: Code_Common_V1_SolanaAccountId {
+    get {return _swapAuthority ?? Code_Common_V1_SolanaAccountId()}
+    set {_swapAuthority = newValue}
+  }
+  /// Returns true if `swapAuthority` has been explicitly set.
+  public var hasSwapAuthority: Bool {return self._swapAuthority != nil}
+  /// Clears the value of `swapAuthority`. Subsequent reads from it will return its default value.
+  public mutating func clearSwapAuthority() {self._swapAuthority = nil}
+
+  /// Signature values for each account provided in this request. Each signature
+  /// must be generated without this array set. The expected ordering of signatures:
+  ///  1. owner
+  ///  2. swap_authority
+  public var signatures: [Code_Common_V1_Signature] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _swapAuthority: Code_Common_V1_SolanaAccountId? = nil
+}
+
+public struct Code_Account_V1_LinkAdditionalAccountsResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_Account_V1_LinkAdditionalAccountsResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+
+    /// Supports idempotency, and will be returned as long as the request exactly
+    /// matches a previous execution.
+    case ok // = 0
+
+    /// The action has been denied (eg. owner account not phone verified)
+    case denied // = 1
+
+    /// An account being linked is not valid
+    case invalidAccount // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      case 2: self = .invalidAccount
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .invalidAccount: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Account_V1_LinkAdditionalAccountsResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_Account_V1_LinkAdditionalAccountsResponse.Result] = [
+    .ok,
+    .denied,
+    .invalidAccount,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Code_Account_V1_TokenAccountInfo {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -327,18 +431,6 @@ public struct Code_Account_V1_TokenAccountInfo {
   public var hasMint: Bool {return _storage._mint != nil}
   /// Clears the value of `mint`. Subsequent reads from it will return its default value.
   public mutating func clearMint() {_uniqueStorage()._mint = nil}
-
-  /// The number of decimals configured for the mint
-  public var mintDecimals: UInt32 {
-    get {return _storage._mintDecimals}
-    set {_uniqueStorage()._mintDecimals = newValue}
-  }
-
-  /// User-friendly display name for the mint
-  public var mintDisplayName: String {
-    get {return _storage._mintDisplayName}
-    set {_uniqueStorage()._mintDisplayName = newValue}
-  }
 
   /// The relationship with a third party that this account has established with.
   /// This only applies to relevant account types (eg. RELATIONSHIP).
@@ -600,6 +692,9 @@ extension Code_Account_V1_IsCodeAccountResponse.Result: @unchecked Sendable {}
 extension Code_Account_V1_GetTokenAccountInfosRequest: @unchecked Sendable {}
 extension Code_Account_V1_GetTokenAccountInfosResponse: @unchecked Sendable {}
 extension Code_Account_V1_GetTokenAccountInfosResponse.Result: @unchecked Sendable {}
+extension Code_Account_V1_LinkAdditionalAccountsRequest: @unchecked Sendable {}
+extension Code_Account_V1_LinkAdditionalAccountsResponse: @unchecked Sendable {}
+extension Code_Account_V1_LinkAdditionalAccountsResponse.Result: @unchecked Sendable {}
 extension Code_Account_V1_TokenAccountInfo: @unchecked Sendable {}
 extension Code_Account_V1_TokenAccountInfo.BalanceSource: @unchecked Sendable {}
 extension Code_Account_V1_TokenAccountInfo.ManagementState: @unchecked Sendable {}
@@ -780,6 +875,94 @@ extension Code_Account_V1_GetTokenAccountInfosResponse.Result: SwiftProtobuf._Pr
   ]
 }
 
+extension Code_Account_V1_LinkAdditionalAccountsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LinkAdditionalAccountsRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "owner"),
+    2: .standard(proto: "swap_authority"),
+    3: .same(proto: "signatures"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._swapAuthority) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.signatures) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._swapAuthority {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if !self.signatures.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.signatures, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Account_V1_LinkAdditionalAccountsRequest, rhs: Code_Account_V1_LinkAdditionalAccountsRequest) -> Bool {
+    if lhs._owner != rhs._owner {return false}
+    if lhs._swapAuthority != rhs._swapAuthority {return false}
+    if lhs.signatures != rhs.signatures {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Account_V1_LinkAdditionalAccountsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LinkAdditionalAccountsResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Account_V1_LinkAdditionalAccountsResponse, rhs: Code_Account_V1_LinkAdditionalAccountsResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Account_V1_LinkAdditionalAccountsResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+    2: .same(proto: "INVALID_ACCOUNT"),
+  ]
+}
+
 extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TokenAccountInfo"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -796,8 +979,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     11: .standard(proto: "claim_state"),
     12: .standard(proto: "original_exchange_data"),
     13: .same(proto: "mint"),
-    14: .standard(proto: "mint_decimals"),
-    15: .standard(proto: "mint_display_name"),
     16: .same(proto: "relationship"),
   ]
 
@@ -815,8 +996,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     var _claimState: Code_Account_V1_TokenAccountInfo.ClaimState = .unknown
     var _originalExchangeData: Code_Transaction_V2_ExchangeData? = nil
     var _mint: Code_Common_V1_SolanaAccountId? = nil
-    var _mintDecimals: UInt32 = 0
-    var _mintDisplayName: String = String()
     var _relationship: Code_Common_V1_Relationship? = nil
 
     static let defaultInstance = _StorageClass()
@@ -837,8 +1016,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       _claimState = source._claimState
       _originalExchangeData = source._originalExchangeData
       _mint = source._mint
-      _mintDecimals = source._mintDecimals
-      _mintDisplayName = source._mintDisplayName
       _relationship = source._relationship
     }
   }
@@ -871,8 +1048,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         case 11: try { try decoder.decodeSingularEnumField(value: &_storage._claimState) }()
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._originalExchangeData) }()
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._mint) }()
-        case 14: try { try decoder.decodeSingularUInt32Field(value: &_storage._mintDecimals) }()
-        case 15: try { try decoder.decodeSingularStringField(value: &_storage._mintDisplayName) }()
         case 16: try { try decoder.decodeSingularMessageField(value: &_storage._relationship) }()
         default: break
         }
@@ -925,12 +1100,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       try { if let v = _storage._mint {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
       } }()
-      if _storage._mintDecimals != 0 {
-        try visitor.visitSingularUInt32Field(value: _storage._mintDecimals, fieldNumber: 14)
-      }
-      if !_storage._mintDisplayName.isEmpty {
-        try visitor.visitSingularStringField(value: _storage._mintDisplayName, fieldNumber: 15)
-      }
       try { if let v = _storage._relationship {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
       } }()
@@ -956,8 +1125,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         if _storage._claimState != rhs_storage._claimState {return false}
         if _storage._originalExchangeData != rhs_storage._originalExchangeData {return false}
         if _storage._mint != rhs_storage._mint {return false}
-        if _storage._mintDecimals != rhs_storage._mintDecimals {return false}
-        if _storage._mintDisplayName != rhs_storage._mintDisplayName {return false}
         if _storage._relationship != rhs_storage._relationship {return false}
         return true
       }

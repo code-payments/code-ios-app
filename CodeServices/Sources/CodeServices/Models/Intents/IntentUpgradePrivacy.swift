@@ -150,7 +150,8 @@ private extension AccountCluster {
     static func using(type: AccountType, index: Int, mnemonic: MnemonicPhrase) -> AccountCluster {
         AccountCluster(
             index: index,
-            authority: .derive(using: type.derivationPath(using: index), mnemonic: mnemonic)
+            authority: .derive(using: type.derivationPath(using: index), mnemonic: mnemonic),
+            kind: .timelock
         )
     }
 }

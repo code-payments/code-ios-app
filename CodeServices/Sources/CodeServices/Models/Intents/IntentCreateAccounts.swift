@@ -34,7 +34,7 @@ class IntentCreateAccounts: IntentType {
                     ActionWithdraw(
                         kind: .closeDormantAccount(type),
                         cluster: cluster,
-                        destination: organizer.tray.owner.cluster.timelockAccounts.vault.publicKey
+                        destination: organizer.tray.owner.cluster.vaultPublicKey
                     )
                 )
             }

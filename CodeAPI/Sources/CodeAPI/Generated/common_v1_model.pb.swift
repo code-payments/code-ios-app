@@ -38,7 +38,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   case legacyPrimary2022 // = 11
   case remoteSendGiftCard // = 12
   case relationship // = 13
-  case associatedTokenAccount // = 14
+  case swap // = 14
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -61,7 +61,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case 11: self = .legacyPrimary2022
     case 12: self = .remoteSendGiftCard
     case 13: self = .relationship
-    case 14: self = .associatedTokenAccount
+    case 14: self = .swap
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -82,7 +82,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case .legacyPrimary2022: return 11
     case .remoteSendGiftCard: return 12
     case .relationship: return 13
-    case .associatedTokenAccount: return 14
+    case .swap: return 14
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -108,7 +108,7 @@ extension Code_Common_V1_AccountType: CaseIterable {
     .legacyPrimary2022,
     .remoteSendGiftCard,
     .relationship,
-    .associatedTokenAccount,
+    .swap,
   ]
 }
 
@@ -463,7 +463,7 @@ extension Code_Common_V1_AccountType: SwiftProtobuf._ProtoNameProviding {
     11: .same(proto: "LEGACY_PRIMARY_2022"),
     12: .same(proto: "REMOTE_SEND_GIFT_CARD"),
     13: .same(proto: "RELATIONSHIP"),
-    14: .same(proto: "ASSOCIATED_TOKEN_ACCOUNT"),
+    14: .same(proto: "SWAP"),
   ]
 }
 

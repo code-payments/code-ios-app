@@ -84,8 +84,12 @@ struct ActionPrivacyUpgrade: ActionType {
             amount: privacyUpgrade.newCommitmentAmount
         )
         
+        guard let timelock = source.timelock else {
+            throw Error.invalidSource
+        }
+        
         let transaction = TransactionBuilder.transfer(
-            timelockDerivedAccounts: source.timelockAccounts,
+            timelockDerivedAccounts: timelock,
             destination: splitterAccounts.vault.publicKey,
             amount: originalAmount,
             nonce: originalNonce,
@@ -102,6 +106,7 @@ extension ActionPrivacyUpgrade {
         case missingServerParameter
         case missingPrivacyUpgradeParameter
         case invalidMerkleProof
+        case invalidSource
     }
 }
 

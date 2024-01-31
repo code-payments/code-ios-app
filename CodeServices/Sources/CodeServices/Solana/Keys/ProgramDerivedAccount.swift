@@ -74,7 +74,7 @@ public struct SplitterCommitmentAccounts: Codable, Hashable, Equatable {
             intentID: intentID,
             actionID: actionID,
             amount: amount,
-            source: source.timelockAccounts.vault.publicKey,
+            source: source.vaultPublicKey,
             destination: destination
         )
         
@@ -93,9 +93,9 @@ public struct AssociatedTokenAccount: Codable, Hashable, Equatable {
     public let owner: PublicKey
     public let ata: ProgramDerivedAccount
     
-    init(owner: PublicKey) {
+    init(owner: PublicKey, mint: PublicKey) {
         self.owner = owner
-        self.ata = PublicKey.deriveAssociatedAccount(from: owner, mint: .kinMint)!
+        self.ata = PublicKey.deriveAssociatedAccount(from: owner, mint: mint)!
     }
 }
 

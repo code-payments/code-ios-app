@@ -29,7 +29,7 @@ class IntentPublicTransfer: IntentType {
         
         switch destination {
         case .local(let accountType):
-            self.destination = organizer.tray.cluster(for: accountType).timelockAccounts.vault.publicKey
+            self.destination = organizer.tray.cluster(for: accountType).vaultPublicKey
             
         case .external(let publicKey):
             self.destination = publicKey
@@ -84,7 +84,7 @@ extension IntentPublicTransfer {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.sendPublicPayment = .with {
-                $0.source = sourceCluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.source = sourceCluster.vaultPublicKey.codeAccountID
                 $0.destination  = destination.codeAccountID
                 $0.isWithdrawal = true
                 $0.exchangeData = .with {

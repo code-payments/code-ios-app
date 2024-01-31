@@ -63,7 +63,7 @@ struct AccountSelectionScreen: View {
                                                 Text("\(account.formattedKin()) \(Localized.Core.kin)")
                                                 if account.isNotFound {
                                                     Badge(decoration: .circle(.textError), text: "Not Found")
-                                                } else if account.organizer.isUnlocked {
+                                                } else if account.organizer.isUnuseable {
                                                     Badge(decoration: .circle(.textError), text: "Unlocked")
                                                 } else if account.isMigrationRequired {
                                                     Badge(decoration: .circle(.textWarning), text: "Legacy")

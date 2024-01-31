@@ -86,6 +86,23 @@ public struct AccountInfo: Equatable {
     }
 }
 
+// MARK: - Extensions -
+
+extension AccountInfo {
+    /// An account is deemed unuseable in Code if the management
+    /// state for said account is no longer `locked`. Some accounts may
+    /// be allowed to operated in an 'unlocked' or another state
+    var unuseable: Bool {
+        if managementState == .none {
+            // If the account is not managed
+            // by Code, it is always useable
+            return false
+        } else {
+            return managementState != .locked
+        }
+    }
+}
+
 // MARK: - ManagementState -
 
 extension AccountInfo {

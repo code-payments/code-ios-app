@@ -121,17 +121,17 @@ extension ActionGroup: CustomStringConvertible, CustomDebugStringConvertible {
             } else if let withdraw = action as? ActionWithdraw {
                 switch withdraw.kind {
                 case .closeDormantAccount:
-                    return "Close Dormant -> \(withdraw.cluster.timelockAccounts.vault.publicKey.base58) sending to \(withdraw.destination.base58) (closeDormantAccount)"
+                    return "Close Dormant -> \(withdraw.cluster.vaultPublicKey.base58) sending to \(withdraw.destination.base58) (closeDormantAccount)"
                     
                 case .noPrivacyWithdraw(let amount):
                     return "\(amount) -> \(withdraw.destination.base58) (noPrivacyWithdraw)"
                 }
                 
             } else if let action = action as? ActionOpenAccount {
-                return "Open -> \(action.accountCluster.timelockAccounts.vault.publicKey.base58) (openAccount)"
+                return "Open -> \(action.accountCluster.vaultPublicKey.base58) (openAccount)"
                 
             } else if let closeEmptyAccount = action as? ActionCloseEmptyAccount {
-                return "Close Empty -> \(closeEmptyAccount.cluster.timelockAccounts.vault.publicKey.base58) (closeEmptyAccount)"
+                return "Close Empty -> \(closeEmptyAccount.cluster.vaultPublicKey.base58) (closeEmptyAccount)"
                 
             } else {
                 return "Unknown action"

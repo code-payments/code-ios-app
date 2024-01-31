@@ -265,7 +265,7 @@ class Session: ObservableObject {
             do {
                 try await fetchBalance()
                 
-                if organizer.isUnlocked {
+                if organizer.isUnuseable {
                     delegate?.didDetectUnlockedAccount()
                 }
                 

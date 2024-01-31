@@ -39,7 +39,7 @@ class IntentReceive: IntentType {
                 intentID: intentID,
                 amount: transfer.kin,
                 source: currentTray.cluster(for: transfer.from),
-                destination: currentTray.cluster(for: transfer.to!).timelockAccounts.vault.publicKey
+                destination: currentTray.cluster(for: transfer.to!).vaultPublicKey
             )
         }
         
@@ -52,7 +52,7 @@ class IntentReceive: IntentType {
                 intentID: intentID,
                 amount: exchange.kin,
                 source: currentTray.cluster(for: exchange.from),
-                destination: currentTray.cluster(for: exchange.to!).timelockAccounts.vault.publicKey // Exchanges always provide destination accounts
+                destination: currentTray.cluster(for: exchange.to!).vaultPublicKey // Exchanges always provide destination accounts
             )
         }
         
@@ -78,7 +78,7 @@ class IntentReceive: IntentType {
             ActionWithdraw(
                 kind: .closeDormantAccount(.incoming),
                 cluster: newIncoming.cluster,
-                destination: organizer.tray.owner.cluster.timelockAccounts.vault.publicKey
+                destination: organizer.tray.owner.cluster.vaultPublicKey
             )
         ]
         
@@ -120,7 +120,7 @@ extension IntentReceive {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.receivePaymentsPrivately = .with {
-                $0.source = organizer.tray.incoming.cluster.timelockAccounts.vault.publicKey.codeAccountID
+                $0.source = organizer.tray.incoming.cluster.vaultPublicKey.codeAccountID
                 $0.quarks = amount.quarks
                 $0.isDeposit = false
             }

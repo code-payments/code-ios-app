@@ -21,4 +21,10 @@ extension Client {
             accountService.fetchAccountInfos(owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func linkAdditionalAccounts(owner: KeyPair, linkedAccount: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            accountService.linkAdditionalAccounts(owner: owner, linkedAccount: linkedAccount) { c.resume(with: $0) }
+        }
+    }
 }

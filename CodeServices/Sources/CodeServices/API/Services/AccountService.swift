@@ -92,6 +92,34 @@ class AccountService: CodeService<Code_Account_V1_AccountNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func linkAdditionalAccounts(owner: KeyPair, linkedAccount: KeyPair, completion: @escaping (Result<(), ErrorLinkAccounts>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Linked to: \(linkedAccount.publicKey.base58)")
+        
+        let request = Code_Account_V1_LinkAdditionalAccountsRequest.with {
+            $0.owner = owner.publicKey.codeAccountID
+            $0.swapAuthority = linkedAccount.publicKey.codeAccountID
+            $0.signatures = [
+                $0.sign(with: owner),
+                $0.sign(with: linkedAccount),
+            ]
+        }
+        
+        let call = service.linkAdditionalAccounts(request)
+        call.handle(on: queue) { response in
+            
+            let error = ErrorLinkAccounts(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success, components: "Linked \(linkedAccount.publicKey.base58)")
+                completion(.success(()))
+            } else {
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -121,6 +149,21 @@ public enum ErrorFetchAccountInfos: Error, Equatable {
     }
 }
 
+public enum ErrorLinkAccounts: Int, Error {
+    /// Supports idempotency, and will be returned as long as the request exactly
+    /// matches a previous execution.
+    case ok
+    
+    /// The action has been denied (eg. owner account not phone verified)
+    case denied
+    
+    /// An account being linked is not valid
+    case invalidAccount
+    
+    /// Unknown
+    case unknown = -1
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Account_V1_AccountClientInterceptorFactoryProtocol {
@@ -129,6 +172,10 @@ extension InterceptorFactory: Code_Account_V1_AccountClientInterceptorFactoryPro
     }
     
     func makeGetTokenAccountInfosInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Account_V1_GetTokenAccountInfosRequest, CodeAPI.Code_Account_V1_GetTokenAccountInfosResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeLinkAdditionalAccountsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Account_V1_LinkAdditionalAccountsRequest, CodeAPI.Code_Account_V1_LinkAdditionalAccountsResponse>] {
         makeInterceptors()
     }
 }

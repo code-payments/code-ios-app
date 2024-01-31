@@ -34,7 +34,7 @@ struct RelationshipBox: Equatable, Codable, Hashable {
     }
     
     mutating func insert(_ relationship: Relationship) {
-        publicKeys[relationship.cluster.timelockAccounts.vault.publicKey] = relationship
+        publicKeys[relationship.cluster.vaultPublicKey] = relationship
         domains[relationship.domain] = relationship
     }
     
@@ -52,7 +52,7 @@ struct RelationshipBox: Equatable, Codable, Hashable {
             return
         }
         
-        publicKeys.removeValue(forKey: relationship.cluster.timelockAccounts.vault.publicKey)
+        publicKeys.removeValue(forKey: relationship.cluster.vaultPublicKey)
         domains.removeValue(forKey: domain)
     }
 }

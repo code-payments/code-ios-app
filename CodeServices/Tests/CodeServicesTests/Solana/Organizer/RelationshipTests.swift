@@ -24,7 +24,7 @@ class RelationshipTests: XCTestCase {
             Relationship(domain: Domain("https://subdomain.💩.io", supportSubdomains: true)!, mnemonic: mnemonic),
         ]
         
-        print(relationships.map { $0.cluster.timelockAccounts.vault.publicKey.base58 })
+        print(relationships.map { $0.cluster.vaultPublicKey.base58 })
         
         let expectedKeys = [
             "5fei6CyMWXnYShCGYzc7QfWNpaegRYEHgQsLjwBfyqJD", // getcode.com
@@ -37,7 +37,7 @@ class RelationshipTests: XCTestCase {
         ]
         
         zip(relationships, expectedKeys).forEach { relationship, expected in
-            XCTAssertEqual(relationship.cluster.timelockAccounts.vault.publicKey.base58, expected)
+            XCTAssertEqual(relationship.cluster.vaultPublicKey.base58, expected)
         }
     }
 }

@@ -83,6 +83,13 @@ service Transaction {
     //  * Balance changes are applied after the transaction has finalized
     //  * Transactions use recent blockhashes over a nonce
     //
+    // The transaction will have the following instruction format:
+    //   1. ComputeBudget::SetComputeUnitLimit
+    //   2. ComputeBudget::SetComputeUnitPrice
+    //   3. SwapValidator::PreSwap
+    //   4. Dynamic swap instruction
+    //   5. SwapValidator::PostSwap
+    //
     // Note: Currently limited to swapping USDC to Kin.
     // Note: Kin is deposited into the primary account.
     rpc Swap(stream SwapRequest) returns (stream SwapResponse);
@@ -453,7 +460,7 @@ message SwapResponse {
 
         // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
         // instruction. If the value is 0, then the instruction can be omitted.
-        uint64 compute_unit_limit = 3;
+        uint32 compute_unit_limit = 3;
 
         // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
         // instruction. If the value is 0, then the instruction can be omitted.
@@ -505,8 +512,8 @@ message SwapResponse {
             DENIED = 0;
             // There is an issue with the provided signature.
             SIGNATURE_ERROR = 2;
-            // An amount to swap to/from is invalid
-            INVALID_SWAP_AMOUNT = 3;
+            // The swap failed server-side validation
+            INVALID_SWAP = 3;
             // The submitted swap transaction failed. Attempt the swap again.
             SWAP_FAILED = 4;
         }
