@@ -574,8 +574,14 @@ internal enum Localized {
     /// You withdrew
     internal static let youWithdrew = Localized.tr("Localizable", "subtitle.youWithdrew")
     internal enum Chat {
+      /// Your Kin is now available for use in your Code App
+      internal static let kinAvailableForUse = Localized.tr("Localizable", "subtitle.chat.kinAvailableForUse")
       /// You sent someone their first Kin! Here is your referral bonus:
       internal static let referralBonus = Localized.tr("Localizable", "subtitle.chat.referralBonus")
+      /// Your USDC is being converted to Kin. This should take roughly one minute to complete
+      internal static let usdcBeingConverted = Localized.tr("Localizable", "subtitle.chat.usdcBeingConverted")
+      /// You successfully deposited USDC. Open Code App to complete your purchase
+      internal static let usdcDeposited = Localized.tr("Localizable", "subtitle.chat.usdcDeposited")
       /// Welcome to Code! Here is your first dollar to get you started:
       internal static let welcomeBonus = Localized.tr("Localizable", "subtitle.chat.welcomeBonus")
     }

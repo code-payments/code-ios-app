@@ -17,10 +17,10 @@ class OrganizerTests: XCTestCase {
     func testInit() {
         let organizer = Organizer(mnemonic: mnemonic)
         
-        XCTAssertEqual(organizer.tray.owner.cluster, AccountCluster(authority: owner))
+        XCTAssertEqual(organizer.tray.owner.cluster, AccountCluster(authority: owner, kind: .timelock))
         
-        XCTAssertEqual(organizer.tray.incoming.cluster, AccountCluster(authority: .derive(using: .bucketIncoming(using: 0), mnemonic: mnemonic)))
-        XCTAssertEqual(organizer.tray.outgoing.cluster, AccountCluster(authority: .derive(using: .bucketOutgoing(using: 0), mnemonic: mnemonic)))
+        XCTAssertEqual(organizer.tray.incoming.cluster, AccountCluster(authority: .derive(using: .bucketIncoming(using: 0), mnemonic: mnemonic), kind: .timelock))
+        XCTAssertEqual(organizer.tray.outgoing.cluster, AccountCluster(authority: .derive(using: .bucketOutgoing(using: 0), mnemonic: mnemonic), kind: .timelock))
         
         XCTAssertEqual(organizer.tray.slots.count, 7)
         XCTAssertEqual(organizer.tray.slots, [
@@ -55,17 +55,17 @@ class OrganizerTests: XCTestCase {
     }
     
     func testAccountCluster() {
-        let cluster = AccountCluster(authority: owner)
+        let cluster = AccountCluster(authority: owner, kind: .timelock)
         let timelockAccounts = TimelockDerivedAccounts(owner: owner.keyPair.publicKey)
         
         XCTAssertEqual(cluster.authority, owner)
-        XCTAssertEqual(cluster.timelockAccounts, timelockAccounts)
+        XCTAssertEqual(cluster.timelock, timelockAccounts)
     }
     
     func testUnlockedState() {
         let organizer = Organizer(mnemonic: mnemonic)
         
-        XCTAssertFalse(organizer.isUnlocked)
+        XCTAssertFalse(organizer.isUnuseable)
         
         AccountInfo.ManagementState.allCases.forEach { state in
             organizer.setAccountInfo([
@@ -87,9 +87,9 @@ class OrganizerTests: XCTestCase {
             ])
             
             if state == .locked {
-                XCTAssertFalse(organizer.isUnlocked)
+                XCTAssertFalse(organizer.isUnuseable)
             } else {
-                XCTAssertTrue(organizer.isUnlocked)
+                XCTAssertTrue(organizer.isUnuseable)
             }
         }
     }

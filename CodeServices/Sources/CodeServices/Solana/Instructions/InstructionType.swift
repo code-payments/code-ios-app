@@ -48,7 +48,7 @@ extension CommandType where Definition.RawValue: FixedWidthInteger {
     }
     
     @discardableResult
-    public static func parse(_ command: Definition? = nil, instruction: Instruction, expectingAccounts: Int) throws -> Data {
+    public static func parse(_ command: Definition? = nil, instruction: Instruction, expectingAccounts: Int?) throws -> Data {
         guard instruction.program == Self.address else {
             throw CommandParseError.instructionMismatch
         }
@@ -57,8 +57,12 @@ extension CommandType where Definition.RawValue: FixedWidthInteger {
             try ensure(instruction, is: command)
         }
         
-        guard instruction.accounts.count == expectingAccounts else {
-            throw CommandParseError.accountMismatch
+        // If number of accounts is a constraint
+        // we can declare an exact number we expect
+        if let expectingAccounts {
+            guard instruction.accounts.count == expectingAccounts else {
+                throw CommandParseError.accountMismatch
+            }
         }
         
         var data = instruction.data

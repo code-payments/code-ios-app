@@ -99,6 +99,21 @@ public struct AssociatedTokenAccount: Codable, Hashable, Equatable {
     }
 }
 
+public struct PreSwapStateAccount: Codable, Hashable, Equatable {
+ 
+    public let owner: PublicKey
+    public let state: ProgramDerivedAccount
+    
+    public init(owner: PublicKey, source: PublicKey, destination: PublicKey, nonce: PublicKey) {
+        self.owner = owner
+        self.state = PublicKey.derivePreSwapState(
+            source: source,
+            destination: destination,
+            nonce: nonce
+        )!
+    }
+}
+
 public struct SplitterTranscript: Codable, Hashable, Equatable, CustomStringConvertible, CustomDebugStringConvertible {
     
     public let intentID: PublicKey
@@ -227,6 +242,21 @@ extension PublicKey {
                 Data("commitment_vault".utf8),
                 treasury.data,
                 commitmentState.data
+        )
+    }
+}
+
+// MARK: - PreSwap State -
+
+extension PublicKey {
+    public static func derivePreSwapState(source: PublicKey, destination: PublicKey, nonce: PublicKey) -> ProgramDerivedAccount? {
+        findProgramAddress(
+            program: SwapValidatorProgram.address,
+            seeds:
+                Data("pre_swap_state".utf8),
+                source.data,
+                destination.data,
+                nonce.data
         )
     }
 }

@@ -220,4 +220,14 @@ extension Client {
             transactionService.fetchUpgradeableIntents(owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    // MARK: - Swap -
+    
+    public func initiateSwap(organizer: Organizer) async throws {
+        let intent = try await withCheckedThrowingContinuation { c in
+            transactionService.initiateSwap(organizer: organizer) { c.resume(with: $0) }
+        }
+        
+        print(intent.id.base58)
+    }
 }

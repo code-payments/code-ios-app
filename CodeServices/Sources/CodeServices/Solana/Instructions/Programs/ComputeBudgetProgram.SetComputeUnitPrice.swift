@@ -36,7 +36,7 @@ extension ComputeBudgetProgram.SetComputeUnitPrice: InstructionType {
     
     public func instruction() -> Instruction {
         Instruction(
-            program: SystemProgram.address,
+            program: ComputeBudgetProgram.address,
             accounts: [],
             data: encode()
         )

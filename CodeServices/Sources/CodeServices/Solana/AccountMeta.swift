@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct AccountMeta {
+public struct AccountMeta: Equatable, Hashable, Codable {
     
     public var publicKey: PublicKey
     public var isSigner: Bool

@@ -69,4 +69,20 @@ class ProgramDerivedAccountTests: XCTestCase {
         
         XCTAssertEqual(transcript.transcriptHash.base58, "5Yh4E953ePoBWe8w78FgMqEjiNmtCQi2ct9BTc2shuLi")
     }
+    
+    func testPreSwapStateDerivation() {
+        let owner = PublicKey(base58: "8XfsstyiyT4rCY8ydYthXLisgPHHZFXVtJbcRSsebkWo")!
+        let source = PublicKey(base58: "5nNBW1KhzHVbR4NMPLYPRYj3UN5vgiw5GrtpdK6eGoce")!
+        let destination = PublicKey(base58: "9Rgx4kjnYZBbeXXgbbYLT2FfgzrNHFUShDtp8dpHHjd2")!
+        let nonce = PublicKey(base58: "3SVPEF5HDcKLhVfKeAnbH5Azpyeuk2yyVjEjZbz4VhrL")!
+        
+        let derivedAccounts = PreSwapStateAccount(
+            owner: owner, // Not used in derivation, just mock
+            source: source,
+            destination: destination,
+            nonce: nonce
+        )
+        
+        XCTAssertEqual(derivedAccounts.state.publicKey.base58, "Hh338LHJhkzPbDisGt5Lge8qkgc3RExvH7BdmKgnRQw9")
+    }
 }

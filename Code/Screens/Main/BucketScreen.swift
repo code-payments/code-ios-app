@@ -66,7 +66,7 @@ struct BucketScreen: View {
             row(for: fragment)
                 .contextMenu(ContextMenu {
                     Button {
-                        copyVaultAddress(cluster: fragment.cluster)
+                        copyVaultAddress(fragment: fragment)
                     } label: {
                         Label("Copy Vault Address", systemImage: SystemSymbol.doc.rawValue)
                     }
@@ -87,7 +87,7 @@ struct BucketScreen: View {
                 }
                 .font(.appTextMedium)
                 
-                Text(fragment.cluster.vaultPublicKey.base58)
+                Text(fragment.userFacingDepositAddress.base58)
                     .font(.appTextSmall)
                     .foregroundColor(.textSecondary)
                     .truncationMode(.middle)
@@ -104,10 +104,10 @@ struct BucketScreen: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 5) {
-                Text(fragment.info.balance.formattedFiat(rate: exchange.localRate, suffix: nil))
+                Text(fragment.formattedFiatBalance(rate: exchange.localRate))
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
-                Text(fragment.info.balance.formattedTruncatedKin())
+                Text(fragment.formattedKinBalance())
                     .font(.appTextSmall)
                     .foregroundColor(.textSecondary)
                 Text(fragment.balanceSourceTitle)
@@ -124,8 +124,8 @@ struct BucketScreen: View {
     
     // MARK: - Actions -
     
-    private func copyVaultAddress(cluster: AccountCluster) {
-        UIPasteboard.general.string = cluster.vaultPublicKey.base58
+    private func copyVaultAddress(fragment: AccountFragment) {
+        UIPasteboard.general.string = fragment.userFacingDepositAddress.base58
     }
 }
 
@@ -149,6 +149,15 @@ private struct AccountFragment: Identifiable {
     let cluster: AccountCluster
     let info: AccountInfo
     
+    var userFacingDepositAddress: PublicKey {
+        switch cluster.derivation {
+        case .timelock:
+            return cluster.vaultPublicKey
+        case .usdc:
+            return cluster.authorityPublicKey
+        }
+    }
+    
     var balanceSourceTitle: String {
         "\(info.balanceSource)".trimmingCharacters(in: .punctuationCharacters).lowercased()
     }
@@ -159,6 +168,26 @@ private struct AccountFragment: Identifiable {
     
     var managementTitle: String {
         "\(info.managementState)".trimmingCharacters(in: .punctuationCharacters).capitalized
+    }
+    
+    func formattedFiatBalance(rate: Rate) -> String {
+        switch cluster.derivation {
+        case .timelock:
+            return info.balance.formattedFiat(rate: rate, suffix: nil)
+        case .usdc:
+            return "$\(info.balance.usdcValue)"
+        }
+        
+    }
+    
+    func formattedKinBalance() -> String {
+        switch cluster.derivation {
+        case .timelock:
+            return info.balance.formattedTruncatedKin()
+        case .usdc:
+            return "\(info.balance.usdcValue)"
+        }
+        
     }
     
     var managementColor: Color {
@@ -244,5 +273,11 @@ private struct AccountFragment: Identifiable {
         self.id = cluster.authority.keyPair.publicKey
         self.cluster = cluster
         self.info = info
+    }
+}
+
+private extension Kin {
+    var usdcValue: Decimal {
+        Decimal(quarks) / 1_000_000
     }
 }
