@@ -39,6 +39,10 @@ public class Organizer {
         tray.swap.cluster.authority.keyPair
     }
     
+    public var swapDepositAddress: PublicKey {
+        swapKeyPair.publicKey
+    }
+    
     public var primaryVault: PublicKey {
         tray.owner.cluster.vaultPublicKey
     }

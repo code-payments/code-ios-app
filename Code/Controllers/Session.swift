@@ -163,43 +163,7 @@ class Session: ObservableObject {
         
         updateBalance()
         fetchPrivacyUpgrades()
-//        fetchReferralAirdrops()
     }
-    
-    // MARK: - Referral Airdrops -
-    
-//    private func fetchReferralAirdrops() {
-//        Task {
-//            let owner = organizer.ownerKeyPair
-//            let messages = try await client.fetchMessages(rendezvous: owner)
-//            let referralAidrops = messages.filter { $0.airdrop != nil }
-//            
-//            // Queue up all referral airdrops as bills
-//            // and show the first if there's no other
-//            // bills being shown already
-//            
-//            if !referralAidrops.isEmpty {
-//                billQueue.append(
-//                    contentsOf: referralAidrops.map {
-//                        Bill(
-//                            kind: .referral,
-//                            amount: $0.airdrop!.kinAmount,
-//                            didReceive: true
-//                        )
-//                    }
-//                )
-//                
-//                dequeueBillIfNeeded()
-//            }
-//            
-//            if !messages.isEmpty {
-//                try await client.acknowledge(
-//                    messages: messages,
-//                    rendezvous: owner.publicKey
-//                )
-//            }
-//        }
-//    }
     
     // MARK: - Privacy Upgrade -
     

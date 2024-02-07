@@ -200,6 +200,9 @@
 /* Action to share a video */
 "action.shareVideo" = "Share This Video";
 
+/* Action to buy more kin */
+"action.buyMoreKin" = "Buy More Kin";
+
 
 
 
@@ -534,7 +537,7 @@
 "subtitle.youPaid" = "You paid";
 
 /* Subtitle for chat action */
-"subtitle.youPurchased" = "You gave";
+"subtitle.youPurchased" = "You purchased";
 
 /* Subtitle for chat action */
 "subtitle.wasReturnedToYou" = "was returned to you";

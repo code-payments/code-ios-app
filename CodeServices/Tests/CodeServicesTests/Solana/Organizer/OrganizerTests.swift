@@ -86,7 +86,7 @@ class OrganizerTests: XCTestCase {
                 )
             ])
             
-            if state == .locked {
+            if state == .locked || state == .none {
                 XCTAssertFalse(organizer.isUnuseable)
             } else {
                 XCTAssertTrue(organizer.isUnuseable)

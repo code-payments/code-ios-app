@@ -61,6 +61,7 @@
 		9A1EBC5A26246FA8003F8B19 /* String+PaddingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5926246FA8003F8B19 /* String+PaddingTests.swift */; };
 		9A2A3A8B25C32F0D007A8C50 /* RedundancyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2A3A8A25C32F0D007A8C50 /* RedundancyContainer.swift */; };
 		9A2A3A9225C32F95007A8C50 /* RedundancyContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2A3A9125C32F95007A8C50 /* RedundancyContainerTests.swift */; };
+		9A2B16C52B73FF86008DB36D /* DepositUSDCScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */; };
 		9A2BAFA627E1091300B4EA68 /* LinkPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2BAFA527E1091300B4EA68 /* LinkPhoneScreen.swift */; };
 		9A2D3326276389C200051E94 /* StopwatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2D3325276389C200051E94 /* StopwatchTests.swift */; };
 		9A301D1629B92E94006BA3F6 /* FlowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A301D1529B92E94006BA3F6 /* FlowController.swift */; };
@@ -256,6 +257,7 @@
 		9A1EBC5926246FA8003F8B19 /* String+PaddingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+PaddingTests.swift"; sourceTree = "<group>"; };
 		9A2A3A8A25C32F0D007A8C50 /* RedundancyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedundancyContainer.swift; sourceTree = "<group>"; };
 		9A2A3A9125C32F95007A8C50 /* RedundancyContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedundancyContainerTests.swift; sourceTree = "<group>"; };
+		9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepositUSDCScreen.swift; sourceTree = "<group>"; };
 		9A2BAFA527E1091300B4EA68 /* LinkPhoneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPhoneScreen.swift; sourceTree = "<group>"; };
 		9A2D3325276389C200051E94 /* StopwatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopwatchTests.swift; sourceTree = "<group>"; };
 		9A301D1529B92E94006BA3F6 /* FlowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowController.swift; sourceTree = "<group>"; };
@@ -481,6 +483,7 @@
 			isa = PBXGroup;
 			children = (
 				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
+				9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */,
 				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
 				9A0C60902AD05A3C00A57875 /* MessageList.swift */,
 			);
@@ -1315,6 +1318,7 @@
 				9A680BD028A414AB00B4D96B /* IntroViewModel.swift in Sources */,
 				9A084D7226165CDC00F3C9B9 /* Stopwatch.swift in Sources */,
 				9A3E945227473EC700789CF6 /* LoginScreen.swift in Sources */,
+				9A2B16C52B73FF86008DB36D /* DepositUSDCScreen.swift in Sources */,
 				9ACFA004261DFDA6007F97B4 /* Environment.swift in Sources */,
 				9AED1104258BE1310088D902 /* AppDelegate.swift in Sources */,
 				9A103F8225B9BF180026EA62 /* Session.swift in Sources */,

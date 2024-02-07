@@ -104,4 +104,5 @@ enum Breadcrumb: String {
     case remoteSendShareSheet = "Remote Send Share Sheet"
     case getFriendOnCodeShareSheet = "Get Friend on Code Share Sheet"
     case buyVideoScreen = "Buy Video Screen"
+    case buyMoreKinScreen = "Buy More Kin Screen"
 }

@@ -24,6 +24,7 @@ struct BalanceScreen: View {
     
     @State private var isShowingFAQ: Bool = false
     @State private var isShowingBuckets: Bool = false
+    @State private var isShowingBuyMoreKin: Bool = false
     
     private var chats: [Chat] {
         historyController.chats
@@ -31,7 +32,7 @@ struct BalanceScreen: View {
 //            Chat(
 //                id: .mock, 
 //                cursor: .mock1,
-//                title: .domain("wsj.com"),
+//                title: .domain(Domain("wsj.com")!),
 //                pointer: .unknown,
 //                unreadCount: 0,
 //                canMute: false,
@@ -97,7 +98,7 @@ struct BalanceScreen: View {
                                         content: {
                                             chatsView()
                                         },
-                                        headerHeight: geometry.size.height * 0.3,
+                                        headerHeight: geometry.size.height * 0.4,
                                         header: {
                                             header()
                                         }
@@ -105,7 +106,7 @@ struct BalanceScreen: View {
                                 }
                             } else {
                                 header()
-                                    .frame(maxHeight: geometry.size.height * 0.3)
+                                    .frame(maxHeight: geometry.size.height * 0.4)
                                 emptyState()
                             }
                         }
@@ -135,6 +136,10 @@ struct BalanceScreen: View {
         VStack(alignment: .center) {
             Flow(isActive: $isShowingFAQ) {
                 FAQScreen(isPresented: $isShowingFAQ)
+            }
+            
+            Flow(isActive: $isShowingBuyMoreKin) {
+                DepositUSDCScreen(session: session)
             }
             
             Button {
@@ -177,6 +182,13 @@ struct BalanceScreen: View {
                 .font(.appTextMedium)
                 .foregroundColor(.textSecondary)
                 .frame(maxWidth: .infinity)
+            }
+            
+            if betaFlags.hasEnabled(.buyKin) {
+                CodeButton(style: .filled, title: Localized.Action.buyMoreKin) {
+                    isShowingBuyMoreKin = true
+                }
+                .padding(.top, 15)
             }
         }
         .padding(.horizontal, 20)

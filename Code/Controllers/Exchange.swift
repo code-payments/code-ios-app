@@ -164,12 +164,16 @@ class Exchange: ObservableObject {
 }
 
 extension Date {
-    func minutesBetween(date: Date) -> Int {
+    func secondsBetween(date: Date) -> Int {
         let lhs = self.timeIntervalSince1970
         let rhs = date.timeIntervalSince1970
         
         let diff = abs(lhs - rhs)
-        return Int(diff / 60)
+        return Int(diff)
+    }
+    
+    func minutesBetween(date: Date) -> Int {
+        secondsBetween(date: date) / 60
     }
 }
 

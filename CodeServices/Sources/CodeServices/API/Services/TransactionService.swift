@@ -589,7 +589,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     // MARK: - Privacy Upgrade -
     
     func fetchUpgradeableIntents(owner: KeyPair, completion: @escaping (Result<[UpgradeableIntent], ErrorFetchUpgradeableIntets>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeRequest.with {
             $0.owner = owner.publicKey.codeAccountID
@@ -616,7 +616,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 }
                 
             case .notFound:
-                trace(.success, components: "No upgradeable intents")
+//                trace(.success, components: "No upgradeable intents")
                 completion(.success([]))
                 
             case .unknown, .deserializationFailure:

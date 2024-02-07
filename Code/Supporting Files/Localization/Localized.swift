@@ -20,6 +20,8 @@ internal enum Localized {
     internal static let allowPushNotifications = Localized.tr("Localizable", "action.allowPushNotifications")
     /// Balance
     internal static let balance = Localized.tr("Localizable", "action.balance")
+    /// Buy More Kin
+    internal static let buyMoreKin = Localized.tr("Localizable", "action.buyMoreKin")
     /// Cancel
     internal static let cancel = Localized.tr("Localizable", "action.cancel")
     /// Cancel Send
@@ -563,7 +565,7 @@ internal enum Localized {
     }
     /// You paid
     internal static let youPaid = Localized.tr("Localizable", "subtitle.youPaid")
-    /// You gave
+    /// You purchased
     internal static let youPurchased = Localized.tr("Localizable", "subtitle.youPurchased")
     /// You received
     internal static let youReceived = Localized.tr("Localizable", "subtitle.youReceived")

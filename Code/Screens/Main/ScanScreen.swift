@@ -24,6 +24,8 @@ struct ScanScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     @EnvironmentObject private var notificationController: NotificationController
     @EnvironmentObject private var reachability: Reachability
+    @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var biometrics: Biometrics
     
     @State private var sendState: ButtonState = .normal
     
@@ -165,6 +167,12 @@ struct ScanScreen: View {
                             isPresented: $isPresentingSettings
                         )
                         .environmentObject(betaFlags)
+                        .environmentObject(client)
+                        .environmentObject(exchange)
+                        .environmentObject(exchange)
+                        .environmentObject(betaFlags)
+                        .environmentObject(bannerController)
+                        .environmentObject(biometrics)
                     }
                 }
             }
@@ -266,6 +274,7 @@ struct ScanScreen: View {
                         .environmentObject(exchange)
                         .environmentObject(client)
                         .environmentObject(betaFlags)
+                        .environmentObject(bannerController)
                     }
                 } else {
                     if !session.billState.hideBillButtons {

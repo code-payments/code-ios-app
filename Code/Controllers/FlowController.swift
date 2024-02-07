@@ -20,6 +20,8 @@ class FlowController: ObservableObject {
     }
     
     private(set) var limits: Limits?
+    
+    private var lastSwap: Date?
 
     private let client: Client
     private let organizer: Organizer
@@ -53,8 +55,32 @@ class FlowController: ObservableObject {
         organizer.setAccountInfo(infos)
         
         try await receiveFromIncoming()
+        try await swapIfNeeded()
         
         return organizer.availableBalance
+    }
+    
+    // MARK: - Swaps -
+    
+    private func swapIfNeeded() async throws {
+        // We need to check and see if the USDC account has a balance,
+        // if so, we'll initiate a swap to Kin. The nuance here is that
+        // the balance of the USDC account is reported as `Kin`, where the
+        // quarks represent the lamport balance of the account.
+        guard let info = organizer.info(for: .swap), info.balance.quarks > 0 else {
+            return
+        }
+        
+        let timeout: Int = 45 // seconds
+        
+        // Ensure that it's been at least `timeout` seconds since we try
+        // another swap if one is already in-flight.
+        if let existingSwap = lastSwap, existingSwap.secondsBetween(date: .now()) < timeout {
+            return
+        }
+        
+        lastSwap = .now()
+        try await client.initiateSwap(organizer: organizer)
     }
     
     // MARK: - Transfer -
@@ -312,7 +338,6 @@ class FlowController: ObservableObject {
     private func receiveFromIncoming() async throws -> Kin {
         let incomingBalance = availableIncomingAmount()
         guard incomingBalance > 0 else {
-            trace(.warning, components: "Skipping receiving from incoming, zero balance.")
             return 0
         }
         
@@ -321,6 +346,7 @@ class FlowController: ObservableObject {
             organizer: organizer
         )
         
+        trace(.success, components: "Received from incoming: \(incomingBalance)")
         return incomingBalance
     }
     

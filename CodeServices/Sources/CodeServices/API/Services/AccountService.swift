@@ -42,7 +42,7 @@ class AccountService: CodeService<Code_Account_V1_AccountNIOClient> {
     }
     
     func fetchAccountInfos(owner: KeyPair, completion: @escaping (Result<[PublicKey: AccountInfo], ErrorFetchAccountInfos>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.codeAccountID
