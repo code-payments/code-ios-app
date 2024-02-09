@@ -53,6 +53,16 @@
                ReferencedContainer = "container:Code.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9AED111B258BE1320088D902"
+               BuildableName = "CodeUITests.xctest"
+               BlueprintName = "CodeUITests"
+               ReferencedContainer = "container:Code.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
@@ -72,6 +82,15 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "9AED10FF258BE1310088D902"
+            BuildableName = "Code.app"
+            BlueprintName = "Code"
+            ReferencedContainer = "container:Code.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

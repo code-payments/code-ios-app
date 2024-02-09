@@ -82,46 +82,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) async -> UIBackgroundFetchResult {
-        trace(.warning, components: "Push received: \(userInfo)")
-        
-        guard 
-            let chatTitle = userInfo["chat_title"] as? String,
-            let messageContent = userInfo["message_content"] as? String
-        else {
-            return .noData
-        }
-        
-        guard let messageData = Data(base64Encoded: messageContent, options: .ignoreUnknownCharacters) else {
-            return .noData
-        }
-        
-        guard
-            let rawContent = try? Code_Chat_V1_Content(serializedData: messageData),
-            let content = Chat.Content(rawContent)?.localizedText
-        else {
-            trace(.failure, components: "Failed to parse push data.")
-            return .noData
-        }
-        
-        scheduleNotification(title: chatTitle.localizedStringByKey, body: content)
-        
-        return .newData
+        return .noData
     }
     
-    private func scheduleNotification(title: String, body: String) {
-        let content   = UNMutableNotificationContent()
-        content.title = title
-        content.body  = body
-        content.sound = UNNotificationSound.default
-
-        let identifier = UUID().uuidString
-        let trigger    = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request    = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-        Task {
-            try await UNUserNotificationCenter.current().add(request)
-        }
-    }
+//    private func scheduleNotification(title: String, body: String) {
+//        let content   = UNMutableNotificationContent()
+//        content.title = title
+//        content.body  = body
+//        content.sound = UNNotificationSound.default
+//
+//        let identifier = UUID().uuidString
+//        let trigger    = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+//        let request    = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+//
+//        Task {
+//            try await UNUserNotificationCenter.current().add(request)
+//        }
+//    }
     
     // MARK: - Activity -
     

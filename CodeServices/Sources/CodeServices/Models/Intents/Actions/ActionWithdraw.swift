@@ -44,7 +44,7 @@ struct ActionWithdraw: ActionType {
         return configs.map { config in
             TransactionBuilder.closeDormantAccount(
                 authority: cluster.authority.keyPair.publicKey,
-                timelockDerivedAccounts: cluster.timelock!,
+                timelockDerivedAccounts: timelock,
                 destination: destination,
                 nonce: config.nonce,
                 recentBlockhash: config.blockhash,

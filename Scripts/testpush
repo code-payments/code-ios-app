@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ "$#" -ne 1 ]; then
+    echo "Missing device ID, listing devices..."
+    xcrun simctl list devices available
+    exit 1
+fi
+
+DEVICE_IDENTIFIER=$1
+
+xcrun simctl push "$DEVICE_IDENTIFIER" "com.kin.code" "./resources/mutable_push.json"
+
+echo "Push notification sent to device $DEVICE_IDENTIFIER"

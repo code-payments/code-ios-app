@@ -124,6 +124,16 @@
                ReferencedContainer = "container:CodeAPI">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9AED111B258BE1320088D902"
+               BuildableName = "CodeUITests.xctest"
+               BlueprintName = "CodeUITests"
+               ReferencedContainer = "container:Code.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
