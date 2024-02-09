@@ -29,7 +29,7 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "CodeUITests",
+            name: "CodeUIMTests",
             dependencies: ["CodeUI"]
         ),
     ]
