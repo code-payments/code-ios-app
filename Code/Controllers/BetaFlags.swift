@@ -90,6 +90,7 @@ extension BetaFlags {
         case bucketDebugger
         case giveRequests
         case buyKin
+        case kadoProd
         
         var id: String {
             localizedTitle
@@ -109,6 +110,8 @@ extension BetaFlags {
                 return "Give Requests (Mode)"
             case .buyKin:
                 return "Buy Kin"
+            case .kadoProd:
+                return "Kado Prod"
             }
         }
         
@@ -126,6 +129,8 @@ extension BetaFlags {
                 return "If enabled, Give Kin screen will show requests for entered amounts instead of cash bills."
             case .buyKin:
                 return "If enabled, a Buy More Kin will appear in the balance screen."
+            case .kadoProd:
+                return "If enabled, Kado will use production servers instead of the sandbox servers."
             }
         }
     }

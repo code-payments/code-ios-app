@@ -908,11 +908,19 @@ class Session: ObservableObject {
     }
     
     func hasAvailableTransactionLimit(for amount: KinAmount) -> Bool {
-        (flowController.limits?.todaysAllowanceFor(currency: amount.rate.currency) ?? 0) > amount.fiat
+        todaysAllowanceFor(currency: amount.rate.currency) > amount.fiat
     }
     
     func todaysAllowanceFor(currency: CurrencyCode) -> Decimal {
         flowController.limits?.todaysAllowanceFor(currency: currency) ?? 0
+    }
+    
+    func maxKinPurchase() -> Kin {
+        flowController.limits?.maxDeposit ?? 0
+    }
+    
+    func minKinPurchase() -> Kin {
+        Kin(quarks: maxKinPurchase().quarks / 10)
     }
     
     func attemptSend(bill: Bill) {

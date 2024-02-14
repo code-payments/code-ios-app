@@ -126,6 +126,7 @@
 		9A9DF7C9275155BE0031E219 /* UpgradeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9DF7C8275155BE0031E219 /* UpgradeScreen.swift */; };
 		9A9E2B7327B4496D00C56D6A /* MigrationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9E2B7227B4496D00C56D6A /* MigrationScreen.swift */; };
 		9A9F26992A169CC000FA47DF /* GetKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9F26982A169CC000FA47DF /* GetKinScreen.swift */; };
+		9AA1B5152B7BE9AD000DB4B5 /* BuyKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */; };
 		9AA39082274450B700234899 /* BackupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA39081274450B700234899 /* BackupScreen.swift */; };
 		9AA390842746964100234899 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390832746964100234899 /* Route.swift */; };
 		9AA390862746A39700234899 /* URL+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390852746A39700234899 /* URL+Links.swift */; };
@@ -391,6 +392,7 @@
 		9A9DF7C8275155BE0031E219 /* UpgradeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradeScreen.swift; sourceTree = "<group>"; };
 		9A9E2B7227B4496D00C56D6A /* MigrationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationScreen.swift; sourceTree = "<group>"; };
 		9A9F26982A169CC000FA47DF /* GetKinScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetKinScreen.swift; sourceTree = "<group>"; };
+		9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BuyKinScreen.swift; sourceTree = "<group>"; };
 		9AA3907A274416E300234899 /* Code.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Code.entitlements; sourceTree = "<group>"; };
 		9AA39081274450B700234899 /* BackupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupScreen.swift; sourceTree = "<group>"; };
 		9AA390832746964100234899 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
@@ -528,6 +530,7 @@
 			isa = PBXGroup;
 			children = (
 				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
+				9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */,
 				9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */,
 				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
 				9A0C60902AD05A3C00A57875 /* MessageList.swift */,
@@ -1457,6 +1460,7 @@
 				9A74396E2A9507B500948CC5 /* SwipeControl.swift in Sources */,
 				9A093D3225D1C8C8000E7DD9 /* Code.Payload+Encoding.swift in Sources */,
 				9AE6FDEE27E50BDF00FDBD41 /* BannerController.swift in Sources */,
+				9AA1B5152B7BE9AD000DB4B5 /* BuyKinScreen.swift in Sources */,
 				9A4283BC2A02B5B100792BFD /* ShareCashItem.swift in Sources */,
 				9A8E861627A44EB300213934 /* RestrictedScreen.swift in Sources */,
 				9A0C60912AD05A3C00A57875 /* MessageList.swift in Sources */,
@@ -1929,6 +1933,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -1952,6 +1957,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1965,6 +1971,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -1988,6 +1995,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -2001,6 +2009,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -2020,6 +2029,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -2032,6 +2042,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -2051,6 +2062,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

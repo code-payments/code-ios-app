@@ -26,6 +26,14 @@ public struct Fiat: Equatable, Hashable, Codable {
             amount: Decimal(amount)
         )
     }
+    
+    public init?(currency: CurrencyCode, stringAmount: String) {
+        guard let amount = NumberFormatter.decimal(from: stringAmount), amount > 0 else {
+            return nil
+        }
+
+        self.init(currency: currency, amount: amount)
+    }
 }
 
 extension Fiat {

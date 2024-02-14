@@ -17,6 +17,7 @@ public struct AmountField: View {
     public let flagStyle: Flag.Style
     public let formatter: NumberFormatter
     public let suffix: String?
+    public let showChevron: Bool
     
     private let spacing: CGFloat = 15
     private let insertionOffset: CGFloat = 30
@@ -27,12 +28,13 @@ public struct AmountField: View {
     
     // MARK: - Init -
     
-    public init(content: Binding<String>, defaultValue: String, flagStyle: Flag.Style, formatter: NumberFormatter, suffix: String? = nil) {
+    public init(content: Binding<String>, defaultValue: String, flagStyle: Flag.Style, formatter: NumberFormatter, suffix: String? = nil, showChevron: Bool = true) {
         self._content = content
         self.defaultValue = defaultValue
         self.flagStyle = flagStyle
         self.formatter = formatter
-        self.suffix = (suffix == nil) ? nil : " \(suffix!)" 
+        self.suffix = (suffix == nil) ? nil : " \(suffix!)"
+        self.showChevron = showChevron
     }
     
     public var body: some View {
@@ -45,8 +47,10 @@ public struct AmountField: View {
                             .combined(with: .move(edge: .leading))
                             .animation(.easeOutFastest)
                     )
-                Image.system(.chevronDown)
-                    .font(.default(size: 12, weight: .bold))
+                if showChevron {
+                    Image.system(.chevronDown)
+                        .font(.default(size: 12, weight: .bold))
+                }
             }
             .animation(.springFastestDamped)
             
