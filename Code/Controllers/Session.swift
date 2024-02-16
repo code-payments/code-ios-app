@@ -915,12 +915,8 @@ class Session: ObservableObject {
         flowController.limits?.todaysAllowanceFor(currency: currency) ?? 0
     }
     
-    func maxKinPurchase() -> Kin {
-        flowController.limits?.maxDeposit ?? 0
-    }
-    
-    func minKinPurchase() -> Kin {
-        Kin(quarks: maxKinPurchase().quarks / 10)
+    func buyLimit(for currency: CurrencyCode) -> Limit? {
+        flowController.limits?.buyLimit(for: currency)
     }
     
     func attemptSend(bill: Bill) {

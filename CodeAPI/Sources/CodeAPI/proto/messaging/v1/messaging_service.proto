@@ -271,6 +271,10 @@ message RequestToReceiveBill {
 
     // Rendezvous key to avoid replay attacks
     RendezvousKey rendezvous_key = 7;
+
+    // Additional fee payments splitting the requested amount. This is in addition
+    // to the hard-coded Code $0.01 USD fee.
+    repeated transaction.v2.AdditionalFeePayment additional_fees = 8 [(validate.rules).repeated.max_items = 3];
 }
 
 // A status update on a stream to indicate a scan code was scanned. This can appear

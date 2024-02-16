@@ -182,7 +182,7 @@ extension ServerParameter.Parameter {
             )
             
         case .feePayment(let param):
-            guard let destination = PublicKey(param.destination.value) else {
+            guard let destination = PublicKey(param.codeDestination.value) else {
                 throw Error.deserializationFailed
             }
             

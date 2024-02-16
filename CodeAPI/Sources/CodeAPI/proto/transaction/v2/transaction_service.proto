@@ -298,14 +298,17 @@ message GetLimitsResponse {
         OK = 0;
     }
 
-    // Remaining send limits keyed by currency
-    map<string, RemainingSendLimit> remaining_send_limits_by_currency = 2;
+    // Send limits keyed by currency
+    map<string, SendLimit> send_limits_by_currency = 2;
 
     // Deposit limits
     DepositLimit deposit_limit = 3;
 
     // Micro payment limits keyed by currency
     map<string, MicroPaymentLimit> micro_payment_limits_by_currency = 4;
+
+    // Buy module limits keyed by currency
+    map<string, BuyModuleLimit> buy_module_limits_by_currency = 5;
 }
 
 message GetPaymentHistoryRequest {
@@ -446,7 +449,7 @@ message SwapResponse {
     oneof response {
         option (validate.required) = true;
 
-        ServerParameters server_paramenters = 1;
+        ServerParameters server_parameters  = 1;
         Success          success            = 2;
         Error            error              = 3;
     }
@@ -615,11 +618,20 @@ message OpenAccountsMetadata {
 //   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
 //   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
 //
-//   // Section 2: Rotate TEMPORARY_OUTGOING account
+//   // Section 2: Fee payments
+//
+//   // Hard-coded Code $0.01 USD fee to a dynamic fee account
+//   FeePayment(TEMPORARY_OUTGOING[index], codeFeeAccount, $0.01 USD of Kin),
+//
+//   // Additional fees, exactly as specified in the original payment request
+//   FeePayment(TEMPORARY_OUTGOING[index], additionalFeeAccount0, additionalFeeQuarks0),
+//   ...
+//   FeePayment(TEMPORARY_OUTGOING[index], additionalFeeAccountN, additionalFeeQuarksN),
+//
+//   // Section 3: Rotate TEMPORARY_OUTGOING account
 //
 //   // Below must appear last in this exact order
-//   FeePayment(TEMPORARY_OUTGOING[index], feeAccount, $0.01 USD of Kin),
-//   NoPrivacyWithdrawAction(TEMPORARY_OUTGOING[index], destination, ExchangeData.Quarks - $0.01 USD of Kin),
+//   NoPrivacyWithdrawAction(TEMPORARY_OUTGOING[index], destination, ExchangeData.Quarks - $0.01 USD of Kin - additionalFeeQuarks0 - ... - additionalFeeQuarksN),
 //   OpenAccountAction(TEMPORARY_OUTGOING[index + 1]),
 //   CloseDormantAccount(TEMPORARY_OUTGOING[index + 1]),
 // ]
@@ -1001,11 +1013,16 @@ message PermanentPrivacyUpgradeAction {
 //    3. timelock::TransferWithAuthority (source -> fee account)
 //  Client Signature Required: Yes
 //
-// Note: This is exactly a NoPrivacyTransferAction, except the destination
-//       account is controlled by Code and provided in a server parameter.
-// Note: The fee amount is hardcoded at the client and validated by server.
-//       Currently, its set to $0.01 USD.
+// Note: This is exactly a NoPrivacyTransferAction, but with specialized metadata
+//       for fees.
 message FeePaymentAction {
+    // The type of fee being operated on
+    FeeType type = 4;
+    enum FeeType {
+        CODE        = 0; // Hardcoded $0.01 USD fee to a dynamic fee account specified by server
+        THIRD_PARTY = 1; // Third party fee specified at time of payment request
+    }
+
     // The public key of the private key that has authority over source
     common.v1.SolanaAccountId authority = 1 [(validate.rules).message.required = true];
 
@@ -1014,6 +1031,10 @@ message FeePaymentAction {
 
     // The Kin quark amount to transfer
     uint64 amount = 3 [(validate.rules).uint64.gt = 0];
+
+    // The destination where the fee payment is being made for fees outside of
+    // Code.
+    common.v1.SolanaAccountId destination = 5;
 }
 
 //
@@ -1122,8 +1143,9 @@ message PermanentPrivacyUpgradeServerParameter {
 }
 
 message FeePaymentServerParameter {
-    // The destination account where the fee payment should be sent.
-    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
+    // The destination account where Code fee payments should be sent. This will
+    // only be set when the corresponding FeePaymentAction Type is CODE.
+    common.v1.SolanaAccountId code_destination = 1;
 }
 
 //
@@ -1278,9 +1300,26 @@ message ExchangeDataWithoutRate {
     double native_amount = 2 [(validate.rules).double.gt = 0];
 }
 
-message RemainingSendLimit {
+message AdditionalFeePayment {
+    // Destination Kin token account where the fee payment will be made
+    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
+
+    // Fee percentage, in basis points, of the total quark amount of a payment.
+    uint32 fee_bps = 2 [(validate.rules).uint32 = {
+        gt: 0,
+        lte: 10000,
+    }];
+}
+
+message SendLimit {
     // Remaining limit to apply on the next transaction
     float next_transaction = 1;
+
+    // Maximum allowed on a per-transaction basis
+    float max_per_transaction = 2;
+
+    // Maximum allowed on a per-day basis
+    float max_per_day = 3;
 }
 
 message DepositLimit {
@@ -1298,6 +1337,15 @@ message MicroPaymentLimit {
     // Minimum native amount that can be applied per micro payment transaction
     float min_per_transaction = 2;
 }
+
+message BuyModuleLimit {
+    // Minimum amount that can be purchased through the buy module
+    float min_per_transaction = 1;
+
+    // Maximum amount that can be purchased through the buy module
+    float max_per_transaction = 2;
+}
+
 
 message Cursor {
     bytes value = 1 [(validate.rules).bytes = {

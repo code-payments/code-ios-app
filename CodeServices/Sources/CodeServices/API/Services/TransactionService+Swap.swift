@@ -49,7 +49,7 @@ extension TransactionService {
             // 2. Upon successful submission of intent action the server will
             // respond with parameters that we'll need to apply to the intent
             // before crafting and signing the transactions.
-            case .serverParamenters(let parameters):
+            case .serverParameters(let parameters):
                 do {
                     let configParameters = try SwapConfigParameters(parameters)
                     

@@ -542,7 +542,8 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             let limits = Limits(
                 sinceDate: date,
                 fetchDate: fetchDate,
-                limits: response.remainingSendLimitsByCurrency,
+                sendLimits: response.sendLimitsByCurrency,
+                buyLimits: response.buyModuleLimitsByCurrency,
                 deposits: response.depositLimit
             )
             

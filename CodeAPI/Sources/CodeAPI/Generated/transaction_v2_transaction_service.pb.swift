@@ -812,8 +812,8 @@ public struct Code_Transaction_V2_GetLimitsResponse {
 
   public var result: Code_Transaction_V2_GetLimitsResponse.Result = .ok
 
-  /// Remaining send limits keyed by currency
-  public var remainingSendLimitsByCurrency: Dictionary<String,Code_Transaction_V2_RemainingSendLimit> = [:]
+  /// Send limits keyed by currency
+  public var sendLimitsByCurrency: Dictionary<String,Code_Transaction_V2_SendLimit> = [:]
 
   /// Deposit limits
   public var depositLimit: Code_Transaction_V2_DepositLimit {
@@ -827,6 +827,9 @@ public struct Code_Transaction_V2_GetLimitsResponse {
 
   /// Micro payment limits keyed by currency
   public var microPaymentLimitsByCurrency: Dictionary<String,Code_Transaction_V2_MicroPaymentLimit> = [:]
+
+  /// Buy module limits keyed by currency
+  public var buyModuleLimitsByCurrency: Dictionary<String,Code_Transaction_V2_BuyModuleLimit> = [:]
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1368,12 +1371,12 @@ public struct Code_Transaction_V2_SwapResponse {
 
   public var response: Code_Transaction_V2_SwapResponse.OneOf_Response? = nil
 
-  public var serverParamenters: Code_Transaction_V2_SwapResponse.ServerParameters {
+  public var serverParameters: Code_Transaction_V2_SwapResponse.ServerParameters {
     get {
-      if case .serverParamenters(let v)? = response {return v}
+      if case .serverParameters(let v)? = response {return v}
       return Code_Transaction_V2_SwapResponse.ServerParameters()
     }
-    set {response = .serverParamenters(newValue)}
+    set {response = .serverParameters(newValue)}
   }
 
   public var success: Code_Transaction_V2_SwapResponse.Success {
@@ -1395,7 +1398,7 @@ public struct Code_Transaction_V2_SwapResponse {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Response: Equatable {
-    case serverParamenters(Code_Transaction_V2_SwapResponse.ServerParameters)
+    case serverParameters(Code_Transaction_V2_SwapResponse.ServerParameters)
     case success(Code_Transaction_V2_SwapResponse.Success)
     case error(Code_Transaction_V2_SwapResponse.Error)
 
@@ -1405,8 +1408,8 @@ public struct Code_Transaction_V2_SwapResponse {
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch (lhs, rhs) {
-      case (.serverParamenters, .serverParamenters): return {
-        guard case .serverParamenters(let l) = lhs, case .serverParamenters(let r) = rhs else { preconditionFailure() }
+      case (.serverParameters, .serverParameters): return {
+        guard case .serverParameters(let l) = lhs, case .serverParameters(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       case (.success, .success): return {
@@ -1837,11 +1840,20 @@ public struct Code_Transaction_V2_OpenAccountsMetadata {
 ///   TemporaryPrivacyExchangeAction(BUCKET_X_KIN, BUCKET_X_KIN, multiple * bucketSize),
 ///   TemporaryPrivacyTransferAction(BUCKET_X_KIN, TEMPORARY_OUTGOING[index], multiple * bucketSize),
 ///
-///   // Section 2: Rotate TEMPORARY_OUTGOING account
+///   // Section 2: Fee payments
+///
+///   // Hard-coded Code $0.01 USD fee to a dynamic fee account
+///   FeePayment(TEMPORARY_OUTGOING[index], codeFeeAccount, $0.01 USD of Kin),
+///
+///   // Additional fees, exactly as specified in the original payment request
+///   FeePayment(TEMPORARY_OUTGOING[index], additionalFeeAccount0, additionalFeeQuarks0),
+///   ...
+///   FeePayment(TEMPORARY_OUTGOING[index], additionalFeeAccountN, additionalFeeQuarksN),
+///
+///   // Section 3: Rotate TEMPORARY_OUTGOING account
 ///
 ///   // Below must appear last in this exact order
-///   FeePayment(TEMPORARY_OUTGOING[index], feeAccount, $0.01 USD of Kin),
-///   NoPrivacyWithdrawAction(TEMPORARY_OUTGOING[index], destination, ExchangeData.Quarks - $0.01 USD of Kin),
+///   NoPrivacyWithdrawAction(TEMPORARY_OUTGOING[index], destination, ExchangeData.Quarks - $0.01 USD of Kin - additionalFeeQuarks0 - ... - additionalFeeQuarksN),
 ///   OpenAccountAction(TEMPORARY_OUTGOING[index + 1]),
 ///   CloseDormantAccount(TEMPORARY_OUTGOING[index + 1]),
 /// ]
@@ -2716,14 +2728,15 @@ public struct Code_Transaction_V2_PermanentPrivacyUpgradeAction {
 ///    3. timelock::TransferWithAuthority (source -> fee account)
 ///  Client Signature Required: Yes
 ///
-/// Note: This is exactly a NoPrivacyTransferAction, except the destination
-///       account is controlled by Code and provided in a server parameter.
-/// Note: The fee amount is hardcoded at the client and validated by server.
-///       Currently, its set to $0.01 USD.
+/// Note: This is exactly a NoPrivacyTransferAction, but with specialized metadata
+///       for fees.
 public struct Code_Transaction_V2_FeePaymentAction {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
+
+  /// The type of fee being operated on
+  public var type: Code_Transaction_V2_FeePaymentAction.FeeType = .code
 
   /// The public key of the private key that has authority over source
   public var authority: Code_Common_V1_SolanaAccountId {
@@ -2748,13 +2761,69 @@ public struct Code_Transaction_V2_FeePaymentAction {
   /// The Kin quark amount to transfer
   public var amount: UInt64 = 0
 
+  /// The destination where the fee payment is being made for fees outside of
+  /// Code.
+  public var destination: Code_Common_V1_SolanaAccountId {
+    get {return _destination ?? Code_Common_V1_SolanaAccountId()}
+    set {_destination = newValue}
+  }
+  /// Returns true if `destination` has been explicitly set.
+  public var hasDestination: Bool {return self._destination != nil}
+  /// Clears the value of `destination`. Subsequent reads from it will return its default value.
+  public mutating func clearDestination() {self._destination = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum FeeType: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+
+    /// Hardcoded $0.01 USD fee to a dynamic fee account specified by server
+    case code // = 0
+
+    /// Third party fee specified at time of payment request
+    case thirdParty // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .code
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .code
+      case 1: self = .thirdParty
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .code: return 0
+      case .thirdParty: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
 
   public init() {}
 
   fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
 }
+
+#if swift(>=4.2)
+
+extension Code_Transaction_V2_FeePaymentAction.FeeType: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_Transaction_V2_FeePaymentAction.FeeType] = [
+    .code,
+    .thirdParty,
+  ]
+}
+
+#endif  // swift(>=4.2)
 
 /// ServerParameter are a set of parameters known and returned by server that
 /// enables clients to complete transaction construction. Any necessary proofs,
@@ -3136,21 +3205,22 @@ public struct Code_Transaction_V2_FeePaymentServerParameter {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The destination account where the fee payment should be sent.
-  public var destination: Code_Common_V1_SolanaAccountId {
-    get {return _destination ?? Code_Common_V1_SolanaAccountId()}
-    set {_destination = newValue}
+  /// The destination account where Code fee payments should be sent. This will
+  /// only be set when the corresponding FeePaymentAction Type is CODE.
+  public var codeDestination: Code_Common_V1_SolanaAccountId {
+    get {return _codeDestination ?? Code_Common_V1_SolanaAccountId()}
+    set {_codeDestination = newValue}
   }
-  /// Returns true if `destination` has been explicitly set.
-  public var hasDestination: Bool {return self._destination != nil}
-  /// Clears the value of `destination`. Subsequent reads from it will return its default value.
-  public mutating func clearDestination() {self._destination = nil}
+  /// Returns true if `codeDestination` has been explicitly set.
+  public var hasCodeDestination: Bool {return self._codeDestination != nil}
+  /// Clears the value of `codeDestination`. Subsequent reads from it will return its default value.
+  public mutating func clearCodeDestination() {self._codeDestination = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _codeDestination: Code_Common_V1_SolanaAccountId? = nil
 }
 
 public struct Code_Transaction_V2_ErrorDetails {
@@ -3529,13 +3599,44 @@ public struct Code_Transaction_V2_ExchangeDataWithoutRate {
   public init() {}
 }
 
-public struct Code_Transaction_V2_RemainingSendLimit {
+public struct Code_Transaction_V2_AdditionalFeePayment {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Destination Kin token account where the fee payment will be made
+  public var destination: Code_Common_V1_SolanaAccountId {
+    get {return _destination ?? Code_Common_V1_SolanaAccountId()}
+    set {_destination = newValue}
+  }
+  /// Returns true if `destination` has been explicitly set.
+  public var hasDestination: Bool {return self._destination != nil}
+  /// Clears the value of `destination`. Subsequent reads from it will return its default value.
+  public mutating func clearDestination() {self._destination = nil}
+
+  /// Fee percentage, in basis points, of the total quark amount of a payment.
+  public var feeBps: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
+}
+
+public struct Code_Transaction_V2_SendLimit {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Remaining limit to apply on the next transaction
   public var nextTransaction: Float = 0
+
+  /// Maximum allowed on a per-transaction basis
+  public var maxPerTransaction: Float = 0
+
+  /// Maximum allowed on a per-day basis
+  public var maxPerDay: Float = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -3568,6 +3669,22 @@ public struct Code_Transaction_V2_MicroPaymentLimit {
 
   /// Minimum native amount that can be applied per micro payment transaction
   public var minPerTransaction: Float = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Code_Transaction_V2_BuyModuleLimit {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Minimum amount that can be purchased through the buy module
+  public var minPerTransaction: Float = 0
+
+  /// Maximum amount that can be purchased through the buy module
+  public var maxPerTransaction: Float = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -3654,6 +3771,7 @@ extension Code_Transaction_V2_TemporaryPrivacyTransferAction: @unchecked Sendabl
 extension Code_Transaction_V2_TemporaryPrivacyExchangeAction: @unchecked Sendable {}
 extension Code_Transaction_V2_PermanentPrivacyUpgradeAction: @unchecked Sendable {}
 extension Code_Transaction_V2_FeePaymentAction: @unchecked Sendable {}
+extension Code_Transaction_V2_FeePaymentAction.FeeType: @unchecked Sendable {}
 extension Code_Transaction_V2_ServerParameter: @unchecked Sendable {}
 extension Code_Transaction_V2_ServerParameter.OneOf_Type: @unchecked Sendable {}
 extension Code_Transaction_V2_NoncedTransactionMetadata: @unchecked Sendable {}
@@ -3676,9 +3794,11 @@ extension Code_Transaction_V2_PaymentHistoryItem: @unchecked Sendable {}
 extension Code_Transaction_V2_PaymentHistoryItem.PaymentType: @unchecked Sendable {}
 extension Code_Transaction_V2_ExchangeData: @unchecked Sendable {}
 extension Code_Transaction_V2_ExchangeDataWithoutRate: @unchecked Sendable {}
-extension Code_Transaction_V2_RemainingSendLimit: @unchecked Sendable {}
+extension Code_Transaction_V2_AdditionalFeePayment: @unchecked Sendable {}
+extension Code_Transaction_V2_SendLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_DepositLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_MicroPaymentLimit: @unchecked Sendable {}
+extension Code_Transaction_V2_BuyModuleLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_Cursor: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
@@ -4408,9 +4528,10 @@ extension Code_Transaction_V2_GetLimitsResponse: SwiftProtobuf.Message, SwiftPro
   public static let protoMessageName: String = _protobuf_package + ".GetLimitsResponse"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "result"),
-    2: .standard(proto: "remaining_send_limits_by_currency"),
+    2: .standard(proto: "send_limits_by_currency"),
     3: .standard(proto: "deposit_limit"),
     4: .standard(proto: "micro_payment_limits_by_currency"),
+    5: .standard(proto: "buy_module_limits_by_currency"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -4420,9 +4541,10 @@ extension Code_Transaction_V2_GetLimitsResponse: SwiftProtobuf.Message, SwiftPro
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_RemainingSendLimit>.self, value: &self.remainingSendLimitsByCurrency) }()
+      case 2: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_SendLimit>.self, value: &self.sendLimitsByCurrency) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._depositLimit) }()
       case 4: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_MicroPaymentLimit>.self, value: &self.microPaymentLimitsByCurrency) }()
+      case 5: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_BuyModuleLimit>.self, value: &self.buyModuleLimitsByCurrency) }()
       default: break
       }
     }
@@ -4436,8 +4558,8 @@ extension Code_Transaction_V2_GetLimitsResponse: SwiftProtobuf.Message, SwiftPro
     if self.result != .ok {
       try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
     }
-    if !self.remainingSendLimitsByCurrency.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_RemainingSendLimit>.self, value: self.remainingSendLimitsByCurrency, fieldNumber: 2)
+    if !self.sendLimitsByCurrency.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_SendLimit>.self, value: self.sendLimitsByCurrency, fieldNumber: 2)
     }
     try { if let v = self._depositLimit {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
@@ -4445,14 +4567,18 @@ extension Code_Transaction_V2_GetLimitsResponse: SwiftProtobuf.Message, SwiftPro
     if !self.microPaymentLimitsByCurrency.isEmpty {
       try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_MicroPaymentLimit>.self, value: self.microPaymentLimitsByCurrency, fieldNumber: 4)
     }
+    if !self.buyModuleLimitsByCurrency.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Transaction_V2_BuyModuleLimit>.self, value: self.buyModuleLimitsByCurrency, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_GetLimitsResponse, rhs: Code_Transaction_V2_GetLimitsResponse) -> Bool {
     if lhs.result != rhs.result {return false}
-    if lhs.remainingSendLimitsByCurrency != rhs.remainingSendLimitsByCurrency {return false}
+    if lhs.sendLimitsByCurrency != rhs.sendLimitsByCurrency {return false}
     if lhs._depositLimit != rhs._depositLimit {return false}
     if lhs.microPaymentLimitsByCurrency != rhs.microPaymentLimitsByCurrency {return false}
+    if lhs.buyModuleLimitsByCurrency != rhs.buyModuleLimitsByCurrency {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4931,7 +5057,7 @@ extension Code_Transaction_V2_SwapRequest.SubmitSignature: SwiftProtobuf.Message
 extension Code_Transaction_V2_SwapResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SwapResponse"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "server_paramenters"),
+    1: .standard(proto: "server_parameters"),
     2: .same(proto: "success"),
     3: .same(proto: "error"),
   ]
@@ -4947,12 +5073,12 @@ extension Code_Transaction_V2_SwapResponse: SwiftProtobuf.Message, SwiftProtobuf
         var hadOneofValue = false
         if let current = self.response {
           hadOneofValue = true
-          if case .serverParamenters(let m) = current {v = m}
+          if case .serverParameters(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.response = .serverParamenters(v)
+          self.response = .serverParameters(v)
         }
       }()
       case 2: try {
@@ -4992,8 +5118,8 @@ extension Code_Transaction_V2_SwapResponse: SwiftProtobuf.Message, SwiftProtobuf
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
     switch self.response {
-    case .serverParamenters?: try {
-      guard case .serverParamenters(let v)? = self.response else { preconditionFailure() }
+    case .serverParameters?: try {
+      guard case .serverParameters(let v)? = self.response else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     }()
     case .success?: try {
@@ -6319,9 +6445,11 @@ extension Code_Transaction_V2_PermanentPrivacyUpgradeAction: SwiftProtobuf.Messa
 extension Code_Transaction_V2_FeePaymentAction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FeePaymentAction"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    4: .same(proto: "type"),
     1: .same(proto: "authority"),
     2: .same(proto: "source"),
     3: .same(proto: "amount"),
+    5: .same(proto: "destination"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -6333,6 +6461,8 @@ extension Code_Transaction_V2_FeePaymentAction: SwiftProtobuf.Message, SwiftProt
       case 1: try { try decoder.decodeSingularMessageField(value: &self._authority) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.amount) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.type) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._destination) }()
       default: break
       }
     }
@@ -6352,16 +6482,31 @@ extension Code_Transaction_V2_FeePaymentAction: SwiftProtobuf.Message, SwiftProt
     if self.amount != 0 {
       try visitor.visitSingularUInt64Field(value: self.amount, fieldNumber: 3)
     }
+    if self.type != .code {
+      try visitor.visitSingularEnumField(value: self.type, fieldNumber: 4)
+    }
+    try { if let v = self._destination {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_FeePaymentAction, rhs: Code_Transaction_V2_FeePaymentAction) -> Bool {
+    if lhs.type != rhs.type {return false}
     if lhs._authority != rhs._authority {return false}
     if lhs._source != rhs._source {return false}
     if lhs.amount != rhs.amount {return false}
+    if lhs._destination != rhs._destination {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Code_Transaction_V2_FeePaymentAction.FeeType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "CODE"),
+    1: .same(proto: "THIRD_PARTY"),
+  ]
 }
 
 extension Code_Transaction_V2_ServerParameter: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -6862,7 +7007,7 @@ extension Code_Transaction_V2_PermanentPrivacyUpgradeServerParameter: SwiftProto
 extension Code_Transaction_V2_FeePaymentServerParameter: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FeePaymentServerParameter"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "destination"),
+    1: .standard(proto: "code_destination"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -6871,7 +7016,7 @@ extension Code_Transaction_V2_FeePaymentServerParameter: SwiftProtobuf.Message, 
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._destination) }()
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._codeDestination) }()
       default: break
       }
     }
@@ -6882,14 +7027,14 @@ extension Code_Transaction_V2_FeePaymentServerParameter: SwiftProtobuf.Message, 
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._destination {
+    try { if let v = self._codeDestination {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_FeePaymentServerParameter, rhs: Code_Transaction_V2_FeePaymentServerParameter) -> Bool {
-    if lhs._destination != rhs._destination {return false}
+    if lhs._codeDestination != rhs._codeDestination {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7369,10 +7514,54 @@ extension Code_Transaction_V2_ExchangeDataWithoutRate: SwiftProtobuf.Message, Sw
   }
 }
 
-extension Code_Transaction_V2_RemainingSendLimit: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".RemainingSendLimit"
+extension Code_Transaction_V2_AdditionalFeePayment: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".AdditionalFeePayment"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "destination"),
+    2: .standard(proto: "fee_bps"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._destination) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.feeBps) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._destination {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.feeBps != 0 {
+      try visitor.visitSingularUInt32Field(value: self.feeBps, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_AdditionalFeePayment, rhs: Code_Transaction_V2_AdditionalFeePayment) -> Bool {
+    if lhs._destination != rhs._destination {return false}
+    if lhs.feeBps != rhs.feeBps {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_SendLimit: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SendLimit"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "next_transaction"),
+    2: .standard(proto: "max_per_transaction"),
+    3: .standard(proto: "max_per_day"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -7382,6 +7571,8 @@ extension Code_Transaction_V2_RemainingSendLimit: SwiftProtobuf.Message, SwiftPr
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularFloatField(value: &self.nextTransaction) }()
+      case 2: try { try decoder.decodeSingularFloatField(value: &self.maxPerTransaction) }()
+      case 3: try { try decoder.decodeSingularFloatField(value: &self.maxPerDay) }()
       default: break
       }
     }
@@ -7391,11 +7582,19 @@ extension Code_Transaction_V2_RemainingSendLimit: SwiftProtobuf.Message, SwiftPr
     if self.nextTransaction != 0 {
       try visitor.visitSingularFloatField(value: self.nextTransaction, fieldNumber: 1)
     }
+    if self.maxPerTransaction != 0 {
+      try visitor.visitSingularFloatField(value: self.maxPerTransaction, fieldNumber: 2)
+    }
+    if self.maxPerDay != 0 {
+      try visitor.visitSingularFloatField(value: self.maxPerDay, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Transaction_V2_RemainingSendLimit, rhs: Code_Transaction_V2_RemainingSendLimit) -> Bool {
+  public static func ==(lhs: Code_Transaction_V2_SendLimit, rhs: Code_Transaction_V2_SendLimit) -> Bool {
     if lhs.nextTransaction != rhs.nextTransaction {return false}
+    if lhs.maxPerTransaction != rhs.maxPerTransaction {return false}
+    if lhs.maxPerDay != rhs.maxPerDay {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7466,6 +7665,44 @@ extension Code_Transaction_V2_MicroPaymentLimit: SwiftProtobuf.Message, SwiftPro
   public static func ==(lhs: Code_Transaction_V2_MicroPaymentLimit, rhs: Code_Transaction_V2_MicroPaymentLimit) -> Bool {
     if lhs.maxPerTransaction != rhs.maxPerTransaction {return false}
     if lhs.minPerTransaction != rhs.minPerTransaction {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_BuyModuleLimit: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BuyModuleLimit"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "min_per_transaction"),
+    2: .standard(proto: "max_per_transaction"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularFloatField(value: &self.minPerTransaction) }()
+      case 2: try { try decoder.decodeSingularFloatField(value: &self.maxPerTransaction) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.minPerTransaction != 0 {
+      try visitor.visitSingularFloatField(value: self.minPerTransaction, fieldNumber: 1)
+    }
+    if self.maxPerTransaction != 0 {
+      try visitor.visitSingularFloatField(value: self.maxPerTransaction, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_BuyModuleLimit, rhs: Code_Transaction_V2_BuyModuleLimit) -> Bool {
+    if lhs.minPerTransaction != rhs.minPerTransaction {return false}
+    if lhs.maxPerTransaction != rhs.maxPerTransaction {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

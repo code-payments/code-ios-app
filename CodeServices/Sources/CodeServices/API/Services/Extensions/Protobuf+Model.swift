@@ -316,22 +316,3 @@ extension IntentMetadata {
         )
     }
 }
-
-extension Limits {
-    init(sinceDate: Date, fetchDate: Date, limits: [String: Code_Transaction_V2_RemainingSendLimit], deposits: Code_Transaction_V2_DepositLimit) {
-        let dictionary = limits.mapValues { Decimal(Double($0.nextTransaction)) }
-        var container: [CurrencyCode: Decimal] = [:]
-        dictionary.forEach { code, limit in
-            if let currency = CurrencyCode(currencyCode: code) {
-                container[currency] = limit
-            }
-        }
-        
-        self.init(
-            sinceDate: sinceDate,
-            fetchDate: fetchDate,
-            map: container,
-            maxDeposit: Kin(quarks: deposits.maxQuarks)
-        )
-    }
-}

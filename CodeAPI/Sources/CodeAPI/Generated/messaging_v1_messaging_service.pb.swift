@@ -536,6 +536,10 @@ public struct Code_Messaging_V1_RequestToReceiveBill {
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
+  /// Additional fee payments splitting the requested amount. This is in addition
+  /// to the hard-coded Code $0.01 USD fee.
+  public var additionalFees: [Code_Transaction_V2_AdditionalFeePayment] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// The exchange data for the requested bill value.
@@ -1663,6 +1667,7 @@ extension Code_Messaging_V1_RequestToReceiveBill: SwiftProtobuf.Message, SwiftPr
     5: .same(proto: "verifier"),
     6: .same(proto: "signature"),
     7: .standard(proto: "rendezvous_key"),
+    8: .standard(proto: "additional_fees"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1702,6 +1707,7 @@ extension Code_Messaging_V1_RequestToReceiveBill: SwiftProtobuf.Message, SwiftPr
       case 5: try { try decoder.decodeSingularMessageField(value: &self._verifier) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._rendezvousKey) }()
+      case 8: try { try decoder.decodeRepeatedMessageField(value: &self.additionalFees) }()
       default: break
       }
     }
@@ -1738,6 +1744,9 @@ extension Code_Messaging_V1_RequestToReceiveBill: SwiftProtobuf.Message, SwiftPr
     try { if let v = self._rendezvousKey {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     } }()
+    if !self.additionalFees.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.additionalFees, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1748,6 +1757,7 @@ extension Code_Messaging_V1_RequestToReceiveBill: SwiftProtobuf.Message, SwiftPr
     if lhs._verifier != rhs._verifier {return false}
     if lhs._signature != rhs._signature {return false}
     if lhs._rendezvousKey != rhs._rendezvousKey {return false}
+    if lhs.additionalFees != rhs.additionalFees {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

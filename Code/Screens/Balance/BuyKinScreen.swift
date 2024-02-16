@@ -87,12 +87,8 @@ class BuyKinViewModel: ObservableObject {
         KinAmount(stringAmount: amount, rate: kadoEntryRate)
     }
     
-    var maxPurchase: Kin {
-        session.maxKinPurchase()
-    }
-    
-    var minPurchase: Kin {
-        session.minKinPurchase()
+    var buyLimit: Limit {
+        session.buyLimit(for: kadoEntryRate.currency) ?? .zero
     }
     
     var isProduction: Bool {
@@ -127,12 +123,14 @@ class BuyKinViewModel: ObservableObject {
             return
         }
         
-        guard enteredKinAmount.kin > minPurchase else {
+        let limit = buyLimit
+        
+        guard enteredKinAmount.fiat >= limit.min else {
             showTooSmallError()
             return
         }
         
-        guard enteredKinAmount.kin < maxPurchase else {
+        guard enteredKinAmount.fiat <= limit.max else {
             showTooLargeError()
             return
         }
@@ -143,16 +141,13 @@ class BuyKinViewModel: ObservableObject {
     // MARK: - Errors -
     
     private func showTooSmallError() {
-        let formatted = minPurchase.formattedFiat(
-            rate: kadoEntryRate,
-            truncated: true,
-            showOfKin: true
-        )
+        let fiat = Fiat(currency: kadoEntryRate.currency, amount: buyLimit.min)
+        let formatted = fiat.formatted(showOfKin: false)
         
         bannerController.show(
             style: .error,
-            title: "Amount is too small",
-            description: "Amount should be greater than \(formatted)",
+            title: "Purchase too small",
+            description: "The maximum you can purchase is \(formatted). Please enter a smaller amount.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
@@ -160,16 +155,13 @@ class BuyKinViewModel: ObservableObject {
     }
     
     private func showTooLargeError() {
-        let formatted = maxPurchase.formattedFiat(
-            rate: kadoEntryRate,
-            truncated: true,
-            showOfKin: true
-        )
+        let fiat = Fiat(currency: kadoEntryRate.currency, amount: buyLimit.max)
+        let formatted = fiat.formatted(showOfKin: false)
         
         bannerController.show(
             style: .error,
-            title: "Amount is too large",
-            description: "Amount should be greater than \(formatted)",
+            title: "Purchase too large",
+            description: "The minimum you can purchase is \(formatted). Please enter a larger amount.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
