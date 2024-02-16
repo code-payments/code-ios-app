@@ -34,13 +34,13 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         let queue = self.queue
         let stream = service.openMessageStream(request) { [weak self] response in
             
-            let messages = response.messages.compactMap { StreamMessage($0) }
+            let messages = response.messages.compactMap { try? StreamMessage($0) }
             
             // Cleans up the message reference on the server after we've received
             // the message. We only expect on message - receiver's public key.
             self?.acknowledge(messages: messages, rendezvous: rendezvous, completion: { _ in })
             
-            let paymentRequests = response.messages.compactMap { StreamMessage($0)?.paymentRequest }
+            let paymentRequests = response.messages.compactMap { try? StreamMessage($0).paymentRequest }
             
             queue.async {
                 if let paymentRequest = paymentRequests.first {
@@ -89,9 +89,8 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         let call = service.pollMessages(request)
         
         call.handle(on: queue) { response in
-            
+            let messages = response.messages.compactMap { try? StreamMessage($0) }
             trace(.success, components: "Fetched \(response.messages.count) messages.")
-            let messages = response.messages.compactMap { StreamMessage($0) }
             completion(.success(messages))
             
         } failure: { error in

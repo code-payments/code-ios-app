@@ -26,6 +26,11 @@ public struct StreamMessage {
     }
 }
 
+public struct Fee: Equatable, Hashable {
+    public var destination: PublicKey
+    public var bps: Int
+}
+
 public struct ReceiveRequest {
     
     public enum Amount {
@@ -40,12 +45,15 @@ public struct ReceiveRequest {
     public let domain: Domain?
     public let verifier: PublicKey?
     
-    public init(account: PublicKey, signature: Signature, amount: Amount, domain: Domain?, verifier: PublicKey?) {
+    public let additionalFees: [Fee]
+    
+    public init(account: PublicKey, signature: Signature, amount: Amount, domain: Domain?, verifier: PublicKey?, additionalFees: [Fee]) {
         self.account = account
         self.signature = signature
         self.amount = amount
         self.domain = domain
         self.verifier = verifier
+        self.additionalFees = additionalFees
     }
 }
 
@@ -121,11 +129,20 @@ extension StreamMessage {
     }
 }
 
+// MARK: - Errors -
+
+extension StreamMessage {
+    enum Error: Swift.Error {
+        case failedToParse
+        case messageNotSupported
+    }
+}
+
 // MARK: - Proto -
 
 extension StreamMessage {
 
-    init?(_ message: Code_Messaging_V1_Message) {
+    init(_ message: Code_Messaging_V1_Message) throws {
         self.id = ID(data: message.id.value)
         
         switch message.kind {
@@ -134,7 +151,7 @@ extension StreamMessage {
                 let account = PublicKey(request.requestorAccount.value),
                 let signature = Signature(message.sendMessageRequestSignature.value)
             else {
-                return nil
+                throw Error.failedToParse
             }
             
             self.kind = .paymentRequest(
@@ -147,7 +164,18 @@ extension StreamMessage {
                 let account = PublicKey(request.requestorAccount.value),
                 let signature = Signature(message.sendMessageRequestSignature.value)
             else {
-                return nil
+                throw Error.failedToParse
+            }
+            
+            let additionalFees = try request.additionalFees.compactMap {
+                guard let destination = PublicKey($0.destination.value) else {
+                    throw Error.failedToParse
+                }
+                
+                return Fee(
+                    destination: destination,
+                    bps: Int($0.feeBps)
+                )
             }
             
             let domain: Domain?
@@ -158,7 +186,7 @@ extension StreamMessage {
                     let validDomain = Domain(request.domain.value),
                     let validVerifier = PublicKey(request.verifier.value)
                 else {
-                    return nil
+                    throw Error.failedToParse
                 }
                 
                 domain = validDomain
@@ -172,7 +200,7 @@ extension StreamMessage {
             switch exchangeData {
             case .exact(let exchangeData):
                 guard let currency = CurrencyCode(currencyCode: exchangeData.currency) else {
-                    return nil
+                    throw Error.failedToParse
                 }
                 
                 self.kind = .receiveRequest(
@@ -189,13 +217,14 @@ extension StreamMessage {
                             )
                         ),
                         domain: domain,
-                        verifier: verifier
+                        verifier: verifier,
+                        additionalFees: additionalFees
                     )
                 )
                 
             case .partial(let exchangeData):
                 guard let currency = CurrencyCode(currencyCode: exchangeData.currency) else {
-                    return nil
+                    throw Error.failedToParse
                 }
                 
                 self.kind = .receiveRequest(
@@ -209,7 +238,8 @@ extension StreamMessage {
                             )
                         ),
                         domain: domain,
-                        verifier: verifier
+                        verifier: verifier,
+                        additionalFees: additionalFees
                     )
                 )
             }
@@ -219,7 +249,7 @@ extension StreamMessage {
                 let type = AirdropType(airdrop.airdropType),
                 let currency = CurrencyCode(currencyCode: airdrop.exchangeData.currency)
             else {
-                return nil
+                throw Error.failedToParse
             }
             
             self.kind = .airdrop(
@@ -243,7 +273,7 @@ extension StreamMessage {
                 let rendezvous = PublicKey(loginRequest.rendezvousKey.value),
                 let signature = Signature(loginRequest.signature.value)
             else {
-                return nil
+                throw Error.failedToParse
             }
             
             self.kind = .loginRequest(
@@ -256,7 +286,7 @@ extension StreamMessage {
             )
             
         default:
-            return nil
+            throw Error.messageNotSupported
         }
     }
 }

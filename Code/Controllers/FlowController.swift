@@ -116,13 +116,14 @@ class FlowController: ObservableObject {
         }
     }
     
-    func transfer(amount: KinAmount, fee: Kin = 0, rendezvous: PublicKey, destination: PublicKey, withdrawal: Bool = false) async throws {
+    func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], rendezvous: PublicKey, destination: PublicKey, withdrawal: Bool = false) async throws {
         let truncatedAmount = amount.truncatingQuarks()
         
         try await transferPreflight(amount: truncatedAmount.kin)
         try await client.transfer(
             amount: truncatedAmount,
             fee: fee,
+            additionalFees: additionalFees,
             organizer: organizer,
             rendezvous: rendezvous,
             destination: destination,
@@ -257,6 +258,8 @@ class FlowController: ObservableObject {
                     // transfer from bucket accounts.
                     try await client.transfer(
                         amount: KinAmount(kin: missingBalance, rate: .oneToOne),
+                        fee: 0,
+                        additionalFees: [],
                         organizer: organizer,
                         rendezvous: intent.publicKey,
                         destination: organizer.primaryVault,

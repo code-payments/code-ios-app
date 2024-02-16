@@ -861,6 +861,7 @@ class Session: ObservableObject {
                 try await flowController.transfer(
                     amount: updatedAmount,
                     fee: fee.kin,
+                    additionalFees: receiveRequest.additionalFees,
                     rendezvous: rendezvous.publicKey,
                     destination: receiveRequest.account,
                     withdrawal: true

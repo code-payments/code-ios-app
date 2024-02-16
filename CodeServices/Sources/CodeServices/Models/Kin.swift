@@ -83,6 +83,15 @@ public struct Kin: Equatable, Hashable, Codable {
     }
 }
 
+extension Kin {
+    public func calculateFee(bps: Int) -> Kin {
+        Kin(quarks: quarks * UInt64(bps) / 10_000)
+            // Truncate to remove support
+            // for fraction fee values
+            //.truncating()
+    }
+}
+
 // MARK: - Formatting -
 
 extension Kin {

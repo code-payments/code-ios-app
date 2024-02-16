@@ -11,18 +11,24 @@ import CodeAPI
 
 class IntentPrivateTransfer: IntentType {
     
+    /// Amount requested to transfer
+    let grossAmount: KinAmount
+    
+    /// Amount after fees are paid
+    let netAmount: KinAmount
+    
     let id: PublicKey
     let organizer: Organizer
     let destination: PublicKey
-    let amount: KinAmount
     let fee: Kin
+    let additionalFees: [Fee]
     let isWithdrawal: Bool
     
     let resultTray: Tray
     
     var actionGroup: ActionGroup
     
-    init(rendezvous: PublicKey, organizer: Organizer, destination: PublicKey, amount: KinAmount, fee: Kin = 0, isWithdrawal: Bool) throws {
+    init(rendezvous: PublicKey, organizer: Organizer, destination: PublicKey, amount: KinAmount, fee: Kin, additionalFees: [Fee], isWithdrawal: Bool) throws {
         
         // Fee must not exceed the amount
         // to transfer out
@@ -30,11 +36,32 @@ class IntentPrivateTransfer: IntentType {
             throw Error.invalidFee
         }
         
+        // Compute all the fees that will be
+        // paid out of this transaction
+        let conreteFees: [(feeAmount: Kin, destination: PublicKey)] = additionalFees.map {
+            // Computed on the pre-Code fee amount
+            let fee = amount.kin.calculateFee(bps: $0.bps)
+            return (fee, $0.destination)
+        }
+        
+        var netKin = amount.kin - fee
+        
+        // Apply the fees to the gross amount
+        conreteFees.forEach { fee in
+            netKin = netKin - fee.feeAmount
+        }
+        
+        self.grossAmount = amount
+        self.netAmount = KinAmount(
+            kin: netKin,
+            rate: amount.rate
+        )
+        
         self.id = rendezvous
         self.organizer = organizer
         self.destination = destination
-        self.amount = amount
         self.fee = fee
+        self.additionalFees = additionalFees
         self.isWithdrawal = isWithdrawal
         
         var currentTray = organizer.tray
@@ -43,7 +70,7 @@ class IntentPrivateTransfer: IntentType {
         // 1. Move all funds from bucket accounts into the
         // outgoing account and prepare to transfer
         
-        let transfers = try currentTray.transfer(amount: amount.kin).map { transfer in
+        let transfers = try currentTray.transfer(amount: grossAmount.kin).map { transfer in
             let sourceCluster = currentTray.cluster(for: transfer.from)
             
             // If the transfer is to another bucket, it's an internal
@@ -68,21 +95,35 @@ class IntentPrivateTransfer: IntentType {
             }
         }
         
-        let feePayment: ActionFeePayment?
+        var feePayments: [ActionFeePayment] = []
+        
+        // Code Fee
         if fee > 0 {
-            feePayment = ActionFeePayment(
-                cluster: currentTray.outgoing.cluster,
-                amount: fee
+            feePayments.append(
+                ActionFeePayment(
+                    kind: .code,
+                    cluster: currentTray.outgoing.cluster,
+                    amount: fee
+                )
             )
-        } else {
-            feePayment = nil
+        }
+        
+        // Additional Fees
+        conreteFees.forEach { fee in
+            feePayments.append(
+                ActionFeePayment(
+                    kind: .thirdParty(fee.destination),
+                    cluster: currentTray.outgoing.cluster,
+                    amount: fee.feeAmount
+                )
+            )
         }
         
         // 2. Transfer all collected funds from the temp
         // outgoing account to the destination account
         
         let outgoing = ActionWithdraw(
-            kind: .noPrivacyWithdraw(amount.kin - fee),
+            kind: .noPrivacyWithdraw(netAmount.kin),
             cluster: currentTray.outgoing.cluster,
             destination: destination
         )
@@ -121,18 +162,14 @@ class IntentPrivateTransfer: IntentType {
         
         let endBalance = currentTray.slotsBalance
         
-        guard startBalance - endBalance == amount.kin else {
+        guard startBalance - endBalance == grossAmount.kin else {
             throw Error.balanceMismatch
         }
         
         var group = ActionGroup()
         
         group.append(contentsOf: transfers)
-        
-        if let feePayment {
-            group.append(feePayment)
-        }
-        
+        group.append(contentsOf: feePayments)
         group.append(outgoing)
         group.append(contentsOf: redistributes)
         group.append(contentsOf: rotation)
@@ -160,10 +197,10 @@ extension IntentPrivateTransfer {
                 $0.destination  = destination.codeAccountID
                 $0.isWithdrawal = isWithdrawal
                 $0.exchangeData = .with {
-                    $0.quarks = amount.kin.quarks
-                    $0.currency = amount.rate.currency.rawValue
-                    $0.exchangeRate = amount.rate.fx.doubleValue
-                    $0.nativeAmount = amount.fiat.doubleValue
+                    $0.quarks = grossAmount.kin.quarks
+                    $0.currency = grossAmount.rate.currency.rawValue
+                    $0.exchangeRate = grossAmount.rate.fx.doubleValue
+                    $0.nativeAmount = grossAmount.fiat.doubleValue
                 }
             }
         }

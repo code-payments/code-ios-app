@@ -43,7 +43,7 @@ extension ServerParameter {
     enum Parameter {
         case tempPrivacy(TempPrivacy)
         case permanentPrivacyUpgrade(PermanentPrivacyUpgrade)
-        case feePayment(PublicKey)
+        case feePayment(PublicKey?)
     }
 }
 
@@ -182,11 +182,9 @@ extension ServerParameter.Parameter {
             )
             
         case .feePayment(let param):
-            guard let destination = PublicKey(param.codeDestination.value) else {
-                throw Error.deserializationFailed
-            }
-            
-            self = .feePayment(destination)
+            // PublicKey will be `nil` for .thirdParty fee payments
+            let optionalDestination = PublicKey(param.codeDestination.value)
+            self = .feePayment(optionalDestination)
             
         case .openAccount, .closeEmptyAccount, .closeDormantAccount, .noPrivacyTransfer, .noPrivacyWithdraw, .none:
             return nil

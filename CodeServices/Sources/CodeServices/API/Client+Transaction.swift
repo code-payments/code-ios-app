@@ -17,11 +17,12 @@ extension Client {
         }
     }
     
-    public func transfer(amount: KinAmount, fee: Kin = 0, organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool) async throws {
+    public func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool) async throws {
         let intent = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 amount: amount,
                 fee: fee,
+                additionalFees: additionalFees,
                 organizer: organizer,
                 rendezvous: rendezvous,
                 destination: destination,

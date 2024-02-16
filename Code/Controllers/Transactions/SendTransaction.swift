@@ -144,6 +144,8 @@ class SendTransaction {
         do {
             try await flowController.transfer(
                 amount: amount,
+                fee: 0,
+                additionalFees: [],
                 rendezvous: payload.rendezvous.publicKey,
                 destination: destination
             )
