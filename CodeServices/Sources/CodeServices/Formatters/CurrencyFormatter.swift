@@ -54,11 +54,6 @@ extension NumberFormatter {
         f.generatesDecimalNumbers = true
         f.roundingMode = truncated ? .down : .halfDown
         
-//        let currencyLocale = Locale.currentUsing(currency: currency)
-//        let currencyCode = (currency.overrideCurrencySymbol ?? currencyLocale.currencySymbol) ?? ""
-//        
-//        let prefix = currencyCode.count > 1 ? "\(currencyCode) " : currencyCode
-        
         let prefix = currency.singleCharacterCurrencySymbols ?? ""
         
         f.positivePrefix = prefix

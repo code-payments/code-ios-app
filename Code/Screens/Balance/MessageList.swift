@@ -11,68 +11,27 @@ import CodeUI
 
 public struct MessageList: View {
     
-    let messages: [Chat.Message]
-    let exchange: Exchange
+    private let messages: [MessageGroup]
+    private let exchange: Exchange
     
     // MARK: - Init -
     
     init(messages: [Chat.Message], exchange: Exchange) {
-        self.messages = messages
+        self.messages = messages.groupByDay()
         self.exchange = exchange
     }
     
     // MARK: - Body -
     
     public var body: some View {
-//        ScrollBox(color: .backgroundMain) {
+        ScrollBox(color: .backgroundMain, ignoreEdges: [.bottom]) {
             GeometryReader { g in
                 ScrollViewReader { scrollProxy in
                     ScrollView(showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 20) {
                             
-                            ForEach(messages) { message in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    MessageTitle(text: message.date.formattedRelatively())
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
-                                            MessageRow(width: g.messageWidth) {
-                                                switch content {
-                                                case .localized(let key):
-                                                    MessageText(
-                                                        text: key.localizedStringByKey,
-                                                        date: message.date,
-                                                        location: .forIndex(index, count: message.contents.count)
-                                                    )
-                                                    
-                                                case .kin(let amount, let verb):
-                                                    if let rate = exchange.rate(for: amount.currency) {
-                                                        MessagePayment(
-                                                            verb: verb,
-                                                            amount: amount.amountUsing(rate: rate),
-                                                            location: .forIndex(index, count: message.contents.count)
-                                                        )
-                                                    } else {
-                                                        MessagePayment(
-                                                            verb: .unknown,
-                                                            amount: KinAmount(kin: 0, rate: .oneToOne),
-                                                            location: .forIndex(index, count: message.contents.count)
-                                                        )
-                                                    }
-                                                    
-                                                case .sodiumBox:
-                                                    // TODO: Decrypt and show correct content
-                                                    MessageText(
-                                                        text: content.localizedText,
-                                                        date: message.date,
-                                                        location: .forIndex(index, count: message.contents.count)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                    .id(message.id)
-                                }
+                            ForEach(messages) { group in
+                                message(for: group, geometry: g)
                             }
                             
                             Spacer()
@@ -87,10 +46,103 @@ public struct MessageList: View {
                     }
                 }
             }
-//        }
+        }
+    }
+    
+    @MainActor
+    @ViewBuilder private func message(for group: MessageGroup, geometry: GeometryProxy) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            MessageTitle(text: group.date.formattedRelatively())
+            
+            ForEach(group.messages) { message in
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
+                        MessageRow(width: geometry.messageWidth) {
+                            switch content {
+                            case .localized(let key):
+                                MessageText(
+                                    text: key.localizedStringByKey,
+                                    date: message.date,
+                                    location: .forIndex(index, count: message.contents.count)
+                                )
+                                
+                            case .kin(let amount, let verb):
+                                if let rate = rate(for: amount.currency) {
+                                    MessagePayment(
+                                        verb: verb,
+                                        amount: amount.amountUsing(rate: rate),
+                                        location: .forIndex(index, count: message.contents.count)
+                                    )
+                                } else {
+                                    MessagePayment(
+                                        verb: .unknown,
+                                        amount: KinAmount(kin: 0, rate: .oneToOne),
+                                        location: .forIndex(index, count: message.contents.count)
+                                    )
+                                }
+                                
+                            case .sodiumBox:
+                                // TODO: Decrypt and show correct content
+                                MessageText(
+                                    text: content.localizedText,
+                                    date: message.date,
+                                    location: .forIndex(index, count: message.contents.count)
+                                )
+                            }
+                        }
+                    }
+                }
+                .id(message.id)
+            }
+        }
+    }
+    
+    @MainActor
+    private func rate(for currency: CurrencyCode) -> Rate? {
+        exchange.rate(for: currency)
     }
 }
 
+struct MessageGroup: Identifiable {
+    
+    var id: Date {
+        date
+    }
+    
+    var date: Date
+    var messages: [Chat.Message]
+    
+    init(date: Date, messages: [Chat.Message]) {
+        self.date = date
+        self.messages = messages
+    }
+}
+
+extension Array where Element == Chat.Message {
+    func groupByDay() -> [MessageGroup] {
+        
+        let calendar = Calendar.current
+        var container: [Date: [Chat.Message]] = [:]
+
+        forEach { message in
+            let components = calendar.dateComponents([.year, .month, .day], from: message.date)
+            if let date = calendar.date(from: components) {
+                if container[date] == nil {
+                    container[date] = [message]
+                } else {
+                    container[date]?.append(message)
+                }
+            }
+        }
+        
+        let sortedKeys = container.keys.sorted()
+        let groupedMessages = sortedKeys.map {
+            MessageGroup(date: $0, messages: container[$0] ?? [])
+        }
+
+        return groupedMessages
+    }
+}
 
 extension Chat.Content: Identifiable {
     public var id: String {

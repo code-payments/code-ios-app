@@ -115,6 +115,7 @@
 		9A8DB71D27D50D4A00E2E883 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9A8DB71C27D50D4A00E2E883 /* Preview Assets.xcassets */; };
 		9A8DB72527D50D8200E2E883 /* Grinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DB72427D50D8200E2E883 /* Grinder.swift */; };
 		9A8DB72727D5130200E2E883 /* CodeServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A8DB72627D5130200E2E883 /* CodeServices */; };
+		9A8E68702B867EBC00914C23 /* MessageList+Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */; };
 		9A8E861627A44EB300213934 /* RestrictedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8E861527A44EB300213934 /* RestrictedScreen.swift */; };
 		9A9469B9279F3C9A0028F27E /* ContactsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469B8279F3C9A0028F27E /* ContactsScreen.swift */; };
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
@@ -381,6 +382,7 @@
 		9A8DB71C27D50D4A00E2E883 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		9A8DB71E27D50D4A00E2E883 /* CodeGrind.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CodeGrind.entitlements; sourceTree = "<group>"; };
 		9A8DB72427D50D8200E2E883 /* Grinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Grinder.swift; sourceTree = "<group>"; };
+		9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MessageList+Tests.swift"; sourceTree = "<group>"; };
 		9A8E861527A44EB300213934 /* RestrictedScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RestrictedScreen.swift; sourceTree = "<group>"; };
 		9A9469B8279F3C9A0028F27E /* ContactsScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContactsScreen.swift; sourceTree = "<group>"; };
 		9A9469BA27A090E10028F27E /* MessageController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageController.swift; sourceTree = "<group>"; };
@@ -718,6 +720,14 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
+		9A8E686E2B867EAB00914C23 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
 		9AA47D3E2B76AA8000F1B9B7 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
@@ -905,6 +915,7 @@
 				9A2D3323276389B700051E94 /* Models */,
 				9A1EBC5826246F9A003F8B19 /* Extensions */,
 				9A2A3A9025C32F82007A8C50 /* Extraction */,
+				9A8E686E2B867EAB00914C23 /* Screens */,
 				9AED1117258BE1320088D902 /* Info.plist */,
 			);
 			path = CodeTests;
@@ -1501,6 +1512,7 @@
 				9A2A3A9225C32F95007A8C50 /* RedundancyContainerTests.swift in Sources */,
 				9A093D3925D1D752000E7DD9 /* Code.Payload+EncodingTests.swift in Sources */,
 				9AA47D4B2B76C4D500F1B9B7 /* NotificationExtensionTests.swift in Sources */,
+				9A8E68702B867EBC00914C23 /* MessageList+Tests.swift in Sources */,
 				9AED1116258BE1320088D902 /* EncodingTests.swift in Sources */,
 				9AE45EB829E998C600EE2F60 /* DeepLinkControllerTests.swift in Sources */,
 				9A9C16CB2AAF9CE600B1A964 /* DeepLinkPaymentRequestTests.swift in Sources */,

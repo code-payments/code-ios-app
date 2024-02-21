@@ -11,6 +11,7 @@ import SwiftUI
 public struct ScrollBox<Content>: View where Content: View {
     
     public var color: Color
+    public var ignoreEdges: [Edge]
     public var content: () -> Content
     
     private var gradient: Gradient {
@@ -24,8 +25,9 @@ public struct ScrollBox<Content>: View where Content: View {
     
     // MARK: - Init -
     
-    public init(color: Color, @ViewBuilder content: @escaping () -> Content) {
+    public init(color: Color, ignoreEdges: [Edge] = [], @ViewBuilder content: @escaping () -> Content) {
         self.color = color
+        self.ignoreEdges = ignoreEdges
         self.content = content
     }
     
@@ -35,25 +37,29 @@ public struct ScrollBox<Content>: View where Content: View {
         ZStack {
             content()
             VStack {
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            gradient: gradient,
-                            startPoint: .top,
-                            endPoint: .bottom
+                if !ignoreEdges.contains(.top) {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                gradient: gradient,
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
-                    .frame(height: gradientHeight, alignment: .center)
+                        .frame(height: gradientHeight, alignment: .center)
+                }
                 Spacer()
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            gradient: gradient,
-                            startPoint: .bottom,
-                            endPoint: .top
+                if !ignoreEdges.contains(.bottom) {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                gradient: gradient,
+                                startPoint: .bottom,
+                                endPoint: .top
+                            )
                         )
-                    )
-                    .frame(height: gradientHeight, alignment: .center)
+                        .frame(height: gradientHeight, alignment: .center)
+                }
             }
             .edgesIgnoringSafeArea([.leading, .bottom, .trailing])
         }
