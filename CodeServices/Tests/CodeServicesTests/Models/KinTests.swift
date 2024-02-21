@@ -98,4 +98,9 @@ class KinTests: XCTestCase {
         XCTAssertTrue(Kin(quarks: 100_000)!.hasWholeKin)
         XCTAssertTrue(Kin(quarks: 123_000)!.hasWholeKin)
     }
+    
+    func testFeeCalculation() {
+        XCTAssertEqual(Kin(kin: 875)!.calculateFee(bps: 125), Kin(quarks: 10_93750)) // 10.93 rounded down to 10 and change
+        XCTAssertEqual(Kin(kin: 5)!.calculateFee(bps: 5000),  Kin(quarks:  2_50000)) // 2.5 rounded down to 2 and change
+    }
 }

@@ -52,6 +52,20 @@
                ReferencedContainer = "container:CodeAPI">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CodeUIMTests"
+               BuildableName = "CodeUIMTests"
+               BlueprintName = "CodeUIMTests"
+               ReferencedContainer = "container:CodeUI">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -102,16 +116,6 @@
                BuildableName = "CodeServicesTests"
                BlueprintName = "CodeServicesTests"
                ReferencedContainer = "container:CodeServices">
-            </BuildableReference>
-         </TestableReference>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "CodeUITests"
-               BuildableName = "CodeUITests"
-               BlueprintName = "CodeUITests"
-               ReferencedContainer = "container:CodeUI">
             </BuildableReference>
          </TestableReference>
          <TestableReference

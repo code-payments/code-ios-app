@@ -36,6 +36,7 @@ class IntentPrivateTransferTests: XCTestCase {
             organizer: organizer,
             destination: destination,
             amount: amount,
+            fee: 0,
             additionalFees: [],
             isWithdrawal: false
         )
