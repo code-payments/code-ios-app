@@ -289,6 +289,17 @@ class Session: ObservableObject {
         timeoutCancelItem?.cancel()
     }
     
+    // MARK: - USDC Link -
+    
+    func linkUSDCAccount() async throws {
+        try await client.linkAdditionalAccounts(
+            owner: organizer.ownerKeyPair,
+            linkedAccount: organizer.swapKeyPair
+        )
+        
+        try await fetchBalance()
+    }
+    
     // MARK: - Remote Send -
     
     func sendRemotely(completion: @escaping VoidAction) {

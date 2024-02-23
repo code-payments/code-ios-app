@@ -17,6 +17,8 @@ class BuyKinViewModel: ObservableObject {
 //    @Published var isPresentingCurrencySelection = false
 //    @Published var isPresentingSafari = false
     
+    private var relationshipEstablished: Bool = false
+    
     let session: Session
     let exchange: Exchange
     let bannerController: BannerController
@@ -138,6 +140,25 @@ class BuyKinViewModel: ObservableObject {
         kadoURL.openWithApplication()
     }
     
+    func establishSwapRelationshipIfNeeded() async throws {
+        guard session.organizer.info(for: .swap) == nil else {
+            relationshipEstablished = true
+            return
+        }
+        
+        do {
+            try await session.linkUSDCAccount()
+            relationshipEstablished = true
+            
+        } catch {
+            bannerController.show(
+                style: .error,
+                title: "Account Error",
+                description: "Failed to create a USDC deposit account."
+            )
+        }
+    }
+    
     // MARK: - Errors -
     
     private func showTooSmallError() {
@@ -181,6 +202,16 @@ struct BuyKinScreen: View {
     init(isPresented: Binding<Bool>, viewModel: @autoclosure @escaping () -> BuyKinViewModel) {
         self._isPresented = isPresented
         self._viewModel = StateObject(wrappedValue: viewModel())
+    }
+    
+    // MARK: - Appear -
+    
+    private func didAppear() {
+        ErrorReporting.breadcrumb(.buyMoreKinScreen)
+        
+        Task {
+            try await viewModel.establishSwapRelationshipIfNeeded()
+        }
     }
     
     // MARK: - Body -
@@ -274,7 +305,7 @@ struct BuyKinScreen: View {
             }
             .ignoresSafeArea(.keyboard)
             .onAppear {
-                ErrorReporting.breadcrumb(.buyMoreKinScreen)
+                didAppear()
             }
         }
     }
