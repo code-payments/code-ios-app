@@ -56,17 +56,17 @@ struct ConfirmPhoneScreen: View {
                 
                 Group {
                     if timer.state == .running {
-                        VStack(spacing: 4) {
-                            if let phone = viewModel.phone {
-                                Text(Localized.Subtitle.smsWasSent)
-                                Text(Localized.Subtitle.didntGetCode(phone.national))
+                        VStack(spacing: 15) {
+                            Text(Localized.Subtitle.smsWasSent)
+                            VStack(spacing: 0) {
+                                Text(Localized.Subtitle.didntGetCode(viewModel.phone?.national ?? ""))
+                                Text(Localized.Subtitle.requestNewOneIn(timer.formattedTimeString)) // <- matching this
                             }
-                            Text(Localized.Subtitle.requestNewOneIn(timer.formattedTimeString))
                         }
                         .multilineTextAlignment(.center)
                         
                     } else {
-                        VStack(spacing: 4) {
+                        VStack(spacing: 15) {
                             Text(Localized.Subtitle.smsWasSent)
                             Button {
                                 Task {
@@ -77,7 +77,10 @@ struct ConfirmPhoneScreen: View {
                                 }
                             } label: {
                                 Loadable(isLoading: viewModel.isResending, color: .textSecondary) {
-                                    Text(Localized.Subtitle.didntGetCodeResend)
+                                    VStack(spacing: 0) {
+                                        Text(Localized.Subtitle.didntGetCodeResend)
+                                        Text(" ") // Offset to match the two line layout above
+                                    }
                                 }
                             }
                         }
