@@ -45,10 +45,12 @@ class BuyKinViewModel: ObservableObject {
             return nil
         }
         
+        let encodedPhone = session.user.phone?.e164.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
+        
         let route = isProduction ? "https://app.kado.money/" : "https://sandbox--kado.netlify.app/"
         var components = URLComponents(string: route)!
         
-        components.queryItems = [
+        components.percentEncodedQueryItems = [
             URLQueryItem(name: "apiKey",         value: apiKey),
             URLQueryItem(name: "onPayAmount",    value: "\(amount.fiat)"),
             URLQueryItem(name: "onPayCurrency",  value: kadoEntryRate.currency.rawValue.uppercased()),
@@ -56,9 +58,11 @@ class BuyKinViewModel: ObservableObject {
             URLQueryItem(name: "mode",           value: "minimal"),
             URLQueryItem(name: "network",        value: "SOLANA"),
             URLQueryItem(name: "fiatMethodList", value: "debit_only"),
-            URLQueryItem(name: "phone",          value: session.user.phone?.e164 ?? ""),
+            URLQueryItem(name: "phone",          value: encodedPhone),
             URLQueryItem(name: "onToAddress",    value: session.organizer.swapDepositAddress.base58),
         ]
+        
+        trace(.warning, components: "Navigatin to Kado URL: \(components.url!)")
         
         return components.url!
     }
