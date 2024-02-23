@@ -14,9 +14,6 @@ class BuyKinViewModel: ObservableObject {
     
     @Published var amount: String = ""
     
-//    @Published var isPresentingCurrencySelection = false
-//    @Published var isPresentingSafari = false
-    
     private var relationshipEstablished: Bool = false
     
     let session: Session
@@ -47,7 +44,7 @@ class BuyKinViewModel: ObservableObject {
         
         let encodedPhone = session.user.phone?.e164.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
         
-        let route = isProduction ? "https://app.kado.money/" : "https://sandbox--kado.netlify.app/"
+        let route = "https://app.kado.money/"
         var components = URLComponents(string: route)!
         
         components.percentEncodedQueryItems = [
@@ -95,10 +92,6 @@ class BuyKinViewModel: ObservableObject {
     
     var buyLimit: Limit {
         session.buyLimit(for: kadoEntryRate.currency) ?? .zero
-    }
-    
-    var isProduction: Bool {
-        betaFlags.hasEnabled(.kadoProd)
     }
     
     // MARK: - Init -
@@ -224,16 +217,6 @@ struct BuyKinScreen: View {
         NavigationView {
             Background(color: .backgroundMain) {
                 VStack(spacing: 0) {
-//                    Flow(isActive: $viewModel.isPresentingSafari) {
-//                        LazyView(
-//                            SafariView(
-//                                url: viewModel.kadoURL!,
-//                                entersReaderIfAvailable: false
-//                            )
-//                            .ignoresSafeArea()
-//                            .navigationBarHidden(true)
-//                        )
-//                    }
                     
                     Spacer()
                     
@@ -257,29 +240,9 @@ struct BuyKinScreen: View {
                                 .foregroundColor(.textSecondary)
                             
                             Image.asset(.kado)
-                            
-                            if !viewModel.isProduction {
-                                Text("(sandbox)")
-                            }
                         }
                     }
                     .frame(maxWidth: .infinity)
-//                    .contextMenu(ContextMenu {
-//                        Button {
-//                            viewModel.copy()
-//                        } label: {
-//                            Label(Localized.Action.copy, systemImage: SystemSymbol.doc.rawValue)
-//                        }
-//                    })
-//                    .sheet(isPresented: $viewModel.isPresentingCurrencySelection) {
-//                        CurrencySelectionScreen(
-//                            viewModel: CurrencySelectionViewModel(
-//                                isPresented: $viewModel.isPresentingCurrencySelection,
-//                                exchange: viewModel.exchange
-//                            )
-//                        )
-//                        .environmentObject(viewModel.exchange)
-//                    }
                     
                     Spacer()
                     
