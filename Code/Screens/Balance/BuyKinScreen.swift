@@ -165,7 +165,7 @@ class BuyKinViewModel: ObservableObject {
         bannerController.show(
             style: .error,
             title: "Purchase too small",
-            description: "The maximum you can purchase is \(formatted). Please enter a smaller amount.",
+            description: "The minimum you can purchase is \(formatted). Please enter a larger amount.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
@@ -179,7 +179,7 @@ class BuyKinViewModel: ObservableObject {
         bannerController.show(
             style: .error,
             title: "Purchase too large",
-            description: "The minimum you can purchase is \(formatted). Please enter a larger amount.",
+            description: "The maximum you can purchase is \(formatted). Please enter a smaller amount.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
