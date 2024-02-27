@@ -75,9 +75,10 @@ extension Code.Payload {
 
 extension Code.Payload {
     enum Kind: UInt8 {
-        case cash           = 0
-        case giftCard       = 1
-        case requestPayment = 2
-        case login          = 3
+        case cash             = 0
+        case giftCard         = 1
+        case requestPayment   = 2
+        case login            = 3
+        case requestPaymentV2 = 4
     }
 }

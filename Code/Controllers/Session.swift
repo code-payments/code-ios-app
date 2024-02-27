@@ -547,7 +547,7 @@ class Session: ObservableObject {
         case .cash, .giftCard:
             attemptReceive(payload)
             
-        case .requestPayment:
+        case .requestPayment, .requestPaymentV2:
             attemptPayment(payload, request: request)
             
         case .login:
