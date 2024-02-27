@@ -542,6 +542,9 @@
 /* Subtitle for chat action */
 "subtitle.wasReturnedToYou" = "was returned to you";
 
+/* Subtitle for 'Powered by Kado' or similar */
+"subtitle.poweredBy" = "Powered by";
+
 
 
 
@@ -739,6 +742,18 @@
 
 /* Description when remote send Kin has already been collected */
 "error.description.cashExpired" = "This cash has expired.";
+
+/* Title when the amount enetered to purcahse is too small */
+"error.title.purchaseTooSmall" = "Purchase too small";
+
+/* Description when the amount enetered to purcahse is too small */
+"error.description.purchaseTooSmall" = "The minimum you can purchase is %@. Please enter a larger amount.";
+
+/* Title when the amount enetered to purcahse is too large */
+"error.title.purchaseTooLarge" = "Purchase too large";
+
+/* Description when the amount enetered to purcahse is too large */
+"error.description.purchaseTooLarge" = "The maximum you can purchase is %@. Please enter a smaller amount.";
 
 
 

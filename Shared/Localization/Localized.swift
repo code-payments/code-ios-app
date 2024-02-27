@@ -212,6 +212,14 @@ internal enum Localized {
       internal static func notInvitedYet(_ p1: Any) -> String {
         return Localized.tr("Localizable", "error.description.notInvitedYet", String(describing: p1))
       }
+      /// The maximum you can purchase is %@. Please enter a smaller amount.
+      internal static func purchaseTooLarge(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "error.description.purchaseTooLarge", String(describing: p1))
+      }
+      /// The minimum you can purchase is %@. Please enter a larger amount.
+      internal static func purchaseTooSmall(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "error.description.purchaseTooSmall", String(describing: p1))
+      }
       /// Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key in Code.
       internal static let timelockUnlocked = Localized.tr("Localizable", "error.description.timelockUnlocked")
       /// You can only create so many new accounts each day.
@@ -262,6 +270,10 @@ internal enum Localized {
       internal static let noInvitesLeft = Localized.tr("Localizable", "error.title.noInvitesLeft")
       /// You Haven't Been Invited Yet
       internal static let notInvitedYet = Localized.tr("Localizable", "error.title.notInvitedYet")
+      /// Purchase too large
+      internal static let purchaseTooLarge = Localized.tr("Localizable", "error.title.purchaseTooLarge")
+      /// Purchase too small
+      internal static let purchaseTooSmall = Localized.tr("Localizable", "error.title.purchaseTooSmall")
       /// Access Key No Longer Usable in Code
       internal static let timelockUnlocked = Localized.tr("Localizable", "error.title.timelockUnlocked")
       /// Too many accounts created
@@ -509,6 +521,8 @@ internal enum Localized {
     internal static let phoneNotInContacts = Localized.tr("Localizable", "subtitle.phoneNotInContacts")
     /// Enter your phone number including the country code.
     internal static let phoneVerificationDescription = Localized.tr("Localizable", "subtitle.phoneVerificationDescription")
+    /// Powered by
+    internal static let poweredBy = Localized.tr("Localizable", "subtitle.poweredBy")
     /// Referral bonus received
     internal static let referralBonusReceived = Localized.tr("Localizable", "subtitle.referralBonusReceived")
     /// Send %@

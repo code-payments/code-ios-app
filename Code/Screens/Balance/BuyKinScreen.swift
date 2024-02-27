@@ -164,8 +164,8 @@ class BuyKinViewModel: ObservableObject {
         
         bannerController.show(
             style: .error,
-            title: "Purchase too small",
-            description: "The minimum you can purchase is \(formatted). Please enter a larger amount.",
+            title: Localized.Error.Title.purchaseTooSmall,
+            description: Localized.Error.Description.purchaseTooSmall(formatted),
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
@@ -178,8 +178,8 @@ class BuyKinViewModel: ObservableObject {
         
         bannerController.show(
             style: .error,
-            title: "Purchase too large",
-            description: "The maximum you can purchase is \(formatted). Please enter a smaller amount.",
+            title: Localized.Error.Title.purchaseTooLarge,
+            description: Localized.Error.Description.purchaseTooLarge(formatted),
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
@@ -234,7 +234,7 @@ struct BuyKinScreen: View {
                         }
                         
                         HStack(spacing: 0) {
-                            Text("Powered by ")
+                            Text("\(Localized.Subtitle.poweredBy) ")
                                 .fixedSize()
                                 .font(.appTextMedium)
                                 .foregroundColor(.textSecondary)
