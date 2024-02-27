@@ -25,6 +25,7 @@ struct SettingsScreen: View {
     
     @State private var isPresentingAccountSelection = false
     @State private var isPresentingRecoveryPhrase = false
+    @State private var isPresentingBuyKin = false
     @State private var debugTapCount: Int = 0
     
     private let insets: EdgeInsets = EdgeInsets(
@@ -208,9 +209,18 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            navigationRow(asset: .dollar, title: Localized.Title.buySellKin) {
-                LazyView(
-                    BuyVideosScreen()
+            row(asset: .dollar, title: Localized.Action.buyMoreKin) {
+                isPresentingBuyKin.toggle()
+            }
+            .sheet(isPresented: $isPresentingBuyKin) {
+                BuyKinScreen(
+                    isPresented: $isPresentingBuyKin,
+                    viewModel: BuyKinViewModel(
+                        session: session,
+                        exchange: exchange,
+                        bannerController: bannerController,
+                        betaFlags: betaFlags
+                    )
                 )
             }
             

@@ -194,13 +194,15 @@ struct ScanScreen: View {
                         binding: $isPresentingGetKin
                     )
                     .sheet(isPresented: $isPresentingGetKin) {
-//                        ContactsScreen(
-//                            inviteController: inviteController,
-//                            contactsController: contactsController,
-//                            isPresented: $isPresentingInvites
-//                        )
-                        GetKinScreen(session: session, isPresented: $isPresentingGetKin)
-                            .environmentObject(betaFlags)
+                        BuyKinScreen(
+                            isPresented: $isPresentingGetKin,
+                            viewModel: BuyKinViewModel(
+                                session: session,
+                                exchange: exchange,
+                                bannerController: bannerController,
+                                betaFlags: betaFlags
+                            )
+                        )
                     }
                     
                     Spacer()
@@ -220,16 +222,6 @@ struct ScanScreen: View {
                                     .fill(Color.bannerError)
                             )
                         }
-                        
-//                        LargeButton(
-//                            title: Localized.Action.giveKin,
-//                            image: .asset(.kinLarge),
-//                            spacing: 8,
-//                            maxWidth: 80,
-//                            maxHeight: 80,
-//                            aligment: .bottom,
-//                            binding: $isPresentingGiveKin
-//                        )
                         
                         LargeButton(
                             title: Localized.Action.giveKin,
@@ -492,16 +484,6 @@ extension ScanScreen {
                 )
                 
                 Spacer()
-                
-//                LargeButton(
-//                    title: Localized.Action.giveKin,
-//                    image: .asset(.kinLarge),
-//                    spacing: 8,
-//                    maxWidth: 80,
-//                    maxHeight: 80,
-//                    aligment: .bottom,
-//                    binding: .constant(false)
-//                )
                 
                 LargeButton(
                     title: Localized.Action.giveKin,
