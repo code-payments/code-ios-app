@@ -39,8 +39,8 @@ public struct MessageList: View {
                         .padding(20)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .onAppear {
-                            if let lastMessage = messages.last {
-                                scrollProxy.scrollTo(lastMessage.id, anchor: .top)
+                            if let lastGroup = messages.last {
+                                scrollProxy.scrollTo(lastGroup.lastMessageContentID(), anchor: .top)
                             }
                         }
                     }
@@ -90,9 +90,9 @@ public struct MessageList: View {
                                 )
                             }
                         }
+                        .id(group.contentID(forMessage: message, contentIndex: index))
                     }
                 }
-                .id(message.id)
             }
         }
     }
@@ -115,6 +115,17 @@ struct MessageGroup: Identifiable {
     init(date: Date, messages: [Chat.Message]) {
         self.date = date
         self.messages = messages
+    }
+    
+    func contentID(forMessage message: Chat.Message, contentIndex: Int) -> String {
+        let lastContent = message.contents[contentIndex]
+        return "\(message.id.data.hexEncodedString()):\(lastContent.id)"
+    }
+    
+    func lastMessageContentID() -> String {
+        let messageIndex = messages.count - 1
+        let message = messages[messageIndex]
+        return contentID(forMessage: message, contentIndex: message.contents.count - 1)
     }
 }
 
