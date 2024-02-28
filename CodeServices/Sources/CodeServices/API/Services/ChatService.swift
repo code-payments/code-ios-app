@@ -25,7 +25,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         
         call.handle(on: queue) { response in
             let error = ErrorFetchChats(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
+            if error == .ok || error == .notFound {
                 let chats = response.chats.map { Chat($0) }
                 trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chats: \(chats.count)")
                 completion(.success(chats))
@@ -68,7 +68,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         
         call.handle(on: queue) { response in
             let error = ErrorFetchMessages(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
+            if error == .ok || error == .notFound {
                 let messages = response.messages.map { Chat.Message($0) }
                 trace(.success, components: "Owner: \(owner.publicKey.base58)", "Messages: \(messages.count)")
                 completion(.success(messages))
