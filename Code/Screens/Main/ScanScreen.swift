@@ -194,15 +194,20 @@ struct ScanScreen: View {
                         binding: $isPresentingGetKin
                     )
                     .sheet(isPresented: $isPresentingGetKin) {
-                        BuyKinScreen(
-                            isPresented: $isPresentingGetKin,
-                            viewModel: BuyKinViewModel(
-                                session: session,
-                                exchange: exchange,
-                                bannerController: bannerController,
-                                betaFlags: betaFlags
+                        if betaFlags.hasEnabled(.buyKin) {
+                            BuyKinScreen(
+                                isPresented: $isPresentingGetKin,
+                                viewModel: BuyKinViewModel(
+                                    session: session,
+                                    exchange: exchange,
+                                    bannerController: bannerController,
+                                    betaFlags: betaFlags
+                                )
                             )
-                        )
+                        } else {
+                            GetKinScreen(session: session, isPresented: $isPresentingGetKin)
+                                .environmentObject(betaFlags)
+                        }
                     }
                     
                     Spacer()
