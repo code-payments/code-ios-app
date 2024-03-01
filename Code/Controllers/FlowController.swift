@@ -55,14 +55,15 @@ class FlowController: ObservableObject {
         organizer.setAccountInfo(infos)
         
         try await receiveFromIncoming()
-        try await swapIfNeeded()
+        
+        await swapIfNeeded()
         
         return organizer.availableBalance
     }
     
     // MARK: - Swaps -
     
-    private func swapIfNeeded() async throws {
+    private func swapIfNeeded() async {
         // We need to check and see if the USDC account has a balance,
         // if so, we'll initiate a swap to Kin. The nuance here is that
         // the balance of the USDC account is reported as `Kin`, where the
@@ -80,7 +81,11 @@ class FlowController: ObservableObject {
         }
         
         lastSwap = .now()
-        try await client.initiateSwap(organizer: organizer)
+        do {
+            try await client.initiateSwap(organizer: organizer)
+        } catch {
+            ErrorReporting.captureError(error, reason: "USDC Swap Failed")
+        }
     }
     
     // MARK: - Transfer -
