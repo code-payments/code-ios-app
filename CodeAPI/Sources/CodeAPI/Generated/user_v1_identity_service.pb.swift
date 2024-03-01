@@ -519,6 +519,122 @@ extension Code_User_V1_GetUserResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Code_User_V1_UpdatePreferencesRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The public key of the owner account that signed this request message.
+  public var ownerAccountID: Code_Common_V1_SolanaAccountId {
+    get {return _ownerAccountID ?? Code_Common_V1_SolanaAccountId()}
+    set {_ownerAccountID = newValue}
+  }
+  /// Returns true if `ownerAccountID` has been explicitly set.
+  public var hasOwnerAccountID: Bool {return self._ownerAccountID != nil}
+  /// Clears the value of `ownerAccountID`. Subsequent reads from it will return its default value.
+  public mutating func clearOwnerAccountID() {self._ownerAccountID = nil}
+
+  /// The data container for the copy of the contact list being added to.
+  public var containerID: Code_Common_V1_DataContainerId {
+    get {return _containerID ?? Code_Common_V1_DataContainerId()}
+    set {_containerID = newValue}
+  }
+  /// Returns true if `containerID` has been explicitly set.
+  public var hasContainerID: Bool {return self._containerID != nil}
+  /// Clears the value of `containerID`. Subsequent reads from it will return its default value.
+  public mutating func clearContainerID() {self._containerID = nil}
+
+  /// The signature is of serialize(UpdatePreferencesRequest) without this field set
+  /// using the private key of owner_account_id.
+  public var signature: Code_Common_V1_Signature {
+    get {return _signature ?? Code_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  /// The user's locale, which is used for server-side localization of things like
+  /// chat messages, pushes, etc. If no locale is set, or the provided locale isn't
+  /// supported, then English is used as the default fallback.
+  ///
+  /// Note: This is required since it's the only preference. In the future, we'll add
+  ///       optional fields, where the subset of fields provided will be the ones that
+  ///       are updated.
+  public var locale: Code_Common_V1_Locale {
+    get {return _locale ?? Code_Common_V1_Locale()}
+    set {_locale = newValue}
+  }
+  /// Returns true if `locale` has been explicitly set.
+  public var hasLocale: Bool {return self._locale != nil}
+  /// Clears the value of `locale`. Subsequent reads from it will return its default value.
+  public mutating func clearLocale() {self._locale = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _ownerAccountID: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _containerID: Code_Common_V1_DataContainerId? = nil
+  fileprivate var _signature: Code_Common_V1_Signature? = nil
+  fileprivate var _locale: Code_Common_V1_Locale? = nil
+}
+
+public struct Code_User_V1_UpdatePreferencesResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_User_V1_UpdatePreferencesResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+
+    /// The provided locale couldn't be parsed or recognized and is invalid.
+    case invalidLocale // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .invalidLocale
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .invalidLocale: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_User_V1_UpdatePreferencesResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_User_V1_UpdatePreferencesResponse.Result] = [
+    .ok,
+    .invalidLocale,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Code_User_V1_LoginToThirdPartyAppRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -864,6 +980,9 @@ extension Code_User_V1_GetUserRequest.OneOf_IdentifyingFeature: @unchecked Senda
 extension Code_User_V1_GetUserResponse: @unchecked Sendable {}
 extension Code_User_V1_GetUserResponse.OneOf_Metadata: @unchecked Sendable {}
 extension Code_User_V1_GetUserResponse.Result: @unchecked Sendable {}
+extension Code_User_V1_UpdatePreferencesRequest: @unchecked Sendable {}
+extension Code_User_V1_UpdatePreferencesResponse: @unchecked Sendable {}
+extension Code_User_V1_UpdatePreferencesResponse.Result: @unchecked Sendable {}
 extension Code_User_V1_LoginToThirdPartyAppRequest: @unchecked Sendable {}
 extension Code_User_V1_LoginToThirdPartyAppResponse: @unchecked Sendable {}
 extension Code_User_V1_LoginToThirdPartyAppResponse.Result: @unchecked Sendable {}
@@ -1256,6 +1375,99 @@ extension Code_User_V1_GetUserResponse.Result: SwiftProtobuf._ProtoNameProviding
     1: .same(proto: "NOT_FOUND"),
     2: .same(proto: "NOT_INVITED"),
     3: .same(proto: "UNLOCKED_TIMELOCK_ACCOUNT"),
+  ]
+}
+
+extension Code_User_V1_UpdatePreferencesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdatePreferencesRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "owner_account_id"),
+    2: .standard(proto: "container_id"),
+    3: .same(proto: "signature"),
+    4: .same(proto: "locale"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._ownerAccountID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._containerID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._locale) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._ownerAccountID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._containerID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._locale {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_User_V1_UpdatePreferencesRequest, rhs: Code_User_V1_UpdatePreferencesRequest) -> Bool {
+    if lhs._ownerAccountID != rhs._ownerAccountID {return false}
+    if lhs._containerID != rhs._containerID {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs._locale != rhs._locale {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_User_V1_UpdatePreferencesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UpdatePreferencesResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_User_V1_UpdatePreferencesResponse, rhs: Code_User_V1_UpdatePreferencesResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_User_V1_UpdatePreferencesResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "INVALID_LOCALE"),
   ]
 }
 

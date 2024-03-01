@@ -128,6 +128,34 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func updatePreferences(user: User, locale: Locale, owner: KeyPair, completion: @escaping (Result<Void, ErrorUpdatePreferences>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+        
+        let request = Code_User_V1_UpdatePreferencesRequest.with {
+            $0.containerID = user.containerID.codeContainerID
+            $0.ownerAccountID = owner.publicKey.codeAccountID
+            $0.locale = .with { $0.value = locale.identifier }
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.updatePreferences(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorUpdatePreferences(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Locale set: \(locale.identifier)")
+                completion(.success(()))
+                
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -163,9 +191,19 @@ public enum ErrorLoginToThirdParty: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorUpdatePreferences: Int, Error {
+    case ok
+    case invalidLocale
+    case unknown = -1
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_User_V1_IdentityClientInterceptorFactoryProtocol {
+    func makeUpdatePreferencesInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_User_V1_UpdatePreferencesRequest, CodeAPI.Code_User_V1_UpdatePreferencesResponse>] {
+        makeInterceptors()
+    }
+    
     func makeLoginToThirdPartyAppInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_User_V1_LoginToThirdPartyAppRequest, CodeAPI.Code_User_V1_LoginToThirdPartyAppResponse>] {
         makeInterceptors()
     }

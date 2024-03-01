@@ -1630,6 +1630,131 @@ extension Code_Transaction_V2_SwapResponse.Error.Code: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The owner account invoking the buy module
+  public var owner: Code_Common_V1_SolanaAccountId {
+    get {return _owner ?? Code_Common_V1_SolanaAccountId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {return self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
+  /// The amount being purchased
+  public var purchaseAmount: Code_Transaction_V2_ExchangeDataWithoutRate {
+    get {return _purchaseAmount ?? Code_Transaction_V2_ExchangeDataWithoutRate()}
+    set {_purchaseAmount = newValue}
+  }
+  /// Returns true if `purchaseAmount` has been explicitly set.
+  public var hasPurchaseAmount: Bool {return self._purchaseAmount != nil}
+  /// Clears the value of `purchaseAmount`. Subsequent reads from it will return its default value.
+  public mutating func clearPurchaseAmount() {self._purchaseAmount = nil}
+
+  /// A nonce value unique to the purchase. If it's included in a memo for the
+  /// transaction for the deposit to the owner, then purchase_amount will be used
+  /// for display values. Otherwise, the amount will be inferred from the transaction.
+  public var nonce: Code_Common_V1_UUID {
+    get {return _nonce ?? Code_Common_V1_UUID()}
+    set {_nonce = newValue}
+  }
+  /// Returns true if `nonce` has been explicitly set.
+  public var hasNonce: Bool {return self._nonce != nil}
+  /// Clears the value of `nonce`. Subsequent reads from it will return its default value.
+  public mutating func clearNonce() {self._nonce = nil}
+
+  /// The signature is of serialize(DeclareFiatOnrampPurchaseAttemptRequest) without
+  /// this field set using the private key of the owner account. This provides an
+  /// authentication mechanism to the RPC.
+  public var signature: Code_Common_V1_Signature {
+    get {return _signature ?? Code_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _purchaseAmount: Code_Transaction_V2_ExchangeDataWithoutRate? = nil
+  fileprivate var _nonce: Code_Common_V1_UUID? = nil
+  fileprivate var _signature: Code_Common_V1_Signature? = nil
+}
+
+public struct Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+
+    /// The owner account is not valid (ie. it isn't a Code account)
+    case invalidOwner // = 1
+
+    /// The currency isn't supported
+    case unsupportedCurrency // = 2
+
+    /// The amount specified exceeds limits
+    case amountExceedsMaximum // = 3
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .invalidOwner
+      case 2: self = .unsupportedCurrency
+      case 3: self = .amountExceedsMaximum
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .invalidOwner: return 1
+      case .unsupportedCurrency: return 2
+      case .amountExceedsMaximum: return 3
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result] = [
+    .ok,
+    .invalidOwner,
+    .unsupportedCurrency,
+    .amountExceedsMaximum,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 /// Metadata describes the high-level details of an intent
 public struct Code_Transaction_V2_Metadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -3750,6 +3875,9 @@ extension Code_Transaction_V2_SwapResponse.Success: @unchecked Sendable {}
 extension Code_Transaction_V2_SwapResponse.Success.Code: @unchecked Sendable {}
 extension Code_Transaction_V2_SwapResponse.Error: @unchecked Sendable {}
 extension Code_Transaction_V2_SwapResponse.Error.Code: @unchecked Sendable {}
+extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest: @unchecked Sendable {}
+extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse: @unchecked Sendable {}
+extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result: @unchecked Sendable {}
 extension Code_Transaction_V2_Metadata: @unchecked Sendable {}
 extension Code_Transaction_V2_Metadata.OneOf_Type: @unchecked Sendable {}
 extension Code_Transaction_V2_OpenAccountsMetadata: @unchecked Sendable {}
@@ -5315,6 +5443,101 @@ extension Code_Transaction_V2_SwapResponse.Error.Code: SwiftProtobuf._ProtoNameP
     2: .same(proto: "SIGNATURE_ERROR"),
     3: .same(proto: "INVALID_SWAP"),
     4: .same(proto: "SWAP_FAILED"),
+  ]
+}
+
+extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeclareFiatOnrampPurchaseAttemptRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "owner"),
+    2: .standard(proto: "purchase_amount"),
+    3: .same(proto: "nonce"),
+    4: .same(proto: "signature"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._purchaseAmount) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._nonce) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._purchaseAmount {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._nonce {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, rhs: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest) -> Bool {
+    if lhs._owner != rhs._owner {return false}
+    if lhs._purchaseAmount != rhs._purchaseAmount {return false}
+    if lhs._nonce != rhs._nonce {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeclareFiatOnrampPurchaseAttemptResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse, rhs: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "INVALID_OWNER"),
+    2: .same(proto: "UNSUPPORTED_CURRENCY"),
+    3: .same(proto: "AMOUNT_EXCEEDS_MAXIMUM"),
   ]
 }
 

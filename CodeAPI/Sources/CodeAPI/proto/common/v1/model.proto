@@ -148,6 +148,19 @@ message Hash {
     }];
 }
 
+// Locale is a user locale consisting of a combination of language, script and region
+message Locale {
+    string value = 1 [(validate.rules).string.pattern = "^[A-Za-z]{2,4}([_-][A-Za-z]{4})?([_-]([A-Za-z]{2}|[0-9]{3}))?$"];
+}
+
+// UUID is a 16 byte UUID value
+message UUID {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
 // Request is a generic wrapper for gRPC requests
 message Request {
     string version = 1;

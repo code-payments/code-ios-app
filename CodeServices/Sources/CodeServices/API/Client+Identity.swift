@@ -33,4 +33,10 @@ extension Client {
             identityService.loginToThirdParty(rendezvous: rendezvous, relationship: relationship) { c.resume(with: $0) }
         }
     }
+    
+    public func updatePreferences(user: User, locale: Locale, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            identityService.updatePreferences(user: user, locale: locale, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

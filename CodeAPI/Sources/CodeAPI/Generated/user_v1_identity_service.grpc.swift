@@ -46,6 +46,11 @@ public protocol Code_User_V1_IdentityClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>
 
+  func updatePreferences(
+    _ request: Code_User_V1_UpdatePreferencesRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_User_V1_UpdatePreferencesRequest, Code_User_V1_UpdatePreferencesResponse>
+
   func loginToThirdPartyApp(
     _ request: Code_User_V1_LoginToThirdPartyAppRequest,
     callOptions: CallOptions?
@@ -134,6 +139,24 @@ extension Code_User_V1_IdentityClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUserInterceptors() ?? []
+    )
+  }
+
+  /// UpdatePreferences updates user preferences.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to UpdatePreferences.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func updatePreferences(
+    _ request: Code_User_V1_UpdatePreferencesRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_User_V1_UpdatePreferencesRequest, Code_User_V1_UpdatePreferencesResponse> {
+    return self.makeUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.updatePreferences.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdatePreferencesInterceptors() ?? []
     )
   }
 
@@ -257,6 +280,11 @@ public protocol Code_User_V1_IdentityAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>
 
+  func makeUpdatePreferencesCall(
+    _ request: Code_User_V1_UpdatePreferencesRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_UpdatePreferencesRequest, Code_User_V1_UpdatePreferencesResponse>
+
   func makeLoginToThirdPartyAppCall(
     _ request: Code_User_V1_LoginToThirdPartyAppRequest,
     callOptions: CallOptions?
@@ -311,6 +339,18 @@ extension Code_User_V1_IdentityAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUserInterceptors() ?? []
+    )
+  }
+
+  public func makeUpdatePreferencesCall(
+    _ request: Code_User_V1_UpdatePreferencesRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_UpdatePreferencesRequest, Code_User_V1_UpdatePreferencesResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.updatePreferences.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdatePreferencesInterceptors() ?? []
     )
   }
 
@@ -377,6 +417,18 @@ extension Code_User_V1_IdentityAsyncClientProtocol {
     )
   }
 
+  public func updatePreferences(
+    _ request: Code_User_V1_UpdatePreferencesRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_User_V1_UpdatePreferencesResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.updatePreferences.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUpdatePreferencesInterceptors() ?? []
+    )
+  }
+
   public func loginToThirdPartyApp(
     _ request: Code_User_V1_LoginToThirdPartyAppRequest,
     callOptions: CallOptions? = nil
@@ -432,6 +484,9 @@ public protocol Code_User_V1_IdentityClientInterceptorFactoryProtocol: GRPCSenda
   /// - Returns: Interceptors to use when invoking 'getUser'.
   func makeGetUserInterceptors() -> [ClientInterceptor<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'updatePreferences'.
+  func makeUpdatePreferencesInterceptors() -> [ClientInterceptor<Code_User_V1_UpdatePreferencesRequest, Code_User_V1_UpdatePreferencesResponse>]
+
   /// - Returns: Interceptors to use when invoking 'loginToThirdPartyApp'.
   func makeLoginToThirdPartyAppInterceptors() -> [ClientInterceptor<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse>]
 
@@ -447,6 +502,7 @@ public enum Code_User_V1_IdentityClientMetadata {
       Code_User_V1_IdentityClientMetadata.Methods.linkAccount,
       Code_User_V1_IdentityClientMetadata.Methods.unlinkAccount,
       Code_User_V1_IdentityClientMetadata.Methods.getUser,
+      Code_User_V1_IdentityClientMetadata.Methods.updatePreferences,
       Code_User_V1_IdentityClientMetadata.Methods.loginToThirdPartyApp,
       Code_User_V1_IdentityClientMetadata.Methods.getLoginForThirdPartyApp,
     ]
@@ -468,6 +524,12 @@ public enum Code_User_V1_IdentityClientMetadata {
     public static let getUser = GRPCMethodDescriptor(
       name: "GetUser",
       path: "/code.user.v1.Identity/GetUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let updatePreferences = GRPCMethodDescriptor(
+      name: "UpdatePreferences",
+      path: "/code.user.v1.Identity/UpdatePreferences",
       type: GRPCCallType.unary
     )
 
@@ -519,6 +581,9 @@ public protocol Code_User_V1_IdentityProvider: CallHandlerProvider {
   /// GetUser gets user information given a user identifier and an owner account.
   func getUser(request: Code_User_V1_GetUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_GetUserResponse>
 
+  /// UpdatePreferences updates user preferences.
+  func updatePreferences(request: Code_User_V1_UpdatePreferencesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_UpdatePreferencesResponse>
+
   /// LoginToThirdPartyApp logs a user into a third party app for a given intent
   /// ID. If the original request requires payment, then SubmitIntent must be called.
   func loginToThirdPartyApp(request: Code_User_V1_LoginToThirdPartyAppRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_LoginToThirdPartyAppResponse>
@@ -566,6 +631,15 @@ extension Code_User_V1_IdentityProvider {
         responseSerializer: ProtobufSerializer<Code_User_V1_GetUserResponse>(),
         interceptors: self.interceptors?.makeGetUserInterceptors() ?? [],
         userFunction: self.getUser(request:context:)
+      )
+
+    case "UpdatePreferences":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_UpdatePreferencesRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_UpdatePreferencesResponse>(),
+        interceptors: self.interceptors?.makeUpdatePreferencesInterceptors() ?? [],
+        userFunction: self.updatePreferences(request:context:)
       )
 
     case "LoginToThirdPartyApp":
@@ -639,6 +713,12 @@ public protocol Code_User_V1_IdentityAsyncProvider: CallHandlerProvider {
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_User_V1_GetUserResponse
 
+  /// UpdatePreferences updates user preferences.
+  @Sendable func updatePreferences(
+    request: Code_User_V1_UpdatePreferencesRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_User_V1_UpdatePreferencesResponse
+
   /// LoginToThirdPartyApp logs a user into a third party app for a given intent
   /// ID. If the original request requires payment, then SubmitIntent must be called.
   @Sendable func loginToThirdPartyApp(
@@ -701,6 +781,15 @@ extension Code_User_V1_IdentityAsyncProvider {
         wrapping: self.getUser(request:context:)
       )
 
+    case "UpdatePreferences":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_UpdatePreferencesRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_UpdatePreferencesResponse>(),
+        interceptors: self.interceptors?.makeUpdatePreferencesInterceptors() ?? [],
+        wrapping: self.updatePreferences(request:context:)
+      )
+
     case "LoginToThirdPartyApp":
       return GRPCAsyncServerHandler(
         context: context,
@@ -741,6 +830,10 @@ public protocol Code_User_V1_IdentityServerInterceptorFactoryProtocol {
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetUserInterceptors() -> [ServerInterceptor<Code_User_V1_GetUserRequest, Code_User_V1_GetUserResponse>]
 
+  /// - Returns: Interceptors to use when handling 'updatePreferences'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeUpdatePreferencesInterceptors() -> [ServerInterceptor<Code_User_V1_UpdatePreferencesRequest, Code_User_V1_UpdatePreferencesResponse>]
+
   /// - Returns: Interceptors to use when handling 'loginToThirdPartyApp'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeLoginToThirdPartyAppInterceptors() -> [ServerInterceptor<Code_User_V1_LoginToThirdPartyAppRequest, Code_User_V1_LoginToThirdPartyAppResponse>]
@@ -758,6 +851,7 @@ public enum Code_User_V1_IdentityServerMetadata {
       Code_User_V1_IdentityServerMetadata.Methods.linkAccount,
       Code_User_V1_IdentityServerMetadata.Methods.unlinkAccount,
       Code_User_V1_IdentityServerMetadata.Methods.getUser,
+      Code_User_V1_IdentityServerMetadata.Methods.updatePreferences,
       Code_User_V1_IdentityServerMetadata.Methods.loginToThirdPartyApp,
       Code_User_V1_IdentityServerMetadata.Methods.getLoginForThirdPartyApp,
     ]
@@ -779,6 +873,12 @@ public enum Code_User_V1_IdentityServerMetadata {
     public static let getUser = GRPCMethodDescriptor(
       name: "GetUser",
       path: "/code.user.v1.Identity/GetUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let updatePreferences = GRPCMethodDescriptor(
+      name: "UpdatePreferences",
+      path: "/code.user.v1.Identity/UpdatePreferences",
       type: GRPCCallType.unary
     )
 

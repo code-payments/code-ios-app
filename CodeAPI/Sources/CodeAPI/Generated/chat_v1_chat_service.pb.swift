@@ -925,7 +925,9 @@ public struct Code_Chat_V1_LocalizedContent {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var key: String = String()
+  /// When server-side localization is in place, clients will always see the
+  /// localized text.
+  public var keyOrText: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2030,7 +2032,7 @@ extension Code_Chat_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
 extension Code_Chat_V1_LocalizedContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LocalizedContent"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "key"),
+    1: .standard(proto: "key_or_text"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2039,21 +2041,21 @@ extension Code_Chat_V1_LocalizedContent: SwiftProtobuf.Message, SwiftProtobuf._M
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.key) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.keyOrText) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.key.isEmpty {
-      try visitor.visitSingularStringField(value: self.key, fieldNumber: 1)
+    if !self.keyOrText.isEmpty {
+      try visitor.visitSingularStringField(value: self.keyOrText, fieldNumber: 1)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Chat_V1_LocalizedContent, rhs: Code_Chat_V1_LocalizedContent) -> Bool {
-    if lhs.key != rhs.key {return false}
+    if lhs.keyOrText != rhs.keyOrText {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

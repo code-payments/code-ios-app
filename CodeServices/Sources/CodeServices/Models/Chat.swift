@@ -169,7 +169,7 @@ extension Chat.Content {
     public init?(_ proto: Code_Chat_V1_Content) {
         switch proto.type {
         case .localized(let string):
-            self = .localized(string.key)
+            self = .localized(string.keyOrText)
             
         case .exchangeData(let exchange):
             
@@ -251,7 +251,7 @@ extension Chat {
         
         switch proto.title {
         case .localized(let content):
-            title = .localized(content.key)
+            title = .localized(content.keyOrText)
         case .domain(let domain):
             if let validDomain = Domain(domain.value) {
                 title = .domain(validDomain)

@@ -92,8 +92,11 @@ class Session: ObservableObject {
         Task {
             try await updatePhoneLinkStatus()
             try await updateUserInfo()
-            try await receiveFirstKinIfAvailable() // Must be after user info
+            try await updateUserPreferences()
             try await resetAppBadgeCount()
+            
+            // Must be after user info
+            try await receiveFirstKinIfAvailable()
         }
     }
     
@@ -120,6 +123,14 @@ class Session: ObservableObject {
         )
         
         self.user = user
+    }
+    
+    private func updateUserPreferences() async throws {
+        try await client.updatePreferences(
+            user: user,
+            locale: .current,
+            owner: organizer.ownerKeyPair
+        )
     }
     
     private func receiveFirstKinIfAvailable() async throws {

@@ -75,6 +75,11 @@ public protocol Code_Transaction_V2_TransactionClientProtocol: GRPCClient {
     callOptions: CallOptions?,
     handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
   ) -> BidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
+
+  func declareFiatOnrampPurchaseAttempt(
+    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
 }
 
 extension Code_Transaction_V2_TransactionClientProtocol {
@@ -305,6 +310,25 @@ extension Code_Transaction_V2_TransactionClientProtocol {
       handler: handler
     )
   }
+
+  /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
+  /// onramp to purchase crypto for use in Code.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to DeclareFiatOnrampPurchaseAttempt.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func declareFiatOnrampPurchaseAttempt(
+    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse> {
+    return self.makeUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
+    )
+  }
 }
 
 #if compiler(>=5.6)
@@ -414,6 +438,11 @@ public protocol Code_Transaction_V2_TransactionAsyncClientProtocol: GRPCClient {
   func makeSwapCall(
     callOptions: CallOptions?
   ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
+
+  func makeDeclareFiatOnrampPurchaseAttemptCall(
+    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -527,6 +556,18 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSwapInterceptors() ?? []
+    )
+  }
+
+  public func makeDeclareFiatOnrampPurchaseAttemptCall(
+    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
     )
   }
 }
@@ -664,6 +705,18 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       interceptors: self.interceptors?.makeSwapInterceptors() ?? []
     )
   }
+
+  public func declareFiatOnrampPurchaseAttempt(
+    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -713,6 +766,9 @@ public protocol Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol:
 
   /// - Returns: Interceptors to use when invoking 'swap'.
   func makeSwapInterceptors() -> [ClientInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'declareFiatOnrampPurchaseAttempt'.
+  func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [ClientInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionClientMetadata {
@@ -729,6 +785,7 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       Code_Transaction_V2_TransactionClientMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionClientMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionClientMetadata.Methods.swap,
+      Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt,
     ]
   )
 
@@ -785,6 +842,12 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       name: "Swap",
       path: "/code.transaction.v2.Transaction/Swap",
       type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let declareFiatOnrampPurchaseAttempt = GRPCMethodDescriptor(
+      name: "DeclareFiatOnrampPurchaseAttempt",
+      path: "/code.transaction.v2.Transaction/DeclareFiatOnrampPurchaseAttempt",
+      type: GRPCCallType.unary
     )
   }
 }
@@ -875,6 +938,10 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   /// Note: Currently limited to swapping USDC to Kin.
   /// Note: Kin is deposited into the primary account.
   func swap(context: StreamingResponseCallContext<Code_Transaction_V2_SwapResponse>) -> EventLoopFuture<(StreamEvent<Code_Transaction_V2_SwapRequest>) -> Void>
+
+  /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
+  /// onramp to purchase crypto for use in Code.
+  func declareFiatOnrampPurchaseAttempt(request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
 }
 
 extension Code_Transaction_V2_TransactionProvider {
@@ -968,6 +1035,15 @@ extension Code_Transaction_V2_TransactionProvider {
         responseSerializer: ProtobufSerializer<Code_Transaction_V2_SwapResponse>(),
         interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
         observerFactory: self.swap(context:)
+      )
+
+    case "DeclareFiatOnrampPurchaseAttempt":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>(),
+        interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? [],
+        userFunction: self.declareFiatOnrampPurchaseAttempt(request:context:)
       )
 
     default:
@@ -1095,6 +1171,13 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
     responseStream: GRPCAsyncResponseStreamWriter<Code_Transaction_V2_SwapResponse>,
     context: GRPCAsyncServerCallContext
   ) async throws
+
+  /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
+  /// onramp to purchase crypto for use in Code.
+  @Sendable func declareFiatOnrampPurchaseAttempt(
+    request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -1197,6 +1280,15 @@ extension Code_Transaction_V2_TransactionAsyncProvider {
         wrapping: self.swap(requestStream:responseStream:context:)
       )
 
+    case "DeclareFiatOnrampPurchaseAttempt":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>(),
+        interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? [],
+        wrapping: self.declareFiatOnrampPurchaseAttempt(request:context:)
+      )
+
     default:
       return nil
     }
@@ -1242,6 +1334,10 @@ public protocol Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol 
   /// - Returns: Interceptors to use when handling 'swap'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSwapInterceptors() -> [ServerInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
+
+  /// - Returns: Interceptors to use when handling 'declareFiatOnrampPurchaseAttempt'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [ServerInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionServerMetadata {
@@ -1258,6 +1354,7 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       Code_Transaction_V2_TransactionServerMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionServerMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionServerMetadata.Methods.swap,
+      Code_Transaction_V2_TransactionServerMetadata.Methods.declareFiatOnrampPurchaseAttempt,
     ]
   )
 
@@ -1314,6 +1411,12 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       name: "Swap",
       path: "/code.transaction.v2.Transaction/Swap",
       type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let declareFiatOnrampPurchaseAttempt = GRPCMethodDescriptor(
+      name: "DeclareFiatOnrampPurchaseAttempt",
+      path: "/code.transaction.v2.Transaction/DeclareFiatOnrampPurchaseAttempt",
+      type: GRPCCallType.unary
     )
   }
 }

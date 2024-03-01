@@ -93,6 +93,10 @@ service Transaction {
     // Note: Currently limited to swapping USDC to Kin.
     // Note: Kin is deposited into the primary account.
     rpc Swap(stream SwapRequest) returns (stream SwapResponse);
+
+    // DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
+    // onramp to purchase crypto for use in Code.
+    rpc DeclareFiatOnrampPurchaseAttempt(DeclareFiatOnrampPurchaseAttemptRequest) returns (DeclareFiatOnrampPurchaseAttemptResponse);
 }
 
 //
@@ -522,6 +526,37 @@ message SwapResponse {
         }
 
         repeated ErrorDetails error_details = 2;
+    }
+}
+
+message DeclareFiatOnrampPurchaseAttemptRequest {
+    // The owner account invoking the buy module
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // The amount being purchased
+    ExchangeDataWithoutRate purchase_amount = 2 [(validate.rules).message.required = true];
+
+    // A nonce value unique to the purchase. If it's included in a memo for the
+    // transaction for the deposit to the owner, then purchase_amount will be used
+    // for display values. Otherwise, the amount will be inferred from the transaction.
+    common.v1.UUID nonce = 3 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(DeclareFiatOnrampPurchaseAttemptRequest) without
+    // this field set using the private key of the owner account. This provides an
+    // authentication mechanism to the RPC.
+    common.v1.Signature signature = 4 [(validate.rules).message.required = true];
+}
+
+message DeclareFiatOnrampPurchaseAttemptResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The owner account is not valid (ie. it isn't a Code account)
+        INVALID_OWNER = 1;
+        // The currency isn't supported
+        UNSUPPORTED_CURRENCY = 2;
+        // The amount specified exceeds limits
+        AMOUNT_EXCEEDS_MAXIMUM = 3;
     }
 }
 

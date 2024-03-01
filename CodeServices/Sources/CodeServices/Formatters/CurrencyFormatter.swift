@@ -55,17 +55,12 @@ extension NumberFormatter {
         f.roundingMode = truncated ? .down : .halfDown
         
         let prefix = currency.singleCharacterCurrencySymbols ?? ""
+        let suffix = (suffix ?? "")
         
         f.positivePrefix = prefix
         f.negativePrefix = prefix
-        
-        if let suffix = suffix {
-            f.positiveSuffix = suffix
-            f.negativeSuffix = suffix
-        } else {
-            f.positiveSuffix = ""
-            f.negativeSuffix = ""
-        }
+        f.positiveSuffix = suffix
+        f.negativeSuffix = suffix
         
         f.currencySymbol = ""
         

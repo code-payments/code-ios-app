@@ -236,9 +236,11 @@ message Content {
 }
 
 message LocalizedContent {
-    string key = 1 [(validate.rules).string = {
+    // When server-side localization is in place, clients will always see the
+    // localized text.
+    string key_or_text = 1 [(validate.rules).string = {
         min_len: 1
-        max_len: 64
+        max_len: 1024
     }];
 }
 
