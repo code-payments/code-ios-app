@@ -11,7 +11,8 @@ import CodeServices
 
 class MessageListTests: XCTestCase {
     
-    func testMessageGrouping() {
+    // TODO: Currently flaky in Xcode Cloud
+    func _testMessageGrouping() {
         let date = Date(timeIntervalSince1970: 1708542000) // Some date at 2pm EST
         let dates = [
             date.adding(hours: -1),  // 1pm

@@ -186,7 +186,7 @@ struct ScanScreen: View {
             Group {
                 if isVisible {
                     LargeButton(
-                        title: Localized.Title.getKin,
+                        title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestKin : Localized.Title.getKin,
                         image: .asset(.wallet),
                         maxWidth: 80,
                         maxHeight: 80,
@@ -194,19 +194,29 @@ struct ScanScreen: View {
                         binding: $isPresentingGetKin
                     )
                     .sheet(isPresented: $isPresentingGetKin) {
-                        if betaFlags.hasEnabled(.buyKin) {
-                            BuyKinScreen(
-                                isPresented: $isPresentingGetKin,
-                                viewModel: BuyKinViewModel(
-                                    session: session,
-                                    exchange: exchange,
-                                    bannerController: bannerController,
-                                    betaFlags: betaFlags
-                                )
+                        if betaFlags.hasEnabled(.giveRequests) {
+                            RequestKinScreen(
+                                session: session,
+                                isPresented: $isPresentingGetKin
                             )
+                            .environmentObject(bannerController)
+                            .environmentObject(exchange)
+                            .environmentObject(reachability)
                         } else {
-                            GetKinScreen(session: session, isPresented: $isPresentingGetKin)
-                                .environmentObject(betaFlags)
+                            if betaFlags.hasEnabled(.buyKin) {
+                                BuyKinScreen(
+                                    isPresented: $isPresentingGetKin,
+                                    viewModel: BuyKinViewModel(
+                                        session: session,
+                                        exchange: exchange,
+                                        bannerController: bannerController,
+                                        betaFlags: betaFlags
+                                    )
+                                )
+                            } else {
+                                GetKinScreen(session: session, isPresented: $isPresentingGetKin)
+                                    .environmentObject(betaFlags)
+                            }
                         }
                     }
                     

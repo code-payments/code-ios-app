@@ -669,6 +669,8 @@ internal enum Localized {
     internal static let referFriend = Localized.tr("Localizable", "title.referFriend")
     /// Referral Bonus
     internal static let referralBonus = Localized.tr("Localizable", "title.referralBonus")
+    /// Request Kin
+    internal static let requestKin = Localized.tr("Localizable", "title.requestKin")
     /// Results
     internal static let results = Localized.tr("Localizable", "title.results")
     /// Select an Account

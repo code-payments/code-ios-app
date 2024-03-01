@@ -920,7 +920,7 @@ class Session: ObservableObject {
     }
     
     func hasAvailableTransactionLimit(for amount: KinAmount) -> Bool {
-        todaysAllowanceFor(currency: amount.rate.currency) > amount.fiat
+        todaysAllowanceFor(currency: amount.rate.currency) >= amount.fiat
     }
     
     func todaysAllowanceFor(currency: CurrencyCode) -> Decimal {

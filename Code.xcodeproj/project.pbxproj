@@ -50,6 +50,7 @@
 		9A1168A927BE9C4500948F3D /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1168A827BE9C4500948F3D /* Contact.swift */; };
 		9A1654D726790419000A135E /* GRPC in Frameworks */ = {isa = PBXBuildFile; productRef = 9A1654D626790419000A135E /* GRPC */; };
 		9A1654DF267A31A4000A135E /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1654DE267A31A4000A135E /* Keychain.swift */; };
+		9A17FFC72B911D4C00FFC09F /* RequestKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */; };
 		9A18C735289C099000B39AF6 /* WithdrawViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18C734289C099000B39AF6 /* WithdrawViewModel.swift */; };
 		9A18C737289C11D500B39AF6 /* WithdrawAddressScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18C736289C11D500B39AF6 /* WithdrawAddressScreen.swift */; };
 		9A18C739289D763B00B39AF6 /* WithdrawSummaryScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18C738289D763B00B39AF6 /* WithdrawSummaryScreen.swift */; };
@@ -284,6 +285,7 @@
 		9A1168A827BE9C4500948F3D /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
 		9A16229B284503EE00B138D3 /* CodeAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeAPI; sourceTree = "<group>"; };
 		9A1654DE267A31A4000A135E /* Keychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RequestKinScreen.swift; sourceTree = "<group>"; };
 		9A18C734289C099000B39AF6 /* WithdrawViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawViewModel.swift; sourceTree = "<group>"; };
 		9A18C736289C11D500B39AF6 /* WithdrawAddressScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawAddressScreen.swift; sourceTree = "<group>"; };
 		9A18C738289D763B00B39AF6 /* WithdrawSummaryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawSummaryScreen.swift; sourceTree = "<group>"; };
@@ -775,6 +777,7 @@
 				9AEFE85325B74A49001FCB19 /* ScanScreen.swift */,
 				9A9469B8279F3C9A0028F27E /* ContactsScreen.swift */,
 				9AEFE84D25B61EAB001FCB19 /* GiveKinScreen.swift */,
+				9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */,
 				9A9F26982A169CC000FA47DF /* GetKinScreen.swift */,
 				9ACFA30D2A4B3C0B0057A5DF /* SavedLoginScreen.swift */,
 				9A71BD432A2A2E1500D31F56 /* GetFriendStartedScreen.swift */,
@@ -1419,6 +1422,7 @@
 				9A03338B278E0C88005C630A /* VerifyPhoneScreen.swift in Sources */,
 				9A57224925EEDC4200B243FC /* DepositScreen.swift in Sources */,
 				9AE8F56228CA6513009C251F /* CurrencySelectionViewModel.swift in Sources */,
+				9A17FFC72B911D4C00FFC09F /* RequestKinScreen.swift in Sources */,
 				9A18C737289C11D500B39AF6 /* WithdrawAddressScreen.swift in Sources */,
 				9A9DF7C3274ED7950031E219 /* StatusController.swift in Sources */,
 				9AB7C5C725E7F8730007B3D5 /* BillState.swift in Sources */,

@@ -1,5 +1,5 @@
 //
-//  GiveKinScreen.swift
+//  RequestKinScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2021-01-18.
@@ -9,12 +9,11 @@ import SwiftUI
 import CodeServices
 import CodeUI
 
-struct GiveKinScreen: View {
+struct RequestKinScreen: View {
     
     @EnvironmentObject private var bannerController: BannerController
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var reachability: Reachability
-    @EnvironmentObject private var biometrics: Biometrics
     
     @Binding public var isPresented: Bool
     
@@ -32,10 +31,10 @@ struct GiveKinScreen: View {
     }
     
     private var maxFiatAmount: String {
-        let limitFiat = session.todaysAllowanceFor(currency: entryRate.currency)
+        let limitFiat = session.buyLimit(for: entryRate.currency)?.max ?? 0
         let limitKin  = KinAmount(fiat: limitFiat, rate: entryRate)
         
-        return min(session.currentBalance, limitKin.kin).formattedFiat(
+        return limitKin.kin.formattedFiat(
             rate: entryRate,
             truncated: true,
             showOfKin: true
@@ -43,7 +42,7 @@ struct GiveKinScreen: View {
     }
     
     private var title: String {
-        return Localized.Title.giveKin
+        Localized.Title.requestKin
     }
     
     // MARK: - Init -
@@ -79,10 +78,10 @@ struct GiveKinScreen: View {
                             Group {
                                 if reachability.status == .online {
                                     if let kinAmount = enteredKinAmount(), entryRate.currency != .kin {
-                                        if hasAvailableTransactionLimit(for: kinAmount) {
+                                        if canRequest(amount: kinAmount) {
                                             KinText(kinAmount.kin.formattedTruncatedKin(), format: .large)
                                                 .fixedSize()
-                                                .foregroundColor(hasSufficientFundsToSend(for: kinAmount) ? .textSecondary : .textError)
+                                                .foregroundColor(.textSecondary)
                                         } else {
                                             Text(Localized.Subtitle.canOnlyGiveUpTo(maxFiatAmount))
                                                 .fixedSize()
@@ -103,11 +102,6 @@ struct GiveKinScreen: View {
                         }
                         .frame(maxWidth: .infinity)
                     }
-                    .contextMenu(ContextMenu {
-                        Button(action: copy) {
-                            Label(Localized.Action.copy, systemImage: SystemSymbol.doc.rawValue)
-                        }
-                    })
                     .sheet(isPresented: $isPresentingCurrencySelection) {
                         CurrencySelectionScreen(
                             viewModel: CurrencySelectionViewModel(
@@ -127,11 +121,9 @@ struct GiveKinScreen: View {
                     )
                     .padding([.leading, .trailing], -20)
                     
-                    CodeButton(style: .filled, title: Localized.Action.next, disabled: isSendDisabled()) {
-                        Task {
-                            if await initiateSendOperation() {
-                                isPresented.toggle()
-                            }
+                    CodeButton(style: .filled, title: Localized.Action.next, disabled: isDisabled()) {
+                        if initiateSendOperation() {
+                            isPresented.toggle()
                         }
                     }
                     .padding(.top, 10)
@@ -149,35 +141,19 @@ struct GiveKinScreen: View {
                 amount = ""
             }
             .onAppear {
-                session.receiveIfNeeded()
-                Analytics.open(screen: .giveKin)
-                ErrorReporting.breadcrumb(.giveKinScreen)
+                ErrorReporting.breadcrumb(.requestKinScreen)
             }
         }
     }
     
-    private func isSendDisabled() -> Bool {
+    private func isDisabled() -> Bool {
         enteredKinAmount() == nil
-    }
-    
-    // MARK: - Copy / Paste -
-    
-    private func copy() {
-        UIPasteboard.general.string = amount
     }
     
     // MARK: - Actions -
     
-    private func hasSufficientFundsToSend(for amount: KinAmount) -> Bool {
-        session.hasSufficientFunds(for: amount)
-    }
-    
-    private func hasAvailableDailyLimit() -> Bool {
-        session.hasAvailableDailyLimit()
-    }
-    
-    private func hasAvailableTransactionLimit(for amount: KinAmount) -> Bool {
-        session.hasAvailableTransactionLimit(for: amount)
+    private func canRequest(amount: KinAmount) -> Bool {
+        (session.buyLimit(for: amount.rate.currency)?.max ?? 0) >= amount.fiat
     }
     
     private func enteredKinAmount() -> KinAmount? {
@@ -189,7 +165,7 @@ struct GiveKinScreen: View {
         return amount
     }
     
-    private func initiateSendOperation() async -> Bool {
+    private func initiateSendOperation() -> Bool {
         guard let amount = enteredKinAmount() else {
             trace(.failure, components: "Failed to initiate an operation. Amount invalid: \(self.amount)")
             return false
@@ -200,72 +176,16 @@ struct GiveKinScreen: View {
             return false
         }
         
-        guard hasSufficientFundsToSend(for: amount) else {
-            showInsufficientError()
-            return false
-        }
-        
-        guard hasAvailableDailyLimit() else {
-            showDailyLimitError()
-            return false
-        }
-        
-        guard hasAvailableTransactionLimit(for: amount) else {
-            showTransactionLimitError()
-            return false
-        }
-        
-        if let context = biometrics.verificationContext() {
-            let isVerified = await context.verify(reason: .giveKin)
-            guard isVerified else {
-                return false
-            }
-            try? await Task.delay(seconds: 1)
-        }
-        
-        session.attemptSend(bill: .init(
-            kind: .cash,
+        session.presentRequest(
             amount: amount,
-            didReceive: false
-        ))
+            payload: nil,
+            request: nil
+        )
         
         return true
     }
     
     // MARK: - Errors -
-    
-    private func showInsufficientError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.insuffiecientKin,
-            description: Localized.Error.Description.insuffiecientKin,
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showDailyLimitError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.giveLimitReached,
-            description: Localized.Error.Description.giveLimitReached,
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showTransactionLimitError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.giveAmountTooLarge,
-            description: Localized.Error.Description.giveAmountTooLarge(maxFiatAmount),
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
     
     private func showConnectivityError() {
         bannerController.show(
@@ -281,11 +201,10 @@ struct GiveKinScreen: View {
 
 // MARK: - Previews -
 
-struct GiveKinScreen_Previews: PreviewProvider {
-    static var previews: some View {
-        Preview(devices: .iPhoneMini) {
-            GiveKinScreen(session: .mock, isPresented: .constant(true))
-        }
-        .environmentObjectsForSession()
-    }
+#Preview {
+    GiveKinScreen(
+        session: .mock,
+        isPresented: .constant(true)
+    )
+    .environmentObjectsForSession()
 }

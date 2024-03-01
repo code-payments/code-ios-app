@@ -233,6 +233,9 @@
 /* Title for Get Kin */
 "title.getKin" = "Get Kin";
 
+/* Title for Request Kin */
+"title.requestKin" = "Request Kin";
+
 /* Title for Get More Kin */
 "title.getMoreKin" = "Get More Kin";
 

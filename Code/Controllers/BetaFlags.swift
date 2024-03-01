@@ -106,7 +106,7 @@ extension BetaFlags {
             case .showConnectivityStatus:
                 return "Show Connectivity Status"
             case .giveRequests:
-                return "Give Requests (Mode)"
+                return "Request Kin"
             case .buyKin:
                 return "Buy Kin"
             }
@@ -123,7 +123,7 @@ extension BetaFlags {
             case .showConnectivityStatus:
                 return "If enabled, a 'No Connection' badge will be shown on the scan screen when no internet connection is detected."
             case .giveRequests:
-                return "If enabled, Give Kin screen will show requests for entered amounts instead of cash bills."
+                return "If enabled, Request Kin screen will replace Get Kin."
             case .buyKin:
                 return "If enabled, a Buy More Kin will appear in the balance screen."
             }

@@ -83,6 +83,7 @@ enum Breadcrumb: String {
     case accountSelectionScreen = "Account Selection Screen"
     case contactsScreen = "Contacts Screen"
     case giveKinScreen = "Give Kin Screen"
+    case requestKinScreen = "Request Kin Screen"
     case balanceScreen = "Balance Screen"
     case bucketScreen = "Bucket Screen"
     case currencyScreen = "Currency Screen"
