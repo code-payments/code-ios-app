@@ -270,9 +270,9 @@ internal enum Localized {
       internal static let noInvitesLeft = Localized.tr("Localizable", "error.title.noInvitesLeft")
       /// You Haven't Been Invited Yet
       internal static let notInvitedYet = Localized.tr("Localizable", "error.title.notInvitedYet")
-      /// Purchase too large
+      /// Purchase Too Large
       internal static let purchaseTooLarge = Localized.tr("Localizable", "error.title.purchaseTooLarge")
-      /// Purchase too small
+      /// Purchase Too Small
       internal static let purchaseTooSmall = Localized.tr("Localizable", "error.title.purchaseTooSmall")
       /// Access Key No Longer Usable in Code
       internal static let timelockUnlocked = Localized.tr("Localizable", "error.title.timelockUnlocked")
