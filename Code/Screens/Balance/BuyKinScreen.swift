@@ -258,7 +258,7 @@ struct BuyKinScreen: View {
                         title: Localized.Action.next,
                         disabled: viewModel.isSendDisabled)
                     {
-                        viewModel.initiatePurchase()
+                        nextAction()
                     }
                     .padding(.top, 10)
                 }
@@ -274,6 +274,14 @@ struct BuyKinScreen: View {
             .onAppear {
                 didAppear()
             }
+        }
+    }
+    
+    private func nextAction() {
+        viewModel.initiatePurchase()
+        Task {
+            try await Task.delay(milliseconds: 200)
+            isPresented = false
         }
     }
 }
