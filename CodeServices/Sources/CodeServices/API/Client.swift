@@ -30,6 +30,7 @@ public class Client {
     internal let pushService: PushService
     internal let chatService: ChatService
     internal let badgeService: BadgeService
+    internal let deviceService: DeviceService
     
     // MARK: - Init -
     
@@ -53,6 +54,7 @@ public class Client {
         self.pushService        = PushService(channel: channel, queue: queue)
         self.chatService        = ChatService(channel: channel, queue: queue)
         self.badgeService       = BadgeService(channel: channel, queue: queue)
+        self.deviceService      = DeviceService(channel: channel, queue: queue)
     }
     
     deinit {

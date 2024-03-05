@@ -10,6 +10,7 @@ import Combine
 import CodeUI
 import CodeServices
 import SwiftUI
+import FirebaseInstallations
 
 protocol SessionDelegate: AnyObject {
     func didDetectUnlockedAccount()
@@ -90,10 +91,13 @@ class Session: ObservableObject {
         historyController.fetchChats()
         
         Task {
-            try await updatePhoneLinkStatus()
-            try await updateUserInfo()
-            try await updateUserPreferences()
-            try await resetAppBadgeCount()
+            //try? await fetchAccountsForInstallation()
+            try? await registerAppInstallation()
+            
+            try? await updatePhoneLinkStatus()
+            try? await updateUserInfo()
+            try? await updateUserPreferences()
+            try? await resetAppBadgeCount()
             
             // Must be after user info
             try await receiveFirstKinIfAvailable()
@@ -146,6 +150,25 @@ class Session: ObservableObject {
     private func resetAppBadgeCount() async throws {
         try await client.resetBadgeCount(for: organizer.ownerKeyPair)
         UIApplication.shared.applicationIconBadgeNumber = 0
+    }
+    
+    // MARK: - Installation -
+    
+    private func registerAppInstallation() async throws {
+        let installation = try await installationID()
+        
+        try await client.registerInstallation(
+            for: organizer.ownerKeyPair,
+            installationID: installation
+        )
+    }
+    
+    private func fetchAccountsForInstallation() async throws -> [PublicKey] {
+        try await client.fetchInstallationAccounts(for: try await installationID())
+    }
+    
+    private func installationID() async throws -> String {
+        try await Installations.installations().installationID()
     }
     
     // MARK: - Camera Session -
