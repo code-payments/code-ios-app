@@ -41,6 +41,12 @@ extension DeepLinkRequest {
     struct PaymentRequest: Equatable, Hashable {
         let fiat: Fiat
         let destination: PublicKey
+        let fees: [Fee]
+    }
+    
+    struct Fee: Equatable, Hashable, Codable {
+        let destination: String
+        let basisPoints: Int
     }
     
     struct LoginRequest: Equatable, Hashable {
@@ -65,6 +71,7 @@ extension DeepLinkRequest: Decodable {
         case currency
         case destination
         case amount
+        case fees
         
         case login
         
@@ -104,6 +111,9 @@ extension DeepLinkRequest: Decodable {
             let amount            = try container.decode(Decimal.self, forKey: .amount)
             let destinationString = try container.decode(String.self,  forKey: .destination)
             
+            // Optional
+            let fees = try container.decodeIfPresent([Fee].self, forKey: .fees)
+            
             guard let currency = CurrencyCode(currencyCode: currencyCode) else {
                 throw Error.invalidCurrencyCode
             }
@@ -116,7 +126,8 @@ extension DeepLinkRequest: Decodable {
             
             paymentRequest = PaymentRequest(
                 fiat: fiat,
-                destination: destination
+                destination: destination,
+                fees: fees ?? []
             )
             
         } catch {

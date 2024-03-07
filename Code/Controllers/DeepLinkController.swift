@@ -171,7 +171,7 @@ struct DeepLinkAction {
                 try await Task.delay(milliseconds: 500)
                 
                 let payload = Code.Payload(
-                    kind: .requestPaymentV2,
+                    kind: paymentRequest.fees.isEmpty ? .requestPayment : .requestPaymentV2, // Only use v2 for payments with fees
                     fiat: paymentRequest.fiat,
                     nonce: request.clientSecret
                 )
