@@ -8,6 +8,7 @@
 
 import Foundation
 import CodeAPI
+import Clibsodium
 
 public class Chat: Identifiable, ObservableObject {
     
@@ -121,10 +122,41 @@ extension Chat {
         public let date: Date
         public let contents: [Content]
         
+        public var hasEncryptedContent: Bool {
+            contents.first {
+                if case .sodiumBox = $0 {
+                    return true
+                } else {
+                    return false
+                }
+            } != nil
+        }
+        
         public init(id: ID, date: Date, contents: [Content]) {
             self.id = id
             self.date = date
             self.contents = contents
+        }
+        
+        public func decrypting(using keyPair: KeyPair) throws -> Message {
+            .init(
+                id: id,
+                date: date,
+                contents: contents.map { content in
+                    switch content {
+                    case .localized, .kin, .decrypted:
+                        return content // Passthrough
+                        
+                    case .sodiumBox(let encryptedData):
+                        do {
+                            let decrypted = try encryptedData.decryptMessageUsingNaclBox(keyPair: keyPair)
+                            return .decrypted(decrypted)
+                        } catch {
+                            return .sodiumBox(encryptedData) // Passthrough on failure
+                        }
+                    }
+                }
+            )
         }
     }
 }
@@ -148,7 +180,8 @@ extension Chat {
     public enum Content: Equatable, Hashable {
         case localized(String)
         case kin(GenericAmount, Verb)
-        case sodiumBox
+        case sodiumBox(EncryptedData)
+        case decrypted(String)
     }
 }
 
@@ -235,12 +268,53 @@ extension Chat.Content {
             }
             
             
-        case .naclBox:
-            self = .sodiumBox
+        case .naclBox(let encryptedContent):
+            guard let peerPublicKey = PublicKey(encryptedContent.peerPublicKey.value) else {
+                return nil
+            }
+            
+            let data = EncryptedData(
+                peerPublicKey: peerPublicKey,
+                nonce: encryptedContent.nonce,
+                encryptedData: encryptedContent.encryptedPayload
+            )
+            
+            self = .sodiumBox(data)
             
         default:
             return nil
         }
+    }
+}
+
+public struct EncryptedData: Equatable, Hashable, Codable {
+    
+    public var peerPublicKey: PublicKey
+    public var nonce: Data
+    public var encryptedData: Data
+    
+    public init(peerPublicKey: PublicKey, nonce: Data, encryptedData: Data) {
+        self.peerPublicKey = peerPublicKey
+        self.nonce = nonce
+        self.encryptedData = encryptedData
+    }
+    
+    public func decryptMessageUsingNaclBox(keyPair: KeyPair) throws -> String {
+        guard let encryptionKey = keyPair.encryptionPrivateKey else {
+            throw Error.invalidKeyPair
+        }
+        
+        let data = try encryptedData.boxOpen(
+            privateKey: encryptionKey,
+            publicKey: peerPublicKey,
+            nonce: nonce
+        )
+        
+        return String(data: data, encoding: .utf8)!
+    }
+    
+    enum Error: Swift.Error {
+        case invalidKeyPair
     }
 }
 

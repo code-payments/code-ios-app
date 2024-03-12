@@ -78,6 +78,6 @@ extension Date {
 private extension Date {
     static func weekAgo() -> Date {
         let c = Calendar.current
-        return c.date(byAdding: .day, value: -6, to: c.startOfDay(for: .now))!
+        return c.date(byAdding: .day, value: -6, to: c.startOfDay(for: .now()))!
     }
 }

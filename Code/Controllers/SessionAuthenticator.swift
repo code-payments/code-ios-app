@@ -117,10 +117,12 @@ final class SessionAuthenticator: ObservableObject {
     
     private func createSessionContainer(keyAccount: KeyAccount, user: User, client: Client, exchange: Exchange, cameraSession: CameraSession<CodeExtractor>, bannerController: BannerController, reachability: Reachability, betaFlags: BetaFlags) -> SessionContainer {
         
-        let historyController = HistoryController(client: client, owner: keyAccount.owner)
+        let organizer = Organizer(mnemonic: keyAccount.mnemonic)
+        
+        let historyController = HistoryController(client: client, organizer: organizer)
         
         let session = Session(
-            organizer: Organizer(mnemonic: keyAccount.mnemonic),
+            organizer: organizer,
             user: user,
             client: client,
             exchange: exchange,

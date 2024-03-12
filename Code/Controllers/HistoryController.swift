@@ -18,15 +18,17 @@ class HistoryController: ObservableObject {
     @Published private(set) var unreadCount: Int = 0
     
     private let client: Client
+    private let organizer: Organizer
     private let owner: KeyPair
     
     private let pageSize: Int = 100
     
     // MARK: - Init -
     
-    init(client: Client, owner: KeyPair) {
+    init(client: Client, organizer: Organizer) {
         self.client = client
-        self.owner = owner
+        self.organizer = organizer
+        self.owner = organizer.ownerKeyPair
         
         NotificationCenter.default.addObserver(forName: .pushNotificationReceived, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
@@ -154,11 +156,9 @@ class HistoryController: ObservableObject {
                     }
                             
                     do {
-                        let messages = try await self.client.fetchMessages(
-                            chatID: chat.id,
-                            owner: self.owner,
-                            direction: .descending(upTo: chat.oldestMessage?.id),
-                            pageSize: 100
+                        let messages = try await self.fetchAndDecryptMessages(
+                            for: chat,
+                            upTo: chat.oldestMessage?.id
                         )
                         
                         return (chat, messages)
@@ -185,11 +185,9 @@ class HistoryController: ObservableObject {
         
         var currentID: ID? = nil
         while true {
-            let messages = try? await self.client.fetchMessages(
-                chatID: chat.id,
-                owner: self.owner,
-                direction: .descending(upTo: currentID),
-                pageSize: pageSize
+            let messages = try? await fetchAndDecryptMessages(
+                for: chat,
+                upTo: currentID
             )
             
             guard let messages else {
@@ -208,6 +206,29 @@ class HistoryController: ObservableObject {
         }
         
         await setMessages(messages: container, for: chat.id)
+    }
+    
+    @CronActor
+    func fetchAndDecryptMessages(for chat: Chat, upTo id: ID?) async throws -> [Chat.Message] {
+        var messages = try await self.client.fetchMessages(
+            chatID: chat.id,
+            owner: self.owner,
+            direction: .descending(upTo: id),
+            pageSize: 100
+        )
+        
+        // Decrypt message if domain found. If decryption fails for
+        // what ever reason, we'll pass through the message array as is
+        if case .domain(let domain) = chat.title {
+            let hasEncryptedContent = messages.first { $0.hasEncryptedContent } != nil
+            if hasEncryptedContent, let relationship = self.organizer.relationship(for: domain) {
+                do {
+                    messages = try messages.map { try $0.decrypting(using: relationship.cluster.authority.keyPair) }
+                } catch {}
+            }
+        }
+        
+        return messages
     }
     
     // MARK: - Notifications -
@@ -241,6 +262,6 @@ extension Array where Element == Chat {
 extension HistoryController {
     static let mock = HistoryController(
         client: .mock,
-        owner: KeyAccount.mock.owner
+        organizer: .mock2
     )
 }

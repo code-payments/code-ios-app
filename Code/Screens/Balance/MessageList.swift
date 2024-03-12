@@ -66,6 +66,13 @@ public struct MessageList: View {
                                     location: .forIndex(index, count: message.contents.count)
                                 )
                                 
+                            case .decrypted(let content):
+                                MessageText(
+                                    text: content,
+                                    date: message.date,
+                                    location: .forIndex(index, count: message.contents.count)
+                                )
+                                
                             case .kin(let amount, let verb):
                                 if let rate = rate(for: amount.currency) {
                                     MessagePayment(
@@ -83,8 +90,7 @@ public struct MessageList: View {
                                 
                             case .sodiumBox:
                                 // TODO: Decrypt and show correct content
-                                MessageText(
-                                    text: content.localizedText,
+                                MessageEncrypted(
                                     date: message.date,
                                     location: .forIndex(index, count: message.contents.count)
                                 )
@@ -279,6 +285,46 @@ public struct MessageItem: View {
                 Spacer()
                 Text(subtitle)
                     .font(.appTextSmall)
+                    .foregroundColor(.textSecondary)
+            }
+        }
+        .padding([.top, .leading, .trailing], 20)
+        .padding(.bottom, 14)
+        .frame(maxWidth: .infinity)
+        .background(Color.backgroundItem)
+        .clipShape(UnevenRoundedCorners(
+            tl: location.topRadius,
+            bl: location.bottomRadius,
+            br: Metrics.chatMessageRadiusLarge,
+            tr: Metrics.chatMessageRadiusLarge
+        ))
+    }
+}
+
+public struct MessageEncrypted: View {
+    
+    public let date: Date
+    public let location: MessageSemanticLocation
+    
+    // MARK: - Init -
+        
+    public init(date: Date, location: MessageSemanticLocation) {
+        self.date = date
+        self.location = location
+    }
+    
+    // MARK: - Body -
+    
+    public var body: some View {
+        VStack(spacing: 7) {
+            Image.system(.lockDashed)
+                .font(.default(size: 30))
+                .foregroundColor(.textMain)
+                .padding(10)
+            HStack {
+                Spacer()
+                Text(date.formattedTime())
+                    .font(.appTextHeading)
                     .foregroundColor(.textSecondary)
             }
         }
@@ -502,6 +548,13 @@ struct MessageList_Previews: PreviewProvider {
                                     amount: 5.00
                                 )), .returned
                             ),
+                            .sodiumBox(
+                                EncryptedData(
+                                    peerPublicKey: .mock,
+                                    nonce: .init(),
+                                    encryptedData: .init()
+                                )
+                            )
                         ]
                     )
                 ],

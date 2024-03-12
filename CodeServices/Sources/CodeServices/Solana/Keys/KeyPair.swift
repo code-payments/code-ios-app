@@ -15,6 +15,19 @@ public struct KeyPair: Equatable, Codable, Hashable {
     public let privateKey: PrivateKey
     public let seed: Seed32?
     
+    /// Some cryptographic function require the private
+    /// key to be formatted this way to work correctly.
+    /// A good example of this would Sodium and the box
+    /// `seal` and `open` functions.
+    /// 
+    public var encryptionPrivateKey: PrivateKey? {
+        guard let seed else {
+            return nil
+        }
+        
+        return PrivateKey(seed.bytes + publicKey.bytes)
+    }
+    
     // MARK: - Init -
     
     public static func generate() -> KeyPair? {

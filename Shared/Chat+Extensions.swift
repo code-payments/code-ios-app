@@ -62,6 +62,9 @@ extension Chat.Content {
             
         case .sodiumBox:
             return "<! encrypted content !>"
+            
+        case .decrypted(let decryptedContent):
+            return decryptedContent
         }
     }
 }
