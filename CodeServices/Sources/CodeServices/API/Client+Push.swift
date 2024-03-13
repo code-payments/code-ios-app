@@ -10,9 +10,9 @@ import Foundation
 
 extension Client {
     
-    public func addToken(firebaseToken: String, containerID: ID, owner: KeyPair) async throws {
+    public func addToken(firebaseToken: String, containerID: ID, owner: KeyPair, installationID: String) async throws {
         try await withCheckedThrowingContinuation { c in
-            pushService.addToken(firebaseToken: firebaseToken, containerID: containerID, owner: owner) { c.resume(with: $0) }
+            pushService.addToken(firebaseToken: firebaseToken, containerID: containerID, owner: owner, installationID: installationID) { c.resume(with: $0) }
         }
     }
 }

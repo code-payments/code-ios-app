@@ -84,7 +84,8 @@ class PushController: ObservableObject {
                     try await client.addToken(
                         firebaseToken: firebaseToken,
                         containerID: containerID,
-                        owner: owner
+                        owner: owner,
+                        installationID: try await AppContainer.installationID()
                     )
                 }
             } else {

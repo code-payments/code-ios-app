@@ -12,15 +12,17 @@ import Combine
 import GRPC
 
 class PushService: CodeService<Code_Push_V1_PushNIOClient> {
-    func addToken(firebaseToken: String, containerID: ID, owner: KeyPair, completion: @escaping (Result<Void, ErrorAddToken>) -> Void) {
+    func addToken(firebaseToken: String, containerID: ID, owner: KeyPair, installationID: String, completion: @escaping (Result<Void, ErrorAddToken>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
-        var request = Code_Push_V1_AddTokenRequest()
-        request.pushToken = firebaseToken
-        request.containerID = containerID.codeContainerID
-        request.ownerAccountID = owner.publicKey.codeAccountID
-        request.tokenType = .fcmApns
-        request.signature = request.sign(with: owner)
+        let request = Code_Push_V1_AddTokenRequest.with {
+            $0.pushToken = firebaseToken
+            $0.containerID = containerID.codeContainerID
+            $0.ownerAccountID = owner.publicKey.codeAccountID
+            $0.tokenType = .fcmApns
+            $0.appInstall = .with { $0.value = installationID }
+            $0.signature = $0.sign(with: owner)
+        }
         
         let call = service.addToken(request)
         call.handle(on: queue) { response in

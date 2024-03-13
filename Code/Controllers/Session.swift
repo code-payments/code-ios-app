@@ -10,7 +10,6 @@ import Combine
 import CodeUI
 import CodeServices
 import SwiftUI
-import FirebaseInstallations
 
 protocol SessionDelegate: AnyObject {
     func didDetectUnlockedAccount()
@@ -155,7 +154,7 @@ class Session: ObservableObject {
     // MARK: - Installation -
     
     private func registerAppInstallation() async throws {
-        let installation = try await installationID()
+        let installation = try await AppContainer.installationID()
         
         try await client.registerInstallation(
             for: organizer.ownerKeyPair,
@@ -164,11 +163,7 @@ class Session: ObservableObject {
     }
     
     private func fetchAccountsForInstallation() async throws -> [PublicKey] {
-        try await client.fetchInstallationAccounts(for: try await installationID())
-    }
-    
-    private func installationID() async throws -> String {
-        try await Installations.installations().installationID()
+        try await client.fetchInstallationAccounts(for: try await AppContainer.installationID())
     }
     
     // MARK: - Camera Session -

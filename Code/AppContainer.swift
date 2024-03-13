@@ -10,6 +10,7 @@ import SwiftUI
 import CodeServices
 import CodeUI
 import Firebase
+import FirebaseInstallations
 
 @MainActor
 class AppContainer {
@@ -83,6 +84,10 @@ class AppContainer {
             .environmentObject(contentController)
             .environmentObject(pushController)
             .environmentObject(sessionAuthenticator)
+    }
+    
+    static func installationID() async throws -> String {
+        try await Installations.installations().installationID()
     }
 }
 
