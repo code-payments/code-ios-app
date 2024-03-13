@@ -113,28 +113,29 @@ class BuyKinViewModel: ObservableObject {
         UIPasteboard.general.string = amount
     }
     
-    func initiatePurchase() {
+    func initiatePurchase() -> Bool {
         guard let enteredKinAmount else {
-            return
+            return false
         }
         
         guard let kadoURL else {
-            return
+            return false
         }
         
         let limit = buyLimit
         
         guard enteredKinAmount.fiat >= limit.min else {
             showTooSmallError()
-            return
+            return false
         }
         
         guard enteredKinAmount.fiat <= limit.max else {
             showTooLargeError()
-            return
+            return false
         }
         
         kadoURL.openWithApplication()
+        return true
     }
     
     func establishSwapRelationshipIfNeeded() async throws {
@@ -278,10 +279,12 @@ struct BuyKinScreen: View {
     }
     
     private func nextAction() {
-        viewModel.initiatePurchase()
-        Task {
-            try await Task.delay(milliseconds: 200)
-            isPresented = false
+        let isInitiated = viewModel.initiatePurchase()
+        if isInitiated {
+            Task {
+                try await Task.delay(milliseconds: 200)
+                isPresented = false
+            }
         }
     }
 }
