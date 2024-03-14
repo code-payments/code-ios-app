@@ -12,6 +12,7 @@ import CodeServices
 struct BalanceScreen: View {
     
     @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var notificationController: NotificationController
     
     @Binding public var isPresented: Bool
     
@@ -130,6 +131,9 @@ struct BalanceScreen: View {
             }
         }
         .onAppear(perform: didAppear)
+        .onChange(of: notificationController.messageReceived) { _ in
+            fetchHistory()
+        }
     }
     
     @ViewBuilder private func header() -> some View {

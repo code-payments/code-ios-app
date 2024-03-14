@@ -50,6 +50,13 @@ class HistoryController: ObservableObject {
         }
     }
     
+    func updateBadgeCount() {
+        Task {
+            try await updateChatsBadgeCount()
+            computeUnreadCount()
+        }
+    }
+    
 //    func updateChats() {
 //        Task {
 //            try await updateAllChats()
@@ -57,7 +64,7 @@ class HistoryController: ObservableObject {
 //    }
     
     private func fetchAllChats() async throws {
-        chats = try await fetchChats()
+        chats = try await fetchChatsAndInitialMessages()
         hasFetchedChats = true
         
         computeUnreadCount()
@@ -120,30 +127,26 @@ class HistoryController: ObservableObject {
     // MARK: - Fetching -
     
     @CronActor
-    private func fetchChats() async throws -> [Chat] {
+    private func fetchChatsAndInitialMessages() async throws -> [Chat] {
         let chats = try await client.fetchChats(owner: owner)
         return try await fetchInitialMessages(for: chats)
     }
     
-//    @CronActor
-//    private func updatingChats(chats: [Chat]) async throws -> [Chat] {
-//        let existingChats = chats.elementsKeyed(by: \.id)
-//        let newChats = try await client.fetchChats(owner: owner)
-//        
-//        for newChat in newChats {
-//            if let existingChat = existingChats[newChat.id] {
-//                newChat.setMessages(existingChat.messages)
-//            }
-//        }
-//        
-//        let filledChats = try await fetchInitialMessages(for: newChats)
-//        
-//        return filledChats.sortedByMessageOrder()
-//    }
+    @CronActor
+    private func updateChatsBadgeCount() async throws {
+        let existingChats = await chats.elementsKeyed(by: \.id)
+        let newChats = try await client.fetchChats(owner: owner)
+        
+        for newChat in newChats {
+            if let existingChat = existingChats[newChat.id] {
+                existingChat.unreadCount = newChat.unreadCount
+            }
+        }
+    }
     
     @CronActor
     private func fetchInitialMessages(for chats: [Chat]) async throws -> [Chat] {
-        var container: [Chat] = []
+        var chatContainer: [Chat] = []
         
         await withTaskGroup(of: (Chat, [Chat.Message]).self) { group in
             chats.forEach { chat in
@@ -170,11 +173,11 @@ class HistoryController: ObservableObject {
             
             for await (chat, messages) in group {
                 chat.setMessages(messages)
-                container.append(chat)
+                chatContainer.append(chat)
             }
         }
         
-        return container.sortedByMessageOrder()
+        return chatContainer.sortedByMessageOrder()
     }
     
     @CronActor
@@ -187,7 +190,8 @@ class HistoryController: ObservableObject {
         while true {
             let messages = try? await fetchAndDecryptMessages(
                 for: chat,
-                upTo: currentID
+                upTo: currentID,
+                pageSize: 100
             )
             
             guard let messages else {
@@ -209,12 +213,12 @@ class HistoryController: ObservableObject {
     }
     
     @CronActor
-    func fetchAndDecryptMessages(for chat: Chat, upTo id: ID?) async throws -> [Chat.Message] {
+    func fetchAndDecryptMessages(for chat: Chat, upTo id: ID?, pageSize: Int? = nil) async throws -> [Chat.Message] {
         var messages = try await self.client.fetchMessages(
             chatID: chat.id,
             owner: self.owner,
             direction: .descending(upTo: id),
-            pageSize: 100
+            pageSize: pageSize ?? 20
         )
         
         // Decrypt message if domain found. If decryption fails for
@@ -234,7 +238,11 @@ class HistoryController: ObservableObject {
     // MARK: - Notifications -
     
     func pushNotificationReceived() {
-        fetchChats()
+        updateBadgeCount()
+    }
+    
+    func appDidBecomeActive() {
+        updateBadgeCount()
     }
 }
 

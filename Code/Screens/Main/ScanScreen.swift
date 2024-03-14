@@ -282,6 +282,7 @@ struct ScanScreen: View {
                         .environmentObject(client)
                         .environmentObject(betaFlags)
                         .environmentObject(bannerController)
+                        .environmentObject(notificationController)
                     }
                 } else {
                     if !session.billState.hideBillButtons {

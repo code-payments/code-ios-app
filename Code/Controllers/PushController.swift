@@ -45,6 +45,7 @@ class PushController: ObservableObject {
         
         updateStatus()
         register()
+        resetAppBadgeCount()
         
         stateSubscription = sessionAuthenticator.$state.sink { [weak self] state in
             // Subscriptions are invoked with `willSet` semantics so we need
@@ -68,6 +69,21 @@ class PushController: ObservableObject {
         trace(.warning, components: "Received APNs token: \(token.hexEncodedString())")
         apnsToken = token
         firebase.setAPNSToken(token, type: .unknown)
+    }
+    
+    // MARK: - Badge -
+    
+    func appDidBecomeActive() {
+        resetAppBadgeCount()
+    }
+    
+    private func resetAppBadgeCount() {
+        UIApplication.shared.applicationIconBadgeNumber = 0
+        if case .loggedIn(let container) = sessionAuthenticator.state {
+            Task {
+                try await client.resetBadgeCount(for: container.session.organizer.ownerKeyPair)
+            }
+        }
     }
     
     // MARK: - Firebase -
@@ -135,12 +151,19 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
     }
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
-        trace(.warning, components: "Will present: \(notification)")
+        trace(.warning, components: 
+              "Date:     \(notification.date)",
+              "Category: \(notification.request.content.categoryIdentifier)",
+              "Thread:   \(notification.request.content.threadIdentifier)",
+              "Title:    \(notification.request.content.title)",
+              "Body:     \(notification.request.content.body)",
+              "Info:     \(notification.request.content.userInfo)"
+        )
         
         firebase.appDidReceiveMessage(notification.request.content.userInfo)
         
         DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
+            NotificationCenter.default.post(name: .pushNotificationReceived, object: notification)
         }
         
 //        let isActive = await UIApplication.shared.applicationState == .active
@@ -149,7 +172,6 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
 //        let options: UNNotificationPresentationOptions = isActive ? [] : [.badge, .banner, .list, .sound]
         let options: UNNotificationPresentationOptions = [.badge, .banner, .list, .sound]
         
-        trace(.warning, components: "Presenting notification with: \(options)")
         return options
     }
     

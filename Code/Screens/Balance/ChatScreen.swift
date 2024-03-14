@@ -13,6 +13,7 @@ struct ChatScreen: View {
     
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var notificationController: NotificationController
     
     @ObservedObject private var chat: Chat
     @ObservedObject private var historyController: HistoryController
@@ -73,6 +74,9 @@ struct ChatScreen: View {
             }
             .onAppear {
                 didAppear()
+            }
+            .onChange(of: notificationController.messageReceived) { _ in
+                fetchAllMessages()
             }
         }
         .navigationBarHidden(false)

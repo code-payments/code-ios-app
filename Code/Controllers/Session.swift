@@ -96,7 +96,6 @@ class Session: ObservableObject {
             try? await updatePhoneLinkStatus()
             try? await updateUserInfo()
             try? await updateUserPreferences()
-            try? await resetAppBadgeCount()
             
             // Must be after user info
             try await receiveFirstKinIfAvailable()
@@ -144,11 +143,6 @@ class Session: ObservableObject {
             
             historyController.fetchChats()
         }
-    }
-    
-    private func resetAppBadgeCount() async throws {
-        try await client.resetBadgeCount(for: organizer.ownerKeyPair)
-        UIApplication.shared.applicationIconBadgeNumber = 0
     }
     
     // MARK: - Installation -

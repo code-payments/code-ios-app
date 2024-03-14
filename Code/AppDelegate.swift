@@ -136,6 +136,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func applicationDidBecomeActive(_ application: UIApplication) {
         cancelBackgroundTaskIfNeeded()
+        appContainer.pushController.appDidBecomeActive()
+        
+        if case .loggedIn(let container) = appContainer.sessionAuthenticator.state {
+            container.historyController.appDidBecomeActive()
+        }
     }
     
     private func computeTimeIntervalSinceLastActive() -> TimeInterval? {
