@@ -23,6 +23,7 @@ class NotificationController: ObservableObject {
         NotificationCenter.default.addObserver(self, selector: #selector(willResignActiveNotification),      name: UIApplication.willResignActiveNotification,      object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(userDidTakeScreenshotNotification), name: UIApplication.userDidTakeScreenshotNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(pushReceivedNotification),          name: .pushNotificationReceived,                       object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(messageReceivedNotification),       name: .messageNotificationReceived,                    object: nil)
     }
     
     @objc private func didBecomeActiveNotification() {
@@ -43,19 +44,15 @@ class NotificationController: ObservableObject {
         }
     }
     
-    @objc private func pushReceivedNotification(notification: Notification) {
+    @objc private func pushReceivedNotification() {
         DispatchQueue.main.async {
-            guard let push = notification.object as? UNNotification else {
-                self.pushReceived += 1
-                return
-            }
-            
-            switch push.request.content.categoryIdentifier {
-            case "ChatMessage":
-                self.messageReceived += 1
-            default:
-                self.pushReceived += 1
-            }
+            self.pushReceived += 1
+        }
+    }
+    
+    @objc private func messageReceivedNotification() {
+        DispatchQueue.main.async {
+            self.messageReceived += 1
         }
     }
 }

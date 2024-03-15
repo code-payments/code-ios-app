@@ -23,6 +23,8 @@ class HistoryController: ObservableObject {
     
     private let pageSize: Int = 100
     
+    private var fetchInflight: Bool = false
+    
     // MARK: - Init -
     
     init(client: Client, organizer: Organizer) {
@@ -30,7 +32,7 @@ class HistoryController: ObservableObject {
         self.organizer = organizer
         self.owner = organizer.ownerKeyPair
         
-        NotificationCenter.default.addObserver(forName: .pushNotificationReceived, object: nil, queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(forName: .messageNotificationReceived, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
             Task {
                 await self.pushNotificationReceived()
@@ -46,35 +48,28 @@ class HistoryController: ObservableObject {
     
     func fetchChats() {
         Task {
-            try await fetchAllChats()
+            try await fetchChats()
         }
     }
     
-    func updateBadgeCount() {
-        Task {
-            try await updateChatsBadgeCount()
-            computeUnreadCount()
+    private func fetchChats() async throws {
+        guard !fetchInflight else {
+            return
         }
-    }
-    
-//    func updateChats() {
-//        Task {
-//            try await updateAllChats()
-//        }
-//    }
-    
-    private func fetchAllChats() async throws {
-        chats = try await fetchChatsAndInitialMessages()
-        hasFetchedChats = true
+        
+        fetchInflight = true
+        if !hasFetchedChats {
+            trace(.warning, components: "Fetching ALL chats, ALL messages.")
+            chats = try await fetchAllChatsAndMessages()
+            hasFetchedChats = true
+        } else {
+            trace(.send, components: "Fetching delta chats and messages...")
+            chats = try await fetchDeltaChatsAndMessages()
+        }
         
         computeUnreadCount()
+        fetchInflight = false
     }
-    
-//    private func updateAllChats() async throws {
-//        chats = try await updatingChats(chats: chats)
-//        
-//        computeUnreadCount()
-//    }
     
     private func computeUnreadCount() {
         unreadCount = computeUnreadCount(for: chats)
@@ -139,71 +134,80 @@ class HistoryController: ObservableObject {
     // MARK: - Fetching -
     
     @CronActor
-    private func fetchChatsAndInitialMessages() async throws -> [Chat] {
+    private func fetchAllChatsAndMessages() async throws -> [Chat] {
         let chats = try await client.fetchChats(owner: owner)
-        return try await fetchInitialMessages(for: chats)
+        trace(.success, components: "Chats: \(chats.count)")
+        return try await fetchAllMessages(chats: chats)
     }
     
     @CronActor
-    private func updateChatsBadgeCount() async throws {
-        let existingChats = await chats.elementsKeyed(by: \.id)
-        let newChats = try await client.fetchChats(owner: owner)
+    private func fetchDeltaChatsAndMessages() async throws -> [Chat] {
+        let chats = await updating(
+            existing: await self.chats,
+            with: try await client.fetchChats(owner: owner)
+        )
         
-        for newChat in newChats {
-            if let existingChat = existingChats[newChat.id] {
-                existingChat.unreadCount = newChat.unreadCount
+        trace(.success, components: "Chats: \(chats.count)")
+        return try await fetchLatestMessagesOnly(chats: chats)
+    }
+    
+    @CronActor
+    private func updating(existing existingChats: [Chat], with newChats: [Chat]) async -> [Chat] {
+        let index = existingChats.elementsKeyed(by: \.id)
+        var updatedChats = newChats
+        for (i, updatedChat) in updatedChats.enumerated() {
+            
+            // If this chat exists, we'll reuse the same
+            // object instance and update it's properties.
+            // There could be existing binding to this
+            // observable object that we don't want to break.
+            if let existingChat = await index[updatedChat.id] {
+                await update(chat: existingChat, from: updatedChat)
+                updatedChats[i] = existingChat
+            } else {
+                // Do nothing, this is a new chat
             }
         }
+        
+        return updatedChats
+    }
+    
+    private func update(chat: Chat, from newChat: Chat) {
+        chat.update(from: newChat)
     }
     
     @CronActor
-    private func fetchInitialMessages(for chats: [Chat]) async throws -> [Chat] {
+    private func fetchAllMessages(chats: [Chat]) async throws -> [Chat] {
         var chatContainer: [Chat] = []
         
         await withTaskGroup(of: (Chat, [Chat.Message]).self) { group in
             chats.forEach { chat in
                 group.addTask {
-                    
-                    // Only fetch messages for chats that don't have any
-                    // messages. All messages will be fetch on open anyway
-                    guard chat.messages.isEmpty else {
-                        return (chat, chat.messages)
-                    }
-                            
-                    do {
-                        let messages = try await self.fetchAndDecryptMessages(
-                            for: chat,
-                            upTo: chat.oldestMessage?.id
-                        )
-                        
-                        return (chat, messages)
-                    } catch {
-                        return (chat, [])
-                    }
+                    let messages = await self.fetchAllMessages(chat: chat)
+                    return (chat, messages)
                 }
             }
             
             for await (chat, messages) in group {
-                chat.setMessages(messages)
+                await chat.setMessages(messages)
                 chatContainer.append(chat)
             }
         }
         
-        return chatContainer.sortedByMessageOrder()
+        return await chatContainer.sortedByMessageOrder()
     }
     
     @CronActor
-    func fetchAllMessages(for chat: Chat) async throws {
+    private func fetchAllMessages(chat: Chat) async -> [Chat.Message] {
         var container: [Chat.Message] = []
         
-        let pageSize = 100
-        
+        var pages = 1
         var currentID: ID? = nil
         while true {
             let messages = try? await fetchAndDecryptMessages(
-                for: chat,
-                upTo: currentID,
-                pageSize: 100
+                chat: chat,
+                direction: .descending(upTo: currentID),
+                pageSize: pageSize
             )
             
             guard let messages else {
@@ -219,23 +223,79 @@ class HistoryController: ObservableObject {
             }
             
             currentID = messages.last!.id
+            pages += 1
         }
         
-        await setMessages(messages: container, for: chat.id)
+        trace(.success, components: "Chat ID: \(await chat.id)", "Messages: \(container.count)", "Pages: \(pages)")
+        return container
     }
     
     @CronActor
-    func fetchAndDecryptMessages(for chat: Chat, upTo id: ID?, pageSize: Int? = nil) async throws -> [Chat.Message] {
+    private func fetchLatestMessagesOnly(chats: [Chat]) async throws -> [Chat] {
+        var chatContainer: [Chat] = []
+        
+        await withTaskGroup(of: (Chat, [Chat.Message]).self) { group in
+            chats.forEach { chat in
+                group.addTask {
+                    let messages = await self.fetchLatestMessagesOnly(chat: chat)
+                    return (chat, messages)
+                }
+            }
+            
+            for await (chat, messages) in group {
+                await chat.appendMessages(messages)
+                chatContainer.append(chat)
+            }
+        }
+        
+        return await chatContainer.sortedByMessageOrder()
+    }
+    
+    @CronActor
+    private func fetchLatestMessagesOnly(chat: Chat) async -> [Chat.Message] {
+        var container: [Chat.Message] = []
+        
+        var pages = 1
+        var lastID = await chat.latestMessage()?.id
+        while true {
+            let messages = try? await fetchAndDecryptMessages(
+                chat: chat,
+                direction: .ascending(from: lastID), // If nil, form the beginning
+                pageSize: pageSize
+            )
+            
+            guard let messages else {
+                break
+            }
+            
+            container.append(contentsOf: messages)
+            
+            guard messages.count >= pageSize else {
+                // If the number of messags fetched
+                // is less than the page, it's the end
+                break
+            }
+            
+            lastID = messages.last!.id
+            pages += 1
+        }
+        
+        trace(.success, components: "Chat ID: \(await chat.id)", "Messages: \(container.count)", "Pages: \(pages)")
+        return container
+    }
+    
+    @CronActor
+    private func fetchAndDecryptMessages(chat: Chat, direction: MessageDirection, pageSize: Int) async throws -> [Chat.Message] {
         var messages = try await self.client.fetchMessages(
             chatID: chat.id,
             owner: self.owner,
-            direction: .descending(upTo: id),
-            pageSize: pageSize ?? 20
+            direction: direction,
+            pageSize: pageSize
         )
         
         // Decrypt message if domain found. If decryption fails for
         // what ever reason, we'll pass through the message array as is
-        if case .domain(let domain) = chat.title {
+        if case .domain(let domain) = await chat.title {
             let hasEncryptedContent = messages.first { $0.hasEncryptedContent } != nil
             if hasEncryptedContent, let relationship = self.organizer.relationship(for: domain) {
                 do {
@@ -250,15 +310,17 @@ class HistoryController: ObservableObject {
     // MARK: - Notifications -
     
     func pushNotificationReceived() {
-        updateBadgeCount()
+        fetchChats()
     }
     
     func appDidBecomeActive() {
-        updateBadgeCount()
+        fetchChats()
     }
 }
 
-extension Array where Element == Chat {
+private extension Array where Element == Chat {
+    
+    @MainActor
     func sortedByMessageOrder() -> [Element] {
         sorted { lhs, rhs in
             let leftDate  = lhs.messages.last?.date

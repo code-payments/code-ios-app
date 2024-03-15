@@ -10,40 +10,41 @@ import Foundation
 import CodeAPI
 import Clibsodium
 
+@MainActor
 public class Chat: Identifiable, ObservableObject {
     
     /// Unique chat identifier
-    public let id: ID
+    public private(set) var id: ID
     
     /// Cursor value for this chat for reference in subsequent GetChatsRequest
-    public let cursor: ID
+    public private(set) var cursor: ID
     
     /// Recommended chat title inferred by the type of chat
-    public let title: Title?
+    public private(set) var title: Title?
     
     /// Pointer in the chat indicating the most recently read message by the user
-    public let pointer: Pointer?
+    public private(set) var pointer: Pointer?
     
     /// Estimated number of unread messages in this chat
-    public var unreadCount: Int
+    public private(set) var unreadCount: Int
     
     /// Can the user mute this chat?
-    public let canMute: Bool
+    public private(set) var canMute: Bool
     
     /// Has the user muted this chat?
-    public var isMuted: Bool
+    public private(set) var isMuted: Bool
     
     /// Can the user unsubscribe from this chat?
-    public let canUnsubscribe: Bool
+    public private(set) var canUnsubscribe: Bool
 
     /// Is the user subscribed to this chat?
-    public var isSubscribed: Bool
+    public private(set) var isSubscribed: Bool
 
     /// Is this a verified chat?
     ///
     /// Note: It's possible to have two chats with the same title, but with
     /// different verification statuses. They should be treated separately.
-    public let isVerified: Bool
+    public private(set) var isVerified: Bool
     
     @Published public private(set) var messages: [Message] = []
     
@@ -85,10 +86,39 @@ public class Chat: Identifiable, ObservableObject {
     
     // MARK: - Messages -
     
+    public func appendMessages(_ messages: [Message]) {
+        self.messages = (self.messages + messages).sortedByDateDesc()
+    }
+    
+    public func setSortedMessages(_ messages: [Message]) {
+        self.messages = messages
+    }
+    
     public func setMessages(_ messages: [Message]) {
-        self.messages = messages.sorted { lhs, rhs in
-            lhs.date < rhs.date // Desc
+        setSortedMessages(messages.sortedByDateDesc())
+    }
+    
+    public func latestMessage() -> Message? {
+        messages.last // Order is ascending
+    }
+    
+    @discardableResult
+    public func update(from chat: Chat) -> Bool {
+        guard chat.id == id else {
+            return false
         }
+        
+        cursor         = chat.cursor
+        title          = chat.title
+        pointer        = chat.pointer
+        unreadCount    = chat.unreadCount
+        canMute        = chat.canMute
+        isMuted        = chat.isMuted
+        canUnsubscribe = chat.canUnsubscribe
+        isSubscribed   = chat.isSubscribed
+        isVerified     = chat.isVerified
+        
+        return true
     }
 }
 
@@ -365,6 +395,14 @@ extension Chat.Pointer {
             self = .read(.init(data: proto.value.value))
         default:
             self = .unknown
+        }
+    }
+}
+
+extension Array where Element == Chat.Message {
+    func sortedByDateDesc() -> [Element] {
+        sorted { lhs, rhs in
+            lhs.date < rhs.date // Desc
         }
     }
 }

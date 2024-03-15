@@ -39,9 +39,7 @@ struct ChatScreen: View {
     }
     
     private func fetchAllMessages() {
-        Task {
-            try await historyController.fetchAllMessages(for: chat)
-        }
+        historyController.fetchChats()
     }
     
     // MARK: - Body -
@@ -76,7 +74,7 @@ struct ChatScreen: View {
                 didAppear()
             }
             .onChange(of: notificationController.messageReceived) { _ in
-                fetchAllMessages()
+                didAppear()
             }
         }
         .navigationBarHidden(false)

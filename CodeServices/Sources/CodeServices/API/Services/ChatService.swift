@@ -14,7 +14,7 @@ import GRPC
 class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
     
     func fetchChats(owner: KeyPair, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Chat_V1_GetChatsRequest.with {
             $0.owner = owner.publicKey.codeAccountID
@@ -26,9 +26,11 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchChats(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok || error == .notFound {
-                let chats = response.chats.map { Chat($0) }
-                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chats: \(chats.count)")
-                completion(.success(chats))
+//                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chats: \(chats.count)")
+                DispatchQueue.main.async {
+                    let chats = response.chats.map { Chat($0) }
+                    completion(.success(chats))
+                }
             } else {
                 trace(.success, components: "Error: \(error)")
                 completion(.failure(error))
@@ -40,7 +42,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
     }
     
     func fetchMessages(chatID: ID, owner: KeyPair, direction: MessageDirection, pageSize: Int, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())", "Page size: \(pageSize)")
+//        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())", "Page size: \(pageSize)")
         
         let request = Code_Chat_V1_GetMessagesRequest.with {
             $0.chatID   = .with { $0.value = chatID.data }
@@ -70,7 +72,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
             let error = ErrorFetchMessages(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok || error == .notFound {
                 let messages = response.messages.map { Chat.Message($0) }
-                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Messages: \(messages.count)")
+//                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Messages: \(messages.count)")
                 completion(.success(messages))
             } else {
                 trace(.success, components: "Error: \(error)")

@@ -163,7 +163,12 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         firebase.appDidReceiveMessage(notification.request.content.userInfo)
         
         DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .pushNotificationReceived, object: notification)
+            switch notification.request.content.categoryIdentifier {
+            case "ChatMessage":
+                NotificationCenter.default.post(name: .messageNotificationReceived, object: nil)
+            default:
+                NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
+            }
         }
         
 //        let isActive = await UIApplication.shared.applicationState == .active
@@ -195,4 +200,5 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
 
 extension NSNotification.Name {
     static let pushNotificationReceived = Notification.Name("com.code.pushNotificationReceived")
+    static let messageNotificationReceived = Notification.Name("com.code.messageNotificationReceived")
 }
