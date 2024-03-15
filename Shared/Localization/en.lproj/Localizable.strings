@@ -92,6 +92,9 @@
 /* Unsubscribe */
 "action.unsubscribe" = "Unsubscribe";
 
+/* Subscribe */
+"action.subscribe" = "Subscribe";
+
 /* No */
 "action.noTryAgain" = "No, Try Again";
 
@@ -829,6 +832,24 @@
 
 /* Prompt description when confirming remote send link was sent */
 "prompt.description.didYouSendLink" = "Any Kin that isn't collected within 24 hours will be automatically returned to your balance.";
+
+/* Prompt title when muting a chat */
+"prompt.title.mute" = "Mute %@?";
+
+/* Prompt description when muting a chat */
+"prompt.description.mute" = "You will not be notified of any new messages from %@. You can unmute at any time.";
+
+/* Prompt title when unmuting a chat */
+"prompt.title.unmute" = "Unmute %@?";
+
+/* Prompt description when unmuting a chat */
+"prompt.description.unmute" = "You will be notified of all new messages from %@. You can mute at any time.";
+
+/* Prompt title when unsubscribing from a chat */
+"prompt.title.unsubscribe" = "Unsubscribe from %@?";
+
+/* Prompt description when unsubscribing from a chat */
+"prompt.description.unsubscribe" = "You will not receive any messages from %@ until you pay them again.";
 
 
 

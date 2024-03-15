@@ -108,6 +108,8 @@ internal enum Localized {
     internal static let shareDownloadLink = Localized.tr("Localizable", "action.shareDownloadLink")
     /// Share This Video
     internal static let shareVideo = Localized.tr("Localizable", "action.shareVideo")
+    /// Subscribe
+    internal static let subscribe = Localized.tr("Localizable", "action.subscribe")
     /// Swipe to Login
     internal static let swipeToLogin = Localized.tr("Localizable", "action.swipeToLogin")
     /// Swipe to Pay
@@ -362,10 +364,22 @@ internal enum Localized {
       internal static let exitAccountCreation = Localized.tr("Localizable", "prompt.description.exitAccountCreation")
       /// You can get back into this account using your Access Key
       internal static let logout = Localized.tr("Localizable", "prompt.description.logout")
+      /// You will not be notified of any new messages from %@. You can unmute at any time.
+      internal static func mute(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "prompt.description.mute", String(describing: p1))
+      }
       /// Only accounts created through Code are currently supported.
       internal static let notCodeAccount = Localized.tr("Localizable", "prompt.description.notCodeAccount")
       /// Your friends will no longer be able to find you with this phone number.
       internal static let unlinkPhoneNumber = Localized.tr("Localizable", "prompt.description.unlinkPhoneNumber")
+      /// You will be notified of all new messages from %@. You can mute at any time.
+      internal static func unmute(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "prompt.description.unmute", String(describing: p1))
+      }
+      /// You will not receive any messages from %@ until you pay them again.
+      internal static func unsubscribe(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "prompt.description.unsubscribe", String(describing: p1))
+      }
       /// Your Access Key will grant access to your Code account. Keep it private and safe.
       internal static let viewAccessKey = Localized.tr("Localizable", "prompt.description.viewAccessKey")
       /// These 12 words are the only way to recover your Code account. Make sure you wrote them down, and keep them private and safe.
@@ -382,10 +396,22 @@ internal enum Localized {
       internal static let exitAccountCreation = Localized.tr("Localizable", "prompt.title.exitAccountCreation")
       /// Are you sure you want to log out?
       internal static let logout = Localized.tr("Localizable", "prompt.title.logout")
+      /// Mute %@?
+      internal static func mute(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "prompt.title.mute", String(describing: p1))
+      }
       /// Not a Code Account
       internal static let notCodeAccount = Localized.tr("Localizable", "prompt.title.notCodeAccount")
       /// Are you sure?
       internal static let unlinkPhoneNumber = Localized.tr("Localizable", "prompt.title.unlinkPhoneNumber")
+      /// Unmute %@?
+      internal static func unmute(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "prompt.title.unmute", String(describing: p1))
+      }
+      /// Unsubscribe from %@?
+      internal static func unsubscribe(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "prompt.title.unsubscribe", String(describing: p1))
+      }
       /// View Your Access Key?
       internal static let viewAccessKey = Localized.tr("Localizable", "prompt.title.viewAccessKey")
       /// Are You Sure?

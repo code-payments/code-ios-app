@@ -75,8 +75,12 @@ public class Chat: Identifiable, ObservableObject {
         unreadCount = 0
     }
     
-    public func mute(_ muted: Bool) {
+    public func setMuted(_ muted: Bool) {
         isMuted = muted
+    }
+    
+    public func setSubscribed(_ subscribed: Bool) {
+        isSubscribed = subscribed
     }
     
     // MARK: - Messages -

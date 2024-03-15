@@ -55,14 +55,14 @@ struct ChatScreen: View {
                     HStack(spacing: 0) {
                         if chat.canMute {
                             VStack {
-                                button(title: muteTitle(), action: muteAction)
+                                button(title: muteTitle(), action: setMuteStateAction)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         
                         if chat.canUnsubscribe {
                             VStack {
-                                button(title: Localized.Action.unsubscribe) {}
+                                button(title: subscriptionTitle(), action: setSubscriptionStateAction)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .hSeparator(color: .rowSeparator, position: .leading, weight: .medium)
@@ -96,7 +96,19 @@ struct ChatScreen: View {
         }
     }
     
-    // MARK: - Mute -
+    // MARK: - State -
+    
+    private func setMuteState(muted: Bool) {
+        Task {
+            try await historyController.setMuted(muted, for: chat)
+        }
+    }
+    
+    private func setSubscriptionState() {
+        Task {
+            try await historyController.setSubscribed(!chat.isSubscribed, for: chat)
+        }
+    }
 
     private func muteTitle() -> String {
         if chat.isMuted {
@@ -106,35 +118,64 @@ struct ChatScreen: View {
         }
     }
     
+    private func subscriptionTitle() -> String {
+        if chat.isSubscribed {
+            return Localized.Action.unsubscribe
+        } else {
+            return Localized.Action.subscribe
+        }
+    }
+    
     // MARK: - Actions -
     
-    private func muteAction() {
-        let action = chat.isMuted ? Localized.Action.unmute : Localized.Action.mute
-        let inverseAction = chat.isMuted ? Localized.Action.mute : Localized.Action.unmute
+    private func setMuteStateAction() {
         
+        let shouldMute = !chat.isMuted
+        
+        let action: String
+        let title: String
         let description: String
-        if chat.isMuted { 
-            description = "You will be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction.lowercased()) at any time."
+        
+        if shouldMute {
+            title = Localized.Prompt.Title.mute(chat.localizedTitle)
+            description = Localized.Prompt.Description.mute(chat.localizedTitle)
+            action = Localized.Action.mute
         } else {
-            description = "You will not be notified of any new messages from \(chat.localizedTitle). You can \(inverseAction.lowercased()) at any time."
+            title = Localized.Prompt.Title.unmute(chat.localizedTitle)
+            description = Localized.Prompt.Description.unmute(chat.localizedTitle)
+            action = Localized.Action.unmute
         }
         
         bannerController.show(
             style: .error,
-            title: "\(action) \(chat.localizedTitle)?",
+            title: title,
             description: description,
             position: .bottom,
             isDismissable: false,
             actions: [
-                .destructive(title: action, action: muteChat),
+                .destructive(title: action) {
+                    setMuteState(muted: shouldMute)
+                },
                 .cancel(title: Localized.Action.cancel),
             ]
         )
     }
     
-    private func muteChat() {
-        Task {
-            try await historyController.setMuted(!chat.isMuted, for: chat)
+    private func setSubscriptionStateAction() {
+        if chat.isSubscribed {
+            bannerController.show(
+                style: .error,
+                title: Localized.Prompt.Title.unsubscribe(chat.localizedTitle),
+                description: Localized.Prompt.Description.unsubscribe(chat.localizedTitle),
+                position: .bottom,
+                isDismissable: false,
+                actions: [
+                    .destructive(title: Localized.Action.unsubscribe, action: setSubscriptionState),
+                    .cancel(title: Localized.Action.cancel),
+                ]
+            )
+        } else {
+            setSubscriptionState()
         }
     }
 }

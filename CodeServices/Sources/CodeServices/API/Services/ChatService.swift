@@ -138,6 +138,33 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func setSubscriptionState(chatID: ID, subscribed: Bool, owner: KeyPair, completion: @escaping (Result<Void, ErrorSetSubscriptionState>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.data.hexEncodedString())")
+        
+        let request = Code_Chat_V1_SetSubscriptionStateRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.isSubscribed = subscribed
+            $0.owner = owner.publicKey.codeAccountID
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.setSubscriptionState(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSetSubscriptionState(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success, components: "Chat ID: \(chatID.data.hexEncodedString())", "Subscribed: \(subscribed)")
+                completion(.success(()))
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Types -
@@ -172,6 +199,13 @@ public enum ErrorSetMuteState: Int, Error {
     case ok
     case chatNotFound
     case cantMute
+    case unknown = -1
+}
+
+public enum ErrorSetSubscriptionState: Int, Error {
+    case ok
+    case chatNotFound
+    case cantUnsubscribe
     case unknown = -1
 }
 

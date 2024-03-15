@@ -97,13 +97,25 @@ class HistoryController: ObservableObject {
     }
     
     func setMuted(_ muted: Bool, for chat: Chat) async throws {
-        chat.mute(muted)
+        chat.setMuted(muted)
         
         computeUnreadCount()
         
         try await client.setMuteState(
             chatID: chat.id,
             muted: muted,
+            owner: owner
+        )
+    }
+    
+    func setSubscribed(_ subscribed: Bool, for chat: Chat) async throws {
+        chat.setSubscribed(subscribed)
+        
+        computeUnreadCount()
+        
+        try await client.setSubscriptionState(
+            chatID: chat.id,
+            subscribed: subscribed,
             owner: owner
         )
     }
@@ -118,7 +130,7 @@ class HistoryController: ObservableObject {
     
     private func computeUnreadCount(for chats: [Chat]) -> Int {
         chats.reduce(into: 0) { result, chat in
-            if !chat.isMuted { // Ignore muted chats
+            if !chat.isMuted && chat.isSubscribed { // Ignore muted chats and unsubscribed chats
                 result = result + chat.unreadCount
             }
         }

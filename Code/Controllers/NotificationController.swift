@@ -26,23 +26,36 @@ class NotificationController: ObservableObject {
     }
     
     @objc private func didBecomeActiveNotification() {
-        didBecomeActive += 1
+        DispatchQueue.main.async {
+            self.didBecomeActive += 1
+        }
     }
     
     @objc private func willResignActiveNotification() {
-        willResignActive += 1
+        DispatchQueue.main.async {
+            self.willResignActive += 1
+        }
     }
     
     @objc private func userDidTakeScreenshotNotification() {
-        didTakeScreenshot += 1
+        DispatchQueue.main.async {
+            self.didTakeScreenshot += 1
+        }
     }
     
-    @objc private func pushReceivedNotification(notification: UNNotification) {
-        switch notification.request.content.categoryIdentifier {
-        case "ChatMessage":
-            messageReceived += 1
-        default:
-            pushReceived += 1
+    @objc private func pushReceivedNotification(notification: Notification) {
+        DispatchQueue.main.async {
+            guard let push = notification.object as? UNNotification else {
+                self.pushReceived += 1
+                return
+            }
+            
+            switch push.request.content.categoryIdentifier {
+            case "ChatMessage":
+                self.messageReceived += 1
+            default:
+                self.pushReceived += 1
+            }
         }
     }
 }

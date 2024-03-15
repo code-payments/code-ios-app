@@ -33,4 +33,10 @@ extension Client {
             chatService.setMuteState(chatID: chatID, muted: muted, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func setSubscriptionState(chatID: ID, subscribed: Bool, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.setSubscriptionState(chatID: chatID, subscribed: subscribed, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }
