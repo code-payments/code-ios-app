@@ -261,7 +261,7 @@ struct BalanceScreen: View {
                                 .lineLimit(1)
                         }
                     }
-                    .frame(height: 22) // Ensures the same height with and without Bubble
+                    .frame(height: 23) // Ensures the same height with and without Bubble
                     
                     HStack(alignment: .top, spacing: 5) {
                         Text(chat.previewMessage)

@@ -63,7 +63,10 @@ extension Date {
         let calendar = Calendar.current
         let weekAgo = Date.weekAgo()
         
-        if calendar.isDateInToday(self) || calendar.isDateInYesterday(self) {
+        if calendar.isDateInToday(self) {
+            return DateFormatter.timeFormatter.string(from: self)
+            
+        } else if calendar.isDateInYesterday(self) {
             return DateFormatter.relativeDay.string(from: self)
             
         } else if self > weekAgo { // Within the last 6 days
