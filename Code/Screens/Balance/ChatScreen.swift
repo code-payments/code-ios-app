@@ -14,6 +14,7 @@ struct ChatScreen: View {
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var bannerController: BannerController
     @EnvironmentObject private var notificationController: NotificationController
+    @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var chat: Chat
     @ObservedObject private var historyController: HistoryController
@@ -58,7 +59,7 @@ struct ChatScreen: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         
-                        if chat.canUnsubscribe {
+                        if chat.canUnsubscribe, betaFlags.hasEnabled(.canUnsubcribe) {
                             VStack {
                                 button(title: subscriptionTitle(), action: setSubscriptionStateAction)
                             }

@@ -90,6 +90,7 @@ extension BetaFlags {
         case bucketDebugger
         case giveRequests
         case buyKin
+        case canUnsubcribe
         
         var id: String {
             localizedTitle
@@ -109,6 +110,8 @@ extension BetaFlags {
                 return "Request Kin"
             case .buyKin:
                 return "Buy Kin"
+            case .canUnsubcribe:
+                return "Can Unsubscribe"
             }
         }
         
@@ -126,6 +129,8 @@ extension BetaFlags {
                 return "If enabled, Request Kin screen will replace Get Kin."
             case .buyKin:
                 return "If enabled, a Buy More Kin will appear in the balance screen."
+            case .canUnsubcribe:
+                return "If enabled, an option to unsubscribe from a chat will appear for supported chats."
             }
         }
     }
