@@ -65,3 +65,30 @@ public struct KinAmount: Equatable, Hashable, Codable {
         )
     }
 }
+
+extension UUID {
+    
+    public var data: Data {
+        let n = uuid
+        return Data([
+            n.0, n.1, n.2,  n.3,  n.4,  n.5,  n.6,  n.7,
+            n.8, n.9, n.10, n.11, n.12, n.13, n.14, n.15,
+        ])
+    }
+    
+    public func generateBlockchainMemo() -> String {
+        let type:    Byte = 1
+        let version: Byte = 0
+        let flags: UInt32 = 0
+        
+        var data = Data()
+        
+        data.append(contentsOf: type.bytes)
+        data.append(contentsOf: version.bytes)
+        data.append(contentsOf: flags.bytes)
+        
+        data.append(self.data)
+        
+        return data.base64EncodedString()
+    }
+}

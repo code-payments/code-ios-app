@@ -218,6 +218,7 @@ struct SettingsScreen: View {
                         isPresented: $isPresentingBuyKin,
                         viewModel: BuyKinViewModel(
                             session: session,
+                            client: client,
                             exchange: exchange,
                             bannerController: bannerController,
                             betaFlags: betaFlags

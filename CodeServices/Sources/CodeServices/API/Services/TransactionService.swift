@@ -629,6 +629,37 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             completion(.failure(.unknown))
         }
     }
+    
+    // MARK: - On Ramp -
+    
+    func declareFiatPurchase(owner: KeyPair, amount: KinAmount, nonce: UUID, completion: @escaping (Result<Void, ErrorDeclareFiatOnramp>) -> Void) {
+        trace(.send, components: "Amount: \(amount.fiat)", "UUID: \(nonce.uuidString)")
+        
+        let request = Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest.with {
+            $0.owner = owner.publicKey.codeAccountID
+            $0.purchaseAmount = .with {
+                $0.currency = amount.rate.currency.rawValue
+                $0.nativeAmount = amount.fiat.doubleValue
+            }
+            $0.nonce = .with { $0.value = nonce.data }
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.declareFiatOnrampPurchaseAttempt(request)
+        call.handle(on: queue) { response in
+            let result = ErrorDeclareFiatOnramp(rawValue: response.result.rawValue) ?? .unknown
+            if result == .ok {
+                trace(.success, components: "UUID: \(nonce.uuidString)")
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Failed to declare fiat purchase: \(result)")
+                completion(.failure(result))
+            }
+            
+        } failure: { _ in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Types -
@@ -719,6 +750,14 @@ public enum ErrorAirdrop: Int, Error {
     case ok
     case unavailable
     case alreadyClaimed
+    case unknown = -1
+}
+
+public enum ErrorDeclareFiatOnramp: Int, Error {
+    case ok
+    case invalidOwner /// The owner account is not valid (ie. it isn't a Code account)
+    case unsupportedCurrency /// The currency isn't supported
+    case amountExceedsMaximum /// The amount specified exceeds limits
     case unknown = -1
 }
 

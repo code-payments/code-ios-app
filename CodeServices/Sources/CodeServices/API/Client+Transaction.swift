@@ -225,10 +225,16 @@ extension Client {
     // MARK: - Swap -
     
     public func initiateSwap(organizer: Organizer) async throws {
-        let intent = try await withCheckedThrowingContinuation { c in
+        _ = try await withCheckedThrowingContinuation { c in
             transactionService.initiateSwap(organizer: organizer) { c.resume(with: $0) }
         }
-        
-        print(intent.id.base58)
+    }
+    
+    // MARK: - On Ramp -
+    
+    public func declareFiatPurchase(owner: KeyPair, amount: KinAmount, nonce: UUID) async throws {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.declareFiatPurchase(owner: owner, amount: amount, nonce: nonce) { c.resume(with: $0) }
+        }
     }
 }

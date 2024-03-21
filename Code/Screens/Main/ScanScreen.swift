@@ -208,6 +208,7 @@ struct ScanScreen: View {
                                     isPresented: $isPresentingGetKin,
                                     viewModel: BuyKinViewModel(
                                         session: session,
+                                        client: client,
                                         exchange: exchange,
                                         bannerController: bannerController,
                                         betaFlags: betaFlags

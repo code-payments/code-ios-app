@@ -199,6 +199,7 @@ struct BalanceScreen: View {
                             isPresented: $isShowingBuyMoreKin,
                             viewModel: BuyKinViewModel(
                                 session: session,
+                                client: client,
                                 exchange: exchange,
                                 bannerController: bannerController,
                                 betaFlags: betaFlags

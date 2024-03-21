@@ -17,6 +17,7 @@ class BuyKinViewModel: ObservableObject {
     private var relationshipEstablished: Bool = false
     
     let session: Session
+    let client: Client
     let exchange: Exchange
     let bannerController: BannerController
     let betaFlags: BetaFlags
@@ -27,41 +28,6 @@ class BuyKinViewModel: ObservableObject {
     
     var isSendDisabled: Bool {
         enteredKinAmount == nil
-    }
-    
-    var kadoURL: URL? {
-        guard let amount = enteredKinAmount else {
-            return nil
-        }
-        
-        guard
-            let plist = Bundle.main.infoDictionary,
-            let mixpanel = plist["kado"] as? [String: String],
-            let apiKey = mixpanel["apiKey"]
-        else {
-            return nil
-        }
-        
-        let encodedPhone = session.user.phone?.e164.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
-        
-        let route = "https://app.kado.money/"
-        var components = URLComponents(string: route)!
-        
-        components.percentEncodedQueryItems = [
-            URLQueryItem(name: "apiKey",         value: apiKey),
-            URLQueryItem(name: "onPayAmount",    value: "\(amount.fiat)"),
-            URLQueryItem(name: "onPayCurrency",  value: kadoEntryRate.currency.rawValue.uppercased()),
-            URLQueryItem(name: "onRevCurrency",  value: "USDC"),
-            URLQueryItem(name: "mode",           value: "minimal"),
-            URLQueryItem(name: "network",        value: "SOLANA"),
-            URLQueryItem(name: "fiatMethodList", value: "debit_only"),
-            URLQueryItem(name: "phone",          value: encodedPhone),
-            URLQueryItem(name: "onToAddress",    value: session.organizer.swapDepositAddress.base58),
-        ]
-        
-        trace(.warning, components: "Navigatin to Kado URL: \(components.url!)")
-        
-        return components.url!
     }
     
     var kadoEntryRate: Rate {
@@ -96,8 +62,9 @@ class BuyKinViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(session: Session, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) {
+    init(session: Session, client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) {
         self.session = session
+        self.client = client
         self.exchange = exchange
         self.bannerController = bannerController
         self.betaFlags = betaFlags
@@ -118,6 +85,9 @@ class BuyKinViewModel: ObservableObject {
             return false
         }
         
+        let nonce = UUID()
+        let kadoURL = buildKadoURL(for: enteredKinAmount, nonce: nonce)
+        
         guard let kadoURL else {
             return false
         }
@@ -132,6 +102,14 @@ class BuyKinViewModel: ObservableObject {
         guard enteredKinAmount.fiat <= limit.max else {
             showTooLargeError()
             return false
+        }
+        
+        Task {
+            try await client.declareFiatPurchase(
+                owner: session.organizer.ownerKeyPair,
+                amount: enteredKinAmount,
+                nonce: nonce
+            )
         }
         
         kadoURL.openWithApplication()
@@ -155,6 +133,38 @@ class BuyKinViewModel: ObservableObject {
                 description: "Failed to create a USDC deposit account."
             )
         }
+    }
+    
+    func buildKadoURL(for amount: KinAmount, nonce: UUID) -> URL? {
+        guard
+            let plist = Bundle.main.infoDictionary,
+            let mixpanel = plist["kado"] as? [String: String],
+            let apiKey = mixpanel["apiKey"]
+        else {
+            return nil
+        }
+        
+        let encodedPhone = session.user.phone?.e164.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
+        
+        let route = "https://app.kado.money/"
+        var components = URLComponents(string: route)!
+        
+        components.percentEncodedQueryItems = [
+            URLQueryItem(name: "apiKey",         value: apiKey),
+            URLQueryItem(name: "onPayAmount",    value: "\(amount.fiat)"),
+            URLQueryItem(name: "onPayCurrency",  value: kadoEntryRate.currency.rawValue.uppercased()),
+            URLQueryItem(name: "onRevCurrency",  value: "USDC"),
+            URLQueryItem(name: "mode",           value: "minimal"),
+            URLQueryItem(name: "network",        value: "SOLANA"),
+            URLQueryItem(name: "fiatMethodList", value: "debit_only"),
+            URLQueryItem(name: "phone",          value: encodedPhone),
+            URLQueryItem(name: "onToAddress",    value: session.organizer.swapDepositAddress.base58),
+            URLQueryItem(name: "memo",           value: nonce.generateBlockchainMemo()),
+        ]
+        
+        trace(.warning, components: "Navigatin to Kado URL: \(components.url!)")
+        
+        return components.url!
     }
     
     // MARK: - Errors -
@@ -297,6 +307,7 @@ struct BuyKinScreen: View {
             isPresented: .constant(true),
             viewModel: BuyKinViewModel(
                 session: .mock,
+                client: .mock,
                 exchange: .mock,
                 bannerController: .mock,
                 betaFlags: .mock
