@@ -125,4 +125,8 @@ public enum Asset: String {
     case cancel
     case dollar
     case gift
+    
+    // Third-Party
+    
+    case twitter
 }
