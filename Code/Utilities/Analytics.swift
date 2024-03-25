@@ -19,11 +19,8 @@ enum Analytics {
         FirebaseApp.app()?.isDataCollectionDefaultEnabled = true
         Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
         
-        if
-            let plist = Bundle.main.infoDictionary,
-            let mixpanel = plist["mixpanel"] as? [String: String],
-            let apiKey = mixpanel["apiKey"]
-        {
+        let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
+        if let apiKey {
             Mixpanel.initialize(token: apiKey)
             trace(.success, components: "Initializing Mixpanel...")
         } else {

@@ -136,11 +136,9 @@ class BuyKinViewModel: ObservableObject {
     }
     
     func buildKadoURL(for amount: KinAmount, nonce: UUID) -> URL? {
-        guard
-            let plist = Bundle.main.infoDictionary,
-            let mixpanel = plist["kado"] as? [String: String],
-            let apiKey = mixpanel["apiKey"]
-        else {
+        let apiKey = try? InfoPlist.value(for: "kado").value(for: "apiKey").string()
+        
+        guard let apiKey else {
             return nil
         }
         
