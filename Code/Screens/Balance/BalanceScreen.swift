@@ -188,25 +188,23 @@ struct BalanceScreen: View {
                 .frame(maxWidth: .infinity)
             }
             
-            if betaFlags.hasEnabled(.buyKin) {
-                CodeButton(style: .filled, title: Localized.Action.buyMoreKin) {
-                    isShowingBuyMoreKin = true
-                }
-                .padding(.top, 15)
-                .sheet(isPresented: $isShowingBuyMoreKin) {
-                    LazyView(
-                        BuyKinScreen(
-                            isPresented: $isShowingBuyMoreKin,
-                            viewModel: BuyKinViewModel(
-                                session: session,
-                                client: client,
-                                exchange: exchange,
-                                bannerController: bannerController,
-                                betaFlags: betaFlags
-                            )
+            CodeButton(style: .filled, title: Localized.Action.buyMoreKin) {
+                isShowingBuyMoreKin = true
+            }
+            .padding(.top, 15)
+            .sheet(isPresented: $isShowingBuyMoreKin) {
+                LazyView(
+                    BuyKinScreen(
+                        isPresented: $isShowingBuyMoreKin,
+                        viewModel: BuyKinViewModel(
+                            session: session,
+                            client: client,
+                            exchange: exchange,
+                            bannerController: bannerController,
+                            betaFlags: betaFlags
                         )
-                    )                    
-                }
+                    )
+                )
             }
         }
         .padding(.horizontal, 20)

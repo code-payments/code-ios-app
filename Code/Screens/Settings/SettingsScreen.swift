@@ -209,28 +209,20 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if betaFlags.hasEnabled(.buyKin) {
-                row(asset: .dollar, title: Localized.Action.buyMoreKin) {
-                    isPresentingBuyKin.toggle()
-                }
-                .sheet(isPresented: $isPresentingBuyKin) {
-                    BuyKinScreen(
-                        isPresented: $isPresentingBuyKin,
-                        viewModel: BuyKinViewModel(
-                            session: session,
-                            client: client,
-                            exchange: exchange,
-                            bannerController: bannerController,
-                            betaFlags: betaFlags
-                        )
+            row(asset: .dollar, title: Localized.Action.buyMoreKin) {
+                isPresentingBuyKin.toggle()
+            }
+            .sheet(isPresented: $isPresentingBuyKin) {
+                BuyKinScreen(
+                    isPresented: $isPresentingBuyKin,
+                    viewModel: BuyKinViewModel(
+                        session: session,
+                        client: client,
+                        exchange: exchange,
+                        bannerController: bannerController,
+                        betaFlags: betaFlags
                     )
-                }
-            } else {
-                navigationRow(asset: .dollar, title: Localized.Title.buySellKin) {
-                    LazyView(
-                        BuyVideosScreen()
-                    )
-                }
+                )
             }
             
             navigationRow(asset: .deposit, title: Localized.Title.depositKin) {

@@ -203,7 +203,7 @@ struct ScanScreen: View {
                             .environmentObject(exchange)
                             .environmentObject(reachability)
                         } else {
-                            if betaFlags.hasEnabled(.buyKin) {
+//                            if betaFlags.hasEnabled(.buyKin) {
                                 BuyKinScreen(
                                     isPresented: $isPresentingGetKin,
                                     viewModel: BuyKinViewModel(
@@ -214,10 +214,10 @@ struct ScanScreen: View {
                                         betaFlags: betaFlags
                                     )
                                 )
-                            } else {
-                                GetKinScreen(session: session, isPresented: $isPresentingGetKin)
-                                    .environmentObject(betaFlags)
-                            }
+//                            } else {
+//                                GetKinScreen(session: session, isPresented: $isPresentingGetKin)
+//                                    .environmentObject(betaFlags)
+//                            }
                         }
                     }
                     

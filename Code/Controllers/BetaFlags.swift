@@ -89,7 +89,6 @@ extension BetaFlags {
         case showConnectivityStatus
         case bucketDebugger
         case giveRequests
-        case buyKin
         case canUnsubcribe
         
         var id: String {
@@ -108,8 +107,6 @@ extension BetaFlags {
                 return "Show Connectivity Status"
             case .giveRequests:
                 return "Request Kin"
-            case .buyKin:
-                return "Buy Kin"
             case .canUnsubcribe:
                 return "Can Unsubscribe"
             }
@@ -127,8 +124,6 @@ extension BetaFlags {
                 return "If enabled, a 'No Connection' badge will be shown on the scan screen when no internet connection is detected."
             case .giveRequests:
                 return "If enabled, Request Kin screen will replace Get Kin."
-            case .buyKin:
-                return "If enabled, a Buy More Kin will appear in the balance screen."
             case .canUnsubcribe:
                 return "If enabled, an option to unsubscribe from a chat will appear for supported chats."
             }
