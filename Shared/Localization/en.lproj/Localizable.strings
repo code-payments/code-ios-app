@@ -948,10 +948,10 @@
 "title.chat.payments" = "Web Payments";
 
 /* Subtitle for USDC deposited */
-"subtitle.chat.usdcDeposited" = "You successfully deposited USDC. Open Code App to complete your purchase";
+"subtitle.chat.usdcDeposited" = "You're almost there! Open the Code app to complete your purchase";
 
 /* Subtitle for USDC started conversion */
-"subtitle.chat.usdcBeingConverted" = "Your USDC is being converted to Kin. This should take roughly one minute to complete";
+"subtitle.chat.usdcBeingConverted" = "Thank you for opening Code, your purchase is now being completed. Your Kin should be available soon";
 
 /* Subtitle for Kin available for use */
-"subtitle.chat.kinAvailableForUse" = "Your Kin is now available for use in your Code App";
+"subtitle.chat.kinAvailableForUse" = "Success! Your Kin is now available to use in Code";
