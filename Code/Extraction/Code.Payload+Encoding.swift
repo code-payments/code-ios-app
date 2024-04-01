@@ -56,6 +56,22 @@ extension Code.Payload {
                         amount: Decimal(amountCents) / 100
                     )
                 )
+                
+            case .tip:
+                
+                // Skip flags at [1...4] for now, username starts at byte 5
+                
+                let usernameString = String(data: data[5...], encoding: .utf8)
+                
+                guard let usernameString else {
+                    throw Error.invalidUsername
+                }
+                
+                guard let username = usernameString.components(separatedBy: ".").first else {
+                    throw Error.invalidUsername
+                }
+                
+                return (kind, .username(username), Data())
             }
             
             var nonce = Data(count: Data.nonceLength)
@@ -118,6 +134,47 @@ extension Code.Payload {
         return data
     }
     
+    static func encode(kind: Kind, username: String) -> Data {
+        var data = Data(count: Code.Payload.length)
+        
+        data.withUnsafeMutableBytes { (buffer: UnsafeMutableRawBufferPointer) in
+            let base = buffer.baseAddress!
+            
+            var k = kind.rawValue
+            base.advanced(by: 0).copyMemory(from: &k, byteCount: MemoryLayout<UInt8>.stride)
+            
+            let maxLength = 15
+            let sanitizedUsername = username.prefix(maxLength)
+            
+            let u = Data(sanitizedUsername.utf8)
+            u.withUnsafeBytes { usernameBuffer in
+                base.advanced(by: 5).copyMemory(from: usernameBuffer.baseAddress!.assumingMemoryBound(to: Byte.self), byteCount: sanitizedUsername.count)
+            }
+            
+            let paddingRequired = maxLength - sanitizedUsername.count
+            
+            var padding: String = ""
+            
+            if paddingRequired > 0 {
+                padding = "."
+            }
+            
+            if paddingRequired > 1 {
+                let hash = SHA256.digest(username).base64EncodedString()
+                padding = "\(padding)\(hash.prefix(paddingRequired - 1))"
+            }
+            
+            if !padding.isEmpty {
+                let paddingData = Data(padding.utf8)
+                paddingData.withUnsafeBytes { paddingBuffer in
+                    base.advanced(by: 5 + sanitizedUsername.count).copyMemory(from: paddingBuffer.baseAddress!.assumingMemoryBound(to: Byte.self), byteCount: paddingData.count)
+                }
+            }
+        }
+        
+        return data
+    }
+    
     func encode() -> Data {
         switch value {
         case .kin(let kin):
@@ -133,6 +190,12 @@ extension Code.Payload {
                 fiat: fiat,
                 nonce: nonce
             )
+            
+        case .username(let username):
+            return Self.encode(
+                kind: kind,
+                username: username
+            )
         }
     }
     
@@ -146,6 +209,7 @@ extension Code.Payload {
         case invalidDataSize
         case invalidKind
         case invalidCurrencyIndex
+        case invalidUsername
     }
 }
 

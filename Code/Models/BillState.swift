@@ -147,5 +147,11 @@ extension BillState {
         var kinAmount: KinAmount
         var data: Data
         var request: DeepLinkRequest?
+        
+        init(kinAmount: KinAmount, data: Data, request: DeepLinkRequest? = nil) {
+            self.kinAmount = kinAmount
+            self.data = data
+            self.request = request
+        }
     }
 }

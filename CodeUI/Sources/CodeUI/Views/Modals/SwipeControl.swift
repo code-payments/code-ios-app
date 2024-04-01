@@ -1,12 +1,12 @@
 //
 //  SwipeControl.swift
-//  Code
+//  CodeUI
 //
-//  Created by Dima Bart on 2023-08-22.
+//  Created by Dima Bart.
+//  Copyright © 2021 Code Inc. All rights reserved.
 //
 
 import SwiftUI
-import CodeUI
 
 public struct SwipeControl: View {
     

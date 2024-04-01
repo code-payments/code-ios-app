@@ -75,7 +75,6 @@
 		9A4283BC2A02B5B100792BFD /* ShareCashItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BB2A02B5B100792BFD /* ShareCashItem.swift */; };
 		9A4283BE2A02B9F200792BFD /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BD2A02B9F200792BFD /* ShareSheet.swift */; };
 		9A4283C12A055C5400792BFD /* GiftCardVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283C02A055C5400792BFD /* GiftCardVault.swift */; };
-		9A44507F2A7967BE0072FE38 /* BillModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A44507E2A7967BE0072FE38 /* BillModal.swift */; };
 		9A476D4A2978884700C5B5CE /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A476D492978884700C5B5CE /* Bugsnag */; };
 		9A476D4C2978892600C5B5CE /* ErrorReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A476D4B2978892600C5B5CE /* ErrorReporting.swift */; };
 		9A48D93928512E7800EA9AA4 /* PermissionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */; };
@@ -103,7 +102,6 @@
 		9A705052260287A10036A056 /* PhoneBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A705051260287A10036A056 /* PhoneBook.swift */; };
 		9A718BCF25C054B800DB5F70 /* CodeExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A718BCE25C054B800DB5F70 /* CodeExtractor.swift */; };
 		9A71BD442A2A2E1500D31F56 /* GetFriendStartedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A71BD432A2A2E1500D31F56 /* GetFriendStartedScreen.swift */; };
-		9A74396E2A9507B500948CC5 /* SwipeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A74396D2A9507B500948CC5 /* SwipeControl.swift */; };
 		9A762C1927BC3D99006E2363 /* PhoneUploadController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A762C1827BC3D99006E2363 /* PhoneUploadController.swift */; };
 		9A7C408128DDE0C7007DA414 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9A7C408328DDE0C7007DA414 /* Localizable.strings */; };
 		9A7FF89B269C71B10090B457 /* BillCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7FF89A269C71B10090B457 /* BillCanvas.swift */; };
@@ -308,7 +306,6 @@
 		9A4283BB2A02B5B100792BFD /* ShareCashItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCashItem.swift; sourceTree = "<group>"; };
 		9A4283BD2A02B9F200792BFD /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		9A4283C02A055C5400792BFD /* GiftCardVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftCardVault.swift; sourceTree = "<group>"; };
-		9A44507E2A7967BE0072FE38 /* BillModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillModal.swift; sourceTree = "<group>"; };
 		9A476D4B2978892600C5B5CE /* ErrorReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorReporting.swift; sourceTree = "<group>"; };
 		9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionScreen.swift; sourceTree = "<group>"; };
 		9A4F3D06298D99930089C0FB /* BucketScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketScreen.swift; sourceTree = "<group>"; };
@@ -336,7 +333,6 @@
 		9A705051260287A10036A056 /* PhoneBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneBook.swift; sourceTree = "<group>"; };
 		9A718BCE25C054B800DB5F70 /* CodeExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeExtractor.swift; sourceTree = "<group>"; };
 		9A71BD432A2A2E1500D31F56 /* GetFriendStartedScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetFriendStartedScreen.swift; sourceTree = "<group>"; };
-		9A74396D2A9507B500948CC5 /* SwipeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeControl.swift; sourceTree = "<group>"; };
 		9A762C1827BC3D99006E2363 /* PhoneUploadController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneUploadController.swift; sourceTree = "<group>"; };
 		9A7C408228DDE0C7007DA414 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		9A7C408428DDE0D4007DA414 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -645,8 +641,6 @@
 		9A44507D2A79677F0072FE38 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				9A44507E2A7967BE0072FE38 /* BillModal.swift */,
-				9A74396D2A9507B500948CC5 /* SwipeControl.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -1421,7 +1415,6 @@
 				9A829A4028A57852005F4F87 /* AppContainer.swift in Sources */,
 				9AD5D72F25F13A18007388AE /* BalanceScreen.swift in Sources */,
 				9A70503C26024E430036A056 /* InviteController.swift in Sources */,
-				9A44507F2A7967BE0072FE38 /* BillModal.swift in Sources */,
 				9A9DF7C9275155BE0031E219 /* UpgradeScreen.swift in Sources */,
 				9A2BAFA627E1091300B4EA68 /* LinkPhoneScreen.swift in Sources */,
 				9AA47D402B76AA9600F1B9B7 /* Chat+Extensions.swift in Sources */,
@@ -1479,7 +1472,6 @@
 				9A093D1925D1BFD2000E7DD9 /* Code.Payload.swift in Sources */,
 				9A4283BE2A02B9F200792BFD /* ShareSheet.swift in Sources */,
 				9AEFE84425B1F3BF001FCB19 /* IntroScreen.swift in Sources */,
-				9A74396E2A9507B500948CC5 /* SwipeControl.swift in Sources */,
 				9A093D3225D1C8C8000E7DD9 /* Code.Payload+Encoding.swift in Sources */,
 				9AE6FDEE27E50BDF00FDBD41 /* BannerController.swift in Sources */,
 				9AA1B5152B7BE9AD000DB4B5 /* BuyKinScreen.swift in Sources */,

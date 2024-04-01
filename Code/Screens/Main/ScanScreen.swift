@@ -347,7 +347,9 @@ struct ScanScreen: View {
         if let valuation = session.billState.valuation {
             ModalCashReceived(
                 title: valuation.title,
-                amount: valuation.amount,
+                amount: valuation.amount.kin.formattedFiat(rate: valuation.amount.rate, showOfKin: true),
+                currency: valuation.amount.rate.currency,
+                secondaryAction: Localized.Action.putInWallet,
                 dismissAction: { [weak session] in
                     session?.cancelSend()
                 }
@@ -357,7 +359,10 @@ struct ScanScreen: View {
         } else if let paymentConfirmation = session.billState.paymentConfirmation {
             if session.hasSufficientFunds(for: paymentConfirmation.requestedAmount) {
                 ModalPaymentConfirmation(
-                    amount: paymentConfirmation.localAmount,
+                    amount: paymentConfirmation.localAmount.kin.formattedFiat(rate: paymentConfirmation.localAmount.rate, showOfKin: true),
+                    currency: paymentConfirmation.localAmount.rate.currency,
+                    primaryAction: Localized.Action.swipeToPay,
+                    secondaryAction: Localized.Action.cancel,
                     paymentAction: { [weak session] in
                         try await session?.completePayment(
                             for: paymentConfirmation.requestedAmount,
@@ -376,7 +381,9 @@ struct ScanScreen: View {
             } else {
                 ModalInsufficientFunds(
                     title: Localized.Title.insufficientFunds,
-                    subtitle: Localized.Subtitle.insufficientFundsDescription
+                    subtitle: Localized.Subtitle.insufficientFundsDescription,
+                    primaryAction: Localized.Title.getMoreKin,
+                    secondaryAction: Localized.Action.cancel
                 ) { [weak session] in
                     Task {
                         session?.rejectPayment(ignoreRedirect: true)
@@ -393,6 +400,8 @@ struct ScanScreen: View {
         } else if let loginConfirmation = session.billState.loginConfirmation {
             ModalLoginConfirmation(
                 domain: loginConfirmation.domain,
+                primaryAction: Localized.Action.swipeToLogin,
+                secondaryAction: Localized.Action.cancel,
                 successAction: { [weak session] in
                     try await session?.completeLogin(
                         for: loginConfirmation.domain,
