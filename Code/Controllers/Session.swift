@@ -575,6 +575,10 @@ class Session: ObservableObject {
             
         case .login:
             attemptLogin(payload, request: request)
+            
+        case .tip:
+            // TODO: Implement tip payments
+            break
         }
     }
     

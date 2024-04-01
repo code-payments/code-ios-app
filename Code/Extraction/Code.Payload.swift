@@ -33,6 +33,14 @@ extension Code {
             )
         }
         
+        init(kind: Kind, username: String) {
+            self.init(
+                kind: kind,
+                value: .username(username),
+                nonce: Data()
+            )
+        }
+        
         init(kind: Kind, value: Value, nonce: Data) {
             self.kind = kind
             self.value = value
@@ -43,6 +51,8 @@ extension Code {
                 self.rendezvous = KeyPair.deriveRendezvousKey(from: Self.encode(kind: kind, kin: kin, nonce: nonce))
             case .fiat(let fiat):
                 self.rendezvous = KeyPair.deriveRendezvousKey(from: Self.encode(kind: kind, fiat: fiat, nonce: nonce))
+            case .username(let username):
+                self.rendezvous = KeyPair.deriveRendezvousKey(from: Self.encode(kind: kind, username: username))
             }
         }
         
@@ -68,6 +78,7 @@ extension Code.Payload {
     enum Value: Equatable {
         case kin(Kin)
         case fiat(Fiat)
+        case username(String)
     }
 }
 
@@ -80,5 +91,6 @@ extension Code.Payload {
         case requestPayment   = 2
         case login            = 3
         case requestPaymentV2 = 4
+        case tip              = 5
     }
 }

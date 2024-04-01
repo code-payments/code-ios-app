@@ -18,6 +18,9 @@ class CodePayloadEncodingTests: XCTestCase {
     private let sampleFiat    = Data([0x02, 0x8c, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11])
     private let sampleFiatKin = Data([0x02, 0x00, 0x88, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11])
     
+    private let sampleTip     = Data([0x05, 0x00, 0x00, 0x00, 0x00, 0x67, 0x65, 0x74, 0x63, 0x6f, 0x64, 0x65, 0x2e, 0x34, 0x56, 0x71, 0x2f, 0x72, 0x2b, 0x58])
+    private let sampleTipDot  = Data([0x05, 0x00, 0x00, 0x00, 0x00, 0x62, 0x6f, 0x62, 0x5f, 0x62, 0x65, 0x6e, 0x6e, 0x69, 0x6e, 0x67, 0x74, 0x6f, 0x6e, 0x2e])
+    
     private let fiatAmount = Decimal(2_814_749_767_10911) / 100
     
     func testEncodingKin() {
@@ -109,5 +112,48 @@ class CodePayloadEncodingTests: XCTestCase {
         XCTAssertEqual(payload.kind, .requestPayment)
         XCTAssertEqual(payload.value, .fiat(Fiat(currency: .usd, amount: fiatAmount)))
         XCTAssertEqual(payload.nonce, data)
+    }
+    
+    func testEncodeStandardUsername() {
+        let payload = Code.Payload(
+            kind: .tip,
+            username: "getcode"
+        )
+        
+        let encoded = payload.encode()
+        
+        XCTAssertEqual(encoded, sampleTip)
+    }
+    
+    func testEncodeSinglePadUsername() {
+        let payload = Code.Payload(
+            kind: .tip,
+            username: "bob_bennington"
+        )
+        
+        let encoded = payload.encode()
+        
+        XCTAssertEqual(encoded, sampleTipDot)
+    }
+    
+    func testEncodeUsernameTooLong() {
+        let payload0 = Code.Payload(kind: .tip, username: "bob_benningtons") // Max length
+        let payload1 = Code.Payload(kind: .tip, username: "bob_benningtonss")
+        let payload2 = Code.Payload(kind: .tip, username: "bob_benningtonssssssss")
+        
+        // Expectation is the username is trimmed to max length
+        
+        let expected = payload0.encode()
+        
+        XCTAssertEqual(expected, payload1.encode())
+        XCTAssertEqual(expected, payload2.encode())
+    }
+    
+    func testDecodeUsername() throws {
+        let payload = try Code.Payload(data: sampleTip)
+        
+        XCTAssertEqual(payload.kind, .tip)
+        XCTAssertEqual(payload.value, .username("getcode"))
+        XCTAssertEqual(payload.nonce, Data())
     }
 }
