@@ -1,5 +1,5 @@
 //
-//  ModalLoginConfirmation.swift
+//  ModalPaymentConfirmation.swift
 //  CodeUI
 //
 //  Created by Dima Bart.
@@ -8,24 +8,27 @@
 
 import SwiftUI
 import CodeServices
+import CodeUI
 
-/// Modal to confirm a login
-public struct ModalLoginConfirmation: View {
+/// Modal to confirm and execute a payment request card
+public struct ModalPaymentConfirmation: View {
     
-    public let domain: Domain
+    public let amount: String
+    public let currency: CurrencyCode
     public let primaryAction: String
     public let secondaryAction: String
-    public let successAction: ThrowingAction
+    public let paymentAction: ThrowingAction
     public let dismissAction: VoidAction
     public let cancelAction: VoidAction
     
     // MARK: - Init -
     
-    public init(domain: Domain, primaryAction: String, secondaryAction: String, successAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
-        self.domain = domain
+    public init(amount: String, currency: CurrencyCode, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
+        self.amount = amount
+        self.currency = currency
         self.primaryAction = primaryAction
         self.secondaryAction = secondaryAction
-        self.successAction = successAction
+        self.paymentAction = paymentAction
         self.dismissAction = dismissAction
         self.cancelAction = cancelAction
     }
@@ -33,18 +36,21 @@ public struct ModalLoginConfirmation: View {
     // MARK: - Body -
     
     public var body: some View {
-        SheetView(edge: .bottom, backgroundColor: .black) {
+        SheetView(edge: .bottom, backgroundColor: .backgroundMain) {
             VStack(spacing: 10) {
                 
-                Text(domain.displayTitle)
-                    .font(.appDisplaySmall)
+                AmountText(
+                    flagStyle: currency.flagStyle,
+                    content: amount
+                )
+                .font(.appDisplayMedium)
                 
                 VStack {
                     SwipeControl(
-                        style: .black,
+                        style: .blue,
                         text: primaryAction,
                         action: {
-                            try await successAction()
+                            try await paymentAction()
                         },
                         completion: {
                             try await Task.delay(seconds: 1) // Checkmark delay
@@ -68,5 +74,19 @@ public struct ModalLoginConfirmation: View {
             .foregroundColor(.textMain)
             .font(.appTextMedium)
         }
+    }
+}
+
+#Preview {
+    Background(color: .white) {
+        ModalPaymentConfirmation(
+            amount: "$5.00",
+            currency: .usd,
+            primaryAction: "Swipe to Pay",
+            secondaryAction: "Cancel",
+            paymentAction: { try await Task.delay(seconds: 1) },
+            dismissAction: {},
+            cancelAction: {}
+        )
     }
 }

@@ -8,6 +8,7 @@
 
 import SwiftUI
 import CodeServices
+import CodeUI
 
 /// Modal that displays received amount of Kin at local fiat rates
 public struct ModalCashReceived: View {
@@ -55,5 +56,17 @@ public struct ModalCashReceived: View {
             .foregroundColor(.textMain)
             .font(.appTextMedium)
         }
+    }
+}
+
+#Preview {
+    Background(color: .white) {
+        ModalCashReceived(
+            title: "Received",
+            amount: "$5.00",
+            currency: .cad,
+            secondaryAction: "Cancel",
+            dismissAction: {}
+        )
     }
 }
