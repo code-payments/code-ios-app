@@ -8,6 +8,7 @@
 
 import SwiftUI
 import CodeServices
+import CodeUI
 
 /// Modal to confirm and execute a payment request card
 public struct ModalInsufficientFunds: View {
@@ -70,5 +71,18 @@ public struct ModalInsufficientFunds: View {
             .foregroundColor(.textMain)
             .font(.appTextMedium)
         }
+    }
+}
+
+#Preview {
+    Background(color: .white) {
+        ModalInsufficientFunds(
+            title: "Insufficient Funds",
+            subtitle: "Please get more Kin and then try paying again.",
+            primaryAction: "Get More Kin",
+            secondaryAction: "Cancel",
+            getMoreKinAction: {},
+            dismissAction: {}
+        )
     }
 }

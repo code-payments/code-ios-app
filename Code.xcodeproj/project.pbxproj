@@ -44,6 +44,11 @@
 		9A093DA425DD724E000E7DD9 /* ReceiveTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A093DA325DD724E000E7DD9 /* ReceiveTransaction.swift */; };
 		9A093DAB25DDAD0C000E7DD9 /* SendTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A093DAA25DDAD0C000E7DD9 /* SendTransaction.swift */; };
 		9A0C60912AD05A3C00A57875 /* MessageList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0C60902AD05A3C00A57875 /* MessageList.swift */; };
+		9A0F082C2BBC4B5400C65489 /* ModalTipConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0F082B2BBC4B5400C65489 /* ModalTipConfirmation.swift */; };
+		9A0F08312BBC753E00C65489 /* ModalLoginConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0F082E2BBC753D00C65489 /* ModalLoginConfirmation.swift */; };
+		9A0F08322BBC753E00C65489 /* ModalCashReceived.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0F082F2BBC753E00C65489 /* ModalCashReceived.swift */; };
+		9A0F08342BBC753E00C65489 /* ModalInsufficientFunds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0F082D2BBC753D00C65489 /* ModalInsufficientFunds.swift */; };
+		9A0F08362BBC765B00C65489 /* ModalPaymentConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0F08352BBC765B00C65489 /* ModalPaymentConfirmation.swift */; };
 		9A103F8225B9BF180026EA62 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A103F8125B9BF180026EA62 /* Session.swift */; };
 		9A10FD1A27F7800900A5A1CF /* Array+Keyed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A10FD1927F7800900A5A1CF /* Array+Keyed.swift */; };
 		9A1168A627BE930900948F3D /* ContactsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1168A527BE930900948F3D /* ContactsController.swift */; };
@@ -279,6 +284,11 @@
 		9A093DA325DD724E000E7DD9 /* ReceiveTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiveTransaction.swift; sourceTree = "<group>"; };
 		9A093DAA25DDAD0C000E7DD9 /* SendTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendTransaction.swift; sourceTree = "<group>"; };
 		9A0C60902AD05A3C00A57875 /* MessageList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageList.swift; sourceTree = "<group>"; };
+		9A0F082B2BBC4B5400C65489 /* ModalTipConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalTipConfirmation.swift; sourceTree = "<group>"; };
+		9A0F082D2BBC753D00C65489 /* ModalInsufficientFunds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalInsufficientFunds.swift; sourceTree = "<group>"; };
+		9A0F082E2BBC753D00C65489 /* ModalLoginConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalLoginConfirmation.swift; sourceTree = "<group>"; };
+		9A0F082F2BBC753E00C65489 /* ModalCashReceived.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalCashReceived.swift; sourceTree = "<group>"; };
+		9A0F08352BBC765B00C65489 /* ModalPaymentConfirmation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ModalPaymentConfirmation.swift; sourceTree = "<group>"; };
 		9A103F8125B9BF180026EA62 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		9A10FD1927F7800900A5A1CF /* Array+Keyed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Array+Keyed.swift"; sourceTree = "<group>"; };
 		9A1168A527BE930900948F3D /* ContactsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsController.swift; sourceTree = "<group>"; };
@@ -638,11 +648,16 @@
 			path = Share;
 			sourceTree = "<group>";
 		};
-		9A44507D2A79677F0072FE38 /* Views */ = {
+		9A44507D2A79677F0072FE38 /* Modals */ = {
 			isa = PBXGroup;
 			children = (
+				9A0F082F2BBC753E00C65489 /* ModalCashReceived.swift */,
+				9A0F082D2BBC753D00C65489 /* ModalInsufficientFunds.swift */,
+				9A0F08352BBC765B00C65489 /* ModalPaymentConfirmation.swift */,
+				9A0F082E2BBC753D00C65489 /* ModalLoginConfirmation.swift */,
+				9A0F082B2BBC4B5400C65489 /* ModalTipConfirmation.swift */,
 			);
-			path = Views;
+			path = Modals;
 			sourceTree = "<group>";
 		};
 		9A48D93728512E6900EA9AA4 /* Accessory */ = {
@@ -894,7 +909,7 @@
 				9AFF974525E007B80094174A /* Models */,
 				9AE6FDE927E50BCF00FDBD41 /* Modifiers */,
 				9A103F8025B9BF060026EA62 /* Controllers */,
-				9A44507D2A79677F0072FE38 /* Views */,
+				9A44507D2A79677F0072FE38 /* Modals */,
 				9AEFE84225B1F398001FCB19 /* Screens */,
 				9AED117B258BE8310088D902 /* Supporting Files */,
 				9AED1109258BE1320088D902 /* Preview Content */,
@@ -1398,10 +1413,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9A0F082C2BBC4B5400C65489 /* ModalTipConfirmation.swift in Sources */,
 				9A9469B9279F3C9A0028F27E /* ContactsScreen.swift in Sources */,
 				9ACFA30E2A4B3C0B0057A5DF /* SavedLoginScreen.swift in Sources */,
 				9A3B807A2AB37A6400002FEB /* BuyVideosScreen.swift in Sources */,
 				9AA39082274450B700234899 /* BackupScreen.swift in Sources */,
+				9A0F08362BBC765B00C65489 /* ModalPaymentConfirmation.swift in Sources */,
 				9A18C739289D763B00B39AF6 /* WithdrawSummaryScreen.swift in Sources */,
 				9A476D4C2978892600C5B5CE /* ErrorReporting.swift in Sources */,
 				9AC08A9B28CD0983006BF6F3 /* Biometrics.swift in Sources */,
@@ -1426,6 +1443,7 @@
 				9A9DF7C3274ED7950031E219 /* StatusController.swift in Sources */,
 				9AB7C5C725E7F8730007B3D5 /* BillState.swift in Sources */,
 				9AFF973A25DFFF140094174A /* ContainerScreen.swift in Sources */,
+				9A0F08312BBC753E00C65489 /* ModalLoginConfirmation.swift in Sources */,
 				9AAF605528B0041600D93888 /* Snapshot.swift in Sources */,
 				9AED11EE25910F020088D902 /* Localized.swift in Sources */,
 				9ACFA30C2A4A0FAD0057A5DF /* Abacus.swift in Sources */,
@@ -1486,6 +1504,7 @@
 				9A70501D2600F5CC0036A056 /* ContentController.swift in Sources */,
 				9A718BCF25C054B800DB5F70 /* CodeExtractor.swift in Sources */,
 				9A093D5825D46F45000E7DD9 /* Data+Bytes.swift in Sources */,
+				9A0F08342BBC753E00C65489 /* ModalInsufficientFunds.swift in Sources */,
 				9A646986275FE634008B1498 /* Analytics.swift in Sources */,
 				9A1654DF267A31A4000A135E /* Keychain.swift in Sources */,
 				9ACC074F28342BF1001F0081 /* Guards.swift in Sources */,
@@ -1495,6 +1514,7 @@
 				9A762C1927BC3D99006E2363 /* PhoneUploadController.swift in Sources */,
 				9AE6FDED27E50BDF00FDBD41 /* Banner.swift in Sources */,
 				9A4F3D07298D99930089C0FB /* BucketScreen.swift in Sources */,
+				9A0F08322BBC753E00C65489 /* ModalCashReceived.swift in Sources */,
 				9A093D6D25D5C1EF000E7DD9 /* Secure.swift in Sources */,
 				9A705052260287A10036A056 /* PhoneBook.swift in Sources */,
 				9AB8152029DC89900037DBB4 /* InviteCodeScreen.swift in Sources */,

@@ -12,41 +12,34 @@ import SwiftUI
 
 public struct AvatarView: View {
     
-    public let initial: String
     public let url: URL?
-    public let action: VoidAction
+    public let action: VoidAction?
     
     @State private var image: UIImage?
     
-    public static let size = CGSize(width: 42, height: 42)
+    private let size = CGSize(width: 80, height: 80)
     
     // MARK: - Init -
     
-    public init(name: String, url: URL?, action: @escaping VoidAction) {
-        self.initial = String(name.uppercased().first ?? "1")
+    public init(url: URL?, action: VoidAction?) {
         self.url = url
         self.action = action
     }
     
     public var body: some View {
-        Button(action: action) {
+        Button {
+            action?()
+        } label: {
             if let image = image {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .clipShape(Circle())
             } else {
-                ZStack {
-                    Circle()
-                        .fill(Color.blue)
-                    Text(initial)
-                        .foregroundColor(.white)
-                        .font(.default(size: 22, weight: .medium))
-                }
+                PlaceholderAvatar()
             }
         }
-        .frame(width: AvatarView.size.width, height: AvatarView.size.height, alignment: .center)
-//        .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 1)
+        .frame(width: size.width, height: size.height, alignment: .center)
         .onAppear {
             if let url = url {
                 ImageLoader.shared.load(url) { image in
@@ -55,6 +48,36 @@ public struct AvatarView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+public struct PlaceholderAvatar: View {
+    
+    private let foregroundColor = Color(r: 97, g: 120, b: 136)
+    private let backgroundColor = Color(r: 201, g: 214, b: 222)
+    
+    public var body: some View {
+        VStack(spacing: 6) {
+            
+            UnevenRoundedCorners(
+                tl: 20,
+                bl: 15,
+                br: 15,
+                tr: 20
+            )
+            .fill(foregroundColor)
+            .frame(width: 25, height: 28)
+            .padding(.top, 20)
+            
+            Circle()
+                .fill(foregroundColor)
+                .frame(width: 50, height: 50)
+        }
+        .frame(width: 80, height: 80, alignment: .top)
+        .background(backgroundColor)
+        .mask {
+            Circle()
         }
     }
 }
@@ -88,9 +111,9 @@ class ImageLoader {
 struct AvatarView_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
-            AvatarView(name: "Dima", url: nil) {}
-            AvatarView(name: "Jack", url: nil) {}
-            AvatarView(name: "Walter", url: nil) {}
+            AvatarView(url: nil) {}
+            AvatarView(url: nil) {}
+            AvatarView(url: nil) {}
         }
         .previewLayout(.fixed(width: 200.0, height: 200.0))
     }
