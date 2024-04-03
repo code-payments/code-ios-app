@@ -12,43 +12,47 @@ import SwiftUI
 
 public struct AvatarView: View {
     
-    public let url: URL?
-    public let action: VoidAction?
-    
-    @State private var image: UIImage?
+    public let value: Value
     
     private let size = CGSize(width: 80, height: 80)
     
     // MARK: - Init -
     
-    public init(url: URL?, action: VoidAction?) {
-        self.url = url
-        self.action = action
+    public init(value: Value) {
+        self.value = value
     }
     
     public var body: some View {
-        Button {
-            action?()
-        } label: {
-            if let image = image {
-                Image(uiImage: image)
+//        AsyncImage(url: url) { phase in
+//            if let image = phase.image {
+//                image
+//                    .resizable()
+//                    .aspectRatio(contentMode: .fit)
+//                    .clipShape(Circle())
+//                    .drawingGroup()
+//            } else {
+//                PlaceholderAvatar()
+//            }
+//        }
+        Group {
+            switch value {
+            case .placeholder:
+                PlaceholderAvatar()
+            case .image(let image):
+                image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .clipShape(Circle())
-            } else {
-                PlaceholderAvatar()
             }
         }
         .frame(width: size.width, height: size.height, alignment: .center)
-        .onAppear {
-            if let url = url {
-                ImageLoader.shared.load(url) { image in
-                    if let image = image {
-                        self.image = image
-                    }
-                }
-            }
-        }
+    }
+}
+
+extension AvatarView {
+    public enum Value {
+        case placeholder
+        case image(Image)
     }
 }
 
@@ -79,30 +83,7 @@ public struct PlaceholderAvatar: View {
         .mask {
             Circle()
         }
-    }
-}
-
-// MARK: - Image Loader -
-
-class ImageLoader {
-    
-    static let shared = ImageLoader()
-    
-    private init() {}
-    
-    func load(_ url: URL, completion: @escaping (UIImage?) -> Void) {
-        let task = URLSession.shared.dataTask(with: url) { data, response, error in
-            guard
-                let data = data,
-                let image = UIImage(data: data)
-            else {
-                completion(nil)
-                return
-            }
-            
-            completion(image)
-        }
-        task.resume()
+        .drawingGroup()
     }
 }
 
@@ -111,9 +92,7 @@ class ImageLoader {
 struct AvatarView_Previews: PreviewProvider {
     static var previews: some View {
         VStack {
-            AvatarView(url: nil) {}
-            AvatarView(url: nil) {}
-            AvatarView(url: nil) {}
+            AvatarView(value: .placeholder)
         }
         .previewLayout(.fixed(width: 200.0, height: 200.0))
     }

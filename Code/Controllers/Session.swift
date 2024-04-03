@@ -18,6 +18,8 @@ protocol SessionDelegate: AnyObject {
 @MainActor
 class Session: ObservableObject {
     
+    @Published var showTipEntry: Bool = false
+    
     @Published private(set) var isReceivingRemoteSend: Bool = false
     
     @Published private(set) var hasBalance: Bool = false
@@ -41,7 +43,8 @@ class Session: ObservableObject {
     private let betaFlags: BetaFlags
     private let abacus: Abacus
     private let historyController: HistoryController
-    
+
+    private let tipController: TipController
     private let flowController: FlowController
     private let giftCardVault: GiftCardVault
     
@@ -79,6 +82,7 @@ class Session: ObservableObject {
         self.abacus = abacus
         self.historyController = historyController
         
+        self.tipController = TipController(client: client)
         self.flowController = FlowController(client: client, organizer: organizer)
         self.giftCardVault = GiftCardVault()
         
@@ -577,10 +581,131 @@ class Session: ObservableObject {
             attemptLogin(payload, request: request)
             
         case .tip:
-            // TODO: Implement tip payments
-            break
+            attemptTip(payload)
         }
     }
+    
+    // MARK: - Tips -
+    
+    private func attemptTip(_ payload: Code.Payload) {
+        guard case .username(let username) = payload.value else {
+            return
+        }
+        
+        presentTipCard(
+            payload: payload,
+            username: username
+        )
+    }
+    
+    private func presentTipCard(payload: Code.Payload, username: String) {
+        sendTransaction = nil
+        presentationState = .visible(.pop)
+        billState = billState
+            .bill(
+                .tip(.init(
+                    username: username,
+                    data: payload.codeData()
+                ))
+            )
+            .hideBillButtons(true)
+        
+        // Tip codes are always the same, we need to
+        // ensure that we can scan the same code again
+        scannedRendezvous.remove(payload.rendezvous.publicKey)
+        
+        Task {
+            try await tipController.fetchUser(username: username, payload: payload)
+        }
+        
+        Task {
+            try await Task.delay(milliseconds: 300)
+            showTipEntry = true
+        }
+        
+        Analytics.tipCardShown(username: username)
+    }
+    
+    func presentTipConfirmation(amount: KinAmount) {
+        guard let (username, payload) = tipController.inflightUser else {
+            return
+        }
+        
+        let metadata = tipController.userMetadata
+        
+        billState = billState
+            .showTipConfirmation(
+                .init(
+                    payload: payload,
+                    amount: amount,
+                    username: username,
+                    avatar: tipController.userAvatar,
+                    followerCount: metadata?.followerCount
+                )
+            )
+        
+        // If metadata isn't loaded yet,
+        // we'll attempt to refetch it
+        if metadata == nil {
+            Task {
+                try await tipController.fetchUser(username: username, payload: payload)
+                presentTipConfirmation(amount: amount)
+            }
+        }
+    }
+    
+    func completeTipPayment(amount: KinAmount, rendezvous: PublicKey) {
+        guard let metadata = tipController.userMetadata else {
+            return
+        }
+        
+        Task {
+            do {
+                try await flowController.transfer(
+                    amount: amount,
+                    fee: 0,
+                    additionalFees: [],
+                    rendezvous: rendezvous,
+                    destination: metadata.tipAddress,
+                    withdrawal: true
+                )
+                
+                Analytics.transferForTip(
+                    amount: amount,
+                    successful: true,
+                    error: nil
+                )
+                
+            } catch {
+                Analytics.transferForTip(
+                    amount: amount,
+                    successful: false,
+                    error: error
+                )
+            }
+        }
+    }
+    
+    func cancelTipAmountEntry() {
+        // Cancelling from amount entry is triggered by a UI event.
+        // To distinguish between a valid "Next" action that will
+        // also dismiss the entry screen, we need to check explicitly
+        if billState.tipConfirmation == nil {
+            cancelTip()
+        }
+    }
+    
+    func cancelTip() {
+        tipController.resetInflightUser()
+        
+        presentationState = .hidden(.slide)
+        billState = billState
+            .bill(nil)
+            .showTipConfirmation(nil)
+            .hideBillButtons(false)
+    }
+    
+    // MARK: - Cash -
     
     private func attemptReceive(_ payload: Code.Payload) {
         let transaction = ReceiveTransaction(organizer: organizer, payload: payload, client: client)
@@ -638,7 +763,7 @@ class Session: ObservableObject {
         }
     }
     
-    func presentLoginCard(payload: Code.Payload, domain: Domain, request: DeepLinkRequest?) {
+    private func presentLoginCard(payload: Code.Payload, domain: Domain, request: DeepLinkRequest?) {
         Task {
             try await client.codeScanned(rendezvous: payload.rendezvous)
         }
@@ -943,18 +1068,18 @@ class Session: ObservableObject {
     }
     
     func hasAvailableDailyLimit() -> Bool {
-        todaysAllowanceFor(currency: .usd) > 0
+        sendLimitFor(currency: .usd).nextTransaction > 0
     }
     
     func hasAvailableTransactionLimit(for amount: KinAmount) -> Bool {
-        todaysAllowanceFor(currency: amount.rate.currency) >= amount.fiat
+        sendLimitFor(currency: amount.rate.currency).nextTransaction >= amount.fiat
     }
     
-    func todaysAllowanceFor(currency: CurrencyCode) -> Decimal {
-        flowController.limits?.todaysAllowanceFor(currency: currency) ?? 0
+    func sendLimitFor(currency: CurrencyCode) -> SendLimit {
+        flowController.limits?.sendLimitFor(currency: currency) ?? .zero
     }
     
-    func buyLimit(for currency: CurrencyCode) -> Limit? {
+    func buyLimit(for currency: CurrencyCode) -> BuyLimit? {
         flowController.limits?.buyLimit(for: currency)
     }
     

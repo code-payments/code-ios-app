@@ -32,7 +32,7 @@ struct GiveKinScreen: View {
     }
     
     private var maxFiatAmount: String {
-        let limitFiat = session.todaysAllowanceFor(currency: entryRate.currency)
+        let limitFiat = session.sendLimitFor(currency: entryRate.currency).nextTransaction
         let limitKin  = KinAmount(fiat: limitFiat, rate: entryRate)
         
         return min(session.currentBalance, limitKin.kin).formattedFiat(

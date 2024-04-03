@@ -27,7 +27,13 @@ public struct TwitterBillView: View {
         self.username   = username
         self.data       = data
         self.canvasSize = canvasSize
-        self.billSize   = Self.size(fitting: canvasSize, aspectRatio: aspectRatio)
+        self.billSize   = Self.size(
+            fitting: CGSize(
+                width: canvasSize.width - 40,
+                height: canvasSize.height - 40
+            ),
+            aspectRatio: aspectRatio
+        )
     }
     
     private static func size(fitting size: CGSize, aspectRatio: CGFloat) -> CGSize {
@@ -113,7 +119,7 @@ public struct TwitterBillView: View {
                     
                     HStack {
                         Image.asset(.twitter)
-                        Text(username.capitalized)
+                        Text(username)
                     }
                     .font(.appTextLarge)
                     .foregroundColor(.textMain)

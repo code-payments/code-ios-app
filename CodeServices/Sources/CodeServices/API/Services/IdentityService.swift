@@ -102,6 +102,37 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
         }
     }
     
+    func fetchTwitterUser(username: String, completion: @escaping (Result<TwitterUser, Error>) -> Void) {
+        trace(.send, components: "Username: \(username)")
+        
+        let request = Code_User_V1_GetTwitterUserRequest.with {
+            $0.username = username
+        }
+        
+        let call = service.getTwitterUser(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorFetchTwitterUser(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                do {
+                    let user = try TwitterUser(response)
+                    trace(.success, components: "User: \(username)", "Tip Address: \(user.tipAddress)")
+                    completion(.success(user))
+                } catch {
+                    trace(.success, components: "Error: \(error)")
+                    completion(.failure(error))
+                }
+                
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(ErrorFetchTwitterUser.unknown))
+        }
+    }
+    
     func loginToThirdParty(rendezvous: PublicKey, relationship: KeyPair, completion: @escaping (Result<Void, ErrorLoginToThirdParty>) -> Void) {
         trace(.send, components: "Rendezvous: \(rendezvous.base58)", "Relationship: \(relationship.publicKey.base58)")
         
@@ -181,6 +212,12 @@ public enum ErrorFetchUser: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorFetchTwitterUser: Int, Error {
+    case ok
+    case notFound
+    case unknown = -1
+}
+
 public enum ErrorLoginToThirdParty: Int, Error {
     case ok
     case requestNotFound
@@ -200,6 +237,10 @@ public enum ErrorUpdatePreferences: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_User_V1_IdentityClientInterceptorFactoryProtocol {
+    func makeGetTwitterUserInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_User_V1_GetTwitterUserRequest, CodeAPI.Code_User_V1_GetTwitterUserResponse>] {
+        makeInterceptors()
+    }
+    
     func makeUpdatePreferencesInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_User_V1_UpdatePreferencesRequest, CodeAPI.Code_User_V1_UpdatePreferencesResponse>] {
         makeInterceptors()
     }

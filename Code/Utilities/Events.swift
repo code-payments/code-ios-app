@@ -121,6 +121,17 @@ extension PresentationState.Style {
     }
 }
 
+// MARK: - Tips -
+
+extension Analytics {
+    static func tipCardShown(username: String) {
+        track(.tipCard, properties: [
+            .state: String.shown,
+            .xUsername: username,
+        ])
+    }
+}
+
 // MARK: - Cash Transfer -
 
 extension Analytics {
@@ -135,6 +146,16 @@ extension Analytics {
     }
     
     static func transferForRequest(amount: KinAmount, successful: Bool, error: Error?) {
+        track(.requestPayment, properties: [
+            .state: successful ? String.success : String.failure,
+            .amount: amount.kin.analyticsValue,
+            .fiat: amount.fiat.analyticsValue,
+            .fx: amount.rate.fx.analyticsValue,
+            .currency: amount.rate.currency.rawValue,
+        ], error: error)
+    }
+    
+    static func transferForTip(amount: KinAmount, successful: Bool, error: Error?) {
         track(.requestPayment, properties: [
             .state: successful ? String.success : String.failure,
             .amount: amount.kin.analyticsValue,
@@ -233,6 +254,7 @@ extension Analytics {
         case bill = "Bill"
         case request = "Request Card"
         case loginCard = "Login Card"
+        case tipCard = "Tip Card"
         
         // Transfer
         case transfer = "Transfer"
@@ -275,6 +297,7 @@ extension Analytics {
         case animation = "Animation"
         case rendezvous = "Rendezvous"
         case domain = "Domain"
+        case xUsername = "X Username"
         
         // Validation
         case type = "Type"

@@ -110,6 +110,9 @@
 /* Swipe to Login */
 "action.swipeToLogin" = "Swipe to Login";
 
+/* Swipe to Tip */
+"action.swipeToTip" = "Swipe to Tip";
+
 /* Open Settings */
 "action.openSettings" = "Open Settings";
 
@@ -235,6 +238,9 @@
 
 /* Title for Get Kin */
 "title.getKin" = "Get Kin";
+
+/* Title for Tip Kin */
+"title.tipKin" = "Tip Kin";
 
 /* Title for Request Kin */
 "title.requestKin" = "Request Kin";
@@ -364,6 +370,9 @@
 
 /* Subtitle to guide the user that the entered amount is above the specified maximum */
 "subtitle.canOnlyGiveUpTo" = "You can only give up to %@";
+
+/* Subtitle to guide the user that the entered amount is above the specified maximum */
+"subtitle.canOnlyTipUpTo" = "You can only tip up to %@";
 
 /* Subtitle for number of invites available */
 "subtitle.youHaveInvitesLeft" = "Code is currently invite only. You have %d remaining.";

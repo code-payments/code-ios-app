@@ -86,6 +86,20 @@ struct ScanScreen: View {
             modalView()
         }
         .ignoresSafeArea(.keyboard)
+        .sheet(isPresented: $session.showTipEntry) {
+            session.cancelTipAmountEntry()
+        } content: {
+            EnterTipScreen(
+                isPresented: $session.showTipEntry,
+                viewModel: EnterTipViewModel(
+                    session: session,
+                    client: client,
+                    exchange: exchange,
+                    bannerController: bannerController,
+                    betaFlags: betaFlags
+                )
+            )
+        }
 //        .loading(
 //            active: session.isReceivingRemoteSend,
 //            text: "Collecting your cash",
@@ -155,7 +169,9 @@ struct ScanScreen: View {
                 if isVisible {
                     CodeBrand(size: .small, template: true)
                         .foregroundColor(.textMain)
+                    
                     Spacer()
+                    
                     RoundButton(
                         asset: .hamburger,
                         size: .regular,
@@ -413,6 +429,30 @@ struct ScanScreen: View {
                     
                 }, cancelAction: { [weak session] in
                     session?.rejectLogin()
+                }
+            )
+            .zIndex(5)
+            
+        } else if let tipConfirmation = session.billState.tipConfirmation {
+            ModalTipConfirmation(
+                avatar: tipConfirmation.avatar,
+                username: tipConfirmation.username,
+                followerCount: tipConfirmation.followerCount,
+                amount: tipConfirmation.amount.kin.formattedFiat(rate: tipConfirmation.amount.rate, showOfKin: true),
+                currency: tipConfirmation.amount.rate.currency,
+                primaryAction: Localized.Action.swipeToTip,
+                secondaryAction: Localized.Action.cancel,
+                paymentAction: { [weak session] in
+                    session?.completeTipPayment(
+                        amount: tipConfirmation.amount,
+                        rendezvous: tipConfirmation.payload.rendezvous.publicKey
+                    )
+                },
+                dismissAction: { [weak session] in
+                    session?.cancelTip()
+                },
+                cancelAction: { [weak session] in
+                    session?.cancelTip()
                 }
             )
             .zIndex(5)

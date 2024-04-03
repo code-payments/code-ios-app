@@ -126,6 +126,13 @@ private class _BillCanvasController: UIViewController {
                     data: metadata.data,
                     canvasSize: canvasSize()
                 )
+                
+            case .tip(let twitterMetadata):
+                TwitterBillView(
+                    username: twitterMetadata.username,
+                    data: twitterMetadata.data,
+                    canvasSize: canvasSize()
+                )
             }
             
         } else {

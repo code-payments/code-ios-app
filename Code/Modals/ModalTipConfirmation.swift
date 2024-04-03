@@ -14,9 +14,9 @@ import CodeUI
 /// Modal to confirm and execute a tip request card
 public struct ModalTipConfirmation: View {
     
-    public let avatarURL: URL?
+    public let avatar: Image?
     public let username: String
-    public let subtitle: String
+    public let followerCount: Int?
     public let amount: String
     public let currency: CurrencyCode
     public let primaryAction: String
@@ -28,10 +28,10 @@ public struct ModalTipConfirmation: View {
     // MARK: - Init -
     
 
-    public init(avatarURL: URL?, username: String, subtitle: String, amount: String, currency: CurrencyCode, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
-        self.avatarURL = avatarURL
+    public init(avatar: Image?, username: String, followerCount: Int?, amount: String, currency: CurrencyCode, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
+        self.avatar = avatar
         self.username = username
-        self.subtitle = subtitle
+        self.followerCount = followerCount
         self.amount = amount
         self.currency = currency
         self.primaryAction = primaryAction
@@ -49,8 +49,11 @@ public struct ModalTipConfirmation: View {
                 
                 VStack(alignment: .center) {
                     
-                    AvatarView(url: avatarURL, action: nil)
-                        .disabled(true)
+                    if let avatar = avatar {
+                        AvatarView(value: .image(avatar))
+                    } else {
+                        AvatarView(value: .placeholder)
+                    }
                     
                     HStack {
                         Spacer()
@@ -60,9 +63,13 @@ public struct ModalTipConfirmation: View {
                     }
                     .font(.appDisplaySmall)
                     
-                    Text(subtitle)
-                        .font(.appTextSmall)
-                        .foregroundColor(.textSecondary)
+                    if let followerCount = followerCount {
+                        Text("\(followerCount) Followers")
+                            .font(.appTextSmall)
+                            .foregroundColor(.textSecondary)
+                    } else {
+                        LoadingView(color: .textSecondary)
+                    }
                 }
                 .padding(.bottom, 40)
                 .vSeparator(color: .textSecondary)
@@ -110,9 +117,9 @@ public struct ModalTipConfirmation: View {
 #Preview {
     Background(color: .white) {
         ModalTipConfirmation(
-            avatarURL: nil,
+            avatar: nil,
             username: "ted_livingston",
-            subtitle: "12k Followers",
+            followerCount: 12_0000,
             amount: "$5.00 of Kin",
             currency: .cad,
             primaryAction: "Swipe to Tip",
