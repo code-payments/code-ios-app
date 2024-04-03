@@ -114,6 +114,8 @@ internal enum Localized {
     internal static let swipeToLogin = Localized.tr("Localizable", "action.swipeToLogin")
     /// Swipe to Pay
     internal static let swipeToPay = Localized.tr("Localizable", "action.swipeToPay")
+    /// Swipe to Tip
+    internal static let swipeToTip = Localized.tr("Localizable", "action.swipeToTip")
     /// Try a Different Code Account
     internal static let tryDifferentCodeAccount = Localized.tr("Localizable", "action.tryDifferentCodeAccount")
     /// Unmute
@@ -469,6 +471,10 @@ internal enum Localized {
     internal static func canOnlyGiveUpTo(_ p1: Any) -> String {
       return Localized.tr("Localizable", "subtitle.canOnlyGiveUpTo", String(describing: p1))
     }
+    /// You can only tip up to %@
+    internal static func canOnlyTipUpTo(_ p1: Any) -> String {
+      return Localized.tr("Localizable", "subtitle.canOnlyTipUpTo", String(describing: p1))
+    }
     /// Coming Soon
     internal static let comingSoon = Localized.tr("Localizable", "subtitle.comingSoon")
     /// Delete
@@ -717,6 +723,8 @@ internal enum Localized {
     internal static let switchAccounts = Localized.tr("Localizable", "title.switchAccounts")
     /// Terms of Service
     internal static let termsOfService = Localized.tr("Localizable", "title.termsOfService")
+    /// Tip Kin
+    internal static let tipKin = Localized.tr("Localizable", "title.tipKin")
     /// Unknown
     internal static let unknown = Localized.tr("Localizable", "title.unknown")
     /// Update Required

@@ -28,14 +28,14 @@ public struct Limits: Codable, Equatable, Hashable {
     }
     
     /// Remaining send limits keyed by currency
-    private let sendLimits: [CurrencyCode: Decimal]
+    private let sendLimits: [CurrencyCode: SendLimit]
     
     /// Buy limits keyed by currency
-    private let buyLimits: [CurrencyCode: Limit]
+    private let buyLimits: [CurrencyCode: BuyLimit]
     
     // MARK: - Init -
     
-    init(sinceDate: Date, fetchDate: Date, sendLimits: [CurrencyCode: Decimal], buyLimits: [CurrencyCode: Limit], maxDeposit: Kin) {
+    init(sinceDate: Date, fetchDate: Date, sendLimits: [CurrencyCode: SendLimit], buyLimits: [CurrencyCode: BuyLimit], maxDeposit: Kin) {
         self.sinceDate  = sinceDate
         self.fetchDate  = fetchDate
         self.sendLimits = sendLimits
@@ -43,28 +43,18 @@ public struct Limits: Codable, Equatable, Hashable {
         self.maxDeposit = maxDeposit
     }
     
-    public func todaysAllowanceFor(currency: CurrencyCode) -> Decimal {
-        sendLimits[currency] ?? 0
+    public func sendLimitFor(currency: CurrencyCode) -> SendLimit? {
+        sendLimits[currency]
     }
     
-    public func multiplying(by value: Decimal) -> Limits {
-        Limits(
-            sinceDate: sinceDate,
-            fetchDate: fetchDate,
-            sendLimits: sendLimits.mapValues { $0 * value },
-            buyLimits: buyLimits,
-            maxDeposit: maxDeposit
-        )
-    }
-    
-    public func buyLimit(for currency: CurrencyCode) -> Limit? {
+    public func buyLimit(for currency: CurrencyCode) -> BuyLimit? {
         buyLimits[currency]
     }
 }
 
-public struct Limit: Codable, Equatable, Hashable {
+public struct BuyLimit: Codable, Equatable, Hashable {
     
-    public static let zero = Limit(max: 0, min: 0)
+    public static let zero = BuyLimit(max: 0, min: 0)
     
     public let max: Decimal
     public let min: Decimal
@@ -75,13 +65,41 @@ public struct Limit: Codable, Equatable, Hashable {
     }
 }
 
+public struct SendLimit: Codable, Equatable, Hashable {
+    
+    public static let zero = SendLimit(nextTransaction: 0, maxPerTransaction: 0, maxPerDay: 0)
+    
+    /// Remaining limit to apply on the next transaction
+    public var nextTransaction: Decimal
+
+    /// Maximum allowed on a per-transaction basis
+    public var maxPerTransaction: Decimal
+
+    /// Maximum allowed on a per-day basis
+    public var maxPerDay: Decimal
+    
+    public init(nextTransaction: Decimal, maxPerTransaction: Decimal, maxPerDay: Decimal) {
+        self.nextTransaction = nextTransaction
+        self.maxPerTransaction = maxPerTransaction
+        self.maxPerDay = maxPerDay
+    }
+}
+
 // MARK: - Proto -
 
 extension Limits {
     init(sinceDate: Date, fetchDate: Date, sendLimits: [String: Code_Transaction_V2_SendLimit], buyLimits: [String: Code_Transaction_V2_BuyModuleLimit], deposits: Code_Transaction_V2_DepositLimit) {
         
-        let sendDict = sendLimits.mapValues { Decimal(Double($0.nextTransaction)) }
-        var sendContainer: [CurrencyCode: Decimal] = [:]
+        let sendDict = sendLimits.mapValues {
+            SendLimit(
+                nextTransaction: Decimal(Double($0.nextTransaction)),
+                maxPerTransaction: Decimal(Double($0.maxPerTransaction)),
+                maxPerDay: Decimal(Double($0.maxPerDay))
+            )
+            
+        }
+        
+        var sendContainer: [CurrencyCode: SendLimit] = [:]
         sendDict.forEach { code, limit in
             if let currency = CurrencyCode(currencyCode: code) {
                 sendContainer[currency] = limit
@@ -89,13 +107,13 @@ extension Limits {
         }
         
         let buyDict = buyLimits.mapValues {
-            Limit(
+            BuyLimit(
                 max: Decimal(Double($0.maxPerTransaction)),
                 min: Decimal(Double($0.minPerTransaction))
             )
         }
         
-        var buyContainer: [CurrencyCode: Limit] = [:]
+        var buyContainer: [CurrencyCode: BuyLimit] = [:]
         buyDict.forEach { code, limit in
             if let currency = CurrencyCode(currencyCode: code) {
                 buyContainer[currency] = limit

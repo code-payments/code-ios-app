@@ -28,6 +28,12 @@ extension Client {
         }
     }
     
+    public func fetchTwitterUser(username: String) async throws -> TwitterUser {
+        try await withCheckedThrowingContinuation { c in
+            identityService.fetchTwitterUser(username: username) { c.resume(with: $0) }
+        }
+    }
+    
     public func loginToThirdParty(rendezvous: PublicKey, relationship: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
             identityService.loginToThirdParty(rendezvous: rendezvous, relationship: relationship) { c.resume(with: $0) }

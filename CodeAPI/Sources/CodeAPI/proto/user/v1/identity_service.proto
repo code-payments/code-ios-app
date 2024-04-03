@@ -53,6 +53,15 @@ service Identity {
     // request. This endpoint supports all paths where login is possible (login on payment,
     // raw login, etc.).
     rpc GetLoginForThirdPartyApp(GetLoginForThirdPartyAppRequest) returns (GetLoginForThirdPartyAppResponse);
+
+    // GetTwitterUser gets Twitter user information
+    //
+    // Note 1: This RPC will only return results for Twitter users that have
+    // accounts linked with Code.
+    //
+    // Note 2: This RPC is heavily cached, and may not reflect real-time Twitter
+    // information.
+    rpc GetTwitterUser(GetTwitterUserRequest) returns (GetTwitterUserResponse);
 }
 
 message LinkAccountRequest {
@@ -265,6 +274,44 @@ message GetLoginForThirdPartyAppResponse {
 
     // The relationship authority account that logged in.
     common.v1.SolanaAccountId user_id = 2;
+}
+
+message GetTwitterUserRequest {
+    // The Twitter username to query against
+    string username = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 15
+    }];
+}
+
+message GetTwitterUserResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The Twitter user doesn't exist or isn't linked with a Code account
+        NOT_FOUND = 1;
+    }
+
+    // Public key for a token account where tips are routed
+    common.v1.SolanaAccountId tip_address = 2;
+
+    // The user's friendly name on Twitter
+    string name = 3;
+
+    // URL to the user's Twitter profile picture
+    string profile_pic_url = 4;
+
+    // The type of Twitter verification associated with the user
+    VerifiedType verified_type = 5;
+    enum VerifiedType {
+        NONE       = 0;
+        BLUE       = 1;
+        BUSINESS   = 2;
+        GOVERNMENT = 3;
+    }
+
+    // The number of followers the user has on Twitter
+    uint32 follower_count = 6;
 }
 
 // User is the highest order of a form of identity within Code.

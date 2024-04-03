@@ -5,7 +5,7 @@
 //  Created by Dima Bart on 2021-02-25.
 //
 
-import Foundation
+import SwiftUI
 import CodeServices
 import CodeUI
 
@@ -17,6 +17,8 @@ struct BillState: Equatable {
     var valuation: Valuation?
     var paymentConfirmation: PaymentConfirmation?
     var loginConfirmation: LoginConfirmation?
+    var tipConfirmation: TipConfirmation?
+    
     var hideBillButtons: Bool
     
     fileprivate init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, paymentConfirmation: PaymentConfirmation? = nil, loginConfirmation: LoginConfirmation? = nil, hideBillButtons: Bool = false) {
@@ -73,6 +75,12 @@ extension BillState {
         return state
     }
     
+    func showTipConfirmation(_ tipConfirmation: TipConfirmation?) -> BillState {
+        var state = self
+        state.tipConfirmation = tipConfirmation
+        return state
+    }
+    
     func hideBillButtons(_ value: Bool) -> BillState {
         var state = self
         state.hideBillButtons = value
@@ -115,6 +123,16 @@ extension BillState {
     }
 }
 
+extension BillState {
+    struct TipConfirmation: Equatable {
+        var payload: Code.Payload
+        var amount: KinAmount
+        var username: String
+        var avatar: Image?
+        var followerCount: Int?
+    }
+}
+
 // MARK: - Bill (Metadata) -
 
 extension BillState {
@@ -123,12 +141,14 @@ extension BillState {
         case cash(Metadata)
         case request(Metadata)
         case login(Metadata)
+        case tip(TwitterMetadata)
         
         var canSwipeToDismiss: Bool {
             switch self {
             case .cash:    return true
             case .request: return false
             case .login:   return false
+            case .tip:     return false
             }
         }
         
@@ -137,6 +157,8 @@ extension BillState {
             case .cash(let m):    return m
             case .request(let m): return m
             case .login(let m):   return m
+            case .tip:
+                fatalError("Tips don't support metadata")
             }
         }
     }
@@ -152,6 +174,18 @@ extension BillState {
             self.kinAmount = kinAmount
             self.data = data
             self.request = request
+        }
+    }
+}
+
+extension BillState {
+    struct TwitterMetadata: Equatable {
+        var username: String
+        var data: Data
+        
+        init(username: String, data: Data) {
+            self.username = username
+            self.data = data
         }
     }
 }

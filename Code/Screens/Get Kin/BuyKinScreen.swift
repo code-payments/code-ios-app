@@ -56,7 +56,7 @@ class BuyKinViewModel: ObservableObject {
         KinAmount(stringAmount: amount, rate: kadoEntryRate)
     }
     
-    var buyLimit: Limit {
+    var buyLimit: BuyLimit {
         session.buyLimit(for: kadoEntryRate.currency) ?? .zero
     }
     

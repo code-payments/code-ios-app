@@ -60,6 +60,11 @@ public protocol Code_User_V1_IdentityClientProtocol: GRPCClient {
     _ request: Code_User_V1_GetLoginForThirdPartyAppRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>
+
+  func getTwitterUser(
+    _ request: Code_User_V1_GetTwitterUserRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_User_V1_GetTwitterUserRequest, Code_User_V1_GetTwitterUserResponse>
 }
 
 extension Code_User_V1_IdentityClientProtocol {
@@ -198,6 +203,30 @@ extension Code_User_V1_IdentityClientProtocol {
       interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? []
     )
   }
+
+  /// GetTwitterUser gets Twitter user information
+  ///
+  /// Note 1: This RPC will only return results for Twitter users that have
+  /// accounts linked with Code.
+  ///
+  /// Note 2: This RPC is heavily cached, and may not reflect real-time Twitter
+  /// information.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetTwitterUser.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getTwitterUser(
+    _ request: Code_User_V1_GetTwitterUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_User_V1_GetTwitterUserRequest, Code_User_V1_GetTwitterUserResponse> {
+    return self.makeUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.getTwitterUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetTwitterUserInterceptors() ?? []
+    )
+  }
 }
 
 #if compiler(>=5.6)
@@ -294,6 +323,11 @@ public protocol Code_User_V1_IdentityAsyncClientProtocol: GRPCClient {
     _ request: Code_User_V1_GetLoginForThirdPartyAppRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>
+
+  func makeGetTwitterUserCall(
+    _ request: Code_User_V1_GetTwitterUserRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_GetTwitterUserRequest, Code_User_V1_GetTwitterUserResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -377,6 +411,18 @@ extension Code_User_V1_IdentityAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? []
     )
   }
+
+  public func makeGetTwitterUserCall(
+    _ request: Code_User_V1_GetTwitterUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_User_V1_GetTwitterUserRequest, Code_User_V1_GetTwitterUserResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.getTwitterUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetTwitterUserInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -452,6 +498,18 @@ extension Code_User_V1_IdentityAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? []
     )
   }
+
+  public func getTwitterUser(
+    _ request: Code_User_V1_GetTwitterUserRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_User_V1_GetTwitterUserResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_User_V1_IdentityClientMetadata.Methods.getTwitterUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetTwitterUserInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -492,6 +550,9 @@ public protocol Code_User_V1_IdentityClientInterceptorFactoryProtocol: GRPCSenda
 
   /// - Returns: Interceptors to use when invoking 'getLoginForThirdPartyApp'.
   func makeGetLoginForThirdPartyAppInterceptors() -> [ClientInterceptor<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getTwitterUser'.
+  func makeGetTwitterUserInterceptors() -> [ClientInterceptor<Code_User_V1_GetTwitterUserRequest, Code_User_V1_GetTwitterUserResponse>]
 }
 
 public enum Code_User_V1_IdentityClientMetadata {
@@ -505,6 +566,7 @@ public enum Code_User_V1_IdentityClientMetadata {
       Code_User_V1_IdentityClientMetadata.Methods.updatePreferences,
       Code_User_V1_IdentityClientMetadata.Methods.loginToThirdPartyApp,
       Code_User_V1_IdentityClientMetadata.Methods.getLoginForThirdPartyApp,
+      Code_User_V1_IdentityClientMetadata.Methods.getTwitterUser,
     ]
   )
 
@@ -542,6 +604,12 @@ public enum Code_User_V1_IdentityClientMetadata {
     public static let getLoginForThirdPartyApp = GRPCMethodDescriptor(
       name: "GetLoginForThirdPartyApp",
       path: "/code.user.v1.Identity/GetLoginForThirdPartyApp",
+      type: GRPCCallType.unary
+    )
+
+    public static let getTwitterUser = GRPCMethodDescriptor(
+      name: "GetTwitterUser",
+      path: "/code.user.v1.Identity/GetTwitterUser",
       type: GRPCCallType.unary
     )
   }
@@ -592,6 +660,15 @@ public protocol Code_User_V1_IdentityProvider: CallHandlerProvider {
   /// request. This endpoint supports all paths where login is possible (login on payment,
   /// raw login, etc.).
   func getLoginForThirdPartyApp(request: Code_User_V1_GetLoginForThirdPartyAppRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_GetLoginForThirdPartyAppResponse>
+
+  /// GetTwitterUser gets Twitter user information
+  ///
+  /// Note 1: This RPC will only return results for Twitter users that have
+  /// accounts linked with Code.
+  ///
+  /// Note 2: This RPC is heavily cached, and may not reflect real-time Twitter
+  /// information.
+  func getTwitterUser(request: Code_User_V1_GetTwitterUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_User_V1_GetTwitterUserResponse>
 }
 
 extension Code_User_V1_IdentityProvider {
@@ -658,6 +735,15 @@ extension Code_User_V1_IdentityProvider {
         responseSerializer: ProtobufSerializer<Code_User_V1_GetLoginForThirdPartyAppResponse>(),
         interceptors: self.interceptors?.makeGetLoginForThirdPartyAppInterceptors() ?? [],
         userFunction: self.getLoginForThirdPartyApp(request:context:)
+      )
+
+    case "GetTwitterUser":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_GetTwitterUserRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_GetTwitterUserResponse>(),
+        interceptors: self.interceptors?.makeGetTwitterUserInterceptors() ?? [],
+        userFunction: self.getTwitterUser(request:context:)
       )
 
     default:
@@ -733,6 +819,18 @@ public protocol Code_User_V1_IdentityAsyncProvider: CallHandlerProvider {
     request: Code_User_V1_GetLoginForThirdPartyAppRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_User_V1_GetLoginForThirdPartyAppResponse
+
+  /// GetTwitterUser gets Twitter user information
+  ///
+  /// Note 1: This RPC will only return results for Twitter users that have
+  /// accounts linked with Code.
+  ///
+  /// Note 2: This RPC is heavily cached, and may not reflect real-time Twitter
+  /// information.
+  @Sendable func getTwitterUser(
+    request: Code_User_V1_GetTwitterUserRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_User_V1_GetTwitterUserResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -808,6 +906,15 @@ extension Code_User_V1_IdentityAsyncProvider {
         wrapping: self.getLoginForThirdPartyApp(request:context:)
       )
 
+    case "GetTwitterUser":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_User_V1_GetTwitterUserRequest>(),
+        responseSerializer: ProtobufSerializer<Code_User_V1_GetTwitterUserResponse>(),
+        interceptors: self.interceptors?.makeGetTwitterUserInterceptors() ?? [],
+        wrapping: self.getTwitterUser(request:context:)
+      )
+
     default:
       return nil
     }
@@ -841,6 +948,10 @@ public protocol Code_User_V1_IdentityServerInterceptorFactoryProtocol {
   /// - Returns: Interceptors to use when handling 'getLoginForThirdPartyApp'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetLoginForThirdPartyAppInterceptors() -> [ServerInterceptor<Code_User_V1_GetLoginForThirdPartyAppRequest, Code_User_V1_GetLoginForThirdPartyAppResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getTwitterUser'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetTwitterUserInterceptors() -> [ServerInterceptor<Code_User_V1_GetTwitterUserRequest, Code_User_V1_GetTwitterUserResponse>]
 }
 
 public enum Code_User_V1_IdentityServerMetadata {
@@ -854,6 +965,7 @@ public enum Code_User_V1_IdentityServerMetadata {
       Code_User_V1_IdentityServerMetadata.Methods.updatePreferences,
       Code_User_V1_IdentityServerMetadata.Methods.loginToThirdPartyApp,
       Code_User_V1_IdentityServerMetadata.Methods.getLoginForThirdPartyApp,
+      Code_User_V1_IdentityServerMetadata.Methods.getTwitterUser,
     ]
   )
 
@@ -891,6 +1003,12 @@ public enum Code_User_V1_IdentityServerMetadata {
     public static let getLoginForThirdPartyApp = GRPCMethodDescriptor(
       name: "GetLoginForThirdPartyApp",
       path: "/code.user.v1.Identity/GetLoginForThirdPartyApp",
+      type: GRPCCallType.unary
+    )
+
+    public static let getTwitterUser = GRPCMethodDescriptor(
+      name: "GetTwitterUser",
+      path: "/code.user.v1.Identity/GetTwitterUser",
       type: GRPCCallType.unary
     )
   }
