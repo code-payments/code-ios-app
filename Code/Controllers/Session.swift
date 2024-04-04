@@ -654,7 +654,7 @@ class Session: ObservableObject {
         }
     }
     
-    func completeTipPayment(amount: KinAmount) {
+    func completeTipPayment(amount: KinAmount) async throws {
         guard let metadata = tipController.userMetadata else {
             return
         }
@@ -665,30 +665,30 @@ class Session: ObservableObject {
         // change so we need a unique rendezvous for every tx.
         let rendezvous = PublicKey.generate()!
         
-        Task {
-            do {
-                try await flowController.transfer(
-                    amount: amount,
-                    fee: 0,
-                    additionalFees: [],
-                    rendezvous: rendezvous,
-                    destination: metadata.tipAddress,
-                    withdrawal: true
-                )
-                
-                Analytics.transferForTip(
-                    amount: amount,
-                    successful: true,
-                    error: nil
-                )
-                
-            } catch {
-                Analytics.transferForTip(
-                    amount: amount,
-                    successful: false,
-                    error: error
-                )
-            }
+        do {
+            try await flowController.transfer(
+                amount: amount,
+                fee: 0,
+                additionalFees: [],
+                rendezvous: rendezvous,
+                destination: metadata.tipAddress,
+                withdrawal: true
+            )
+            
+            Analytics.transferForTip(
+                amount: amount,
+                successful: true,
+                error: nil
+            )
+            
+        } catch {
+            Analytics.transferForTip(
+                amount: amount,
+                successful: false,
+                error: error
+            )
+            
+            throw error
         }
     }
     
