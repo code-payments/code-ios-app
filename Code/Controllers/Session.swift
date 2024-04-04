@@ -614,16 +614,33 @@ class Session: ObservableObject {
         // ensure that we can scan the same code again
         scannedRendezvous.remove(payload.rendezvous.publicKey)
         
-        Task {
-            try await tipController.fetchUser(username: username, payload: payload)
+        // Ensure that we can cancel the presentation
+        // of the amount entry modal in case the tip
+        // card is invalid
+        let showTask = Task {
+            try await Task.delay(milliseconds: 750)
+            
+            if !Task.isCancelled {
+                showTipEntry = true
+                Analytics.tipCardShown(username: username)
+            }
         }
         
         Task {
-            try await Task.delay(milliseconds: 300)
-            showTipEntry = true
+            do {
+                try await tipController.fetchUser(username: username, payload: payload)
+                
+            } catch { // User not found
+                
+                // Prevent scanning invalid tip cards repeatedly
+                scannedRendezvous.insert(payload.rendezvous.publicKey)
+                
+                showTask.cancel()
+                cancelTip()
+                
+                showInvalidTipCardError()
+            }
         }
-        
-        Analytics.tipCardShown(username: username)
     }
     
     func presentTipConfirmation(amount: KinAmount) {
@@ -1325,6 +1342,17 @@ class Session: ObservableObject {
                 .prominent(title: Localized.Action.yes, action: confirm),
                 .standard(title: Localized.Action.noTryAgain, action: tryAgain),
                 .subtle(title: Localized.Action.cancelSend, action: cancel),
+            ]
+        )
+    }
+    
+    private func showInvalidTipCardError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.invalidTipCard,
+            description: Localized.Error.Description.invalidTipCard,
+            actions: [
+                .cancel(title: Localized.Action.ok)
             ]
         )
     }

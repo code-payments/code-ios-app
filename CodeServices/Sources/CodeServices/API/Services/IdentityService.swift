@@ -119,12 +119,12 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
                     trace(.success, components: "User: \(username)", "Tip Address: \(user.tipAddress)")
                     completion(.success(user))
                 } catch {
-                    trace(.success, components: "Error: \(error)")
+                    trace(.failure, components: "Error: \(error)")
                     completion(.failure(error))
                 }
                 
             } else {
-                trace(.success, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             
