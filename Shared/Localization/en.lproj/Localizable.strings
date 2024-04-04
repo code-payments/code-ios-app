@@ -632,6 +632,18 @@
 /* Description when the user has reached their daily give limit */
 "error.description.giveLimitReached" = "Code is designed for small, every day transactions. Your daily give limit will increase tomorrow.";
 
+/* Title when the user enters a tip that is too small */
+"error.title.tipTooSmall" = "Tip Too Small";
+
+/* Description when the user enters a tip that is too small */
+"error.description.tipTooSmall" = "The minimum you can tip is %@. Please enter a larger amount.";
+
+/* Title when the user enters a tip that is too large */
+"error.title.tipTooLarge" = "Tip Too Large";
+
+/* Description when the user enters a tip that is too large */
+"error.description.tipTooLarge" = "The maximum you can tip is %@. Please enter a smaller amount.";
+
 /* Title when the encounters no internet connection */
 "error.title.noInternet" = "No Internet Connection";
 
