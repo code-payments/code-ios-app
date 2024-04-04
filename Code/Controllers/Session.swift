@@ -692,6 +692,8 @@ class Session: ObservableObject {
                 withdrawal: true
             )
             
+            showToast(amount: amount, isDeposit: false)
+            
             Analytics.transferForTip(
                 amount: amount,
                 successful: true,
