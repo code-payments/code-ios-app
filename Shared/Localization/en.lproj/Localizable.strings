@@ -782,6 +782,12 @@
 /* Description when the amount enetered to purcahse is too large */
 "error.description.purchaseTooLarge" = "The maximum you can purchase is %@. Please enter a smaller amount.";
 
+/* Title when the scanned tip card is invalid */
+"error.title.invalidTipCard" = "Invalid Tip Card";
+
+/* Description when the scanned tip card is invalid */
+"error.description.invalidTipCard" = "This is an invalid Tip Card.";
+
 
 
 

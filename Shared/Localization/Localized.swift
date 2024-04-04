@@ -200,6 +200,8 @@ internal enum Localized {
       internal static let invalidInviteCode = Localized.tr("Localizable", "error.description.invalidInviteCode")
       /// Please enter a valid phone number and try again.
       internal static let invalidInvitePhone = Localized.tr("Localizable", "error.description.invalidInvitePhone")
+      /// This is an invalid Tip Card.
+      internal static let invalidTipCard = Localized.tr("Localizable", "error.description.invalidTipCard")
       /// Please enter a valid code and try again.
       internal static let invalidVerificationCode = Localized.tr("Localizable", "error.description.invalidVerificationCode")
       /// Sorry, we experienced a network issue. Please try inviting your friend again.
@@ -268,6 +270,8 @@ internal enum Localized {
       internal static let invalidInviteCode = Localized.tr("Localizable", "error.title.invalidInviteCode")
       /// Invalid Phone Number
       internal static let invalidInvitePhone = Localized.tr("Localizable", "error.title.invalidInvitePhone")
+      /// Invalid Tip Card
+      internal static let invalidTipCard = Localized.tr("Localizable", "error.title.invalidTipCard")
       /// Invalid Code
       internal static let invalidVerificationCode = Localized.tr("Localizable", "error.title.invalidVerificationCode")
       /// Invitation Failed
