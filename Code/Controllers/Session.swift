@@ -707,6 +707,13 @@ class Session: ObservableObject {
                 error: error
             )
             
+            ErrorReporting.capturePayment(
+                error: error,
+                rendezvous: rendezvous,
+                tray: organizer.tray,
+                amount: amount
+            )
+            
             throw error
         }
     }
@@ -1077,7 +1084,16 @@ class Session: ObservableObject {
                 rendezvous: rendezvous.publicKey,
                 error: error
             )
+            
+            ErrorReporting.capturePayment(
+                error: error,
+                rendezvous: rendezvous.publicKey,
+                tray: organizer.tray,
+                amount: amount
+            )
+            
             showPaymentRequestError()
+            
             throw error
         }
     }
