@@ -42,7 +42,7 @@ public struct AvatarView: View {
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .clipShape(Circle())
+                    .cornerRadius(max(size.width, size.height))
             }
         }
         .frame(width: size.width, height: size.height, alignment: .center)
