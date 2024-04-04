@@ -443,10 +443,7 @@ struct ScanScreen: View {
                 primaryAction: Localized.Action.swipeToTip,
                 secondaryAction: Localized.Action.cancel,
                 paymentAction: { [weak session] in
-                    session?.completeTipPayment(
-                        amount: tipConfirmation.amount,
-                        rendezvous: tipConfirmation.payload.rendezvous.publicKey
-                    )
+                    session?.completeTipPayment(amount: tipConfirmation.amount)
                 },
                 dismissAction: { [weak session] in
                     session?.cancelTip()

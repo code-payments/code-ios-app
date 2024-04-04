@@ -654,10 +654,16 @@ class Session: ObservableObject {
         }
     }
     
-    func completeTipPayment(amount: KinAmount, rendezvous: PublicKey) {
+    func completeTipPayment(amount: KinAmount) {
         guard let metadata = tipController.userMetadata else {
             return
         }
+        
+        // Generally, we would use the rendezvous key that
+        // was generated from the scan code payload, however,
+        // tip codes are inherently deterministic and won't
+        // change so we need a unique rendezvous for every tx.
+        let rendezvous = PublicKey.generate()!
         
         Task {
             do {
