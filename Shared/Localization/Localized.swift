@@ -226,6 +226,14 @@ internal enum Localized {
       }
       /// Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key in Code.
       internal static let timelockUnlocked = Localized.tr("Localizable", "error.description.timelockUnlocked")
+      /// The maximum you can tip is %@. Please enter a smaller amount.
+      internal static func tipTooLarge(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "error.description.tipTooLarge", String(describing: p1))
+      }
+      /// The minimum you can tip is %@. Please enter a larger amount.
+      internal static func tipTooSmall(_ p1: Any) -> String {
+        return Localized.tr("Localizable", "error.description.tipTooSmall", String(describing: p1))
+      }
       /// You can only create so many new accounts each day.
       internal static let tooManyAccounts = Localized.tr("Localizable", "error.description.tooManyAccounts")
     }
@@ -280,6 +288,10 @@ internal enum Localized {
       internal static let purchaseTooSmall = Localized.tr("Localizable", "error.title.purchaseTooSmall")
       /// Access Key No Longer Usable in Code
       internal static let timelockUnlocked = Localized.tr("Localizable", "error.title.timelockUnlocked")
+      /// Tip Too Large
+      internal static let tipTooLarge = Localized.tr("Localizable", "error.title.tipTooLarge")
+      /// Tip Too Small
+      internal static let tipTooSmall = Localized.tr("Localizable", "error.title.tipTooSmall")
       /// Too many accounts created
       internal static let tooManyAccounts = Localized.tr("Localizable", "error.title.tooManyAccounts")
     }

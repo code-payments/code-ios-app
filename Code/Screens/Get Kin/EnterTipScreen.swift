@@ -54,36 +54,89 @@ class EnterTipViewModel: ObservableObject {
         UIPasteboard.general.string = amount
     }
     
-    func showTipConfirmation() {
+    func initiateTipConfirmation() -> Bool {
         guard let amount = enteredKinAmount else {
-            return
+            return false
+        }
+        
+        guard hasSufficientFundsToSend(for: amount) else {
+            showInsufficientFundsError()
+            return false
+        }
+        
+        guard hasAvailableDailyLimit() else {
+            showDailyLimitError()
+            return false
+        }
+        
+        guard hasAvailableTransactionLimit(for: amount) else {
+            showTipTooLargeError()
+            return false
+        }
+        
+        guard isTipLargeEnough(amount: amount) else {
+            showTipTooSmallError()
+            return false
         }
         
         session.presentTipConfirmation(amount: amount)
-        
+        return true
     }
     
     // MARK: - Errors -
   
+    private func showInsufficientFundsError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.insuffiecientKin,
+            description: Localized.Error.Description.insuffiecientKin,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
     
-//    private func showTooLargeError() {
-//        let fiat = Fiat(currency: kadoEntryRate.currency, amount: buyLimit.max)
-//        let formatted = fiat.formatted(showOfKin: false)
-//        
-//        bannerController.show(
-//            style: .error,
-//            title: Localized.Error.Title.purchaseTooLarge,
-//            description: Localized.Error.Description.purchaseTooLarge(formatted),
-//            actions: [
-//                .cancel(title: Localized.Action.ok)
-//            ]
-//        )
-//    }
+    private func showDailyLimitError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.giveLimitReached,
+            description: Localized.Error.Description.giveLimitReached,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showTipTooLargeError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.tipTooLarge,
+            description: Localized.Error.Description.tipTooSmall(maxLimitFormatted),
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showTipTooSmallError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.tipTooSmall,
+            description: Localized.Error.Description.tipTooSmall(minLimitFormatted),
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
 }
 
 // MARK: - Limits -
 
 extension EnterTipViewModel {
+    
+    var supportsDecimalEntry: Bool {
+        entryRate.currency != .kin
+    }
     
     var maxLimit: Kin {
         let limitKin = KinAmount(
@@ -95,12 +148,10 @@ extension EnterTipViewModel {
     }
     
     var minLimit: Kin {
-        let limitKin = KinAmount(
+        KinAmount(
             fiat: minFiatLimit,
             rate: entryRate
-        )
-        
-        return min(session.currentBalance, limitKin.kin)
+        ).kin
     }
     
     var maxLimitFormatted: String {
@@ -133,6 +184,14 @@ extension EnterTipViewModel {
     
     func hasSufficientFundsToSend(for amount: KinAmount) -> Bool {
         session.hasSufficientFunds(for: amount)
+    }
+    
+    func hasAvailableDailyLimit() -> Bool {
+        session.hasAvailableDailyLimit()
+    }
+    
+    func isTipLargeEnough(amount: KinAmount) -> Bool {
+        amount.kin >= minLimit
     }
 }
 
@@ -216,8 +275,8 @@ struct EnterTipScreen: View {
                     
                     KeyPadView(
                         content: $viewModel.amount,
-                        configuration: .number(),
-                        rules: KeyPadView.CurrencyRules.code(hasDecimals: false)
+                        configuration: viewModel.supportsDecimalEntry ? .decimal() : .number(),
+                        rules: KeyPadView.CurrencyRules.code(hasDecimals: viewModel.supportsDecimalEntry)
                     )
                     .padding([.leading, .trailing], -20)
                     
@@ -249,8 +308,9 @@ struct EnterTipScreen: View {
     }
     
     private func nextAction() {
-        viewModel.showTipConfirmation()
-        isPresented = false
+        if viewModel.initiateTipConfirmation() {
+            isPresented = false
+        }
     }
 }
 
