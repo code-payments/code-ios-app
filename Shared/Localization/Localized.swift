@@ -20,6 +20,8 @@ internal enum Localized {
     internal static let allowPushNotifications = Localized.tr("Localizable", "action.allowPushNotifications")
     /// Balance
     internal static let balance = Localized.tr("Localizable", "action.balance")
+    /// Buy Kin
+    internal static let buyKin = Localized.tr("Localizable", "action.buyKin")
     /// Buy More Kin
     internal static let buyMoreKin = Localized.tr("Localizable", "action.buyMoreKin")
     /// Cancel
@@ -30,6 +32,8 @@ internal enum Localized {
     internal static let collectCash = Localized.tr("Localizable", "action.collectCash")
     /// Confirm
     internal static let confirm = Localized.tr("Localizable", "action.confirm")
+    /// Connect to X
+    internal static let connectToX = Localized.tr("Localizable", "action.connectToX")
     /// Continue
     internal static let `continue` = Localized.tr("Localizable", "action.continue")
     /// Copied
@@ -96,6 +100,8 @@ internal enum Localized {
     internal static let removePhoneNumber = Localized.tr("Localizable", "action.removePhoneNumber")
     /// Remove Your Phone Number
     internal static let removeYourPhoneNumber = Localized.tr("Localizable", "action.removeYourPhoneNumber")
+    /// Request a Tip
+    internal static let requestTip = Localized.tr("Localizable", "action.requestTip")
     /// Save Access Key to My Photos
     internal static let saveAccessKey = Localized.tr("Localizable", "action.saveAccessKey")
     /// Save to Photos
@@ -599,6 +605,8 @@ internal enum Localized {
     internal static let smsWasSent = Localized.tr("Localizable", "subtitle.smsWasSent")
     /// Someone sent you cash
     internal static let someoneSendYouCash = Localized.tr("Localizable", "subtitle.someoneSendYouCash")
+    /// Your Tip Card lets you to receive tips from Code users all over the world. To access your Tip Card connect your X identity.
+    internal static let tipCardForX = Localized.tr("Localizable", "subtitle.tipCardForX")
     /// Type "%@"
     internal static func typeDelete(_ p1: Any) -> String {
       return Localized.tr("Localizable", "subtitle.typeDelete", String(describing: p1))
@@ -727,6 +735,8 @@ internal enum Localized {
     internal static let referralBonus = Localized.tr("Localizable", "title.referralBonus")
     /// Request Kin
     internal static let requestKin = Localized.tr("Localizable", "title.requestKin")
+    /// Request a Tip
+    internal static let requestTip = Localized.tr("Localizable", "title.requestTip")
     /// Results
     internal static let results = Localized.tr("Localizable", "title.results")
     /// Select an Account
