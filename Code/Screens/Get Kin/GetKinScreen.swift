@@ -12,12 +12,16 @@ import CodeServices
 struct GetKinScreen: View {
     
     @EnvironmentObject private var betaFlags: BetaFlags
+    @EnvironmentObject private var client: Client
+    @EnvironmentObject private var exchange: Exchange
+    @EnvironmentObject private var bannerController: BannerController
     
     @ObservedObject private var session: Session
     
     @Binding public var isPresented: Bool
     
     @State private var isLoadingGetKin: Bool = false
+    @State private var isShowingBuyKin: Bool = false
     
     private let insets: EdgeInsets = EdgeInsets(
         top: 20,
@@ -53,48 +57,67 @@ struct GetKinScreen: View {
                     .frame(maxHeight: .infinity)
                     
                     VStack(spacing: 0) {
+//                        row(
+//                            asset: .gift,
+//                            title: Localized.Subtitle.getYourFirstKinFree,
+//                            subtitle: Localized.Title.limitedTimeOffer,
+//                            disabled: !isEligibleForFreeKin(),
+//                            strikethrough: !isEligibleForFreeKin(),
+//                            accessory: getFreeKinAccessory()
+//                        ) {
+//                            Task {
+//                                isLoadingGetKin = true
+//                                let paymentMetadata = try await session.airdropFirstKin()
+//                                isPresented.toggle()
+//                                
+//                                try await Task.delay(milliseconds: 500)
+//                                isLoadingGetKin = false
+//                                
+//                                session.attemptSend(bill: .init(
+//                                    kind: .firstKin,
+//                                    amount: paymentMetadata.amount,
+//                                    didReceive: true
+//                                ))
+//                            }
+//                        }
+//                        .vSeparator(color: .rowSeparator, position: .top)
+//                        
+//                        if isEligibleForReferalIncentive() {
+//                            navigationRow(
+//                                asset: .send2,
+//                                title: Localized.Title.referFriend,
+//                                subtitle: Localized.Title.limitedTimeOffer
+//                            ) {
+//                                GetFriendStartedScreen()
+//                            }
+//                        }
+                        
                         row(
-                            asset: .gift,
-                            title: Localized.Subtitle.getYourFirstKinFree,
-                            subtitle: Localized.Title.limitedTimeOffer,
-                            disabled: !isEligibleForFreeKin(),
-                            strikethrough: !isEligibleForFreeKin(),
-                            accessory: getFreeKinAccessory()
+                            asset: .dollar,
+                            title: Localized.Action.buyKin,
+                            accessory: .chevron
                         ) {
-                            Task {
-                                isLoadingGetKin = true
-                                let paymentMetadata = try await session.airdropFirstKin()
-                                isPresented.toggle()
-                                
-                                try await Task.delay(milliseconds: 500)
-                                isLoadingGetKin = false
-                                
-                                session.attemptSend(bill: .init(
-                                    kind: .firstKin,
-                                    amount: paymentMetadata.amount,
-                                    didReceive: true
-                                ))
-                            }
+                            isShowingBuyKin = true
                         }
                         .vSeparator(color: .rowSeparator, position: .top)
-                        
-                        if isEligibleForReferalIncentive() {
-                            navigationRow(
-                                asset: .send2,
-                                title: Localized.Title.referFriend,
-                                subtitle: Localized.Title.limitedTimeOffer
-                            ) {
-                                GetFriendStartedScreen()
-                            }
+                        .sheet(isPresented: $isShowingBuyKin) {
+                            BuyKinScreen(
+                                isPresented: $isShowingBuyKin,
+                                viewModel: .init(
+                                    session: session,
+                                    client: client,
+                                    exchange: exchange,
+                                    bannerController: bannerController,
+                                    betaFlags: betaFlags
+                                )
+                            )
                         }
                         
-                        // No separator
                         navigationRow(
-                            asset: .dollar,
-                            title: Localized.Title.buySellKin,
-                            subtitle: nil
+                            asset: .tip,
+                            title: Localized.Action.requestTip
                         ) {
-                            BuyVideosScreen()
+                            RequestTipScreen()
                         }
                     }
                     .frame(maxHeight: .infinity)

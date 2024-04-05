@@ -209,6 +209,15 @@
 /* Action to buy more kin */
 "action.buyMoreKin" = "Buy More Kin";
 
+/* Action to buy kin */
+"action.buyKin" = "Buy Kin";
+
+/* Action to buy kin */
+"action.requestTip" = "Request a Tip";
+
+/* Action to connect to X */
+"action.connectToX" = "Connect to X";
+
 
 
 
@@ -244,6 +253,9 @@
 
 /* Title for Request Kin */
 "title.requestKin" = "Request Kin";
+
+/* Title for Request a Tip */
+"title.requestTip" = "Request a Tip";
 
 /* Title for Get More Kin */
 "title.getMoreKin" = "Get More Kin";
@@ -493,6 +505,9 @@
 
 /* Subtitle for a description on getting more Kin */
 "subtitle.getKin" = "Code uses the cryptocurrency Kin for payments. Here are some ways to get more Kin into your Code wallet.";
+
+/* Subtitle for a description on connecting your X */
+"subtitle.tipCardForX" = "Your Tip Card lets you to receive tips from Code users all over the world. To access your Tip Card connect your X identity.";
 
 /* Subtitle for a description on getting a friend started on Code */
 "subtitle.getFriendStartedOnCode" = "Get $5 of Kin for free when you get a friend to sign up for Code and you send them their first Kin.";
