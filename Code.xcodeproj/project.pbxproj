@@ -1720,7 +1720,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 324;
+				CURRENT_PROJECT_VERSION = 325;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -1736,7 +1736,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -1867,7 +1867,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 324;
+				CURRENT_PROJECT_VERSION = 325;
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
@@ -1882,7 +1882,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -2011,7 +2011,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2049,7 +2049,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2083,7 +2083,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2116,7 +2116,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2391,7 +2391,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 324;
+				CURRENT_PROJECT_VERSION = 325;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -2407,7 +2407,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -2429,7 +2429,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 324;
+				CURRENT_PROJECT_VERSION = 325;
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
@@ -2444,7 +2444,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.24;
+				MARKETING_VERSION = 2.0.25;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
