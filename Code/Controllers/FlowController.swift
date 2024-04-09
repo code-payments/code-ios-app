@@ -121,7 +121,7 @@ class FlowController: ObservableObject {
         }
     }
     
-    func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], rendezvous: PublicKey, destination: PublicKey, withdrawal: Bool = false) async throws {
+    func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], rendezvous: PublicKey, destination: PublicKey, withdrawal: Bool = false, tipUsername: String? = nil) async throws {
         let truncatedAmount = amount.truncatingQuarks()
         
         try await transferPreflight(amount: truncatedAmount.kin)
@@ -132,7 +132,8 @@ class FlowController: ObservableObject {
             organizer: organizer,
             rendezvous: rendezvous,
             destination: destination,
-            isWithdrawal: withdrawal
+            isWithdrawal: withdrawal,
+            tipUsername: tipUsername
         )
     }
     
@@ -268,7 +269,8 @@ class FlowController: ObservableObject {
                         organizer: organizer,
                         rendezvous: intent.publicKey,
                         destination: organizer.primaryVault,
-                        isWithdrawal: true
+                        isWithdrawal: true,
+                        tipUsername: nil
                     )
                     
                     steps.append("Pulled from buckets: \(missingBalance)")

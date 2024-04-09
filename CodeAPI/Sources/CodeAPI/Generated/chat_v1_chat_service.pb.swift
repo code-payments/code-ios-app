@@ -997,6 +997,8 @@ public struct Code_Chat_V1_ExchangeDataContent {
     case spent // = 7
     case paid // = 8
     case purchased // = 9
+    case receivedTip // = 10
+    case sentTip // = 11
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -1015,6 +1017,8 @@ public struct Code_Chat_V1_ExchangeDataContent {
       case 7: self = .spent
       case 8: self = .paid
       case 9: self = .purchased
+      case 10: self = .receivedTip
+      case 11: self = .sentTip
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -1031,6 +1035,8 @@ public struct Code_Chat_V1_ExchangeDataContent {
       case .spent: return 7
       case .paid: return 8
       case .purchased: return 9
+      case .receivedTip: return 10
+      case .sentTip: return 11
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -1055,6 +1061,8 @@ extension Code_Chat_V1_ExchangeDataContent.Verb: CaseIterable {
     .spent,
     .paid,
     .purchased,
+    .receivedTip,
+    .sentTip,
   ]
 }
 
@@ -2149,6 +2157,8 @@ extension Code_Chat_V1_ExchangeDataContent.Verb: SwiftProtobuf._ProtoNameProvidi
     7: .same(proto: "SPENT"),
     8: .same(proto: "PAID"),
     9: .same(proto: "PURCHASED"),
+    10: .same(proto: "RECEIVED_TIP"),
+    11: .same(proto: "SENT_TIP"),
   ]
 }
 

@@ -197,16 +197,18 @@ extension Chat {
 
 extension Chat {
     public enum Verb: Equatable, Hashable {
-        case unknown    // = 0
-        case gave       // = 1
-        case received   // = 2
-        case withdrew   // = 3
-        case deposited  // = 4
-        case sent       // = 5
-        case returned   // = 6
-        case spent      // = 7
-        case paid       // = 8
-        case purchased  // = 9
+        case unknown     // = 0
+        case gave        // = 1
+        case received    // = 2
+        case withdrew    // = 3
+        case deposited   // = 4
+        case sent        // = 5
+        case returned    // = 6
+        case spent       // = 7
+        case paid        // = 8
+        case purchased   // = 9
+        case tipReceived // = 10
+        case tipSent     // = 11
     }
 }
 
@@ -263,6 +265,10 @@ extension Chat.Content {
                 verb = .paid
             case .purchased:
                 verb = .purchased
+            case .receivedTip:
+                verb = .tipReceived
+            case .sentTip:
+                verb = .tipSent
             case .UNRECOGNIZED:
                 verb = .unknown
             }

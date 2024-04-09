@@ -23,12 +23,13 @@ class IntentPrivateTransfer: IntentType {
     let fee: Kin
     let additionalFees: [Fee]
     let isWithdrawal: Bool
+    let tipUsername: String?
     
     let resultTray: Tray
     
     var actionGroup: ActionGroup
     
-    init(rendezvous: PublicKey, organizer: Organizer, destination: PublicKey, amount: KinAmount, fee: Kin, additionalFees: [Fee], isWithdrawal: Bool) throws {
+    init(rendezvous: PublicKey, organizer: Organizer, destination: PublicKey, amount: KinAmount, fee: Kin, additionalFees: [Fee], isWithdrawal: Bool, tipUsername: String?) throws {
         
         // Fee must not exceed the amount
         // to transfer out
@@ -63,6 +64,7 @@ class IntentPrivateTransfer: IntentType {
         self.fee = fee
         self.additionalFees = additionalFees
         self.isWithdrawal = isWithdrawal
+        self.tipUsername = tipUsername
         
         var currentTray = organizer.tray
         let startBalance = currentTray.slotsBalance
@@ -201,6 +203,14 @@ extension IntentPrivateTransfer {
                     $0.currency = grossAmount.rate.currency.rawValue
                     $0.exchangeRate = grossAmount.rate.fx.doubleValue
                     $0.nativeAmount = grossAmount.fiat.doubleValue
+                }
+                
+                if let tipUsername = tipUsername {
+                    $0.isTip = true
+                    $0.tippedUser = .with {
+                        $0.platform = .twitter
+                        $0.username = tipUsername
+                    }
                 }
             }
         }

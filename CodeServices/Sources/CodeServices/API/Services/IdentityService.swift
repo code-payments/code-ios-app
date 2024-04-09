@@ -102,11 +102,16 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
         }
     }
     
-    func fetchTwitterUser(username: String, completion: @escaping (Result<TwitterUser, Error>) -> Void) {
-        trace(.send, components: "Username: \(username)")
+    func fetchTwitterUser(query: TwitterUserQuery, completion: @escaping (Result<TwitterUser, Error>) -> Void) {
+        trace(.send, components: "Query: \(query)")
         
         let request = Code_User_V1_GetTwitterUserRequest.with {
-            $0.username = username
+            switch query {
+            case .username(let username):
+                $0.username = username
+            case .tipAddress(let tipAddress):
+                $0.tipAddress = tipAddress.codeAccountID
+            }
         }
         
         let call = service.getTwitterUser(request)
@@ -115,8 +120,8 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
             let error = ErrorFetchTwitterUser(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 do {
-                    let user = try TwitterUser(response)
-                    trace(.success, components: "User: \(username)", "Tip Address: \(user.tipAddress)")
+                    let user = try TwitterUser(response.twitterUser)
+                    trace(.success, components: "User: \(user.username)", "Tip Address: \(user.tipAddress)")
                     completion(.success(user))
                 } catch {
                     trace(.failure, components: "Error: \(error)")
@@ -187,6 +192,11 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
             completion(.failure(.unknown))
         }
     }
+}
+
+public enum TwitterUserQuery {
+    case username(String)
+    case tipAddress(PublicKey)
 }
 
 // MARK: - Errors -

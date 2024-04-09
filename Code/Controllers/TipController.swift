@@ -45,7 +45,7 @@ class TipController: ObservableObject {
             return cachedUser
         }
         
-        let user = try await client.fetchTwitterUser(username: username)
+        let user = try await client.fetchTwitterUser(query: .username(username))
         
         cachedUsers[key] = user
         

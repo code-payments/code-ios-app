@@ -277,11 +277,17 @@ message GetLoginForThirdPartyAppResponse {
 }
 
 message GetTwitterUserRequest {
-    // The Twitter username to query against
-    string username = 1 [(validate.rules).string = {
-        min_len: 1
-        max_len: 15
-    }];
+    oneof query {
+        option (validate.required) = true;
+
+        // The Twitter username to query against
+        string username = 1 [(validate.rules).string = {
+            max_len: 15
+        }];
+
+        // The tip address to query against
+        common.v1.SolanaAccountId tip_address = 2;
+    }
 }
 
 message GetTwitterUserResponse {
@@ -292,26 +298,7 @@ message GetTwitterUserResponse {
         NOT_FOUND = 1;
     }
 
-    // Public key for a token account where tips are routed
-    common.v1.SolanaAccountId tip_address = 2;
-
-    // The user's friendly name on Twitter
-    string name = 3;
-
-    // URL to the user's Twitter profile picture
-    string profile_pic_url = 4;
-
-    // The type of Twitter verification associated with the user
-    VerifiedType verified_type = 5;
-    enum VerifiedType {
-        NONE       = 0;
-        BLUE       = 1;
-        BUSINESS   = 2;
-        GOVERNMENT = 3;
-    }
-
-    // The number of followers the user has on Twitter
-    uint32 follower_count = 6;
+    TwitterUser twitter_user = 2;
 }
 
 // User is the highest order of a form of identity within Code.
@@ -341,4 +328,39 @@ message PhoneMetadata {
     // This is notably different from association, which answers the question
     // of whether the number was linked at any point in time.
     bool is_linked = 1;
+}
+
+message TwitterUser {
+    // Public key for a token account where tips are routed
+    common.v1.SolanaAccountId tip_address = 1 [(validate.rules).message.required = true];
+
+    // The user's username on Twitter
+    string username = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 15
+    }];
+
+    // The user's friendly name on Twitter
+    string name = 3 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256
+    }];
+
+    // URL to the user's Twitter profile picture
+    string profile_pic_url = 4 [(validate.rules).string = {
+        min_len: 1
+        max_len: 2048
+    }];
+
+    // The type of Twitter verification associated with the user
+    VerifiedType verified_type = 5;
+    enum VerifiedType {
+        NONE       = 0;
+        BLUE       = 1;
+        BUSINESS   = 2;
+        GOVERNMENT = 3;
+    }
+
+    // The number of followers the user has on Twitter
+    uint32 follower_count = 6;    
 }

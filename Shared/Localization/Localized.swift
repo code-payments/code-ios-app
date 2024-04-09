@@ -605,6 +605,8 @@ internal enum Localized {
     internal static let smsWasSent = Localized.tr("Localizable", "subtitle.smsWasSent")
     /// Someone sent you cash
     internal static let someoneSendYouCash = Localized.tr("Localizable", "subtitle.someoneSendYouCash")
+    /// Someone tipped you
+    internal static let someoneTippedYou = Localized.tr("Localizable", "subtitle.someoneTippedYou")
     /// Your Tip Card lets you to receive tips from Code users all over the world. To access your Tip Card connect your X identity.
     internal static let tipCardForX = Localized.tr("Localizable", "subtitle.tipCardForX")
     /// Type "%@"
@@ -647,6 +649,8 @@ internal enum Localized {
     internal static let youSent = Localized.tr("Localizable", "subtitle.youSent")
     /// You spent
     internal static let youSpent = Localized.tr("Localizable", "subtitle.youSpent")
+    /// You tipped
+    internal static let youTipped = Localized.tr("Localizable", "subtitle.youTipped")
     /// You withdrew
     internal static let youWithdrew = Localized.tr("Localizable", "subtitle.youWithdrew")
     internal enum Chat {

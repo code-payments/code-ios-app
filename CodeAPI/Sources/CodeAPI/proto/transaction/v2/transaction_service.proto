@@ -597,7 +597,7 @@ message OpenAccountsMetadata {
 // should also reorganize their bucket accounts and rotate their temporary outgoing
 // account.
 //
-// Action Spec (In Person Cash Payment or Withdrawal):
+// Action Spec (In Person Cash Payment or Withdrawal or Tip):
 //
 // actions = [
 //   // Section 1: Transfer ExchangeData.Quarks from BUCKET_X_KIN accounts to TEMPORARY_OUTGOING account with reogranizations
@@ -683,6 +683,12 @@ message SendPrivatePaymentMetadata {
 
     // Is the payment for a remote send?
     bool is_remote_send = 4;
+
+    // Is the payment for a tip?
+    bool is_tip = 5;
+
+    // If is_tip is true, the user being tipped
+    TippedUser tipped_user = 6;
 }
 
 // Send a payment to a destination account publicly.
@@ -1381,6 +1387,20 @@ message BuyModuleLimit {
     float max_per_transaction = 2;
 }
 
+message TippedUser {
+    Platform platform = 1 [(validate.rules).enum = {
+        in: [1] // TWITTER
+    }];
+    enum Platform {
+        UNKNOWN = 0;
+        TWITTER = 1;
+    }
+
+    string username = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 15
+    }];
+}
 
 message Cursor {
     bytes value = 1 [(validate.rules).bytes = {

@@ -247,16 +247,18 @@ message LocalizedContent {
 message ExchangeDataContent {
     Verb verb = 1;
     enum Verb {
-        UNKNOWN   = 0;
-        GAVE      = 1;
-        RECEIVED  = 2;
-        WITHDREW  = 3;
-        DEPOSITED = 4;
-        SENT      = 5;
-        RETURNED  = 6;
-        SPENT     = 7;
-        PAID      = 8;
-        PURCHASED = 9;
+        UNKNOWN      = 0;
+        GAVE         = 1;
+        RECEIVED     = 2;
+        WITHDREW     = 3;
+        DEPOSITED    = 4;
+        SENT         = 5;
+        RETURNED     = 6;
+        SPENT        = 7;
+        PAID         = 8;
+        PURCHASED    = 9;
+        RECEIVED_TIP = 10;
+        SENT_TIP     = 11;
     }
 
     oneof exchange_data {

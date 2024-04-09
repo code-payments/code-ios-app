@@ -570,6 +570,12 @@
 "subtitle.youPurchased" = "You purchased";
 
 /* Subtitle for chat action */
+"subtitle.someoneTippedYou" = "Someone tipped you";
+
+/* Subtitle for chat action */
+"subtitle.youTipped" = "You tipped";
+
+/* Subtitle for chat action */
 "subtitle.wasReturnedToYou" = "was returned to you";
 
 /* Subtitle for chat action */

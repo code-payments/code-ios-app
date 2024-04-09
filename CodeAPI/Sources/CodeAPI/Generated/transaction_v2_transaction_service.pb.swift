@@ -1909,7 +1909,7 @@ public struct Code_Transaction_V2_OpenAccountsMetadata {
 /// should also reorganize their bucket accounts and rotate their temporary outgoing
 /// account.
 ///
-/// Action Spec (In Person Cash Payment or Withdrawal):
+/// Action Spec (In Person Cash Payment or Withdrawal or Tip):
 ///
 /// actions = [
 ///   // Section 1: Transfer ExchangeData.Quarks from BUCKET_X_KIN accounts to TEMPORARY_OUTGOING account with reogranizations
@@ -2014,12 +2014,26 @@ public struct Code_Transaction_V2_SendPrivatePaymentMetadata {
   /// Is the payment for a remote send?
   public var isRemoteSend: Bool = false
 
+  /// Is the payment for a tip?
+  public var isTip: Bool = false
+
+  /// If is_tip is true, the user being tipped
+  public var tippedUser: Code_Transaction_V2_TippedUser {
+    get {return _tippedUser ?? Code_Transaction_V2_TippedUser()}
+    set {_tippedUser = newValue}
+  }
+  /// Returns true if `tippedUser` has been explicitly set.
+  public var hasTippedUser: Bool {return self._tippedUser != nil}
+  /// Clears the value of `tippedUser`. Subsequent reads from it will return its default value.
+  public mutating func clearTippedUser() {self._tippedUser = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
+  fileprivate var _tippedUser: Code_Transaction_V2_TippedUser? = nil
 }
 
 /// Send a payment to a destination account publicly.
@@ -3816,6 +3830,60 @@ public struct Code_Transaction_V2_BuyModuleLimit {
   public init() {}
 }
 
+public struct Code_Transaction_V2_TippedUser {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var platform: Code_Transaction_V2_TippedUser.Platform = .unknown
+
+  public var username: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Platform: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case unknown // = 0
+    case twitter // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unknown
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unknown
+      case 1: self = .twitter
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unknown: return 0
+      case .twitter: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Transaction_V2_TippedUser.Platform: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_Transaction_V2_TippedUser.Platform] = [
+    .unknown,
+    .twitter,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Code_Transaction_V2_Cursor {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -3927,6 +3995,8 @@ extension Code_Transaction_V2_SendLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_DepositLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_MicroPaymentLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_BuyModuleLimit: @unchecked Sendable {}
+extension Code_Transaction_V2_TippedUser: @unchecked Sendable {}
+extension Code_Transaction_V2_TippedUser.Platform: @unchecked Sendable {}
 extension Code_Transaction_V2_Cursor: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
@@ -5745,6 +5815,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     2: .standard(proto: "exchange_data"),
     3: .standard(proto: "is_withdrawal"),
     4: .standard(proto: "is_remote_send"),
+    5: .standard(proto: "is_tip"),
+    6: .standard(proto: "tipped_user"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -5757,6 +5829,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
       case 2: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isWithdrawal) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.isRemoteSend) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.isTip) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._tippedUser) }()
       default: break
       }
     }
@@ -5779,6 +5853,12 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     if self.isRemoteSend != false {
       try visitor.visitSingularBoolField(value: self.isRemoteSend, fieldNumber: 4)
     }
+    if self.isTip != false {
+      try visitor.visitSingularBoolField(value: self.isTip, fieldNumber: 5)
+    }
+    try { if let v = self._tippedUser {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -5787,6 +5867,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     if lhs._exchangeData != rhs._exchangeData {return false}
     if lhs.isWithdrawal != rhs.isWithdrawal {return false}
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
+    if lhs.isTip != rhs.isTip {return false}
+    if lhs._tippedUser != rhs._tippedUser {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -7929,6 +8011,51 @@ extension Code_Transaction_V2_BuyModuleLimit: SwiftProtobuf.Message, SwiftProtob
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Code_Transaction_V2_TippedUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TippedUser"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "platform"),
+    2: .same(proto: "username"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.platform) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.platform != .unknown {
+      try visitor.visitSingularEnumField(value: self.platform, fieldNumber: 1)
+    }
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_TippedUser, rhs: Code_Transaction_V2_TippedUser) -> Bool {
+    if lhs.platform != rhs.platform {return false}
+    if lhs.username != rhs.username {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_TippedUser.Platform: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "UNKNOWN"),
+    1: .same(proto: "TWITTER"),
+  ]
 }
 
 extension Code_Transaction_V2_Cursor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

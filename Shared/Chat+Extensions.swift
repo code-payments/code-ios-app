@@ -92,6 +92,10 @@ extension Chat.Verb {
             return Localized.Subtitle.youPaid
         case .purchased:
             return Localized.Subtitle.youPurchased
+        case .tipReceived:
+            return Localized.Subtitle.someoneTippedYou
+        case .tipSent:
+            return Localized.Subtitle.youTipped
         }
     }
 }

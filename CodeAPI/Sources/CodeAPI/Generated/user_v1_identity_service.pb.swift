@@ -891,10 +891,53 @@ public struct Code_User_V1_GetTwitterUserRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  public var query: Code_User_V1_GetTwitterUserRequest.OneOf_Query? = nil
+
   /// The Twitter username to query against
-  public var username: String = String()
+  public var username: String {
+    get {
+      if case .username(let v)? = query {return v}
+      return String()
+    }
+    set {query = .username(newValue)}
+  }
+
+  /// The tip address to query against
+  public var tipAddress: Code_Common_V1_SolanaAccountId {
+    get {
+      if case .tipAddress(let v)? = query {return v}
+      return Code_Common_V1_SolanaAccountId()
+    }
+    set {query = .tipAddress(newValue)}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Query: Equatable {
+    /// The Twitter username to query against
+    case username(String)
+    /// The tip address to query against
+    case tipAddress(Code_Common_V1_SolanaAccountId)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Code_User_V1_GetTwitterUserRequest.OneOf_Query, rhs: Code_User_V1_GetTwitterUserRequest.OneOf_Query) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.username, .username): return {
+        guard case .username(let l) = lhs, case .username(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.tipAddress, .tipAddress): return {
+        guard case .tipAddress(let l) = lhs, case .tipAddress(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
+      }
+    }
+  #endif
+  }
 
   public init() {}
 }
@@ -906,27 +949,14 @@ public struct Code_User_V1_GetTwitterUserResponse {
 
   public var result: Code_User_V1_GetTwitterUserResponse.Result = .ok
 
-  /// Public key for a token account where tips are routed
-  public var tipAddress: Code_Common_V1_SolanaAccountId {
-    get {return _tipAddress ?? Code_Common_V1_SolanaAccountId()}
-    set {_tipAddress = newValue}
+  public var twitterUser: Code_User_V1_TwitterUser {
+    get {return _twitterUser ?? Code_User_V1_TwitterUser()}
+    set {_twitterUser = newValue}
   }
-  /// Returns true if `tipAddress` has been explicitly set.
-  public var hasTipAddress: Bool {return self._tipAddress != nil}
-  /// Clears the value of `tipAddress`. Subsequent reads from it will return its default value.
-  public mutating func clearTipAddress() {self._tipAddress = nil}
-
-  /// The user's friendly name on Twitter
-  public var name: String = String()
-
-  /// URL to the user's Twitter profile picture
-  public var profilePicURL: String = String()
-
-  /// The type of Twitter verification associated with the user
-  public var verifiedType: Code_User_V1_GetTwitterUserResponse.VerifiedType = .none
-
-  /// The number of followers the user has on Twitter
-  public var followerCount: UInt32 = 0
+  /// Returns true if `twitterUser` has been explicitly set.
+  public var hasTwitterUser: Bool {return self._twitterUser != nil}
+  /// Clears the value of `twitterUser`. Subsequent reads from it will return its default value.
+  public mutating func clearTwitterUser() {self._twitterUser = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -960,43 +990,9 @@ public struct Code_User_V1_GetTwitterUserResponse {
 
   }
 
-  public enum VerifiedType: SwiftProtobuf.Enum {
-    public typealias RawValue = Int
-    case none // = 0
-    case blue // = 1
-    case business // = 2
-    case government // = 3
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .none
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .none
-      case 1: self = .blue
-      case 2: self = .business
-      case 3: self = .government
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .none: return 0
-      case .blue: return 1
-      case .business: return 2
-      case .government: return 3
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-  }
-
   public init() {}
 
-  fileprivate var _tipAddress: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _twitterUser: Code_User_V1_TwitterUser? = nil
 }
 
 #if swift(>=4.2)
@@ -1006,16 +1002,6 @@ extension Code_User_V1_GetTwitterUserResponse.Result: CaseIterable {
   public static var allCases: [Code_User_V1_GetTwitterUserResponse.Result] = [
     .ok,
     .notFound,
-  ]
-}
-
-extension Code_User_V1_GetTwitterUserResponse.VerifiedType: CaseIterable {
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_GetTwitterUserResponse.VerifiedType] = [
-    .none,
-    .blue,
-    .business,
-    .government,
   ]
 }
 
@@ -1100,6 +1086,91 @@ public struct Code_User_V1_PhoneMetadata {
   public init() {}
 }
 
+public struct Code_User_V1_TwitterUser {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Public key for a token account where tips are routed
+  public var tipAddress: Code_Common_V1_SolanaAccountId {
+    get {return _tipAddress ?? Code_Common_V1_SolanaAccountId()}
+    set {_tipAddress = newValue}
+  }
+  /// Returns true if `tipAddress` has been explicitly set.
+  public var hasTipAddress: Bool {return self._tipAddress != nil}
+  /// Clears the value of `tipAddress`. Subsequent reads from it will return its default value.
+  public mutating func clearTipAddress() {self._tipAddress = nil}
+
+  /// The user's username on Twitter
+  public var username: String = String()
+
+  /// The user's friendly name on Twitter
+  public var name: String = String()
+
+  /// URL to the user's Twitter profile picture
+  public var profilePicURL: String = String()
+
+  /// The type of Twitter verification associated with the user
+  public var verifiedType: Code_User_V1_TwitterUser.VerifiedType = .none
+
+  /// The number of followers the user has on Twitter
+  public var followerCount: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum VerifiedType: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case none // = 0
+    case blue // = 1
+    case business // = 2
+    case government // = 3
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .none
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .none
+      case 1: self = .blue
+      case 2: self = .business
+      case 3: self = .government
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .none: return 0
+      case .blue: return 1
+      case .business: return 2
+      case .government: return 3
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+
+  fileprivate var _tipAddress: Code_Common_V1_SolanaAccountId? = nil
+}
+
+#if swift(>=4.2)
+
+extension Code_User_V1_TwitterUser.VerifiedType: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_User_V1_TwitterUser.VerifiedType] = [
+    .none,
+    .blue,
+    .business,
+    .government,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Code_User_V1_LinkAccountRequest: @unchecked Sendable {}
 extension Code_User_V1_LinkAccountRequest.OneOf_Token: @unchecked Sendable {}
@@ -1125,12 +1196,14 @@ extension Code_User_V1_GetLoginForThirdPartyAppRequest: @unchecked Sendable {}
 extension Code_User_V1_GetLoginForThirdPartyAppResponse: @unchecked Sendable {}
 extension Code_User_V1_GetLoginForThirdPartyAppResponse.Result: @unchecked Sendable {}
 extension Code_User_V1_GetTwitterUserRequest: @unchecked Sendable {}
+extension Code_User_V1_GetTwitterUserRequest.OneOf_Query: @unchecked Sendable {}
 extension Code_User_V1_GetTwitterUserResponse: @unchecked Sendable {}
 extension Code_User_V1_GetTwitterUserResponse.Result: @unchecked Sendable {}
-extension Code_User_V1_GetTwitterUserResponse.VerifiedType: @unchecked Sendable {}
 extension Code_User_V1_User: @unchecked Sendable {}
 extension Code_User_V1_View: @unchecked Sendable {}
 extension Code_User_V1_PhoneMetadata: @unchecked Sendable {}
+extension Code_User_V1_TwitterUser: @unchecked Sendable {}
+extension Code_User_V1_TwitterUser.VerifiedType: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -1804,6 +1877,7 @@ extension Code_User_V1_GetTwitterUserRequest: SwiftProtobuf.Message, SwiftProtob
   public static let protoMessageName: String = _protobuf_package + ".GetTwitterUserRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "username"),
+    2: .standard(proto: "tip_address"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1812,21 +1886,53 @@ extension Code_User_V1_GetTwitterUserRequest: SwiftProtobuf.Message, SwiftProtob
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      case 1: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.query != nil {try decoder.handleConflictingOneOf()}
+          self.query = .username(v)
+        }
+      }()
+      case 2: try {
+        var v: Code_Common_V1_SolanaAccountId?
+        var hadOneofValue = false
+        if let current = self.query {
+          hadOneofValue = true
+          if case .tipAddress(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.query = .tipAddress(v)
+        }
+      }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.username.isEmpty {
-      try visitor.visitSingularStringField(value: self.username, fieldNumber: 1)
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.query {
+    case .username?: try {
+      guard case .username(let v)? = self.query else { preconditionFailure() }
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    }()
+    case .tipAddress?: try {
+      guard case .tipAddress(let v)? = self.query else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_User_V1_GetTwitterUserRequest, rhs: Code_User_V1_GetTwitterUserRequest) -> Bool {
-    if lhs.username != rhs.username {return false}
+    if lhs.query != rhs.query {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1836,11 +1942,7 @@ extension Code_User_V1_GetTwitterUserResponse: SwiftProtobuf.Message, SwiftProto
   public static let protoMessageName: String = _protobuf_package + ".GetTwitterUserResponse"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "result"),
-    2: .standard(proto: "tip_address"),
-    3: .same(proto: "name"),
-    4: .standard(proto: "profile_pic_url"),
-    5: .standard(proto: "verified_type"),
-    6: .standard(proto: "follower_count"),
+    2: .standard(proto: "twitter_user"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1850,11 +1952,7 @@ extension Code_User_V1_GetTwitterUserResponse: SwiftProtobuf.Message, SwiftProto
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._tipAddress) }()
-      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.profilePicURL) }()
-      case 5: try { try decoder.decodeSingularEnumField(value: &self.verifiedType) }()
-      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.followerCount) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._twitterUser) }()
       default: break
       }
     }
@@ -1868,31 +1966,15 @@ extension Code_User_V1_GetTwitterUserResponse: SwiftProtobuf.Message, SwiftProto
     if self.result != .ok {
       try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
     }
-    try { if let v = self._tipAddress {
+    try { if let v = self._twitterUser {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    if !self.name.isEmpty {
-      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
-    }
-    if !self.profilePicURL.isEmpty {
-      try visitor.visitSingularStringField(value: self.profilePicURL, fieldNumber: 4)
-    }
-    if self.verifiedType != .none {
-      try visitor.visitSingularEnumField(value: self.verifiedType, fieldNumber: 5)
-    }
-    if self.followerCount != 0 {
-      try visitor.visitSingularUInt32Field(value: self.followerCount, fieldNumber: 6)
-    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_User_V1_GetTwitterUserResponse, rhs: Code_User_V1_GetTwitterUserResponse) -> Bool {
     if lhs.result != rhs.result {return false}
-    if lhs._tipAddress != rhs._tipAddress {return false}
-    if lhs.name != rhs.name {return false}
-    if lhs.profilePicURL != rhs.profilePicURL {return false}
-    if lhs.verifiedType != rhs.verifiedType {return false}
-    if lhs.followerCount != rhs.followerCount {return false}
+    if lhs._twitterUser != rhs._twitterUser {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1902,15 +1984,6 @@ extension Code_User_V1_GetTwitterUserResponse.Result: SwiftProtobuf._ProtoNamePr
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "OK"),
     1: .same(proto: "NOT_FOUND"),
-  ]
-}
-
-extension Code_User_V1_GetTwitterUserResponse.VerifiedType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    0: .same(proto: "NONE"),
-    1: .same(proto: "BLUE"),
-    2: .same(proto: "BUSINESS"),
-    3: .same(proto: "GOVERNMENT"),
   ]
 }
 
@@ -2022,4 +2095,79 @@ extension Code_User_V1_PhoneMetadata: SwiftProtobuf.Message, SwiftProtobuf._Mess
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TwitterUser"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "tip_address"),
+    2: .same(proto: "username"),
+    3: .same(proto: "name"),
+    4: .standard(proto: "profile_pic_url"),
+    5: .standard(proto: "verified_type"),
+    6: .standard(proto: "follower_count"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._tipAddress) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.profilePicURL) }()
+      case 5: try { try decoder.decodeSingularEnumField(value: &self.verifiedType) }()
+      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.followerCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._tipAddress {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 2)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    if !self.profilePicURL.isEmpty {
+      try visitor.visitSingularStringField(value: self.profilePicURL, fieldNumber: 4)
+    }
+    if self.verifiedType != .none {
+      try visitor.visitSingularEnumField(value: self.verifiedType, fieldNumber: 5)
+    }
+    if self.followerCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.followerCount, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_User_V1_TwitterUser, rhs: Code_User_V1_TwitterUser) -> Bool {
+    if lhs._tipAddress != rhs._tipAddress {return false}
+    if lhs.username != rhs.username {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.profilePicURL != rhs.profilePicURL {return false}
+    if lhs.verifiedType != rhs.verifiedType {return false}
+    if lhs.followerCount != rhs.followerCount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_User_V1_TwitterUser.VerifiedType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "NONE"),
+    1: .same(proto: "BLUE"),
+    2: .same(proto: "BUSINESS"),
+    3: .same(proto: "GOVERNMENT"),
+  ]
 }
