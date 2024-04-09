@@ -31,6 +31,10 @@ struct ChatScreen: View {
         fetchAllMessages()
     }
     
+    private func didDisappear() {
+        advanceReadPointer()
+    }
+    
     private func advanceReadPointer() {
         if chat.unreadCount > 0 {
             Task {
@@ -73,6 +77,9 @@ struct ChatScreen: View {
             }
             .onAppear {
                 didAppear()
+            }
+            .onDisappear {
+                didDisappear()
             }
             .onChange(of: notificationController.messageReceived) { _ in
                 didAppear()
