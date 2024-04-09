@@ -77,6 +77,10 @@ class PushController: ObservableObject {
         resetAppBadgeCount()
     }
     
+    func appWillResignActive() {
+        resetAppBadgeCount()
+    }
+    
     private func resetAppBadgeCount() {
         UIApplication.shared.applicationIconBadgeNumber = 0
         if case .loggedIn(let container) = sessionAuthenticator.state {

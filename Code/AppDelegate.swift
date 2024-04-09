@@ -106,6 +106,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         trace(.warning)
         lastActiveDate = .now()
         
+        appContainer.pushController.appWillResignActive()
+        
         beginBackgroundTask()
     }
     
