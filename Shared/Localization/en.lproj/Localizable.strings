@@ -920,9 +920,9 @@
 
 "push.subtitle.referralBonus" = "You received %@ of Kin for sending someone their first Kin.";
 
-"title.push.twitterAccountConnected" = "X Account Successfully Connected"
+"title.push.twitterAccountConnected" = "X Account Successfully Connected";
 
-"subtitle.push.twitterAccountConnected" = "You can now request tips"
+"subtitle.push.twitterAccountConnected" = "You can now request tips";
 
 
 
