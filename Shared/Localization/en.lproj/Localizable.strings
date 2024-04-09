@@ -548,6 +548,12 @@
 /* Subtitle for chat action */
 "subtitle.wasReturnedToYou" = "was returned to you";
 
+/* Subtitle for chat action */
+"subtitle.receivedTip" = "Someone tipped you";
+
+/* Subtitle for chat action */
+"subtitle.sentTip" = "You tipped someone";
+
 /* Subtitle for 'Powered by Kado' or similar */
 "subtitle.poweredBy" = "Powered by";
 
@@ -913,6 +919,10 @@
 "push.title.referralBonus" = "Referral Bonus Received";
 
 "push.subtitle.referralBonus" = "You received %@ of Kin for sending someone their first Kin.";
+
+"title.push.twitterAccountConnected" = "X Account Successfully Connected"
+
+"subtitle.push.twitterAccountConnected" = "You can now request tips"
 
 
 
