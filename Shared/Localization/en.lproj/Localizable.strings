@@ -573,16 +573,10 @@
 "subtitle.someoneTippedYou" = "Someone tipped you";
 
 /* Subtitle for chat action */
-"subtitle.youTipped" = "You tipped";
+"subtitle.youTipped" = "You tipped someone";
 
 /* Subtitle for chat action */
 "subtitle.wasReturnedToYou" = "was returned to you";
-
-/* Subtitle for chat action */
-"subtitle.receivedTip" = "Someone tipped you";
-
-/* Subtitle for chat action */
-"subtitle.sentTip" = "You tipped someone";
 
 /* Subtitle for 'Powered by Kado' or similar */
 "subtitle.poweredBy" = "Powered by";
