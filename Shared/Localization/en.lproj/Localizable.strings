@@ -957,6 +957,9 @@
 /* Title for payments */
 "title.chat.payments" = "Web Payments";
 
+/* Title for tips */
+"title.chat.tips" = "Tips";
+
 /* Subtitle for USDC deposited */
 "subtitle.chat.usdcDeposited" = "You're almost there! Open the Code app to complete your purchase";
 
