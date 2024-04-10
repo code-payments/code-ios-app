@@ -549,6 +549,8 @@ internal enum Localized {
     internal static let phoneVerificationDescription = Localized.tr("Localizable", "subtitle.phoneVerificationDescription")
     /// Powered by
     internal static let poweredBy = Localized.tr("Localizable", "subtitle.poweredBy")
+    /// Someone tipped you
+    internal static let receivedTip = Localized.tr("Localizable", "subtitle.receivedTip")
     /// Referral bonus received
     internal static let referralBonusReceived = Localized.tr("Localizable", "subtitle.referralBonusReceived")
     /// Send %@
@@ -569,6 +571,8 @@ internal enum Localized {
     internal static let searchCurrencies = Localized.tr("Localizable", "subtitle.searchCurrencies")
     /// Search contact or phone number
     internal static let searchForContacts = Localized.tr("Localizable", "subtitle.searchForContacts")
+    /// You tipped someone
+    internal static let sentTip = Localized.tr("Localizable", "subtitle.sentTip")
     /// An SMS message was sent to your phone number with a verification code. Please enter the verification code above.
     internal static let smsWasSent = Localized.tr("Localizable", "subtitle.smsWasSent")
     /// Someone sent you cash
@@ -616,16 +620,20 @@ internal enum Localized {
     /// You withdrew
     internal static let youWithdrew = Localized.tr("Localizable", "subtitle.youWithdrew")
     internal enum Chat {
-      /// Your Kin is now available for use in your Code App
+      /// Success! Your Kin is now available to use in Code
       internal static let kinAvailableForUse = Localized.tr("Localizable", "subtitle.chat.kinAvailableForUse")
       /// You sent someone their first Kin! Here is your referral bonus:
       internal static let referralBonus = Localized.tr("Localizable", "subtitle.chat.referralBonus")
-      /// Your USDC is being converted to Kin. This should take roughly one minute to complete
+      /// Thank you for opening Code, your purchase is now being completed. Your Kin should be available soon
       internal static let usdcBeingConverted = Localized.tr("Localizable", "subtitle.chat.usdcBeingConverted")
-      /// You successfully deposited USDC. Open Code App to complete your purchase
+      /// You're almost there! Open the Code app to complete your purchase
       internal static let usdcDeposited = Localized.tr("Localizable", "subtitle.chat.usdcDeposited")
       /// Welcome to Code! Here is your first dollar to get you started:
       internal static let welcomeBonus = Localized.tr("Localizable", "subtitle.chat.welcomeBonus")
+    }
+    internal enum Push {
+      /// You can now request tips
+      internal static let twitterAccountConnected = Localized.tr("Localizable", "subtitle.push.twitterAccountConnected")
     }
   }
 
@@ -728,6 +736,12 @@ internal enum Localized {
       internal static let codeTeam = Localized.tr("Localizable", "title.chat.codeTeam")
       /// Web Payments
       internal static let payments = Localized.tr("Localizable", "title.chat.payments")
+      /// Tips
+      internal static let tips = Localized.tr("Localizable", "title.chat.tips")
+    }
+    internal enum Push {
+      /// X Account Successfully Connected
+      internal static let twitterAccountConnected = Localized.tr("Localizable", "title.push.twitterAccountConnected")
     }
   }
 }

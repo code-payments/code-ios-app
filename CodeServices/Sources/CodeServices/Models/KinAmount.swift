@@ -89,6 +89,6 @@ extension UUID {
         
         data.append(self.data)
         
-        return data.base64EncodedString()
+        return Base58.fromBytes(data.bytes)
     }
 }
