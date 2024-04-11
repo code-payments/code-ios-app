@@ -37,7 +37,7 @@ public struct AvatarView: View {
         Group {
             switch value {
             case .placeholder:
-                PlaceholderAvatar()
+                PlaceholderAvatar(diameter: 80)
             case .image(let image):
                 image
                     .resizable()
@@ -61,24 +61,30 @@ public struct PlaceholderAvatar: View {
     private let foregroundColor = Color(r: 97, g: 120, b: 136)
     private let backgroundColor = Color(r: 201, g: 214, b: 222)
     
+    private let diameter: CGFloat
+    
+    public init(diameter: CGFloat) {
+        self.diameter = diameter
+    }
+    
     public var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: diameter * 0.075) {
             
             UnevenRoundedCorners(
-                tl: 20,
-                bl: 15,
-                br: 15,
-                tr: 20
+                tl: diameter * 0.25,
+                bl: diameter * 0.1875,
+                br: diameter * 0.1875,
+                tr: diameter * 0.25
             )
             .fill(foregroundColor)
-            .frame(width: 25, height: 28)
-            .padding(.top, 20)
+            .frame(width: diameter * 0.3125, height: diameter * 0.35)
+            .padding(.top, diameter * 0.25)
             
             Circle()
                 .fill(foregroundColor)
-                .frame(width: 50, height: 50)
+                .frame(width: diameter * 0.625, height: diameter * 0.625)
         }
-        .frame(width: 80, height: 80, alignment: .top)
+        .frame(width: diameter, height: diameter, alignment: .top)
         .background(backgroundColor)
         .mask {
             Circle()

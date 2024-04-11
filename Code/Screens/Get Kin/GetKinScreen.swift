@@ -117,7 +117,7 @@ struct GetKinScreen: View {
                             asset: .tip,
                             title: Localized.Action.requestTip
                         ) {
-                            RequestTipScreen()
+                            RequestTipScreen(session: session)
                         }
                     }
                     .frame(maxHeight: .infinity)

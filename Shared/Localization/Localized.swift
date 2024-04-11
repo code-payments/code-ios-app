@@ -553,6 +553,8 @@ internal enum Localized {
     internal static let learnMore = Localized.tr("Localizable", "subtitle.learnMore")
     /// Your phone number is linked with this Code account. Friends can find you using this phone number.
     internal static let linkedPhoneNumberDescription = Localized.tr("Localizable", "subtitle.linkedPhoneNumberDescription")
+    /// I'm connecting my X account with @getcode so I can receive tips from people all over the world.
+    internal static let linkingTwitter = Localized.tr("Localizable", "subtitle.linkingTwitter")
     /// Loading your balance and transaction history
     internal static let loadingBalance = Localized.tr("Localizable", "subtitle.loadingBalance")
     /// Check your photos for the Access Key you saved when you first created your account.
@@ -577,8 +579,6 @@ internal enum Localized {
     internal static let phoneVerificationDescription = Localized.tr("Localizable", "subtitle.phoneVerificationDescription")
     /// Powered by
     internal static let poweredBy = Localized.tr("Localizable", "subtitle.poweredBy")
-    /// Someone tipped you
-    internal static let receivedTip = Localized.tr("Localizable", "subtitle.receivedTip")
     /// Referral bonus received
     internal static let referralBonusReceived = Localized.tr("Localizable", "subtitle.referralBonusReceived")
     /// Send %@
@@ -599,8 +599,6 @@ internal enum Localized {
     internal static let searchCurrencies = Localized.tr("Localizable", "subtitle.searchCurrencies")
     /// Search contact or phone number
     internal static let searchForContacts = Localized.tr("Localizable", "subtitle.searchForContacts")
-    /// You tipped someone
-    internal static let sentTip = Localized.tr("Localizable", "subtitle.sentTip")
     /// An SMS message was sent to your phone number with a verification code. Please enter the verification code above.
     internal static let smsWasSent = Localized.tr("Localizable", "subtitle.smsWasSent")
     /// Someone sent you cash
@@ -649,7 +647,7 @@ internal enum Localized {
     internal static let youSent = Localized.tr("Localizable", "subtitle.youSent")
     /// You spent
     internal static let youSpent = Localized.tr("Localizable", "subtitle.youSpent")
-    /// You tipped
+    /// You tipped someone
     internal static let youTipped = Localized.tr("Localizable", "subtitle.youTipped")
     /// You withdrew
     internal static let youWithdrew = Localized.tr("Localizable", "subtitle.youWithdrew")

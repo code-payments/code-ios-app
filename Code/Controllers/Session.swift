@@ -1386,6 +1386,31 @@ class Session: ObservableObject {
         try await flowController.withdrawExternally(amount: amount, to: destination)
         updateBalance()
     }
+    
+    // MARK: - Twitter -
+    
+    func generateTwitterAuthMessage(nonce: UUID) -> String {
+        let signature = organizer.ownerKeyPair.sign(nonce.data)
+        let components = [
+            "CodeAccount",
+            organizer.primaryVault.base58,
+            Base58.fromBytes(nonce.bytes),
+            signature.base58,
+        ]
+        
+        let text = Localized.Subtitle.linkingTwitter
+        let auth = components.joined(separator: ":")
+        let message = "\(text)\n\n\(auth)"
+        
+        return message
+    }
+    
+    func generateTwitterAuthURL(nonce: UUID) -> URL {
+        let message = generateTwitterAuthMessage(nonce: nonce).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let string = "https://www.twitter.com/intent/tweet?text=\(message)"
+        
+        return URL(string: string)!
+    }
 }
 
 // MARK: - Errors -

@@ -11,10 +11,14 @@ import CodeServices
 
 struct RequestTipScreen: View {
     
+    private let session: Session
+    
+    @State private var nonce = UUID()
+    
     // MARK: - Init -
     
-    init() {
-        
+    init(session: Session) {
+        self.session = session
     }
     
     // MARK: - Body -
@@ -32,11 +36,24 @@ struct RequestTipScreen: View {
                 
                 Spacer()
                 
+                HStack(alignment: .top, spacing: 15) {
+                    PlaceholderAvatar(diameter: 25)
+                    Text(session.generateTwitterAuthMessage(nonce: nonce))
+                        .font(.appTextSmall)
+                        .foregroundColor(.textMain)
+                }
+                .padding(20)
+                .background(Color.bannerInfo)
+                .cornerRadius(4)
+                
+                Spacer()
+                Spacer()
+                
                 CodeButton(
                     style: .filled,
                     title: Localized.Action.connectToX
                 ) {
-                    
+                    session.generateTwitterAuthURL(nonce: nonce).openWithApplication()
                 }
             }
             .foregroundColor(.textMain)
@@ -50,5 +67,5 @@ struct RequestTipScreen: View {
 }
 
 #Preview {
-    RequestTipScreen()
+    RequestTipScreen(session: .mock)
 }

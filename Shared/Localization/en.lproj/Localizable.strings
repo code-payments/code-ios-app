@@ -581,6 +581,9 @@
 /* Subtitle for 'Powered by Kado' or similar */
 "subtitle.poweredBy" = "Powered by";
 
+/* Subtitle for connecting X */
+"subtitle.linkingTwitter" = "I'm connecting my X account with @getcode so I can receive tips from people all over the world.";
+
 
 
 

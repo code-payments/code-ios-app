@@ -162,3 +162,7 @@ extension ImageLoader {
         case invalidImageData
     }
 }
+
+extension TipController {
+    static let mock = TipController(client: .mock)
+}
