@@ -21,7 +21,7 @@ enum Analytics {
         
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {
-            Mixpanel.initialize(token: apiKey)
+            Mixpanel.initialize(token: apiKey, trackAutomaticEvents: true)
             trace(.success, components: "Initializing Mixpanel...")
         } else {
             trace(.failure, components: "Failed to initialize Mixpanel. No API key found in Info.plist")
