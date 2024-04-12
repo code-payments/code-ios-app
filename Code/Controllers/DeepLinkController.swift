@@ -97,6 +97,13 @@ final class DeepLinkController {
                 return nil
             }
             
+        case .tip(let username):
+            
+            return DeepLinkAction(
+                kind: .tip(username),
+                sessionAuthenticator: sessionAuthenticator
+            )
+            
         default:
             return nil
         }
@@ -136,7 +143,7 @@ struct DeepLinkAction {
                 description: nil
             )
             
-        case .receiveRemoteSend, .paymentRequest, .loginRequest:
+        case .receiveRemoteSend, .paymentRequest, .loginRequest, .tip:
             return nil // Don't need confirmation
         }
     }
@@ -193,6 +200,21 @@ struct DeepLinkAction {
                 
                 container.session.attempt(payload, request: request)
             }
+            
+        case .tip(let username):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                
+                // Delay the presentation of the bill
+                try await Task.delay(milliseconds: 500)
+                
+                let payload = Code.Payload(
+                    kind: .tip,
+                    username: username
+                )
+                
+                container.session.presentScannedTipCard(payload: payload, username: username)
+            }
+            
         }
     }
 }
@@ -205,6 +227,7 @@ extension DeepLinkAction {
         case receiveRemoteSend(GiftCardAccount)
         case paymentRequest(DeepLinkRequest)
         case loginRequest(DeepLinkRequest)
+        case tip(String)
     }
 }
 

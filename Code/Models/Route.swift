@@ -18,7 +18,7 @@ struct Route {
             return nil
         }
         
-        guard let path = Path(path: components.path) else {
+        guard let path = Path.parse(path: components.path) else {
             return nil
         }
         
@@ -69,24 +69,35 @@ extension Route {
         case cash
         case paymentRequest
         case loginRequest
+        case tip(String)
         case unknown(String)
         
-        init?(path: String) {
-            guard let url = URL(string: path) else {
+        static func parse(path: String) -> Path? {
+            guard let url = URL(string: path.trimmingCharacters(in: .init(charactersIn: "/"))) else {
                 return nil
             }
             
+            let components = url.pathComponents
+            
+            // Tip path /x/username
+            if components.count == 2, components[0] == "x", !components[1].isEmpty {
+                return .tip(components[1])
+            }
+            
+            // Handle any paths that use the last path component
             switch url.lastPathComponent {
             case "login":
-                self = .login
+                return .login
             case "cash", "c":
-                self = .cash
+                return .cash
             case "payment-request-modal-desktop", "payment-request-modal-mobile":
-                self = .paymentRequest
+                return .paymentRequest
             case "login-request-modal-desktop", "login-request-modal-mobile":
-                self = .loginRequest
+                return .loginRequest
+//            case "tip-request-modal-mobile", "tip-request-modal-desktop", "tip-request-page-mobile", "tip-request-page-desktop":
+//                return .tip
             default:
-                self = .unknown(url.lastPathComponent)
+                return .unknown(url.lastPathComponent)
             }
         }
     }

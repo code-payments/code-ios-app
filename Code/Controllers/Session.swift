@@ -627,7 +627,7 @@ class Session: ObservableObject {
         ShareSheet.present(url: URL.tipCard(with: user.username))
     }
     
-    private func presentScannedTipCard(payload: Code.Payload, username: String) {
+    func presentScannedTipCard(payload: Code.Payload, username: String) {
         sendTransaction = nil
         presentationState = .visible(.pop)
         billState = billState
