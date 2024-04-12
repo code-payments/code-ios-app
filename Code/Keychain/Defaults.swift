@@ -17,6 +17,7 @@ enum DefaultsKey: String {
     case launchCount = "com.code.launchCount"
     case betaFlags = "com.code.debug.preferences"
     case biometricsEnabled = "com.code.biometrics.enabled"
+    case twitterUser = "com.code.social.twitterUser"
 }
 
 @propertyWrapper

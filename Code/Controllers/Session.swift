@@ -31,6 +31,8 @@ class Session: ObservableObject {
     
     weak var delegate: SessionDelegate?
     
+    let tipController: TipController
+    
     let organizer: Organizer
     
     private(set) var user: User
@@ -44,7 +46,6 @@ class Session: ObservableObject {
     private let abacus: Abacus
     private let historyController: HistoryController
 
-    private let tipController: TipController
     private let flowController: FlowController
     private let giftCardVault: GiftCardVault
     
@@ -82,7 +83,7 @@ class Session: ObservableObject {
         self.abacus = abacus
         self.historyController = historyController
         
-        self.tipController = TipController(client: client)
+        self.tipController = TipController(organizer: organizer, client: client, bannerController: bannerController)
         self.flowController = FlowController(client: client, organizer: organizer)
         self.giftCardVault = GiftCardVault()
         
@@ -329,7 +330,7 @@ class Session: ObservableObject {
     
     // MARK: - Remote Send -
     
-    func sendRemotely(completion: @escaping VoidAction) {
+    func sendRemotely() async throws {
         guard let sendTransaction = sendTransaction else {
             return
         }
@@ -338,40 +339,37 @@ class Session: ObservableObject {
             return
         }
         
-        sendRemotely(sendTransaction: sendTransaction, completion: completion)
+        try await sendRemotely(sendTransaction: sendTransaction)
     }
     
-    private func sendRemotely(sendTransaction: SendTransaction, completion: @escaping VoidAction) {
+    private func sendRemotely(sendTransaction: SendTransaction) async throws {
         // If there's an active SendTransaction, we'll mark
         // it inactive to prevent scannability and disable
         // the timeout for the bill to ensure it stays on-screen
         sendTransaction.markInactive()
         
-        Task {
-            let giftCard = GiftCardAccount()
-            let amount = sendTransaction.amount
+        let giftCard = GiftCardAccount()
+        let amount = sendTransaction.amount
+        
+        do {
+            currentBalance = try await flowController.sendRemotely(
+                amount: amount,
+                rendezvous: sendTransaction.payload.rendezvous.publicKey,
+                giftCard: giftCard
+            )
             
-            do {
-                currentBalance = try await flowController.sendRemotely(
-                    amount: amount,
-                    rendezvous: sendTransaction.payload.rendezvous.publicKey,
-                    giftCard: giftCard
-                )
-                
-                giftCardVault.insert(giftCard)
-                
-                presentShareSheet(for: giftCard, amount: amount)
-                completion()
-                
-                Analytics.remoteSendOutgoing(
-                    kin: amount.kin,
-                    currency: amount.rate.currency
-                )
-                
-            } catch {
-                ErrorReporting.captureError(error, reason: "Failed to remote send.")
-                throw error
-            }
+            giftCardVault.insert(giftCard)
+            
+            presentShareSheet(for: giftCard, amount: amount)
+            
+            Analytics.remoteSendOutgoing(
+                kin: amount.kin,
+                currency: amount.rate.currency
+            )
+            
+        } catch {
+            ErrorReporting.captureError(error, reason: "Failed to remote send.")
+            throw error
         }
     }
     
@@ -592,13 +590,44 @@ class Session: ObservableObject {
             return
         }
         
-        presentTipCard(
+        presentScannedTipCard(
             payload: payload,
             username: username
         )
     }
     
-    private func presentTipCard(payload: Code.Payload, username: String) {
+    func presentMyTipCard(user: TwitterUser) {
+        let payload = Code.Payload(
+            kind: .tip,
+            username: user.username
+        )
+        
+        sendTransaction = nil
+        presentationState = .visible(.slide)
+        billState = billState
+            .bill(
+                .tip(.init(
+                    username: user.username,
+                    data: payload.codeData()
+                ))
+            )
+            .hideBillButtons(false)
+            .primaryAction(.init(
+                asset: .send,
+                title: Localized.Action.share,
+                action: { [weak self] in
+                    self?.shareMyTipCard(user: user)
+                }
+            ))
+        
+        UIApplication.shouldPauseInterfaceReset = true
+    }
+    
+    private func shareMyTipCard(user: TwitterUser) {
+        ShareSheet.present(url: URL.tipCard(with: user.username))
+    }
+    
+    private func presentScannedTipCard(payload: Code.Payload, username: String) {
         sendTransaction = nil
         presentationState = .visible(.pop)
         billState = billState
@@ -736,6 +765,8 @@ class Session: ObservableObject {
             .bill(nil)
             .showTipConfirmation(nil)
             .hideBillButtons(false)
+        
+        UIApplication.shouldPauseInterfaceReset = false
     }
     
     // MARK: - Cash -
@@ -1202,6 +1233,14 @@ class Session: ObservableObject {
                 ))
             )
             .shouldShowToast(bill.didReceive)
+            .primaryAction(.init(
+                asset: .send,
+                title: Localized.Action.send,
+                action: { [weak self] in
+                    try await self?.sendRemotely()
+                },
+                loadingStateDelayMillisenconds: 1000
+            ))
         
         Analytics.billShown(kin: bill.amount.kin, currency: bill.amount.rate.currency, animation: style)
     }
@@ -1223,6 +1262,7 @@ class Session: ObservableObject {
             .showToast(nil)
             .showValuation(nil)
             .hideBillButtons(false)
+            .primaryAction(nil)
         
         Task {
             try await Task.delay(milliseconds: 600)
@@ -1385,31 +1425,6 @@ class Session: ObservableObject {
     func withdrawExternally(amount: KinAmount, to destination: PublicKey) async throws {
         try await flowController.withdrawExternally(amount: amount, to: destination)
         updateBalance()
-    }
-    
-    // MARK: - Twitter -
-    
-    func generateTwitterAuthMessage(nonce: UUID) -> String {
-        let signature = organizer.ownerKeyPair.sign(nonce.data)
-        let components = [
-            "CodeAccount",
-            organizer.primaryVault.base58,
-            Base58.fromBytes(nonce.bytes),
-            signature.base58,
-        ]
-        
-        let text = Localized.Subtitle.linkingTwitter
-        let auth = components.joined(separator: ":")
-        let message = "\(text)\n\n\(auth)"
-        
-        return message
-    }
-    
-    func generateTwitterAuthURL(nonce: UUID) -> URL {
-        let message = generateTwitterAuthMessage(nonce: nonce).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
-        let string = "https://www.twitter.com/intent/tweet?text=\(message)"
-        
-        return URL(string: string)!
     }
 }
 

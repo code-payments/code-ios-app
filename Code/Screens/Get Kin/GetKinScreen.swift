@@ -17,6 +17,7 @@ struct GetKinScreen: View {
     @EnvironmentObject private var bannerController: BannerController
     
     @ObservedObject private var session: Session
+    @ObservedObject private var tipController: TipController
     
     @Binding public var isPresented: Bool
     
@@ -34,6 +35,7 @@ struct GetKinScreen: View {
     
     public init(session: Session, isPresented: Binding<Bool>) {
         self.session = session
+        self.tipController = session.tipController
         self._isPresented = isPresented
     }
     
@@ -113,11 +115,27 @@ struct GetKinScreen: View {
                             )
                         }
                         
-                        navigationRow(
-                            asset: .tip,
-                            title: Localized.Action.requestTip
-                        ) {
-                            RequestTipScreen(session: session)
+                        if let user = tipController.twitterUser {
+                            row(
+                                asset: .tip,
+                                title: Localized.Action.requestTip,
+                                subtitle: linkedTwitterUserSubtitle(),
+                                accessory: nil
+                            ) {
+                                isPresented = false
+                                session.presentMyTipCard(user: user)
+                            }
+                        } else {
+                            navigationRow(
+                                asset: .tip,
+                                title: Localized.Action.requestTip,
+                                subtitle: linkedTwitterUserSubtitle()
+                            ) {
+                                RequestTipScreen(
+                                    tipController: tipController,
+                                    isPresented: $isPresented
+                                )
+                            }
                         }
                     }
                     .frame(maxHeight: .infinity)
@@ -142,6 +160,14 @@ struct GetKinScreen: View {
                 }
             }
         }
+    }
+    
+    private func linkedTwitterUserSubtitle() -> String? {
+        guard let user = tipController.twitterUser else {
+            return nil
+        }
+        
+        return "Tips linked to X account: \(user.username)"
     }
     
     // MARK: - Get Kin -

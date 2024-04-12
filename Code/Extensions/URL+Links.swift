@@ -17,6 +17,10 @@ extension URL {
         URL(string: "https://cash.getcode.com/c/#/e=\(mnemonic.base58EncodedEntropy)")!
     }
     
+    static func tipCard(with username: String) -> URL {
+        URL(string: "https://tipcard.getcode.com/x/\(username)")!
+    }
+    
     static var codeHomePage: URL {
         URL(string: "https://www.getcode.com/")!
     }

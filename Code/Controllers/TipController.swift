@@ -11,21 +11,92 @@ import CodeServices
 @MainActor
 class TipController: ObservableObject {
     
+    @Published private(set) var twitterUser: TwitterUser?
+    
     private(set) var inflightUser: (String, Code.Payload)?
     
     private(set) var userMetadata: TwitterUser?
     
     private(set) var userAvatar: Image?
     
+    private let organizer: Organizer
     private let client: Client
+    private let bannerController: BannerController
     
     private var cachedUsers: [String: TwitterUser] = [:]
     private var cachedAvatars: [String: Image] = [:]
     
+    private var poller: Poller?
+    
+    @Defaults(.twitterUser) private var authenticatedTwitterUser: TwitterUser?
+    
+    private var primaryTipAddress: PublicKey {
+        organizer.primaryVault
+    }
+    
     // MARK: - Init -
     
-    init(client: Client) {
+    init(organizer: Organizer, client: Client, bannerController: BannerController) {
+        self.organizer = organizer
         self.client = client
+        self.bannerController = bannerController
+        
+        if !assignUserIfAuthenticated() {
+            poll()
+        }
+    }
+    
+    // MARK: - Polling -
+    
+    func didOpenTwitter() {
+        startPolling()
+    }
+    
+    private func startPolling() {
+        self.poller = Poller(seconds: 20) { [weak self] in
+            self?.poll()
+        }
+    }
+    
+    private func cancelPolling() {
+        poller = nil
+    }
+    
+    private func poll() {
+        Task {
+            do {
+                let user = try await client.fetchTwitterUser(query: .tipAddress(primaryTipAddress))
+                
+                store(authenticatedUser: user)
+                assignUserIfAuthenticated()
+                
+                showLinkingSuccess(for: user)
+                cancelPolling()
+                
+            } catch {
+                // Continue polling
+            }
+        }
+    }
+    
+    // MARK: - Authenticated User -
+    
+    private func store(authenticatedUser: TwitterUser) {
+        authenticatedTwitterUser = authenticatedUser
+    }
+    
+    private func deleteAuthenticatedUser() {
+        authenticatedTwitterUser = nil
+    }
+    
+    @discardableResult
+    private func assignUserIfAuthenticated() -> Bool {
+        guard let user = authenticatedTwitterUser else {
+            return false
+        }
+        
+        twitterUser = user
+        return true
     }
     
     // MARK: - Actions -
@@ -71,7 +142,51 @@ class TipController: ObservableObject {
         inflightUser = nil
         userMetadata = nil
     }
+    
+    // MARK: - Auth Message -
+    
+    func generateTwitterAuthMessage(nonce: UUID) -> String {
+        let signature = organizer.ownerKeyPair.sign(nonce.data)
+        let components = [
+            "CodeAccount",
+            primaryTipAddress.base58,
+            Base58.fromBytes(nonce.bytes),
+            signature.base58,
+        ]
+        
+        let text = Localized.Subtitle.linkingTwitter
+        let auth = components.joined(separator: ":")
+        let message = "\(text)\n\n\(auth)"
+        
+        return message
+    }
+    
+    func openTwitterWithAuthenticationText(nonce: UUID) {
+        let message = generateTwitterAuthMessage(nonce: nonce).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let string = "https://www.twitter.com/intent/tweet?text=\(message)"
+        
+        let url = URL(string: string)!
+        
+        didOpenTwitter()
+        
+        url.openWithApplication()
+    }
+    
+    // MARK: - Banners -
+    
+    private func showLinkingSuccess(for user: TwitterUser) {
+        bannerController.show(
+            style: .notification,
+            title: "X Account Linked",
+            description: "Your X account '\(user.username)' is connected to your Code account. You can now request Tips.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
 }
+
+// MARK: - AvatarURL -
 
 struct AvatarURL {
     
@@ -164,5 +279,9 @@ extension ImageLoader {
 }
 
 extension TipController {
-    static let mock = TipController(client: .mock)
+    static let mock = TipController(
+        organizer: .mock,
+        client: .mock,
+        bannerController: .mock
+    )
 }

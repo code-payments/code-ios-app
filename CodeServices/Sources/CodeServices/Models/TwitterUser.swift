@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-public struct TwitterUser: Equatable, Hashable {
+public struct TwitterUser: Equatable, Hashable, Codable {
     
     public let username: String
     public let displayName: String
@@ -29,7 +29,7 @@ public struct TwitterUser: Equatable, Hashable {
 }
 
 extension TwitterUser {
-    public enum VerificationStatus: Int {
+    public enum VerificationStatus: Int, Equatable, Hashable, Codable {
         case none
         case blue
         case business

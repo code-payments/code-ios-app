@@ -11,14 +11,17 @@ import CodeServices
 
 struct RequestTipScreen: View {
     
-    private let session: Session
+    @Binding public var isPresented: Bool
+    
+    private let tipController: TipController
     
     @State private var nonce = UUID()
     
     // MARK: - Init -
     
-    init(session: Session) {
-        self.session = session
+    init(tipController: TipController, isPresented: Binding<Bool>) {
+        self.tipController = tipController
+        self._isPresented = isPresented
     }
     
     // MARK: - Body -
@@ -38,7 +41,7 @@ struct RequestTipScreen: View {
                 
                 HStack(alignment: .top, spacing: 15) {
                     PlaceholderAvatar(diameter: 25)
-                    Text(session.generateTwitterAuthMessage(nonce: nonce))
+                    Text(tipController.generateTwitterAuthMessage(nonce: nonce))
                         .font(.appTextSmall)
                         .foregroundColor(.textMain)
                 }
@@ -53,7 +56,11 @@ struct RequestTipScreen: View {
                     style: .filled,
                     title: Localized.Action.connectToX
                 ) {
-                    session.generateTwitterAuthURL(nonce: nonce).openWithApplication()
+                    tipController.openTwitterWithAuthenticationText(nonce: nonce)
+                    Task {
+                        try await Task.delay(milliseconds: 500)
+                        isPresented = false
+                    }
                 }
             }
             .foregroundColor(.textMain)
@@ -67,5 +74,8 @@ struct RequestTipScreen: View {
 }
 
 #Preview {
-    RequestTipScreen(session: .mock)
+    RequestTipScreen(
+        tipController: .mock, 
+        isPresented: .constant(true)
+    )
 }

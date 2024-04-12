@@ -310,18 +310,19 @@ struct ScanScreen: View {
                 } else {
                     if !session.billState.hideBillButtons {
                         HStack(spacing: 0) {
-                            if !betaFlags.hasEnabled(.giveRequests) {
+                            if let primaryAction = session.billState.primaryAction {
                                 CapsuleButton(
                                     state: sendState,
-                                    asset: .send,
-                                    title: Localized.Action.send
-                                ) { [weak session] in
-                                    sendState = .loading
-                                    session?.sendRemotely {
-                                        Task {
-                                            try await Task.delay(seconds: 1)
-                                            sendState = .normal
+                                    asset: primaryAction.asset,
+                                    title: primaryAction.title
+                                ) {
+                                    Task {
+                                        sendState = .loading
+                                        try await primaryAction.action()
+                                        if let delay = primaryAction.loadingStateDelayMillisenconds {
+                                            try await Task.delay(milliseconds: delay)
                                         }
+                                        sendState = .normal
                                     }
                                 }
                                 .frame(maxWidth: .infinity)

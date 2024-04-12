@@ -89,6 +89,9 @@
 /* Unmute */
 "action.unmute" = "Unmute";
 
+/* Share */
+"action.share" = "Share";
+
 /* Unsubscribe */
 "action.unsubscribe" = "Unsubscribe";
 

@@ -9,7 +9,7 @@ import SwiftUI
 import CodeServices
 import CodeUI
 
-struct BillState: Equatable {
+struct BillState {
     
     var bill: Bill?
     var shouldShowToast: Bool
@@ -19,15 +19,18 @@ struct BillState: Equatable {
     var loginConfirmation: LoginConfirmation?
     var tipConfirmation: TipConfirmation?
     
+    var primaryAction: PrimaryAction?
+    
     var hideBillButtons: Bool
     
-    fileprivate init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, paymentConfirmation: PaymentConfirmation? = nil, loginConfirmation: LoginConfirmation? = nil, hideBillButtons: Bool = false) {
+    fileprivate init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, paymentConfirmation: PaymentConfirmation? = nil, loginConfirmation: LoginConfirmation? = nil, primaryAction: PrimaryAction? = nil, hideBillButtons: Bool = false) {
         self.bill                = bill
         self.shouldShowToast     = shouldShowDeposit
         self.toast               = toast
         self.valuation           = valuation
         self.paymentConfirmation = paymentConfirmation
         self.loginConfirmation   = loginConfirmation
+        self.primaryAction       = primaryAction
         self.hideBillButtons     = hideBillButtons
     }
 }
@@ -81,10 +84,25 @@ extension BillState {
         return state
     }
     
+    func primaryAction(_ value: PrimaryAction?) -> BillState {
+        var state = self
+        state.primaryAction = value
+        return state
+    }
+    
     func hideBillButtons(_ value: Bool) -> BillState {
         var state = self
         state.hideBillButtons = value
         return state
+    }
+}
+
+extension BillState {
+    struct PrimaryAction {
+        var asset: Asset
+        var title: String
+        var action: ThrowingAction
+        var loadingStateDelayMillisenconds: Int? = nil
     }
 }
 

@@ -110,6 +110,8 @@ internal enum Localized {
     internal static let send = Localized.tr("Localizable", "action.send")
     /// Send Verification Code
     internal static let sendVerificationCode = Localized.tr("Localizable", "action.sendVerificationCode")
+    /// Share
+    internal static let share = Localized.tr("Localizable", "action.share")
     /// Share Download Link
     internal static let shareDownloadLink = Localized.tr("Localizable", "action.shareDownloadLink")
     /// Share This Video
