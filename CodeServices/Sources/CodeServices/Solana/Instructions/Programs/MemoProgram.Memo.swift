@@ -47,6 +47,16 @@ extension MemoProgram.Memo {
     public init(transferType: AgoraMemo.TransferType, kreIndex: UInt16) {
         self.data = AgoraMemo(transferType: transferType, appIndex: kreIndex).encode()
     }
+    
+    public init(tipAccount: TipAccount) {
+        let components = [
+            "tip",
+            tipAccount.platform,
+            tipAccount.username,
+        ]
+        
+        self.data = Data(components.joined(separator: ":").utf8)
+    }
 }
 
 extension MemoProgram.Memo: InstructionType {

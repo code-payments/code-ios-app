@@ -23,13 +23,13 @@ class IntentPrivateTransfer: IntentType {
     let fee: Kin
     let additionalFees: [Fee]
     let isWithdrawal: Bool
-    let tipUsername: String?
+    let tipAccount: TipAccount?
     
     let resultTray: Tray
     
     var actionGroup: ActionGroup
     
-    init(rendezvous: PublicKey, organizer: Organizer, destination: PublicKey, amount: KinAmount, fee: Kin, additionalFees: [Fee], isWithdrawal: Bool, tipUsername: String?) throws {
+    init(rendezvous: PublicKey, organizer: Organizer, destination: PublicKey, amount: KinAmount, fee: Kin, additionalFees: [Fee], isWithdrawal: Bool, tipAccount: TipAccount?) throws {
         
         // Fee must not exceed the amount
         // to transfer out
@@ -64,7 +64,7 @@ class IntentPrivateTransfer: IntentType {
         self.fee = fee
         self.additionalFees = additionalFees
         self.isWithdrawal = isWithdrawal
-        self.tipUsername = tipUsername
+        self.tipAccount = tipAccount
         
         var currentTray = organizer.tray
         let startBalance = currentTray.slotsBalance
@@ -127,7 +127,8 @@ class IntentPrivateTransfer: IntentType {
         let outgoing = ActionWithdraw(
             kind: .noPrivacyWithdraw(netAmount.kin),
             cluster: currentTray.outgoing.cluster,
-            destination: destination
+            destination: destination,
+            tipAccount: tipAccount
         )
         
         // 3. Redistribute the funds to optimize for a
@@ -205,11 +206,11 @@ extension IntentPrivateTransfer {
                     $0.nativeAmount = grossAmount.fiat.doubleValue
                 }
                 
-                if let tipUsername = tipUsername {
+                if let tipAccount = tipAccount {
                     $0.isTip = true
                     $0.tippedUser = .with {
-                        $0.platform = .twitter
-                        $0.username = tipUsername
+                        $0.platform = tipAccount.codePlatform
+                        $0.username = tipAccount.username
                     }
                 }
             }

@@ -176,59 +176,70 @@ extension TransactionBuilder {
         nonce: PublicKey,
         recentBlockhash: Hash,
         kreIndex: Int,
+        tipAccount: TipAccount? = nil,
         legacy: Bool = false
     ) -> SolanaTransaction {
-        SolanaTransaction(
+        
+        var instructions: [Instruction] = [
+            SystemProgram.AdvanceNonce(
+                nonce: nonce,
+                authority: .subsidizer
+            ).instruction(),
+            
+            MemoProgram.Memo(
+                transferType: .p2p,
+                kreIndex: UInt16(kreIndex)
+            ).instruction(),
+        ]
+        
+        if let tipAccount {
+            instructions.append(
+                MemoProgram.Memo(tipAccount: tipAccount).instruction()
+            )
+        }
+        
+        instructions.append(contentsOf: [
+            TimelockProgram.RevokeLockWithAuthority(
+                timelock: timelockDerivedAccounts.state.publicKey,
+                vault: timelockDerivedAccounts.vault.publicKey,
+                closeAuthority: .subsidizer,
+                payer: .subsidizer,
+                bump: timelockDerivedAccounts.state.bump,
+                legacy: legacy
+            ).instruction(),
+            
+            TimelockProgram.DeactivateLock(
+                timelock: timelockDerivedAccounts.state.publicKey,
+                vaultOwner: authority,
+                payer: .subsidizer,
+                bump: timelockDerivedAccounts.state.bump,
+                legacy: legacy
+            ).instruction(),
+            
+            TimelockProgram.Withdraw(
+                timelock: timelockDerivedAccounts.state.publicKey,
+                vault: timelockDerivedAccounts.vault.publicKey,
+                vaultOwner: authority,
+                destination: destination,
+                payer: .subsidizer,
+                bump: timelockDerivedAccounts.state.bump,
+                legacy: legacy
+            ).instruction(),
+            
+            TimelockProgram.CloseAccounts(
+                timelock: timelockDerivedAccounts.state.publicKey,
+                vault: timelockDerivedAccounts.vault.publicKey,
+                closeAuthority: .subsidizer,
+                payer: .subsidizer,
+                bump: timelockDerivedAccounts.state.bump,
+                legacy: legacy
+            ).instruction(),
+        ])
+        
+        return SolanaTransaction(
             payer: .subsidizer,
             recentBlockhash: recentBlockhash,
-            instructions: [
-                
-                SystemProgram.AdvanceNonce(
-                    nonce: nonce,
-                    authority: .subsidizer
-                ).instruction(),
- 
-                MemoProgram.Memo(
-                    transferType: .p2p,
-                    kreIndex: UInt16(kreIndex)
-                ).instruction(),
-                
-                TimelockProgram.RevokeLockWithAuthority(
-                    timelock: timelockDerivedAccounts.state.publicKey,
-                    vault: timelockDerivedAccounts.vault.publicKey,
-                    closeAuthority: .subsidizer,
-                    payer: .subsidizer,
-                    bump: timelockDerivedAccounts.state.bump,
-                    legacy: legacy
-                ).instruction(),
-                
-                TimelockProgram.DeactivateLock(
-                    timelock: timelockDerivedAccounts.state.publicKey,
-                    vaultOwner: authority,
-                    payer: .subsidizer,
-                    bump: timelockDerivedAccounts.state.bump,
-                    legacy: legacy
-                ).instruction(),
-                
-                TimelockProgram.Withdraw(
-                    timelock: timelockDerivedAccounts.state.publicKey,
-                    vault: timelockDerivedAccounts.vault.publicKey,
-                    vaultOwner: authority,
-                    destination: destination,
-                    payer: .subsidizer,
-                    bump: timelockDerivedAccounts.state.bump,
-                    legacy: legacy
-                ).instruction(),
-                
-                TimelockProgram.CloseAccounts(
-                    timelock: timelockDerivedAccounts.state.publicKey,
-                    vault: timelockDerivedAccounts.vault.publicKey,
-                    closeAuthority: .subsidizer,
-                    payer: .subsidizer,
-                    bump: timelockDerivedAccounts.state.bump,
-                    legacy: legacy
-                ).instruction(),
-            ]
+            instructions: instructions
         )
     }
 }

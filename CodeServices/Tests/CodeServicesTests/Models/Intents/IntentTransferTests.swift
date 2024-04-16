@@ -39,7 +39,7 @@ class IntentPrivateTransferTests: XCTestCase {
             fee: 0,
             additionalFees: [],
             isWithdrawal: false,
-            tipUsername: nil
+            tipAccount: nil
         )
         
         XCTAssertEqual(intent.id, rendezvous)

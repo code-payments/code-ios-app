@@ -719,7 +719,7 @@ class Session: ObservableObject {
                 rendezvous: rendezvous,
                 destination: metadata.tipAddress,
                 withdrawal: true,
-                tipUsername: metadata.username
+                tipAccount: .x(metadata.username)
             )
             
             showToast(amount: amount, isDeposit: false)
