@@ -260,7 +260,10 @@ struct SettingsScreen: View {
                 }
                     
                 navigationRow(asset: .debug, title: Localized.Title.betaFlags, badge: betaBadge()) {
-                    BetaFlagsScreen(betaFlags: betaFlags)
+                    BetaFlagsScreen(
+                        betaFlags: betaFlags,
+                        tipController: session.tipController
+                    )
                 }
             }
             

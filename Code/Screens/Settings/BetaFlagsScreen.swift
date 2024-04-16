@@ -11,13 +11,15 @@ import CodeUI
 struct BetaFlagsScreen: View {
     
     @ObservedObject private var betaFlags: BetaFlags
+    @ObservedObject private var tipController: TipController
 
     private var options: [Option] = []
     
     // MARK: - Init -
     
-    init(betaFlags: BetaFlags) {
+    init(betaFlags: BetaFlags, tipController: TipController) {
         self.betaFlags = betaFlags
+        self.tipController = tipController
     }
     
     // MARK: - Body -
@@ -45,6 +47,10 @@ struct BetaFlagsScreen: View {
                         .padding(20)
                         .vSeparator(color: .rowSeparator, position: .bottom)
                     }
+                    CodeButton(style: .filled, title: "Reset Local Twitter User") {
+                        tipController.deleteAuthenticatedUser()
+                    }
+                    .padding(20)
                 }
             }
         }
@@ -69,7 +75,7 @@ extension BetaFlagsScreen {
 struct DebugScreen_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            BetaFlagsScreen(betaFlags: BetaFlags.shared)
+            BetaFlagsScreen(betaFlags: BetaFlags.shared, tipController: .mock)
         }
         .preferredColorScheme(.dark)
     }

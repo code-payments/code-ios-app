@@ -87,8 +87,9 @@ class TipController: ObservableObject {
         authenticatedTwitterUser = authenticatedUser
     }
     
-    private func deleteAuthenticatedUser() {
+    func deleteAuthenticatedUser() {
         authenticatedTwitterUser = nil
+        twitterUser = nil
     }
     
     @discardableResult
