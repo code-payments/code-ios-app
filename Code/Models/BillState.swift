@@ -147,7 +147,7 @@ extension BillState {
         var amount: KinAmount
         var username: String
         var avatar: Image?
-        var followerCount: Int?
+        var user: TwitterUser?
     }
 }
 

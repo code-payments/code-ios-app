@@ -14,11 +14,11 @@ import CodeUI
 /// Modal to confirm and execute a tip request card
 public struct ModalTipConfirmation: View {
     
-    public let avatar: Image?
     public let username: String
-    public let followerCount: Int?
     public let amount: String
     public let currency: CurrencyCode
+    public let avatar: Image?
+    public let user: TwitterUser?
     public let primaryAction: String
     public let secondaryAction: String
     public let paymentAction: ThrowingAction
@@ -28,12 +28,12 @@ public struct ModalTipConfirmation: View {
     // MARK: - Init -
     
 
-    public init(avatar: Image?, username: String, followerCount: Int?, amount: String, currency: CurrencyCode, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
-        self.avatar = avatar
+    public init(username: String, amount: String, currency: CurrencyCode, avatar: Image?, user: TwitterUser?, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
         self.username = username
-        self.followerCount = followerCount
         self.amount = amount
         self.currency = currency
+        self.avatar = avatar
+        self.user = user
         self.primaryAction = primaryAction
         self.secondaryAction = secondaryAction
         self.paymentAction = paymentAction
@@ -59,11 +59,15 @@ public struct ModalTipConfirmation: View {
                         Spacer()
                         Image.asset(.twitter)
                         Text(username)
+                        if let verificationAsset = user?.verificationStatus.asset {
+                            Image.asset(verificationAsset)
+                                .padding(.top, 4)
+                        }
                         Spacer()
                     }
                     .font(.appDisplaySmall)
                     
-                    if let followerCount = followerCount {
+                    if let followerCount = user?.followerCount {
                         Text("\(followerCount) Followers")
                             .font(.appTextSmall)
                             .foregroundColor(.textSecondary)
@@ -114,14 +118,36 @@ public struct ModalTipConfirmation: View {
     }
 }
 
+extension TwitterUser.VerificationStatus {
+    var asset: Asset? {
+        switch self {
+        case .blue:
+            return .twitterBlue
+        case .business:
+            return .twitterGrey
+        case .government:
+            return .twitterGold
+        case .none, .unknown:
+            return nil
+        }
+    }
+}
+
 #Preview {
     Background(color: .white) {
         ModalTipConfirmation(
-            avatar: nil,
             username: "ted_livingston",
-            followerCount: 12_0000,
             amount: "$5.00 of Kin",
             currency: .cad,
+            avatar: nil,
+            user: TwitterUser(
+                username: "ted_livingston",
+                displayName: "Ted Livingston",
+                avatarURL: URL(string: "")!,
+                followerCount: 12_000,
+                tipAddress: .mock,
+                verificationStatus: .blue
+            ),
             primaryAction: "Swipe to Tip",
             secondaryAction: "Cancel",
             paymentAction: {},

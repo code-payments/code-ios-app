@@ -119,6 +119,7 @@ public struct TwitterBillView: View {
                     
                     HStack {
                         Image.asset(.twitter)
+                            .padding(.top, 2)
                         Text(username)
                     }
                     .font(.appTextLarge)

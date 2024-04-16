@@ -130,4 +130,7 @@ public enum Asset: String {
     // Third-Party
     
     case twitter
+    case twitterBlue
+    case twitterGold
+    case twitterGrey
 }

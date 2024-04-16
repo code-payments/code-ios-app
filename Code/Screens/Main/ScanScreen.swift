@@ -442,11 +442,11 @@ struct ScanScreen: View {
             
         } else if let tipConfirmation = session.billState.tipConfirmation {
             ModalTipConfirmation(
-                avatar: tipConfirmation.avatar,
                 username: tipConfirmation.username,
-                followerCount: tipConfirmation.followerCount,
                 amount: tipConfirmation.amount.kin.formattedFiat(rate: tipConfirmation.amount.rate, showOfKin: true),
                 currency: tipConfirmation.amount.rate.currency,
+                avatar: tipConfirmation.avatar,
+                user: tipConfirmation.user,
                 primaryAction: Localized.Action.swipeToTip,
                 secondaryAction: Localized.Action.cancel,
                 paymentAction: { [weak session] in

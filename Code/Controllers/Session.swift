@@ -677,7 +677,8 @@ class Session: ObservableObject {
             return
         }
         
-        let metadata = tipController.userMetadata
+        let avatar = tipController.userAvatar
+        let user   = tipController.userMetadata
         
         billState = billState
             .showTipConfirmation(
@@ -685,14 +686,14 @@ class Session: ObservableObject {
                     payload: payload,
                     amount: amount,
                     username: username,
-                    avatar: tipController.userAvatar,
-                    followerCount: metadata?.followerCount
+                    avatar: avatar,
+                    user: user
                 )
             )
         
         // If metadata isn't loaded yet,
         // we'll attempt to refetch it
-        if metadata == nil {
+        if user == nil {
             Task {
                 try await tipController.fetchUser(username: username, payload: payload)
                 presentTipConfirmation(amount: amount)
