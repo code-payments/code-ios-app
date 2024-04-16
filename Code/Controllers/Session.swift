@@ -87,6 +87,8 @@ class Session: ObservableObject {
         self.flowController = FlowController(client: client, organizer: organizer)
         self.giftCardVault = GiftCardVault()
         
+        self.tipController.delegate = self
+        
         registerCodeExtractorObserver()
         registerPoller()
         
@@ -536,7 +538,7 @@ class Session: ObservableObject {
     // MARK: - Receive -
     
     func attempt(_ payload: Code.Payload, request: DeepLinkRequest?) {
-        guard canInitiateSend() else {
+        guard canPresentCard() else {
             trace(.warning, components: "Can't initiate send.")
             return
         }
@@ -597,6 +599,10 @@ class Session: ObservableObject {
     }
     
     func presentMyTipCard(user: TwitterUser) {
+        guard canPresentCard() else {
+            return
+        }
+        
         let payload = Code.Payload(
             kind: .tip,
             username: user.username
@@ -1133,7 +1139,7 @@ class Session: ObservableObject {
     
     // MARK: - Send -
     
-    private func canInitiateSend() -> Bool {
+    private func canPresentCard() -> Bool {
         billState.bill == nil
     }
     
@@ -1158,7 +1164,7 @@ class Session: ObservableObject {
     }
     
     func attemptSend(bill: Bill) {
-        if canInitiateSend() {
+        if canPresentCard() {
             initiateSend(bill: bill)
         } else {
             billQueue.append(bill)
@@ -1166,7 +1172,7 @@ class Session: ObservableObject {
     }
     
     private func dequeueBillIfNeeded() {
-        if !billQueue.isEmpty && canInitiateSend() {
+        if !billQueue.isEmpty && canPresentCard() {
             initiateSend(
                 bill: billQueue.removeFirst()
             )
@@ -1426,6 +1432,12 @@ class Session: ObservableObject {
     func withdrawExternally(amount: KinAmount, to destination: PublicKey) async throws {
         try await flowController.withdrawExternally(amount: amount, to: destination)
         updateBalance()
+    }
+}
+
+extension Session: TipControllerDelegate {
+    func willShowTipCard(for user: TwitterUser) {
+        presentMyTipCard(user: user)
     }
 }
 

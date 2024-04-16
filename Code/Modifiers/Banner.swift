@@ -74,6 +74,7 @@ public struct Banner {
 
 extension Banner {
     public enum Style: Hashable {
+        case success(Icon)
         case notification
         case warning
         case error
@@ -85,6 +86,8 @@ extension Banner {
 extension Banner.Style {
     var backgroundColor: Color {
         switch self {
+        case .success:
+            return .bannerDark
         case .notification:
             return .bannerInfo
         case .warning:
@@ -98,7 +101,7 @@ extension Banner.Style {
     
     var separatorColor: Color {
         switch self {
-        case .notification:
+        case .notification, .success:
             return .white.opacity(0.12)
         case .warning, .error, .neutral, .networkError:
             return .black.opacity(0.3)
@@ -107,6 +110,8 @@ extension Banner.Style {
     
     var accessoryImage: Image {
         switch self {
+        case .success(let icon):
+            return icon.image
         case .notification:
             return Image(systemName: "checkmark.circle.fill")
         case .warning:
@@ -120,8 +125,38 @@ extension Banner.Style {
         }
     }
     
+    var accessoryColor: Color {
+        switch self {
+        case .success(let icon):
+            return icon.color
+        case .notification, .warning, .error, .networkError, .neutral:
+            return .textMain
+        }
+    }
+    
     static var overlayColor: Color {
         .black.opacity(0.4)
+    }
+}
+
+extension Banner {
+    public enum Icon: Equatable, Hashable {
+        
+        case checkmark(Color)
+        
+        var color: Color {
+            switch self {
+            case .checkmark(let color):
+                return color
+            }
+        }
+        
+        var image: Image {
+            switch self {
+            case .checkmark:
+                Image(systemName: "checkmark.circle.fill")
+            }
+        }
     }
 }
 
@@ -264,6 +299,7 @@ public struct BannerModifier: ViewModifier {
                             banner.style.accessoryImage
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
+                                .foregroundColor(banner.style.accessoryColor)
                                 .frame(width: 15, height: 15, alignment: .center)
                         }
                         Text(title)

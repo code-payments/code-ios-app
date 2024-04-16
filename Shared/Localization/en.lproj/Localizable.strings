@@ -92,6 +92,9 @@
 /* Share */
 "action.share" = "Share";
 
+/* Later */
+"action.later" = "Later";
+
 /* Unsubscribe */
 "action.unsubscribe" = "Unsubscribe";
 
@@ -220,6 +223,9 @@
 
 /* Action to connect to X */
 "action.connectToX" = "Connect to X";
+
+/* Action to show my tip card */
+"action.showMyTipCard" = "Show My Tip Card";
 
 
 

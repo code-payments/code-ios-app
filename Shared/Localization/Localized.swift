@@ -64,6 +64,8 @@ internal enum Localized {
     internal static let invites = Localized.tr("Localizable", "action.invites")
     /// Join the Waitlist
     internal static let joinWaitlist = Localized.tr("Localizable", "action.joinWaitlist")
+    /// Later
+    internal static let later = Localized.tr("Localizable", "action.later")
     /// Learn How to Buy Kin
     internal static let learnBuyKin = Localized.tr("Localizable", "action.learnBuyKin")
     /// Learn How to Sell Kin
@@ -116,6 +118,8 @@ internal enum Localized {
     internal static let shareDownloadLink = Localized.tr("Localizable", "action.shareDownloadLink")
     /// Share This Video
     internal static let shareVideo = Localized.tr("Localizable", "action.shareVideo")
+    /// Show My Tip Card
+    internal static let showMyTipCard = Localized.tr("Localizable", "action.showMyTipCard")
     /// Subscribe
     internal static let subscribe = Localized.tr("Localizable", "action.subscribe")
     /// Swipe to Login

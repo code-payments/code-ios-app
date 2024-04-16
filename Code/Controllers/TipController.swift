@@ -11,6 +11,8 @@ import CodeServices
 @MainActor
 class TipController: ObservableObject {
     
+    weak var delegate: TipControllerDelegate?
+    
     @Published private(set) var twitterUser: TwitterUser?
     
     private(set) var inflightUser: (String, Code.Payload)?
@@ -172,18 +174,33 @@ class TipController: ObservableObject {
         url.openWithApplication()
     }
     
+    // MARK: - Actions -
+    
+    private func showTipCard(for user: TwitterUser) {
+        delegate?.willShowTipCard(for: user)
+    }
+    
     // MARK: - Banners -
     
     private func showLinkingSuccess(for user: TwitterUser) {
         bannerController.show(
-            style: .notification,
+            style: .success(.checkmark(.textSuccess)),
             title: Localized.Success.Title.xConnected,
             description: Localized.Success.Description.xConnected,
             actions: [
-                .cancel(title: Localized.Action.ok)
+                .prominent(title: Localized.Action.showMyTipCard) { [weak self] in
+                    self?.showTipCard(for: user)
+                },
+                .cancel(title: Localized.Action.later),
             ]
         )
     }
+}
+
+// MARK: - Delegate -
+
+protocol TipControllerDelegate: AnyObject {
+    func willShowTipCard(for user: TwitterUser)
 }
 
 // MARK: - AvatarURL -
