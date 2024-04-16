@@ -827,6 +827,12 @@
 /* Description when withdrawal succeeds */
 "success.description.withdrawalComplete" = "Your funds have been successfully withdrawn.";
 
+/* Title when X account is successfully connected */
+"success.title.xConnected" = "X Account Successfully Connected";
+
+/* Description X account is successfully connected */
+"success.description.xConnected" = "Your X account has been successfully connected to your Code account. You can now request Tips.";
+
 
 
 

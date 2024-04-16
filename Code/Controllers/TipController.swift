@@ -177,8 +177,8 @@ class TipController: ObservableObject {
     private func showLinkingSuccess(for user: TwitterUser) {
         bannerController.show(
             style: .notification,
-            title: "X Account Linked",
-            description: "Your X account '\(user.username)' is connected to your Code account. You can now request Tips.",
+            title: Localized.Success.Title.xConnected,
+            description: Localized.Success.Description.xConnected,
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

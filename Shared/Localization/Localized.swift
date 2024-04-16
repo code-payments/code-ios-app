@@ -675,10 +675,14 @@ internal enum Localized {
     internal enum Description {
       /// Your funds have been successfully withdrawn.
       internal static let withdrawalComplete = Localized.tr("Localizable", "success.description.withdrawalComplete")
+      /// Your X account has been successfully connected to your Code account. You can now request Tips.
+      internal static let xConnected = Localized.tr("Localizable", "success.description.xConnected")
     }
     internal enum Title {
       /// Withrawal Successful
       internal static let withdrawalComplete = Localized.tr("Localizable", "success.title.withdrawalComplete")
+      /// X Account Successfully Connected
+      internal static let xConnected = Localized.tr("Localizable", "success.title.xConnected")
     }
   }
 
