@@ -166,7 +166,7 @@ extension BillState {
             case .cash:    return true
             case .request: return false
             case .login:   return false
-            case .tip:     return false
+            case .tip:     return true
             }
         }
         
