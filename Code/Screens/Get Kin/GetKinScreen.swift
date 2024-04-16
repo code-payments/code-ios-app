@@ -119,7 +119,6 @@ struct GetKinScreen: View {
                             row(
                                 asset: .tip,
                                 title: Localized.Action.requestTip,
-                                subtitle: linkedTwitterUserSubtitle(),
                                 accessory: nil
                             ) {
                                 isPresented = false
@@ -128,8 +127,7 @@ struct GetKinScreen: View {
                         } else {
                             navigationRow(
                                 asset: .tip,
-                                title: Localized.Action.requestTip,
-                                subtitle: linkedTwitterUserSubtitle()
+                                title: Localized.Action.requestTip
                             ) {
                                 RequestTipScreen(
                                     tipController: tipController,
@@ -160,14 +158,6 @@ struct GetKinScreen: View {
                 }
             }
         }
-    }
-    
-    private func linkedTwitterUserSubtitle() -> String? {
-        guard let user = tipController.twitterUser else {
-            return nil
-        }
-        
-        return "Tips linked to X account: \(user.username)"
     }
     
     // MARK: - Get Kin -
