@@ -137,4 +137,38 @@ class DeepLinkRequestTests: XCTestCase {
         XCTAssertEqual(request.confirmParameters.successURL?.absoluteString, "https://example.com/success")
         XCTAssertEqual(request.confirmParameters.cancelURL?.absoluteString, "https://example.com/cancel")
     }
+    
+    func testDecodePlatformRequest() throws {
+        let json = """
+        {
+            "mode": "tip",
+            "platform": {
+                "name": "twitter",
+                "username": "getcode"
+            },
+
+            "locale": "en",
+            "appearance": "light",
+            "confirmParams": {
+                "success": {
+                    "url": "https://example.com/success"
+                },
+                "cancel": {
+                    "url": "https://example.com/cancel"
+                }
+            },
+            "clientSecret": "9rSkG4cUdx7D1AW"
+        }
+        """
+        
+        let request = try JSONDecoder().decode(DeepLinkRequest.self, from: Data(json.utf8))
+        
+        XCTAssertEqual(request.mode, .tip)
+        XCTAssertEqual(request.clientSecret, Base58.toBytes("9rSkG4cUdx7D1AW").data)
+        XCTAssertEqual(request.platform?.name, "twitter")
+        XCTAssertEqual(request.platform?.username, "getcode")
+        
+        XCTAssertEqual(request.confirmParameters.successURL?.absoluteString, "https://example.com/success")
+        XCTAssertEqual(request.confirmParameters.cancelURL?.absoluteString, "https://example.com/cancel")
+    }
 }

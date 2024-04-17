@@ -70,6 +70,7 @@ extension Route {
         case paymentRequest
         case loginRequest
         case tip(String)
+        case tipSDK
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -94,8 +95,8 @@ extension Route {
                 return .paymentRequest
             case "login-request-modal-desktop", "login-request-modal-mobile":
                 return .loginRequest
-//            case "tip-request-modal-mobile", "tip-request-modal-desktop", "tip-request-page-mobile", "tip-request-page-desktop":
-//                return .tip
+            case "tip-request-modal-mobile", "tip-request-modal-desktop", "tip-request-page-mobile", "tip-request-page-desktop":
+                return .tipSDK
             default:
                 return .unknown(url.lastPathComponent)
             }

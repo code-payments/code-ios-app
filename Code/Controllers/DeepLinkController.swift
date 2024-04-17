@@ -47,9 +47,6 @@ final class DeepLinkController {
                 }
                 
                 return actionForLogin(mnemonic: mnemonic)
-                
-            } else {
-                return nil
             }
             
         case .cash:
@@ -60,9 +57,6 @@ final class DeepLinkController {
             {
                 let giftCard = GiftCardAccount(mnemonic: mnemonic)
                 return actionForReceiveRemoteSend(giftCard: giftCard)
-                
-            } else {
-                return nil
             }
             
         case .paymentRequest:
@@ -76,9 +70,6 @@ final class DeepLinkController {
                     kind: .paymentRequest(request),
                     sessionAuthenticator: sessionAuthenticator
                 )
-                
-            } else {
-                return nil
             }
             
         case .loginRequest:
@@ -92,9 +83,6 @@ final class DeepLinkController {
                     kind: .loginRequest(request),
                     sessionAuthenticator: sessionAuthenticator
                 )
-                
-            } else {
-                return nil
             }
             
         case .tip(let username):
@@ -104,9 +92,25 @@ final class DeepLinkController {
                 sessionAuthenticator: sessionAuthenticator
             )
             
+        case .tipSDK:
+            
+            if
+                let payload = route.fragments[.payload],
+                let data = payload.value.base64EncodedData(),
+                let request = try? JSONDecoder().decode(DeepLinkRequest.self, from: data),
+                let username = request.platform?.username
+            {
+                return DeepLinkAction(
+                    kind: .tip(username),
+                    sessionAuthenticator: sessionAuthenticator
+                )
+            }
+            
         default:
-            return nil
+            break
         }
+        
+        return nil
     }
     
     private func actionForLogin(mnemonic: MnemonicPhrase) -> DeepLinkAction {

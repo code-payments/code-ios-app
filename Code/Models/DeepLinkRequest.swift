@@ -14,13 +14,15 @@ struct DeepLinkRequest: Equatable {
     let clientSecret: Data
     let paymentRequest: PaymentRequest?
     let loginRequest: LoginRequest?
+    let platform: Platform?
     let confirmParameters: ConfirmParameters
     
-    init(mode: Mode, clientSecret: Data, paymentRequest: PaymentRequest?, loginRequest: LoginRequest?, confirmParameters: ConfirmParameters) {
+    init(mode: Mode, clientSecret: Data, paymentRequest: PaymentRequest?, loginRequest: LoginRequest?, platform: Platform?, confirmParameters: ConfirmParameters) {
         self.mode = mode
         self.clientSecret = clientSecret
         self.paymentRequest = paymentRequest
         self.loginRequest = loginRequest
+        self.platform = platform
         self.confirmParameters = confirmParameters
     }
 }
@@ -32,6 +34,7 @@ extension DeepLinkRequest {
         case payment
         case donation
         case login
+        case tip
     }
 }
 
@@ -58,6 +61,11 @@ extension DeepLinkRequest {
         let successURL: URL?
         let cancelURL: URL?
     }
+    
+    struct Platform: Equatable, Hashable, Codable {
+        let name: String
+        let username: String
+    }
 }
 
 // MARK: - Codable -
@@ -74,6 +82,7 @@ extension DeepLinkRequest: Decodable {
         case fees
         
         case login
+        case platform
         
         case confirmParams
         case successURL
@@ -89,6 +98,11 @@ extension DeepLinkRequest: Decodable {
         case verifier
         case domain
         case clientSecret
+    }
+    
+    enum PlatformKeys: CodingKey {
+        case name
+        case username
     }
     
     enum URLKeys: CodingKey {
@@ -161,6 +175,10 @@ extension DeepLinkRequest: Decodable {
             loginRequest = nil
         }
         
+        // Platform
+        
+        let platform = try? container.decode(Platform.self, forKey: .platform)
+        
         // Confirm Parameters
          
         let confirmParams = try container.nestedContainer(keyedBy: ConfirmParamKeys.self, forKey: .confirmParams)
@@ -186,6 +204,7 @@ extension DeepLinkRequest: Decodable {
             clientSecret: clientSecret,
             paymentRequest: paymentRequest,
             loginRequest: loginRequest,
+            platform: platform,
             confirmParameters: confirmParameters
         )
     }
