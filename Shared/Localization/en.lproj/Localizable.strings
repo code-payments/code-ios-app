@@ -32,6 +32,9 @@
 /* OK */
 "action.ok" = "OK";
 
+/* Done */
+"action.done" = "Done";
+
 /* Cancel */
 "action.cancel" = "Cancel";
 

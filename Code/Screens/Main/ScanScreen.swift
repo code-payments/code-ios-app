@@ -328,14 +328,16 @@ struct ScanScreen: View {
                                 .frame(maxWidth: .infinity)
                             }
                             
-                            CapsuleButton(
-                                state: .normal,
-                                asset: .cancel,
-                                title: Localized.Action.cancel
-                            ) { [weak session] in
-                                session?.cancelSend()
+                            if let secondaryAction = session.billState.secondaryAction {
+                                CapsuleButton(
+                                    state: .normal,
+                                    asset: secondaryAction.asset,
+                                    title: secondaryAction.title
+                                ) {
+                                    secondaryAction.action()
+                                }
+                                .frame(maxWidth: .infinity)
                             }
-                            .frame(maxWidth: .infinity)
                         }
                         .padding(.horizontal, 40)
                     }
@@ -358,7 +360,7 @@ struct ScanScreen: View {
             preferredCanvasSize: preferredCanvasSize(),
             bill: session.billState.bill,
             action: billAction,
-            dismissHandler: cancelSend
+            dismissHandler: dismissBill
         )
         .edgesIgnoringSafeArea(.all)
         .onChange(of: notificationController.willResignActive) { [weak session] _ in
@@ -476,8 +478,10 @@ struct ScanScreen: View {
         isPresentingBillExchange.toggle()
     }
     
-    private func cancelSend() {
-        session.cancelSend()
+    private func dismissBill() {
+        if let action = session.billState.secondaryAction {
+            action.action()
+        }
     }
     
     // MARK: - Transitions -

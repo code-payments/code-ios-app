@@ -48,6 +48,8 @@ internal enum Localized {
     internal static let createNewCodeAccount = Localized.tr("Localizable", "action.createNewCodeAccount")
     /// Delete Code Account
     internal static let deleteAccount = Localized.tr("Localizable", "action.deleteAccount")
+    /// Done
+    internal static let done = Localized.tr("Localizable", "action.done")
     /// Download It Now
     internal static let downloadNow = Localized.tr("Localizable", "action.downloadNow")
     /// Enable Face ID

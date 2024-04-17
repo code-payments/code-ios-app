@@ -20,10 +20,11 @@ struct BillState {
     var tipConfirmation: TipConfirmation?
     
     var primaryAction: PrimaryAction?
+    var secondaryAction: SecondaryAction?
     
     var hideBillButtons: Bool
     
-    fileprivate init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, paymentConfirmation: PaymentConfirmation? = nil, loginConfirmation: LoginConfirmation? = nil, primaryAction: PrimaryAction? = nil, hideBillButtons: Bool = false) {
+    fileprivate init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, paymentConfirmation: PaymentConfirmation? = nil, loginConfirmation: LoginConfirmation? = nil, primaryAction: PrimaryAction? = nil, secondaryAction: SecondaryAction? = nil, hideBillButtons: Bool = false) {
         self.bill                = bill
         self.shouldShowToast     = shouldShowDeposit
         self.toast               = toast
@@ -31,6 +32,7 @@ struct BillState {
         self.paymentConfirmation = paymentConfirmation
         self.loginConfirmation   = loginConfirmation
         self.primaryAction       = primaryAction
+        self.secondaryAction     = secondaryAction
         self.hideBillButtons     = hideBillButtons
     }
 }
@@ -90,6 +92,12 @@ extension BillState {
         return state
     }
     
+    func secondaryAction(_ value: SecondaryAction?) -> BillState {
+        var state = self
+        state.secondaryAction = value
+        return state
+    }
+    
     func hideBillButtons(_ value: Bool) -> BillState {
         var state = self
         state.hideBillButtons = value
@@ -103,6 +111,14 @@ extension BillState {
         var title: String
         var action: ThrowingAction
         var loadingStateDelayMillisenconds: Int? = nil
+    }
+}
+
+extension BillState {
+    struct SecondaryAction {
+        var asset: Asset
+        var title: String
+        var action: VoidAction
     }
 }
 

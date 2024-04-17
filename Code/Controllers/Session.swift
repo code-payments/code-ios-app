@@ -625,6 +625,13 @@ class Session: ObservableObject {
                     self?.shareMyTipCard(user: user)
                 }
             ))
+            .secondaryAction(.init(
+                asset: .cancel,
+                title: Localized.Action.done,
+                action: { [weak self] in
+                    self?.cancelTip()
+                }
+            ))
         
         UIApplication.shouldPauseInterfaceReset = true
     }
@@ -772,6 +779,8 @@ class Session: ObservableObject {
             .bill(nil)
             .showTipConfirmation(nil)
             .hideBillButtons(false)
+            .primaryAction(nil)
+            .secondaryAction(nil)
         
         UIApplication.shouldPauseInterfaceReset = false
     }
@@ -852,7 +861,6 @@ class Session: ObservableObject {
             .showLoginConfirmation(.init(payload: payload, domain: domain))
             .hideBillButtons(true)
 
-        
         Analytics.loginCardShown(domain: domain)
     }
     
@@ -906,6 +914,8 @@ class Session: ObservableObject {
             .bill(nil)
             .showLoginConfirmation(nil)
             .hideBillButtons(false)
+            .primaryAction(nil)
+            .secondaryAction(nil)
     }
     
     // MARK: - Request -
@@ -976,6 +986,13 @@ class Session: ObservableObject {
                     request: request
                 ))
             )
+            .secondaryAction(.init(
+                asset: .cancel,
+                title: Localized.Action.cancel,
+                action: { [weak self] in
+                    self?.cancelPayment(rejected: true, ignoreRedirect: true)
+                }
+            ))
         
         if isReceived {
             billState = billState
@@ -1025,6 +1042,8 @@ class Session: ObservableObject {
             .bill(nil)
             .showPaymentConfirmation(nil)
             .hideBillButtons(false)
+            .primaryAction(nil)
+            .secondaryAction(nil)
     }
     
     func rejectPayment(ignoreRedirect: Bool = false) {
@@ -1248,6 +1267,13 @@ class Session: ObservableObject {
                 },
                 loadingStateDelayMillisenconds: 1000
             ))
+            .secondaryAction(.init(
+                asset: .cancel,
+                title: Localized.Action.cancel,
+                action: { [weak self] in
+                    self?.cancelSend()
+                }
+            ))
         
         Analytics.billShown(kin: bill.amount.kin, currency: bill.amount.rate.currency, animation: style)
     }
@@ -1270,6 +1296,7 @@ class Session: ObservableObject {
             .showValuation(nil)
             .hideBillButtons(false)
             .primaryAction(nil)
+            .secondaryAction(nil)
         
         Task {
             try await Task.delay(milliseconds: 600)
