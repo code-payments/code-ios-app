@@ -14,13 +14,15 @@ public struct SheetView<Content>: View where Content: View {
     
     private var edge: Edge
     private var backgroundColor: Color
+    private var animationSpeed: AnimationSpeed
     private var content: () -> Content
     
     // MARK: - Init -
     
-    public init(edge: Edge, backgroundColor: Color, @ViewBuilder content: @escaping () -> Content) {
+    public init(edge: Edge, backgroundColor: Color, animationSpeed: AnimationSpeed = .slower, @ViewBuilder content: @escaping () -> Content) {
         self.edge = edge
         self.backgroundColor = backgroundColor
+        self.animationSpeed = animationSpeed
         self.content = content
     }
     
@@ -44,7 +46,11 @@ public struct SheetView<Content>: View where Content: View {
                 Spacer()
             }
         }
-        .animation(.easeOutSlower)
+        .animation(
+            Animation
+                .easeOut
+                .speed(animationSpeed.value)
+        )
         .transition(
             AnyTransition
                 .move(edge: edge)
@@ -74,6 +80,23 @@ public struct SheetView<Content>: View where Content: View {
             
         case .bottom, .trailing:
             return [.topLeft, .topRight]
+        }
+    }
+}
+
+extension SheetView {
+    public enum AnimationSpeed {
+        
+        case slower
+        case normal
+        case faster
+        
+        var value: Double {
+            switch self {
+            case .slower: return 0.5
+            case .normal: return 0.9
+            case .faster: return 1.5
+            }
         }
     }
 }

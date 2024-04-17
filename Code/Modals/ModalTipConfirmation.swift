@@ -44,7 +44,7 @@ public struct ModalTipConfirmation: View {
     // MARK: - Body -
     
     public var body: some View {
-        SheetView(edge: .bottom, backgroundColor: .backgroundMain) {
+        SheetView(edge: .bottom, backgroundColor: .backgroundMain, animationSpeed: .normal) {
             VStack(spacing: 0) {
                 
                 VStack(alignment: .center) {
