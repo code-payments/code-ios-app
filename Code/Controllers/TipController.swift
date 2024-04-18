@@ -46,6 +46,19 @@ class TipController: ObservableObject {
         if !assignUserIfAuthenticated() {
             poll()
         }
+        
+        NotificationCenter.default.addObserver(forName: .twitterNotificationReceived, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            Task {
+                await self.pushNotificationReceived()
+            }
+        }
+    }
+    
+    // MARK: - Push -
+    
+    private func pushNotificationReceived() {
+        poll()
     }
     
     // MARK: - Polling -

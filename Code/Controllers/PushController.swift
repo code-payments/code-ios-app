@@ -170,6 +170,8 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
             switch notification.request.content.categoryIdentifier {
             case "ChatMessage":
                 NotificationCenter.default.post(name: .messageNotificationReceived, object: nil)
+            case "Twitter":
+                NotificationCenter.default.post(name: .twitterNotificationReceived, object: nil)
             default:
                 NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
             }
@@ -205,4 +207,5 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
 extension NSNotification.Name {
     static let pushNotificationReceived = Notification.Name("com.code.pushNotificationReceived")
     static let messageNotificationReceived = Notification.Name("com.code.messageNotificationReceived")
+    static let twitterNotificationReceived = Notification.Name("com.code.twitterNotificationReceived")
 }
