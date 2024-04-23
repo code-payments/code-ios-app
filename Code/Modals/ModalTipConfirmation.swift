@@ -124,9 +124,9 @@ extension TwitterUser.VerificationStatus {
         case .blue:
             return .twitterBlue
         case .business:
-            return .twitterGrey
-        case .government:
             return .twitterGold
+        case .government:
+            return .twitterGrey
         case .none, .unknown:
             return nil
         }
