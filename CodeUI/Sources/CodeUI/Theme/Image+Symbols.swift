@@ -97,6 +97,7 @@ public enum Asset: String {
     case youtube
     case videoBuyKin
     case videoSellKin
+    case done
     
     case kado
     

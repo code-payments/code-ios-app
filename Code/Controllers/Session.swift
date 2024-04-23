@@ -626,7 +626,7 @@ class Session: ObservableObject {
                 }
             ))
             .secondaryAction(.init(
-                asset: .cancel,
+                asset: .done,
                 title: Localized.Action.done,
                 action: { [weak self] in
                     self?.cancelTip()
