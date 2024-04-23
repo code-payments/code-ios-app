@@ -122,7 +122,7 @@ class TipController: ObservableObject {
         
         let metadata = try await fetch(username: username)
         userMetadata = metadata
-        userAvatar = try await fetchAvatar(username: username, url: metadata.avatarURL)
+        userAvatar = try? await fetchAvatar(username: username, url: metadata.avatarURL)
     }
     
     func fetch(username: String) async throws -> TwitterUser {
