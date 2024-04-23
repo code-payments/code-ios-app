@@ -97,7 +97,7 @@ struct GetKinScreen: View {
                         row(
                             asset: .dollar,
                             title: Localized.Action.buyKin,
-                            accessory: .chevron
+                            accessory: nil
                         ) {
                             isShowingBuyKin = true
                         }
