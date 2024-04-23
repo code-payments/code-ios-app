@@ -95,7 +95,6 @@ public struct TwitterBillView: View {
                             .opacity(0.15)
                         )
                         .blur(radius: geometry.size.width * 0.07)
-                        .border(Color.black, width: 1)
                         .overlay( // Inner shadow
                             Rectangle()
                                 .stroke(Color.backgroundMain.opacity(0.7), lineWidth: 30)
@@ -103,6 +102,11 @@ public struct TwitterBillView: View {
                         )
                 }
                 .background(Color.backgroundMain)
+                .overlay( // Subtle black 2px border
+                    Rectangle()
+                        .stroke(Color.backgroundMain.opacity(0.5), lineWidth: 2)
+                        .blur(radius: 1)
+                )
                 
                 // Scan code
                 VStack(spacing: 0) {
