@@ -93,18 +93,6 @@ extension Phone {
     }
 }
 
-extension User {
-    init(codeUser: Code_User_V1_User, containerID: Code_Common_V1_DataContainerId, betaFlagsAllowed: Bool, eligibleAirdrops: [Code_Transaction_V2_AirdropType]) {
-        self.init(
-            id: .init(data: codeUser.id.value),
-            containerID: .init(data: containerID.value),
-            phone: Phone(codeUser.view.phoneNumber),
-            betaFlagsAllowed: betaFlagsAllowed,
-            eligibleAirdrops: eligibleAirdrops.compactMap { AirdropType(rawValue: $0.rawValue) }
-        )
-    }
-}
-
 extension PhoneDescription.RegistraionStatus {
     init(_ codeContactStatus: Code_Contact_V1_ContactStatus) {
         if codeContactStatus.isInviteRevoked {

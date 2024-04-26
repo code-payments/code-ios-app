@@ -22,6 +22,7 @@ extension User: Codable {
             containerID: containerID,
             phone: phone,
             betaFlagsAllowed: false,
+            enableBuyModule: false,
             eligibleAirdrops: []
         )
     }

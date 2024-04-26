@@ -281,6 +281,9 @@ struct BuyKinScreen: View {
             }
             .ignoresSafeArea(.keyboard)
             .onAppear {
+                if !viewModel.session.user.enableBuyModule {
+                    isPresented = false
+                }
                 didAppear()
             }
         }

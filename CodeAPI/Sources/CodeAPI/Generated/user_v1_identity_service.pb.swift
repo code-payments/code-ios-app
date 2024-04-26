@@ -437,6 +437,9 @@ public struct Code_User_V1_GetUserResponse {
   /// Set of which airdrops the user is eligible to receive
   public var eligibleAirdrops: [Code_Transaction_V2_AirdropType] = []
 
+  /// Wether the buy module is enabled for this user
+  public var enableBuyModule: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Metadata about the user based for the instance of their view
@@ -1512,6 +1515,7 @@ extension Code_User_V1_GetUserResponse: SwiftProtobuf.Message, SwiftProtobuf._Me
     5: .same(proto: "phone"),
     6: .standard(proto: "enable_internal_flags"),
     7: .standard(proto: "eligible_airdrops"),
+    8: .standard(proto: "enable_buy_module"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1538,6 +1542,7 @@ extension Code_User_V1_GetUserResponse: SwiftProtobuf.Message, SwiftProtobuf._Me
       }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.enableInternalFlags) }()
       case 7: try { try decoder.decodeRepeatedEnumField(value: &self.eligibleAirdrops) }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.enableBuyModule) }()
       default: break
       }
     }
@@ -1566,6 +1571,9 @@ extension Code_User_V1_GetUserResponse: SwiftProtobuf.Message, SwiftProtobuf._Me
     if !self.eligibleAirdrops.isEmpty {
       try visitor.visitPackedEnumField(value: self.eligibleAirdrops, fieldNumber: 7)
     }
+    if self.enableBuyModule != false {
+      try visitor.visitSingularBoolField(value: self.enableBuyModule, fieldNumber: 8)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1576,6 +1584,7 @@ extension Code_User_V1_GetUserResponse: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs.metadata != rhs.metadata {return false}
     if lhs.enableInternalFlags != rhs.enableInternalFlags {return false}
     if lhs.eligibleAirdrops != rhs.eligibleAirdrops {return false}
+    if lhs.enableBuyModule != rhs.enableBuyModule {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

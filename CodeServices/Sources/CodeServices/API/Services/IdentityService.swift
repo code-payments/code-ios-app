@@ -88,6 +88,7 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
                     codeUser: response.user,
                     containerID: response.dataContainerID,
                     betaFlagsAllowed: response.enableInternalFlags,
+                    enableBuyModule: response.enableBuyModule,
                     eligibleAirdrops: response.eligibleAirdrops
                 )
                 completion(.success(user))
