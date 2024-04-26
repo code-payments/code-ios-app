@@ -91,6 +91,7 @@ extension BetaFlags {
         case giveRequests
         case canUnsubcribe
         case tips
+        case disableBuyModule
         
         var id: String {
             localizedTitle
@@ -112,6 +113,8 @@ extension BetaFlags {
                 return "Can Unsubscribe"
             case .tips:
                 return "Tips"
+            case .disableBuyModule:
+                return "Disable Buy Module"
             }
         }
         
@@ -131,6 +134,8 @@ extension BetaFlags {
                 return "If enabled, an option to unsubscribe from a chat will appear for supported chats."
             case .tips:
                 return "If enabled, and option to request a tip will appear in the Get Kin screen."
+            case .disableBuyModule:
+                return "If enabled, the Buy Module will appear to be disabled."
             }
         }
     }
