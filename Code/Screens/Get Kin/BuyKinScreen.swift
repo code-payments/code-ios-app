@@ -194,6 +194,17 @@ class BuyKinViewModel: ObservableObject {
             ]
         )
     }
+    
+    func showBuyModuleUnavaiableError() {
+        bannerController.show(
+            style: .error,
+            title: "Temporarily Unavailable",
+            description: "The ability to buy Kin is temporarily unavailable due to network congestion. Please try again later.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
 }
 
 // MARK: - Screen -
@@ -283,6 +294,10 @@ struct BuyKinScreen: View {
             .onAppear {
                 if !viewModel.session.user.enableBuyModule || viewModel.betaFlags.hasEnabled(.disableBuyModule) {
                     isPresented = false
+                    Task {
+                        try await Task.delay(milliseconds: 500)
+                        viewModel.showBuyModuleUnavaiableError()
+                    }
                 }
                 didAppear()
             }
