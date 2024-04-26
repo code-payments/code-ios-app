@@ -254,7 +254,7 @@ struct BalanceScreen: View {
                         Spacer()
                         
                         if let newestMessage = chat.newestMessage {
-                            Text(newestMessage.date.formattedRelatively())
+                            Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
                                 .foregroundColor(isUnread ? .textSuccess : .textSecondary)
                                 .font(.appTextSmall)
                                 .lineLimit(1)
