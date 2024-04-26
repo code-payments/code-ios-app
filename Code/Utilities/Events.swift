@@ -156,7 +156,7 @@ extension Analytics {
     }
     
     static func transferForTip(amount: KinAmount, successful: Bool, error: Error?) {
-        track(.requestPayment, properties: [
+        track(.tip, properties: [
             .state: successful ? String.success : String.failure,
             .amount: amount.kin.analyticsValue,
             .fiat: amount.fiat.analyticsValue,
@@ -259,6 +259,7 @@ extension Analytics {
         // Transfer
         case transfer = "Transfer"
         case requestPayment = "Request Payment"
+        case tip = "Tip"
         case remoteSendOutgoing = "Remote Send Outgoing"
         case remoteSendIncoming = "Remote Send Incoming"
         case grab = "Grab"
