@@ -155,6 +155,8 @@
 		9AB7C5C725E7F8730007B3D5 /* BillState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C5C625E7F8730007B3D5 /* BillState.swift */; };
 		9AB8152029DC89900037DBB4 /* InviteCodeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB8151F29DC89900037DBB4 /* InviteCodeScreen.swift */; };
 		9AC08A9B28CD0983006BF6F3 /* Biometrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC08A9A28CD0983006BF6F3 /* Biometrics.swift */; };
+		9AC784B22BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
+		9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9ACC074F28342BF1001F0081 /* Guards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC074E28342BF1001F0081 /* Guards.swift */; };
 		9ACE172B27E6287D00ACA047 /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9ACE172A27E6287D00ACA047 /* Mixpanel */; };
 		9ACFA004261DFDA6007F97B4 /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA003261DFDA6007F97B4 /* Environment.swift */; };
@@ -424,6 +426,7 @@
 		9AB7C5C625E7F8730007B3D5 /* BillState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillState.swift; sourceTree = "<group>"; };
 		9AB8151F29DC89900037DBB4 /* InviteCodeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteCodeScreen.swift; sourceTree = "<group>"; };
 		9AC08A9A28CD0983006BF6F3 /* Biometrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Biometrics.swift; sourceTree = "<group>"; };
+		9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9ACC074E28342BF1001F0081 /* Guards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Guards.swift; sourceTree = "<group>"; };
 		9ACFA003261DFDA6007F97B4 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
 		9ACFA30B2A4A0FAD0057A5DF /* Abacus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Abacus.swift; sourceTree = "<group>"; };
@@ -770,6 +773,7 @@
 				9A1EBC5126246EFD003F8B19 /* String+Padding.swift */,
 				9AF73B5727DA7F9800C038FB /* Kin+Formatting.swift */,
 				9AEABBF22B76CF0A00667DA4 /* NotificationModifier.swift */,
+				9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -1278,6 +1282,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */,
 				9AA47D482B76AF2500F1B9B7 /* Localizable.strings in Resources */,
 				9AA47D492B76AF2500F1B9B7 /* Localizable.stringsdict in Resources */,
 			);
@@ -1297,6 +1302,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9A7C408128DDE0C7007DA414 /* Localizable.strings in Resources */,
+				9AC784B22BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */,
 				9AED110B258BE1320088D902 /* Preview Assets.xcassets in Resources */,
 				9AEFE83925B1F201001FCB19 /* LaunchScreen.storyboard in Resources */,
 				9AED1108258BE1320088D902 /* Assets.xcassets in Resources */,
@@ -1720,7 +1726,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -1736,7 +1742,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -1867,7 +1873,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
@@ -1882,7 +1888,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -1992,7 +1998,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -2011,7 +2017,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2030,7 +2036,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -2049,7 +2055,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2068,7 +2074,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -2083,7 +2089,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2101,7 +2107,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
@@ -2116,7 +2122,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2391,7 +2397,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
@@ -2407,7 +2413,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -2429,7 +2435,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Code/Code.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 329;
+				CURRENT_PROJECT_VERSION = 330;
 				DEVELOPMENT_ASSET_PATHS = "\"Code/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
@@ -2444,7 +2450,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0.29;
+				MARKETING_VERSION = 2.0.30;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
