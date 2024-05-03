@@ -99,6 +99,13 @@ public enum Asset: String {
     case videoSellKin
     case done
     
+    // Messaging
+    
+    case paperplane
+    case statusSent
+    case statusDelivered
+    case statusRead
+    
     case kado
     
     // Bill

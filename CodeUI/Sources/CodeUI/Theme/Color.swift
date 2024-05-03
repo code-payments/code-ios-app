@@ -28,9 +28,12 @@ extension Color {
     
     public static let backgroundMain   = Color(r: 15,  g: 12,  b: 31)
     public static let backgroundAction = Color(r: 255, g: 255, b: 255)
-    public static let backgroundItem   = Color(r: 31,  g: 26,  b: 52)
     public static let backgroundRow    = Color(r: 17,  g: 20,  b: 42)
     public static let rowSeparator     = Color(r: 255, g: 255, b: 255, o: 0.08)
+    
+    
+    public static let backgroundMessageReceived = Color(r: 31, g: 26, b: 52)
+    public static let backgroundMessageSent     = Color(r: 68, g: 48, b: 145)
     
     public static let checkmarkBackground = Color(r: 115, g: 121, b: 160)
     

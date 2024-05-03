@@ -154,6 +154,7 @@ extension Chat {
     public struct Message: Equatable, Identifiable, Hashable {
         public let id: ID
         public let date: Date
+        public let isReceived: Bool
         public let contents: [Content]
         
         public var hasEncryptedContent: Bool {
@@ -166,9 +167,10 @@ extension Chat {
             } != nil
         }
         
-        public init(id: ID, date: Date, contents: [Content]) {
+        public init(id: ID, date: Date, isReceived: Bool = true, contents: [Content]) {
             self.id = id
             self.date = date
+            self.isReceived = isReceived
             self.contents = contents
         }
         
@@ -178,7 +180,7 @@ extension Chat {
                 date: date,
                 contents: contents.map { content in
                     switch content {
-                    case .localized, .kin, .decrypted:
+                    case .localized, .kin, .decrypted, .tip, .thankYou:
                         return content // Passthrough
                         
                     case .sodiumBox(let encryptedData):
@@ -218,6 +220,15 @@ extension Chat {
         case kin(GenericAmount, Verb)
         case sodiumBox(EncryptedData)
         case decrypted(String)
+        case thankYou(MessageDirection)
+        case tip(MessageDirection, GenericAmount)
+    }
+}
+            
+extension Chat {
+    public enum MessageDirection {
+        case sent
+        case received
     }
 }
 
