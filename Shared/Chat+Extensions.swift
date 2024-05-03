@@ -65,6 +65,22 @@ extension Chat.Content {
             
         case .decrypted(let decryptedContent):
             return decryptedContent
+            
+        case .thankYou(let direction):
+            switch direction {
+            case .sent:
+                return "🙏 You thanked them for their tip"
+            case .received:
+                return "🙏 They thanked you for your tip"
+            }
+            
+        case .tip(let direction, let amount):
+            switch direction {
+            case .sent:
+                return "You tipped"
+            case .received:
+                return "This person tipped you"
+            }
         }
     }
 }

@@ -47,11 +47,17 @@ struct ChatScreen: View {
         historyController.fetchChats()
     }
     
+    @State private var isShowingConversation: Bool = false
+    
     // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
+                Flow(isActive: $isShowingConversation) {
+                    ConversationScreen()
+                }
+                
                 MessageList(messages: chat.messages, exchange: exchange)
                 
                 if chat.canMute || chat.canUnsubscribe {
@@ -135,6 +141,8 @@ struct ChatScreen: View {
     // MARK: - Actions -
     
     private func setMuteStateAction() {
+        isShowingConversation = true
+        return
         
         let shouldMute = !chat.isMuted
         

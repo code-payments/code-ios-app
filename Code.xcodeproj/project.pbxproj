@@ -135,6 +135,7 @@
 		9A9E2B7327B4496D00C56D6A /* MigrationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9E2B7227B4496D00C56D6A /* MigrationScreen.swift */; };
 		9A9F26992A169CC000FA47DF /* GetKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9F26982A169CC000FA47DF /* GetKinScreen.swift */; };
 		9AA1B5152B7BE9AD000DB4B5 /* BuyKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */; };
+		9AA1C30C2BE12DBF0037F272 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA1C30B2BE12DBF0037F272 /* ConversationScreen.swift */; };
 		9AA39082274450B700234899 /* BackupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA39081274450B700234899 /* BackupScreen.swift */; };
 		9AA390842746964100234899 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390832746964100234899 /* Route.swift */; };
 		9AA390862746A39700234899 /* URL+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390852746A39700234899 /* URL+Links.swift */; };
@@ -413,6 +414,7 @@
 		9A9E2B7227B4496D00C56D6A /* MigrationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationScreen.swift; sourceTree = "<group>"; };
 		9A9F26982A169CC000FA47DF /* GetKinScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetKinScreen.swift; sourceTree = "<group>"; };
 		9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BuyKinScreen.swift; sourceTree = "<group>"; };
+		9AA1C30B2BE12DBF0037F272 /* ConversationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationScreen.swift; sourceTree = "<group>"; };
 		9AA3907A274416E300234899 /* Code.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Code.entitlements; sourceTree = "<group>"; };
 		9AA39081274450B700234899 /* BackupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupScreen.swift; sourceTree = "<group>"; };
 		9AA390832746964100234899 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
@@ -555,6 +557,7 @@
 				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
 				9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */,
 				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
+				9AA1C30B2BE12DBF0037F272 /* ConversationScreen.swift */,
 				9A0C60902AD05A3C00A57875 /* MessageList.swift */,
 			);
 			path = Balance;
@@ -1514,6 +1517,7 @@
 				9A7050112600EEE90036A056 /* Defaults.swift in Sources */,
 				9A093D1925D1BFD2000E7DD9 /* Code.Payload.swift in Sources */,
 				9A4283BE2A02B9F200792BFD /* ShareSheet.swift in Sources */,
+				9AA1C30C2BE12DBF0037F272 /* ConversationScreen.swift in Sources */,
 				9AEFE84425B1F3BF001FCB19 /* IntroScreen.swift in Sources */,
 				9A093D3225D1C8C8000E7DD9 /* Code.Payload+Encoding.swift in Sources */,
 				9AE6FDEE27E50BDF00FDBD41 /* BannerController.swift in Sources */,
