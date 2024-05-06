@@ -32,7 +32,7 @@ struct ConversationScreen: View {
                 HStack {
                     TextEditor(text: $input)
                         .backportScrollContentBackground(.hidden)
-                        .font(.appTextMedium)
+                        .font(.appTextMessage)
                         .foregroundColor(.backgroundMain)
                         .tint(.backgroundMain)
                         .multilineTextAlignment(.leading)
