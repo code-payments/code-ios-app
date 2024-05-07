@@ -115,24 +115,26 @@ struct GetKinScreen: View {
                             )
                         }
                         
-                        if let user = tipController.twitterUser {
-                            row(
-                                asset: .tip,
-                                title: Localized.Action.requestTip,
-                                accessory: nil
-                            ) {
-                                isPresented = false
-                                session.presentMyTipCard(user: user)
-                            }
-                        } else {
-                            navigationRow(
-                                asset: .tip,
-                                title: Localized.Action.requestTip
-                            ) {
-                                RequestTipScreen(
-                                    tipController: tipController,
-                                    isPresented: $isPresented
-                                )
+                        if betaFlags.hasEnabled(.tips) {
+                            if let user = tipController.twitterUser {
+                                row(
+                                    asset: .tip,
+                                    title: Localized.Action.requestTip,
+                                    accessory: nil
+                                ) {
+                                    isPresented = false
+                                    session.presentMyTipCard(user: user)
+                                }
+                            } else {
+                                navigationRow(
+                                    asset: .tip,
+                                    title: Localized.Action.requestTip
+                                ) {
+                                    RequestTipScreen(
+                                        tipController: tipController,
+                                        isPresented: $isPresented
+                                    )
+                                }
                             }
                         }
                     }

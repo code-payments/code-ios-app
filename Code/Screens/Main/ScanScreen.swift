@@ -100,11 +100,6 @@ struct ScanScreen: View {
                 )
             )
         }
-//        .loading(
-//            active: session.isReceivingRemoteSend,
-//            text: "Collecting your cash",
-//            color: .textMain
-//        )
     }
     
     @ViewBuilder private func authorizeView(isVisible: Bool) -> some View {
@@ -219,27 +214,14 @@ struct ScanScreen: View {
                             .environmentObject(exchange)
                             .environmentObject(reachability)
                         } else {
-                            if betaFlags.hasEnabled(.tips) {
-                                GetKinScreen(
-                                    session: session,
-                                    isPresented: $isPresentingGetKin
-                                )
-                                .environmentObject(betaFlags)
-                                .environmentObject(client)
-                                .environmentObject(exchange)
-                                .environmentObject(bannerController)
-                            } else {
-                                BuyKinScreen(
-                                    isPresented: $isPresentingGetKin,
-                                    viewModel: BuyKinViewModel(
-                                        session: session,
-                                        client: client,
-                                        exchange: exchange,
-                                        bannerController: bannerController,
-                                        betaFlags: betaFlags
-                                    )
-                                )
-                            }
+                            GetKinScreen(
+                                session: session,
+                                isPresented: $isPresentingGetKin
+                            )
+                            .environmentObject(betaFlags)
+                            .environmentObject(client)
+                            .environmentObject(exchange)
+                            .environmentObject(bannerController)
                         }
                     }
                     
