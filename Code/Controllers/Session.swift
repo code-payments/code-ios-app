@@ -278,6 +278,10 @@ class Session: ObservableObject {
         }
     }
     
+    func initiateSwap() async throws {
+        try await fetchBalance()
+    }
+    
     // MARK: - Phone Link  -
     
     func unlinkAccount(from phone: Phone) async throws {

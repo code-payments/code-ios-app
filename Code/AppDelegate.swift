@@ -82,7 +82,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) async -> UIBackgroundFetchResult {
-        return .noData
+        let type = userInfo["code_notification_type"] as? String
+        switch type {
+        case "ExecuteSwap":
+            return await initiateSwap()
+        default:
+            return .noData
+        }
+    }
+    
+    private func initiateSwap() async -> UIBackgroundFetchResult {
+        if case .loggedIn(let container) = appContainer.sessionAuthenticator.state {
+            Analytics.backgroundSwapInitiated()
+            
+            do {
+                try await container.session.initiateSwap()
+                return .newData
+            } catch {
+                ErrorReporting.captureError(error)
+                return .failed
+            }
+            
+        } else {
+            return .noData
+        }
     }
     
 //    private func scheduleNotification(title: String, body: String) {

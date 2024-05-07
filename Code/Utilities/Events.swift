@@ -132,6 +132,14 @@ extension Analytics {
     }
 }
 
+// MARK: - Swap -
+
+extension Analytics {
+    static func backgroundSwapInitiated() {
+        track(.backgroundSwap)
+    }
+}
+
 // MARK: - Cash Transfer -
 
 extension Analytics {
@@ -268,6 +276,8 @@ extension Analytics {
         case claimGetFreeKin = "Claim Get Free Kin"
         
         case privacyMigration = "Privacy Migration"
+        
+        case backgroundSwap = "Background Swap Initiated"
         
         // Errors
         case errorRequest = "Error Request"

@@ -54,9 +54,9 @@ class FlowController: ObservableObject {
         let infos = try await client.fetchAccountInfos(owner: organizer.ownerKeyPair)
         organizer.setAccountInfo(infos)
         
-        try await receiveFromIncoming()
-        
         await swapIfNeeded()
+        
+        try await receiveFromIncoming()
         
         return organizer.availableBalance
     }
