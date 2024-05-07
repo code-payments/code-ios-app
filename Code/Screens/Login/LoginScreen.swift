@@ -8,6 +8,7 @@
 import SwiftUI
 import CodeUI
 import CodeServices
+import SwiftUIIntrospect
 
 struct LoginScreen: View {
     
@@ -61,7 +62,7 @@ struct LoginScreen: View {
                                 .padding(10)
                                 .padding(.bottom, 20)
                                 .disabled(!buttonState.isNormal)
-                                .introspectTextView { textView in
+                                .introspect(.textEditor, on: .iOS(.v15, .v16, .v17)) { textView in
                                     self.textView = textView
                                 }
                             

@@ -8,7 +8,7 @@
 import SwiftUI
 import CodeUI
 import CodeServices
-import Introspect
+import SwiftUIIntrospect
 
 struct VerifyPhoneScreen<Content>: View where Content: View {
     
@@ -91,7 +91,7 @@ struct VerifyPhoneScreen<Content>: View where Content: View {
                             .textContentType(.telephoneNumber)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .multilineTextAlignment(.leading)
-                            .introspectTextField { field in
+                            .introspect(.textField, on: .iOS(.v15, .v16, .v17)) { field in
                                 field.delegate = textFieldDelegate
                                 textField = field
                             }

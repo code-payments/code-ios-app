@@ -8,7 +8,7 @@
 import SwiftUI
 import CodeUI
 import CodeServices
-import Introspect
+import SwiftUIIntrospect
 
 struct SettingsScreen: View {
     
@@ -97,7 +97,7 @@ struct SettingsScreen: View {
                         ScrollView(showsIndicators: false) {
                             list()
                         }
-                        .introspectScrollView {
+                        .introspect(.scrollView, on: .iOS(.v15, .v16, .v17)) {
                             $0.alwaysBounceVertical = false
                         }
                     }
@@ -124,7 +124,7 @@ struct SettingsScreen: View {
                 ScrollView(showsIndicators: false) {
                     accountList()
                 }
-                .introspectScrollView {
+                .introspect(.scrollView, on: .iOS(.v15, .v16, .v17)) {
                     $0.alwaysBounceVertical = false
                 }
             }

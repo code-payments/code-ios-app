@@ -8,7 +8,7 @@
 import SwiftUI
 import CodeUI
 import CodeServices
-import Introspect
+import SwiftUIIntrospect
 
 struct ConfirmPhoneScreen: View {
     
@@ -48,7 +48,7 @@ struct ConfirmPhoneScreen: View {
                             .keyboardType(.numberPad)
                             .textContentType(.oneTimeCode)
                             .offset(x: 999999, y: 999999)
-                            .introspectTextField { field in
+                            .introspect(.textField, on: .iOS(.v15, .v16, .v17)) { field in
                                 textField = field
                             }
                     }

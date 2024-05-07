@@ -34,6 +34,7 @@
 /* Begin PBXBuildFile section */
 		9A03338B278E0C88005C630A /* VerifyPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A03338A278E0C88005C630A /* VerifyPhoneScreen.swift */; };
 		9A033392278F61E8005C630A /* ConfirmPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A033391278F61E8005C630A /* ConfirmPhoneScreen.swift */; };
+		9A06B0E52BEA8F430023B7B7 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = 9A06B0E42BEA8F430023B7B7 /* SwiftUIIntrospect */; };
 		9A084D7226165CDC00F3C9B9 /* Stopwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A084D7126165CDC00F3C9B9 /* Stopwatch.swift */; };
 		9A093D1925D1BFD2000E7DD9 /* Code.Payload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A093D1725D1BFD2000E7DD9 /* Code.Payload.swift */; };
 		9A093D1A25D1BFD2000E7DD9 /* Code.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A093D1825D1BFD2000E7DD9 /* Code.swift */; };
@@ -77,7 +78,6 @@
 		9A3E945227473EC700789CF6 /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3E945127473EC700789CF6 /* LoginScreen.swift */; };
 		9A40E54B260CB485009DEF2C /* BetaFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A40E54A260CB485009DEF2C /* BetaFlags.swift */; };
 		9A40E551260CB796009DEF2C /* BetaFlagsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A40E550260CB796009DEF2C /* BetaFlagsScreen.swift */; };
-		9A4279D1281190E500726D1B /* Introspect in Frameworks */ = {isa = PBXBuildFile; productRef = 9A4279D0281190E500726D1B /* Introspect */; };
 		9A4283BC2A02B5B100792BFD /* ShareCashItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BB2A02B5B100792BFD /* ShareCashItem.swift */; };
 		9A4283BE2A02B9F200792BFD /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BD2A02B9F200792BFD /* ShareSheet.swift */; };
 		9A4283C12A055C5400792BFD /* GiftCardVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283C02A055C5400792BFD /* GiftCardVault.swift */; };
@@ -500,11 +500,11 @@
 				9A1654D726790419000A135E /* GRPC in Frameworks */,
 				9AEABBEF2B76CD4100667DA4 /* CodeUI in Frameworks */,
 				9AEB5F4F25CDD294004B3680 /* CodeServices in Frameworks */,
+				9A06B0E52BEA8F430023B7B7 /* SwiftUIIntrospect in Frameworks */,
 				9AB4D0F32B9657B400244EFC /* FirebaseInstallations in Frameworks */,
 				9A1A827B28660A6F00A4979F /* FirebaseMessaging in Frameworks */,
 				9A1A827728660A6F00A4979F /* FirebaseAnalytics in Frameworks */,
 				9AD5E64C25F2BF3E007388AE /* opencv2.framework in Frameworks */,
-				9A4279D1281190E500726D1B /* Introspect in Frameworks */,
 				9A1A827928660A6F00A4979F /* FirebaseCrashlytics in Frameworks */,
 				9AD5D85825F26E4C007388AE /* CodeScanner.framework in Frameworks */,
 				9A476D4A2978884700C5B5CE /* Bugsnag in Frameworks */,
@@ -1105,13 +1105,13 @@
 				9AEB5F4E25CDD294004B3680 /* CodeServices */,
 				9A1654D626790419000A135E /* GRPC */,
 				9ACE172A27E6287D00ACA047 /* Mixpanel */,
-				9A4279D0281190E500726D1B /* Introspect */,
 				9A1A827628660A6F00A4979F /* FirebaseAnalytics */,
 				9A1A827828660A6F00A4979F /* FirebaseCrashlytics */,
 				9A1A827A28660A6F00A4979F /* FirebaseMessaging */,
 				9A476D492978884700C5B5CE /* Bugsnag */,
 				9AEABBEE2B76CD4100667DA4 /* CodeUI */,
 				9AB4D0F22B9657B400244EFC /* FirebaseInstallations */,
+				9A06B0E42BEA8F430023B7B7 /* SwiftUIIntrospect */,
 			);
 			productName = Code;
 			productReference = 9AED1100258BE1310088D902 /* Code.app */;
@@ -2663,7 +2663,7 @@
 			repositoryURL = "https://github.com/siteline/SwiftUI-Introspect";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.1.4;
+				minimumVersion = 1.1.3;
 			};
 		};
 		9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */ = {
@@ -2685,6 +2685,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		9A06B0E42BEA8F430023B7B7 /* SwiftUIIntrospect */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A4279CF281190E500726D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */;
+			productName = SwiftUIIntrospect;
+		};
 		9A1654D626790419000A135E /* GRPC */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1654D526790419000A135E /* XCRemoteSwiftPackageReference "grpc-swift" */;
@@ -2704,11 +2709,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
-		};
-		9A4279D0281190E500726D1B /* Introspect */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9A4279CF281190E500726D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */;
-			productName = Introspect;
 		};
 		9A476D492978884700C5B5CE /* Bugsnag */ = {
 			isa = XCSwiftPackageProductDependency;

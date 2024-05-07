@@ -8,7 +8,7 @@
 import SwiftUI
 import CodeUI
 import CodeServices
-import Introspect
+import SwiftUIIntrospect
 
 struct InviteCodeScreen: View {
     
@@ -51,7 +51,7 @@ struct InviteCodeScreen: View {
                         //.textContentType(.username)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .multilineTextAlignment(.center)
-                        .introspectTextField { field in
+                        .introspect(.textField, on: .iOS(.v15, .v16, .v17)) { field in
                             textField = field
                         }
                         .padding([.leading, .trailing], 15)
