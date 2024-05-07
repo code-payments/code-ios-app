@@ -29,7 +29,7 @@ struct ConversationScreen: View {
             VStack(spacing: 0) {
                 MessageList(messages: messages, exchange: exchange)
                 
-                HStack {
+                HStack(alignment: .bottom) {
                     TextEditor(text: $input)
                         .backportScrollContentBackground(.hidden)
                         .font(.appTextMessage)
