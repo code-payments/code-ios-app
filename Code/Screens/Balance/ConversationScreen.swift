@@ -18,6 +18,8 @@ struct ConversationScreen: View {
     
     @State private var showingTips: Bool = false
     
+    @State private var isShowingRevealIdentity: Bool = false
+    
     // MARK: - Init -
     
     init() {
@@ -27,6 +29,12 @@ struct ConversationScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
+                if isShowingRevealIdentity {
+                    RevealIdentityBanner {
+                        isShowingRevealIdentity.toggle()
+                    }
+                }
+                
                 MessageList(messages: messages, exchange: exchange)
                 
                 HStack(alignment: .bottom) {
@@ -68,6 +76,9 @@ struct ConversationScreen: View {
             }
         }
         .confirmationDialog("Select a color", isPresented: $showingTips, titleVisibility: .visible) {
+            Button("\(isShowingRevealIdentity ? "Hide" : "Show") Reveal") {
+                isShowingRevealIdentity.toggle()
+            }
             Button("Send Message") {
                 input = "/stext Hey, how's it going?"
             }
@@ -287,6 +298,40 @@ struct ConversationScreen: View {
         }
         
         return messages
+    }
+}
+
+struct RevealIdentityBanner: View {
+    
+    var action: VoidAction
+    
+    init(action: @escaping VoidAction) {
+        self.action = action
+    }
+    
+    var body: some View {
+        HStack {
+            Text("Your messages are showing up anonymously.\nWould you like to reveal your identity?")
+                .font(.appTextSmall)
+                .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.leading)
+            
+            Spacer()
+            
+            Button {
+                action()
+            } label: {
+                TextBubble(
+                    style: .filled,
+                    text: "Reveal",
+                    paddingVertical: 2,
+                    paddingHorizontal: 6
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 10)
     }
 }
 
