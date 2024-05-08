@@ -41,7 +41,7 @@ public struct CodeButton: View {
     public var body: some View {
         Group {
             switch style {
-            case .bordered, .filled:
+            case .bordered, .filled, .filledThin:
                 button()
                     .buttonStyle(CustomStyle(style: style, isDisabled: isDisabled()))
                 
@@ -81,7 +81,7 @@ public struct CodeButton: View {
             }
             .font(.appTextMedium)
             .frame(maxWidth: .infinity)
-            .frame(height: Metrics.buttonHeight)
+            .frame(height: buttonHeight())
             .padding([.leading, .trailing], Metrics.buttonPadding)
         }
     }
@@ -94,8 +94,17 @@ public struct CodeButton: View {
         switch style {
         case .bordered:
             return .textMain
-        case .filled, .subtle:
+        case .filled, .filledThin, .subtle:
             return .textSecondary
+        }
+    }
+    
+    private func buttonHeight() -> CGFloat {
+        switch style {
+        case .filledThin:
+            return Metrics.buttonHeightThin
+        case .bordered, .filled, .subtle:
+            return Metrics.buttonHeight
         }
     }
 }
@@ -106,6 +115,7 @@ extension CodeButton {
     public enum Style {
         case bordered
         case filled
+        case filledThin
         case subtle
     }
 }
@@ -136,7 +146,7 @@ private extension CodeButton {
                         .stroke(Color.textMain, lineWidth: Metrics.buttonLineWidth)
                 }
                 
-            case .filled:
+            case .filled, .filledThin:
                 if isDisabled {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(Color(r: 27, g: 25, b: 41))
@@ -159,7 +169,7 @@ private extension CodeButton {
                     return .textMain
                 }
                 
-            case .filled:
+            case .filled, .filledThin:
                 if isDisabled {
                     return Color(r: 48, g: 45, b: 63)
                 } else {

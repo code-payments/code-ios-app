@@ -387,24 +387,14 @@ public struct MessagePayment: View {
             
             if verb == .tipReceived {
                 HStack(spacing: 10) {
-                    Button {} label: {
-                        TextBubble(
-                            style: .filled,
-                            text: "🙏 Thank",
-                            paddingVertical: 5,
-                            paddingHorizontal: 15
-                        )
+                    CodeButton(style: .filledThin, title: "🙏 Thank") {
+                        // Nothing for now
                     }
-                    
-                    Button {} label: {
-                        TextBubble(
-                            style: .filled,
-                            text: "Message",
-                            paddingVertical: 5,
-                            paddingHorizontal: 15
-                        )
+                    CodeButton(style: .filledThin, title: "Message") {
+                        // Nothing for now
                     }
                 }
+                .padding(.horizontal, 5)
             }
             
             HStack {
@@ -743,7 +733,7 @@ struct MessageList_Previews: PreviewProvider {
                                 .partial(Fiat(
                                     currency: .cad,
                                     amount: 1.00
-                                )), .sent
+                                )), .tipReceived
                             ),
                         ]
                     ),
