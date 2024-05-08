@@ -38,8 +38,7 @@ struct ConversationScreen: View {
                 MessageList(messages: messages, exchange: exchange)
                 
                 HStack(alignment: .bottom) {
-                    TextEditor(text: $input)
-                        .backportScrollContentBackground(.hidden)
+                    conversationTextView()
                         .font(.appTextMessage)
                         .foregroundColor(.backgroundMain)
                         .tint(.backgroundMain)
@@ -64,6 +63,7 @@ struct ConversationScreen: View {
                 .padding(.bottom, 8)
             }
         }
+        .interactiveDismissDisabled()
         .navigationBarHidden(false)
         .navigationBarTitle(Text("Conversation"))
         .toolbar {
@@ -106,6 +106,17 @@ struct ConversationScreen: View {
             Button("Receive Thanks") {
                 input = "/rthanks"
             }
+        }
+    }
+    
+    @ViewBuilder private func conversationTextView() -> some View {
+        if #available(iOS 16.0, *) {
+            TextEditor(text: $input)
+                .backportScrollContentBackground(.hidden)
+                .scrollDismissesKeyboard(.never)
+        } else {
+            TextEditor(text: $input)
+                .backportScrollContentBackground(.hidden)
         }
     }
     
