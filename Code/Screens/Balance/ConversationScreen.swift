@@ -65,7 +65,6 @@ struct ConversationScreen: View {
         }
         .interactiveDismissDisabled()
         .navigationBarHidden(false)
-        .navigationBarTitle(Text("Conversation"))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -73,6 +72,9 @@ struct ConversationScreen: View {
                 } label: {
                     Image(systemName: "ellipsis.message.fill")
                 }
+            }
+            ToolbarItem(placement: .principal) {
+                title()
             }
         }
         .confirmationDialog("Select a color", isPresented: $showingTips, titleVisibility: .visible) {
@@ -106,6 +108,23 @@ struct ConversationScreen: View {
             Button("Receive Thanks") {
                 input = "/rthanks"
             }
+        }
+    }
+    
+    @ViewBuilder private func title() -> some View {
+        HStack(spacing: 10) {
+            AvatarView(value: .placeholder, diameter: 30)
+            
+            VStack(alignment: .leading, spacing: 0) {
+                Text("TontonTwitch")
+                    .font(.appTextMedium)
+                    .foregroundColor(.textMain)
+                Text("Last seen today")
+                    .font(.appTextHeading)
+                    .foregroundColor(.textSecondary)
+            }
+            
+            Spacer()
         }
     }
     

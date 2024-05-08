@@ -14,12 +14,17 @@ public struct AvatarView: View {
     
     public let value: Value
     
-    private let size = CGSize(width: 80, height: 80)
+    private let diameter: CGFloat
+    
+    private var size: CGSize {
+        CGSize(width: diameter, height: diameter)
+    }
     
     // MARK: - Init -
     
-    public init(value: Value) {
+    public init(value: Value, diameter: CGFloat = 80) {
         self.value = value
+        self.diameter = diameter
     }
     
     public var body: some View {
@@ -37,15 +42,15 @@ public struct AvatarView: View {
         Group {
             switch value {
             case .placeholder:
-                PlaceholderAvatar(diameter: 80)
+                PlaceholderAvatar(diameter: diameter)
             case .image(let image):
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .cornerRadius(max(size.width, size.height))
+                    .cornerRadius(diameter)
             }
         }
-        .frame(width: size.width, height: size.height, alignment: .center)
+        .frame(width: diameter, height: diameter, alignment: .center)
     }
 }
 
