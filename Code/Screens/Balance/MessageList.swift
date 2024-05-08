@@ -354,6 +354,8 @@ public struct MessagePayment: View {
     public let location: MessageSemanticLocation
     
     private let font: Font = .appTextMedium
+    
+    @State private var isThanked: Bool = false
         
     public init(verb: Chat.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation) {
         self.verb = verb
@@ -387,8 +389,8 @@ public struct MessagePayment: View {
             
             if verb == .tipReceived {
                 HStack(spacing: 10) {
-                    CodeButton(style: .filledThin, title: "🙏 Thank") {
-                        // Nothing for now
+                    CodeButton(style: .filledThin, title: "🙏  Thank", disabled: isThanked) {
+                        isThanked.toggle()
                     }
                     CodeButton(style: .filledThin, title: "Message") {
                         // Nothing for now
