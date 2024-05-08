@@ -406,13 +406,21 @@ public struct MessagePayment: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
+        .background(Color.backgroundMain)
         .clipShape(
             cornerClip(
                 isReceived: isReceived,
                 location: location
             )
         )
+        .overlay {
+            cornerClip(
+                isReceived: isReceived,
+                location: location
+            )
+            .stroke(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent, lineWidth: 4)
+            .padding(2) // Line width * 0.5
+        }
     }
 }
 
