@@ -416,7 +416,7 @@ public struct MessagePayment: View {
         let showButtons = showThank && verb == .tipReceived
         
         VStack(alignment: .trailing, spacing: 10) {
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 if verb == .returned {
                     FiatField(size: .large, amount: amount)
                     
@@ -452,7 +452,7 @@ public struct MessagePayment: View {
             }
             
             TimestampView(date: date, isReceived: isReceived)
-                .padding(.vertical, 2)
+                .padding(.bottom, 2)
                 .padding(.trailing, 4)
         }
         .padding(.vertical, 10)
@@ -501,7 +501,7 @@ public struct MessagePaymentV2: View {
         let showButtons = showThank && verb == .tipReceived
         
         VStack(alignment: .trailing, spacing: 4) {
-            VStack( spacing: 6) {
+            VStack(spacing: 6) {
                 if verb == .returned {
                     FiatField(size: .large, amount: amount)
                     
