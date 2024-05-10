@@ -15,13 +15,15 @@ public struct MessageList: View {
     private let exchange: Exchange
     
     private let useV2: Bool
+    private let showThank: Bool
     
     // MARK: - Init -
     
-    init(messages: [Chat.Message], exchange: Exchange, useV2: Bool = false) {
+    init(messages: [Chat.Message], exchange: Exchange, useV2: Bool = false, showThank: Bool = false) {
         self.messages = messages.groupByDay()
         self.exchange = exchange
         self.useV2 = useV2
+        self.showThank = showThank
     }
     
     // MARK: - Body -
@@ -81,21 +83,25 @@ public struct MessageList: View {
                                 
                             case .kin(let amount, let verb):
                                 if let rate = rate(for: amount.currency) {
+                                    let amount = amount.amountUsing(rate: rate)
+                                    
                                     if useV2 {
                                         MessagePaymentV2(
                                             verb: verb,
-                                            amount: amount.amountUsing(rate: rate),
+                                            amount: amount,
                                             isReceived: message.isReceived,
                                             date: message.date,
-                                            location: .forIndex(index, count: message.contents.count)
+                                            location: .forIndex(index, count: message.contents.count),
+                                            showThank: showThank
                                         )
                                     } else {
                                         MessagePayment(
                                             verb: verb,
-                                            amount: amount.amountUsing(rate: rate),
+                                            amount: amount,
                                             isReceived: message.isReceived,
                                             date: message.date,
-                                            location: .forIndex(index, count: message.contents.count)
+                                            location: .forIndex(index, count: message.contents.count),
+                                            showThank: showThank
                                         )
                                     }
                                 } else {
@@ -106,7 +112,8 @@ public struct MessageList: View {
                                         amount: KinAmount(kin: 0, rate: .oneToOne),
                                         isReceived: message.isReceived,
                                         date: message.date,
-                                        location: .forIndex(index, count: message.contents.count)
+                                        location: .forIndex(index, count: message.contents.count),
+                                        showThank: showThank
                                     )
                                 }
                                 
@@ -365,21 +372,23 @@ public struct MessagePayment: View {
     public let isReceived: Bool
     public let date: Date
     public let location: MessageSemanticLocation
+    public let showThank: Bool
     
     private let font: Font = .appTextMedium
     
     @State private var isThanked: Bool = false
         
-    public init(verb: Chat.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation) {
+    public init(verb: Chat.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation, showThank: Bool) {
         self.verb = verb
         self.amount = amount
         self.isReceived = isReceived
         self.date = date
         self.location = location
+        self.showThank = showThank
     }
     
     public var body: some View {
-        let showButtons = verb == .tipReceived
+        let showButtons = showThank && verb == .tipReceived
         
         VStack(alignment: .trailing, spacing: 10) {
             VStack(spacing: 4) {
@@ -448,21 +457,24 @@ public struct MessagePaymentV2: View {
     public let isReceived: Bool
     public let date: Date
     public let location: MessageSemanticLocation
+    public let showThank: Bool
     
     private let font: Font = .appTextMedium
     
     @State private var isThanked: Bool = false
         
-    public init(verb: Chat.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation) {
+    public init(verb: Chat.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation, showThank: Bool) {
         self.verb = verb
         self.amount = amount
         self.isReceived = isReceived
         self.date = date
         self.location = location
+        self.showThank = showThank
     }
     
     public var body: some View {
-        let showButtons = verb == .tipReceived
+        let showButtons = showThank && verb == .tipReceived
+        
         VStack(alignment: .trailing, spacing: 4) {
             VStack( spacing: 6) {
                 if verb == .returned {

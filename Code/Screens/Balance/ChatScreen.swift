@@ -61,7 +61,8 @@ struct ChatScreen: View {
                 MessageList(
                     messages: chat.messages,
                     exchange: exchange,
-                    useV2: betaFlags.hasEnabled(.alternativeBubbles)
+                    useV2: betaFlags.hasEnabled(.alternativeBubbles),
+                    showThank: betaFlags.hasEnabled(.conversations)
                 )
                 
                 if chat.canMute || chat.canUnsubscribe {
