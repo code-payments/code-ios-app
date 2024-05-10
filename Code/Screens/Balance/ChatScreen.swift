@@ -58,7 +58,11 @@ struct ChatScreen: View {
                     ConversationScreen()
                 }
                 
-                MessageList(messages: chat.messages, exchange: exchange)
+                MessageList(
+                    messages: chat.messages,
+                    exchange: exchange,
+                    useV2: betaFlags.hasEnabled(.alternativeBubbles)
+                )
                 
                 if chat.canMute || chat.canUnsubscribe {
                     HStack(spacing: 0) {
@@ -93,6 +97,17 @@ struct ChatScreen: View {
         }
         .navigationBarHidden(false)
         .navigationBarTitle(Text(chat.localizedTitle))
+        .if(betaFlags.hasEnabled(.conversations)) { $0
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        isShowingConversation.toggle()
+                    } label: {
+                        Image(systemName: "ellipsis")
+                    }
+                }
+            }
+        }
     }
     
     @ViewBuilder private func button(title: String, action: @escaping VoidAction) -> some View {
@@ -141,9 +156,6 @@ struct ChatScreen: View {
     // MARK: - Actions -
     
     private func setMuteStateAction() {
-        isShowingConversation = true
-        return
-        
         let shouldMute = !chat.isMuted
         
         let action: String

@@ -12,6 +12,7 @@ import CodeServices
 struct ConversationScreen: View {
     
     @EnvironmentObject private var exchange: Exchange
+    @EnvironmentObject private var betaFlags: BetaFlags
     
     @State private var input: String = ""
     @State private var messages: [Chat.Message] = []
@@ -35,7 +36,11 @@ struct ConversationScreen: View {
                     }
                 }
                 
-                MessageList(messages: messages, exchange: exchange)
+                MessageList(
+                    messages: messages,
+                    exchange: exchange,
+                    useV2: betaFlags.hasEnabled(.alternativeBubbles)
+                )
                 
                 HStack(alignment: .bottom) {
                     conversationTextView()

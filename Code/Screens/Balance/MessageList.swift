@@ -14,11 +14,14 @@ public struct MessageList: View {
     private let messages: [MessageGroup]
     private let exchange: Exchange
     
+    private let useV2: Bool
+    
     // MARK: - Init -
     
-    init(messages: [Chat.Message], exchange: Exchange) {
+    init(messages: [Chat.Message], exchange: Exchange, useV2: Bool = false) {
         self.messages = messages.groupByDay()
         self.exchange = exchange
+        self.useV2 = useV2
     }
     
     // MARK: - Body -
@@ -78,13 +81,23 @@ public struct MessageList: View {
                                 
                             case .kin(let amount, let verb):
                                 if let rate = rate(for: amount.currency) {
-                                    MessagePayment(
-                                        verb: verb,
-                                        amount: amount.amountUsing(rate: rate),
-                                        isReceived: message.isReceived,
-                                        date: message.date,
-                                        location: .forIndex(index, count: message.contents.count)
-                                    )
+                                    if useV2 {
+                                        MessagePaymentV2(
+                                            verb: verb,
+                                            amount: amount.amountUsing(rate: rate),
+                                            isReceived: message.isReceived,
+                                            date: message.date,
+                                            location: .forIndex(index, count: message.contents.count)
+                                        )
+                                    } else {
+                                        MessagePayment(
+                                            verb: verb,
+                                            amount: amount.amountUsing(rate: rate),
+                                            isReceived: message.isReceived,
+                                            date: message.date,
+                                            location: .forIndex(index, count: message.contents.count)
+                                        )
+                                    }
                                 } else {
                                     // If a rate for this currency isn't found, we can't
                                     // represent the value so we fallback to a Kin amount
@@ -366,8 +379,10 @@ public struct MessagePayment: View {
     }
     
     public var body: some View {
-        VStack(spacing: 10) {
-            VStack(spacing: 6) {
+        let showButtons = verb == .tipReceived
+        
+        VStack(alignment: .trailing, spacing: 10) {
+            VStack(spacing: 4) {
                 if verb == .returned {
                     FiatField(size: .large, amount: amount)
                     
@@ -383,12 +398,15 @@ public struct MessagePayment: View {
                     FiatField(size: .large, amount: amount)
                 }
             }
-            .padding(.top, 14)
+            .if(showButtons) { $0
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.top, 16)
             .padding(.bottom, 6)
-            .padding(.horizontal, 28)
+            .padding(.horizontal, 16)
             
-            if verb == .tipReceived {
-                HStack(spacing: 10) {
+            if showButtons {
+                HStack(spacing: 8) {
                     CodeButton(style: .filledThin, title: "🙏  Thank", disabled: isThanked) {
                         isThanked.toggle()
                     }
@@ -396,13 +414,12 @@ public struct MessagePayment: View {
                         // Nothing for now
                     }
                 }
-                .padding(.horizontal, 5)
+                .padding(.horizontal, 4)
             }
             
-            HStack {
-                Spacer()
-                TimestampView(date: date, isReceived: isReceived)
-            }
+            TimestampView(date: date, isReceived: isReceived)
+                .padding(.vertical, 2)
+                .padding(.trailing, 4)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 10)
@@ -421,6 +438,89 @@ public struct MessagePayment: View {
             .stroke(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent, lineWidth: 4)
             .padding(2) // Line width * 0.5
         }
+    }
+}
+
+public struct MessagePaymentV2: View {
+    
+    public let verb: Chat.Verb
+    public let amount: KinAmount
+    public let isReceived: Bool
+    public let date: Date
+    public let location: MessageSemanticLocation
+    
+    private let font: Font = .appTextMedium
+    
+    @State private var isThanked: Bool = false
+        
+    public init(verb: Chat.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation) {
+        self.verb = verb
+        self.amount = amount
+        self.isReceived = isReceived
+        self.date = date
+        self.location = location
+    }
+    
+    public var body: some View {
+        let showButtons = verb == .tipReceived
+        VStack(alignment: .trailing, spacing: 4) {
+            VStack( spacing: 6) {
+                if verb == .returned {
+                    FiatField(size: .large, amount: amount)
+                    
+                    Text(verb.localizedText)
+                        .font(.appTextSmall)
+                        .foregroundColor(.textMain)
+                    
+                } else {
+                    Text(verb.localizedText)
+                        .font(.appTextSmall)
+                        .foregroundColor(.textMain)
+                    
+                    FiatField(size: .large, amount: amount)
+                }
+            }
+            .if(showButtons) { $0
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 16)
+            .background(Color.backgroundMain)
+            .clipShape(
+                cornerClip(
+                    isReceived: isReceived,
+                    smaller: true,
+                    location: location
+                )
+            )
+            
+            if showButtons {
+                HStack(spacing: 8) {
+                    CodeButton(style: .filledThin, title: "🙏  Thank", disabled: isThanked) {
+                        isThanked.toggle()
+                    }
+                    CodeButton(style: .filledThin, title: "Message") {
+                        // Nothing for now
+                    }
+                }
+                .padding(.top, 6)
+                .padding(.horizontal, 2)
+                .padding(.bottom, 2)
+            }
+            
+            TimestampView(date: date, isReceived: isReceived)
+                .padding(.vertical, 2)
+                .padding(.trailing, 4)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+        .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
+        .clipShape(
+            cornerClip(
+                isReceived: isReceived,
+                location: location
+            )
+        )
     }
 }
 
@@ -583,7 +683,7 @@ struct TimestampView: View {
                 .font(.appTextHeading)
                 .foregroundColor(.textSecondary)
             if !isReceived {
-                Image.asset(.statusRead)
+                Image.asset(.statusDelivered)
             }
         }
     }
@@ -651,20 +751,21 @@ public struct FiatField: View {
 }
 
 private extension View {
-    func cornerClip(isReceived: Bool, location: MessageSemanticLocation) -> some Shape {
+    func cornerClip(isReceived: Bool, smaller: Bool = false, location: MessageSemanticLocation) -> some Shape {
+        let m = (smaller ? 0.65 : 1.0)
         if isReceived {
             return UnevenRoundedCorners(
-                tl: location.topLeftRadius,
-                bl: location.bottomLeftRadius,
-                br: Metrics.chatMessageRadiusLarge,
-                tr: Metrics.chatMessageRadiusLarge
+                tl: location.topLeftRadius * m,
+                bl: location.bottomLeftRadius * m,
+                br: Metrics.chatMessageRadiusLarge * m,
+                tr: Metrics.chatMessageRadiusLarge * m
             )
         } else {
             return UnevenRoundedCorners(
-                tl: Metrics.chatMessageRadiusLarge,
-                bl: Metrics.chatMessageRadiusLarge,
-                br: location.bottomRightRadius,
-                tr: location.topRightRadius
+                tl: Metrics.chatMessageRadiusLarge * m,
+                bl: Metrics.chatMessageRadiusLarge * m,
+                br: location.bottomRightRadius * m,
+                tr: location.topRightRadius * m
             )
         }
     }
@@ -677,30 +778,30 @@ struct MessageList_Previews: PreviewProvider {
         Background(color: .backgroundMain) {
             MessageList(
                 messages: [
-                    Chat.Message(
-                        id: .random,
-                        date: .now,
-                        isReceived: nil,
-                        contents: [
-                            .tip(.received, .exact(
-                                KinAmount(
-                                    fiat: 100.00,
-                                    rate: Rate(
-                                        fx: 0.000016,
-                                        currency: .usd
-                                    )
-                                )
-                            ))
-                        ]
-                    ),
-                    Chat.Message(
-                        id: .random,
-                        date: .now,
-                        isReceived: nil,
-                        contents: [
-                            .thankYou(.sent),
-                        ]
-                    ),
+//                    Chat.Message(
+//                        id: .random,
+//                        date: .now,
+//                        isReceived: nil,
+//                        contents: [
+//                            .tip(.received, .exact(
+//                                KinAmount(
+//                                    fiat: 100.00,
+//                                    rate: Rate(
+//                                        fx: 0.000016,
+//                                        currency: .usd
+//                                    )
+//                                )
+//                            ))
+//                        ]
+//                    ),
+//                    Chat.Message(
+//                        id: .random,
+//                        date: .now,
+//                        isReceived: nil,
+//                        contents: [
+//                            .thankYou(.sent),
+//                        ]
+//                    ),
                     Chat.Message(
                         id: .random,
                         date: .now,
@@ -726,7 +827,7 @@ struct MessageList_Previews: PreviewProvider {
                             .kin(
                                 .partial(Fiat(
                                     currency: .cny,
-                                    amount: 3589.75
+                                    amount: 35.75
                                 )), .sent
                             ),
                         ]
@@ -752,20 +853,20 @@ struct MessageList_Previews: PreviewProvider {
                             ),
                         ]
                     ),
-                    Chat.Message(
-                        id: .random,
-                        date: .now,
-                        isReceived: nil,
-                        contents: [
-                            .sodiumBox(
-                                EncryptedData(
-                                    peerPublicKey: .mock,
-                                    nonce: .init(),
-                                    encryptedData: .init()
-                                )
-                            )
-                        ]
-                    ),
+//                    Chat.Message(
+//                        id: .random,
+//                        date: .now,
+//                        isReceived: nil,
+//                        contents: [
+//                            .sodiumBox(
+//                                EncryptedData(
+//                                    peerPublicKey: .mock,
+//                                    nonce: .init(),
+//                                    encryptedData: .init()
+//                                )
+//                            )
+//                        ]
+//                    ),
                 ],
                 exchange: .mock
             )

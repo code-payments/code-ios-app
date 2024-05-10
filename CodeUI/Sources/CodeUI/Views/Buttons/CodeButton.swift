@@ -60,6 +60,8 @@ public struct CodeButton: View {
                 switch state {
                 case .normal:
                     Text(title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     
                 case .loading:
                     LoadingView(color: loaderColor())
