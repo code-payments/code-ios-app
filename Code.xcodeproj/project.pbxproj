@@ -1346,7 +1346,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./pull_strings -t \"$LOKALISE_TOKEN\" -p \"$LOKALISE_PROJECT_ID\" -d \"../Code/Supporting Files/Localization\"\n";
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./pull_strings -t \"$LOKALISE_TOKEN\" -p \"$LOKALISE_PROJECT_ID\" -d \"../Shared/Localization\"\n";
 		};
 		9A88CDD92B167B8300378AAE /* Generate Google Credentials */ = {
 			isa = PBXShellScriptBuildPhase;
