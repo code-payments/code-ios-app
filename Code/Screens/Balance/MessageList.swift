@@ -127,15 +127,40 @@ public struct MessageList: View {
                             case .thankYou:
                                 MessageAction(text: content.localizedText)
                                 
-                            case .tip(_, let amount):
+                            case .tip(let direction, let amount):
+                                
                                 if let rate = rate(for: amount.currency) {
                                     let amount = amount.amountUsing(rate: rate)
-                                    let formatted = amount.kin.formattedFiat(rate: amount.rate, showOfKin: true)
                                     
-                                    MessageAction(text: "\(content.localizedText) \(formatted)")
+                                    if useV2 {
+                                        MessagePaymentV2(
+                                            verb: direction == .sent ? .tipSent : .tipReceived,
+                                            amount: amount,
+                                            isReceived: message.isReceived,
+                                            date: message.date,
+                                            location: .forIndex(index, count: message.contents.count),
+                                            showThank: showThank
+                                        )
+                                    } else {
+                                        MessagePayment(
+                                            verb: direction == .sent ? .tipSent : .tipReceived,
+                                            amount: amount,
+                                            isReceived: message.isReceived,
+                                            date: message.date,
+                                            location: .forIndex(index, count: message.contents.count),
+                                            showThank: showThank
+                                        )
+                                    }
                                     
                                 } else {
-                                    MessageAction(text: content.localizedText)
+                                    MessagePayment(
+                                        verb: direction == .sent ? .tipSent : .tipReceived,
+                                        amount: KinAmount(kin: 0, rate: .oneToOne),
+                                        isReceived: message.isReceived,
+                                        date: message.date,
+                                        location: .forIndex(index, count: message.contents.count),
+                                        showThank: showThank
+                                    )
                                 }
                             }
                         }
@@ -213,9 +238,9 @@ extension Chat.Content: Identifiable {
 private extension GeometryProxy {
     func messageWidth(for content: Chat.Content) -> CGFloat {
         switch content {
-        case .localized, .kin, .sodiumBox, .decrypted:
+        case .localized, .kin, .sodiumBox, .decrypted, .tip:
             return size.width * 0.70
-        case .thankYou, .tip:
+        case .thankYou:
             return size.width
         }
     }
