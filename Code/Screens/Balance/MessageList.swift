@@ -680,6 +680,7 @@ struct MessageList_Previews: PreviewProvider {
                     Chat.Message(
                         id: .random,
                         date: .now,
+                        isReceived: nil,
                         contents: [
                             .tip(.received, .exact(
                                 KinAmount(
@@ -695,6 +696,7 @@ struct MessageList_Previews: PreviewProvider {
                     Chat.Message(
                         id: .random,
                         date: .now,
+                        isReceived: nil,
                         contents: [
                             .thankYou(.sent),
                         ]
@@ -702,6 +704,7 @@ struct MessageList_Previews: PreviewProvider {
                     Chat.Message(
                         id: .random,
                         date: .now,
+                        isReceived: nil,
                         contents: [
                             .localized("Hi")
                         ]
@@ -731,6 +734,7 @@ struct MessageList_Previews: PreviewProvider {
                     Chat.Message(
                         id: .random,
                         date: .now,
+                        isReceived: nil,
                         contents: [
                             .localized("Oh, thanks! I think you sent me too much, I'll send some back."),
                         ]
@@ -738,6 +742,7 @@ struct MessageList_Previews: PreviewProvider {
                     Chat.Message(
                         id: .random,
                         date: .now,
+                        isReceived: nil,
                         contents: [
                             .kin(
                                 .partial(Fiat(
@@ -750,6 +755,7 @@ struct MessageList_Previews: PreviewProvider {
                     Chat.Message(
                         id: .random,
                         date: .now,
+                        isReceived: nil,
                         contents: [
                             .sodiumBox(
                                 EncryptedData(

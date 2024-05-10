@@ -167,10 +167,10 @@ extension Chat {
             } != nil
         }
         
-        public init(id: ID, date: Date, isReceived: Bool = true, contents: [Content]) {
+        public init(id: ID, date: Date, isReceived: Bool?, contents: [Content]) {
             self.id = id
             self.date = date
-            self.isReceived = isReceived
+            self.isReceived = isReceived ?? Self.isReceived(contents: contents)
             self.contents = contents
         }
         
@@ -178,6 +178,7 @@ extension Chat {
             .init(
                 id: id,
                 date: date,
+                isReceived: nil,
                 contents: contents.map { content in
                     switch content {
                     case .localized, .kin, .decrypted, .tip, .thankYou:
@@ -193,6 +194,33 @@ extension Chat {
                     }
                 }
             )
+        }
+        
+        private static func isReceived(contents: [Content]) -> Bool {
+            for content in contents {
+                switch content {
+                case .kin(_, let verb):
+                    switch verb {
+                    case .gave, .withdrew, .sent, .spent, .paid, .tipSent:
+                        return false
+                    case .received, .returned, .purchased, .deposited, .tipReceived, .unknown:
+                        continue
+                    }
+                    
+                case .localized, .sodiumBox, .decrypted, .thankYou:
+                    continue
+                    
+                case .tip(let messageDirection, _):
+                    switch messageDirection {
+                    case .sent:
+                        return false
+                    case .received:
+                        continue
+                    }
+                }
+            }
+            
+            return true
         }
     }
 }
@@ -239,6 +267,7 @@ extension Chat.Message {
         self.init(
             id: .init(data: proto.messageID.value),
             date: proto.ts.date,
+            isReceived: nil,
             contents: proto.content.compactMap { Chat.Content($0) }
         )
     }
