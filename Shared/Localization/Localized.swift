@@ -132,6 +132,8 @@ internal enum Localized {
     internal static let swipeToTip = Localized.tr("Localizable", "action.swipeToTip")
     /// Try a Different Code Account
     internal static let tryDifferentCodeAccount = Localized.tr("Localizable", "action.tryDifferentCodeAccount")
+    /// Tweet Them
+    internal static let tweetThem = Localized.tr("Localizable", "action.tweetThem")
     /// Unmute
     internal static let unmute = Localized.tr("Localizable", "action.unmute")
     /// Unsubscribe
@@ -214,8 +216,6 @@ internal enum Localized {
       internal static let invalidInviteCode = Localized.tr("Localizable", "error.description.invalidInviteCode")
       /// Please enter a valid phone number and try again.
       internal static let invalidInvitePhone = Localized.tr("Localizable", "error.description.invalidInvitePhone")
-      /// This is an invalid Tip Card.
-      internal static let invalidTipCard = Localized.tr("Localizable", "error.description.invalidTipCard")
       /// Please enter a valid code and try again.
       internal static let invalidVerificationCode = Localized.tr("Localizable", "error.description.invalidVerificationCode")
       /// Sorry, we experienced a network issue. Please try inviting your friend again.
@@ -242,6 +242,8 @@ internal enum Localized {
       }
       /// Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key in Code.
       internal static let timelockUnlocked = Localized.tr("Localizable", "error.description.timelockUnlocked")
+      /// Send a tweet to this person to activate their Tip Card.
+      internal static let tipCardNotActivated = Localized.tr("Localizable", "error.description.tipCardNotActivated")
       /// The maximum you can tip is %@. Please enter a smaller amount.
       internal static func tipTooLarge(_ p1: Any) -> String {
         return Localized.tr("Localizable", "error.description.tipTooLarge", String(describing: p1))
@@ -284,8 +286,6 @@ internal enum Localized {
       internal static let invalidInviteCode = Localized.tr("Localizable", "error.title.invalidInviteCode")
       /// Invalid Phone Number
       internal static let invalidInvitePhone = Localized.tr("Localizable", "error.title.invalidInvitePhone")
-      /// Invalid Tip Card
-      internal static let invalidTipCard = Localized.tr("Localizable", "error.title.invalidTipCard")
       /// Invalid Code
       internal static let invalidVerificationCode = Localized.tr("Localizable", "error.title.invalidVerificationCode")
       /// Invitation Failed
@@ -306,6 +306,8 @@ internal enum Localized {
       internal static let purchaseTooSmall = Localized.tr("Localizable", "error.title.purchaseTooSmall")
       /// Access Key No Longer Usable in Code
       internal static let timelockUnlocked = Localized.tr("Localizable", "error.title.timelockUnlocked")
+      /// Tip Card Not Activated Yet
+      internal static let tipCardNotActivated = Localized.tr("Localizable", "error.title.tipCardNotActivated")
       /// Tip Too Large
       internal static let tipTooLarge = Localized.tr("Localizable", "error.title.tipTooLarge")
       /// Tip Too Small
@@ -469,6 +471,8 @@ internal enum Localized {
       internal static func referralBonus(_ p1: Any) -> String {
         return Localized.tr("Localizable", "push.subtitle.referralBonus", String(describing: p1))
       }
+      /// You can now request tips.
+      internal static let twitterAccountConnected = Localized.tr("Localizable", "push.subtitle.twitterAccountConnected")
     }
     internal enum Title {
       /// Deposit Received
@@ -479,6 +483,8 @@ internal enum Localized {
       internal static let newOnCode = Localized.tr("Localizable", "push.title.newOnCode")
       /// Referral Bonus Received
       internal static let referralBonus = Localized.tr("Localizable", "push.title.referralBonus")
+      /// X Account Connected
+      internal static let twitterAccountConnected = Localized.tr("Localizable", "push.title.twitterAccountConnected")
     }
   }
 
@@ -613,8 +619,8 @@ internal enum Localized {
     internal static let someoneSendYouCash = Localized.tr("Localizable", "subtitle.someoneSendYouCash")
     /// Someone tipped you
     internal static let someoneTippedYou = Localized.tr("Localizable", "subtitle.someoneTippedYou")
-    /// Your Tip Card lets you to receive tips from Code users all over the world. To access your Tip Card connect your X identity.
-    internal static let tipCardForX = Localized.tr("Localizable", "subtitle.tipCardForX")
+    /// Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card post to X.
+    internal static let tipCardTwitterDescription = Localized.tr("Localizable", "subtitle.tipCardTwitterDescription")
     /// Type "%@"
     internal static func typeDelete(_ p1: Any) -> String {
       return Localized.tr("Localizable", "subtitle.typeDelete", String(describing: p1))
@@ -671,23 +677,19 @@ internal enum Localized {
       /// Welcome to Code! Here is your first dollar to get you started:
       internal static let welcomeBonus = Localized.tr("Localizable", "subtitle.chat.welcomeBonus")
     }
-    internal enum Push {
-      /// You can now request tips
-      internal static let twitterAccountConnected = Localized.tr("Localizable", "subtitle.push.twitterAccountConnected")
-    }
   }
 
   internal enum Success {
     internal enum Description {
       /// Your funds have been successfully withdrawn.
       internal static let withdrawalComplete = Localized.tr("Localizable", "success.description.withdrawalComplete")
-      /// Your X account has been successfully connected to your Code account. You can now request Tips.
+      /// You can now request tips.
       internal static let xConnected = Localized.tr("Localizable", "success.description.xConnected")
     }
     internal enum Title {
       /// Withrawal Successful
       internal static let withdrawalComplete = Localized.tr("Localizable", "success.title.withdrawalComplete")
-      /// X Account Successfully Connected
+      /// X Account Connected
       internal static let xConnected = Localized.tr("Localizable", "success.title.xConnected")
     }
   }
@@ -786,10 +788,6 @@ internal enum Localized {
       internal static let payments = Localized.tr("Localizable", "title.chat.payments")
       /// Tips
       internal static let tips = Localized.tr("Localizable", "title.chat.tips")
-    }
-    internal enum Push {
-      /// X Account Successfully Connected
-      internal static let twitterAccountConnected = Localized.tr("Localizable", "title.push.twitterAccountConnected")
     }
   }
 }

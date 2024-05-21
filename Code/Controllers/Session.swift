@@ -684,7 +684,7 @@ class Session: ObservableObject {
                 showTask.cancel()
                 cancelTip()
                 
-                showInvalidTipCardError()
+                showTipCardNotActivatedError()
             }
         }
     }
@@ -1443,11 +1443,11 @@ class Session: ObservableObject {
         )
     }
     
-    private func showInvalidTipCardError() {
+    private func showTipCardNotActivatedError() {
         bannerController.show(
             style: .error,
-            title: Localized.Error.Title.invalidTipCard,
-            description: Localized.Error.Description.invalidTipCard,
+            title: Localized.Error.Title.tipCardNotActivated,
+            description: Localized.Error.Description.tipCardNotActivated,
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

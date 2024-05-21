@@ -33,7 +33,7 @@ struct RequestTipScreen: View {
                     Text(Localized.Title.requestTip)
                         .font(.appDisplayMedium)
                     
-                    Text(Localized.Subtitle.tipCardForX)
+                    Text(Localized.Subtitle.tipCardTwitterDescription)
                         .font(.appTextMedium)
                 }
                 

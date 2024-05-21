@@ -230,6 +230,9 @@
 /* Action to show my tip card */
 "action.showMyTipCard" = "Show My Tip Card";
 
+/* Action to tweet at someone on Twitter (X) */
+"action.tweetThem" = "Tweet Them";
+
 
 
 
@@ -519,7 +522,7 @@
 "subtitle.getKin" = "Code uses the cryptocurrency Kin for payments. Here are some ways to get more Kin into your Code wallet.";
 
 /* Subtitle for a description on connecting your X */
-"subtitle.tipCardForX" = "Your Tip Card lets you to receive tips from Code users all over the world. To access your Tip Card connect your X identity.";
+"subtitle.tipCardTwitterDescription" = "Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card post to X.";
 
 /* Subtitle for a description on getting a friend started on Code */
 "subtitle.getFriendStartedOnCode" = "Get $5 of Kin for free when you get a friend to sign up for Code and you send them their first Kin.";
@@ -818,11 +821,11 @@
 /* Description when the amount enetered to purcahse is too large */
 "error.description.purchaseTooLarge" = "The maximum you can purchase is %@. Please enter a smaller amount.";
 
-/* Title when the scanned tip card is invalid */
-"error.title.invalidTipCard" = "Invalid Tip Card";
+/* Title when the scanned tip card is not activated yet */
+"error.title.tipCardNotActivated" = "Tip Card Not Activated Yet";
 
-/* Description when the scanned tip card is invalid */
-"error.description.invalidTipCard" = "This is an invalid Tip Card.";
+/* Description when the scanned tip card is not activated yet */
+"error.description.tipCardNotActivated" = "Send a tweet to this person to activate their Tip Card.";
 
 
 
@@ -837,10 +840,10 @@
 "success.description.withdrawalComplete" = "Your funds have been successfully withdrawn.";
 
 /* Title when X account is successfully connected */
-"success.title.xConnected" = "X Account Successfully Connected";
+"success.title.xConnected" = "X Account Connected";
 
 /* Description X account is successfully connected */
-"success.description.xConnected" = "Your X account has been successfully connected to your Code account. You can now request Tips.";
+"success.description.xConnected" = "You can now request tips.";
 
 
 
@@ -983,9 +986,9 @@
 
 "push.subtitle.referralBonus" = "You received %@ of Kin for sending someone their first Kin.";
 
-"title.push.twitterAccountConnected" = "X Account Successfully Connected";
+"push.title.twitterAccountConnected" = "X Account Connected";
 
-"subtitle.push.twitterAccountConnected" = "You can now request tips";
+"push.subtitle.twitterAccountConnected" = "You can now request tips.";
 
 
 
