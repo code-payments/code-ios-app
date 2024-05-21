@@ -740,7 +740,7 @@ class Session: ObservableObject {
                 tipAccount: .x(metadata.username)
             )
             
-            showToast(amount: amount, isDeposit: false)
+            showToast(delayInMilliseconds: 1750, amount: amount, isDeposit: false)
             
             Analytics.transferForTip(
                 amount: amount,
@@ -1326,9 +1326,9 @@ class Session: ObservableObject {
         }
     }
     
-    private func showToast(amount: KinAmount, isDeposit: Bool) {
+    private func showToast(delayInMilliseconds: Int = 500, amount: KinAmount, isDeposit: Bool) {
         Task {
-            try await Task.delay(milliseconds: 500)
+            try await Task.delay(milliseconds: delayInMilliseconds)
             self.billState = self.billState.showToast(
                 .init(
                     amount: amount,
