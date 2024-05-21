@@ -567,8 +567,6 @@ internal enum Localized {
     internal static let learnMore = Localized.tr("Localizable", "subtitle.learnMore")
     /// Your phone number is linked with this Code account. Friends can find you using this phone number.
     internal static let linkedPhoneNumberDescription = Localized.tr("Localizable", "subtitle.linkedPhoneNumberDescription")
-    /// I'm connecting my X account with @getcode so I can receive tips from people all over the world.
-    internal static let linkingTwitter = Localized.tr("Localizable", "subtitle.linkingTwitter")
     /// Loading your balance and transaction history
     internal static let loadingBalance = Localized.tr("Localizable", "subtitle.loadingBalance")
     /// Check your photos for the Access Key you saved when you first created your account.

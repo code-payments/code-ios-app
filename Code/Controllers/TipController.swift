@@ -170,18 +170,29 @@ class TipController: ObservableObject {
             signature.base58,
         ]
         
-        let text = Localized.Subtitle.linkingTwitter
+        let text = "I'm connecting my X account with @getcode so I can receive tips from people all over the world."
         let auth = components.joined(separator: ":")
         let message = "\(text)\n\n\(auth)"
         
         return message
     }
     
+    private func generateNudgeText(for username: String) -> String {
+        "Hey @\(username) you should set up your @getcode Tip Card so I can tip you some cash.\n\ngetcode.com/download"
+    }
+    
     func openTwitterWithAuthenticationText(nonce: UUID) {
         let message = generateTwitterAuthMessage(nonce: nonce).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
-        let string = "https://www.twitter.com/intent/tweet?text=\(message)"
+        let url = URL.tweet(content: message)
         
-        let url = URL(string: string)!
+        didOpenTwitter()
+        
+        url.openWithApplication()
+    }
+    
+    func openTwitterWithNudgeText(username: String) {
+        let message = generateNudgeText(for: username).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let url = URL.tweet(content: message)
         
         didOpenTwitter()
         

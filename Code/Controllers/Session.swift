@@ -684,7 +684,7 @@ class Session: ObservableObject {
                 showTask.cancel()
                 cancelTip()
                 
-                showTipCardNotActivatedError()
+                showTipCardNotActivatedError(for: username)
             }
         }
     }
@@ -1443,13 +1443,16 @@ class Session: ObservableObject {
         )
     }
     
-    private func showTipCardNotActivatedError() {
+    private func showTipCardNotActivatedError(for username: String) {
         bannerController.show(
             style: .error,
             title: Localized.Error.Title.tipCardNotActivated,
             description: Localized.Error.Description.tipCardNotActivated,
             actions: [
-                .cancel(title: Localized.Action.ok)
+                .standard(title: Localized.Action.tweetThem) { [weak self] in
+                    self?.tipController.openTwitterWithNudgeText(username: username)
+                },
+                .cancel(title: Localized.Action.ok),
             ]
         )
     }

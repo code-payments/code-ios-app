@@ -64,6 +64,10 @@ extension URL {
     fileprivate static var settings: URL {
         URL(string: UIApplication.openSettingsURLString)!
     }
+    
+    static func tweet(content: String) -> URL {
+        URL(string: "https://www.twitter.com/intent/tweet?text=\(content)")!
+    }
 }
 
 extension URL {
