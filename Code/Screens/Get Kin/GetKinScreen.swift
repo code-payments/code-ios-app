@@ -128,7 +128,8 @@ struct GetKinScreen: View {
                             } else {
                                 navigationRow(
                                     asset: .tip,
-                                    title: Localized.Action.requestTip
+                                    title: Localized.Action.requestTip,
+                                    showChevron: false
                                 ) {
                                     RequestTipScreen(
                                         tipController: tipController,
@@ -190,8 +191,8 @@ struct GetKinScreen: View {
         }
     }
     
-    @ViewBuilder private func navigationRow<D>(asset: Asset, title: String, subtitle: String? = nil, @ViewBuilder destination: @escaping () -> D) -> some View where D: View {
-        NavigationRow(insets: insets, accessory: .chevron, destination: destination) {
+    @ViewBuilder private func navigationRow<D>(asset: Asset, title: String, subtitle: String? = nil, showChevron: Bool = true, @ViewBuilder destination: @escaping () -> D) -> some View where D: View {
+        NavigationRow(insets: insets, accessory: showChevron ? .chevron : nil, destination: destination) {
             rowContent(asset: asset, title: title, subtitle: subtitle)
         }
     }
