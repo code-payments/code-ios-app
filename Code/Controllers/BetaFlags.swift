@@ -90,7 +90,6 @@ extension BetaFlags {
         case bucketDebugger
         case giveRequests
         case canUnsubcribe
-        case tips
         case disableBuyModule
         case conversations
         case alternativeBubbles
@@ -113,8 +112,6 @@ extension BetaFlags {
                 return "Request Kin"
             case .canUnsubcribe:
                 return "Can Unsubscribe"
-            case .tips:
-                return "Tips"
             case .disableBuyModule:
                 return "Disable Buy Module"
             case .conversations:
@@ -138,12 +135,10 @@ extension BetaFlags {
                 return "If enabled, Request Kin screen will replace Get Kin."
             case .canUnsubcribe:
                 return "If enabled, an option to unsubscribe from a chat will appear for supported chats."
-            case .tips:
-                return "If enabled, and option to request a tip will appear in the Get Kin screen."
             case .disableBuyModule:
                 return "If enabled, the Buy Module will appear to be disabled."
             case .conversations:
-                return "If enabled, an experimental conversation view will become available via the 'Mute' button."
+                return "If enabled, an experimental conversation view will become available via the three dots in any chat."
             case .alternativeBubbles:
                 return "If enabled, conversation view will use an alternative look to timestamps in payment bubbles."
             }
