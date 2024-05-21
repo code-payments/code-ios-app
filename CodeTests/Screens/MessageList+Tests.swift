@@ -61,6 +61,7 @@ class MessageListTests: XCTestCase {
             Chat.Message(
                 id: .random,
                 date: $0,
+                isReceived: false,
                 contents: []
             )
         }
