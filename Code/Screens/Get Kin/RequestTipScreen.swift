@@ -54,7 +54,8 @@ struct RequestTipScreen: View {
                 
                 CodeButton(
                     style: .filled,
-                    title: Localized.Action.connectToX
+                    image: Image.asset(.twitter),
+                    title: Localized.Action.postToConnect
                 ) {
                     tipController.openTwitterWithAuthenticationText(nonce: nonce)
                     Task {

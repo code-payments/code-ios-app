@@ -32,8 +32,6 @@ internal enum Localized {
     internal static let collectCash = Localized.tr("Localizable", "action.collectCash")
     /// Confirm
     internal static let confirm = Localized.tr("Localizable", "action.confirm")
-    /// Connect to X
-    internal static let connectToX = Localized.tr("Localizable", "action.connectToX")
     /// Continue
     internal static let `continue` = Localized.tr("Localizable", "action.continue")
     /// Copied
@@ -94,6 +92,8 @@ internal enum Localized {
     internal static let paste = Localized.tr("Localizable", "action.paste")
     /// Paste From Clipboard
     internal static let pasteFromClipboard = Localized.tr("Localizable", "action.pasteFromClipboard")
+    /// Post to Connect Account
+    internal static let postToConnect = Localized.tr("Localizable", "action.postToConnect")
     /// Put in Wallet
     internal static let putInWallet = Localized.tr("Localizable", "action.putInWallet")
     /// Recover Existing Account

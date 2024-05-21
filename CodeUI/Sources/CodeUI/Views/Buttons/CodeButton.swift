@@ -14,23 +14,25 @@ public struct CodeButton: View {
     
     private let state: ButtonState
     private let style: Style
+    private let image: Image?
     private let title: String
     private let action: VoidAction
     private let disabled: Bool
     
     // MARK: - Init -
     
-    public init(style: Style, title: String, disabled: Bool = false, action: @escaping VoidAction) {
-        self.init(isLoading: false, style: style, title: title, disabled: disabled, action: action)
+    public init(style: Style, image: Image? = nil, title: String, disabled: Bool = false, action: @escaping VoidAction) {
+        self.init(isLoading: false, style: style, image: image, title: title, disabled: disabled, action: action)
     }
     
-    public init(isLoading: Bool, style: Style, title: String, disabled: Bool = false, action: @escaping VoidAction) {
-        self.init(state: isLoading ? .loading : .normal, style: style, title: title, disabled: disabled, action: action)
+    public init(isLoading: Bool, style: Style, image: Image? = nil, title: String, disabled: Bool = false, action: @escaping VoidAction) {
+        self.init(state: isLoading ? .loading : .normal, style: style, image: image, title: title, disabled: disabled, action: action)
     }
     
-    public init(state: ButtonState, style: Style, title: String, disabled: Bool = false, action: @escaping VoidAction) {
+    public init(state: ButtonState, style: Style, image: Image? = nil, title: String, disabled: Bool = false, action: @escaping VoidAction) {
         self.state = state
         self.style = style
+        self.image = image
         self.title = title
         self.action = action
         self.disabled = disabled
@@ -59,9 +61,17 @@ public struct CodeButton: View {
             HStack {
                 switch state {
                 case .normal:
-                    Text(title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                    HStack(spacing: 10) {
+                        if let image {
+                            image
+                                .renderingMode(.template)
+                                .resizable()
+                                .frame(width: 20, height: 20, alignment: .center)
+                        }
+                        Text(title)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                     
                 case .loading:
                     LoadingView(color: loaderColor())

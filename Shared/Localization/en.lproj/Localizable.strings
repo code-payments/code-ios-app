@@ -225,7 +225,7 @@
 "action.requestTip" = "Request a Tip";
 
 /* Action to connect to X */
-"action.connectToX" = "Connect to X";
+"action.postToConnect" = "Post to Connect Account";
 
 /* Action to show my tip card */
 "action.showMyTipCard" = "Show My Tip Card";
