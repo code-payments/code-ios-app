@@ -678,11 +678,7 @@ class Session: ObservableObject {
                 
             } catch { // User not found
                 
-                // Prevent scanning invalid tip cards repeatedly
-                scannedRendezvous.insert(payload.rendezvous.publicKey)
-                
                 showTask.cancel()
-                cancelTip()
                 
                 showTipCardNotActivatedError(for: username)
             }
@@ -777,6 +773,13 @@ class Session: ObservableObject {
     
     func cancelTip() {
         tipController.resetInflightUser()
+        
+        // The tip flow might be cancelled because of an invalid
+        // tip card, in that case, we'll need to dismiss the
+        // amount entry as well if it's open. That can happen if
+        // the request to fetchUser takes longer than the delay
+        // to open the entry screen.
+        showTipEntry = false
         
         presentationState = .hidden(.slide)
         billState = billState
@@ -1451,8 +1454,17 @@ class Session: ObservableObject {
             actions: [
                 .standard(title: Localized.Action.tweetThem) { [weak self] in
                     self?.tipController.openTwitterWithNudgeText(username: username)
+                    Task {
+                        try await Task.delay(seconds: 1)
+                        self?.cancelTip()
+                    }
                 },
-                .cancel(title: Localized.Action.ok),
+                .cancel(title: Localized.Action.ok) { [weak self] in
+                    Task {
+                        try await Task.delay(milliseconds: 400)
+                        self?.cancelTip()
+                    }
+                },
             ]
         )
     }

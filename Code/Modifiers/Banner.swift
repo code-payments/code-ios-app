@@ -175,8 +175,8 @@ extension Banner {
             self.action = action
         }
         
-        public static func cancel(title: String) -> Action {
-            .standard(title: title, action: {})
+        public static func cancel(title: String, action: @escaping VoidAction = {}) -> Action {
+            .standard(title: title, action: action)
         }
         
         public static func standard(title: String, action: @escaping VoidAction) -> Action {
