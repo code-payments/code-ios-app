@@ -18,6 +18,14 @@ extension Analytics {
 //            .screen: screen.rawValue,
 //        ])
     }
+    
+    static func unintentialLogout() {
+        track(.unintentionalLogout)
+    }
+    
+    static func userMigrationFailed() {
+        track(.userMigrationFailed)
+    }
 }
 
 // MARK: - Account -
@@ -257,6 +265,8 @@ extension Analytics {
         case logout = "Logout"
         case login = "Login"
         case createAccount = "Create Account"
+        case unintentionalLogout = "Unintentional Logout"
+        case userMigrationFailed = "User Migration Failed"
         
         // Bill
         case bill = "Bill"

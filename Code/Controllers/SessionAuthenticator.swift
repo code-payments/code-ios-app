@@ -76,6 +76,7 @@ final class SessionAuthenticator: ObservableObject {
                 do {
                     self.completeLogin(with: try await self.initialize(using: seedPhrase))
                 } catch {
+                    Analytics.userMigrationFailed()
                     self.state = .loggedOut
                 }
             }
@@ -107,6 +108,22 @@ final class SessionAuthenticator: ObservableObject {
                 state = .pending
             } else {
                 state = .loggedOut
+            }
+            
+            // It's possible the keychain credentials
+            // rely on being loaded from iCloud and can
+            // be delayed. We'll check after some time
+            // to see if the state has changed.
+            Task {
+                try await Task.delay(seconds: 5)
+                
+                let (keyAccount, user) = accountManager.fetchCurrent()
+                if keyAccount != nil || user != user {
+                    // If the a keyaccount or user exists at this point
+                    // it means that something went wrong in the initial
+                    // query so the user "appears" logged out.
+                    Analytics.unintentialLogout()
+                }
             }
         }
         
