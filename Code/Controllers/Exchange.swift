@@ -14,6 +14,7 @@ class Exchange: ObservableObject {
     
     @Published private(set) var entryRate: Rate = .oneToOne
     @Published private(set) var localRate: Rate = .oneToOne
+    @Published private(set) var deviceRate: Rate = .oneToOne
     @Published private(set) var rateDate: Date = Date(timeIntervalSince1970: 0)
     
     private let client: Client
@@ -161,6 +162,11 @@ class Exchange: ObservableObject {
                 trace(.failure, components: "Rate for entry \(currency) not found. Defaulting to USD.")
             }
         }
+        
+        // Assign current device locale rate,
+        // it should only ever change with
+        // the system locale
+        deviceRate = rates.rate(for: CurrencyCode.local() ?? .usd) ?? rates.rateForUSD()
     }
     
     func rate(for currency: CurrencyCode) -> Rate? {

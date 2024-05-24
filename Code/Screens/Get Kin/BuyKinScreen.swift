@@ -23,7 +23,7 @@ class BuyKinViewModel: ObservableObject {
     let betaFlags: BetaFlags
     
     var entryRate: Rate {
-        exchange.localRate
+        exchange.deviceRate
     }
     
     var isSendDisabled: Bool {
