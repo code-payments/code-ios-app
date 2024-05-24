@@ -3385,11 +3385,20 @@ public struct Code_Transaction_V2_ErrorDetails {
     set {type = .invalidSignature(newValue)}
   }
 
+  public var denied: Code_Transaction_V2_DeniedErrorDetails {
+    get {
+      if case .denied(let v)? = type {return v}
+      return Code_Transaction_V2_DeniedErrorDetails()
+    }
+    set {type = .denied(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable {
     case reasonString(Code_Transaction_V2_ReasonStringErrorDetails)
     case invalidSignature(Code_Transaction_V2_InvalidSignatureErrorDetails)
+    case denied(Code_Transaction_V2_DeniedErrorDetails)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Code_Transaction_V2_ErrorDetails.OneOf_Type, rhs: Code_Transaction_V2_ErrorDetails.OneOf_Type) -> Bool {
@@ -3403,6 +3412,10 @@ public struct Code_Transaction_V2_ErrorDetails {
       }()
       case (.invalidSignature, .invalidSignature): return {
         guard case .invalidSignature(let l) = lhs, case .invalidSignature(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.denied, .denied): return {
+        guard case .denied(let l) = lhs, case .denied(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -3462,6 +3475,84 @@ public struct Code_Transaction_V2_InvalidSignatureErrorDetails {
   fileprivate var _expectedTransaction: Code_Common_V1_Transaction? = nil
   fileprivate var _providedSignature: Code_Common_V1_Signature? = nil
 }
+
+public struct Code_Transaction_V2_DeniedErrorDetails {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var code: Code_Transaction_V2_DeniedErrorDetails.Code = .unspecified
+
+  /// Human readable string indicating the failure.
+  public var reason: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Code: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+
+    /// Reason code not yet defined
+    case unspecified // = 0
+
+    /// Phone number has exceeded its free account allocation
+    case tooManyFreeAccountsForPhoneNumber // = 1
+
+    /// Device has exceeded its free account allocation
+    case tooManyFreeAccountsForDevice // = 2
+
+    /// The country associated with the phone number with the account is not
+    /// supported (eg. it is on the sanctioned list).
+    case unsupportedCountry // = 3
+
+    /// The device is not supported (eg. it fails device attestation checks)
+    case unsupportedDevice // = 4
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unspecified
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unspecified
+      case 1: self = .tooManyFreeAccountsForPhoneNumber
+      case 2: self = .tooManyFreeAccountsForDevice
+      case 3: self = .unsupportedCountry
+      case 4: self = .unsupportedDevice
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unspecified: return 0
+      case .tooManyFreeAccountsForPhoneNumber: return 1
+      case .tooManyFreeAccountsForDevice: return 2
+      case .unsupportedCountry: return 3
+      case .unsupportedDevice: return 4
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Transaction_V2_DeniedErrorDetails.Code: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static var allCases: [Code_Transaction_V2_DeniedErrorDetails.Code] = [
+    .unspecified,
+    .tooManyFreeAccountsForPhoneNumber,
+    .tooManyFreeAccountsForDevice,
+    .unsupportedCountry,
+    .unsupportedDevice,
+  ]
+}
+
+#endif  // swift(>=4.2)
 
 /// UpgradeableIntent is an intent whose actions can be upgraded.
 public struct Code_Transaction_V2_UpgradeableIntent {
@@ -3984,6 +4075,8 @@ extension Code_Transaction_V2_ErrorDetails: @unchecked Sendable {}
 extension Code_Transaction_V2_ErrorDetails.OneOf_Type: @unchecked Sendable {}
 extension Code_Transaction_V2_ReasonStringErrorDetails: @unchecked Sendable {}
 extension Code_Transaction_V2_InvalidSignatureErrorDetails: @unchecked Sendable {}
+extension Code_Transaction_V2_DeniedErrorDetails: @unchecked Sendable {}
+extension Code_Transaction_V2_DeniedErrorDetails.Code: @unchecked Sendable {}
 extension Code_Transaction_V2_UpgradeableIntent: @unchecked Sendable {}
 extension Code_Transaction_V2_UpgradeableIntent.UpgradeablePrivateAction: @unchecked Sendable {}
 extension Code_Transaction_V2_PaymentHistoryItem: @unchecked Sendable {}
@@ -7350,6 +7443,7 @@ extension Code_Transaction_V2_ErrorDetails: SwiftProtobuf.Message, SwiftProtobuf
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "reason_string"),
     2: .standard(proto: "invalid_signature"),
+    3: .same(proto: "denied"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -7384,6 +7478,19 @@ extension Code_Transaction_V2_ErrorDetails: SwiftProtobuf.Message, SwiftProtobuf
           self.type = .invalidSignature(v)
         }
       }()
+      case 3: try {
+        var v: Code_Transaction_V2_DeniedErrorDetails?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .denied(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .denied(v)
+        }
+      }()
       default: break
       }
     }
@@ -7402,6 +7509,10 @@ extension Code_Transaction_V2_ErrorDetails: SwiftProtobuf.Message, SwiftProtobuf
     case .invalidSignature?: try {
       guard case .invalidSignature(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .denied?: try {
+      guard case .denied(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     }()
     case nil: break
     }
@@ -7493,6 +7604,54 @@ extension Code_Transaction_V2_InvalidSignatureErrorDetails: SwiftProtobuf.Messag
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Code_Transaction_V2_DeniedErrorDetails: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeniedErrorDetails"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "code"),
+    2: .same(proto: "reason"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.code) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.reason) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.code != .unspecified {
+      try visitor.visitSingularEnumField(value: self.code, fieldNumber: 1)
+    }
+    if !self.reason.isEmpty {
+      try visitor.visitSingularStringField(value: self.reason, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_DeniedErrorDetails, rhs: Code_Transaction_V2_DeniedErrorDetails) -> Bool {
+    if lhs.code != rhs.code {return false}
+    if lhs.reason != rhs.reason {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_DeniedErrorDetails.Code: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "UNSPECIFIED"),
+    1: .same(proto: "TOO_MANY_FREE_ACCOUNTS_FOR_PHONE_NUMBER"),
+    2: .same(proto: "TOO_MANY_FREE_ACCOUNTS_FOR_DEVICE"),
+    3: .same(proto: "UNSUPPORTED_COUNTRY"),
+    4: .same(proto: "UNSUPPORTED_DEVICE"),
+  ]
 }
 
 extension Code_Transaction_V2_UpgradeableIntent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

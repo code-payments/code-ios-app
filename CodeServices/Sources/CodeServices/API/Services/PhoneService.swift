@@ -109,6 +109,8 @@ public enum ErrorSendCode: Int, Error {
     case rateLimited
     case invalidPhoneNumber
     case unsupportedPhoneNumber
+    case unsupportedCountry
+    case unsupportedDevice
     case unknown = -1
 }
 

@@ -230,16 +230,40 @@ class IntroViewModel: ObservableObject {
 //                )
 //                
 //            }
+            catch ErrorSubmitIntent.denied(let reasons) {
+                defer {
+                    createAccountButtonState = .normal
+                }
+                
+                guard !reasons.isEmpty && reasons.first != .unspecified else {
+                    showSomethingWentWrongError()
+                    return
+                }
+                
+                let reason = reasons[0]
+                
+                switch reason {
+                case .unspecified:
+                    // Handled above
+                    break
+                    
+                case .tooManyFreeAccountsForPhoneNumber:
+                    showTooManyAccountsPerPhoneError()
+                    
+                case .tooManyFreeAccountsForDevice:
+                    showTooManyAccountsPerDeviceError()
+                    
+                case .unsupportedCountry:
+                    showUnsupportedCountryError()
+                    
+                case .unsupportedDevice:
+                    showUnsupportedDeviceError()
+                }
+            }
+            
             catch {
                 createAccountButtonState = .normal
-                bannerController.show(
-                    style: .error,
-                    title: Localized.Error.Title.failedToCreateAccount,
-                    description: Localized.Error.Description.failedToCreateAccount,
-                    actions: [
-                        .cancel(title: Localized.Action.ok)
-                    ]
-                )
+                showSomethingWentWrongError()
                 
                 Analytics.createAccount(
                     isSuccessful: false,
@@ -256,5 +280,62 @@ class IntroViewModel: ObservableObject {
         }
         
         sessionAuthenticator.completeLogin(with: initializedAccount)
+    }
+    
+    // MARK: - Errors -
+    
+    private func showSomethingWentWrongError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.failedToCreateAccount,
+            description: Localized.Error.Description.failedToCreateAccount,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showTooManyAccountsPerPhoneError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.tooManyAccountsPerPhone,
+            description: Localized.Error.Description.tooManyAccountsPerPhone,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showTooManyAccountsPerDeviceError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.tooManyAccountsPerDevice,
+            description: Localized.Error.Description.tooManyAccountsPerDevice,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showUnsupportedCountryError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.countryNotSupported,
+            description: Localized.Error.Description.countryNotSupported,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showUnsupportedDeviceError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.deviceNotSupported,
+            description: Localized.Error.Description.deviceNotSupported,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
     }
 }

@@ -194,11 +194,17 @@ internal enum Localized {
       internal static let codeTimedOut = Localized.tr("Localizable", "error.description.codeTimedOut")
       /// Please allow access to the contacts in Settings to send invites.
       internal static let contactsAccessRequired = Localized.tr("Localizable", "error.description.contactsAccessRequired")
+      /// Code is currently unavailable in your country.
+      internal static let countryNotSupported = Localized.tr("Localizable", "error.description.countryNotSupported")
+      /// We are unable to support your device at this time
+      internal static let deviceNotSupported = Localized.tr("Localizable", "error.description.deviceNotSupported")
+      /// Support for eSims will likely come in a future version of Code.
+      internal static let eSimNotSupported = Localized.tr("Localizable", "error.description.eSimNotSupported")
       /// We weren't expecting that to happen. Something went wrong. Please try creating this account again.
       internal static let failedToCreateAccount = Localized.tr("Localizable", "error.description.failedToCreateAccount")
       /// Please allow Code access to Photos in Settings in order to save your Access Key.
       internal static let failedToSave = Localized.tr("Localizable", "error.description.failedToSave")
-      /// Something went wrong. Please ensure that you are using a phone number that was invited and that it is entered correctly.
+      /// Something went wrong. Please ensure that your phone number is entered correctly.
       internal static let failedToSendCode = Localized.tr("Localizable", "error.description.failedToSendCode")
       /// Something went wrong. Please try again.
       internal static let failedToVerifyPhone = Localized.tr("Localizable", "error.description.failedToVerifyPhone")
@@ -254,6 +260,10 @@ internal enum Localized {
       }
       /// You can only create so many new accounts each day.
       internal static let tooManyAccounts = Localized.tr("Localizable", "error.description.tooManyAccounts")
+      /// Code is currently limited to one account per device. Support for multiple accounts will likely come in a future version of Code.
+      internal static let tooManyAccountsPerDevice = Localized.tr("Localizable", "error.description.tooManyAccountsPerDevice")
+      /// Code is currently limited to one account per phone number. Support for multiple accounts will likely come in a future version of Code.
+      internal static let tooManyAccountsPerPhone = Localized.tr("Localizable", "error.description.tooManyAccountsPerPhone")
     }
     internal enum Title {
       /// Kin Already Collected
@@ -266,6 +276,12 @@ internal enum Localized {
       internal static let codeTimedOut = Localized.tr("Localizable", "error.title.codeTimedOut")
       /// Contacts Access Required
       internal static let contactsAccessRequired = Localized.tr("Localizable", "error.title.contactsAccessRequired")
+      /// Country Not Supported
+      internal static let countryNotSupported = Localized.tr("Localizable", "error.title.countryNotSupported")
+      /// Device Not Supported
+      internal static let deviceNotSupported = Localized.tr("Localizable", "error.title.deviceNotSupported")
+      /// eSims Not Currently Supported
+      internal static let eSimNotSupported = Localized.tr("Localizable", "error.title.eSimNotSupported")
       /// Failed to Create Account
       internal static let failedToCreateAccount = Localized.tr("Localizable", "error.title.failedToCreateAccount")
       /// Failed to Save
@@ -314,6 +330,10 @@ internal enum Localized {
       internal static let tipTooSmall = Localized.tr("Localizable", "error.title.tipTooSmall")
       /// Too many accounts created
       internal static let tooManyAccounts = Localized.tr("Localizable", "error.title.tooManyAccounts")
+      /// Account Already Created
+      internal static let tooManyAccountsPerDevice = Localized.tr("Localizable", "error.title.tooManyAccountsPerDevice")
+      /// Account Already Created
+      internal static let tooManyAccountsPerPhone = Localized.tr("Localizable", "error.title.tooManyAccountsPerPhone")
     }
   }
 

@@ -133,20 +133,36 @@ class VerifyPhoneViewModel: ObservableObject {
             do {
                 try await client.sendCode(phone: phone)
                 try await Task.delay(milliseconds: 500)
-//                throw ErrorSendCode.notInvited
                 sendCodeButtonState = .success
                 try await Task.delay(milliseconds: 500)
                 isShowingConfirmCodeScreen = true
                 try await Task.delay(milliseconds: 500)
                 sendCodeButtonState = .normal
                 
-            } catch ErrorSendCode.notInvited {
+            } 
+            
+            catch ErrorSendCode.notInvited {
                 isShowingInviteCodeScreen = true
                 try await Task.delay(milliseconds: 500)
                 sendCodeButtonState = .normal
-//                showNotInvitedError()
-                
-            } catch {
+            }
+            
+            catch ErrorSendCode.invalidPhoneNumber, ErrorSendCode.unsupportedPhoneNumber {
+                sendCodeButtonState = .normal
+                showUnsupportedESimError()
+            }
+            
+            catch ErrorSendCode.unsupportedCountry {
+                sendCodeButtonState = .normal
+                showUnsupportedCountryError()
+            }
+            
+            catch ErrorSendCode.unsupportedDevice {
+                sendCodeButtonState = .normal
+                showUnsupportedDeviceError()
+            }
+            
+            catch {
                 sendCodeButtonState = .normal
                 showGenericError()
             }
@@ -348,6 +364,39 @@ class VerifyPhoneViewModel: ObservableObject {
             style: .error,
             title: Localized.Error.Title.codeTimedOut,
             description: Localized.Error.Description.codeTimedOut,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showUnsupportedCountryError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.countryNotSupported,
+            description: Localized.Error.Description.countryNotSupported,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showUnsupportedDeviceError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.deviceNotSupported,
+            description: Localized.Error.Description.deviceNotSupported,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showUnsupportedESimError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.eSimNotSupported,
+            description: Localized.Error.Description.eSimNotSupported,
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

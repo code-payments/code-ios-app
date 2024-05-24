@@ -457,7 +457,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 trace(.failure, components: container)
                 
                 _ = reference.stream?.sendEnd()
-                let intentError = ErrorSubmitIntent(rawValue: error.code.rawValue) ?? .unknown
+                let intentError = ErrorSubmitIntent(error: error)
                 completion(.failure(intentError))
                 
             default:
@@ -701,9 +701,23 @@ extension DestinationMetadata {
 
 // MARK: - Errors -
 
-public enum ErrorSubmitIntent: Int, Error {
+public enum ErrorSubmitIntent: Error {
+    public enum DeniedReason: Int {
+        /// No reason is available
+        case unspecified // = 0
+        /// Phone number has exceeded its free account allocation
+        case tooManyFreeAccountsForPhoneNumber // = 1
+        /// Device has exceeded its free account allocation
+        case tooManyFreeAccountsForDevice // = 2
+        /// The country associated with the phone number with the account is not
+        /// supported (eg. it is on the sanctioned list).
+        case unsupportedCountry // = 3
+        /// The device is not supported (eg. it fails device attestation checks)
+        case unsupportedDevice // = 4
+    }
+    
     /// Denied by a guard (spam, money laundering, etc)
-    case denied
+    case denied([DeniedReason])
     /// The intent is invalid.
     case invalidIntent
     /// There is an issue with provided signatures.
@@ -711,9 +725,36 @@ public enum ErrorSubmitIntent: Int, Error {
     /// Server detected client has stale state.
     case staleState
     /// Unknown reason
-    case unknown = -1
+    case unknown //= -1
     /// Device token unavailable
-    case deviceTokenUnavailable = -2
+    case deviceTokenUnavailable //= -2
+    
+    init(error: Code_Transaction_V2_SubmitIntentResponse.Error) {
+        switch error.code {
+        case .denied:
+            let reasons: [DeniedReason] = error.errorDetails.compactMap {
+                if case .denied(let details) = $0.type {
+                    return DeniedReason(rawValue: details.code.rawValue)
+                } else {
+                    return nil
+                }
+            }
+            
+            self = .denied(reasons)
+            
+        case .invalidIntent:
+            self = .invalidIntent
+            
+        case .signatureError:
+            self = .signatureError
+            
+        case .staleState:
+            self = .staleState
+            
+        case .UNRECOGNIZED:
+            self = .unknown
+        }
+    }
 }
 
 public enum ErrorFetchIntentMetadata: Int, Error {

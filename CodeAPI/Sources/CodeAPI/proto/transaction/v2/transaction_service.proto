@@ -1197,8 +1197,9 @@ message ErrorDetails {
     oneof type {
         option (validate.required) = true;
 
-        ReasonStringErrorDetails     reason_string = 1;
+        ReasonStringErrorDetails     reason_string     = 1;
         InvalidSignatureErrorDetails invalid_signature = 2;
+        DeniedErrorDetails           denied            = 3;
     }
 }
 
@@ -1219,6 +1220,29 @@ message InvalidSignatureErrorDetails {
 
     // The signature that was provided by the client.
     common.v1.Signature provided_signature = 3 [(validate.rules).message.required = true];
+}
+
+message DeniedErrorDetails {
+    Code code = 1;
+    enum Code {
+        // Reason code not yet defined
+        UNSPECIFIED = 0;
+        // Phone number has exceeded its free account allocation
+        TOO_MANY_FREE_ACCOUNTS_FOR_PHONE_NUMBER = 1;
+        // Device has exceeded its free account allocation
+        TOO_MANY_FREE_ACCOUNTS_FOR_DEVICE = 2;
+        // The country associated with the phone number with the account is not
+        // supported (eg. it is on the sanctioned list).
+        UNSUPPORTED_COUNTRY = 3;
+        // The device is not supported (eg. it fails device attestation checks)
+        UNSUPPORTED_DEVICE = 4;
+    }
+
+    // Human readable string indicating the failure.
+    string reason = 2 [(validate.rules).string = {
+        min_len: 1,
+        max_len: 2048, // Arbitrary
+    }];
 }
 
 //

@@ -696,7 +696,7 @@
 "error.title.failedToSendCode" = "Failed to Send";
 
 /* Description when the phone number confirmation code failed to send */
-"error.description.failedToSendCode" = "Something went wrong. Please ensure that you are using a phone number that was invited and that it is entered correctly.";
+"error.description.failedToSendCode" = "Something went wrong. Please ensure that your phone number is entered correctly.";
 
 /* Title when the phone number verification failed */
 "error.title.failedToVerifyPhone" = "Failed to Confirm";
@@ -823,6 +823,36 @@
 
 /* Description when the scanned tip card is not activated yet */
 "error.description.tipCardNotActivated" = "Send a tweet to this person to activate their Tip Card.";
+
+/* Title when too many accounts per phone are created */
+"error.title.tooManyAccountsPerPhone" = "Account Already Created";
+
+/* Description when too many accounts per phone are created */
+"error.description.tooManyAccountsPerPhone" = "Code is currently limited to one account per phone number. Support for multiple accounts will likely come in a future version of Code.";
+
+/* Title when too many accounts per device are created */
+"error.title.tooManyAccountsPerDevice" = "Account Already Created";
+
+/* Description when too many accounts per device are created */
+"error.description.tooManyAccountsPerDevice" = "Code is currently limited to one account per device. Support for multiple accounts will likely come in a future version of Code.";
+
+/* Title when country is not supported */
+"error.title.countryNotSupported" = "Country Not Supported";
+
+/* Description when country is not supported */
+"error.description.countryNotSupported" = "Code is currently unavailable in your country.";
+
+/* Title when the current device is not supported */
+"error.title.deviceNotSupported" = "Device Not Supported";
+
+/* Description when the current device is not supported */
+"error.description.deviceNotSupported" = "We are unable to support your device at this time";
+
+/* Title when eSIM phone number is not supported */
+"error.title.eSimNotSupported" = "eSims Not Currently Supported";
+
+/* Description when eSIM phone number is not supported */
+"error.description.eSimNotSupported" = "Support for eSims will likely come in a future version of Code.";
 
 
 

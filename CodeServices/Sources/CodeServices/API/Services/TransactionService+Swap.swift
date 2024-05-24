@@ -34,7 +34,7 @@ extension TransactionService {
         }
     }
     
-    private func submit(intent: SwapIntent, completion: @escaping (Result<SwapIntent, ErrorSubmitIntent>) -> Void) {
+    private func submit(intent: SwapIntent, completion: @escaping (Result<SwapIntent, ErrorSubmitSwapIntent>) -> Void) {
         
         let reference = BidirectionalSwapStream()
         
@@ -105,7 +105,7 @@ extension TransactionService {
                 trace(.failure, components: container)
                 
                 _ = reference.stream?.sendEnd()
-                let intentError = ErrorSubmitIntent(rawValue: error.code.rawValue) ?? .unknown
+                let intentError = ErrorSubmitSwapIntent(rawValue: error.code.rawValue) ?? .unknown
                 completion(.failure(intentError))
                 
             default:
@@ -138,4 +138,19 @@ extension TransactionService {
         
         _ = reference.stream?.sendMessage(initiateSwap)
     }
+}
+
+public enum ErrorSubmitSwapIntent: Int, Error {
+    /// Denied by a guard (spam, money laundering, etc)
+    case denied
+    /// The intent is invalid.
+    case invalidIntent
+    /// There is an issue with provided signatures.
+    case signatureError
+    /// Server detected client has stale state.
+    case staleState
+    /// Unknown reason
+    case unknown = -1
+    /// Device token unavailable
+    case deviceTokenUnavailable = -2
 }

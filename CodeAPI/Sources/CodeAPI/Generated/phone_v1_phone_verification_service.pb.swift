@@ -81,8 +81,15 @@ public struct Code_Phone_V1_SendVerificationCodeResponse {
     case invalidPhoneNumber // = 3
 
     /// The phone number is valid, but it maps to an unsupported type of phone
-    /// like a landline.
+    /// like a landline or eSIM.
     case unsupportedPhoneType // = 4
+
+    /// The country associated with the phone number is not supported (eg. it
+    /// is on the sanctioned list).
+    case unsupportedCountry // = 5
+
+    /// The device is not supported (eg. it fails device attestation checks)
+    case unsupportedDevice // = 6
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -96,6 +103,8 @@ public struct Code_Phone_V1_SendVerificationCodeResponse {
       case 2: self = .rateLimited
       case 3: self = .invalidPhoneNumber
       case 4: self = .unsupportedPhoneType
+      case 5: self = .unsupportedCountry
+      case 6: self = .unsupportedDevice
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -107,6 +116,8 @@ public struct Code_Phone_V1_SendVerificationCodeResponse {
       case .rateLimited: return 2
       case .invalidPhoneNumber: return 3
       case .unsupportedPhoneType: return 4
+      case .unsupportedCountry: return 5
+      case .unsupportedDevice: return 6
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -126,6 +137,8 @@ extension Code_Phone_V1_SendVerificationCodeResponse.Result: CaseIterable {
     .rateLimited,
     .invalidPhoneNumber,
     .unsupportedPhoneType,
+    .unsupportedCountry,
+    .unsupportedDevice,
   ]
 }
 
@@ -517,6 +530,8 @@ extension Code_Phone_V1_SendVerificationCodeResponse.Result: SwiftProtobuf._Prot
     2: .same(proto: "RATE_LIMITED"),
     3: .same(proto: "INVALID_PHONE_NUMBER"),
     4: .same(proto: "UNSUPPORTED_PHONE_TYPE"),
+    5: .same(proto: "UNSUPPORTED_COUNTRY"),
+    6: .same(proto: "UNSUPPORTED_DEVICE"),
   ]
 }
 
