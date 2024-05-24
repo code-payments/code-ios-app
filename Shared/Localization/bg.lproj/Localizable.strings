@@ -39,6 +39,7 @@
 "action.openSettings" = "Отваряне на настройки ";
 "action.paste" = "Постави ";
 "action.pasteFromClipboard" = "Постави от клипборда";
+"action.postToConnect" = "Публикувайте за да свържете акаунт ";
 "action.putInWallet" = "Постави в портфейл ";
 "action.recoverExistingAccount" = "Възстанови съществуващ профил ";
 "action.remind" = "Напомняне ";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Плъзнете, за да платите";
 "action.swipeToTip" = "Плъзни за даване на бакшиш";
 "action.tryDifferentCodeAccount" = "Опитай различен кодов акаунт";
+"action.tweetThem" = "Изпратете им туит";
 "action.unmute" = "Включване на звука";
 "action.unsubscribe" = "Отписване";
 "action.update" = "Обнови ";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Максималното количество, което можете да купите, е %@. Моля, въведете по-ниска сума.";
 "error.description.purchaseTooSmall" = "Минималното количество, което можете да купите, е %@. Моля, въведете по-голяма сума.";
 "error.description.timelockUnlocked" = "Вашият ключ за достъп вече е активирал отключване. В резултат на това вече няма да можете да използвате този ключ за достъп в Code.";
+"error.description.tipCardNotActivated" = "Изпратете туит до този човек, за да активирате неговата карта за бакшиши.";
 "error.description.tipTooLarge" = "Максималната сума, която можете да изпращате като бакшиш, е %@. Моля, въведете по-малка стойност.";
 "error.description.tipTooSmall" = "Минималната сума, която можете да изпратите като бакшиш, е %@. Моля, въведете по-голяма стойност.";
 "error.description.tooManyAccounts" = "Може да създавате само определен брой нови профили на ден. ";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Покупката е твърде голяма";
 "error.title.purchaseTooSmall" = "Покупката е твърде малка";
 "error.title.timelockUnlocked" = "Ключът за достъп вече не е използваем в Code";
+"error.title.tipCardNotActivated" = "Картата за бакшиши все още не е активирана";
 "error.title.tipTooLarge" = "Баккшишът е прекалено голям";
 "error.title.tipTooSmall" = "Бакшишът е прекалено малък";
 "error.title.tooManyAccounts" = "Твърде много създадени профили ";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Поканете приятел да се присъедини към Code и вземете $5";
 "push.subtitle.newSendCash" = "Изпратете пари в брой през произволно приложение за съобщения";
 "push.subtitle.referralBonus" = "Получихте %@ от Kin за изпращане на първи Kin към някого.";
+"push.subtitle.twitterAccountConnected" = "Вече може да искате бакшиши.";
 "push.title.depositReceived" = "Депозитът е получен";
 "push.title.kinReturned" = "Върнат Kin";
 "push.title.newOnCode" = "Ново в Code";
 "push.title.referralBonus" = "Получен бонус за препоръка";
+"push.title.twitterAccountConnected" = "Акаунтът в социалната мрежа X е свързан";
 "subtitle.accessExpiredDescription" = "Вашата покана за код за достъп е изтекла. Можете да излезете и да използвате друг профил с валидна покана. ";
 "subtitle.accessKeyDescription" = "Вашият ключ за достъп е единственият начин за достъп до вашите сметки. Моля, съхранявате ги поверително и в безопасност. ";
 "subtitle.accessKeyFaceID" = "Потвърдете вашата идентичност, за да видите вашия ключ за достъп. ";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Някой ви е изпратил пари";
 "subtitle.someoneTippedYou" = "Някой ви изпрати бакшиш";
 "subtitle.tipCardForX" = "Вашата карта за бакшиши ви позволява да получавате бакшиши от потребители на Code от целия свят. За достъп до вашата карта за бакшиши, свържете своята идентичност в Х. ";
+"subtitle.tipCardTwitterDescription" = "С вашата карта за бакшиши може да получавате подаръци от потребители на Code по цял свят. За достъп до картата за бакшиши публикувайте в социалната мрежа X.";
 "subtitle.typeDelete" = "Напишете \"%@\"";
 "subtitle.updateRequiredDescription" = "Направихме някои промени, за да подобрим качеството. Трябва да подновите приложението, за да използвате кода. ";
 "subtitle.validOwnerAccount" = "Валидна сметка на собственика";

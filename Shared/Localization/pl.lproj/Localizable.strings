@@ -39,6 +39,7 @@
 "action.openSettings" = "Otwórz ustawienia";
 "action.paste" = "Wklej";
 "action.pasteFromClipboard" = "Wklej ze schowka";
+"action.postToConnect" = "Wyślij post, aby podłączyć konto";
 "action.putInWallet" = "Umieść w portfelu";
 "action.recoverExistingAccount" = "Odzyskaj istniejące konto";
 "action.remind" = "Przypomnij";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Przeciągnij, aby zapłacić";
 "action.swipeToTip" = "Przesuń do napiwku";
 "action.tryDifferentCodeAccount" = "Wypróbuj inne konto Code";
+"action.tweetThem" = "Zatweetuj do tej osoby";
 "action.unmute" = "Wyłącz wyciszenie";
 "action.unsubscribe" = "Zrezygnuj z subkrypcji";
 "action.update" = "Zaktualizuj";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Maksymalny zakup to %@. Wprowadź mniejszą kwotę.";
 "error.description.purchaseTooSmall" = "Minimalny zakup to %@. Wprowadź większą kwotę.";
 "error.description.timelockUnlocked" = "Twój klucz dostępu inicjował odblokowanie. W rezultacie nie możesz już używać tego klucza dostępu w kodzie.";
+"error.description.tipCardNotActivated" = "Zatweetuj do tej osoby, aby aktywować jej kartę napiwkową.";
 "error.description.tipTooLarge" = "Maksymalny napiwek, jaki możesz dać, to %@. Wprowadź mniejszą kwotę.";
 "error.description.tipTooSmall" = "Minimalny napiwek, jaki możesz dać, to %@. Wprowadź wyższą kwotę.";
 "error.description.tooManyAccounts" = "Liczba kont, które można utworzyć dziennie, jest ograniczona.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Zakup jest zbyt duży";
 "error.title.purchaseTooSmall" = "Zakup za mały";
 "error.title.timelockUnlocked" = "Nie da się już użytkować klucza dostępu w kodzie";
+"error.title.tipCardNotActivated" = "Karta napiwkowa nie została jeszcze aktywowana";
 "error.title.tipTooLarge" = "Napiwek jest za duży";
 "error.title.tipTooSmall" = "Napiwek jest za mały";
 "error.title.tooManyAccounts" = "Utworzono za wiele kont";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Poleć aplikację Code znajomej osobie i otrzymaj 5 $";
 "push.subtitle.newSendCash" = "Wyślij gotówkę przez dowolny komunikator";
 "push.subtitle.referralBonus" = "Otrzymałeś(-aś) %@ Kin za wysłanie komuś pierwszego Kin.";
+"push.subtitle.twitterAccountConnected" = "Możesz teraz prosić o napiwki.";
 "push.title.depositReceived" = "Otrzymany depozyt";
 "push.title.kinReturned" = "Zwrócony Kin";
 "push.title.newOnCode" = "Nowość w aplikacji Code";
 "push.title.referralBonus" = "Otrzymano bonus za polecenie";
+"push.title.twitterAccountConnected" = "Konto X podłączone";
 "subtitle.accessExpiredDescription" = "Twoje zaproszenie dostępu do Code wygasło. Możęsz się wylogować i użyć innego konta z prawidłowym statusem zarposzenia.";
 "subtitle.accessKeyDescription" = "Twój klucz dostępu to jedyny sposób uzyskania dostępu do Twoich środków. Nie przekazuj go nikomu i trzymaj go w bezpiecznym miejscu.";
 "subtitle.accessKeyFaceID" = "Zweryfikuj tożsamość, żeby zobaczyć Klucz dostępu.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Ktoś wysłał ci pieniądze";
 "subtitle.someoneTippedYou" = "Ktoś dał Ci napiwek";
 "subtitle.tipCardForX" = "Twoja karta napiwków umożliwia otrzymywanie napiwków od użytkowników Code na całym świecie. Aby uzyskać dostęp do karty napiwków, połącz swoją tożsamość X.";
+"subtitle.tipCardTwitterDescription" = "Twoja karta napiwkowa pozwala Ci otrzymywać napiwki od użytkowników Code na całym świecie.  Aby uzyskać dostęp do karty napiwkowej, wyślij post do X. ";
 "subtitle.typeDelete" = "Wpisz „%@\"";
 "subtitle.updateRequiredDescription" = "Dokonaliśmy paru zmian, żeby usprawnić korzystanie z usługi. Żeby nadal używać Code, musisz zaktualizować aplikację.";
 "subtitle.validOwnerAccount" = "Prawidłowe konto właściciela";

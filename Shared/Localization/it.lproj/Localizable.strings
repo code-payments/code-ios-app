@@ -39,6 +39,7 @@
 "action.openSettings" = "Apri le impostazioni";
 "action.paste" = "Incolla";
 "action.pasteFromClipboard" = "Incolla dagli appunti";
+"action.postToConnect" = "Pubblica per Connettere l'Account";
 "action.putInWallet" = "Metti nel portafoglio";
 "action.recoverExistingAccount" = "Recupera un account esistente";
 "action.remind" = "Ricorda";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Scorri per pagare";
 "action.swipeToTip" = "Scorri per dare la mancia";
 "action.tryDifferentCodeAccount" = "Prova con un account Code diverso";
+"action.tweetThem" = "Twitta loro";
 "action.unmute" = "Riattiva audio";
 "action.unsubscribe" = "Annulla l'iscrizione";
 "action.update" = "Aggiorna";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "La quantità massima acquistabile è %@. Inserisci un importo inferiore.";
 "error.description.purchaseTooSmall" = "La quantità minima acquistabile è %@. Inserisci un importo superiore.";
 "error.description.timelockUnlocked" = "La tua Chiave di Accesso ha avviato uno sblocco. Di conseguenza, non potrai più usare questa Chiave di Accesso in Code.";
+"error.description.tipCardNotActivated" = "Invia un tweet a questa persona per attivare la loro Tip Card.";
 "error.description.tipTooLarge" = "La mancia massima che puoi lasciare è %@. Inserisci un importo inferiore.";
 "error.description.tipTooSmall" = "La mancia minima che puoi lasciare è %@. Inserisci un importo maggiore.";
 "error.description.tooManyAccounts" = "Puoi creare solo un certo numero di nuovi account al giorno.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Acquisto troppo grande";
 "error.title.purchaseTooSmall" = "Acquisto troppo piccolo";
 "error.title.timelockUnlocked" = "Chiave di Accesso Non Più Utilizzabile in Code";
+"error.title.tipCardNotActivated" = "Tip Card Non Ancora Attivata";
 "error.title.tipTooLarge" = "Mancia troppo grande";
 "error.title.tipTooSmall" = "Mancia troppo piccola";
 "error.title.tooManyAccounts" = "Troppi account creati";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Fai iniziare un amico su Code e ricevi 5 $";
 "push.subtitle.newSendCash" = "Invia denaro tramite qualsiasi app di messaggistica";
 "push.subtitle.referralBonus" = "Hai ricevuto %@ di Kin per aver inviato a qualcuno il suo primo Kin.";
+"push.subtitle.twitterAccountConnected" = "Ora puoi richiedere mance.";
 "push.title.depositReceived" = "Deposito ricevuto";
 "push.title.kinReturned" = "Kin restituito";
 "push.title.newOnCode" = "Nuovo su Code";
 "push.title.referralBonus" = "Bonus referral ricevuto";
+"push.title.twitterAccountConnected" = "Account X Connesso";
 "subtitle.accessExpiredDescription" = "Il tuo invito per l'accesso a Code è scaduto. Puoi disconnetterti e usare un account diverso con uno stato di invito valido.";
 "subtitle.accessKeyDescription" = "La tua chiave d'accesso è l'unico modo tramite cui puoi accedere ai tuoi fondi. Tienila privata e al sicuro.";
 "subtitle.accessKeyFaceID" = "Verifica la tua identità per poter visualizzare la tua chiave d'accesso.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Qualcuno ti ha inviato denaro";
 "subtitle.someoneTippedYou" = "Qualcuno ti ha dato una mancia";
 "subtitle.tipCardForX" = "La tua Tip Card ti consente di ricevere mance dagli utenti di Code in tutto il mondo. Per accedere alla tua Tip Card collega la tua identità X.";
+"subtitle.tipCardTwitterDescription" = "La tua Tip Card ti consente di ricevere mance dagli utenti di Code in tutto il mondo. Per accedere alla tua Tip Card, pubblica su X.";
 "subtitle.typeDelete" = "Digita \"%@\"";
 "subtitle.updateRequiredDescription" = "Abbiamo apportato alcune modifiche per migliorare l'esperienza. Dovrai aggiornare l'app per poter continuare a utilizzare Code.";
 "subtitle.validOwnerAccount" = "Account proprietario valido";

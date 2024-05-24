@@ -39,6 +39,7 @@
 "action.openSettings" = "Deschide setările";
 "action.paste" = "Lipește";
 "action.pasteFromClipboard" = "Lipește din clipboard";
+"action.postToConnect" = "Postează pentru a conecta contul";
 "action.putInWallet" = "Pune în portofel";
 "action.recoverExistingAccount" = "Recuperează un cont existent";
 "action.remind" = "Reamintește";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Glisează pentru a plăti";
 "action.swipeToTip" = "Glisează pentru a da bacșiș";
 "action.tryDifferentCodeAccount" = "Încearcă un alt cont Code";
+"action.tweetThem" = "Trimite-i un Tweet";
 "action.unmute" = "Scoate din surdină";
 "action.unsubscribe" = "Dezabonare";
 "action.update" = "Actualizare";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Cantitatea maximă pe care o poți achiziționa este %@. Te rugăm să introduci o sumă mai mică.";
 "error.description.purchaseTooSmall" = "Cantitatea minimă pe care o poți achiziționa este %@. Te rugăm să introduci o sumă mai mare.";
 "error.description.timelockUnlocked" = "Cheia ta de acces a inițiat o deblocare. Ca urmare, nu vei mai putea utiliza această cheie de acces în Code.";
+"error.description.tipCardNotActivated" = "Trimite un tweet acestei persoane pentru a-i activa Cardul de bacșișuri.";
 "error.description.tipTooLarge" = "Cantitatea maximă pe care o poți da ca bacșiș este %@. Te rugăm să introduci o sumă mai mică.";
 "error.description.tipTooSmall" = "Cantitatea minimă pe care o poți da ca bacșiș este %@. Te rugăm să introduci o sumă mai mare.";
 "error.description.tooManyAccounts" = "Poți crea un număr limitat de conturi în fiecare zi.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Achiziție prea mare";
 "error.title.purchaseTooSmall" = "Achiziție prea mică";
 "error.title.timelockUnlocked" = "Cheia de acces nu mai poate fi utilizată în Code";
+"error.title.tipCardNotActivated" = "Cardul de bacșișuri nu este activat încă";
 "error.title.tipTooLarge" = "Bacșiș prea mare";
 "error.title.tipTooSmall" = "Bacșiș prea mic";
 "error.title.tooManyAccounts" = "Au fost create prea multe conturi";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Ajutați un prieten să înceapă cu Code și primiți 5 dolari";
 "push.subtitle.newSendCash" = "Trimiteți bani prin orice aplicație de mesagerie";
 "push.subtitle.referralBonus" = "Ați primit %@ în Kin pentru că ați trimis cuiva primul Kin.";
+"push.subtitle.twitterAccountConnected" = "Acum poți cere bacșișuri.";
 "push.title.depositReceived" = "Depozit primit";
 "push.title.kinReturned" = "Kin returnat";
 "push.title.newOnCode" = "Nou pe Code";
 "push.title.referralBonus" = "Bonus de recomandare primit";
+"push.title.twitterAccountConnected" = "Cont X conectat";
 "subtitle.accessExpiredDescription" = "Codul tău de invitație pentru a accesa Code a expirat. Te poți deconecta pentru a folosi un alt cont care are o invitație validă.";
 "subtitle.accessKeyDescription" = "Cheia ta de acces reprezintă singura modalitate prin care îți poți accesa fondurile. Asigură-te că o păstrezi în confidențialitate și siguranță.";
 "subtitle.accessKeyFaceID" = "Verifică-ți identitatea pentru a-ți vizualiza cheia de acces.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Cineva v-a trimis bani";
 "subtitle.someoneTippedYou" = "Cineva ți-a dat un bacșiș";
 "subtitle.tipCardForX" = "Cardul tău de bacșiș îți permite să primești bacșișuri de la utilizatorii Code din întreaga lume. Pentru a accesa Cardul tău de bacșiș, conectează-te cu contul tău X.";
+"subtitle.tipCardTwitterDescription" = "Cardul tău de bacșișuri îți permite să primești bacșișuri de la utilizatorii Code din întreaga lume. Pentru a-ți accesa Cardul de bacșișuri, postează pe X.";
 "subtitle.typeDelete" = "Scrie „%@\"";
 "subtitle.updateRequiredDescription" = "Am făcut unele modificări pentru a îmbunătăți experiența de utilizare. Va fi nevoie să actualizezi aplicația pentru a putea folosi mai departe Code.";
 "subtitle.validOwnerAccount" = "Cont de proprietar valid";

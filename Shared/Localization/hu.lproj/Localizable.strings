@@ -39,6 +39,7 @@
 "action.openSettings" = "Beállítások megnyitása";
 "action.paste" = "Beilleszt";
 "action.pasteFromClipboard" = "Beillesztés a vágólapról";
+"action.postToConnect" = "Írj bejegyzést, hogy csatlakoztasd a fiókodat";
 "action.putInWallet" = "Walletba helyez";
 "action.recoverExistingAccount" = "Meglévő fiók helyreállítása";
 "action.remind" = "Emlékeztet";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Fizessen húzással";
 "action.swipeToTip" = "Lapozás a borravalóhoz";
 "action.tryDifferentCodeAccount" = "Próbáljon ki egy másik kódfiókot";
+"action.tweetThem" = "Tweetelj nekik";
 "action.unmute" = "Némítás feloldása";
 "action.unsubscribe" = "Leiratkozás";
 "action.update" = "Frissítés";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "A maximálisan megvásárolható összeg %@. Adjon meg kisebb összeget";
 "error.description.purchaseTooSmall" = "A minimális vásárlási összeg %@. Adjon meg nagyobb összeget.";
 "error.description.timelockUnlocked" = "A hozzáférési kulcsa feloldást kezdeményezett. Ennek eredményeként a továbbiakban nem fogja tudni használni ezt a hozzáférési kulcsot a kódban.";
+"error.description.tipCardNotActivated" = "Küldj egy tweetet ennek a személynek, hogy aktiválja a Borravalós kártyáját.";
 "error.description.tipTooLarge" = "A maximálisan adható borravaló %@. Adj meg egy kisebb összeget.";
 "error.description.tipTooSmall" = "A minimálisan adható borravaló %@. Adj meg egy nagyobb összeget.";
 "error.description.tooManyAccounts" = "Naponta csak annyi új fiókot hozhat létre.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "A vásárlási összeg túl nagy";
 "error.title.purchaseTooSmall" = "A vásárlási összeg túl kicsi";
 "error.title.timelockUnlocked" = "A hozzáférési kulcs már nem használható a kódban";
+"error.title.tipCardNotActivated" = "Borravalós kártya még nincs aktiválva";
 "error.title.tipTooLarge" = "A borravaló túl sok";
 "error.title.tipTooSmall" = "A borravaló túl kevés";
 "error.title.tooManyAccounts" = "Túl sok fiók jött létre";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Kezdd el egy barátoddal a Code használatát, és kapj 5 dollárt";
 "push.subtitle.newSendCash" = "Küldjön készpénzt bármely messenger alkalmazáson keresztül";
 "push.subtitle.referralBonus" = "%@ Kint kaptál, amiért elküldted valakinek az első Kinét.";
+"push.subtitle.twitterAccountConnected" = "Most már kérhetsz borravalót.";
 "push.title.depositReceived" = "Befizetés beérkezett";
 "push.title.kinReturned" = "Kin visszatért";
 "push.title.newOnCode" = "Új a Code-on";
 "push.title.referralBonus" = "Ajánlói bónusz megérkezett";
+"push.title.twitterAccountConnected" = "X fiók csatlakoztatva";
 "subtitle.accessExpiredDescription" = "A kód hozzáférési meghívója lejárt. Kijelentkezhet, és egy másik fiókot használhat érvényes meghívási állapottal.";
 "subtitle.accessKeyDescription" = "A hozzáférési kulcs az egyetlen módja annak, hogy hozzáférjen pénzeszközeihez. Kérjük, tartsa privátban és legyen óvatos.";
 "subtitle.accessKeyFaceID" = "A hozzáférési kulcs megtekintéséhez igazolja személyazonosságát.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Valaki pénzt küldött neked";
 "subtitle.someoneTippedYou" = "Valaki borravalót adott neked";
 "subtitle.tipCardForX" = "A Borravalós kártya lehetővé teszi, hogy borravalót kapj a Code felhasználóitól a világ minden tájáról. A Borravalós kártyához való hozzáféréshez csatlakoztasd az X azonosítódat.";
+"subtitle.tipCardTwitterDescription" = "A Borravalós kártyával borravalót kaphatsz a Code felhasználóitól a világ minden tájáról. A Borravalós kártyát eléréséhez írj az X-re.";
 "subtitle.typeDelete" = "Írd be: \"%@\"";
 "subtitle.updateRequiredDescription" = "Néhány változtatást eszközöltünk az élmény javítása érdekében. A Code használatának folytatásához frissítenie kell az alkalmazást.";
 "subtitle.validOwnerAccount" = "Érvényes tulajdonosi fiók";

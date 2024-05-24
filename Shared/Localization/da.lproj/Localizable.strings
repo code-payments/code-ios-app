@@ -39,6 +39,7 @@
 "action.openSettings" = "Åbn Indstillinger";
 "action.paste" = "Indsæt";
 "action.pasteFromClipboard" = "Indsæt fra udklipsholder";
+"action.postToConnect" = "Slå noget op for at forbinde konto";
 "action.putInWallet" = "Læg i Wallet";
 "action.recoverExistingAccount" = "Genskab eksisterende konto";
 "action.remind" = "Husk";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Swipe for at betale";
 "action.swipeToTip" = "Swipe for at give drikkepenge";
 "action.tryDifferentCodeAccount" = "Prøv en anden Code-konto";
+"action.tweetThem" = "Tweet til dem";
 "action.unmute" = "Fjern dæmpning";
 "action.unsubscribe" = "Afmeld abonnement";
 "action.update" = "Opdater";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Du kan højst købe for %@. Indtast venligst et mindre beløb.";
 "error.description.purchaseTooSmall" = "Du kan mindst købe for %@. Indtast venligst et større beløb.";
 "error.description.timelockUnlocked" = "Din adgangsnøgle har startet en oplåsning. Derfor vil du ikke længere være i stand til at bruge denne adgangsnøgle i kode.";
+"error.description.tipCardNotActivated" = "Send et tweet til denne person for at aktivere deres Tip Card.";
 "error.description.tipTooLarge" = "Det største beløb, du kan give i drikkepenge, er %@. Indtast venligst et mindre beløb.";
 "error.description.tipTooSmall" = "Det mindste beløb, du kan give i drikkepenge, er %@. Indtast venligst et større beløb.";
 "error.description.tooManyAccounts" = "Du kan kun oprette et vist antal konti pr dag.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Beløbet er for højt";
 "error.title.purchaseTooSmall" = "Beløbet er for lavt";
 "error.title.timelockUnlocked" = "Adgangsnøgle kan ikke længere bruges i kode";
+"error.title.tipCardNotActivated" = "Tip Card ikke aktiveret endnu";
 "error.title.tipTooLarge" = "Beløbet, der blev givet i drikkepenge, var for stort";
 "error.title.tipTooSmall" = "Beløbet, der blev givet i drikkepenge, var for lille";
 "error.title.tooManyAccounts" = "For mange konti blev oprettet";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Få en ven i gang med Code og få $5";
 "push.subtitle.newSendCash" = "Send kontanter gennem enhver messengerapp";
 "push.subtitle.referralBonus" = "Du modtog %@ af Kin for at sende nogen deres første Kin.";
+"push.subtitle.twitterAccountConnected" = "Du kan nu anmode om donationer.";
 "push.title.depositReceived" = "Indbetaling modtaget";
 "push.title.kinReturned" = "Kin returneret";
 "push.title.newOnCode" = "Ny på Code";
 "push.title.referralBonus" = "Henvisningsbonus modtaget";
+"push.title.twitterAccountConnected" = "X-konto forbundet";
 "subtitle.accessExpiredDescription" = "Din invitation til at få Code er udløbet. Du kan logge ud og bruge en anden konto med en gyldig invitationsstatus.";
 "subtitle.accessKeyDescription" = "Du kan kun få adgang til dine midler ved hjælp af en adgangskode. Sørg for at gemme den sikkert og privat.";
 "subtitle.accessKeyFaceID" = "Bekræft din identitet for at se din adgangskode";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Nogen har sendt dig kontanter";
 "subtitle.someoneTippedYou" = "Nogen har givet dig drikkepenge";
 "subtitle.tipCardForX" = "Med dit drikkepengekort kan du modtage drikkepenge fra Code-brugere over hele verden. For at få adgang til dit drikkepengekort skal du forbinde din X-identitet.\n";
+"subtitle.tipCardTwitterDescription" = "Dit Tip Card lader dig modtage donationer fra Code-brugere over hele verden. Slå noget op på X for at tilgå dit Tip Card.";
 "subtitle.typeDelete" = "Tast \"%@\"";
 "subtitle.updateRequiredDescription" = "Vi har foretaget nogle ændringer for at forbedre oplevelsen. Du skal opdatere appen for at fortsætte med at anvende Code.";
 "subtitle.validOwnerAccount" = "Gyldig ejerkonto";

@@ -39,6 +39,7 @@
 "action.openSettings" = "Abrir Definições";
 "action.paste" = "Colar";
 "action.pasteFromClipboard" = "Colar a Partir da Área de Transferência";
+"action.postToConnect" = "Faça uma publicação para associar conta";
 "action.putInWallet" = "Por na Carteira";
 "action.recoverExistingAccount" = "Recuperar Conta Existente";
 "action.remind" = "Relembrar";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Deslize para pagar";
 "action.swipeToTip" = "Deslize para dar recompensa";
 "action.tryDifferentCodeAccount" = "Tente uma Conta Code Diferente";
+"action.tweetThem" = "Enviar tweet";
 "action.unmute" = "Ligar o som";
 "action.unsubscribe" = "Anular subscrição";
 "action.update" = "Atualizar";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "O máximo que pode comprar é %@. Insira um montante menor.";
 "error.description.purchaseTooSmall" = "O mínimo que pode comprar é %@. Insira um montante maior.";
 "error.description.timelockUnlocked" = "A sua Chave de Acesso iniciou um desbloqueio. Por esse motivo não poderá continuar a utilizar esta Chave de Acesso na Code.";
+"error.description.tipCardNotActivated" = "Envie um tweet a esta pessoa para ativar o seu Cartão de gorjetas.";
 "error.description.tipTooLarge" = "O valor máximo de recompensa é %@. Por favor, insira um montante inferior.";
 "error.description.tipTooSmall" = "O valor mínimo de recompensa é %@. Por favor, insira um montante superior.";
 "error.description.tooManyAccounts" = "Só pode criar algumas contas por dia.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Compra demasiado grande";
 "error.title.purchaseTooSmall" = "Compra demasiado pequena";
 "error.title.timelockUnlocked" = "Chave de Acesso Deixou de Ser Utilizável na Code";
+"error.title.tipCardNotActivated" = "Cartão de gorjetas por ativar";
 "error.title.tipTooLarge" = "O valor da recompensa é demasiado alto";
 "error.title.tipTooSmall" = "O valor da recompensa é demasiado baixo";
 "error.title.tooManyAccounts" = "Demasiadas contas criadas";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Inicie um amigo na Code e ganhe 5€";
 "push.subtitle.newSendCash" = "Envie dinheiro através de qualquer aplicação de mensagens";
 "push.subtitle.referralBonus" = "Recebeu %@ em Kin por ter enviado o primeiro Kin a alguém.";
+"push.subtitle.twitterAccountConnected" = "Agora já pode pedir gorjetas.";
 "push.title.depositReceived" = "Depósito recebido";
 "push.title.kinReturned" = "Kin devolvido";
 "push.title.newOnCode" = "Novidades na Code";
 "push.title.referralBonus" = "Bónus de referência recebido";
+"push.title.twitterAccountConnected" = "Conta X associada";
 "subtitle.accessExpiredDescription" = "O seu convite para ter acesso à Code expirou. Pode terminar sessão ou utilizar uma conta diferente com um estado de convite válido.";
 "subtitle.accessKeyDescription" = "A Sua Chave de Acesso é a única forma de aceder aos seus fundos. Mantenha-o privado e seguro.";
 "subtitle.accessKeyFaceID" = "Verifique a sua identidade para ver a sua Chave de Acesso.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Alguém enviou-te dinheiro";
 "subtitle.someoneTippedYou" = "Recebeu uma recompensa";
 "subtitle.tipCardForX" = "O seu Cartão de Recompensas permite-lhe receber recompensas de utilizadores da Code de todo o mundo. Para ter acesso ao seu Cartão de Recompensas, conecte a sua identidade X.";
+"subtitle.tipCardTwitterDescription" = "O seu Cartão de gorjetas permite-lhe receber gorjetas de utilizadores do Code em todo o mundo. Para aceder ao seu Cartão de gorjetas, faça uma publicação no X.";
 "subtitle.typeDelete" = "Digite \"%@\"";
 "subtitle.updateRequiredDescription" = "Fizemos algumas alterações para melhorar a experiência. Terá que atualizar a aplicação para continuar a usar a Code.";
 "subtitle.validOwnerAccount" = "Conta de proprietário válida";

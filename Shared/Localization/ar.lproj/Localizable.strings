@@ -39,6 +39,7 @@
 "action.openSettings" = "فتح الإعدادات";
 "action.paste" = "لصق";
 "action.pasteFromClipboard" = "اللصق من الحافظة";
+"action.postToConnect" = "انشر لربط حساب ";
 "action.putInWallet" = "الوضع في المحفظة";
 "action.recoverExistingAccount" = "استعادة الحساب الموجود بالفعل";
 "action.remind" = "التذكير";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "مرر للدفع";
 "action.swipeToTip" = "تخطي إلى الإكرامية";
 "action.tryDifferentCodeAccount" = "تجربة حساب Code مختلف";
+"action.tweetThem" = "غرّد لهم";
 "action.unmute" = "إلغاء كتم الصوت";
 "action.unsubscribe" = "إلغاء الاشتراك";
 "action.update" = "تحديث";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "أكبر مبلغ يمكنك الشراء به هو %@. يرجى إدخال مبلغ أصغر.";
 "error.description.purchaseTooSmall" = "أصغر مبلغ يمكنك الشراء به هو %@. يرجى إدخال مبلغ أكبر.";
 "error.description.timelockUnlocked" = "بدأ مفتاح الوصول الخاص بك في إلغاء القفل. نتيجة لذلك, لن تتمكن بعد الآن من استخدام مفتاح الوصول هذا في Code.";
+"error.description.tipCardNotActivated" = "أرسل تغريدة إلى هذا الشخص لتفعيل بطاقته للنصائح.";
 "error.description.tipTooLarge" = "الحد الأقصى الذي يمكنك منح إكرامية به هو %@. يُرجى إدخال مبلغ أصغر.";
 "error.description.tipTooSmall" = "الحد الأدنى الذي يمكنك منح إكرامية به هو %@. يُرجى إدخال مبلغ أكبر.";
 "error.description.tooManyAccounts" = "لا يُمكنك إلا إنشاء عدد محدد من الحسابات الجديدة في اليوم.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "مبلغ الشراء كبير جدًا";
 "error.title.purchaseTooSmall" = "مبلغ الشراء صغير جدًا";
 "error.title.timelockUnlocked" = "إن مفتاح الوصول لم يعد صالحًا للاستخدام في Code";
+"error.title.tipCardNotActivated" = "بطاقة النصائح لم تُفعّل بعد";
 "error.title.tipTooLarge" = "الإكرامية أكثر من الحد المسموح به";
 "error.title.tipTooSmall" = "الإكرامية أقل من الحد المسموح به";
 "error.title.tooManyAccounts" = "تم إنشاء حسابات أكثر من المسموح به";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "احصل على صديق بدأ على Code واحصل على 5 دولارات";
 "push.subtitle.newSendCash" = "أرسل النقود من خلال أي تطبيق messenger";
 "push.subtitle.referralBonus" = "لقد تلقيت %@ وحدات Kin لإرسال وحدات Kin الأولى لشخص ما.";
+"push.subtitle.twitterAccountConnected" = "يمكنك الآن طلب النصائح.\n";
 "push.title.depositReceived" = "تم استلام الإيداع";
 "push.title.kinReturned" = "وحدات Kin المرتجعة";
 "push.title.newOnCode" = "جديد في Code";
 "push.title.referralBonus" = "تم استلام مكافأة الإحالة";
+"push.title.twitterAccountConnected" = "حساب X متصل\n";
 "subtitle.accessExpiredDescription" = "انتهت صلاحية دعوتك للوصول إلى الرمز. يُمكنك تسجيل الخروج واستخدام حساب مختلف بدعوة حالتها صالحة.";
 "subtitle.accessKeyDescription" = "مفتاح الوصول الخاص بك هو الطريقة الوحيدة للوصول إلى أموالك. يُرجى أن تحافظ على خصوصيته وأمنه.";
 "subtitle.accessKeyFaceID" = "التحقق من هويتك لعرض مفتاح الوصول الخاص بك.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "أرسل إليك شخص ما النقود";
 "subtitle.someoneTippedYou" = "منحك شخص ما إكرامية";
 "subtitle.tipCardForX" = "تتيح لك بطاقة الإكرامية الخاصة بك تلقي الإكراميات من مستخدمي Code في جميع أنحاء العالم. للوصول إلى بطاقة الإكرامية الخاصة بك, قم بتوصيل هوية X الخاصة بك.";
+"subtitle.tipCardTwitterDescription" = "تتيح لك بطاقة النصائح تلقي نصائح من مستخدمي Code في جميع أنحاء العالم. للوصول إلى بطاقة النصائح انشر على X.";
 "subtitle.typeDelete" = "اكتب \"%@\"";
 "subtitle.updateRequiredDescription" = "لقد أجرينا بعض التغييرات لتحسين التجربة. ستحتاج إلى تحديث التطبيق للاستمرار في استخدام Code.";
 "subtitle.validOwnerAccount" = "حساب المالك صحيح";

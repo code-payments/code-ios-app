@@ -39,6 +39,7 @@
 "action.openSettings" = "Einstellungen öffnen";
 "action.paste" = "Einfügen";
 "action.pasteFromClipboard" = "Aus Zwischenablage einfügen";
+"action.postToConnect" = "Posten, um das Konto zu verbinden";
 "action.putInWallet" = "In Wallet legen";
 "action.recoverExistingAccount" = "Bestehendes Konto wiederherstellen";
 "action.remind" = "Erinnern";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Zum Bezahlen wischen\n";
 "action.swipeToTip" = "Wischen, um Trinkgeld zu geben";
 "action.tryDifferentCodeAccount" = "Versuchen Sie es mit einem anderen Code-Konto";
+"action.tweetThem" = "Twittern Sie sie";
 "action.unmute" = "Stummschaltung aufheben";
 "action.unsubscribe" = "Abbestellen";
 "action.update" = "Aktualisieren";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Der Höchstbetrag, den Sie kaufen können, beträgt %@. Bitte geben Sie einen kleineren Betrag ein.";
 "error.description.purchaseTooSmall" = "Der Mindestbetrag, den Sie kaufen können, beträgt %@. Bitte geben Sie einen höheren Betrag ein.";
 "error.description.timelockUnlocked" = "Ihr Zugangsschlüssel hat eine Freischaltung ausgelöst. Infolgedessen können Sie diesen Zugangsschlüssel nicht mehr in Code verwenden.";
+"error.description.tipCardNotActivated" = "Senden Sie einen Tweet an diese Person, um ihre Tipp-Karte zu aktivieren.";
 "error.description.tipTooLarge" = "Sie können maximal %@ Trinkgeld geben. Bitte geben Sie einen niedrigeren Betrag ein.";
 "error.description.tipTooSmall" = "Der Mindestbetrag für Trinkgeld ist %@. Bitte geben Sie einen höheren Betrag ein.";
 "error.description.tooManyAccounts" = "Sie können nur eine bestimmte Anzahl an neuen Konten pro Tag erstellen.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Kaufbetrag zu groß";
 "error.title.purchaseTooSmall" = "Kaufbetrag zu klein";
 "error.title.timelockUnlocked" = "Zugangsschlüssel nicht mehr in Code verwendbar";
+"error.title.tipCardNotActivated" = "Tipp-Karte noch nicht aktiviert";
 "error.title.tipTooLarge" = "Trinkgeldbetrag zu hoch";
 "error.title.tipTooSmall" = "Trinkgeldbetrag zu niedrig";
 "error.title.tooManyAccounts" = "Zu viele Konten erstellt";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Bringen Sie einen Freund zu Code und erhalten Sie 5 $ dafür";
 "push.subtitle.newSendCash" = "Senden Sie Guthaben über jede beliebige Messenger-App";
 "push.subtitle.referralBonus" = "Sie haben %@ an Kin erhalten, weil Sie jemandem die ersten Kin geschickt haben.";
+"push.subtitle.twitterAccountConnected" = "Sie können jetzt Tipps anfordern.";
 "push.title.depositReceived" = "Einzahlung erhalten";
 "push.title.kinReturned" = "Kin zurückgesendet";
 "push.title.newOnCode" = "Neu bei Code";
 "push.title.referralBonus" = "Empfehlungsbonus erhalten";
+"push.title.twitterAccountConnected" = "X-Konto verbunden";
 "subtitle.accessExpiredDescription" = "Ihre Einladung für den Zugang zu Code ist abgelaufen. Sie können sich abmelden und ein anderes Konto mit einem gültigen Einladungsstatus verwenden.";
 "subtitle.accessKeyDescription" = "Ihr Zugangsschlüssel ist die einzige Möglichkeit, wie Sie auf Ihr Geld zugreifen können. Bitte bewahren Sie ihn geschützt und sicher auf.";
 "subtitle.accessKeyFaceID" = "Verifizieren Sie Ihre Identität, um Ihren Zugangsschlüssel anzuzeigen.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Jemand hat Ihnen Guthaben geschickt";
 "subtitle.someoneTippedYou" = "Jemand hat Ihnen Trinkgeld gegeben";
 "subtitle.tipCardForX" = "Mit Ihrer Trinkgeldkarte können Sie von Code-Nutzerinnen und -Nutzern auf der ganzen Welt Trinkgeld erhalten. Verbinden Sie Ihr X-Konto, um auf Ihre Trinkgeldkarte zuzugreifen.";
+"subtitle.tipCardTwitterDescription" = "Mit Ihrer Tipp-Karte können Sie Tipps von Code-Benutzern aus der ganzen Welt erhalten. Um auf Ihre Tipp-Karte zuzugreifen, posten Sie an X.";
 "subtitle.typeDelete" = "Geben Sie „%@\" ein";
 "subtitle.updateRequiredDescription" = "Wir haben einige Änderungen vorgenommen, um das Nutzererlebnis zu verbessern. Die App muss aktualisiert werden, um Code weiterhin nutzen zu können.";
 "subtitle.validOwnerAccount" = "Gültiges Inhaberkonto";

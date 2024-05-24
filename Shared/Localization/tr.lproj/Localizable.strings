@@ -39,6 +39,7 @@
 "action.openSettings" = "Ayarlar'ı Aç";
 "action.paste" = "Yapıştır";
 "action.pasteFromClipboard" = "Panodan Yapıştır";
+"action.postToConnect" = "Hesabı Bağlamak için Gönder";
 "action.putInWallet" = "Cüzdana Yerleştir";
 "action.recoverExistingAccount" = "Mevcut Hesabı Kurtar";
 "action.remind" = "Hatırlat";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Ödemek için Kaydır";
 "action.swipeToTip" = "Bahşiş Vermek İçin Kaydır";
 "action.tryDifferentCodeAccount" = "Farklı Code Hesabı Dene";
+"action.tweetThem" = "Onları Tweet'le";
 "action.unmute" = "Sesi aç";
 "action.unsubscribe" = "Abonelikten çık";
 "action.update" = "Güncelle";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "En fazla %@ satın alabilirsiniz. Lütfen daha düşük bir miktar girin.";
 "error.description.purchaseTooSmall" = "En az %@ satın alabilirsiniz. Lütfen daha yüksek bir miktar girin.";
 "error.description.timelockUnlocked" = "Erişim Anahtarınız bir kilit açma işlemi başlattı. Sonuç olarak artık bu Erişim Anahtarını Code'da kullanamayacaksınız.";
+"error.description.tipCardNotActivated" = "Bahşiş Kartını etkinleştirmek için bu kişiye bir tweet gönderin.";
 "error.description.tipTooLarge" = "Bahşiş verebileceğin maksimum tutar %@. Lütfen daha küçük bir tutar gir.";
 "error.description.tipTooSmall" = "Bahşiş verebileceğin minimum tutar %@. Lütfen daha büyük bir tutar gir.";
 "error.description.tooManyAccounts" = "Her gün yalnızca belirli sayıda yeni hesap oluşturabilirsin.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Alım miktarı çok yüksek";
 "error.title.purchaseTooSmall" = "Alım miktarı çok düşük";
 "error.title.timelockUnlocked" = "Artık Erişim Anahtarı Kodda Kullanılamaz";
+"error.title.tipCardNotActivated" = "Bahşiş Kartı Henüz Etkinleştirilmedi";
 "error.title.tipTooLarge" = "Bahşiş Çok Fazla";
 "error.title.tipTooSmall" = "Bahşiş Çok Az";
 "error.title.tooManyAccounts" = "Çok fazla hesap oluşturuldu";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Bir arkadaşınızı Code'a başlatın ve $5 kapın";
 "push.subtitle.newSendCash" = "Herhangi bir mesajlaşma uygulaması vasıtasıyla nakit gönderin";
 "push.subtitle.referralBonus" = "Birisine ilk Kin'lerini gönderdiğiniz için %@ Kin kazandınız.";
+"push.subtitle.twitterAccountConnected" = "Artık bahşişleri talep edebilirsiniz.";
 "push.title.depositReceived" = "Para Yatırma Alındı";
 "push.title.kinReturned" = "Kin İade Edildi";
 "push.title.newOnCode" = "Code'da Yeni";
 "push.title.referralBonus" = "Yönlendirme Bonusu Alındı";
+"push.title.twitterAccountConnected" = "X Hesabı Bağlandı";
 "subtitle.accessExpiredDescription" = "Code erişim davetinin süresi doldu. Oturumu kapatabilir ve geçerli bir davet durumuna sahip farklı bir hesap kullanabilirsin.";
 "subtitle.accessKeyDescription" = "Erişim Anahtarın, paralarına erişmenin tek yoludur. Lütfen kişisel ve güvenli olarak sakla.";
 "subtitle.accessKeyFaceID" = "Erişim Anahtarını görüntülemek için kimliğini doğrula.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Birisi sana para gönderdi";
 "subtitle.someoneTippedYou" = "Birisi sana bahşiş verdi";
 "subtitle.tipCardForX" = "Bahşiş Kartın, dünyanın dört bir yanındaki Code kullanıcılarından bahşişler almana olanak tanır. Tip Kartına erişmek için X kimliğini bağla.";
+"subtitle.tipCardTwitterDescription" = "Bahşiş Kartınız, dünyanın her yerindeki Code kullanıcılarından ipuçları almanızı sağlar. Bahşiş Kartınıza erişmek için X'e gönderin.";
 "subtitle.typeDelete" = "\"%@\" yaz";
 "subtitle.updateRequiredDescription" = "Deneyimi iyileştirmek için bazı değişiklikler yaptık. Code'u kullanmaya devam etmek için uygulamayı güncellemen gerekiyor.";
 "subtitle.validOwnerAccount" = "Geçerli sahip hesabı";

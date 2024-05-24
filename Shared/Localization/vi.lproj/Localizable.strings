@@ -39,6 +39,7 @@
 "action.openSettings" = "Mở Cài đặt";
 "action.paste" = "Dán";
 "action.pasteFromClipboard" = "Dán Từ Khay nhớ tạm";
+"action.postToConnect" = "Hãy đăng bài để kết nối tài khoản";
 "action.putInWallet" = "Đặt trong Ví";
 "action.recoverExistingAccount" = "Khôi phục Tài khoản Hiện có";
 "action.remind" = "Nhắc nhở";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Vuốt để Thanh toán";
 "action.swipeToTip" = "Vuốt để Boa";
 "action.tryDifferentCodeAccount" = "Thử Tài khoản Mã Khác";
+"action.tweetThem" = "Gửi tweet tới họ";
 "action.unmute" = "Bật tiếng";
 "action.unsubscribe" = "Hủy đăng ký";
 "action.update" = "Cập nhật";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Số tiền tối đa bạn có thể mua là %@. Vui lòng nhập số tiền nhỏ hơn.";
 "error.description.purchaseTooSmall" = "Số tiền tối thiểu bạn có thể mua là %@. Vui lòng nhập số tiền lớn hơn.";
 "error.description.timelockUnlocked" = "Khóa Truy cập của bạn đã kích hoạt mở khóa. Do đó, bạn sẽ không còn có thể sử dụng Khóa Truy cập này trong Mã.";
+"error.description.tipCardNotActivated" = "Hãy gửi một tin nhắn tweet tới người này để kích hoạt Thẻ Tip của họ.";
 "error.description.tipTooLarge" = "Số tiền tối đa bạn có thể boa là %@. Vui lòng nhập số tiền nhỏ hơn.";
 "error.description.tipTooSmall" = "Số tiền tối thiểu bạn có thể boa là %@. Vui lòng nhập số tiền lớn hơn.";
 "error.description.tooManyAccounts" = "Bạn chỉ có thể tạo rất nhiều tài khoản mới mỗi ngày.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Giao dịch mua quá lớn";
 "error.title.purchaseTooSmall" = "Giao dịch mua quá nhỏ";
 "error.title.timelockUnlocked" = "Bạn Không Còn Có thể Sử dụng Khóa Truy cập trong Mã";
+"error.title.tipCardNotActivated" = "Chưa kích hoạt Thẻ Tip";
 "error.title.tipTooLarge" = "Tiền boa quá lớn";
 "error.title.tipTooSmall" = "Tiền boa quá nhỏ";
 "error.title.tooManyAccounts" = "Quá nhiều tài khoản được tạo";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Mời một người bạn bắt đầu dùng Code để nhận được 5$";
 "push.subtitle.newSendCash" = "Gửi tiền mặt qua bất kỳ ứng dụng nhắn tin nào";
 "push.subtitle.referralBonus" = "Bạn đã nhận được %@ Kin vì đã gửi cho người khác Kin đầu tiên của họ.";
+"push.subtitle.twitterAccountConnected" = "Giờ bạn sẽ có thể yêu cầu tiền tip.";
 "push.title.depositReceived" = "Đã nhận được tiền nạp";
 "push.title.kinReturned" = "Đã hoàn trả Kin";
 "push.title.newOnCode" = "Người dùng mới trên Code";
 "push.title.referralBonus" = "Đã nhận được tiền thưởng giới thiệu";
+"push.title.twitterAccountConnected" = "Đã kết nối tài khoản X";
 "subtitle.accessExpiredDescription" = "Lời mời truy cập Mã của bạn đã hết hạn. Bạn có thể đăng xuất và sử dụng một tài khoản khác với trạng thái lời mời hợp lệ.";
 "subtitle.accessKeyDescription" = "Khóa Truy cập là cách duy nhất để bạn truy cập tiền của mình. Xin vui lòng giữ bí mật và an toàn cho Khóa Truy cập.";
 "subtitle.accessKeyFaceID" = "Xác minh danh tính để xem Khóa Truy cập của bạn.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Có người đã gửi tiền cho bạn";
 "subtitle.someoneTippedYou" = "Ai đó đã boa cho bạn";
 "subtitle.tipCardForX" = "Thẻ Tiền boa của bạn giúp bạn có thể nhận tiền boa từ người dùng Code trên toàn thế giới. Để truy cập Thẻ Tiền boa, hãy kết nối danh tính X của bạn.";
+"subtitle.tipCardTwitterDescription" = "Thẻ Tip cho phép bạn nhận tiền tip từ người dùng Code trên toàn thế giới. Để sử dụng Thẻ Tip của mình, hãy đăng bài trên X.";
 "subtitle.typeDelete" = "Gõ \"%@\"";
 "subtitle.updateRequiredDescription" = "Chúng tôi đã thực hiện một số thay đổi để cải thiện trải nghiệm. Bạn sẽ cần cập nhật ứng dụng để tiếp tục sử dụng Mã.";
 "subtitle.validOwnerAccount" = "Tài khoản chủ sở hữu hợp lệ";

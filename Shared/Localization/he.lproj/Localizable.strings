@@ -39,6 +39,7 @@
 "action.openSettings" = "פתח הגדרות";
 "action.paste" = "הדבק";
 "action.pasteFromClipboard" = "הדבק מהלוח";
+"action.postToConnect" = "";
 "action.putInWallet" = "שים בארנק";
 "action.recoverExistingAccount" = "שחזר חשבון קיים";
 "action.remind" = "הזכר";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "החליקו כדי לשלם";
 "action.swipeToTip" = "החליקו כדי לתת טיפ";
 "action.tryDifferentCodeAccount" = "נסה חשבון קוד אחר";
+"action.tweetThem" = "";
 "action.unmute" = "בטל השתקה";
 "action.unsubscribe" = "בטל מנוי";
 "action.update" = "עדכן";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "המקסימום שתוכל לרכוש הוא %@. נא להזין סכום קטן יותר.";
 "error.description.purchaseTooSmall" = "המינימום שניתן לרכוש הוא %@. נא להזין סכום גדול יותר.";
 "error.description.timelockUnlocked" = "מפתח הגישה שלך יזם ביטול נעילה. כתוצאה מכך, לא תוכל עוד להשתמש במפתח גישה זה ב-Code.";
+"error.description.tipCardNotActivated" = "";
 "error.description.tipTooLarge" = "המקסימום שאתם יכולים לתת כטיפ הוא %@. נא להזין סכום קטן יותר.";
 "error.description.tipTooSmall" = "המינימום שאתם יכולים לתת כטיפ הוא %@. נא להזין סכום גדול יותר.";
 "error.description.tooManyAccounts" = "אתה יכול ליצור כמות מוגבלת של חשבונות חדשים בכל יום.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "רכישה גדולה מדי";
 "error.title.purchaseTooSmall" = "קנייה קטנה מדי";
 "error.title.timelockUnlocked" = "מפתח הגישה אינו שמיש יותר ב-Code";
+"error.title.tipCardNotActivated" = "";
 "error.title.tipTooLarge" = "הטיפ גדול מדי";
 "error.title.tipTooSmall" = "הטיפ קטן מדי";
 "error.title.tooManyAccounts" = "יותר מדי חשבונות נוצרו";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "עודד חבר להתחיל להשתמש ב-Code וקבל 5$";
 "push.subtitle.newSendCash" = "שלח מזומן דרך כל אפליקציית מסנג'ר";
 "push.subtitle.referralBonus" = "קיבלת %@ של Kin על כך ששלחת למישהו את ה-Kin הראשון שלו.";
+"push.subtitle.twitterAccountConnected" = "";
 "push.title.depositReceived" = "ההפקדה התקבלה";
 "push.title.kinReturned" = "ה-Kin הוחזר";
 "push.title.newOnCode" = "חדש ב-Code";
 "push.title.referralBonus" = "בונוס ההפניה התקבל";
+"push.title.twitterAccountConnected" = "";
 "subtitle.accessExpiredDescription" = "פג תוקף ההזמנה שלך לקוד. אתה יכול לצאת מהחשבון ולהשתמש בחשבון אחר עם הזמנה בתוקף.";
 "subtitle.accessKeyDescription" = "מפתח הגישה שלך הוא הדרך היחידה לגשת לכספים שלך. אנא שמור אותו בסוד ובמקום בטוח.";
 "subtitle.accessKeyFaceID" = "אמת את הזהות שלך כדי לצפות במפתח הגישה שלך.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "מישהו שלח לך מזומן";
 "subtitle.someoneTippedYou" = "מישהו נתן לכם טיפ";
 "subtitle.tipCardForX" = "כרטיס הטיפים שלכם מאפשר לכם לקבל טיפים ממשתמשי Code מכל רחבי העולם. כדי לגשת לכרטיס הטיפים שלכם חברו את זהות X שלכם.";
+"subtitle.tipCardTwitterDescription" = "";
 "subtitle.typeDelete" = "יש להקליד \"%@\"";
 "subtitle.updateRequiredDescription" = "עשינו כמה שינויים כדי לשפר את חווית המשתמש. תצטרך לעדכן את האפליקציה כדי להמשיך להשתמש בקוד.";
 "subtitle.validOwnerAccount" = "חשבון בעלים תקף";

@@ -39,6 +39,7 @@
 "action.openSettings" = "설정 열기 ";
 "action.paste" = "붙여넣기";
 "action.pasteFromClipboard" = "클립보드에서 붙여넣기";
+"action.postToConnect" = "계정을 연결하려면 게시하기";
 "action.putInWallet" = "지갑에 넣기";
 "action.recoverExistingAccount" = "기존 계정 복구하기 ";
 "action.remind" = "알림";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "스와이프하여 결제";
 "action.swipeToTip" = "팁으로 스와이프";
 "action.tryDifferentCodeAccount" = "다른 Code 계정을 시도하세요";
+"action.tweetThem" = "트윗하기";
 "action.unmute" = "음소거 해제";
 "action.unsubscribe" = "구독 취소";
 "action.update" = "업데이트";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "구매할 수 있는 최대 금액은 %@입니다. 더 적은 금액을 입력하세요.";
 "error.description.purchaseTooSmall" = "구매할 수 있는 최소 금액은 %@입니다. 더 큰 금액을 입력하세요.";
 "error.description.timelockUnlocked" = "액세스 키로 잠금 해제를 시작했습니다. 이제 Code에서 이 액세스 키를 더 이상 사용할 수 없습니다.";
+"error.description.tipCardNotActivated" = "해당 팁 카드를 활성화하려면 이 사람에게 트윗을 보내세요.";
 "error.description.tipTooLarge" = "팁을 줄 수 있는 최대 금액은 %@입니다. 더 작은 금액을 입력하세요.";
 "error.description.tipTooSmall" = "팁을 줄 수 있는 최소 금액은 %@입니다. 더 큰 금액을 입력하세요.";
 "error.description.tooManyAccounts" = "하루에 생성할 수 있는 계정 수가 정해져 있습니다. ";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "구매 금액이 너무 큼";
 "error.title.purchaseTooSmall" = "구매 금액이 너무 작음";
 "error.title.timelockUnlocked" = "Code에서 더 이상 사용할 수 없는 액세스 키입니다";
+"error.title.tipCardNotActivated" = "팁 카드가 아직 활성화되지 않음";
 "error.title.tipTooLarge" = "팁이 너무 큼";
 "error.title.tipTooSmall" = "팁이 너무 작음";
 "error.title.tooManyAccounts" = "너무 많은 계정이 생성됨";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "친구가 Code를 시작하게 만들고 $5 받으세요";
 "push.subtitle.newSendCash" = "메신저 앱을 통해 현금을 보내세요";
 "push.subtitle.referralBonus" = "누군가에게 첫 Kin을 보내주고 Kin %@을(를) 받았습니다.";
+"push.subtitle.twitterAccountConnected" = "이제 팁을 요청할 수 있습니다.";
 "push.title.depositReceived" = "입금한 돈 수령";
 "push.title.kinReturned" = "Kin 반환됨";
 "push.title.newOnCode" = "Code에서 새로운 것";
 "push.title.referralBonus" = "추천 보너스 받음";
+"push.title.twitterAccountConnected" = "X 계정이 연결됨";
 "subtitle.accessExpiredDescription" = "Code를 이용할 수 있는 초대가 만료되었습니다. 로그아웃한 후 유효한 초대 상태가 있는 다른 계정을 이용할 수 있습니다. ";
 "subtitle.accessKeyDescription" = "액세스 키는 자금에 접근할 수 있는 유일한 방법입니다. 비공개로 안전하게 보관하십시오. ";
 "subtitle.accessKeyFaceID" = "액세스 키를 열람하려면 신원을 확인하십시오. ";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "누군가 현금을 보냈습니다";
 "subtitle.someoneTippedYou" = "누군가 귀하에게 팁을 주었습니다.";
 "subtitle.tipCardForX" = "팁 카드를 사용하면 전 세계 Code 사용자로부터 팁을 받을 수 있습니다. 팁 카드에 액세스하려면 X-Identity를 연결하세요.";
+"subtitle.tipCardTwitterDescription" = "팁 카드를 사용하면 전 세계 Code 사용자로부터 팁을 받을 수 있습니다. 팁 카드에 액세스하려면 X에 게시하세요.";
 "subtitle.typeDelete" = "유형 \"%@\"";
 "subtitle.updateRequiredDescription" = "경험 개선을 위해 변경사항을 적용했습니다. Code를 계속 사용하려면 앱을 업데이트 하세요. ";
 "subtitle.validOwnerAccount" = "유효한 소유자 계좌";

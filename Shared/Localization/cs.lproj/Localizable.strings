@@ -39,6 +39,7 @@
 "action.openSettings" = "Otevřít nastavení";
 "action.paste" = "Vložit";
 "action.pasteFromClipboard" = "Vložit z vývěsky";
+"action.postToConnect" = "Zveřejnit příspěvek pro připojení účtu";
 "action.putInWallet" = "Vložit do peněženky";
 "action.recoverExistingAccount" = "Obnovit stávající účet";
 "action.remind" = "Připomenout";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Zaplaťte potažením";
 "action.swipeToTip" = "Přejeďte prstem pro poslání spropitného";
 "action.tryDifferentCodeAccount" = "Vyzkoušet účet s jiným kódem";
+"action.tweetThem" = "Tomuto člověku tweetněte ";
 "action.unmute" = "Zrušit ztlumení";
 "action.unsubscribe" = "Zrušit odběr";
 "action.update" = "Aktualizovat";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Nakoupit můžete maximálně %@. Zadejte prosím menší částku.";
 "error.description.purchaseTooSmall" = "Nakoupit můžete minimálně %@. Zadejte prosím větší částku.";
 "error.description.timelockUnlocked" = "Váš přístupový klíč inicioval odemknutí. V důsledku toho již nebudete moci tento přístupový klíč v Code používat.";
+"error.description.tipCardNotActivated" = "Pošlete této osobě tweet a její Tip Card se aktivuje.";
 "error.description.tipTooLarge" = "Maximální výše spropitného je %@. Zadejte prosím menší částku.";
 "error.description.tipTooSmall" = "Minimální výše spropitného je %@. Zadejte prosím vyšší částku.";
 "error.description.tooManyAccounts" = "Každý den můžete vytvořit pouze tolik účtů.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Příliš velký nákup";
 "error.title.purchaseTooSmall" = "Příliš malý nákup";
 "error.title.timelockUnlocked" = "Přístupový klíč již není v Code použitelný";
+"error.title.tipCardNotActivated" = "Tip Card ještě nebyla aktivována";
 "error.title.tipTooLarge" = "Příliš velké spropitné";
 "error.title.tipTooSmall" = "Příliš malé spropitné";
 "error.title.tooManyAccounts" = "Vytvořeno příliš mnoho účtů";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Přiveďte kamaráda na Code a získejte 5 USD";
 "push.subtitle.newSendCash" = "Poslat peníze skrze aplikaci messengeru";
 "push.subtitle.referralBonus" = "Získali jste %@ Kin(ů) za to, že jste někomu poslali jeho první Kin.";
+"push.subtitle.twitterAccountConnected" = "Nyní můžete přijímat spropitné.";
 "push.title.depositReceived" = "Vklad přijat";
 "push.title.kinReturned" = "Kin byl navrácen";
 "push.title.newOnCode" = "Nové na Code";
 "push.title.referralBonus" = "Bonus za doporučení obdržen";
+"push.title.twitterAccountConnected" = "Účet X připojen";
 "subtitle.accessExpiredDescription" = "Vaše přizvání k přístupovému kódu vypršela. Můžete se odhlásit a využít jiný účet s platným stavem pozvánky.";
 "subtitle.accessKeyDescription" = "Jako jediný způsob přístupu ke svým financím vám slouží přístupový klíč. Chraňte si ho bezpečně v soukromí.";
 "subtitle.accessKeyFaceID" = "Abyste si mohli zobrazit přístupový kód, nechejte si ověřit totožnost.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Někdo vám poslal hotovost";
 "subtitle.someoneTippedYou" = "Někdo vám dal spropitné";
 "subtitle.tipCardForX" = "Vaše karta spropitného vám umožňuje přijímat spropitné od uživatelů služby Code z celého světa. Pro přístup ke kartě Tip Card připojte svou identitu X.";
+"subtitle.tipCardTwitterDescription" = "Tip Card vám umožňuje přijímat spropitné od uživatelů Code z celého světa. Přístup k Tip Card získáte po zveřejnění příspěvku na X. ";
 "subtitle.typeDelete" = "Napište \"%@\"";
 "subtitle.updateRequiredDescription" = "Udělali jsme jistá zdokonalení užívání. Abyste mohli kód i nadále využívat, budete si muset aktualizovat aplikaci.";
 "subtitle.validOwnerAccount" = "Platný účet vlastníka";

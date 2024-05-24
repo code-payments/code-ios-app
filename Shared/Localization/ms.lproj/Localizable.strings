@@ -39,6 +39,7 @@
 "action.openSettings" = "Buka Tetapan";
 "action.paste" = "Tampal";
 "action.pasteFromClipboard" = "Tampal Dari Papan Keratan";
+"action.postToConnect" = "Siar untuk Menghubungkan Akaun";
 "action.putInWallet" = "Masukkan dalam Dompet";
 "action.recoverExistingAccount" = "Pulihkan Akaun Sedia Ada";
 "action.remind" = "Ingatkan";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Leret untuk Membayar";
 "action.swipeToTip" = "Leret untuk beri Tip";
 "action.tryDifferentCodeAccount" = "Cuba Akaun Code Lain";
+"action.tweetThem" = "Tweetkan";
 "action.unmute" = "Nyahsenyap";
 "action.unsubscribe" = "Buang langganan";
 "action.update" = "Kemas kini";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Amaun maksimum yang boleh anda beli ialah %@. Sila masukkan amaun yang lebih kecil.";
 "error.description.purchaseTooSmall" = "Amaun minimum yang boleh anda beli ialah %@. Sila masukkan amaun yang lebih besar.";
 "error.description.timelockUnlocked" = "Kunci akses anda telah memulakan menyahkunci. Oleh itu, anda tidak akan dapat menggunakan Kunci Akses ini dalam Kod lagi.";
+"error.description.tipCardNotActivated" = "Hantar tweet kepada orang ini untuk mengaktifkan Kad Tip mereka.";
 "error.description.tipTooLarge" = "Maksimum anda boleh memberi tip adalah %@. Sila masukkan jumlah yang lebih kecil.";
 "error.description.tipTooSmall" = "Minimum yang anda boleh tip adalah %@. Sila masukkan jumlah yang lebih besar.";
 "error.description.tooManyAccounts" = "Anda tidak boleh mencipta akaun baharu setiap hari.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Amaun pembelian terlalu besar";
 "error.title.purchaseTooSmall" = "Amaun pembelian terlalu kecil";
 "error.title.timelockUnlocked" = "Kunci Akses Tidak Boleh Digunakan dalam Kod lagi";
+"error.title.tipCardNotActivated" = "Kad Tip Belum Diaktifkan Lagi";
 "error.title.tipTooLarge" = "Tip Terlalu Besar";
 "error.title.tipTooSmall" = "Tip Terlalu Kecil";
 "error.title.tooManyAccounts" = "Terlalu banyak akaun dicipta";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Dapatkan rakan untuk bermula menggunakan Code dan dapatkan $5";
 "push.subtitle.newSendCash" = "Hantar wang tunai melalui mana-mana aplikasi pemesej";
 "push.subtitle.referralBonus" = "Anda menerima %@ Kin kerana mengirimkan kepada seseorang Kin mereka yang pertama.";
+"push.subtitle.twitterAccountConnected" = "Anda kini boleh meminta tip.";
 "push.title.depositReceived" = "Deposit Diterima";
 "push.title.kinReturned" = "Kin Dikembalikan";
 "push.title.newOnCode" = "Baharu tentang Code";
 "push.title.referralBonus" = "Bonus Rujukan Diterima";
+"push.title.twitterAccountConnected" = "Akaun X Dihubungkan";
 "subtitle.accessExpiredDescription" = "Ajakan anda untuk mengakses Code telah tamat. Anda boleh log keluar dan menggunakan akaun lain dengan status ajakan yang sah.";
 "subtitle.accessKeyDescription" = "Kunci Akses anda adalah satu-satunya cara untuk mengakses dana anda. Sila pastikan ia peribadi dan selamat.";
 "subtitle.accessKeyFaceID" = "Sahkan identiti anda untuk melihat Kunci Akses anda.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Seseorang telah menghantar wang tunai kepada anda";
 "subtitle.someoneTippedYou" = "Seseorang memberi tip kepada anda";
 "subtitle.tipCardForX" = "Kad Tip anda membolehkan anda menerima tip dari pengguna Code di seluruh dunia. Untuk mengakses Kad Tip anda sila hubungkan identiti X anda.";
+"subtitle.tipCardTwitterDescription" = "Kad Tip anda membolehkan anda menerima tip dari pengguna Kod di serata dunia. Untuk mengakses ke Kad Tip anda sila siarkan ke X.";
 "subtitle.typeDelete" = "Jenis \"%@\"";
 "subtitle.updateRequiredDescription" = "Kami telah melakukan beberapa perubahan untuk meningkatkan pengalaman. Anda perlu mengemas kini aplikasi untuk terus menggunakan Code.";
 "subtitle.validOwnerAccount" = "Akaun pemilik sah";

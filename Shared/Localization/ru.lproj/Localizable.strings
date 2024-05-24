@@ -39,6 +39,7 @@
 "action.openSettings" = "Открыть настройки";
 "action.paste" = "Вставить";
 "action.pasteFromClipboard" = "Вставить из буфера обмена";
+"action.postToConnect" = "Опубликуйте пост, чтобы подключить аккаунт";
 "action.putInWallet" = "Положить в кошелек";
 "action.recoverExistingAccount" = "Восстановить существующую учетную запись";
 "action.remind" = "Напомнить";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Проведите, чтобы оплатить";
 "action.swipeToTip" = "Прведите, чтобы дать чаевые ";
 "action.tryDifferentCodeAccount" = "Попробовать другую учетную запись Code";
+"action.tweetThem" = "Отправьте им твит";
 "action.unmute" = "Включить звук";
 "action.unsubscribe" = "Отписаться";
 "action.update" = "Обновить";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Максимальное количество, которое вы можете приобрести, — %@. Введите меньшее количество.";
 "error.description.purchaseTooSmall" = "Минимальное количество, которое вы можете приобрести, — %@. Введите большее количество.";
 "error.description.timelockUnlocked" = "Ваш ключ доступа инициировал снятие блокировки. В результате вы больше не сможете использовать этот ключ доступа в Code.";
+"error.description.tipCardNotActivated" = "Отправьте твит этому человеку, чтобы активировать его карточку чаевых.";
 "error.description.tipTooLarge" = "Максимальный размер чаевых — %@. Введите меньшую сумму.";
 "error.description.tipTooSmall" = "Минимальный размер чаевых — %@. Введите большую сумму.";
 "error.description.tooManyAccounts" = "Вы можете создать лишь столько новых учетных записей в день.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Слишком большая сумма покупки";
 "error.title.purchaseTooSmall" = "Слишком маленькая сумма покупки";
 "error.title.timelockUnlocked" = "Ключ доступа больше нельзя использовать в Code";
+"error.title.tipCardNotActivated" = "Карточка чаевых еще не активирована";
 "error.title.tipTooLarge" = "Чаевые слишком большие";
 "error.title.tipTooSmall" = "Чаевые слишком маленькие";
 "error.title.tooManyAccounts" = "Создано слишком много учетных записей";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Пригласите друга начать пользоваться Code и получите 5 долларов США";
 "push.subtitle.newSendCash" = "Отправляйте наличные через любой мессенджер";
 "push.subtitle.referralBonus" = "Вы получили %@ Kin за отправку кому-то его/ее первого Kin.";
+"push.subtitle.twitterAccountConnected" = "Теперь вы можете запросить чаевые.";
 "push.title.depositReceived" = "Депозит получен";
 "push.title.kinReturned" = "Kin вернулся";
 "push.title.newOnCode" = "Новое в Code";
 "push.title.referralBonus" = "Получен реферальный бонус";
+"push.title.twitterAccountConnected" = "Подключен аккаунт X";
 "subtitle.accessExpiredDescription" = "Срок действия вашего приглашения в Code истек. Вы можете выйти и воспользоваться другой учетной записью с действующим статусом приглашения.";
 "subtitle.accessKeyDescription" = "Ваш ключ доступа — единственный способ получить доступ к вашим средствам. Храните его в безопасном месте и не разглашайте.";
 "subtitle.accessKeyFaceID" = "Подтвердите свою личность, чтобы посмотреть свой ключ доступа.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Кто-то отправил вам деньги";
 "subtitle.someoneTippedYou" = "Кто-то дал вам чаевые";
 "subtitle.tipCardForX" = "Ваша карта чаевых позволяет вам получать чаевые от пользователей Code со всего мира. Чтобы получить доступ к своей карте чаевых, подключите свою личность X.";
+"subtitle.tipCardTwitterDescription" = "Ваша карта чаевых позволяет вам получать чаевые от пользователей Code со всего мира. Чтобы получить доступ к карточке чаевых, опублиуйте пост в X.";
 "subtitle.typeDelete" = "Введите «%@‎»";
 "subtitle.updateRequiredDescription" = "Мы кое-что изменили, чтобы улучшить ваш опыт пользования. Вам придется обновить приложение, чтобы продолжить пользоваться Code.";
 "subtitle.validOwnerAccount" = "Действительный счет владельца";

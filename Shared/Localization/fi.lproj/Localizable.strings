@@ -39,6 +39,7 @@
 "action.openSettings" = "Avaa asetukset";
 "action.paste" = "Liitä";
 "action.pasteFromClipboard" = "Liitä leikepöydältä";
+"action.postToConnect" = "Julkaise yhdistettävälle tilille";
 "action.putInWallet" = "Pane lompakkoon";
 "action.recoverExistingAccount" = "Palauta olemassa oleva tili";
 "action.remind" = "Muistuta";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Maksa pyyhkäisemällä";
 "action.swipeToTip" = "Anna tippi pyyhkäisemällä";
 "action.tryDifferentCodeAccount" = "Kokeile eri kooditiliä";
+"action.tweetThem" = "Twiittaa hänelle";
 "action.unmute" = "Poista mykistys";
 "action.unsubscribe" = "Lopeta tilaus";
 "action.update" = "Päivitä";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Voit ostaa enintään %@. Syötä pienempi summa.";
 "error.description.purchaseTooSmall" = "Sinun täytyy ostaa vähintään %@. Syötä suurempi summa.";
 "error.description.timelockUnlocked" = "Käyttöoikeusavaimesi on aloittanut avaamistapahtuman. Et sen vuoksi pysty enää käyttämään Codessa tätä käyttöoikeusavainta.";
+"error.description.tipCardNotActivated" = "Lähetä tälle henkilölle twiitti aktivoidaksesi hänen tippikorttinsa.";
 "error.description.tipTooLarge" = "Suurin mahdollinen tippi on %@. Syötä pienempi summa.";
 "error.description.tipTooSmall" = "Pienin mahdollinen tippi on %@. Syötä suurempi summa.";
 "error.description.tooManyAccounts" = "Voit luoda vain tietyn määrän uusia tilejä päivässä.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Liian suuri ostos";
 "error.title.purchaseTooSmall" = "Liian pieni ostos";
 "error.title.timelockUnlocked" = "Käyttöoikeusavain ei enää käytettävissä Codessa";
+"error.title.tipCardNotActivated" = "Tippikortti ei vielä aktivoitu";
 "error.title.tipTooLarge" = "Tippi liian iso";
 "error.title.tipTooSmall" = "Liian pieni tippi";
 "error.title.tooManyAccounts" = "Luotu liian monta tiliä";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Auta kaveri alkuun Coden parissa ja nappaa 5 $";
 "push.subtitle.newSendCash" = "Lähetä käteistä minkä tahansa viestisovelluksen läpi";
 "push.subtitle.referralBonus" = "Olet saanut %@ kiniä lähetettyäsi jollekin hänen ensimmäiset kininsä.";
+"push.subtitle.twitterAccountConnected" = "Voit nyt pyytää tippejä.";
 "push.title.depositReceived" = "Talletus vastaanotettu";
 "push.title.kinReturned" = "Kin palautettu";
 "push.title.newOnCode" = "Uutta Codessa";
 "push.title.referralBonus" = "Suositusbonus vastaanotettu";
+"push.title.twitterAccountConnected" = "X-tili yhdistetty";
 "subtitle.accessExpiredDescription" = "Coden käyttöoikeuskutsusi ei ole enää voimassa. Voit kirjautua ulos ja käyttää eri tiliä, jonka kutsutila on voimassa.";
 "subtitle.accessKeyDescription" = "Käyttöoikeusavaimesi on ainoa keino käyttää rahojasi. Pidä se yksityisenä ja turvassa.";
 "subtitle.accessKeyFaceID" = "Vahvista henkilöllisyytesi nähdäksesi käyttöoikeusavaimesi.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Sinulle on lähetetty käteistä";
 "subtitle.someoneTippedYou" = "Joku antoi sinulle tipin";
 "subtitle.tipCardForX" = "Tippikorttisi avulla voit vastaanottaa tippejä Coden käyttäjiltä kaikkialta maailmasta. Yhdistä X-henkilöllisyytesi, jotta voit käyttää tippikorttiasi.";
+"subtitle.tipCardTwitterDescription" = "Tippikorttisi avulla voit vastaanottaa tippejä Coden käyttäjiltä kaikkialla maailmassa. Pääset käyttämään tippikorttiasi tekemällä julkaisun X-palvelussa.";
 "subtitle.typeDelete" = "Kirjoita \"%@\"";
 "subtitle.updateRequiredDescription" = "Olemme tehneet eräitä muutoksia parantaaksemme käyttökokemusta. Sinun on päivitettävä sovellus jatkaaksesi Coden käyttämistä.";
 "subtitle.validOwnerAccount" = "Pätevä omistajan tili";

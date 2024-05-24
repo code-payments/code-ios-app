@@ -39,6 +39,7 @@
 "action.openSettings" = "［設定］を開く";
 "action.paste" = "貼り付ける";
 "action.pasteFromClipboard" = "クリップボードから貼り付ける";
+"action.postToConnect" = "投稿してアカウントを接続";
 "action.putInWallet" = "ウォレットに入れる";
 "action.recoverExistingAccount" = "既存のアカウントを復元する";
 "action.remind" = "リマインド";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "スワイプして支払う";
 "action.swipeToTip" = "スワイプしてチップを支払う";
 "action.tryDifferentCodeAccount" = "別のCodeアカウントを試す";
+"action.tweetThem" = "ツイートする";
 "action.unmute" = "ミュート解除";
 "action.unsubscribe" = "登録解除";
 "action.update" = "更新";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "購入最大金額は%@です。もっと少ない金額を入力してください。";
 "error.description.purchaseTooSmall" = "購入最小金額は%@です。もっと大きい金額を入力してください。";
 "error.description.timelockUnlocked" = "アクセスキーがロック解除を開始しました。 その結果,このアクセスキーをCodeで使用できなくなります。";
+"error.description.tipCardNotActivated" = "この人のチップカードを有効化するにはこの人にツイートを送信してください。";
 "error.description.tipTooLarge" = "チップの最大額は%@です。もっと小さな額を入力してください。";
 "error.description.tipTooSmall" = "チップの最小額は%@です。もっと大きな額を入力してください。";
 "error.description.tooManyAccounts" = "1日に作成できる新規アカウントの数は限られています。";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "購入が大きすぎます";
 "error.title.purchaseTooSmall" = "購入が少なすぎます";
 "error.title.timelockUnlocked" = "Codeで使用できなくなったアクセス キー";
+"error.title.tipCardNotActivated" = "チップカードが有効化されていません";
 "error.title.tipTooLarge" = "チップ額が多すぎます";
 "error.title.tipTooSmall" = "チップ額が少なすぎます";
 "error.title.tooManyAccounts" = "作成されたアカウントが多すぎます";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "友だちにCodeを始めさせて5ドルもらおう";
 "push.subtitle.newSendCash" = "何らかのメッセージアプリで現金を送金";
 "push.subtitle.referralBonus" = "誰かに最初のKinを送ったことで%@分のKinを受け取りました。";
+"push.subtitle.twitterAccountConnected" = "チップをリクエストできるようになりました。";
 "push.title.depositReceived" = "受取済みの入金";
 "push.title.kinReturned" = "返金されたKin";
 "push.title.newOnCode" = "Code最新情報";
 "push.title.referralBonus" = "受取済みの紹介ボーナス";
+"push.title.twitterAccountConnected" = "Xアカウントが接続されました";
 "subtitle.accessExpiredDescription" = "Codeにアクセスするための招待の有効期限が切れています。ログアウトして,有効な招待ステータスを持つ別のアカウントを使用できます。";
 "subtitle.accessKeyDescription" = "アクセスキーは,お客様の資金にアクセスする唯一の方法です。公表せずに安全に保管してください。";
 "subtitle.accessKeyFaceID" = "お客様のアクセスキーを表示するために本人確認を行ってください。";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "誰かがあなたに送金しました";
 "subtitle.someoneTippedYou" = "誰かがあなたにチップを支払いました";
 "subtitle.tipCardForX" = "チップカードを使用すると,世界中のCodeユーザーからチップを受け取ることができます。チップカードにアクセスするには,XのIDを接続してください。";
+"subtitle.tipCardTwitterDescription" = "チップカードを使用すると世界中のCodeユーザーからチップを受け取れます。チップカードにアクセスするにはXに投稿してください。";
 "subtitle.typeDelete" = "\"%@\"と入力";
 "subtitle.updateRequiredDescription" = "エクスペリエンスを向上させるために,いくつかの変更を行いました。Codeを使い続けるには,アプリを更新する必要があります。";
 "subtitle.validOwnerAccount" = "有効なオーナーアカウント";

@@ -39,6 +39,7 @@
 "action.openSettings" = "Öppna inställningar";
 "action.paste" = "Klistra in";
 "action.pasteFromClipboard" = "Klistra in från Urklipp";
+"action.postToConnect" = "Posta för att koppla kontot";
 "action.putInWallet" = "Lägg i plånboken";
 "action.recoverExistingAccount" = "Återskapa befintligt konto";
 "action.remind" = "Påminn";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Svajpa för att betala";
 "action.swipeToTip" = "Svep för att ge dricks";
 "action.tryDifferentCodeAccount" = "Prova ett annat kodkonto";
+"action.tweetThem" = "Tweeta";
 "action.unmute" = "Slå på ljud";
 "action.unsubscribe" = "Avsluta prenumeration";
 "action.update" = "Uppdatera";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Maxgränsen för köp är %@. Ange ett mindre belopp.";
 "error.description.purchaseTooSmall" = "Minimigränsen för köp är %@. Ange ett större belopp.";
 "error.description.timelockUnlocked" = "Din åtkomstnyckel har använts för att låsa upp. Därför kan du inte längre använda nyckeln i Code.";
+"error.description.tipCardNotActivated" = "Skicka en tweet till denna person för att aktivera hans eller hennes drickskort.";
 "error.description.tipTooLarge" = "Det mesta du kan ge i dricks är %@. Ange ett mindre belopp, tack.";
 "error.description.tipTooSmall" = "Det minsta du kan ge i dricks är %@. Ange ett större belopp, tack.";
 "error.description.tooManyAccounts" = "Du kan bara skapa ett visst antal nya konton varje dag.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Köpet är för stort";
 "error.title.purchaseTooSmall" = "Köpet är för litet";
 "error.title.timelockUnlocked" = "Åtkomstnyckeln kan inte längre användas i Code.";
+"error.title.tipCardNotActivated" = "Drickskort ännu inte aktiverat";
 "error.title.tipTooLarge" = "Dricksbeloppet är för stort";
 "error.title.tipTooSmall" = "Dricksbeloppet är för litet";
 "error.title.tooManyAccounts" = "För många konton har skapats";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Få en vän att börja med Code och få 5 USD";
 "push.subtitle.newSendCash" = "Skicka pengar i valfri meddelandeapp";
 "push.subtitle.referralBonus" = "Du fick %@ i Kin för att du skickade en första Kin till någon.";
+"push.subtitle.twitterAccountConnected" = "Du kan nu be om dricks.";
 "push.title.depositReceived" = "Insättning mottagen";
 "push.title.kinReturned" = "Kin återsändes";
 "push.title.newOnCode" = "Ny på Code";
 "push.title.referralBonus" = "Värvningsbonus erhållen";
+"push.title.twitterAccountConnected" = "X-konto kopplat";
 "subtitle.accessExpiredDescription" = "Din inbjudan till Code har gått ut. Du kan logga ut och använda ett annat konto med en giltig inbjudningsstatus.";
 "subtitle.accessKeyDescription" = "Din Access Key är det enda sättet att få tillgång till dina pengar. Förvara den privat och säkert.";
 "subtitle.accessKeyFaceID" = "Bekräfta din identitet för att se din Access Key.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Någon har skickat pengar till dig";
 "subtitle.someoneTippedYou" = "Någon gav dig dricks";
 "subtitle.tipCardForX" = "Med ditt drickskort kan du ta emot tips från Code-användare över hela världen. Koppla din profil på X för att få tillgång till ditt tipskort.";
+"subtitle.tipCardTwitterDescription" = "Med ditt drickskort kan du ta emot dricks från Code-användare världen över. Posta på X för att få tillgång till ditt drickskort.";
 "subtitle.typeDelete" = "Skriv \"%@\"";
 "subtitle.updateRequiredDescription" = "Vi har gjort några ändringar för att förbättra upplevelsen. Du måste uppdatera appen för att fortsätta använda Code.";
 "subtitle.validOwnerAccount" = "Giltigt ägarkonto";

@@ -39,6 +39,7 @@
 "action.openSettings" = "Ouvrir les paramètres";
 "action.paste" = "Coller";
 "action.pasteFromClipboard" = "Coller depuis le presse-papiers";
+"action.postToConnect" = "Publier sur le compte connecté";
 "action.putInWallet" = "Mettre dans le portefeuille";
 "action.recoverExistingAccount" = "Récupérer le compte existant";
 "action.remind" = "Rappeler";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Balayez pour payer";
 "action.swipeToTip" = "Balayez pour donner un pourboire";
 "action.tryDifferentCodeAccount" = "Essayer un autre compte Code";
+"action.tweetThem" = "Envoyez un tweet";
 "action.unmute" = "Rétablir le son";
 "action.unsubscribe" = "Se désabonner";
 "action.update" = "Mettre à jour";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Vous pouvez acheter %@ au maximum. Veuillez saisir un montant inférieur.";
 "error.description.purchaseTooSmall" = "Vous pouvez acheter %@ au minimum. Veuillez saisir un montant plus important.";
 "error.description.timelockUnlocked" = "Votre clé d'accès a déclenché un déverrouillage. Par conséquent, vous ne pourrez plus utiliser cette clé d'accès dans le code.";
+"error.description.tipCardNotActivated" = "Envoyez un tweet à cette personne pour activer sa Tip Card.";
 "error.description.tipTooLarge" = "Le pourboire maximum que vous pouvez donner est de %@. Veuillez saisir un montant inférieur.";
 "error.description.tipTooSmall" = "Le pourboire minimum que vous pouvez donner est de %@. Veuillez saisir un montant plus élevé.";
 "error.description.tooManyAccounts" = "Vous ne pouvez créer qu'un nombre limité de nouveaux comptes par jour.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Achat trop important";
 "error.title.purchaseTooSmall" = "Achat trop faible";
 "error.title.timelockUnlocked" = "La clé d'accès n'est plus utilisable dans le code";
+"error.title.tipCardNotActivated" = "Tip Card pas encore activée";
 "error.title.tipTooLarge" = "Pourboire trop élevé";
 "error.title.tipTooSmall" = "Pourboire trop bas";
 "error.title.tooManyAccounts" = "Trop de comptes créés";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Invitez un ami à s'inscrire sur Code et recevez 5 $";
 "push.subtitle.newSendCash" = "Envoyez de l'argent via n'importe quelle appli de messagerie";
 "push.subtitle.referralBonus" = "Vous avez reçu %@ de Kin pour avoir envoyé à quelqu'un son premier Kin.";
+"push.subtitle.twitterAccountConnected" = "Vous pouvez maintenant demander des conseils.";
 "push.title.depositReceived" = "Acompte reçu";
 "push.title.kinReturned" = "KIn retourné";
 "push.title.newOnCode" = "Nouveau sur Code";
 "push.title.referralBonus" = "Bonus de parrainage crédité";
+"push.title.twitterAccountConnected" = "Compte X connecté";
 "subtitle.accessExpiredDescription" = "Votre invitation à accéder à Code a expiré. Vous pouvez vous déconnecter et utiliser un autre compte avec un statut d'invitation valide.";
 "subtitle.accessKeyDescription" = "Votre clé d'accès est le seul moyen d'accéder à vos fonds. Veuillez la conserver en toute confidentialité et en toute sécurité.";
 "subtitle.accessKeyFaceID" = "Vérifier votre identité pour afficher votre clé d'accès.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Quelqu'un vous a envoyé de l'argent";
 "subtitle.someoneTippedYou" = "Quelqu'un vous a donné un pourboire";
 "subtitle.tipCardForX" = "Votre carte de pourboires vous permet de recevoir des pourboires de la part des utilisateurs de Code dans le monde entier. Pour accéder à votre carte de pourboires, connectez votre identifiant X.";
+"subtitle.tipCardTwitterDescription" = "Votre Tip Card vous permet de recevoir des conseils d'utilisateurs de Code du monde entier. Publiez sur X pour accéder à Tip Card.";
 "subtitle.typeDelete" = "Saisissez « %@ »";
 "subtitle.updateRequiredDescription" = "Nous avons effectué quelques changements pour améliorer l'expérience. Vous devrez mettre à jour l'application pour continuer à utiliser Code.";
 "subtitle.validOwnerAccount" = "Propriétaire du compte invalide";

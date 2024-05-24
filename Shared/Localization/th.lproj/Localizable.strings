@@ -39,6 +39,7 @@
 "action.openSettings" = "เปิดการตั้งค่า";
 "action.paste" = "วาง";
 "action.pasteFromClipboard" = "วางจากคลิปบอร์ด";
+"action.postToConnect" = "โพสต์เพื่อเชื่อมโยงบัญชี\n";
 "action.putInWallet" = "ใส่ในกระเป๋าเงิน";
 "action.recoverExistingAccount" = "กู้คืนบัญชีที่มีอยู่";
 "action.remind" = "เตือน";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "ปัดเพื่อชำระเงิน";
 "action.swipeToTip" = "ปัดเพื่อให้ทิป";
 "action.tryDifferentCodeAccount" = "ลองใช้บัญชี Code อื่น";
+"action.tweetThem" = "ทวีตพวกเขา";
 "action.unmute" = "เปิดเสียง";
 "action.unsubscribe" = "ยกเลิกการสมัครสมาชิก";
 "action.update" = "อัปเดต";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "คุณสามารถซื้อได้สูงสุดที่ %@ โปรดกรอกจำนวนที่น้อยลง";
 "error.description.purchaseTooSmall" = "คุณสามารถซื้อได้ขั้นต่ำที่ %@ โปรดกรอกจำนวนที่มากขึ้น";
 "error.description.timelockUnlocked" = "คีย์การเข้าถึงของคุณได้เริ่มต้นการปลดล็อกแล้ว ด้วยเหตุนี้ คุณจะไม่สามารถใช้คีย์การเข้าถึงนี้ใน Code ได้อีกต่อไป";
+"error.description.tipCardNotActivated" = "ส่งทวีตถึงบุคคลนี้เพื่อเปิดใช้งานบัตรทิปของพวกเขา";
 "error.description.tipTooLarge" = "จำนวนเงินสูงสุดที่คุณสามารถให้ทิปได้คือ %@ กรุณาใส่จำนวนเงินที่น้อยลง";
 "error.description.tipTooSmall" = "จำนวนเงินขั้นต่ำที่คุณสามารถให้ทิปได้คือ %@ กรุณาใส่จำนวนเงินที่มากขึ้น";
 "error.description.tooManyAccounts" = "คุณไม่สามารถสร้างบัญชีใหม่ได้มากมายในแต่ละวัน";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "ซื้อมากเกินไป";
 "error.title.purchaseTooSmall" = "ซื้อน้อยเกินไป";
 "error.title.timelockUnlocked" = "คีย์การเข้าถึงใช้ไม่ได้อีกต่อไปใน Code";
+"error.title.tipCardNotActivated" = "ยังไม่ได้เปิดใช้งานบัตรทิป";
 "error.title.tipTooLarge" = "ทิปมากเกินไป";
 "error.title.tipTooSmall" = "ทิปน้อยเกินไป";
 "error.title.tooManyAccounts" = "มีการสร้างบัญชีมากเกินไป";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "ชวนเพื่อนมาเริ่มใช้ Code แล้วรับ $5";
 "push.subtitle.newSendCash" = "ส่งเงินสดผ่านแอเมสเซนเจอร์ใดก็ได้";
 "push.subtitle.referralBonus" = "คุณได้รับ Kin %@ จากการส่ง Kin แรกให้ใครบางคน";
+"push.subtitle.twitterAccountConnected" = "ตอนนี้คุณสามารถขอทิปได้แล้ว";
 "push.title.depositReceived" = "ได้รับเงินแล้ว";
 "push.title.kinReturned" = "Kin ที่ส่งคืน";
 "push.title.newOnCode" = "ใหม่สำหรับ Code";
 "push.title.referralBonus" = "โบนัสการแนะนำที่ได้รับ";
+"push.title.twitterAccountConnected" = "เชื่อมโยงบัญชี X แล้ว";
 "subtitle.accessExpiredDescription" = "คำเชิญให้เข้าถึง Code หมดอายุแล้ว คุณสามารถออกจากระบบแล้วใช้บัญชีอื่นที่มีสถานะคำเชิญที่ถูกต้องได้";
 "subtitle.accessKeyDescription" = "คีย์การเข้าถึงของคุณเป็นวิธีเดียวที่จะเข้าถึงเงินของคุณ โปรดรักษาให้เป็นส่วนตัวและปลอดภัย";
 "subtitle.accessKeyFaceID" = "ยืนยันตัวตนของคุณเพื่อดูคีย์การเข้าถึงของคุณ";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "มีคนส่งเงินสดให้คุณ";
 "subtitle.someoneTippedYou" = "มีคนให้ทิปคุณ";
 "subtitle.tipCardForX" = "บัตรทิปของคุณช่วยให้คุณได้รับทิปจากผู้ใช้ Code ทั่วโลก ในการเข้าถึงบัตรทิปของคุณ ให้เชื่อมต่อข้อมูลประจำตัว X ของคุณ";
+"subtitle.tipCardTwitterDescription" = "บัตรทิปช่วยให้คุณได้รับทิปจากผู้ใช้ Code ทั่วโลก ในการเข้าถึงบัตรทิปของคุณ ให้โพสต์บน X";
 "subtitle.typeDelete" = "พิมพ์  \"%@\"";
 "subtitle.updateRequiredDescription" = "เราได้ทำการเปลี่ยนแปลงบางอย่างเพื่อปรับปรุงประสบการณ์ หากต้องการใช้ Code ต่อไปคุณจะต้องอัปเดตแอป";
 "subtitle.validOwnerAccount" = "บัญชีเจ้าของที่ถูกต้อง";

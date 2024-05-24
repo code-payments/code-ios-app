@@ -39,6 +39,7 @@
 "action.openSettings" = "Otvori postavke";
 "action.paste" = "Nalepi";
 "action.pasteFromClipboard" = "Nalepi iz ostave";
+"action.postToConnect" = "Поставите објаву да повежете налог";
 "action.putInWallet" = "Stavi u novčanik";
 "action.recoverExistingAccount" = "Oporavi postojeći nalog";
 "action.remind" = "Podseti";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Брзо превуците да бисте платили";
 "action.swipeToTip" = "Превуци да даш напојницу";
 "action.tryDifferentCodeAccount" = "Isprobaj drugi Code nalog";
+"action.tweetThem" = "Пошаљите твит";
 "action.unmute" = "Укључи звук";
 "action.unsubscribe" = "Откажи претплату";
 "action.update" = "Ažuriraj";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Najviše možete da kupite %@. Unesite manji iznos.";
 "error.description.purchaseTooSmall" = "Najmanje možete da kupite %@. Unesite veći iznos.";
 "error.description.timelockUnlocked" = "Ваш приступни кључ је покренуо откључавање. Као резултат тога, више нећете моћи да користите овај приступни кључ у Kоду.";
+"error.description.tipCardNotActivated" = "Пошаљите твит овој особи да активирате њену/његову картицу за напојнице.";
 "error.description.tipTooLarge" = "Максимални износ који можете дати као напојницу је %@. Унесите мањи износ.";
 "error.description.tipTooSmall" = "Минимални износ који можете дати као напојницу је %@. Унесите већи износ.";
 "error.description.tooManyAccounts" = "Svakog dana možete kreirati samo ovoliko novih naloga.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Kupovina je prevelika";
 "error.title.purchaseTooSmall" = "Kupovina je premala";
 "error.title.timelockUnlocked" = "Приступни кључ се више не може користити у Kоду";
+"error.title.tipCardNotActivated" = "Картица за напојнице још увек није активирана";
 "error.title.tipTooLarge" = "Напојница је превелика";
 "error.title.tipTooSmall" = "Напојница је премала";
 "error.title.tooManyAccounts" = "Napravljeno je previše naloga";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Нека Вам пријатељ започне са Кодом и добићете 5$";
 "push.subtitle.newSendCash" = "Шаљите готовину преко било које апликације за слање порука";
 "push.subtitle.referralBonus" = "Примили сте %@ Кина јер сте некоме послали први Кин.";
+"push.subtitle.twitterAccountConnected" = "Сада можете да затражите напојнице.";
 "push.title.depositReceived" = "Депозит је примљен";
 "push.title.kinReturned" = "Кин је враћен";
 "push.title.newOnCode" = "Ново у Коду";
 "push.title.referralBonus" = "Примљен је бонус за препоруку";
+"push.title.twitterAccountConnected" = "X налог повезан";
 "subtitle.accessExpiredDescription" = "Vaša pozivnica za pristup aplikaciji Code je istekla. Možete da se odjavite i koristite drugi nalog sa važećim statusom pozivnice.";
 "subtitle.accessKeyDescription" = "Vaš ključ za pristup je jedini način da pristupite svojim sredstvima. Čuvajte ga u privatnosti i na sigurnom.";
 "subtitle.accessKeyFaceID" = "Potvrdite svoj identitet da biste videli svoj ključ za pristup.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Неко вам је послао новац";
 "subtitle.someoneTippedYou" = "Неко вам ја дао напојницу";
 "subtitle.tipCardForX" = "Ваша картица за напојнице вам омогућава да примате напојнице од корисника Code апликације из целог света. Да бисте приступили вашој картици за напојнице повежите се са својим X идентитетом.";
+"subtitle.tipCardTwitterDescription" = "Ваша картица за напојнице вам омогућава да примате напојнице од корисника Code апликације из целог света. Да бисте приступили вашој картици за напојнице поставите објаву на X платформи.";
 "subtitle.typeDelete" = "Откуцајте \"%@\"";
 "subtitle.updateRequiredDescription" = "Napravili smo neke izmene da bismo poboljšali iskustvo. Moraćete da ažurirate aplikaciju da biste nastavili da koristite Code.";
 "subtitle.validOwnerAccount" = "Важећи налог власника";

@@ -39,6 +39,7 @@
 "action.openSettings" = "Відкрити налаштування";
 "action.paste" = "Вставити";
 "action.pasteFromClipboard" = "Вставити з буфера обміну";
+"action.postToConnect" = "Зробіть публікацію, щоб прив’язати акаунт";
 "action.putInWallet" = "Покласти в гаманець";
 "action.recoverExistingAccount" = "Відновити існуючий акаунт";
 "action.remind" = "Нагадати";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Проведіть, щоб оплатити";
 "action.swipeToTip" = "Проведіть пальцем, щоб дати чайові";
 "action.tryDifferentCodeAccount" = "Спробуйте акаунт з іншим гаманцем Code";
+"action.tweetThem" = "Твітнути";
 "action.unmute" = "Увімкнути звук";
 "action.unsubscribe" = "Відписатись";
 "action.update" = "Оновити";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Максимальна кількість, яку ви можете придбати, — %@. Введіть меншу кількість.";
 "error.description.purchaseTooSmall" = "Мінімальна кількість, яку ви можете придбати, — %@. Введіть більшу кількість.";
 "error.description.timelockUnlocked" = "Ваш Ключ доступу розпочав розблокування. У результаті ви більше не зможете використовувати цей Ключ доступу в Code.";
+"error.description.tipCardNotActivated" = "Надішліть твіт цій людині, щоб активувати її картку для чайових.";
 "error.description.tipTooLarge" = "Максимальна сума чайових становить %@. Будь ласка, введіть меншу суму.";
 "error.description.tipTooSmall" = "Мінімальна сума чайових становить %@. Будь ласка, введіть більшу суму.";
 "error.description.tooManyAccounts" = "Ви можете створювати лише стільки нових акаунтів щодня.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Обсяг покупки занадто великий";
 "error.title.purchaseTooSmall" = "Обсяг покупки занадто малий";
 "error.title.timelockUnlocked" = "Ключ доступу більше не може використовуватися в Code";
+"error.title.tipCardNotActivated" = "Картку для чайових ще не активовано";
 "error.title.tipTooLarge" = "Чайові занадто великі";
 "error.title.tipTooSmall" = "Чайові занадто малі";
 "error.title.tooManyAccounts" = "Створено забагато акаунтів";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Запросіть друга в Code та отримайте 5 дол.";
 "push.subtitle.newSendCash" = "Надсилайте готівку через будь-який застосунок-месенджер";
 "push.subtitle.referralBonus" = "Ви отримали %@ Kin за надсилання комусь його першого Kin.";
+"push.subtitle.twitterAccountConnected" = "Тепер ви можете отримувати чайові.";
 "push.title.depositReceived" = "Депозит отримано";
 "push.title.kinReturned" = "Kin повернуто";
 "push.title.newOnCode" = "Новинка на Code";
 "push.title.referralBonus" = "Отримано реферальний бонус";
+"push.title.twitterAccountConnected" = "Акаунт X прив’язано";
 "subtitle.accessExpiredDescription" = "Термін дії вашого запрошення на доступ до Code минув. Ви можете вийти з системи та використовувати інший акаунт з дійсним статусом запрошення.";
 "subtitle.accessKeyDescription" = "Ваш ключ доступу — це єдиний спосіб отримати доступ до ваших коштів. Будь ласка, тримайте його в таємниці та безпеці.";
 "subtitle.accessKeyFaceID" = "Підтвердьте свою особу, щоб переглянути свій ключ доступу.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Хтось надіслав вам гроші";
 "subtitle.someoneTippedYou" = "Вам хтось дав чайові";
 "subtitle.tipCardForX" = "Ваша картка для чайових дозволяє отримувати чайові від користувачів Code з усього світу. Щоб скористатися вашою карткою, підключіть свій ідентифікатор X.";
+"subtitle.tipCardTwitterDescription" = "Картка для чайових дозволяє отримувати чайові від користувачів Code зі всього світу. Щоб отримати доступ до вашої картки для чайових, зробіть публікацію в X.";
 "subtitle.typeDelete" = "Уведіть \"%@\"";
 "subtitle.updateRequiredDescription" = "Ми внесли деякі зміни, щоб покращити роботу. Вам слід оновити застосунок, щоб і надалі використовувати Code.";
 "subtitle.validOwnerAccount" = "Дійсний рахунок власника";

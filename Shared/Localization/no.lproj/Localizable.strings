@@ -39,6 +39,7 @@
 "action.openSettings" = "Åpne innstillinger";
 "action.paste" = "Lim inn";
 "action.pasteFromClipboard" = "Lim inn fra utklippstavlen";
+"action.postToConnect" = "Skriv et innlegg for å koble til kontoen";
 "action.putInWallet" = "Legg i lommeboken";
 "action.recoverExistingAccount" = "Gjenopprett eksisterende konto";
 "action.remind" = "Påminn";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Sveip for å betale";
 "action.swipeToTip" = "Sveip for å tipse";
 "action.tryDifferentCodeAccount" = "Prøv en annen kodekonto";
+"action.tweetThem" = "Send dem en tweet";
 "action.unmute" = "Slå på lyden";
 "action.unsubscribe" = "Avslutt abonnement";
 "action.update" = "Oppdater";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Det maksimale antallet du kan kjøpe er %@. Angi en mindre mengde.";
 "error.description.purchaseTooSmall" = "Det minimale antallet du kan kjøpe er %@. Angi en større mengde.";
 "error.description.timelockUnlocked" = "Tilgangsnøkkelen din har åpnet for tilgang. Derfor kan du ikke lenger bruke denne tilgangsnøkkelen i Code.";
+"error.description.tipCardNotActivated" = "Send en tweet til denne personen for å aktiver personens tipskort.";
 "error.description.tipTooLarge" = "Det meste du kan tipse er %@. Legg inn et mindre beløp.";
 "error.description.tipTooSmall" = "Det minste du kan tipse er %@. Legg inn et større beløp.";
 "error.description.tooManyAccounts" = "Du kan bare opprette et visst antall nye kontoer hver dag.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Kjøpet er for stort";
 "error.title.purchaseTooSmall" = "Kjøpet er for lite";
 "error.title.timelockUnlocked" = "Tilgangsnøkkel kan ikke lenger brukes i Code";
+"error.title.tipCardNotActivated" = "Tipskort enda ikke aktivert";
 "error.title.tipTooLarge" = "For stort tips";
 "error.title.tipTooSmall" = "For lite tips";
 "error.title.tooManyAccounts" = "For mange kontoer er opprettet";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Få en venn i gang med Code og få USD 5";
 "push.subtitle.newSendCash" = "Send kontanter gjennom enhver meldingsapp";
 "push.subtitle.referralBonus" = "Du mottok Kin verdt %@ for for å ha sendt noen deres første Kin.";
+"push.subtitle.twitterAccountConnected" = "Nå kan du be om tips.";
 "push.title.depositReceived" = "Innskudd mottatt";
 "push.title.kinReturned" = "Kin returnert";
 "push.title.newOnCode" = "Ny på Code";
 "push.title.referralBonus" = "Henvisningsbonus mottatt";
+"push.title.twitterAccountConnected" = "X-konto tilkoblet";
 "subtitle.accessExpiredDescription" = "Din invitasjon til å få tilgang til koden er utløpt. Du kan logge ut og bruke en annen konto med en gyldig invitasjonsstatus.";
 "subtitle.accessKeyDescription" = "Tilgangsnøkkelen din er den eneste måten å få tilgang til pengene dine på. Bevar den privat og trygt.";
 "subtitle.accessKeyFaceID" = "Bekreft identiteten din for å se tilgangsnøkkelen din.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Noen sendte deg penger";
 "subtitle.someoneTippedYou" = "Noen tipset deg";
 "subtitle.tipCardForX" = "Tipskortet ditt lar deg motta tips fra Code-brukere over hele verden. For tilgang til tipskortet ditt koble deg opp til X-identiteten din.";
+"subtitle.tipCardTwitterDescription" = "Tipskortet ditt lar deg motta tips fra Code-brukere over hele verden. Skriv et innlegg til X for å få tilgang til tipskortet ditt.";
 "subtitle.typeDelete" = "Skriv \"%@\"";
 "subtitle.updateRequiredDescription" = "Vi har gjort noen endringer for å forbedre opplevelsen. Du må oppdatere appen for å fortsette å bruke koden.";
 "subtitle.validOwnerAccount" = "Gyldig eierkonto";

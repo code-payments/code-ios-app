@@ -39,6 +39,7 @@
 "action.openSettings" = "Instellingen openen";
 "action.paste" = "Plakken";
 "action.pasteFromClipboard" = "Plakken van klembord";
+"action.postToConnect" = "Post om het account te verbinden";
 "action.putInWallet" = "In wallet plaatsen";
 "action.recoverExistingAccount" = "Bestaand account herstellen";
 "action.remind" = "Herinneren";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Veeg om te betalen";
 "action.swipeToTip" = "Veeg naar fooi geven";
 "action.tryDifferentCodeAccount" = "Probeer een ander Code-account";
+"action.tweetThem" = "Tweet ze";
 "action.unmute" = "Dempen opheffen";
 "action.unsubscribe" = "Uitschrijven";
 "action.update" = "Updaten";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "Het maximale bedrag dat je kunt kopen is %@. Voer een kleiner bedrag in.";
 "error.description.purchaseTooSmall" = "Het minimale bedrag dat je kunt kopen is %@. Voer een groter bedrag in.";
 "error.description.timelockUnlocked" = "Je toegangssleutel heeft een ontgrendeling geactiveerd. Hierdoor kun je deze Toegangscode in code niet meer gebruiken.";
+"error.description.tipCardNotActivated" = "Stuur een tweet naar deze persoon om zijn/haar fooikaart te activeren.";
 "error.description.tipTooLarge" = "De maximale fooi is %@. Voer een kleiner bedrag in.";
 "error.description.tipTooSmall" = "De minimale fooi is %@. Voer een groter bedrag in.";
 "error.description.tooManyAccounts" = "Je kunt maar een beperkt aantal nieuwe accounts per dag aanmaken.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "Aankoop te groot";
 "error.title.purchaseTooSmall" = "Aankoop te klein";
 "error.title.timelockUnlocked" = "Toegangssleutel niet langer bruikbaar in code";
+"error.title.tipCardNotActivated" = "De fooikaart is nog niet geactiveerd";
 "error.title.tipTooLarge" = "De fooi is te groot";
 "error.title.tipTooSmall" = "De fooi is te klein";
 "error.title.tooManyAccounts" = "Te veel accounts aangemaakt";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Laat een vriend beginnen met Code en ontvang $5";
 "push.subtitle.newSendCash" = "Stuur geld via een messenger-app van jouw keuze";
 "push.subtitle.referralBonus" = "Je hebt %@ van Kin ontvangen omdat je iemand zijn of haar eerste Kin hebt gestuurd.";
+"push.subtitle.twitterAccountConnected" = "Je kunt nu fooien vragen.";
 "push.title.depositReceived" = "Storting ontvangen";
 "push.title.kinReturned" = "Kin geretourneerd";
 "push.title.newOnCode" = "Nieuw op Code";
 "push.title.referralBonus" = "Verwijzingsbonus ontvangen";
+"push.title.twitterAccountConnected" = "X-account verbonden";
 "subtitle.accessExpiredDescription" = "Je uitnodiging voor toegang tot Code is verlopen. Je kunt uitloggen en een ander account gebruiken met een geldige uitnodigingsstatus.";
 "subtitle.accessKeyDescription" = "Je toegangscode is de enige manier om toegang te krijgen tot je geld. Gelieve ze privé te houden en veilig op te slaan.";
 "subtitle.accessKeyFaceID" = "Je identiteit verifiëren om je toegangscode te zien.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Iemand heeft je geld gestuurd";
 "subtitle.someoneTippedYou" = "Iemand heeft je een fooi gegeven";
 "subtitle.tipCardForX" = "Met je fooikaart kunt je fooien ontvangen van codegebruikers over de hele wereld. Om toegang te krijgen tot je fooikaart, verbind je X-identiteit.";
+"subtitle.tipCardTwitterDescription" = "Met je fooikaart kunt je fooien ontvangen van Code-gebruikers over de hele wereld. Om toegang te krijgen tot je fooikaart, post op X.";
 "subtitle.typeDelete" = "Typ '%@'";
 "subtitle.updateRequiredDescription" = "We hebben enkele wijzigingen doorgevoerd om de ervaring te verbeteren. Je dient de app te updaten om Code te blijven gebruiken.";
 "subtitle.validOwnerAccount" = "Geldig eigenaarsaccount";

@@ -39,6 +39,7 @@
 "action.openSettings" = "Abrir ajustes";
 "action.paste" = "Pegar";
 "action.pasteFromClipboard" = "Pegar desde el portapapeles";
+"action.postToConnect" = "Publica para conectar la cuenta";
 "action.putInWallet" = "Guardar en el monedero";
 "action.recoverExistingAccount" = "Recuperar cuenta existente";
 "action.remind" = "Recordar";
@@ -58,6 +59,7 @@
 "action.swipeToPay" = "Deslizar para pagar";
 "action.swipeToTip" = "Deslizar para dar propina";
 "action.tryDifferentCodeAccount" = "Probar con una cuenta Code diferente";
+"action.tweetThem" = "Tuitéales";
 "action.unmute" = "Anular silencio";
 "action.unsubscribe" = "Cancelar suscripción";
 "action.update" = "Actualizar";
@@ -103,6 +105,7 @@
 "error.description.purchaseTooLarge" = "El máximo que puedes comprar es %@. Introduce una cantidad menor.";
 "error.description.purchaseTooSmall" = "El mínimo que puedes comprar es %@. Introduce una cantidad mayor.";
 "error.description.timelockUnlocked" = "Su Clave de Acceso ha iniciado un desbloqueo. Por consiguiente, ya no podrá utilizar esta clave de acceso en Code.";
+"error.description.tipCardNotActivated" = "Envía un tuit a esta persona para activar su tarjeta de propinas.";
 "error.description.tipTooLarge" = "La propina máxima es %@. Debes introducir una cantidad menor.";
 "error.description.tipTooSmall" = "La propina mínima es %@. Debes introducir una cantidad mayor.";
 "error.description.tooManyAccounts" = "Solo puedes crear un número limitado de cuentas nuevas cada día.";
@@ -133,6 +136,7 @@
 "error.title.purchaseTooLarge" = "La compra es demasiado grande";
 "error.title.purchaseTooSmall" = "La compra es demasiado pequeña";
 "error.title.timelockUnlocked" = "Esta clave de acceso ya no se podrá utilizar en Code";
+"error.title.tipCardNotActivated" = "Tarjeta de propinas todavía no activada";
 "error.title.tipTooLarge" = "Propina demasiado grande";
 "error.title.tipTooSmall" = "Propina demasiado pequeña";
 "error.title.tooManyAccounts" = "Has creado demasiadas cuentas";
@@ -191,10 +195,12 @@
 "push.subtitle.newGetFriendStarted" = "Inicia a un amigo en Code y consigue 5 $";
 "push.subtitle.newSendCash" = "Envía dinero a través de cualquier aplicación de mensajería";
 "push.subtitle.referralBonus" = "Has recibido %@de Kin por enviar a alguien su primer Kin.";
+"push.subtitle.twitterAccountConnected" = "Ahora puedes pedir propinas.";
 "push.title.depositReceived" = "Depósito recibido";
 "push.title.kinReturned" = "Kin devuelto";
 "push.title.newOnCode" = "Nuevo en Code";
 "push.title.referralBonus" = "Bono por recomendación recibido";
+"push.title.twitterAccountConnected" = "Cuenta de X conectada";
 "subtitle.accessExpiredDescription" = "Tu invitación de acceso a Code ha caducado. Puedes cerrar la sesión y utilizar una cuenta diferente con una invitación válida.";
 "subtitle.accessKeyDescription" = "Tu clave de acceso es la única forma de acceder a tus fondos. Asegúrate de guardarla de forma privada y segura.";
 "subtitle.accessKeyFaceID" = "Verifica tu identidad para ver tu clave de acceso.";
@@ -261,6 +267,7 @@
 "subtitle.someoneSendYouCash" = "Alguien te ha enviado dinero";
 "subtitle.someoneTippedYou" = "Alguien te ha dado una propina";
 "subtitle.tipCardForX" = "Tu tarjeta de propinas te permite recibir propinas de usuarios de Code de todo el mundo. Para poder acceder a tu tarjeta de propinas, conecta con tu identidad de X.";
+"subtitle.tipCardTwitterDescription" = "Con tu tarjeta de propinas puedes recibir propinas de usuarios de Code de todo el mundo. Para acceder a tu tarjeta de propinas, publica en X. ";
 "subtitle.typeDelete" = "Escribe \"%@\"";
 "subtitle.updateRequiredDescription" = "Hemos realizado algunos cambios para mejorar la experiencia. Tendrás que actualizar la aplicación para seguir utilizando Code.";
 "subtitle.validOwnerAccount" = "Cuenta de titular válida";
