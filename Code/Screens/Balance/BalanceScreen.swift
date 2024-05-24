@@ -26,6 +26,7 @@ struct BalanceScreen: View {
     @State private var isShowingFAQ: Bool = false
     @State private var isShowingBuckets: Bool = false
     @State private var isShowingBuyMoreKin: Bool = false
+    @State private var isShowingCurrencySelection: Bool = false
     
     private var chats: [Chat] {
         historyController.chats
@@ -124,9 +125,29 @@ struct BalanceScreen: View {
                 }
             }
             .navigationBarTitle(Text(Localized.Title.balance), displayMode: .inline)
+            .sheet(isPresented: $isShowingBuckets) {
+                BucketScreen(
+                    isPresented: $isShowingBuckets,
+                    organizer: session.organizer
+                )
+                .environmentObject(exchange)
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
+                }
+                
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if betaFlags.hasEnabled(.bucketDebugger) {
+                        Button {
+                            isShowingBuckets.toggle()
+                        } label: {
+                            Image(systemName: "note.text")
+                                .padding(5)
+                        }
+                    } else {
+                        EmptyView()
+                    }
                 }
             }
         }
@@ -142,12 +163,8 @@ struct BalanceScreen: View {
                 FAQScreen(isPresented: $isShowingFAQ)
             }
             
-//            Flow(isActive: $isShowingBuyMoreKin) {
-//                DepositUSDCScreen(session: session)
-//            }
-            
             Button {
-                isShowingBuckets.toggle()
+                isShowingCurrencySelection.toggle()
             } label: {
                 AmountText(
                     flagStyle: exchange.localRate.currency.flagStyle,
@@ -161,11 +178,13 @@ struct BalanceScreen: View {
                 .foregroundColor(.textMain)
                 .frame(maxWidth: .infinity)
             }
-            .disabled(!betaFlags.hasEnabled(.bucketDebugger))
-            .sheet(isPresented: $isShowingBuckets) {
-                BucketScreen(
-                    isPresented: $isShowingBuckets,
-                    organizer: session.organizer
+            .sheet(isPresented: $isShowingCurrencySelection) {
+                CurrencySelectionScreen(
+                    viewModel: CurrencySelectionViewModel(
+                        isPresented: $isShowingCurrencySelection,
+                        exchange: exchange,
+                        kind: .local
+                    )
                 )
                 .environmentObject(exchange)
             }
@@ -179,9 +198,6 @@ struct BalanceScreen: View {
                         Text(Localized.Subtitle.learnMore)
                             .underline()
                     }
-//                    .sheet(isPresented: $isShowingFAQ) {
-//                        FAQScreen(isPresented: $isShowingFAQ)
-//                    }
                 }
                 .font(.appTextMedium)
                 .foregroundColor(.textSecondary)
@@ -221,9 +237,6 @@ struct BalanceScreen: View {
                     Text(Localized.Subtitle.learnMore)
                         .underline()
                 }
-//                .sheet(isPresented: $isShowingFAQ) {
-//                    FAQScreen(isPresented: $isShowingFAQ)
-//                }
             }
             .padding(.bottom, 150)
         }

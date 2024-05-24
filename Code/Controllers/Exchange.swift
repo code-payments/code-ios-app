@@ -20,7 +20,8 @@ class Exchange: ObservableObject {
     
     @SecureCodable(.rates) private var storedRates: RatesBox?
     
-    @Defaults(.currency) private var entryCurrency: CurrencyCode?
+    @Defaults(.entryCurrency) private var entryCurrency: CurrencyCode?
+    @Defaults(.localCurrency) private var localCurrency: CurrencyCode?
     
     private var poller: Poller!
     
@@ -78,8 +79,13 @@ class Exchange: ObservableObject {
     
     // MARK: - Setters -
     
-    func set(currency: CurrencyCode) {
+    func setEntryCurrency(_ currency: CurrencyCode) {
         entryCurrency = currency
+        updateRates()
+    }
+    
+    func setLocalCurrency(_ currency: CurrencyCode) {
+        localCurrency = currency
         updateRates()
     }
     
@@ -93,11 +99,27 @@ class Exchange: ObservableObject {
         rates = ratesBox
         rateDate = ratesBox.date
         
-        setLocalEntryCurrencyIfNeeded()
+        setLocalCurrencyIfNeeded()
+        setEntryCurrencyToLocalIfNeeded()
+        
         updateRates()
     }
     
-    private func setLocalEntryCurrencyIfNeeded() {
+    private func setLocalCurrencyIfNeeded() {
+        guard localCurrency == nil else {
+            // Only set a local currency the first
+            // time when it hasn't been set yet
+            return
+        }
+        
+        guard let currency = CurrencyCode.local() else {
+            return
+        }
+        
+        localCurrency = currency
+    }
+    
+    private func setEntryCurrencyToLocalIfNeeded() {
         guard entryCurrency == nil else {
             // Only set a default currency
             // if one is not already set
@@ -116,27 +138,27 @@ class Exchange: ObservableObject {
             return
         }
         
-        if let localCurrency = CurrencyCode.local() {
-            if let rate = rates.rate(for: localCurrency) {
+        if let currency = localCurrency {
+            if let rate = rates.rate(for: currency) {
                 localRate = rate
-                trace(.note, components: "Updated the local currency: \(localCurrency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
+                trace(.note, components: "Updated the local currency: \(currency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
             } else {
                 // If a rate for a local currency isn't found,
                 // default to US currency and region
                 localRate = rates.rateForUSD()
-                trace(.failure, components: "Rate for local \(localCurrency) not found. Defaulting to USD.")
+                trace(.failure, components: "Rate for local \(currency) not found. Defaulting to USD.")
             }
         }
         
-        if let entryCurrency = entryCurrency {
-            if let rate = rates.rate(for: entryCurrency) {
+        if let currency = entryCurrency {
+            if let rate = rates.rate(for: currency) {
                 entryRate = rate
-                trace(.note, components: "Updated the entry currency: \(entryCurrency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
+                trace(.note, components: "Updated the entry currency: \(currency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
             } else {
                 // If a rate for an entry currency isn't found,
                 // default to US currency and region
                 entryRate = rates.rateForUSD()
-                trace(.failure, components: "Rate for entry \(entryCurrency) not found. Defaulting to USD.")
+                trace(.failure, components: "Rate for entry \(currency) not found. Defaulting to USD.")
             }
         }
     }

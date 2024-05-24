@@ -106,7 +106,8 @@ struct RequestKinScreen: View {
                         CurrencySelectionScreen(
                             viewModel: CurrencySelectionViewModel(
                                 isPresented: $isPresentingCurrencySelection,
-                                exchange: exchange
+                                exchange: exchange,
+                                kind: .entry
                             )
                         )
                         .environmentObject(exchange)

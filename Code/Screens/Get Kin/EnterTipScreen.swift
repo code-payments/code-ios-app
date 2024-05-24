@@ -265,7 +265,8 @@ struct EnterTipScreen: View {
                         CurrencySelectionScreen(
                             viewModel: CurrencySelectionViewModel(
                                 isPresented: $viewModel.isPresentingCurrencySelection,
-                                exchange: viewModel.exchange
+                                exchange: viewModel.exchange,
+                                kind: .entry
                             )
                         )
                         .environmentObject(viewModel.exchange)

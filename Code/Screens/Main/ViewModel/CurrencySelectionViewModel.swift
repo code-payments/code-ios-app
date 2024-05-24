@@ -32,6 +32,7 @@ class CurrencySelectionViewModel: ObservableObject {
         }
     }
     
+    private let kind: Kind
     private let exchange: Exchange
     private let currencies: [CurrencyDescription]
     private var recentCurrencies: Set<CurrencyCode>
@@ -41,9 +42,10 @@ class CurrencySelectionViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, exchange: Exchange) {
+    init(isPresented: Binding<Bool>, exchange: Exchange, kind: Kind) {
         self.isPresented = isPresented
         self.exchange   = exchange
+        self.kind = kind
         self.currencies = CurrencyCode.allCurrencies(in: .current)
         self.recentCurrencies = Self.storedRecentCurrencies ?? []
         
@@ -89,7 +91,8 @@ class CurrencySelectionViewModel: ObservableObject {
     // MARK: - Selection -
     
     func select(currency: CurrencyCode) {
-        exchange.set(currency: currency)
+        setSelectedCurrency(currency)
+        
         isFocused = false
         Task {
             try await Task.delay(milliseconds: 200)
@@ -99,6 +102,15 @@ class CurrencySelectionViewModel: ObservableObject {
             // when inserting recent items
             try await Task.delay(milliseconds: 200)
             insertRecent(currency)
+        }
+    }
+    
+    private func setSelectedCurrency(_ currency: CurrencyCode) {
+        switch kind {
+        case .entry:
+            exchange.setEntryCurrency(currency)
+        case .local:
+            exchange.setLocalCurrency(currency)
         }
     }
     
@@ -113,6 +125,18 @@ class CurrencySelectionViewModel: ObservableObject {
     }
     
     func isCurrencyActive(_ currency: CurrencyCode) -> Bool {
-        currency == exchange.entryRate.currency
+        switch kind {
+        case .entry:
+            return currency == exchange.entryRate.currency
+        case .local:
+            return currency == exchange.localRate.currency
+        }
+    }
+}
+
+extension CurrencySelectionViewModel {
+    enum Kind {
+        case entry
+        case local
     }
 }

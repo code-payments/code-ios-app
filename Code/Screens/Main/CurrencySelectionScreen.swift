@@ -131,7 +131,8 @@ struct CurrencySelectionScreen_Previews: PreviewProvider {
         CurrencySelectionScreen(
             viewModel: CurrencySelectionViewModel(
                 isPresented: .constant(true),
-                exchange: .mock
+                exchange: .mock,
+                kind: .entry
             )
         )
         .environmentObjectsForSession()
