@@ -172,7 +172,8 @@ struct BalanceScreen: View {
                         rate: exchange.localRate,
                         truncated: true,
                         showOfKin: true
-                    )
+                    ),
+                    showChevron: true
                 )
                 .font(.appDisplayMedium)
                 .foregroundColor(.textMain)
