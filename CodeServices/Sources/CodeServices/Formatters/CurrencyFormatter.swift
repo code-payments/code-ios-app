@@ -50,7 +50,7 @@ extension NumberFormatter {
         let f = NumberFormatter()
         f.numberStyle = .currency
         f.minimumFractionDigits = currency == .kin ? 0 : minimumFractionDigits
-        f.maximumFractionDigits = minimumFractionDigits
+        f.maximumFractionDigits = currency == .kin ? 0 : minimumFractionDigits
         f.generatesDecimalNumbers = true
         f.roundingMode = truncated ? .down : .halfDown
         
