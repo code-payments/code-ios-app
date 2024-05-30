@@ -55,7 +55,10 @@ struct ChatScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 Flow(isActive: $isShowingConversation) {
-                    ConversationScreen()
+                    ConversationScreen(
+                        chatID: chat.id,
+                        owner: historyController.owner
+                    )
                 }
                 
                 MessageList(

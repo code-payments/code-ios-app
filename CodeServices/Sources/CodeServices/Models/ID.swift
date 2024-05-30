@@ -12,14 +12,20 @@ public struct ID: Codable, Equatable, Hashable {
     
     public let data: Data
     
-    init(data: Data) {
+    public init(data: Data) {
         self.data = data
     }
 }
 
 extension ID {
+    enum Error: Swift.Error {
+        case invalidData
+    }
+}
+
+extension ID {
     public var uuid: UUID? {
-        guard data.count >= 16 else {
+        guard data.count == 16 else {
             return nil
         }
         

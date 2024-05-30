@@ -10,8 +10,116 @@ import Foundation
 import CodeAPI
 import Combine
 import GRPC
+import SwiftProtobuf
 
 class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
+        
+    func openChatStream(chatID: ID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], Error>) -> Void) -> ChatMessageStreamReference {
+        trace(.open, components: "Chat \(chatID.description)]", "Opening stream.")
+        
+        let streamReference = ChatMessageStreamReference()
+        streamReference.retain()
+        
+        streamReference.timeoutHandler = { [weak self, weak streamReference] in
+            guard let streamReference else {
+                return
+            }
+            
+            trace(.warning, components: "Chat \(chatID.description)]", "Stream timed out")
+            
+            self?.openChatStream(
+                chatID: chatID,
+                owner: owner,
+                assigningTo: streamReference,
+                completion: completion
+            )
+        }
+        
+        openChatStream(
+            chatID: chatID,
+            owner: owner,
+            assigningTo: streamReference,
+            completion: completion
+        )
+        
+        return streamReference
+    }
+    
+    private func openChatStream(chatID: ID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[Chat.Message], Error>) -> Void) {
+        let queue = self.queue
+        
+        reference.cancel()
+        reference.stream = service.streamChatEvents { [weak reference] response in
+            
+            guard let result = response.type else {
+                trace(.failure, components: "Chat \(chatID.description)]", "Server sent empty message. This is unexpected.")
+                return
+            }
+            
+            switch result {
+            case .events(let eventBatch):
+                
+                let messages = eventBatch.events
+                    .flatMap { $0.messages }
+                    .map { Chat.Message($0) }
+                
+                queue.async {
+                    trace(.receive, components: "Chat \(chatID.description)", "Received \(messages.count) messages.")
+                    completion(.success(messages))
+                }
+                
+            case .ping(let ping):
+                guard let stream = reference?.stream else {
+                    break
+                }
+                
+                // TODO: Track ping timestamps and reopen stream if we haven't received a ping in `pingDelay` * 2
+                
+                let request = Code_Chat_V1_StreamChatEventsRequest.with {
+                    $0.type = .pong(.with {
+                        $0.timestamp = Google_Protobuf_Timestamp(date: .now())
+                    })
+                }
+                
+                reference?.receivedPing()
+                _ = stream.sendMessage(request)
+                trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
+                
+                // TODO: Handle message sent
+                
+                break
+            }
+        }
+        
+        reference.stream?.status.whenCompleteBlocking(onto: queue) { [weak self, weak reference] result in
+            guard let self = self, let streamReference = reference else { return }
+            
+            if case .success(let status) = result, status.code == .unavailable {
+                // Reconnect only if the stream was closed as a result of
+                // server actions and not cancelled by the client, etc.
+                trace(.note, components: "Chat \(chatID.description)", "Reconnecting keepalive stream...")
+                self.openChatStream(
+                    chatID: chatID,
+                    owner: owner,
+                    assigningTo: streamReference,
+                    completion: completion
+                )
+            } else {
+                trace(.warning, components: "Chat \(chatID.description)", "Closing stream.")
+            }
+        }
+        
+        let request = Code_Chat_V1_StreamChatEventsRequest.with {
+            $0.openStream = .with {
+                $0.chatID    = .with { $0.value = chatID.data }
+                $0.owner     = owner.publicKey.codeAccountID
+                $0.signature = $0.sign(with: owner)
+            }
+        }
+        
+        _ = reference.stream?.sendMessage(request)
+        trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
+    }
     
     func fetchChats(owner: KeyPair, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
@@ -214,6 +322,14 @@ public enum ErrorSetSubscriptionState: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeStreamChatEventsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_StreamChatEventsRequest, CodeAPI.Code_Chat_V1_StreamChatEventsResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeSendMessageInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_SendMessageRequest, CodeAPI.Code_Chat_V1_SendMessageResponse>] {
+        makeInterceptors()
+    }
+    
     func makeSetMuteStateInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_SetMuteStateRequest, CodeAPI.Code_Chat_V1_SetMuteStateResponse>] {
         makeInterceptors()
     }
