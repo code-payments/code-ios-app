@@ -9,7 +9,6 @@ option objc_class_prefix = "CPBMessagingV1";
 import "common/v1/model.proto";
 import "transaction/v2/transaction_service.proto";
 import "validate/validate.proto";
-import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 service Messaging {
@@ -125,20 +124,20 @@ message OpenMessageStreamResponse {
 }
 
 message OpenMessageStreamWithKeepAliveRequest {
-    oneof requestOrPong {
+    oneof request_or_pong {
         option (validate.required) = true;
 
         OpenMessageStreamRequest request = 1;
-        ClientPong pong = 2;
+        common.v1.ClientPong pong = 2;
     }
 }
 
 message OpenMessageStreamWithKeepAliveResponse {
-    oneof responseOrPing {
+    oneof response_or_ping {
         option (validate.required) = true;
 
         OpenMessageStreamResponse response = 1;
-        ServerPing ping = 2;
+        common.v1.ServerPing ping = 2;
     }
 }
 
@@ -413,19 +412,4 @@ message Message {
     }
     // Reserved for deprecated LoginAttempt field
     reserved 11;
-}
-
-message ServerPing {
-    // Timestamp the ping was sent on the stream, for client to get a sense
-    // of potential network latency
-    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
-
-    // The delay server will apply before sending the next ping
-    google.protobuf.Duration ping_delay = 2 [(validate.rules).duration.required = true];
-}
-
-message ClientPong {
-    // Timestamp the Pong was sent on the stream, for server to get a sense
-    // of potential network latency
-    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
 }

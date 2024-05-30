@@ -277,7 +277,7 @@ extension Chat.Content {
     
     public init?(_ proto: Code_Chat_V1_Content) {
         switch proto.type {
-        case .localized(let string):
+        case .serverLocalized(let string):
             self = .localized(string.keyOrText)
             
         case .exchangeData(let exchange):
