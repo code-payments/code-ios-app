@@ -11,6 +11,10 @@ import CodeServices
 
 struct ConversationScreen: View {
     
+    let chatID: ID
+    let owner: KeyPair
+    
+    @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var betaFlags: BetaFlags
     
@@ -21,11 +25,35 @@ struct ConversationScreen: View {
     
     @State private var isShowingRevealIdentity: Bool = false
     
+    @State private var stream: ChatMessageStreamReference?
+    
     // MARK: - Init -
     
-    init() {
-        
+    init(chatID: ID, owner: KeyPair) {
+        self.chatID = ID(data: Data(fromHexEncodedString: "468f158662880905e966f7c27f36b39e368837887aa5cf889cb55d91537d1a76")!)
+        self.owner = owner
     }
+    
+    private func didAppear() {
+        stream = client.openChatStream(chatID: chatID, owner: owner) { result in
+            switch result {
+            case .success(let messages):
+                streamUpdate(messages: messages)
+            case .failure(let failure):
+                break
+            }
+        }
+    }
+    
+    private func didDisappear() {
+        stream?.destroy()
+    }
+    
+    private func streamUpdate(messages: [Chat.Message]) {
+        print("Messages: \(messages)")
+    }
+    
+    // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
@@ -69,6 +97,8 @@ struct ConversationScreen: View {
                 .padding(.bottom, 8)
             }
         }
+        .onAppear(perform: didAppear)
+        .onDisappear(perform: didDisappear)
         .interactiveDismissDisabled()
         .navigationBarHidden(false)
         .toolbar {
@@ -372,6 +402,6 @@ struct RevealIdentityBanner: View {
 }
 
 #Preview {
-    ConversationScreen()
+    ConversationScreen(chatID: .mock, owner: .mock)
         .environmentObjectsForSession()
 }
