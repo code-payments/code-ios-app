@@ -6,6 +6,8 @@ option go_package = "github.com/code-payments/code-protobuf-api/generated/go/com
 option java_package = "com.codeinc.gen.common.v1";
 option objc_class_prefix = "CPBCommonV1";
 
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 // AccountType associates a type to an account, which infers how an account is used
@@ -180,4 +182,19 @@ message Response {
         OK = 0;
         ERROR = 1;
     }
+}
+
+message ServerPing {
+    // Timestamp the ping was sent on the stream, for client to get a sense
+    // of potential network latency
+    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+
+    // The delay server will apply before sending the next ping
+    google.protobuf.Duration ping_delay = 2 [(validate.rules).duration.required = true];
+}
+
+message ClientPong {
+    // Timestamp the Pong was sent on the stream, for server to get a sense
+    // of potential network latency
+    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
 }

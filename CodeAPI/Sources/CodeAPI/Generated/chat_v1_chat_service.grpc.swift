@@ -55,6 +55,16 @@ public protocol Code_Chat_V1_ChatClientProtocol: GRPCClient {
     _ request: Code_Chat_V1_SetSubscriptionStateRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Chat_V1_SetSubscriptionStateRequest, Code_Chat_V1_SetSubscriptionStateResponse>
+
+  func streamChatEvents(
+    callOptions: CallOptions?,
+    handler: @escaping (Code_Chat_V1_StreamChatEventsResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Chat_V1_StreamChatEventsRequest, Code_Chat_V1_StreamChatEventsResponse>
+
+  func sendMessage(
+    _ request: Code_Chat_V1_SendMessageRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Chat_V1_SendMessageRequest, Code_Chat_V1_SendMessageResponse>
 }
 
 extension Code_Chat_V1_ChatClientProtocol {
@@ -151,6 +161,45 @@ extension Code_Chat_V1_ChatClientProtocol {
       interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
+
+  /// Bidirectional streaming call to StreamChatEvents
+  ///
+  /// Callers should use the `send` method on the returned object to send messages
+  /// to the server. The caller should send an `.end` after the final message has been sent.
+  ///
+  /// - Parameters:
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
+  public func streamChatEvents(
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Code_Chat_V1_StreamChatEventsResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Chat_V1_StreamChatEventsRequest, Code_Chat_V1_StreamChatEventsResponse> {
+    return self.makeBidirectionalStreamingCall(
+      path: Code_Chat_V1_ChatClientMetadata.Methods.streamChatEvents.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamChatEventsInterceptors() ?? [],
+      handler: handler
+    )
+  }
+
+  /// Unary call to SendMessage
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to SendMessage.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func sendMessage(
+    _ request: Code_Chat_V1_SendMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Chat_V1_SendMessageRequest, Code_Chat_V1_SendMessageResponse> {
+    return self.makeUnaryCall(
+      path: Code_Chat_V1_ChatClientMetadata.Methods.sendMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
+    )
+  }
 }
 
 #if compiler(>=5.6)
@@ -242,6 +291,15 @@ public protocol Code_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     _ request: Code_Chat_V1_SetSubscriptionStateRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Chat_V1_SetSubscriptionStateRequest, Code_Chat_V1_SetSubscriptionStateResponse>
+
+  func makeStreamChatEventsCall(
+    callOptions: CallOptions?
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Chat_V1_StreamChatEventsRequest, Code_Chat_V1_StreamChatEventsResponse>
+
+  func makeSendMessageCall(
+    _ request: Code_Chat_V1_SendMessageRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Chat_V1_SendMessageRequest, Code_Chat_V1_SendMessageResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -313,6 +371,28 @@ extension Code_Chat_V1_ChatAsyncClientProtocol {
       interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
+
+  public func makeStreamChatEventsCall(
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Chat_V1_StreamChatEventsRequest, Code_Chat_V1_StreamChatEventsResponse> {
+    return self.makeAsyncBidirectionalStreamingCall(
+      path: Code_Chat_V1_ChatClientMetadata.Methods.streamChatEvents.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamChatEventsInterceptors() ?? []
+    )
+  }
+
+  public func makeSendMessageCall(
+    _ request: Code_Chat_V1_SendMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Chat_V1_SendMessageRequest, Code_Chat_V1_SendMessageResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Chat_V1_ChatClientMetadata.Methods.sendMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -376,6 +456,42 @@ extension Code_Chat_V1_ChatAsyncClientProtocol {
       interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
+
+  public func streamChatEvents<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Chat_V1_StreamChatEventsResponse> where RequestStream: Sequence, RequestStream.Element == Code_Chat_V1_StreamChatEventsRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Chat_V1_ChatClientMetadata.Methods.streamChatEvents.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamChatEventsInterceptors() ?? []
+    )
+  }
+
+  public func streamChatEvents<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Chat_V1_StreamChatEventsResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Code_Chat_V1_StreamChatEventsRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Chat_V1_ChatClientMetadata.Methods.streamChatEvents.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamChatEventsInterceptors() ?? []
+    )
+  }
+
+  public func sendMessage(
+    _ request: Code_Chat_V1_SendMessageRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Chat_V1_SendMessageResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Chat_V1_ChatClientMetadata.Methods.sendMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -413,6 +529,12 @@ public protocol Code_Chat_V1_ChatClientInterceptorFactoryProtocol: GRPCSendable 
 
   /// - Returns: Interceptors to use when invoking 'setSubscriptionState'.
   func makeSetSubscriptionStateInterceptors() -> [ClientInterceptor<Code_Chat_V1_SetSubscriptionStateRequest, Code_Chat_V1_SetSubscriptionStateResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'streamChatEvents'.
+  func makeStreamChatEventsInterceptors() -> [ClientInterceptor<Code_Chat_V1_StreamChatEventsRequest, Code_Chat_V1_StreamChatEventsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'sendMessage'.
+  func makeSendMessageInterceptors() -> [ClientInterceptor<Code_Chat_V1_SendMessageRequest, Code_Chat_V1_SendMessageResponse>]
 }
 
 public enum Code_Chat_V1_ChatClientMetadata {
@@ -425,6 +547,8 @@ public enum Code_Chat_V1_ChatClientMetadata {
       Code_Chat_V1_ChatClientMetadata.Methods.advancePointer,
       Code_Chat_V1_ChatClientMetadata.Methods.setMuteState,
       Code_Chat_V1_ChatClientMetadata.Methods.setSubscriptionState,
+      Code_Chat_V1_ChatClientMetadata.Methods.streamChatEvents,
+      Code_Chat_V1_ChatClientMetadata.Methods.sendMessage,
     ]
   )
 
@@ -458,6 +582,18 @@ public enum Code_Chat_V1_ChatClientMetadata {
       path: "/code.chat.v1.Chat/SetSubscriptionState",
       type: GRPCCallType.unary
     )
+
+    public static let streamChatEvents = GRPCMethodDescriptor(
+      name: "StreamChatEvents",
+      path: "/code.chat.v1.Chat/StreamChatEvents",
+      type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let sendMessage = GRPCMethodDescriptor(
+      name: "SendMessage",
+      path: "/code.chat.v1.Chat/SendMessage",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -479,6 +615,10 @@ public protocol Code_Chat_V1_ChatProvider: CallHandlerProvider {
 
   /// SetSubscriptionState configures the susbscription state of a chat
   func setSubscriptionState(request: Code_Chat_V1_SetSubscriptionStateRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V1_SetSubscriptionStateResponse>
+
+  func streamChatEvents(context: StreamingResponseCallContext<Code_Chat_V1_StreamChatEventsResponse>) -> EventLoopFuture<(StreamEvent<Code_Chat_V1_StreamChatEventsRequest>) -> Void>
+
+  func sendMessage(request: Code_Chat_V1_SendMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V1_SendMessageResponse>
 }
 
 extension Code_Chat_V1_ChatProvider {
@@ -538,6 +678,24 @@ extension Code_Chat_V1_ChatProvider {
         userFunction: self.setSubscriptionState(request:context:)
       )
 
+    case "StreamChatEvents":
+      return BidirectionalStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Chat_V1_StreamChatEventsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Chat_V1_StreamChatEventsResponse>(),
+        interceptors: self.interceptors?.makeStreamChatEventsInterceptors() ?? [],
+        observerFactory: self.streamChatEvents(context:)
+      )
+
+    case "SendMessage":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Chat_V1_SendMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Chat_V1_SendMessageResponse>(),
+        interceptors: self.interceptors?.makeSendMessageInterceptors() ?? [],
+        userFunction: self.sendMessage(request:context:)
+      )
+
     default:
       return nil
     }
@@ -581,6 +739,17 @@ public protocol Code_Chat_V1_ChatAsyncProvider: CallHandlerProvider {
     request: Code_Chat_V1_SetSubscriptionStateRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Chat_V1_SetSubscriptionStateResponse
+
+  @Sendable func streamChatEvents(
+    requestStream: GRPCAsyncRequestStream<Code_Chat_V1_StreamChatEventsRequest>,
+    responseStream: GRPCAsyncResponseStreamWriter<Code_Chat_V1_StreamChatEventsResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
+
+  @Sendable func sendMessage(
+    request: Code_Chat_V1_SendMessageRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Chat_V1_SendMessageResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -647,6 +816,24 @@ extension Code_Chat_V1_ChatAsyncProvider {
         wrapping: self.setSubscriptionState(request:context:)
       )
 
+    case "StreamChatEvents":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Chat_V1_StreamChatEventsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Chat_V1_StreamChatEventsResponse>(),
+        interceptors: self.interceptors?.makeStreamChatEventsInterceptors() ?? [],
+        wrapping: self.streamChatEvents(requestStream:responseStream:context:)
+      )
+
+    case "SendMessage":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Chat_V1_SendMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Chat_V1_SendMessageResponse>(),
+        interceptors: self.interceptors?.makeSendMessageInterceptors() ?? [],
+        wrapping: self.sendMessage(request:context:)
+      )
+
     default:
       return nil
     }
@@ -676,6 +863,14 @@ public protocol Code_Chat_V1_ChatServerInterceptorFactoryProtocol {
   /// - Returns: Interceptors to use when handling 'setSubscriptionState'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetSubscriptionStateInterceptors() -> [ServerInterceptor<Code_Chat_V1_SetSubscriptionStateRequest, Code_Chat_V1_SetSubscriptionStateResponse>]
+
+  /// - Returns: Interceptors to use when handling 'streamChatEvents'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeStreamChatEventsInterceptors() -> [ServerInterceptor<Code_Chat_V1_StreamChatEventsRequest, Code_Chat_V1_StreamChatEventsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'sendMessage'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSendMessageInterceptors() -> [ServerInterceptor<Code_Chat_V1_SendMessageRequest, Code_Chat_V1_SendMessageResponse>]
 }
 
 public enum Code_Chat_V1_ChatServerMetadata {
@@ -688,6 +883,8 @@ public enum Code_Chat_V1_ChatServerMetadata {
       Code_Chat_V1_ChatServerMetadata.Methods.advancePointer,
       Code_Chat_V1_ChatServerMetadata.Methods.setMuteState,
       Code_Chat_V1_ChatServerMetadata.Methods.setSubscriptionState,
+      Code_Chat_V1_ChatServerMetadata.Methods.streamChatEvents,
+      Code_Chat_V1_ChatServerMetadata.Methods.sendMessage,
     ]
   )
 
@@ -719,6 +916,18 @@ public enum Code_Chat_V1_ChatServerMetadata {
     public static let setSubscriptionState = GRPCMethodDescriptor(
       name: "SetSubscriptionState",
       path: "/code.chat.v1.Chat/SetSubscriptionState",
+      type: GRPCCallType.unary
+    )
+
+    public static let streamChatEvents = GRPCMethodDescriptor(
+      name: "StreamChatEvents",
+      path: "/code.chat.v1.Chat/StreamChatEvents",
+      type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let sendMessage = GRPCMethodDescriptor(
+      name: "SendMessage",
+      path: "/code.chat.v1.Chat/SendMessage",
       type: GRPCCallType.unary
     )
   }
