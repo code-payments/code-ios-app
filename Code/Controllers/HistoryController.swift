@@ -11,6 +11,8 @@ import CodeServices
 @MainActor
 class HistoryController: ObservableObject {
     
+    let owner: KeyPair
+
     @Published private(set) var hasFetchedChats: Bool = false
     
     @Published private(set) var chats: [Chat] = []
@@ -19,7 +21,6 @@ class HistoryController: ObservableObject {
     
     private let client: Client
     private let organizer: Organizer
-    private let owner: KeyPair
     
     private let pageSize: Int = 100
     

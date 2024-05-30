@@ -7,8 +7,15 @@
 //
 
 import Foundation
+import CodeAPI
+
+public typealias ChatMessageStreamReference = BidirectionalStreamReference<Code_Chat_V1_StreamChatEventsRequest, Code_Chat_V1_StreamChatEventsResponse>
 
 extension Client {
+    
+    public func openChatStream(chatID: ID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], Error>) -> Void) -> ChatMessageStreamReference {
+        chatService.openChatStream(chatID: chatID, owner: owner, completion: completion)
+    }
     
     public func fetchChats(owner: KeyPair) async throws -> [Chat] {
         try await withCheckedThrowingContinuation { c in

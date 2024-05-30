@@ -85,7 +85,7 @@ class AccountService: CodeService<Code_Account_V1_AccountNIOClient> {
             } catch {}
             
 //            trace(.success, components: container.map { "\($0.key.base58) | \($0.value.index) | \($0.value.balance) | \($0.value.accountType) | \($0.value.balanceSource) | \($0.value.managementState) | \($0.value.blockchainState)" })
-            trace(.success, components: "Fetched \(response.tokenAccountInfos.count) infos.")
+//            trace(.success, components: "Fetched \(response.tokenAccountInfos.count) infos.")
             completion(.success(container))
             
         } failure: { error in

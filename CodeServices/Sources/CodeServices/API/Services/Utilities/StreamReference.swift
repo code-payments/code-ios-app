@@ -29,11 +29,28 @@ class StreamReference<Request, Response>: Cancellable {
     }
 }
 
-class BidirectionalStreamReference<Request, Response>: Cancellable {
+public class BidirectionalStreamReference<Request, Response>: Cancellable {
     
-    var stream: BidirectionalStreamingCall<Request, Response>?
+    var stream: BidirectionalStreamingCall<Request, Response>? {
+        didSet {
+            if stream != nil {
+                postponeTimeout()
+            } else {
+                cancelTimeout()
+            }
+        }
+    }
+    
+    var timeoutHandler: (() -> Void)?
+    
+    private(set) var lastPing: Date?
+    private(set) var pingTimeout: Int = 15 // seconds
     
     private var closure: (() -> Void)?
+    
+    private var timeoutTask: Task<Void, Error>?
+    
+    // MARK: - Init -
     
     init() {}
     
@@ -45,9 +62,52 @@ class BidirectionalStreamReference<Request, Response>: Cancellable {
         trace(.note, components: "Deallocating bidirectional stream reference: \(Request.self)")
     }
     
-    func cancel() {
+    // MARK: - Ping -
+    
+    func receivedPing() {
+        lastPing = .now
+        postponeTimeout()
+    }
+    
+    func cancelTimeout() {
+        timeoutTask?.cancel()
+        timeoutTask = nil
+    }
+    
+    func postponeTimeout() {
+        cancelTimeout()
+        
+        timeoutTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            
+            guard !Task.isCancelled else {
+                return
+            }
+            
+            try await Task.delay(seconds: self.pingTimeout)
+            
+            if !Task.isCancelled {
+                self.timeoutHandler?()
+            }
+        }
+    }
+    
+    // MARK: - Cancel -
+    
+    public func destroy() {
+        timeoutHandler = nil
+        cancelTimeout()
+        cancel()
+        release()
+    }
+    
+    public func cancel() {
         stream?.cancel(promise: nil)
     }
+    
+    // MARK: - Memory -
     
     func retain() {
         closure = { _ = self }
