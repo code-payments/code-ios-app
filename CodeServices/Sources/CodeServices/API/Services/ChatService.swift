@@ -81,7 +81,8 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
                     })
                 }
                 
-                reference?.receivedPing()
+                reference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
+                
                 _ = stream.sendMessage(request)
                 trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
                 
