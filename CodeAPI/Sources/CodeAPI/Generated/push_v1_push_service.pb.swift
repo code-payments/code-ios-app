@@ -59,7 +59,7 @@ public enum Code_Push_V1_TokenType: SwiftProtobuf.Enum {
 
 extension Code_Push_V1_TokenType: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Push_V1_TokenType] = [
+  public static let allCases: [Code_Push_V1_TokenType] = [
     .unknown,
     .fcmAndroid,
     .fcmApns,
@@ -178,7 +178,7 @@ public struct Code_Push_V1_AddTokenResponse {
 
 extension Code_Push_V1_AddTokenResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Push_V1_AddTokenResponse.Result] = [
+  public static let allCases: [Code_Push_V1_AddTokenResponse.Result] = [
     .ok,
     .invalidPushToken,
   ]

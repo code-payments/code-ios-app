@@ -144,7 +144,7 @@ public struct Code_Micropayment_V1_RegisterWebhookResponse {
 
 extension Code_Micropayment_V1_RegisterWebhookResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Micropayment_V1_RegisterWebhookResponse.Result] = [
+  public static let allCases: [Code_Micropayment_V1_RegisterWebhookResponse.Result] = [
     .ok,
     .alreadyRegistered,
     .requestNotFound,
@@ -274,7 +274,7 @@ public struct Code_Micropayment_V1_CodifyResponse {
 
 extension Code_Micropayment_V1_CodifyResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Micropayment_V1_CodifyResponse.Result] = [
+  public static let allCases: [Code_Micropayment_V1_CodifyResponse.Result] = [
     .ok,
     .invalidURL,
     .invalidAccount,
@@ -362,7 +362,7 @@ public struct Code_Micropayment_V1_GetPathMetadataResponse {
 
 extension Code_Micropayment_V1_GetPathMetadataResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Micropayment_V1_GetPathMetadataResponse.Result] = [
+  public static let allCases: [Code_Micropayment_V1_GetPathMetadataResponse.Result] = [
     .ok,
     .notFound,
   ]
