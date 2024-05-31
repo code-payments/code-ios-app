@@ -19,9 +19,8 @@ extension TimelockProgram {
         public var payer: PublicKey
         public var bump: Byte
         public var maxAmount: Kin
-        public var legacy: Bool
 
-        public init(timelock: PublicKey, vault: PublicKey, vaultOwner: PublicKey, timeAuthority: PublicKey, mint: PublicKey, payer: PublicKey, bump: Byte, maxAmount: Kin, legacy: Bool = false) {
+        public init(timelock: PublicKey, vault: PublicKey, vaultOwner: PublicKey, timeAuthority: PublicKey, mint: PublicKey, payer: PublicKey, bump: Byte, maxAmount: Kin) {
             self.timelock = timelock
             self.vault = vault
             self.vaultOwner = vaultOwner
@@ -30,7 +29,6 @@ extension TimelockProgram {
             self.payer = payer
             self.bump = bump
             self.maxAmount = maxAmount
-            self.legacy = legacy
         }
     }
 }
@@ -66,7 +64,7 @@ extension TimelockProgram.BurnDustWithAuthority: InstructionType {
     
     public func instruction() -> Instruction {
         Instruction(
-            program: legacy ? TimelockProgram.legacyAddress : TimelockProgram.address,
+            program: TimelockProgram.address,
             accounts: [
                 .writable(publicKey: timelock),
                 .writable(publicKey: vault),

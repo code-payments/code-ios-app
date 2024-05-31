@@ -95,8 +95,7 @@ extension TransactionBuilder {
         timelockDerivedAccounts: TimelockDerivedAccounts,
         maxDustAmount: Kin,
         nonce: PublicKey,
-        recentBlockhash: Hash,
-        legacy: Bool = false
+        recentBlockhash: Hash
     ) -> SolanaTransaction {
         SolanaTransaction(
             payer: .subsidizer,
@@ -116,8 +115,7 @@ extension TransactionBuilder {
                     mint: .kinMint,
                     payer: .subsidizer,
                     bump: timelockDerivedAccounts.state.bump,
-                    maxAmount: maxDustAmount,
-                    legacy: legacy
+                    maxAmount: maxDustAmount
                 ).instruction(),
                 
                 TimelockProgram.CloseAccounts(
@@ -125,8 +123,7 @@ extension TransactionBuilder {
                     vault: timelockDerivedAccounts.vault.publicKey,
                     closeAuthority: .subsidizer,
                     payer: .subsidizer,
-                    bump: timelockDerivedAccounts.state.bump,
-                    legacy: legacy
+                    bump: timelockDerivedAccounts.state.bump
                 ).instruction(),
             ]
         )
@@ -176,8 +173,7 @@ extension TransactionBuilder {
         nonce: PublicKey,
         recentBlockhash: Hash,
         kreIndex: Int,
-        tipAccount: TipAccount? = nil,
-        legacy: Bool = false
+        tipAccount: TipAccount? = nil
     ) -> SolanaTransaction {
         
         var instructions: [Instruction] = [
@@ -204,16 +200,14 @@ extension TransactionBuilder {
                 vault: timelockDerivedAccounts.vault.publicKey,
                 closeAuthority: .subsidizer,
                 payer: .subsidizer,
-                bump: timelockDerivedAccounts.state.bump,
-                legacy: legacy
+                bump: timelockDerivedAccounts.state.bump
             ).instruction(),
             
             TimelockProgram.DeactivateLock(
                 timelock: timelockDerivedAccounts.state.publicKey,
                 vaultOwner: authority,
                 payer: .subsidizer,
-                bump: timelockDerivedAccounts.state.bump,
-                legacy: legacy
+                bump: timelockDerivedAccounts.state.bump
             ).instruction(),
             
             TimelockProgram.Withdraw(
@@ -222,8 +216,7 @@ extension TransactionBuilder {
                 vaultOwner: authority,
                 destination: destination,
                 payer: .subsidizer,
-                bump: timelockDerivedAccounts.state.bump,
-                legacy: legacy
+                bump: timelockDerivedAccounts.state.bump
             ).instruction(),
             
             TimelockProgram.CloseAccounts(
@@ -231,8 +224,7 @@ extension TransactionBuilder {
                 vault: timelockDerivedAccounts.vault.publicKey,
                 closeAuthority: .subsidizer,
                 payer: .subsidizer,
-                bump: timelockDerivedAccounts.state.bump,
-                legacy: legacy
+                bump: timelockDerivedAccounts.state.bump
             ).instruction(),
         ])
         

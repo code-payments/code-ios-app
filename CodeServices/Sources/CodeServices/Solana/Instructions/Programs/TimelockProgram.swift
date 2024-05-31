@@ -14,8 +14,6 @@ public enum TimelockProgram: CommandType {
 
 extension TimelockProgram {
     public static let address = PublicKey(base58: "time2Z2SCnn3qYg3ULKVtdkh8YmZ5jFdKicnA1W2YnJ")! // Mainnet
-    
-    public static let legacyAddress = PublicKey(base58: "timeDBoQGL52du9K7EtrhkJSqpiFapE9dHrmDVkuZx6")! // Mainnet
 }
 
 extension TimelockProgram {
