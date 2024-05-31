@@ -146,36 +146,6 @@ extension Client {
         }
     }
     
-    // MARK: - Migration -
-    
-    private func migrateToPrivacy(amount: Kin, organizer: Organizer) async throws  {
-        let intent = try await withCheckedThrowingContinuation { c in
-            transactionService.migrateToPrivacy(
-                amount: amount,
-                organizer: organizer,
-                completion: { c.resume(with: $0) }
-            )
-        }
-        
-        await MainActor.run {
-            organizer.set(tray: intent.resultTray)
-        }
-    }
-    
-    public func migrateToPrivacy(amountToMigrate: Kin, organizer: Organizer) async throws  {
-        try await createAccounts(with: organizer)
-        try await migrateToPrivacy(amount: amountToMigrate, organizer: organizer)
-        
-        // There's nothing to receive if we're
-        // migrating an empty account
-        if amountToMigrate > 0 {
-            try await receiveFromPrimary(
-                amount: amountToMigrate.truncating(),
-                organizer: organizer
-            )
-        }
-    }
-    
     // MARK: - Status -
     
     public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {
