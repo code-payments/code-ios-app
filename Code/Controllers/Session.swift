@@ -238,22 +238,6 @@ class Session: ObservableObject {
         }
     }
     
-    // MARK: - Timelock Migration -
-    
-    private func migrateToPrivacyAccounts(legacyAccount: AccountInfo) async throws {
-        Task {
-            let amountToMigrate = legacyAccount.balance
-            do {
-                try await client.migrateToPrivacy(amountToMigrate: amountToMigrate, organizer: organizer)
-                Analytics.migration(amount: amountToMigrate)
-            } catch {
-                ErrorReporting.captureMigration(error: error, tray: organizer.tray, amount: amountToMigrate)
-                throw error
-            }
-            updateBalance()
-        }
-    }
-    
     // MARK: - Balance -
     
     private func fetchBalance() async throws {
@@ -272,8 +256,8 @@ class Session: ObservableObject {
                 balanceQueue.setUnblocked()
                 hasBalance = true
                 
-            } catch ErrorFetchAccountInfos.migrationRequired(let accountInfo) {
-                try await migrateToPrivacyAccounts(legacyAccount: accountInfo)
+            } catch ErrorFetchAccountInfos.migrationRequired {
+                Analytics.migrationRequired()
             }
         }
     }

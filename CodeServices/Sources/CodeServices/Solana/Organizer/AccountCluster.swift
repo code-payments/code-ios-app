@@ -27,14 +27,14 @@ public struct AccountCluster: Equatable, Codable, Hashable {
         }
     }
     
-    init(index: Int = 0, authority: DerivedKey, kind: Kind, legacy: Bool = false) {
+    init(index: Int = 0, authority: DerivedKey, kind: Kind) {
         self.index = index
         self.authority = authority
         
         switch kind {
         case .timelock:
             self.derivation = .timelock(
-                TimelockDerivedAccounts(owner: authority.keyPair.publicKey, legacy: legacy)
+                TimelockDerivedAccounts(owner: authority.keyPair.publicKey)
             )
             
         case .usdc:

@@ -17,18 +17,13 @@ public struct TimelockDerivedAccounts: Codable, Hashable, Equatable {
     public let state: ProgramDerivedAccount
     public let vault: ProgramDerivedAccount
     
-    public init(owner: PublicKey, legacy: Bool = false) {
+    public init(owner: PublicKey) {
         
         let state: ProgramDerivedAccount
         let vault: ProgramDerivedAccount
         
-        if legacy {
-            state = PublicKey.deriveLegacyTimelockStateAccount(owner: owner, lockout: 1_814_400)!
-            vault = PublicKey.deriveLegacyTimelockVaultAccount(stateAccount: state.publicKey)!
-        } else {
-            state = PublicKey.deriveTimelockStateAccount(owner: owner, lockout: Self.lockoutInDays)!
-            vault = PublicKey.deriveTimelockVaultAccount(stateAccount: state.publicKey, version: Self.dataVersion)!
-        }
+        state = PublicKey.deriveTimelockStateAccount(owner: owner, lockout: Self.lockoutInDays)!
+        vault = PublicKey.deriveTimelockVaultAccount(stateAccount: state.publicKey, version: Self.dataVersion)!
         
         self.owner = owner
         self.state = state
@@ -180,41 +175,6 @@ extension PublicKey {
                 Data("timelock_vault".utf8),
                 stateAccount.data,
                 version.bytes.data
-        )
-    }
-}
-
-// MARK: - Legacy Timelock Derivation -
-
-extension PublicKey {
-    public static func deriveLegacyTimelockStateAccount(owner: PublicKey, lockout: UInt64) -> ProgramDerivedAccount? {
-        let nonce = SystemProgram.address
-        let version = Data([1])
-        let pdaPadding = SystemProgram.address
-        
-        return findProgramAddress(
-            program: TimelockProgram.legacyAddress,
-            seeds:
-                Data("timelock_state".utf8),
-                version,
-                PublicKey.kinMint.data,
-                PublicKey.subsidizer.data,
-                nonce.data,
-                owner.data,
-                lockout.bytes.data,
-                pdaPadding.data
-        )
-    }
-    
-    public static func deriveLegacyTimelockVaultAccount(stateAccount: PublicKey) -> ProgramDerivedAccount? {
-        let initOffset: Data = Data([0])
-        
-        return findProgramAddress(
-            program: TimelockProgram.legacyAddress,
-            seeds:
-                Data("timelock_vault".utf8),
-                stateAccount.data,
-                initOffset
         )
     }
 }

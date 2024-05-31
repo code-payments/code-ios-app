@@ -294,10 +294,8 @@ extension Analytics {
 // MARK: - Migration -
 
 extension Analytics {
-    static func migration(amount: Kin) {
-        track(.privacyMigration, properties: [
-            .amount: amount.analyticsValue,
-        ])
+    static func migrationRequired() {
+        track(.migrationRequired)
     }
 }
 
@@ -364,7 +362,7 @@ extension Analytics {
         case upgradePrivacy = "Upgrade Privacy"
         case claimGetFreeKin = "Claim Get Free Kin"
         
-        case privacyMigration = "Privacy Migration"
+        case migrationRequired = "Migration Required"
         
         case backgroundSwap = "Background Swap Initiated"
         
