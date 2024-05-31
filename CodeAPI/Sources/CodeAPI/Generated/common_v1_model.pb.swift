@@ -93,7 +93,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
 
 extension Code_Common_V1_AccountType: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Common_V1_AccountType] = [
+  public static let allCases: [Code_Common_V1_AccountType] = [
     .unknown,
     .primary,
     .temporaryIncoming,
@@ -439,7 +439,7 @@ public struct Code_Common_V1_Response {
 
 extension Code_Common_V1_Response.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Common_V1_Response.Result] = [
+  public static let allCases: [Code_Common_V1_Response.Result] = [
     .ok,
     .error,
   ]
