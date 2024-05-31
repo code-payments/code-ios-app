@@ -350,29 +350,6 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    // MARK: - Migration -
-    
-    func migrateToPrivacy(amount: Kin, organizer: Organizer, completion: @escaping (Result<IntentMigratePrivacy, Error>) -> Void) {
-        trace(.send)
-        
-        let intent = IntentMigratePrivacy(
-            organizer: organizer,
-            amount: amount
-        )
-        
-        submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
-            switch result {
-            case .success(let intent):
-                trace(.success)
-                completion(.success(intent))
-                
-            case .failure(let error):
-                trace(.failure, components: "Error: \(error)")
-                completion(.failure(error))
-            }
-        }
-    }
-    
     // MARK: - Submit -
     
     private func submit<T>(intent: T, owner: KeyPair, deviceToken: Data? = nil, completion: @escaping (Result<T, ErrorSubmitIntent>) -> Void) where T: IntentType {

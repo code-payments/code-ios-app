@@ -15,14 +15,12 @@ extension TimelockProgram {
         public var vaultOwner: PublicKey
         public var payer: PublicKey
         public var bump: Byte
-        public var legacy: Bool
 
-        public init(timelock: PublicKey, vaultOwner: PublicKey, payer: PublicKey, bump: Byte, legacy: Bool = false) {
+        public init(timelock: PublicKey, vaultOwner: PublicKey, payer: PublicKey, bump: Byte) {
             self.timelock = timelock
             self.vaultOwner = vaultOwner
             self.payer = payer
             self.bump = bump
-            self.legacy = legacy
         }
     }
 }
@@ -49,7 +47,7 @@ extension TimelockProgram.DeactivateLock: InstructionType {
     
     public func instruction() -> Instruction {
         Instruction(
-            program: legacy ? TimelockProgram.legacyAddress : TimelockProgram.address,
+            program: TimelockProgram.address,
             accounts: [
                 .writable(publicKey: timelock),
                 .readonly(publicKey: vaultOwner, signer: true),

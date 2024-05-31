@@ -44,8 +44,7 @@ struct ActionCloseEmptyAccount: ActionType {
                 timelockDerivedAccounts: timelock,
                 maxDustAmount: 1,
                 nonce: config.nonce,
-                recentBlockhash: config.blockhash,
-                legacy: legacy
+                recentBlockhash: config.blockhash
             )
         }
     }

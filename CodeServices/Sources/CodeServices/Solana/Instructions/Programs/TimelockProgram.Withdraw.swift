@@ -17,16 +17,14 @@ extension TimelockProgram {
         public var destination: PublicKey
         public var payer: PublicKey
         public var bump: Byte
-        public var legacy: Bool
 
-        public init(timelock: PublicKey, vault: PublicKey, vaultOwner: PublicKey, destination: PublicKey, payer: PublicKey, bump: Byte, legacy: Bool = false) {
+        public init(timelock: PublicKey, vault: PublicKey, vaultOwner: PublicKey, destination: PublicKey, payer: PublicKey, bump: Byte) {
             self.timelock = timelock
             self.vault = vault
             self.vaultOwner = vaultOwner
             self.destination = destination
             self.payer = payer
             self.bump = bump
-            self.legacy = legacy
         }
     }
 }
@@ -55,7 +53,7 @@ extension TimelockProgram.Withdraw: InstructionType {
     
     public func instruction() -> Instruction {
         Instruction(
-            program: legacy ? TimelockProgram.legacyAddress : TimelockProgram.address,
+            program: TimelockProgram.address,
             accounts: [
                 .readonly(publicKey: timelock),
                 .writable(publicKey: vault),

@@ -19,11 +19,10 @@ struct ActionWithdraw: ActionType {
     let cluster: AccountCluster
     let destination: PublicKey
     let tipAccount: TipAccount?
-    let legacy: Bool
     
     static let configCountRequirement: Int = 1
     
-    init(kind: Kind, cluster: AccountCluster, destination: PublicKey, tipAccount: TipAccount? = nil, legacy: Bool = false) {
+    init(kind: Kind, cluster: AccountCluster, destination: PublicKey, tipAccount: TipAccount? = nil) {
         self.id = 0
         self.signer = cluster.authority.keyPair
         
@@ -31,7 +30,6 @@ struct ActionWithdraw: ActionType {
         self.cluster = cluster
         self.destination = destination
         self.tipAccount = tipAccount
-        self.legacy = legacy
     }
     
     func transactions() throws -> [SolanaTransaction] {
@@ -51,8 +49,7 @@ struct ActionWithdraw: ActionType {
                 nonce: config.nonce,
                 recentBlockhash: config.blockhash,
                 kreIndex: KRE.index,
-                tipAccount: tipAccount,
-                legacy: legacy
+                tipAccount: tipAccount
             )
         }
     }
