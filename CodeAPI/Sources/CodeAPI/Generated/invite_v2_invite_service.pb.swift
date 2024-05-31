@@ -67,7 +67,7 @@ public enum Code_Invite_V2_InvitationStatus: SwiftProtobuf.Enum {
 
 extension Code_Invite_V2_InvitationStatus: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Invite_V2_InvitationStatus] = [
+  public static let allCases: [Code_Invite_V2_InvitationStatus] = [
     .notInvited,
     .invited,
     .registered,
@@ -143,7 +143,7 @@ public struct Code_Invite_V2_GetInviteCountResponse {
 
 extension Code_Invite_V2_GetInviteCountResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Invite_V2_GetInviteCountResponse.Result] = [
+  public static let allCases: [Code_Invite_V2_GetInviteCountResponse.Result] = [
     .ok,
   ]
 }
@@ -295,7 +295,7 @@ public struct Code_Invite_V2_InvitePhoneNumberResponse {
 
 extension Code_Invite_V2_InvitePhoneNumberResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Invite_V2_InvitePhoneNumberResponse.Result] = [
+  public static let allCases: [Code_Invite_V2_InvitePhoneNumberResponse.Result] = [
     .ok,
     .inviteCountExceeded,
     .alreadyInvited,
@@ -375,7 +375,7 @@ public struct Code_Invite_V2_GetInvitationStatusResponse {
 
 extension Code_Invite_V2_GetInvitationStatusResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Invite_V2_GetInvitationStatusResponse.Result] = [
+  public static let allCases: [Code_Invite_V2_GetInvitationStatusResponse.Result] = [
     .ok,
   ]
 }

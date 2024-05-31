@@ -97,7 +97,7 @@ public struct Code_Chat_V1_GetChatsRequest {
 
 extension Code_Chat_V1_GetChatsRequest.Direction: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_GetChatsRequest.Direction] = [
+  public static let allCases: [Code_Chat_V1_GetChatsRequest.Direction] = [
     .asc,
     .desc,
   ]
@@ -151,7 +151,7 @@ public struct Code_Chat_V1_GetChatsResponse {
 
 extension Code_Chat_V1_GetChatsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_GetChatsResponse.Result] = [
+  public static let allCases: [Code_Chat_V1_GetChatsResponse.Result] = [
     .ok,
     .notFound,
   ]
@@ -246,7 +246,7 @@ public struct Code_Chat_V1_GetMessagesRequest {
 
 extension Code_Chat_V1_GetMessagesRequest.Direction: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_GetMessagesRequest.Direction] = [
+  public static let allCases: [Code_Chat_V1_GetMessagesRequest.Direction] = [
     .asc,
     .desc,
   ]
@@ -300,7 +300,7 @@ public struct Code_Chat_V1_GetMessagesResponse {
 
 extension Code_Chat_V1_GetMessagesResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_GetMessagesResponse.Result] = [
+  public static let allCases: [Code_Chat_V1_GetMessagesResponse.Result] = [
     .ok,
     .notFound,
   ]
@@ -406,7 +406,7 @@ public struct Code_Chat_V1_AdvancePointerResponse {
 
 extension Code_Chat_V1_AdvancePointerResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_AdvancePointerResponse.Result] = [
+  public static let allCases: [Code_Chat_V1_AdvancePointerResponse.Result] = [
     .ok,
     .chatNotFound,
     .messageNotFound,
@@ -505,7 +505,7 @@ public struct Code_Chat_V1_SetMuteStateResponse {
 
 extension Code_Chat_V1_SetMuteStateResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_SetMuteStateResponse.Result] = [
+  public static let allCases: [Code_Chat_V1_SetMuteStateResponse.Result] = [
     .ok,
     .chatNotFound,
     .cantMute,
@@ -604,7 +604,7 @@ public struct Code_Chat_V1_SetSubscriptionStateResponse {
 
 extension Code_Chat_V1_SetSubscriptionStateResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_SetSubscriptionStateResponse.Result] = [
+  public static let allCases: [Code_Chat_V1_SetSubscriptionStateResponse.Result] = [
     .ok,
     .chatNotFound,
     .cantUnsubscribe,
@@ -880,7 +880,7 @@ public struct Code_Chat_V1_SendMessageResponse {
 
 extension Code_Chat_V1_SendMessageResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_SendMessageResponse.Result] = [
+  public static let allCases: [Code_Chat_V1_SendMessageResponse.Result] = [
     .ok,
   ]
 }
@@ -997,7 +997,7 @@ public struct Code_Chat_V1_Pointer {
 
 extension Code_Chat_V1_Pointer.Kind: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_Pointer.Kind] = [
+  public static let allCases: [Code_Chat_V1_Pointer.Kind] = [
     .unknown,
     .read,
     .delivered,
@@ -1393,7 +1393,7 @@ public struct Code_Chat_V1_ExchangeDataContent {
 
 extension Code_Chat_V1_ExchangeDataContent.Verb: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Chat_V1_ExchangeDataContent.Verb] = [
+  public static let allCases: [Code_Chat_V1_ExchangeDataContent.Verb] = [
     .unknown,
     .gave,
     .received,

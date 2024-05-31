@@ -108,7 +108,7 @@ public struct Code_Account_V1_IsCodeAccountResponse {
 
 extension Code_Account_V1_IsCodeAccountResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Account_V1_IsCodeAccountResponse.Result] = [
+  public static let allCases: [Code_Account_V1_IsCodeAccountResponse.Result] = [
     .ok,
     .notFound,
     .unlockedTimelockAccount,
@@ -199,7 +199,7 @@ public struct Code_Account_V1_GetTokenAccountInfosResponse {
 
 extension Code_Account_V1_GetTokenAccountInfosResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Account_V1_GetTokenAccountInfosResponse.Result] = [
+  public static let allCases: [Code_Account_V1_GetTokenAccountInfosResponse.Result] = [
     .ok,
     .notFound,
   ]
@@ -302,7 +302,7 @@ public struct Code_Account_V1_LinkAdditionalAccountsResponse {
 
 extension Code_Account_V1_LinkAdditionalAccountsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Account_V1_LinkAdditionalAccountsResponse.Result] = [
+  public static let allCases: [Code_Account_V1_LinkAdditionalAccountsResponse.Result] = [
     .ok,
     .denied,
     .invalidAccount,
@@ -643,7 +643,7 @@ public struct Code_Account_V1_TokenAccountInfo {
 
 extension Code_Account_V1_TokenAccountInfo.BalanceSource: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Account_V1_TokenAccountInfo.BalanceSource] = [
+  public static let allCases: [Code_Account_V1_TokenAccountInfo.BalanceSource] = [
     .unknown,
     .blockchain,
     .cache,
@@ -652,7 +652,7 @@ extension Code_Account_V1_TokenAccountInfo.BalanceSource: CaseIterable {
 
 extension Code_Account_V1_TokenAccountInfo.ManagementState: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Account_V1_TokenAccountInfo.ManagementState] = [
+  public static let allCases: [Code_Account_V1_TokenAccountInfo.ManagementState] = [
     .unknown,
     .none,
     .locking,
@@ -666,7 +666,7 @@ extension Code_Account_V1_TokenAccountInfo.ManagementState: CaseIterable {
 
 extension Code_Account_V1_TokenAccountInfo.BlockchainState: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Account_V1_TokenAccountInfo.BlockchainState] = [
+  public static let allCases: [Code_Account_V1_TokenAccountInfo.BlockchainState] = [
     .unknown,
     .doesNotExist,
     .exists,
@@ -675,7 +675,7 @@ extension Code_Account_V1_TokenAccountInfo.BlockchainState: CaseIterable {
 
 extension Code_Account_V1_TokenAccountInfo.ClaimState: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Account_V1_TokenAccountInfo.ClaimState] = [
+  public static let allCases: [Code_Account_V1_TokenAccountInfo.ClaimState] = [
     .unknown,
     .notClaimed,
     .claimed,
@@ -998,7 +998,15 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     var _mint: Code_Common_V1_SolanaAccountId? = nil
     var _relationship: Code_Common_V1_Relationship? = nil
 
-    static let defaultInstance = _StorageClass()
+    #if swift(>=5.10)
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+    #else
+      static let defaultInstance = _StorageClass()
+    #endif
 
     private init() {}
 
