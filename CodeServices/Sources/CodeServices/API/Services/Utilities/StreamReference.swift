@@ -64,8 +64,21 @@ public class BidirectionalStreamReference<Request, Response>: Cancellable {
     
     // MARK: - Ping -
     
-    func receivedPing() {
+    func receivedPing(updatedTimeout: Int? = nil) {
         lastPing = .now
+        
+        // If the server provides a timeout, 
+        // we'll update our local timeout
+        // accordingly.
+        if let updatedTimeout {
+            // Double the server-provided timeout
+            let newTimeout = updatedTimeout * 2
+            if pingTimeout != newTimeout {
+                trace(.warning, components: "Updating timeout from \(pingTimeout) sec to \(newTimeout) sec")
+                pingTimeout = newTimeout
+            }
+        }
+        
         postponeTimeout()
     }
     
