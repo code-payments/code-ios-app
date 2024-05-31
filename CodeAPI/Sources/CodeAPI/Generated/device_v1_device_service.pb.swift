@@ -100,7 +100,7 @@ public struct Code_Device_V1_RegisterLoggedInAccountsResponse {
 
 extension Code_Device_V1_RegisterLoggedInAccountsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Device_V1_RegisterLoggedInAccountsResponse.Result] = [
+  public static let allCases: [Code_Device_V1_RegisterLoggedInAccountsResponse.Result] = [
     .ok,
     .invalidOwner,
   ]
@@ -172,7 +172,7 @@ public struct Code_Device_V1_GetLoggedInAccountsResponse {
 
 extension Code_Device_V1_GetLoggedInAccountsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Device_V1_GetLoggedInAccountsResponse.Result] = [
+  public static let allCases: [Code_Device_V1_GetLoggedInAccountsResponse.Result] = [
     .ok,
   ]
 }

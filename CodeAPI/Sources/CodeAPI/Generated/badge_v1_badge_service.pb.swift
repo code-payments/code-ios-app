@@ -96,7 +96,7 @@ public struct Code_Badge_V1_ResetBadgeCountResponse {
 
 extension Code_Badge_V1_ResetBadgeCountResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Badge_V1_ResetBadgeCountResponse.Result] = [
+  public static let allCases: [Code_Badge_V1_ResetBadgeCountResponse.Result] = [
     .ok,
   ]
 }

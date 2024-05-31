@@ -59,7 +59,7 @@ public enum Code_Transaction_V2_AirdropType: SwiftProtobuf.Enum {
 
 extension Code_Transaction_V2_AirdropType: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_AirdropType] = [
+  public static let allCases: [Code_Transaction_V2_AirdropType] = [
     .unknown,
     .giveFirstKin,
     .getFirstKin,
@@ -385,14 +385,14 @@ public struct Code_Transaction_V2_SubmitIntentResponse {
 
 extension Code_Transaction_V2_SubmitIntentResponse.Success.Code: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_SubmitIntentResponse.Success.Code] = [
+  public static let allCases: [Code_Transaction_V2_SubmitIntentResponse.Success.Code] = [
     .ok,
   ]
 }
 
 extension Code_Transaction_V2_SubmitIntentResponse.Error.Code: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_SubmitIntentResponse.Error.Code] = [
+  public static let allCases: [Code_Transaction_V2_SubmitIntentResponse.Error.Code] = [
     .denied,
     .invalidIntent,
     .signatureError,
@@ -504,7 +504,7 @@ public struct Code_Transaction_V2_GetIntentMetadataResponse {
 
 extension Code_Transaction_V2_GetIntentMetadataResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_GetIntentMetadataResponse.Result] = [
+  public static let allCases: [Code_Transaction_V2_GetIntentMetadataResponse.Result] = [
     .ok,
     .notFound,
   ]
@@ -642,7 +642,7 @@ public struct Code_Transaction_V2_GetPrivacyUpgradeStatusResponse {
 
 extension Code_Transaction_V2_GetPrivacyUpgradeStatusResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_GetPrivacyUpgradeStatusResponse.Result] = [
+  public static let allCases: [Code_Transaction_V2_GetPrivacyUpgradeStatusResponse.Result] = [
     .ok,
     .intentNotFound,
     .actionNotFound,
@@ -652,7 +652,7 @@ extension Code_Transaction_V2_GetPrivacyUpgradeStatusResponse.Result: CaseIterab
 
 extension Code_Transaction_V2_GetPrivacyUpgradeStatusResponse.Status: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_GetPrivacyUpgradeStatusResponse.Status] = [
+  public static let allCases: [Code_Transaction_V2_GetPrivacyUpgradeStatusResponse.Status] = [
     .unknown,
     .temporaryTransactionFinalized,
     .waitingForNextBlock,
@@ -748,7 +748,7 @@ public struct Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeResponse
 
 extension Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeResponse.Result] = [
+  public static let allCases: [Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeResponse.Result] = [
     .ok,
     .notFound,
   ]
@@ -867,7 +867,7 @@ public struct Code_Transaction_V2_GetLimitsResponse {
 
 extension Code_Transaction_V2_GetLimitsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_GetLimitsResponse.Result] = [
+  public static let allCases: [Code_Transaction_V2_GetLimitsResponse.Result] = [
     .ok,
   ]
 }
@@ -962,7 +962,7 @@ public struct Code_Transaction_V2_GetPaymentHistoryRequest {
 
 extension Code_Transaction_V2_GetPaymentHistoryRequest.Direction: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_GetPaymentHistoryRequest.Direction] = [
+  public static let allCases: [Code_Transaction_V2_GetPaymentHistoryRequest.Direction] = [
     .asc,
     .desc,
   ]
@@ -1016,7 +1016,7 @@ public struct Code_Transaction_V2_GetPaymentHistoryResponse {
 
 extension Code_Transaction_V2_GetPaymentHistoryResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_GetPaymentHistoryResponse.Result] = [
+  public static let allCases: [Code_Transaction_V2_GetPaymentHistoryResponse.Result] = [
     .ok,
     .notFound,
   ]
@@ -1114,7 +1114,7 @@ public struct Code_Transaction_V2_CanWithdrawToAccountResponse {
 
 extension Code_Transaction_V2_CanWithdrawToAccountResponse.AccountType: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_CanWithdrawToAccountResponse.AccountType] = [
+  public static let allCases: [Code_Transaction_V2_CanWithdrawToAccountResponse.AccountType] = [
     .unknown,
     .tokenAccount,
     .ownerAccount,
@@ -1224,7 +1224,7 @@ public struct Code_Transaction_V2_AirdropResponse {
 
 extension Code_Transaction_V2_AirdropResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_AirdropResponse.Result] = [
+  public static let allCases: [Code_Transaction_V2_AirdropResponse.Result] = [
     .ok,
     .unavailable,
     .alreadyClaimed,
@@ -1612,7 +1612,7 @@ public struct Code_Transaction_V2_SwapResponse {
 
 extension Code_Transaction_V2_SwapResponse.Success.Code: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_SwapResponse.Success.Code] = [
+  public static let allCases: [Code_Transaction_V2_SwapResponse.Success.Code] = [
     .swapSubmitted,
     .swapFinalized,
   ]
@@ -1620,7 +1620,7 @@ extension Code_Transaction_V2_SwapResponse.Success.Code: CaseIterable {
 
 extension Code_Transaction_V2_SwapResponse.Error.Code: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_SwapResponse.Error.Code] = [
+  public static let allCases: [Code_Transaction_V2_SwapResponse.Error.Code] = [
     .denied,
     .signatureError,
     .invalidSwap,
@@ -1745,7 +1745,7 @@ public struct Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse {
 
 extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result] = [
+  public static let allCases: [Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result] = [
     .ok,
     .invalidOwner,
     .unsupportedCurrency,
@@ -2956,7 +2956,7 @@ public struct Code_Transaction_V2_FeePaymentAction {
 
 extension Code_Transaction_V2_FeePaymentAction.FeeType: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_FeePaymentAction.FeeType] = [
+  public static let allCases: [Code_Transaction_V2_FeePaymentAction.FeeType] = [
     .code,
     .thirdParty,
   ]
@@ -3543,7 +3543,7 @@ public struct Code_Transaction_V2_DeniedErrorDetails {
 
 extension Code_Transaction_V2_DeniedErrorDetails.Code: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_DeniedErrorDetails.Code] = [
+  public static let allCases: [Code_Transaction_V2_DeniedErrorDetails.Code] = [
     .unspecified,
     .tooManyFreeAccountsForPhoneNumber,
     .tooManyFreeAccountsForDevice,
@@ -3777,7 +3777,7 @@ public struct Code_Transaction_V2_PaymentHistoryItem {
 
 extension Code_Transaction_V2_PaymentHistoryItem.PaymentType: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_PaymentHistoryItem.PaymentType] = [
+  public static let allCases: [Code_Transaction_V2_PaymentHistoryItem.PaymentType] = [
     .unknown,
     .send,
     .receive,
@@ -3967,7 +3967,7 @@ public struct Code_Transaction_V2_TippedUser {
 
 extension Code_Transaction_V2_TippedUser.Platform: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Transaction_V2_TippedUser.Platform] = [
+  public static let allCases: [Code_Transaction_V2_TippedUser.Platform] = [
     .unknown,
     .twitter,
   ]

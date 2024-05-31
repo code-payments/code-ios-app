@@ -115,7 +115,7 @@ public struct Code_Contact_V1_AddContactsResponse {
 
 extension Code_Contact_V1_AddContactsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Contact_V1_AddContactsResponse.Result] = [
+  public static let allCases: [Code_Contact_V1_AddContactsResponse.Result] = [
     .ok,
   ]
 }
@@ -212,7 +212,7 @@ public struct Code_Contact_V1_RemoveContactsResponse {
 
 extension Code_Contact_V1_RemoveContactsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Contact_V1_RemoveContactsResponse.Result] = [
+  public static let allCases: [Code_Contact_V1_RemoveContactsResponse.Result] = [
     .ok,
   ]
 }
@@ -339,7 +339,7 @@ public struct Code_Contact_V1_GetContactsResponse {
 
 extension Code_Contact_V1_GetContactsResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Contact_V1_GetContactsResponse.Result] = [
+  public static let allCases: [Code_Contact_V1_GetContactsResponse.Result] = [
     .ok,
   ]
 }

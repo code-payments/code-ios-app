@@ -278,7 +278,7 @@ public struct Code_Messaging_V1_AckMesssagesResponse {
 
 extension Code_Messaging_V1_AckMesssagesResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Messaging_V1_AckMesssagesResponse.Result] = [
+  public static let allCases: [Code_Messaging_V1_AckMesssagesResponse.Result] = [
     .ok,
   ]
 }
@@ -385,7 +385,7 @@ public struct Code_Messaging_V1_SendMessageResponse {
 
 extension Code_Messaging_V1_SendMessageResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Messaging_V1_SendMessageResponse.Result] = [
+  public static let allCases: [Code_Messaging_V1_SendMessageResponse.Result] = [
     .ok,
     .noActiveStream,
   ]

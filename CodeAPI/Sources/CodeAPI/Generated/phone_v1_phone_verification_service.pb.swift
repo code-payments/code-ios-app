@@ -131,7 +131,7 @@ public struct Code_Phone_V1_SendVerificationCodeResponse {
 
 extension Code_Phone_V1_SendVerificationCodeResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Phone_V1_SendVerificationCodeResponse.Result] = [
+  public static let allCases: [Code_Phone_V1_SendVerificationCodeResponse.Result] = [
     .ok,
     .notInvited,
     .rateLimited,
@@ -252,7 +252,7 @@ public struct Code_Phone_V1_CheckVerificationCodeResponse {
 
 extension Code_Phone_V1_CheckVerificationCodeResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Phone_V1_CheckVerificationCodeResponse.Result] = [
+  public static let allCases: [Code_Phone_V1_CheckVerificationCodeResponse.Result] = [
     .ok,
     .invalidCode,
     .noVerification,
@@ -372,7 +372,7 @@ public struct Code_Phone_V1_GetAssociatedPhoneNumberResponse {
 
 extension Code_Phone_V1_GetAssociatedPhoneNumberResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Phone_V1_GetAssociatedPhoneNumberResponse.Result] = [
+  public static let allCases: [Code_Phone_V1_GetAssociatedPhoneNumberResponse.Result] = [
     .ok,
     .notFound,
     .notInvited,

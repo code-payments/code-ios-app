@@ -105,7 +105,7 @@ public struct Code_Currency_V1_GetAllRatesResponse {
 
 extension Code_Currency_V1_GetAllRatesResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_Currency_V1_GetAllRatesResponse.Result] = [
+  public static let allCases: [Code_Currency_V1_GetAllRatesResponse.Result] = [
     .ok,
     .missingData,
   ]

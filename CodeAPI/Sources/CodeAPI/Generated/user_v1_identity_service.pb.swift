@@ -198,7 +198,7 @@ public struct Code_User_V1_LinkAccountResponse {
 
 extension Code_User_V1_LinkAccountResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_LinkAccountResponse.Result] = [
+  public static let allCases: [Code_User_V1_LinkAccountResponse.Result] = [
     .ok,
     .invalidToken,
     .rateLimited,
@@ -319,7 +319,7 @@ public struct Code_User_V1_UnlinkAccountResponse {
 
 extension Code_User_V1_UnlinkAccountResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_UnlinkAccountResponse.Result] = [
+  public static let allCases: [Code_User_V1_UnlinkAccountResponse.Result] = [
     .ok,
     .neverAssociated,
   ]
@@ -512,7 +512,7 @@ public struct Code_User_V1_GetUserResponse {
 
 extension Code_User_V1_GetUserResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_GetUserResponse.Result] = [
+  public static let allCases: [Code_User_V1_GetUserResponse.Result] = [
     .ok,
     .notFound,
     .notInvited,
@@ -630,7 +630,7 @@ public struct Code_User_V1_UpdatePreferencesResponse {
 
 extension Code_User_V1_UpdatePreferencesResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_UpdatePreferencesResponse.Result] = [
+  public static let allCases: [Code_User_V1_UpdatePreferencesResponse.Result] = [
     .ok,
     .invalidLocale,
   ]
@@ -753,7 +753,7 @@ public struct Code_User_V1_LoginToThirdPartyAppResponse {
 
 extension Code_User_V1_LoginToThirdPartyAppResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_LoginToThirdPartyAppResponse.Result] = [
+  public static let allCases: [Code_User_V1_LoginToThirdPartyAppResponse.Result] = [
     .ok,
     .requestNotFound,
     .paymentRequired,
@@ -879,7 +879,7 @@ public struct Code_User_V1_GetLoginForThirdPartyAppResponse {
 
 extension Code_User_V1_GetLoginForThirdPartyAppResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_GetLoginForThirdPartyAppResponse.Result] = [
+  public static let allCases: [Code_User_V1_GetLoginForThirdPartyAppResponse.Result] = [
     .ok,
     .requestNotFound,
     .loginNotSupported,
@@ -1002,7 +1002,7 @@ public struct Code_User_V1_GetTwitterUserResponse {
 
 extension Code_User_V1_GetTwitterUserResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_GetTwitterUserResponse.Result] = [
+  public static let allCases: [Code_User_V1_GetTwitterUserResponse.Result] = [
     .ok,
     .notFound,
   ]
@@ -1164,7 +1164,7 @@ public struct Code_User_V1_TwitterUser {
 
 extension Code_User_V1_TwitterUser.VerifiedType: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static var allCases: [Code_User_V1_TwitterUser.VerifiedType] = [
+  public static let allCases: [Code_User_V1_TwitterUser.VerifiedType] = [
     .none,
     .blue,
     .business,
