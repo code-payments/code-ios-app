@@ -31,8 +31,6 @@ class TooltipViewModel: ObservableObject {
         
         self.owner = owner
         self.tooltipLogoShown = UserDefaults.tooltipLogoShownDate == nil && accountOlderThan24Hours
-        
-        clearTooltipLogoShown()
     }
  
     // MARK: - Tooltip -
@@ -41,15 +39,10 @@ class TooltipViewModel: ObservableObject {
         tooltipLogoShown = false
         UserDefaults.tooltipLogoShownDate = .now
     }
-    
-    func clearTooltipLogoShown() {
-        tooltipLogoShown = true
-        UserDefaults.tooltipLogoShownDate = nil
-    }
 }
 
 extension UserDefaults {
     
     @Defaults(.tooltipLogo)
-    fileprivate static var tooltipLogoShownDate: Date?
+    static var tooltipLogoShownDate: Date?
 }

@@ -47,8 +47,14 @@ struct BetaFlagsScreen: View {
                         .padding(20)
                         .vSeparator(color: .rowSeparator, position: .bottom)
                     }
+                    
                     CodeButton(style: .filled, title: "Reset Local Twitter User") {
                         tipController.deleteAuthenticatedUser()
+                    }
+                    .padding(20)
+                    
+                    CodeButton(style: .filled, title: "Reset Tooltip") {
+                        UserDefaults.tooltipLogoShownDate = nil
                     }
                     .padding(20)
                 }
