@@ -37,6 +37,8 @@ struct ScanScreen: View {
     @State private var isPresentingSettings: Bool = false
     @State private var isPresentingDownload: Bool = false
     
+    @StateObject private var tooltipViewModel: TooltipViewModel
+    
     private var overrideAuthorization: AVAuthorizationStatus?
     
     private var directToSettings: Bool? {
@@ -61,6 +63,7 @@ struct ScanScreen: View {
         self.inviteController = sessionContainer.inviteController
         self.historyController = sessionContainer.historyController
         self.contactsController = sessionContainer.contactsController
+        self._tooltipViewModel = StateObject(wrappedValue: TooltipViewModel(owner: sessionContainer.session.organizer.ownerKeyPair.publicKey))
     }
     
     fileprivate init(sessionContainer: SessionContainer, overrideAuthorization: AVAuthorizationStatus) {
@@ -69,6 +72,7 @@ struct ScanScreen: View {
         self.historyController = sessionContainer.historyController
         self.overrideAuthorization = overrideAuthorization
         self.contactsController = sessionContainer.contactsController
+        self._tooltipViewModel = StateObject(wrappedValue: TooltipViewModel(owner: sessionContainer.session.organizer.ownerKeyPair.publicKey))
     }
     
     // MARK: - Body -
@@ -165,11 +169,18 @@ struct ScanScreen: View {
                 if isVisible {
                     Button {
                         isPresentingDownload.toggle()
+                        Task {
+                            try await Task.delay(milliseconds: 500)
+                            tooltipViewModel.markTooltipLogoShown()
+                        }
+                        
                     } label: {
                         CodeBrand(size: .small, template: true)
                             .foregroundColor(.textMain)
                     }
-                    .tooltip(properties: .default, text: "Tap the logo to share the app download link")
+                    .if(tooltipViewModel.tooltipLogoShown) { $0
+                        .tooltip(properties: .default, text: "Tap the logo to share the app download link")
+                    }
                     .sheet(isPresented: $isPresentingDownload) {
                         DownloadScreen(isPresented: $isPresentingDownload)
                     }

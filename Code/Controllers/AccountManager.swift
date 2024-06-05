@@ -104,6 +104,16 @@ class AccountManager {
         resetForLogout()
         Keychain.historicalAccounts = nil
     }
+    
+    static func fetchDescription(for publicKey: PublicKey) -> AccountDescription? {
+        let key = publicKey.base58
+        
+        guard let accounts = Keychain.historicalAccounts else {
+            return nil
+        }
+        
+        return accounts[key]
+    }
 }
 
 // MARK: - Keychain -
