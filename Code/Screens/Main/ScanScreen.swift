@@ -169,6 +169,7 @@ struct ScanScreen: View {
                         CodeBrand(size: .small, template: true)
                             .foregroundColor(.textMain)
                     }
+                    .tooltip(properties: .default, text: "Tap the logo to share the app download link")
                     .sheet(isPresented: $isPresentingDownload) {
                         DownloadScreen(isPresented: $isPresentingDownload)
                     }
@@ -577,6 +578,25 @@ extension ScanScreen {
             .padding(.bottom, 10)
         }
     }
+}
+
+// MARK: - Tooltip Properties -
+
+extension Tooltip.Properties {
+    static let `default` = Tooltip.Properties(
+        arrowSize: CGSize(
+            width: 12,
+            height: 6
+        ),
+        cornerRadius: 10,
+        maxWidth: 200,
+        distance: 8,
+        backgroundColor: .backgroundMain.opacity(0.9),
+        textPadding: CGSize(width: 13, height: 11),
+        textFont: .appTextMessage,
+        textAlignment: .leading,
+        textColor: .textMain
+    )
 }
 
 // MARK: - Previews -
