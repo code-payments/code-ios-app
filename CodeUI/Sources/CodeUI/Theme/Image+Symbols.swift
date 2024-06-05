@@ -141,4 +141,7 @@ public enum Asset: String {
     case twitterBlue
     case twitterGold
     case twitterGrey
+    
+    case logoApple
+    case logoAndroid
 }

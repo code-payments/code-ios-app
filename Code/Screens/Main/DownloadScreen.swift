@@ -27,34 +27,41 @@ struct DownloadScreen: View {
                     
                     Spacer()
                     
-                    VStack(spacing: 30) {
+                    VStack(spacing: 50) {
                         Text("Scan to download the\nCode Wallet app")
                             .frame(maxWidth: size)
                             .multilineTextAlignment(.center)
                             .font(.appTextLarge)
                             .foregroundColor(.textMain)
                         
-                        QRCode(
-                            string: URL.downloadCode.absoluteString,
-                            showLabel: false,
-                            codeColor: .backgroundMain,
-                            correctionLevel: .high
-                        )
-                        .frame(width: size, height: size)
-                        .overlay {
-                            ZStack {
-                                Rectangle()
-                                    .fill(Color.textMain)
-                                Image.asset(.codeLogo)
-                                    .resizable()
-                                    .renderingMode(.template)
-                                    .foregroundColor(.backgroundMain)
-                                    .padding(7)
+                        VStack(spacing: 30) {
+                            QRCode(
+                                string: URL.downloadCode.absoluteString,
+                                showLabel: false,
+                                codeColor: .backgroundMain,
+                                correctionLevel: .high
+                            )
+                            .frame(width: size, height: size)
+                            .overlay {
+                                ZStack {
+                                    Rectangle()
+                                        .fill(Color.textMain)
+                                    Image.asset(.codeLogo)
+                                        .resizable()
+                                        .renderingMode(.template)
+                                        .foregroundColor(.backgroundMain)
+                                        .padding(7)
+                                }
+                                .frame(width: 46, height: 46)
                             }
-                            .frame(width: 46, height: 46)
+                            
+                            HStack(spacing: 20) {
+                                Image.asset(.logoApple)
+                                Image.asset(.logoAndroid)
+                            }
                         }
                     }
-                    .padding(.bottom, 20)
+                    .padding(.bottom, 40)
                     
                     Spacer()
                     
