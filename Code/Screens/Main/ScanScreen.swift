@@ -35,6 +35,7 @@ struct ScanScreen: View {
     @State private var isPresentingGiveKin: Bool = false
     @State private var isPresentingBillExchange: Bool = false
     @State private var isPresentingSettings: Bool = false
+    @State private var isPresentingDownload: Bool = false
     
     private var overrideAuthorization: AVAuthorizationStatus?
     
@@ -162,8 +163,15 @@ struct ScanScreen: View {
         HStack {
             Group {
                 if isVisible {
-                    CodeBrand(size: .small, template: true)
-                        .foregroundColor(.textMain)
+                    Button {
+                        isPresentingDownload.toggle()
+                    } label: {
+                        CodeBrand(size: .small, template: true)
+                            .foregroundColor(.textMain)
+                    }
+                    .sheet(isPresented: $isPresentingDownload) {
+                        DownloadScreen(isPresented: $isPresentingDownload)
+                    }
                     
                     Spacer()
                     

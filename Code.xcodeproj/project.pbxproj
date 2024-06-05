@@ -68,6 +68,7 @@
 		9A1A827B28660A6F00A4979F /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 9A1A827A28660A6F00A4979F /* FirebaseMessaging */; };
 		9A1EBC5226246EFD003F8B19 /* String+Padding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5126246EFD003F8B19 /* String+Padding.swift */; };
 		9A1EBC5A26246FA8003F8B19 /* String+PaddingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5926246FA8003F8B19 /* String+PaddingTests.swift */; };
+		9A27FD472C0F487E00221457 /* DownloadScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A27FD462C0F487E00221457 /* DownloadScreen.swift */; };
 		9A2A3A8B25C32F0D007A8C50 /* RedundancyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2A3A8A25C32F0D007A8C50 /* RedundancyContainer.swift */; };
 		9A2A3A9225C32F95007A8C50 /* RedundancyContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2A3A9125C32F95007A8C50 /* RedundancyContainerTests.swift */; };
 		9A2B16C52B73FF86008DB36D /* DepositUSDCScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */; };
@@ -310,6 +311,7 @@
 		9A1A8272286608D500A4979F /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		9A1EBC5126246EFD003F8B19 /* String+Padding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Padding.swift"; sourceTree = "<group>"; };
 		9A1EBC5926246FA8003F8B19 /* String+PaddingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+PaddingTests.swift"; sourceTree = "<group>"; };
+		9A27FD462C0F487E00221457 /* DownloadScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadScreen.swift; sourceTree = "<group>"; };
 		9A2A3A8A25C32F0D007A8C50 /* RedundancyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedundancyContainer.swift; sourceTree = "<group>"; };
 		9A2A3A9125C32F95007A8C50 /* RedundancyContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedundancyContainerTests.swift; sourceTree = "<group>"; };
 		9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepositUSDCScreen.swift; sourceTree = "<group>"; };
@@ -813,6 +815,7 @@
 			children = (
 				9AE8F56028CA6507009C251F /* ViewModel */,
 				9AEFE85325B74A49001FCB19 /* ScanScreen.swift */,
+				9A27FD462C0F487E00221457 /* DownloadScreen.swift */,
 				9A9469B8279F3C9A0028F27E /* ContactsScreen.swift */,
 				9AEFE84D25B61EAB001FCB19 /* GiveKinScreen.swift */,
 				9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */,
@@ -1482,6 +1485,7 @@
 				9ACFA3102A4B48280057A5DF /* AccountContainer.swift in Sources */,
 				9A9DD6902BBDB9F300CAD548 /* TipController.swift in Sources */,
 				9A6D6D332AE1A81E003D9569 /* ChatScreen.swift in Sources */,
+				9A27FD472C0F487E00221457 /* DownloadScreen.swift in Sources */,
 				9A1535F62BB2005B0086EEF5 /* InfoPlist.swift in Sources */,
 				9A093DAB25DDAD0C000E7DD9 /* SendTransaction.swift in Sources */,
 				9A6541B92788A00B00F3173C /* PhotoLibrary.swift in Sources */,
