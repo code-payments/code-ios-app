@@ -627,6 +627,8 @@ internal enum Localized {
     }
     /// Scan this QR code with your phone's camera to download the Code Wallet app
     internal static let scanThisQRCode = Localized.tr("Localizable", "subtitle.scanThisQRCode")
+    /// Scan to download the\nCode Wallet app
+    internal static let scanToDownload = Localized.tr("Localizable", "subtitle.scanToDownload")
     /// Search currencies
     internal static let searchCurrencies = Localized.tr("Localizable", "subtitle.searchCurrencies")
     /// Search contact or phone number
@@ -807,6 +809,11 @@ internal enum Localized {
       /// Tips
       internal static let tips = Localized.tr("Localizable", "title.chat.tips")
     }
+  }
+
+  internal enum Tooltip {
+    /// Tap the logo to share the app download link
+    internal static let tapLogo = Localized.tr("Localizable", "tooltip.tapLogo")
   }
 }
 // swiftlint:enable explicit_type_interface function_parameter_count identifier_name line_length

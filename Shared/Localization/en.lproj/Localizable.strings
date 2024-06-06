@@ -596,6 +596,18 @@
 /* Subtitle for 'Powered by Kado' or similar */
 "subtitle.poweredBy" = "Powered by";
 
+/* Subtitle for scanning a QR code to download the app */
+"subtitle.scanToDownload" = "Scan to download the\nCode Wallet app";
+
+
+
+
+
+// MARK: - Tooltip -
+
+/* Tooltip for tapping the logo to open the scan QR code screen */
+"tooltip.tapLogo" = "Tap the logo to share the app download link";
+
 
 
 

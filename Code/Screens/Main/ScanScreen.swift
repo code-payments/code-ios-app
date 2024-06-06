@@ -179,7 +179,7 @@ struct ScanScreen: View {
                             .foregroundColor(.textMain)
                     }
                     .if(tooltipViewModel.tooltipLogoShown) { $0
-                        .tooltip(properties: .default, text: "Tap the logo to share the app download link")
+                        .tooltip(properties: .default, text: Localized.Tooltip.tapLogo)
                     }
                     .sheet(isPresented: $isPresentingDownload) {
                         DownloadScreen(isPresented: $isPresentingDownload)

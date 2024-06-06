@@ -28,7 +28,7 @@ struct DownloadScreen: View {
                     Spacer()
                     
                     VStack(spacing: 50) {
-                        Text("Scan to download the\nCode Wallet app")
+                        Text(Localized.Subtitle.scanToDownload)
                             .frame(maxWidth: size)
                             .multilineTextAlignment(.center)
                             .font(.appTextLarge)
