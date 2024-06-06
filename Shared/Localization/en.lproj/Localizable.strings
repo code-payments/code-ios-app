@@ -606,7 +606,7 @@
 // MARK: - Tooltip -
 
 /* Tooltip for tapping the logo to open the scan QR code screen */
-"tooltip.tapLogo" = "Tap the logo to share the app download link";
+"tooltip.tapLogo" = "Tap the Code logo to share the app download link";
 
 
 

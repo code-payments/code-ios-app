@@ -812,7 +812,7 @@ internal enum Localized {
   }
 
   internal enum Tooltip {
-    /// Tap the logo to share the app download link
+    /// Tap the Code logo to share the app download link
     internal static let tapLogo = Localized.tr("Localizable", "tooltip.tapLogo")
   }
 }

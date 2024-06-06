@@ -27,7 +27,7 @@ struct DownloadScreen: View {
                     
                     Spacer()
                     
-                    VStack(spacing: 50) {
+                    VStack(spacing: 80) {
                         Text(Localized.Subtitle.scanToDownload)
                             .frame(maxWidth: size)
                             .multilineTextAlignment(.center)
@@ -36,26 +36,21 @@ struct DownloadScreen: View {
                         
                         VStack(spacing: 30) {
                             QRCode(
-                                string: URL.downloadCode.absoluteString,
+                                string: URL.downloadCode(ref: .iosQR).absoluteString,
                                 showLabel: false,
+                                padding: 0,
+                                cornerRadius: 0,
                                 codeColor: .backgroundMain,
-                                correctionLevel: .high
+                                correctionLevel: .low
                             )
                             .frame(width: size, height: size)
-                            .overlay {
-                                ZStack {
-                                    Rectangle()
-                                        .fill(Color.textMain)
-                                    Image.asset(.codeLogo)
-                                        .resizable()
-                                        .renderingMode(.template)
-                                        .foregroundColor(.backgroundMain)
-                                        .padding(7)
+                            .contextMenu(ContextMenu {
+                                Button(action: copy) {
+                                    Label(Localized.Action.copy, systemImage: SystemSymbol.doc.rawValue)
                                 }
-                                .frame(width: 46, height: 46)
-                            }
+                            })
                             
-                            HStack(spacing: 20) {
+                            HStack(spacing: 30) {
                                 Image.asset(.logoApple)
                                 Image.asset(.logoAndroid)
                             }
@@ -66,17 +61,20 @@ struct DownloadScreen: View {
                     Spacer()
                     
                     CodeButton(style: .filled, title: Localized.Action.share) {
-                        ShareSheet.present(url: .downloadCode)
+                        ShareSheet.present(url: .downloadCode(ref: .iosLink))
                     }
                 }
                 .padding(20)
             }
-            .navigationTitle("Download Code")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarCloseButton(binding: $isPresented)
             }
         }
+    }
+    
+    private func copy() {
+        UIPasteboard.general.string = URL.downloadCode(ref: .iosLink).absoluteString
     }
 }
 

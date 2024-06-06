@@ -142,7 +142,7 @@ struct ScanScreen: View {
     
     @ViewBuilder private func cameraPreviewView() -> some View {
         CameraPreviewView(session: cameraSession)
-            .background(Color.backgroundMain)
+            .background(Color.gray)
             .edgesIgnoringSafeArea(.all)
             .navigationBarHidden(true)
             .onAppear {
@@ -177,6 +177,7 @@ struct ScanScreen: View {
                     } label: {
                         CodeBrand(size: .small, template: true)
                             .foregroundColor(.textMain)
+                            .padding(20)
                     }
                     .if(tooltipViewModel.tooltipLogoShown) { $0
                         .tooltip(properties: .default, text: Localized.Tooltip.tapLogo)
@@ -192,6 +193,7 @@ struct ScanScreen: View {
                         size: .regular,
                         binding: $isPresentingSettings
                     )
+                    .padding(.trailing, 20)
                     .sheet(isPresented: $isPresentingSettings) { [unowned session] in
                         SettingsScreen(
                             session: session,
@@ -209,7 +211,6 @@ struct ScanScreen: View {
             }
             .transition(fadeTransition())
         }
-        .padding([.trailing, .leading], 20)
     }
     
     @ViewBuilder private func bottomBar(isVisible: Bool) -> some View {
@@ -600,8 +601,9 @@ extension Tooltip.Properties {
             height: 6
         ),
         cornerRadius: 10,
-        maxWidth: 200,
-        distance: 8,
+        maxWidth: 240,
+        distance: -12, // 8 - 20 (from padding) = -12
+        offset: 20,
         backgroundColor: .backgroundMain.opacity(0.9),
         textPadding: CGSize(width: 13, height: 11),
         textFont: .appTextMessage,

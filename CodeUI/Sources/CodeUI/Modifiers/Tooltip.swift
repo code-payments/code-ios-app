@@ -51,22 +51,22 @@ public struct Tooltip: ViewModifier {
         switch alignment {
         case .bottomLeading:
             CGPoint(
-                x: g.size.width * 0.5,
+                x: g.size.width * 0.5 + properties.offset,
                 y: g.size.height + (properties.arrowSize.height * 0.5) + properties.distance
             )
         case .bottomTrailing:
             CGPoint(
-                x: g.size.width * 0.5,
+                x: g.size.width * 0.5 + properties.offset,
                 y: g.size.height + (properties.arrowSize.height * 0.5) + properties.distance
             )
         case .topLeading:
             CGPoint(
-                x: g.size.width * 0.5,
+                x: g.size.width * 0.5 + properties.offset,
                 y: -properties.arrowSize.height * 0.5 - properties.distance
             )
         case .topTrailing:
             CGPoint(
-                x: g.size.width * 0.5,
+                x: g.size.width * 0.5 + properties.offset,
                 y: -properties.arrowSize.height * 0.5 - properties.distance
             )
         }
@@ -76,22 +76,22 @@ public struct Tooltip: ViewModifier {
         switch alignment {
         case .bottomLeading:
             CGPoint(
-                x: size.width * 0.5,
+                x: size.width * 0.5 + properties.offset,
                 y: size.height * 0.5 + g.size.height + properties.arrowSize.height + properties.distance
             )
         case .bottomTrailing:
             CGPoint(
-                x: -size.width * 0.5 + g.size.width,
+                x: -size.width * 0.5 + g.size.width + properties.offset,
                 y: size.height * 0.5 + g.size.height + properties.arrowSize.height + properties.distance
             )
         case .topLeading:
             CGPoint(
-                x: size.width * 0.5,
+                x: size.width * 0.5 + properties.offset,
                 y: -size.height * 0.5 - properties.arrowSize.height - properties.distance
             )
         case .topTrailing:
             CGPoint(
-                x: -size.width * 0.5 + g.size.width,
+                x: -size.width * 0.5 + g.size.width + properties.offset,
                 y: -size.height * 0.5 - properties.arrowSize.height - properties.distance
             )
         }
@@ -105,6 +105,7 @@ extension Tooltip {
         public var cornerRadius: CGFloat
         public var maxWidth: CGFloat
         public var distance: CGFloat
+        public var offset: CGFloat
         
         public var backgroundColor: Color
         
@@ -115,9 +116,10 @@ extension Tooltip {
         
         public init(
             arrowSize: CGSize = CGSize(width: 10, height: 4),
-            cornerRadius: CGFloat = 8.0,
-            maxWidth: CGFloat = 200.0,
-            distance: CGFloat = 0.0,
+            cornerRadius: CGFloat = 8,
+            maxWidth: CGFloat = 200,
+            distance: CGFloat = 0,
+            offset: CGFloat = 0,
             backgroundColor: Color = .blue,
             textPadding: CGSize = CGSize(width: 8, height: 8),
             textFont: Font = .body,
@@ -128,6 +130,7 @@ extension Tooltip {
             self.cornerRadius = cornerRadius
             self.maxWidth = maxWidth
             self.distance = distance
+            self.offset = offset
             
             self.backgroundColor = backgroundColor
             

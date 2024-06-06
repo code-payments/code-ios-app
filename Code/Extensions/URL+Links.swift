@@ -71,6 +71,24 @@ extension URL {
 }
 
 extension URL {
+    enum DownloadCodeRef {
+        case iosQR
+        case iosLink
+        
+        var string: String {
+            switch self {
+            case .iosQR:   return "iqr"
+            case .iosLink: return "is"
+            }
+        }
+    }
+    
+    static func downloadCode(ref: DownloadCodeRef) -> URL {
+        return URL(string: "https://getcode.com/d?ref=\(ref.string)")!
+    }
+}
+
+extension URL {
     static func openSettings() {
         URL.settings.openWithApplication()
     }

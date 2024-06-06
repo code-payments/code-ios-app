@@ -18,18 +18,20 @@ public struct QRCode: View {
     public var data: Data
     public var label: String?
     public var padding: CGFloat
+    public var cornerRadius: CGFloat
     public var codeColor: Color
     public var backgroundColor: Color
     public var labelColor: Color
     public var centerImage: Image?
     public var correctionLevel: CorrectionLevel
     
-    public init(isBlurred: Binding<Bool> = .constant(false), string: String, showLabel: Bool = true, padding: CGFloat = 10, codeColor: Color = .black, backgroundColor: Color = .white, labelColor: Color = .black, centerImage: Image? = nil, correctionLevel: CorrectionLevel = .medium) {
+    public init(isBlurred: Binding<Bool> = .constant(false), string: String, showLabel: Bool = true, padding: CGFloat = 10, cornerRadius: CGFloat = 10, codeColor: Color = .black, backgroundColor: Color = .white, labelColor: Color = .black, centerImage: Image? = nil, correctionLevel: CorrectionLevel = .medium) {
         self.init(
             isBlurred: isBlurred,
             data: Data(string.utf8),
             label: showLabel ? string : nil,
             padding: padding,
+            cornerRadius: cornerRadius,
             codeColor: codeColor,
             backgroundColor: backgroundColor,
             labelColor: labelColor,
@@ -38,11 +40,12 @@ public struct QRCode: View {
         )
     }
     
-    public init(isBlurred: Binding<Bool> = .constant(false), data: Data, label: String? = nil, padding: CGFloat = 10, codeColor: Color = .black, backgroundColor: Color = .white, labelColor: Color = .black, centerImage: Image? = nil, correctionLevel: CorrectionLevel = .medium) {
+    public init(isBlurred: Binding<Bool> = .constant(false), data: Data, label: String? = nil, padding: CGFloat = 10, cornerRadius: CGFloat = 10, codeColor: Color = .black, backgroundColor: Color = .white, labelColor: Color = .black, centerImage: Image? = nil, correctionLevel: CorrectionLevel = .medium) {
         self._isBlurred = isBlurred
         self.data  = data
         self.label = label
         self.padding = padding
+        self.cornerRadius = cornerRadius
         self.codeColor = codeColor
         self.backgroundColor = backgroundColor
         self.labelColor = labelColor
@@ -90,7 +93,7 @@ public struct QRCode: View {
             }
             .padding(padding)
             .background(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .fill(backgroundColor)
             )
         }
