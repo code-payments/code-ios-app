@@ -142,7 +142,7 @@ struct ScanScreen: View {
     
     @ViewBuilder private func cameraPreviewView() -> some View {
         CameraPreviewView(session: cameraSession)
-            .background(Color.gray)
+            .background(Color.backgroundMain)
             .edgesIgnoringSafeArea(.all)
             .navigationBarHidden(true)
             .onAppear {
@@ -539,14 +539,15 @@ extension ScanScreen {
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: 100)
                     .foregroundColor(.textMain)
+                    .padding(20)
                 Spacer()
                 RoundButton(
                     asset: .hamburger,
                     size: .regular,
                     binding: .constant(false)
                 )
+                .padding(.trailing, 20)
             }
-            .padding([.trailing, .leading], 20)
         }
         
         @ViewBuilder private func bottomBar() -> some View {
