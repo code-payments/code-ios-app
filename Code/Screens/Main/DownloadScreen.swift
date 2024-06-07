@@ -12,7 +12,7 @@ struct DownloadScreen: View {
     
     @Binding var isPresented: Bool
     
-    private let size: CGFloat = 250.0
+    private let size: CGFloat = 230.0
     
     // MARK: - Init -
     
@@ -34,7 +34,7 @@ struct DownloadScreen: View {
                             .font(.appTextLarge)
                             .foregroundColor(.textMain)
                         
-                        VStack(spacing: 30) {
+                        VStack(spacing: 35) {
                             QRCode(
                                 string: URL.downloadCode(ref: .iosQR).absoluteString,
                                 showLabel: false,
@@ -56,7 +56,7 @@ struct DownloadScreen: View {
                             }
                         }
                     }
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 44) // Adjust for nav bar center
                     
                     Spacer()
                     
