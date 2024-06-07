@@ -157,9 +157,9 @@ class FlowController: ObservableObject {
         
         // Before we can receive from the gift card account
         // we have to determine the balance of the account
-        let infos = try await client.fetchAccountInfos(owner: giftCard.cluster.authority.keyPair)
+        let infos = try? await client.fetchAccountInfos(owner: giftCard.cluster.authority.keyPair)
         
-        guard let info = infos.first?.value else {
+        guard let info = infos?.first?.value else {
             throw Error.failedToFetchGiftCardInfo
         }
         
