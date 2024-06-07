@@ -496,7 +496,7 @@ class Session: ObservableObject {
                     showGiftCardExpiredError()
                     
                 } catch {
-                    // TODO: Show error here
+                    showGiftCardCollectionFailedError()
                     ErrorReporting.captureError(error, reason: "Failed to receive remote send.")
                 }
             }
@@ -1414,6 +1414,17 @@ class Session: ObservableObject {
             style: .error,
             title: Localized.Error.Title.linkExpired,
             description: Localized.Error.Description.linkExpired,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showGiftCardCollectionFailedError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.failedToCollect,
+            description: Localized.Error.Description.failedToCollect,
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

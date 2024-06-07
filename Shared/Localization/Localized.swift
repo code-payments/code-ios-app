@@ -200,6 +200,8 @@ internal enum Localized {
       internal static let deviceNotSupported = Localized.tr("Localizable", "error.description.deviceNotSupported")
       /// Support for eSims will likely come in a future version of Code.
       internal static let eSimNotSupported = Localized.tr("Localizable", "error.description.eSimNotSupported")
+      /// Something went wrong. This Kin could not be collected.
+      internal static let failedToCollect = Localized.tr("Localizable", "error.description.failedToCollect")
       /// We weren't expecting that to happen. Something went wrong. Please try creating this account again.
       internal static let failedToCreateAccount = Localized.tr("Localizable", "error.description.failedToCreateAccount")
       /// Please allow Code access to Photos in Settings in order to save your Access Key.
@@ -282,6 +284,8 @@ internal enum Localized {
       internal static let deviceNotSupported = Localized.tr("Localizable", "error.title.deviceNotSupported")
       /// eSims Not Currently Supported
       internal static let eSimNotSupported = Localized.tr("Localizable", "error.title.eSimNotSupported")
+      /// Failed to Collect
+      internal static let failedToCollect = Localized.tr("Localizable", "error.title.failedToCollect")
       /// Failed to Create Account
       internal static let failedToCreateAccount = Localized.tr("Localizable", "error.title.failedToCreateAccount")
       /// Failed to Save

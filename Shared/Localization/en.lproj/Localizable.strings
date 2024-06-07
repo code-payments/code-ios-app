@@ -812,6 +812,12 @@
 /* Description when remote send Kin has already been collected */
 "error.description.alreadyCollectedBySomeone" = "This Kin was already collected by someone.";
 
+/* Title when remote send Kin failed to be collected */
+"error.title.failedToCollect" = "Failed to Collect";
+
+/* Description when remote send Kin failed to be collected */
+"error.description.failedToCollect" = "Something went wrong. This Kin could not be collected.";
+
 /* Title when remote send Kin has already been collected */
 "error.title.cashExpired" = "Cash Expired";
 
