@@ -140,6 +140,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         trace(.warning)
         createOverlay()
         addOverlayIfNeeded()
+        
+        appContainer.sessionAuthenticator.invalidateBiometrics()
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {
@@ -155,6 +157,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 fadeOutOverlay(delay: 0.3)
             }
         }
+        
+        appContainer.sessionAuthenticator.updateBiometricsState()
         
         validateSession()
     }
@@ -269,32 +273,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     private func handleAction(action: DeepLinkAction) -> Bool {
-        if let confirmationDescription = action.confirmationDescription {
-            appContainer.bannerController.show(
-                style: .error,
-                title: confirmationDescription.title,
-                description: confirmationDescription.description,
-                position: .bottom,
-                actionStyle: .stacked,
-                actions: [
-                    .destructive(title: confirmationDescription.confirmation) { [unowned self] in
-                        execute(action: action)
-                    },
-                    .cancel(title: Localized.Action.cancel),
-                ]
-            )
-            
-        } else {
-            execute(action: action)
+        let sessionAuthenticator = appContainer.sessionAuthenticator
+        let bannerController = appContainer.bannerController
+        
+        sessionAuthenticator.enqueueAfterBiometrics {
+            if let confirmationDescription = action.confirmationDescription {
+                bannerController.show(
+                    style: .error,
+                    title: confirmationDescription.title,
+                    description: confirmationDescription.description,
+                    position: .bottom,
+                    actionStyle: .stacked,
+                    actions: [
+                        .destructive(title: confirmationDescription.confirmation) {
+                            Task {
+                                try await action.executeAction()
+                            }
+                        },
+                        .cancel(title: Localized.Action.cancel),
+                    ]
+                )
+                
+            } else {
+                try await action.executeAction()
+            }
         }
         
         return true
-    }
-    
-    private func execute(action: DeepLinkAction) {
-        Task {
-            try await action.executeAction()
-        }
     }
     
     // MARK: - Appearance -

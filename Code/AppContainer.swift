@@ -58,7 +58,8 @@ class AppContainer {
             bannerController: bannerController,
             reachability: reachability,
             betaFlags: betaFlags,
-            abacus: abacus
+            abacus: abacus,
+            biometrics: biometrics
         )
         self.deepLinkController = DeepLinkController(sessionAuthenticator: sessionAuthenticator, abacus: abacus)
         self.pushController = PushController(sessionAuthenticator: sessionAuthenticator, client: client)

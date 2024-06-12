@@ -11,14 +11,16 @@ import SwiftUI
 public struct TextBubble: View {
     
     public let style: Style
+    public let font: Font
     public let text: String
     public let paddingVertical: CGFloat?
     public let paddingHorizontal: CGFloat?
     
     // MARK: - Init -
     
-    public init(style: Style, text: String, paddingVertical: CGFloat? = nil, paddingHorizontal: CGFloat? = nil) {
+    public init(style: Style, font: Font = .appTextSmall, text: String, paddingVertical: CGFloat? = nil, paddingHorizontal: CGFloat? = nil) {
         self.style = style
+        self.font = font
         self.text = text
         self.paddingVertical = paddingVertical
         self.paddingHorizontal = paddingHorizontal
@@ -29,7 +31,7 @@ public struct TextBubble: View {
     public var body: some View {
         VStack {
             Text(text)
-                .font(.appTextSmall)
+                .font(font)
                 .foregroundColor(style.textColor)
         }
         .padding([.top, .bottom], 5 + (paddingVertical ?? 0))

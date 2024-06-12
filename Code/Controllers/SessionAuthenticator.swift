@@ -29,6 +29,9 @@ final class SessionAuthenticator: ObservableObject {
     @Published private(set) var isRestricted: Bool = false
     @Published private(set) var isUnlocked: Bool = false
     @Published private(set) var state: AuthenticationState = .migrating
+    @Published private(set) var biometricState: BiometricState = .disabled
+    
+    private(set) var biometricsRequireReverification: Bool = true
     
     var isLoggedIn: Bool {
         if case .loggedIn = state {
@@ -45,14 +48,17 @@ final class SessionAuthenticator: ObservableObject {
     private let reachability: Reachability
     private let betaFlags: BetaFlags
     private let abacus: Abacus
+    private let biometrics: Biometrics
     
     private var cancellables: Set<AnyCancellable> = []
+    
+    private var biometricsQueue: [ThrowingAction] = []
     
     @Defaults(.launchCount) private static var launchCount: Int?
     
     // MARK: - Init -
     
-    init(client: Client, exchange: Exchange, cameraSession: CameraSession<CodeExtractor>, bannerController: BannerController, reachability: Reachability, betaFlags: BetaFlags, abacus: Abacus) {
+    init(client: Client, exchange: Exchange, cameraSession: CameraSession<CodeExtractor>, bannerController: BannerController, reachability: Reachability, betaFlags: BetaFlags, abacus: Abacus, biometrics: Biometrics) {
         self.client = client
         self.exchange = exchange
         self.cameraSession = cameraSession
@@ -60,6 +66,7 @@ final class SessionAuthenticator: ObservableObject {
         self.reachability = reachability
         self.betaFlags = betaFlags
         self.abacus = abacus
+        self.biometrics = biometrics
         self.accountManager = AccountManager()
         
         // Update launch state.
@@ -127,7 +134,61 @@ final class SessionAuthenticator: ObservableObject {
             }
         }
         
+        updateBiometricsState()
         validateInvitationStatus()
+    }
+    
+    // MARK: - Biometrics -
+    
+    func invalidateBiometrics() {
+        biometricsRequireReverification = true
+    }
+    
+    func updateBiometricsState() {
+        if biometrics.isEnabled {
+            if biometricsRequireReverification {
+                biometricState = .notVerified
+            }
+        } else {
+            biometricState = .disabled
+        }
+    }
+    
+    func verifyBiometrics() async -> Bool {
+        guard let context = biometrics.verificationContext() else {
+            return false
+        }
+        
+        let isVerified = await context.verify(reason: .general)
+        if isVerified {
+            biometricState = .verified
+            Task {
+                await flushBiometricsQueue()
+            }
+        } else {
+            // Leave unchanged
+        }
+        
+        return isVerified
+    }
+    
+    func enqueueAfterBiometrics(action: @escaping ThrowingAction) {
+        if biometricState.isPermitted {
+            Task {
+                try await action()
+            }
+        } else {
+            biometricsQueue.append(action)
+        }
+    }
+    
+    func flushBiometricsQueue() async {
+        while !biometricsQueue.isEmpty {
+            let action = biometricsQueue.removeFirst()
+            do {
+                try await action()
+            } catch {}
+        }
     }
     
     // MARK: - Session -
@@ -309,6 +370,21 @@ extension SessionAuthenticator {
 // MARK: - AuthenticationState -
 
 extension SessionAuthenticator {
+    enum BiometricState {
+        case disabled
+        case notVerified
+        case verified
+        
+        var isPermitted: Bool {
+            switch self {
+            case .disabled, .verified:
+                return true
+            case .notVerified:
+                return false
+            }
+        }
+    }
+    
     enum AuthenticationState {
         case loggedOut
         case migrating
@@ -351,7 +427,8 @@ extension SessionAuthenticator {
         bannerController: .mock,
         reachability: .mock,
         betaFlags: .mock,
-        abacus: .mock
+        abacus: .mock,
+        biometrics: .mock
     )
 }
 

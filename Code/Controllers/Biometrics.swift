@@ -132,6 +132,7 @@ extension Biometrics {
 extension Biometrics.Context {
     enum Reason {
         
+        case general
         case enable
         case disable
         case access
@@ -140,6 +141,7 @@ extension Biometrics.Context {
         
         var description: String {
             switch self {
+            case .general:  return Localized.Subtitle.authenticateToAccess
             case .enable:   return Localized.Subtitle.enableFaceID
             case .disable:  return Localized.Subtitle.disableFaceID
             case .access:   return Localized.Subtitle.accessKeyFaceID

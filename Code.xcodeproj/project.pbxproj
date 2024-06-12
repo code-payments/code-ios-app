@@ -117,6 +117,7 @@
 		9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672027345419005F1113 /* SessionAuthenticator.swift */; };
 		9A88672427359B56005F1113 /* NotificationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672327359B56005F1113 /* NotificationController.swift */; };
 		9A8B265A2C10F156009FB349 /* ScanScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26592C10F156009FB349 /* ScanScreenViewModel.swift */; };
+		9A8B265F2C18AC74009FB349 /* BiometricsAuthScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */; };
 		9A8DB71627D50D4800E2E883 /* CodeGrindApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DB71527D50D4800E2E883 /* CodeGrindApp.swift */; };
 		9A8DB71827D50D4800E2E883 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DB71727D50D4800E2E883 /* ContentView.swift */; };
 		9A8DB71A27D50D4A00E2E883 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9A8DB71927D50D4A00E2E883 /* Assets.xcassets */; };
@@ -397,6 +398,7 @@
 		9A88672027345419005F1113 /* SessionAuthenticator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAuthenticator.swift; sourceTree = "<group>"; };
 		9A88672327359B56005F1113 /* NotificationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationController.swift; sourceTree = "<group>"; };
 		9A8B26592C10F156009FB349 /* ScanScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanScreenViewModel.swift; sourceTree = "<group>"; };
+		9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricsAuthScreen.swift; sourceTree = "<group>"; };
 		9A8DB71327D50D4800E2E883 /* CodeGrind.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CodeGrind.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A8DB71527D50D4800E2E883 /* CodeGrindApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeGrindApp.swift; sourceTree = "<group>"; };
 		9A8DB71727D50D4800E2E883 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -1012,6 +1014,7 @@
 			isa = PBXGroup;
 			children = (
 				9AFF973925DFFF140094174A /* ContainerScreen.swift */,
+				9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */,
 				9A48D93728512E6900EA9AA4 /* Accessory */,
 				9AB6061D273E9B8C00815861 /* Login */,
 				9A0B8D912AD0594900F3C5A1 /* Balance */,
@@ -1470,6 +1473,7 @@
 				9A03338B278E0C88005C630A /* VerifyPhoneScreen.swift in Sources */,
 				9A57224925EEDC4200B243FC /* DepositScreen.swift in Sources */,
 				9AE8F56228CA6513009C251F /* CurrencySelectionViewModel.swift in Sources */,
+				9A8B265F2C18AC74009FB349 /* BiometricsAuthScreen.swift in Sources */,
 				9A17FFC72B911D4C00FFC09F /* RequestKinScreen.swift in Sources */,
 				9A18C737289C11D500B39AF6 /* WithdrawAddressScreen.swift in Sources */,
 				9A9DF7C3274ED7950031E219 /* StatusController.swift in Sources */,

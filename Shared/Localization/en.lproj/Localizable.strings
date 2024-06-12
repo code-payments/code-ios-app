@@ -500,6 +500,9 @@
 /* Subtitle for using Face ID to verify viewing access key */
 "subtitle.accessKeyFaceID" = "Verify your identity to view your Access Key.";
 
+/* Subtitle for using Face ID to authenticate to access Code */
+"subtitle.authenticateToAccess" = "Authenticate to access Code.";
+
 /* Subtitle for delete account confirmation description */
 "subtitle.deleteAccountDescription" = "Make sure you have your Secret Recovery Phrase saved, and then enter “Delete” to delete your Code account. This action is irreversible.";
 

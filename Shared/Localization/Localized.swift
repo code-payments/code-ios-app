@@ -525,6 +525,8 @@ internal enum Localized {
     internal static let allowCameraAccess = Localized.tr("Localizable", "subtitle.allowCameraAccess")
     /// You need to allow camera access to be able to receive Kin
     internal static let allowCameraSettings = Localized.tr("Localizable", "subtitle.allowCameraSettings")
+    /// Authenticate to access Code.
+    internal static let authenticateToAccess = Localized.tr("Localizable", "subtitle.authenticateToAccess")
     /// Buying and selling Kin is currently a complex process. These processes will get simpler over time. If you want to learn how to buy and sell Kin today you can watch the walk through videos below.
     internal static let buySellDescription = Localized.tr("Localizable", "subtitle.buySellDescription")
     /// You can only give up to %@
