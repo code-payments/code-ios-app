@@ -34,7 +34,7 @@ class Biometrics: ObservableObject {
             let context = Context(policy: policy)
             try context.canEvaluate()
             isAvailable = true
-            kind = context.kind
+            kind = context.hasBiometrics() ? context.kind : .passcode
         } catch {
             isAvailable = false
             kind = .none
@@ -76,6 +76,7 @@ class Biometrics: ObservableObject {
 extension Biometrics {
     enum Kind {
         case none
+        case passcode
         case touchID
         case faceID
     }
@@ -103,6 +104,10 @@ extension Biometrics {
 
         init(policy: LAPolicy) {
             self.policy = policy
+        }
+        
+        func hasBiometrics() -> Bool {
+            context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
         }
         
         func canEvaluate() throws {

@@ -777,8 +777,10 @@ internal enum Localized {
     internal static let requestKin = Localized.tr("Localizable", "title.requestKin")
     /// Request a Tip
     internal static let requestTip = Localized.tr("Localizable", "title.requestTip")
-    /// Require Touch ID
+    /// Require Face ID
     internal static let requireFaceID = Localized.tr("Localizable", "title.requireFaceID")
+    /// Require Passcode
+    internal static let requirePasscode = Localized.tr("Localizable", "title.requirePasscode")
     /// Require Touch ID
     internal static let requireTouchID = Localized.tr("Localizable", "title.requireTouchID")
     /// Results

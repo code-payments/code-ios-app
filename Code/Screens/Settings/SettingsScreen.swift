@@ -141,6 +141,13 @@ struct SettingsScreen: View {
             case .none:
                 EmptyView()
                 
+            case .passcode:
+                toggle(
+                    image: .system(.faceID),
+                    title: Localized.Title.requirePasscode,
+                    isEnabled: biometricsEnabledBinding()
+                )
+                
             case .faceID:
                 toggle(
                     image: .system(.faceID),

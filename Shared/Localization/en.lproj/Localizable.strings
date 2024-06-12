@@ -366,10 +366,13 @@
 "title.buySellKin" = "Buy & Sell Kin";
 
 /* Title for requiring FaceID */
-"title.requireFaceID" = "Require Touch ID";
+"title.requireFaceID" = "Require Face ID";
 
 /* Title for requiring TouchID */
 "title.requireTouchID" = "Require Touch ID";
+
+/* Title for requiring passcode */
+"title.requirePasscode" = "Require Passcode";
 
 
 
