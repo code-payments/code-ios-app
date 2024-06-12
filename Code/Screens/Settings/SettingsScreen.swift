@@ -266,7 +266,7 @@ struct SettingsScreen: View {
                 accountScreen()
             }
             
-            navigationRow(asset: .myAccount, title: Localized.Title.appSettings) {
+            navigationRow(asset: .settings, title: Localized.Title.appSettings) {
                 appSettingsScreen()
             }
             

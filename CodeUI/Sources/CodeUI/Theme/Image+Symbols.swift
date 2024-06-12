@@ -134,6 +134,7 @@ public enum Asset: String {
     case dollar
     case gift
     case tip
+    case settings
     
     // Third-Party
     
