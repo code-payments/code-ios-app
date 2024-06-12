@@ -216,13 +216,13 @@ struct GiveKinScreen: View {
             return false
         }
         
-        if let context = biometrics.verificationContext() {
-            let isVerified = await context.verify(reason: .giveKin)
-            guard isVerified else {
-                return false
-            }
-            try? await Task.delay(seconds: 1)
-        }
+//        if let context = biometrics.verificationContext() {
+//            let isVerified = await context.verify(reason: .giveKin)
+//            guard isVerified else {
+//                return false
+//            }
+//            try? await Task.delay(seconds: 1)
+//        }
         
         session.attemptSend(bill: .init(
             kind: .cash,

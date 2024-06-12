@@ -157,13 +157,13 @@ class WithdrawViewModel: ObservableObject {
             throw Error.invalidRequirements
         }
         
-        if let context = biometrics.verificationContext() {
-            guard await context.verify(reason: .withdraw) else {
-                completion(false)
-                throw Error.biometricsFailed
-            }
-            try await Task.delay(milliseconds: 500)
-        }
+//        if let context = biometrics.verificationContext() {
+//            guard await context.verify(reason: .withdraw) else {
+//                completion(false)
+//                throw Error.biometricsFailed
+//            }
+//            try await Task.delay(milliseconds: 500)
+//        }
 
         do {
             withdrawalButtonState = .loading

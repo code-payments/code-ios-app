@@ -412,11 +412,11 @@ struct SettingsScreen: View {
     // MARK: - Actions -
     
     private func showAccessKey() async {
-        if let context = biometrics.verificationContext() {
-            guard await context.verify(reason: .access) else {
-                return
-            }
-        }
+//        if let context = biometrics.verificationContext() {
+//            guard await context.verify(reason: .access) else {
+//                return
+//            }
+//        }
         isPresentingRecoveryPhrase = true
     }
     
