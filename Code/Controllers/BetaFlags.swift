@@ -84,7 +84,6 @@ class BetaFlags: ObservableObject {
 extension BetaFlags {
     enum Option: String, Hashable, Equatable, Codable, CaseIterable, Identifiable {
         
-        case useBiometrics
         case vibrateOnScan
         case showConnectivityStatus
         case bucketDebugger
@@ -101,8 +100,6 @@ extension BetaFlags {
         
         var localizedTitle: String {
             switch self {
-            case .useBiometrics:
-                return "Use Biometrics"
             case .vibrateOnScan:
                 return "Vibrate on Scan"
             case .bucketDebugger:
@@ -126,8 +123,6 @@ extension BetaFlags {
         
         var localizedDescription: String {
             switch self {
-            case .useBiometrics:
-                return "If enabled, you'll have the ability to setup Face ID or Touch ID for additional security when giving Kin and more."
             case .vibrateOnScan:
                 return "If enabled, the device will vibrate once to indicate that the camera has registered the code on the bill."
             case .bucketDebugger:

@@ -118,6 +118,50 @@ struct SettingsScreen: View {
         }
     }
     
+    // MARK: - App Settings -
+    
+    @ViewBuilder private func appSettingsScreen() -> some View {
+        Background(color: .backgroundMain) {
+            ScrollBox(color: .backgroundMain) {
+                ScrollView(showsIndicators: false) {
+                    appSettingsList()
+                }
+                .introspect(.scrollView, on: .iOS(.v15, .v16, .v17)) {
+                    $0.alwaysBounceVertical = false
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .navigationBarTitle(Text(Localized.Title.appSettings), displayMode: .inline)
+    }
+    
+    @ViewBuilder private func appSettingsList() -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            switch biometrics.kind {
+            case .none:
+                EmptyView()
+                
+            case .faceID:
+                toggle(
+                    image: .system(.faceID),
+                    title: Localized.Title.requireFaceID,
+                    isEnabled: biometricsEnabledBinding()
+                )
+                
+            case .touchID:
+                toggle(
+                    image: .system(.touchID),
+                    title: Localized.Title.requireTouchID,
+                    isEnabled: biometricsEnabledBinding()
+                )
+            }
+        }
+        .font(.appDisplayXS)
+        .foregroundColor(.textMain)
+    }
+    
+    // MARK: - My Account -
+    
     @ViewBuilder private func accountScreen() -> some View {
         Background(color: .backgroundMain) {
             ScrollBox(color: .backgroundMain) {
@@ -164,27 +208,6 @@ struct SettingsScreen: View {
                 )
             }
             
-            if betaFlags.hasEnabled(.useBiometrics) {
-                switch biometrics.kind {
-                case .none:
-                    EmptyView()
-                    
-                case .faceID:
-                    toggle(
-                        image: .system(.faceID),
-                        title: Localized.Action.enableFaceID,
-                        isEnabled: biometricsEnabledBinding()
-                    )
-                    
-                case .touchID:
-                    toggle(
-                        image: .system(.touchID),
-                        title: Localized.Action.enableTouchID,
-                        isEnabled: biometricsEnabledBinding()
-                    )
-                }
-            }
-            
             navigationRow(
                 asset: .phone,
                 title: Localized.Title.phoneNumber,
@@ -206,6 +229,8 @@ struct SettingsScreen: View {
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
     }
+    
+    // MARK: - Settings -
     
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -239,6 +264,10 @@ struct SettingsScreen: View {
             
             navigationRow(asset: .myAccount, title: Localized.Title.myAccount) {
                 accountScreen()
+            }
+            
+            navigationRow(asset: .myAccount, title: Localized.Title.appSettings) {
+                appSettingsScreen()
             }
             
             navigationRow(asset: .faq, title: Localized.Title.faq) {

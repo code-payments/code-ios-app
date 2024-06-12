@@ -197,12 +197,6 @@
 /* Action to join the waitlist */
 "action.joinWaitlist" = "Join the Waitlist";
 
-/* Action to enabled FaceID */
-"action.enableFaceID" = "Enable Face ID";
-
-/* Action to enabled TouchID */
-"action.enableTouchID" = "Enable Touch ID";
-
 /* Action to share download link */
 "action.shareDownloadLink" = "Share Download Link";
 
@@ -296,6 +290,9 @@
 /* Title for user's account */
 "title.myAccount" = "My Account";
 
+/* Title for app settings */
+"title.appSettings" = "App Settings";
+
 /* Title for account balance */
 "title.balance" = "Balance";
 
@@ -367,6 +364,12 @@
 
 /* Title for Buy and Sell Kin */
 "title.buySellKin" = "Buy & Sell Kin";
+
+/* Title for requiring FaceID */
+"title.requireFaceID" = "Require Touch ID";
+
+/* Title for requiring TouchID */
+"title.requireTouchID" = "Require Touch ID";
 
 
 
@@ -486,10 +489,10 @@
 "subtitle.allowCameraAccess" = "Code enables you to receive Kin by pointing your camera at the digital bill on another user's phone";
 
 /* Subtitle for enabling Face ID */
-"subtitle.enableFaceID" = "Enable Face ID to further enhance the security of transaction in Code.";
+"subtitle.enableFaceID" = "Enable Face ID to require authentication when opening Code.";
 
 /* Subtitle for disabling Face ID */
-"subtitle.disableFaceID" = "Disabling Face ID requires you to verify your identity.";
+"subtitle.disableFaceID" = "Disabling Face ID requires you to authenticate.";
 
 /* Subtitle for using Face ID to verify giving kin */
 "subtitle.giveKinFaceID" = "Verify your identity to give kin.";

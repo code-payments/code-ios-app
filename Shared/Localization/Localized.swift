@@ -50,10 +50,6 @@ internal enum Localized {
     internal static let done = Localized.tr("Localizable", "action.done")
     /// Download It Now
     internal static let downloadNow = Localized.tr("Localizable", "action.downloadNow")
-    /// Enable Face ID
-    internal static let enableFaceID = Localized.tr("Localizable", "action.enableFaceID")
-    /// Enable Touch ID
-    internal static let enableTouchID = Localized.tr("Localizable", "action.enableTouchID")
     /// Exit
     internal static let exit = Localized.tr("Localizable", "action.exit")
     /// Give Kin
@@ -549,13 +545,13 @@ internal enum Localized {
     }
     /// Didn't get an SMS? Resend
     internal static let didntGetCodeResend = Localized.tr("Localizable", "subtitle.didntGetCodeResend")
-    /// Disabling Face ID requires you to verify your identity.
+    /// Disabling Face ID requires you to authenticate.
     internal static let disableFaceID = Localized.tr("Localizable", "subtitle.disableFaceID")
     /// Don't have the Code Wallet app?
     internal static let dontHaveCodeApp = Localized.tr("Localizable", "subtitle.dontHaveCodeApp")
     /// You don't have any Kin yet.
     internal static let dontHaveKin = Localized.tr("Localizable", "subtitle.dontHaveKin")
-    /// Enable Face ID to further enhance the security of transaction in Code.
+    /// Enable Face ID to require authentication when opening Code.
     internal static let enableFaceID = Localized.tr("Localizable", "subtitle.enableFaceID")
     /// Enter destination address
     internal static let enterDestinationAddress = Localized.tr("Localizable", "subtitle.enterDestinationAddress")
@@ -725,6 +721,8 @@ internal enum Localized {
     internal static let accessExpired = Localized.tr("Localizable", "title.accessExpired")
     /// Access Key
     internal static let accessKey = Localized.tr("Localizable", "title.accessKey")
+    /// App Settings
+    internal static let appSettings = Localized.tr("Localizable", "title.appSettings")
     /// Balance
     internal static let balance = Localized.tr("Localizable", "title.balance")
     /// Beta Flags
@@ -779,6 +777,10 @@ internal enum Localized {
     internal static let requestKin = Localized.tr("Localizable", "title.requestKin")
     /// Request a Tip
     internal static let requestTip = Localized.tr("Localizable", "title.requestTip")
+    /// Require Touch ID
+    internal static let requireFaceID = Localized.tr("Localizable", "title.requireFaceID")
+    /// Require Touch ID
+    internal static let requireTouchID = Localized.tr("Localizable", "title.requireTouchID")
     /// Results
     internal static let results = Localized.tr("Localizable", "title.results")
     /// Select an Account
