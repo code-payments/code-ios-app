@@ -135,6 +135,7 @@ public enum Asset: String {
     case gift
     case tip
     case settings
+    case camera
     
     // Third-Party
     

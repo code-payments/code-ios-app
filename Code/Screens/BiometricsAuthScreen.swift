@@ -33,16 +33,8 @@ struct BiometricsAuthScreen: View {
                 Spacer()
                 
                 if didCancelBiometrics {
-                    Button {
+                    BubbleButton(text: Localized.Action.unlockCode) {
                         verify()
-                    } label: {
-                        TextBubble(
-                            style: .filled,
-                            font: .appTextMedium,
-                            text: "Unlock Code",
-                            paddingVertical: 5,
-                            paddingHorizontal: 15
-                        )
                     }
                 }
                 

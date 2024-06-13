@@ -35,6 +35,7 @@ class AppContainer {
     let bannerController = BannerController()
     let reachability = Reachability()
     let biometrics = Biometrics()
+    let preferences = Preferences()
     
     let abacus: Abacus
     let exchange: Exchange
@@ -79,6 +80,7 @@ class AppContainer {
             .environmentObject(bannerController)
             .environmentObject(reachability)
             .environmentObject(biometrics)
+            .environmentObject(preferences)
 
             .environmentObject(abacus)
             .environmentObject(exchange)

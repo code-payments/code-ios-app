@@ -142,6 +142,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         addOverlayIfNeeded()
         
         appContainer.sessionAuthenticator.invalidateBiometrics()
+        
+        appContainer.preferences.appDidEnterBackground()
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {

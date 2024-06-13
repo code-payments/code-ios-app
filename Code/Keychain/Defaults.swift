@@ -17,10 +17,15 @@ enum DefaultsKey: String {
     case localCurrencyAdded = "com.code.currency.localCurrencyAdded"
     case launchCount = "com.code.launchCount"
     case betaFlags = "com.code.debug.preferences"
-    case biometricsEnabled = "com.code.biometrics.enabled"
     case twitterUser = "com.code.social.twitterUser"
     
     case tooltipLogo = "com.code.tooltip.logo"
+    
+    // Settings
+    
+    case biometricsEnabled = "com.code.biometrics.enabled"
+    case cameraAutoStartDisabled = "com.code.camera.autoStartDisabled"
+    case cameraEnabledState = "com.code.camera.cameraEnabledState"
 }
 
 @propertyWrapper

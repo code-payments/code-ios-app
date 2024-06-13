@@ -116,8 +116,9 @@
 		9A829A4028A57852005F4F87 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A829A3F28A57852005F4F87 /* AppContainer.swift */; };
 		9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672027345419005F1113 /* SessionAuthenticator.swift */; };
 		9A88672427359B56005F1113 /* NotificationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672327359B56005F1113 /* NotificationController.swift */; };
-		9A8B265A2C10F156009FB349 /* ScanScreenViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26592C10F156009FB349 /* ScanScreenViewModel.swift */; };
+		9A8B265A2C10F156009FB349 /* TooltipViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26592C10F156009FB349 /* TooltipViewModel.swift */; };
 		9A8B265F2C18AC74009FB349 /* BiometricsAuthScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */; };
+		9A8B26612C1A32BC009FB349 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26602C1A32BB009FB349 /* Preferences.swift */; };
 		9A8DB71627D50D4800E2E883 /* CodeGrindApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DB71527D50D4800E2E883 /* CodeGrindApp.swift */; };
 		9A8DB71827D50D4800E2E883 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DB71727D50D4800E2E883 /* ContentView.swift */; };
 		9A8DB71A27D50D4A00E2E883 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9A8DB71927D50D4A00E2E883 /* Assets.xcassets */; };
@@ -397,8 +398,9 @@
 		9A829A3F28A57852005F4F87 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		9A88672027345419005F1113 /* SessionAuthenticator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAuthenticator.swift; sourceTree = "<group>"; };
 		9A88672327359B56005F1113 /* NotificationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationController.swift; sourceTree = "<group>"; };
-		9A8B26592C10F156009FB349 /* ScanScreenViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanScreenViewModel.swift; sourceTree = "<group>"; };
+		9A8B26592C10F156009FB349 /* TooltipViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooltipViewModel.swift; sourceTree = "<group>"; };
 		9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricsAuthScreen.swift; sourceTree = "<group>"; };
+		9A8B26602C1A32BB009FB349 /* Preferences.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		9A8DB71327D50D4800E2E883 /* CodeGrind.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CodeGrind.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A8DB71527D50D4800E2E883 /* CodeGrindApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeGrindApp.swift; sourceTree = "<group>"; };
 		9A8DB71727D50D4800E2E883 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -594,6 +596,7 @@
 				9AB7C58425E440A40007B3D5 /* Exchange.swift */,
 				9AC08A9A28CD0983006BF6F3 /* Biometrics.swift */,
 				9A40E54A260CB485009DEF2C /* BetaFlags.swift */,
+				9A8B26602C1A32BB009FB349 /* Preferences.swift */,
 				9A70501C2600F5CC0036A056 /* ContentController.swift */,
 				9A70503B26024E430036A056 /* InviteController.swift */,
 				9A88672327359B56005F1113 /* NotificationController.swift */,
@@ -891,7 +894,7 @@
 			isa = PBXGroup;
 			children = (
 				9AE8F56128CA6513009C251F /* CurrencySelectionViewModel.swift */,
-				9A8B26592C10F156009FB349 /* ScanScreenViewModel.swift */,
+				9A8B26592C10F156009FB349 /* TooltipViewModel.swift */,
 			);
 			path = ViewModel;
 			sourceTree = "<group>";
@@ -1517,6 +1520,7 @@
 				9A2B16C52B73FF86008DB36D /* DepositUSDCScreen.swift in Sources */,
 				9ACFA004261DFDA6007F97B4 /* Environment.swift in Sources */,
 				9AED1104258BE1310088D902 /* AppDelegate.swift in Sources */,
+				9A8B26612C1A32BC009FB349 /* Preferences.swift in Sources */,
 				9A103F8225B9BF180026EA62 /* Session.swift in Sources */,
 				9A88672427359B56005F1113 /* NotificationController.swift in Sources */,
 				9A9A273F27D28AEE005EBBC6 /* AccountSelectionScreen.swift in Sources */,
@@ -1558,7 +1562,7 @@
 				9A0F08322BBC753E00C65489 /* ModalCashReceived.swift in Sources */,
 				9A093D6D25D5C1EF000E7DD9 /* Secure.swift in Sources */,
 				9A705052260287A10036A056 /* PhoneBook.swift in Sources */,
-				9A8B265A2C10F156009FB349 /* ScanScreenViewModel.swift in Sources */,
+				9A8B265A2C10F156009FB349 /* TooltipViewModel.swift in Sources */,
 				9AB8152029DC89900037DBB4 /* InviteCodeScreen.swift in Sources */,
 				9A9A273C27D00F76005EBBC6 /* AccountManager.swift in Sources */,
 				9AB41548285A681E00273112 /* RegionSelectionScreen.swift in Sources */,

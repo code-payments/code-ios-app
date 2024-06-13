@@ -22,6 +22,7 @@ struct SettingsScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     @EnvironmentObject private var bannerController: BannerController
     @EnvironmentObject private var biometrics: Biometrics
+    @EnvironmentObject private var preferences: Preferences
     
     @State private var isPresentingAccountSelection = false
     @State private var isPresentingRecoveryPhrase = false
@@ -162,6 +163,12 @@ struct SettingsScreen: View {
                     isEnabled: biometricsEnabledBinding()
                 )
             }
+            
+            toggle(
+                image: .asset(.camera),
+                title: Localized.Title.autoStartCamera,
+                isEnabled: cameraAutoStartDisabledBinding()
+            )
         }
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
@@ -393,6 +400,13 @@ struct SettingsScreen: View {
             set: { enabled in
                 biometrics.setEnabledAndVerify(enabled)
             }
+        )
+    }
+    
+    private func cameraAutoStartDisabledBinding() -> Binding<Bool> {
+        Binding(
+            get: { !preferences.cameraAutoStartDisabled },
+            set: { preferences.cameraAutoStartDisabled = !$0 }
         )
     }
     

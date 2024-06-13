@@ -227,6 +227,12 @@
 /* Action to tweet at someone on Twitter (X) */
 "action.tweetThem" = "Tweet Them";
 
+/* Action to start / turn on the camera */
+"action.startCamera" = "Start Camera";
+
+/* Action to unlock code using biometrics or passcode */
+"action.unlockCode" = "Unlock Code";
+
 
 
 
@@ -373,6 +379,9 @@
 
 /* Title for requiring passcode */
 "title.requirePasscode" = "Require Passcode";
+
+/* Title for requiring passcode */
+"title.autoStartCamera" = "Auto Start Camera";
 
 
 
@@ -607,6 +616,9 @@
 
 /* Subtitle for scanning a QR code to download the app */
 "subtitle.scanToDownload" = "Scan to download the\nCode Wallet app";
+
+/* Subtitle for starting your camera to scan codes */
+"subtitle.startCameraToScan" = "You need to start your camera to scan Codes";
 
 
 

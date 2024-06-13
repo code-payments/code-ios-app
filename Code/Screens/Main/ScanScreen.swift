@@ -26,6 +26,7 @@ struct ScanScreen: View {
     @EnvironmentObject private var reachability: Reachability
     @EnvironmentObject private var bannerController: BannerController
     @EnvironmentObject private var biometrics: Biometrics
+    @EnvironmentObject private var preferences: Preferences
     
     @State private var sendState: ButtonState = .normal
     
@@ -81,12 +82,22 @@ struct ScanScreen: View {
         let isInterfaceVisible = session.billState.bill == nil
         ZStack {
             if cameraAuthorized {
-                cameraPreviewView()
+                if preferences.cameraEnabled {
+                    cameraPreviewView()
+                }
             }
+            
             billView()
+            
+            // Any actionable views need to be positioned
+            // in front of the BillCanvas, otherwise it
+            // will swallow all touch events
             if !cameraAuthorized {
                 authorizeView(isVisible: isInterfaceVisible)
+            } else if !preferences.cameraEnabled {
+                manualCameraStart()
             }
+            
             interfaceView(isVisible: isInterfaceVisible)
             modalView()
         }
@@ -107,26 +118,37 @@ struct ScanScreen: View {
         }
     }
     
+    @ViewBuilder private func manualCameraStart() -> some View {
+        VStack(spacing: 40) {
+            Text(Localized.Subtitle.startCameraToScan)
+                .frame(maxWidth: 240)
+                .multilineTextAlignment(.center)
+            
+            BubbleButton(text: Localized.Action.startCamera) {
+                preferences.cameraEnabled.toggle()
+            }
+        }
+        .transition(fadeTransition())
+        .padding(40)
+        .font(.appTextSmall)
+        .foregroundColor(.textMain)
+    }
+    
     @ViewBuilder private func authorizeView(isVisible: Bool) -> some View {
         if let directToSettings = directToSettings {
             VStack(spacing: 40) {
                 if isVisible {
                     Group {
                         Text(directToSettings ? Localized.Subtitle.allowCameraSettings : Localized.Subtitle.allowCameraAccess)
+                            .frame(maxWidth: 240)
                             .multilineTextAlignment(.center)
-                        Button {
+                        
+                        BubbleButton(text: directToSettings ? Localized.Action.openSettings : Localized.Action.next) {
                             if directToSettings {
                                 URL.openSettings()
                             } else {
                                 cameraAuthorizer.authorize()
                             }
-                        } label: {
-                            TextBubble(
-                                style: .filled,
-                                text: directToSettings ? Localized.Action.openSettings : Localized.Action.next,
-                                paddingVertical: 5,
-                                paddingHorizontal: 15
-                            )
                         }
                     }
                     .transition(fadeTransition())

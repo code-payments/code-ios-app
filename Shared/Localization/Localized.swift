@@ -118,6 +118,8 @@ internal enum Localized {
     internal static let shareVideo = Localized.tr("Localizable", "action.shareVideo")
     /// Show My Tip Card
     internal static let showMyTipCard = Localized.tr("Localizable", "action.showMyTipCard")
+    /// Start Camera
+    internal static let startCamera = Localized.tr("Localizable", "action.startCamera")
     /// Subscribe
     internal static let subscribe = Localized.tr("Localizable", "action.subscribe")
     /// Swipe to Login
@@ -130,6 +132,8 @@ internal enum Localized {
     internal static let tryDifferentCodeAccount = Localized.tr("Localizable", "action.tryDifferentCodeAccount")
     /// Tweet Them
     internal static let tweetThem = Localized.tr("Localizable", "action.tweetThem")
+    /// Unlock Code
+    internal static let unlockCode = Localized.tr("Localizable", "action.unlockCode")
     /// Unmute
     internal static let unmute = Localized.tr("Localizable", "action.unmute")
     /// Unsubscribe
@@ -641,6 +645,8 @@ internal enum Localized {
     internal static let someoneSendYouCash = Localized.tr("Localizable", "subtitle.someoneSendYouCash")
     /// Someone tipped you
     internal static let someoneTippedYou = Localized.tr("Localizable", "subtitle.someoneTippedYou")
+    /// You need to start your camera to scan Codes
+    internal static let startCameraToScan = Localized.tr("Localizable", "subtitle.startCameraToScan")
     /// Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card post to X.
     internal static let tipCardTwitterDescription = Localized.tr("Localizable", "subtitle.tipCardTwitterDescription")
     /// Type "%@"
@@ -723,6 +729,8 @@ internal enum Localized {
     internal static let accessKey = Localized.tr("Localizable", "title.accessKey")
     /// App Settings
     internal static let appSettings = Localized.tr("Localizable", "title.appSettings")
+    /// Auto Start Camera
+    internal static let autoStartCamera = Localized.tr("Localizable", "title.autoStartCamera")
     /// Balance
     internal static let balance = Localized.tr("Localizable", "title.balance")
     /// Beta Flags
