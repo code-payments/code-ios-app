@@ -161,8 +161,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         appContainer.sessionAuthenticator.updateBiometricsState()
-        
-        validateSession()
     }
     
     func applicationDidBecomeActive(_ application: UIApplication) {
@@ -180,10 +178,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         return Date.now().timeIntervalSince1970 - lastActiveDate.timeIntervalSince1970
-    }
-    
-    private func validateSession() {
-        appContainer.sessionAuthenticator.validateInvitationStatus()
     }
     
     // MARK: - Background Task -

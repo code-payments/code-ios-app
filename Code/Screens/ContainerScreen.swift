@@ -34,11 +34,7 @@ struct ContainerScreen: View {
                 
                 switch sessionAuthenticator.biometricState {
                 case .disabled, .verified:
-                    if sessionAuthenticator.isRestricted {
-                        RestrictedScreen(kind: .accessRestricted)
-                            .transition(.crossFade)
-                        
-                    } else if sessionAuthenticator.isUnlocked {
+                    if sessionAuthenticator.isUnlocked {
                         RestrictedScreen(kind: .timelockAccountUnlocked)
                             .transition(.crossFade)
                         

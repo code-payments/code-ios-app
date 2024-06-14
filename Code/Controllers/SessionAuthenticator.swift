@@ -10,23 +10,12 @@ import Combine
 import CodeServices
 import CodeUI
 
-private extension Keychain {
-    
-    @SecureCodable(.restricted)
-    static var isRestricted: Bool?
-    
-    static func resetRestricted() {
-        isRestricted = nil
-    }
-}
-
 @MainActor
 final class SessionAuthenticator: ObservableObject {
     
     let accountManager: AccountManager
     
     @Published private(set) var inProgress: Bool = false
-    @Published private(set) var isRestricted: Bool = false
     @Published private(set) var isUnlocked: Bool = false
     @Published private(set) var state: AuthenticationState = .migrating
     @Published private(set) var biometricState: BiometricState = .disabled
@@ -49,8 +38,6 @@ final class SessionAuthenticator: ObservableObject {
     private let betaFlags: BetaFlags
     private let abacus: Abacus
     private let biometrics: Biometrics
-    
-    private var cancellables: Set<AnyCancellable> = []
     
     private var biometricsQueue: [ThrowingAction] = []
     
@@ -135,7 +122,6 @@ final class SessionAuthenticator: ObservableObject {
         }
         
         updateBiometricsState()
-        validateInvitationStatus()
     }
     
     // MARK: - Biometrics -
@@ -214,13 +200,9 @@ final class SessionAuthenticator: ObservableObject {
         
         session.delegate = self
         
-        let contactsController = ContactsController(client: client, user: user, owner: keyAccount.owner)
-        
         return SessionContainer(
             session: session,
-            inviteController: InviteController(client: client, user: user),
-            historyController: historyController,
-            contactsController: contactsController
+            historyController: historyController
         )
     }
     
@@ -251,7 +233,6 @@ final class SessionAuthenticator: ObservableObject {
             // creation before it can be used
             do {
                 let accounts = try await client.fetchAccountInfos(owner: owner)
-                // TODO: Can return legacy account, will need to perform a migration
                 
                 // If primary vault exists, it's an existing user
                 guard accounts[organizer.primaryVault] != nil else {
@@ -304,11 +285,6 @@ final class SessionAuthenticator: ObservableObject {
         Analytics.setIdentity(initializedAccount.user)
     }
     
-    private func setRestricted(_ restricted: Bool) {
-        Keychain.isRestricted = restricted
-        isRestricted = restricted
-    }
-    
     func deleteAndLogout() {
         if case .loggedIn(let container) = state {
             accountManager.delete(ownerPublicKey: container.session.organizer.ownerKeyPair.publicKey)
@@ -318,34 +294,10 @@ final class SessionAuthenticator: ObservableObject {
     
     func logout() {
         accountManager.resetForLogout()
-        Keychain.resetRestricted()
         
         state = .loggedOut
-        isRestricted = false
         
         trace(.note, components: "Logged out")
-    }
-    
-    // MARK: - Authenticate -
-    
-    func validateInvitationStatus() {
-        let (_, user) = accountManager.fetchCurrent()
-        
-        guard let user = user else {
-            trace(.warning, components: "Failed to validate invitation status. No user stored in key chain.")
-            return
-        }
-        
-        Task {
-            do {
-                let status = try await client.fetchInviteStatus(userID: user.id)
-                setRestricted(status == .revoked)
-            } catch {
-                // There's not enough information here to make a call
-                // on restricting access. The request could've failed
-                // as a result of poor network connection, etc.
-            }
-        }
     }
 }
 
@@ -397,9 +349,7 @@ extension SessionAuthenticator {
 
 struct SessionContainer {
     let session: Session
-    let inviteController: InviteController
     let historyController: HistoryController
-    let contactsController: ContactsController
 }
 
 // MARK: - InitializedAccount -
@@ -435,8 +385,6 @@ extension SessionAuthenticator {
 extension SessionContainer {
     static let mock = SessionContainer(
         session: .mock,
-        inviteController: .mock,
-        historyController: .mock,
-        contactsController: .mock
+        historyController: .mock
     )
 }

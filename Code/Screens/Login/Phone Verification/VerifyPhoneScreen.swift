@@ -49,17 +49,6 @@ struct VerifyPhoneScreen<Content>: View where Content: View {
                     )
                 }
                 
-                Flow(isActive: $viewModel.isShowingInviteCodeScreen) {
-                    InviteCodeScreen(
-                        isActive: $isActive,
-                        showCloseButton: showCloseButton,
-                        viewModel: viewModel
-                    )
-                    LazyView(
-                        destinationContent()
-                    )
-                }
-                
                 Spacer()
                 InputContainer(size: .regular) {
                     HStack(spacing: 0) {

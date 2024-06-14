@@ -54,10 +54,6 @@ internal enum Localized {
     internal static let exit = Localized.tr("Localizable", "action.exit")
     /// Give Kin
     internal static let giveKin = Localized.tr("Localizable", "action.giveKin")
-    /// Invite
-    internal static let invite = Localized.tr("Localizable", "action.invite")
-    /// Invites
-    internal static let invites = Localized.tr("Localizable", "action.invites")
     /// Join the Waitlist
     internal static let joinWaitlist = Localized.tr("Localizable", "action.joinWaitlist")
     /// Later
@@ -192,8 +188,6 @@ internal enum Localized {
       internal static let cashExpired = Localized.tr("Localizable", "error.description.cashExpired")
       /// Please re-enter your phone number and try again.
       internal static let codeTimedOut = Localized.tr("Localizable", "error.description.codeTimedOut")
-      /// Please allow access to the contacts in Settings to send invites.
-      internal static let contactsAccessRequired = Localized.tr("Localizable", "error.description.contactsAccessRequired")
       /// Code is currently unavailable in your country.
       internal static let countryNotSupported = Localized.tr("Localizable", "error.description.countryNotSupported")
       /// We are unable to support your device at this time
@@ -220,26 +214,14 @@ internal enum Localized {
       internal static let giveLimitReached = Localized.tr("Localizable", "error.description.giveLimitReached")
       /// To learn how to get more Kin go to the FAQ in Settings.
       internal static let insuffiecientKin = Localized.tr("Localizable", "error.description.insuffiecientKin")
-      /// Please enter a different Invite Code and try again.
-      internal static let invalidInviteCode = Localized.tr("Localizable", "error.description.invalidInviteCode")
-      /// Please enter a valid phone number and try again.
-      internal static let invalidInvitePhone = Localized.tr("Localizable", "error.description.invalidInvitePhone")
       /// Please enter a valid code and try again.
       internal static let invalidVerificationCode = Localized.tr("Localizable", "error.description.invalidVerificationCode")
-      /// Sorry, we experienced a network issue. Please try inviting your friend again.
-      internal static let invitationFailed = Localized.tr("Localizable", "error.description.invitationFailed")
       /// This Kin was automatically returned to the sender because it wasn't collected within 24 hours. Please ask them to send the Kin again.
       internal static let linkExpired = Localized.tr("Localizable", "error.description.linkExpired")
       /// Please re-enter your phone number and try again.
       internal static let maxAttemptsReached = Localized.tr("Localizable", "error.description.maxAttemptsReached")
       /// Please check your internet connection or try again later.
       internal static let noInternet = Localized.tr("Localizable", "error.description.noInternet")
-      /// Code is currently invite-only. We will notify you when there are more invites available.
-      internal static let noInvitesLeft = Localized.tr("Localizable", "error.description.noInvitesLeft")
-      /// To join the waitlist go to %@
-      internal static func notInvitedYet(_ p1: Any) -> String {
-        return Localized.tr("Localizable", "error.description.notInvitedYet", String(describing: p1))
-      }
       /// The maximum you can purchase is %@. Please enter a smaller amount.
       internal static func purchaseTooLarge(_ p1: Any) -> String {
         return Localized.tr("Localizable", "error.description.purchaseTooLarge", String(describing: p1))
@@ -276,8 +258,6 @@ internal enum Localized {
       internal static let cashExpired = Localized.tr("Localizable", "error.title.cashExpired")
       /// Verification Code Timed Out
       internal static let codeTimedOut = Localized.tr("Localizable", "error.title.codeTimedOut")
-      /// Contacts Access Required
-      internal static let contactsAccessRequired = Localized.tr("Localizable", "error.title.contactsAccessRequired")
       /// Country Not Supported
       internal static let countryNotSupported = Localized.tr("Localizable", "error.title.countryNotSupported")
       /// Device Not Supported
@@ -302,24 +282,14 @@ internal enum Localized {
       internal static let giveLimitReached = Localized.tr("Localizable", "error.title.giveLimitReached")
       /// Insufficient Kin
       internal static let insuffiecientKin = Localized.tr("Localizable", "error.title.insuffiecientKin")
-      /// Invite Code Invalid or Expired
-      internal static let invalidInviteCode = Localized.tr("Localizable", "error.title.invalidInviteCode")
-      /// Invalid Phone Number
-      internal static let invalidInvitePhone = Localized.tr("Localizable", "error.title.invalidInvitePhone")
       /// Invalid Code
       internal static let invalidVerificationCode = Localized.tr("Localizable", "error.title.invalidVerificationCode")
-      /// Invitation Failed
-      internal static let invitationFailed = Localized.tr("Localizable", "error.title.invitationFailed")
       /// Link Expired
       internal static let linkExpired = Localized.tr("Localizable", "error.title.linkExpired")
       /// Maximum Attempts Reached
       internal static let maxAttemptsReached = Localized.tr("Localizable", "error.title.maxAttemptsReached")
       /// No Internet Connection
       internal static let noInternet = Localized.tr("Localizable", "error.title.noInternet")
-      /// You Have No Invites
-      internal static let noInvitesLeft = Localized.tr("Localizable", "error.title.noInvitesLeft")
-      /// You Haven't Been Invited Yet
-      internal static let notInvitedYet = Localized.tr("Localizable", "error.title.notInvitedYet")
       /// Purchase Too Large
       internal static let purchaseTooLarge = Localized.tr("Localizable", "error.title.purchaseTooLarge")
       /// Purchase Too Small
@@ -493,8 +463,6 @@ internal enum Localized {
   }
 
   internal enum Subtitle {
-    /// Your invitation to access Code has expired. You can log out and use a different account with a valid invitation status.
-    internal static let accessExpiredDescription = Localized.tr("Localizable", "subtitle.accessExpiredDescription")
     /// Your Access Key is the only way to access your funds. Please keep it private and safe.
     internal static let accessKeyDescription = Localized.tr("Localizable", "subtitle.accessKeyDescription")
     /// Verify your identity to view your Access Key.
@@ -557,18 +525,6 @@ internal enum Localized {
     internal static let insufficientFundsDescription = Localized.tr("Localizable", "subtitle.insufficientFundsDescription")
     /// Invalid destination account
     internal static let invalidTokenAccount = Localized.tr("Localizable", "subtitle.invalidTokenAccount")
-    /// Invite Code
-    internal static let inviteCode = Localized.tr("Localizable", "subtitle.inviteCode")
-    /// Code is currently invite only. You will need an Invite Code to access the app.
-    internal static let inviteCodeDescription = Localized.tr("Localizable", "subtitle.inviteCodeDescription")
-    /// %d Invites
-    internal static func inviteCount(_ p1: Int) -> String {
-      return Localized.tr("Localizable", "subtitle.inviteCount", p1)
-    }
-    /// Code is a new crypto wallet app that is currently invite only. To download Code go to %@
-    internal static func inviteText(_ p1: Any) -> String {
-      return Localized.tr("Localizable", "subtitle.inviteText", String(describing: p1))
-    }
     /// Learn more
     internal static let learnMore = Localized.tr("Localizable", "subtitle.learnMore")
     /// Your phone number is linked with this Code account. Friends can find you using this phone number.
@@ -591,8 +547,6 @@ internal enum Localized {
     internal static let openAndPointCamera = Localized.tr("Localizable", "subtitle.openAndPointCamera")
     /// Organizing Your Contacts
     internal static let organizingContacts = Localized.tr("Localizable", "subtitle.organizingContacts")
-    /// This phone number is not in your Contacts. You can still invite them to Code.
-    internal static let phoneNotInContacts = Localized.tr("Localizable", "subtitle.phoneNotInContacts")
     /// Enter your phone number including the country code.
     internal static let phoneVerificationDescription = Localized.tr("Localizable", "subtitle.phoneVerificationDescription")
     /// Powered by
@@ -617,8 +571,6 @@ internal enum Localized {
     internal static let scanToDownload = Localized.tr("Localizable", "subtitle.scanToDownload")
     /// Search currencies
     internal static let searchCurrencies = Localized.tr("Localizable", "subtitle.searchCurrencies")
-    /// Search contact or phone number
-    internal static let searchForContacts = Localized.tr("Localizable", "subtitle.searchForContacts")
     /// An SMS message was sent to your phone number with a verification code. Please enter the verification code above.
     internal static let smsWasSent = Localized.tr("Localizable", "subtitle.smsWasSent")
     /// Someone sent you cash
@@ -651,14 +603,6 @@ internal enum Localized {
     internal static let youDeposited = Localized.tr("Localizable", "subtitle.youDeposited")
     /// You gave
     internal static let youGave = Localized.tr("Localizable", "subtitle.youGave")
-    /// You Have %d Invites
-    internal static func youHaveInvites(_ p1: Int) -> String {
-      return Localized.tr("Localizable", "subtitle.youHaveInvites", p1)
-    }
-    /// Code is currently invite only. You have %d remaining.
-    internal static func youHaveInvitesLeft(_ p1: Int) -> String {
-      return Localized.tr("Localizable", "subtitle.youHaveInvitesLeft", p1)
-    }
     /// You paid
     internal static let youPaid = Localized.tr("Localizable", "subtitle.youPaid")
     /// You purchased
@@ -703,8 +647,6 @@ internal enum Localized {
   }
 
   internal enum Title {
-    /// Access Expired
-    internal static let accessExpired = Localized.tr("Localizable", "title.accessExpired")
     /// Access Key
     internal static let accessKey = Localized.tr("Localizable", "title.accessKey")
     /// App Settings
@@ -737,8 +679,6 @@ internal enum Localized {
     internal static let giveKin = Localized.tr("Localizable", "title.giveKin")
     /// Insufficient Funds
     internal static let insufficientFunds = Localized.tr("Localizable", "title.insufficientFunds")
-    /// Invite a Friend
-    internal static let inviteFriend = Localized.tr("Localizable", "title.inviteFriend")
     /// Limited Time Offer
     internal static let limitedTimeOffer = Localized.tr("Localizable", "title.limitedTimeOffer")
     /// Linked

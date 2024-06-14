@@ -66,14 +66,11 @@ extension RestrictedScreen {
     enum Kind {
         
         case timelockAccountUnlocked
-        case accessRestricted
         
         var title: String {
             switch self {
             case .timelockAccountUnlocked:
                 return Localized.Error.Title.timelockUnlocked
-            case .accessRestricted:
-                return Localized.Title.accessExpired
             }
         }
         
@@ -81,8 +78,6 @@ extension RestrictedScreen {
             switch self {
             case .timelockAccountUnlocked:
                 return Localized.Error.Description.timelockUnlocked
-            case .accessRestricted:
-                return Localized.Subtitle.accessExpiredDescription
             }
         }
     }
@@ -92,7 +87,7 @@ extension RestrictedScreen {
 
 struct RestrictedScreen_Previews: PreviewProvider {
     static var previews: some View {
-        RestrictedScreen(kind: .accessRestricted)
+        RestrictedScreen(kind: .timelockAccountUnlocked)
             .preferredColorScheme(.dark)
     }
 }

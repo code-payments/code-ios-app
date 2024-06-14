@@ -13,9 +13,7 @@ import AVKit
 struct ScanScreen: View {
     
     @ObservedObject private var session: Session
-    @ObservedObject private var inviteController: InviteController
     @ObservedObject private var historyController: HistoryController
-    @ObservedObject private var contactsController: ContactsController
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
@@ -61,18 +59,14 @@ struct ScanScreen: View {
     
     init(sessionContainer: SessionContainer) {
         self.session = sessionContainer.session
-        self.inviteController = sessionContainer.inviteController
         self.historyController = sessionContainer.historyController
-        self.contactsController = sessionContainer.contactsController
         self._tooltipViewModel = StateObject(wrappedValue: TooltipViewModel(owner: sessionContainer.session.organizer.ownerKeyPair.publicKey))
     }
     
     fileprivate init(sessionContainer: SessionContainer, overrideAuthorization: AVAuthorizationStatus) {
         self.session = sessionContainer.session
-        self.inviteController = sessionContainer.inviteController
         self.historyController = sessionContainer.historyController
         self.overrideAuthorization = overrideAuthorization
-        self.contactsController = sessionContainer.contactsController
         self._tooltipViewModel = StateObject(wrappedValue: TooltipViewModel(owner: sessionContainer.session.organizer.ownerKeyPair.publicKey))
     }
     

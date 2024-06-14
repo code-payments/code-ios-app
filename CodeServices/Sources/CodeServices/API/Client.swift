@@ -23,10 +23,8 @@ public class Client {
     internal let transactionService: TransactionService
     internal let messagingService: MessagingService
     internal let phoneService: PhoneService
-    internal let inviteService: InviteService
     internal let currencyService: CurrencyService
     internal let identityService: IdentityService
-    internal let contactsService: ContactsService
     internal let pushService: PushService
     internal let chatService: ChatService
     internal let badgeService: BadgeService
@@ -47,10 +45,8 @@ public class Client {
         self.transactionService = TransactionService(channel: channel, queue: queue)
         self.messagingService   = MessagingService(channel: channel, queue: queue)
         self.phoneService       = PhoneService(channel: channel, queue: queue)
-        self.inviteService      = InviteService(channel: channel, queue: queue)
         self.currencyService    = CurrencyService(channel: channel, queue: queue)
         self.identityService    = IdentityService(channel: channel, queue: queue)
-        self.contactsService    = ContactsService(channel: channel, queue: queue)
         self.pushService        = PushService(channel: channel, queue: queue)
         self.chatService        = ChatService(channel: channel, queue: queue)
         self.badgeService       = BadgeService(channel: channel, queue: queue)

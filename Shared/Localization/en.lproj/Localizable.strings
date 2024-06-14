@@ -68,9 +68,6 @@
 /* Remind */
 "action.remind" = "Remind";
 
-/* Invite */
-"action.invite" = "Invite";
-
 /* Update */
 "action.update" = "Update";
 
@@ -143,9 +140,6 @@
 /* Action to put the bill in the wallet */
 "action.putInWallet" = "Put in Wallet";
 
-/* Action to open invites */
-"action.invites" = "Invites";
-
 /* Action to begin the 'Give Kin' flow */
 "action.giveKin" = "Give Kin";
 
@@ -169,9 +163,6 @@
 
 /* Action to save to photos */
 "action.saveToPhotos" = "Save to Photos";
-
-/* Action to invite a friend */
-"action.invite" = "Invite";
 
 /* Action to send verification code */
 "action.sendVerificationCode" = "Send Verification Code";
@@ -320,9 +311,6 @@
 /* Title for Access Key */
 "title.accessKey" = "Access Key";
 
-/* Title for invite a friend */
-"title.inviteFriend" = "Invite a Friend";
-
 /* Title for enter phone number */
 "title.enterPhoneNumber" = "Enter Phone Number";
 
@@ -349,9 +337,6 @@
 
 /* Title for select an account */
 "title.selectAccount" = "Select an Account";
-
-/* Title for access expired */
-"title.accessExpired" = "Access Expired";
 
 /* Title for update required */
 "title.updateRequired" = "Update Required";
@@ -416,30 +401,6 @@
 /* Subtitle to guide the user that the entered amount is above the specified maximum */
 "subtitle.canOnlyTipUpTo" = "You can only tip up to %@";
 
-/* Subtitle for number of invites available */
-"subtitle.youHaveInvitesLeft" = "Code is currently invite only. You have %d remaining.";
-
-/* Subtitle for number of invites available */
-"subtitle.inviteCount" = "%d Invites";
-
-/* Subtitle for invite code */
-"subtitle.inviteCode" = "Invite Code";
-
-/* Subtitle for invite code description */
-"subtitle.inviteCodeDescription" = "Code is currently invite only. You will need an Invite Code to access the app.";
-
-/* Subtitle for number of invites available */
-"subtitle.youHaveInvites" = "You Have %d Invites";
-
-/* Subtitle for invite text */
-"subtitle.inviteText" = "Code is a new crypto wallet app that is currently invite only. To download Code go to %@";
-
-/* Subtitle for searching for contacts */
-"subtitle.searchForContacts" = "Search contact or phone number";
-
-/* Subtitle for phone number not found in contact list */
-"subtitle.phoneNotInContacts" = "This phone number is not in your Contacts. You can still invite them to Code.";
-
 /* Subtitle for organizing your contacts */
 "subtitle.organizingContacts" = "Organizing Your Contacts";
 
@@ -478,9 +439,6 @@
 
 /* Subtitle for entering a destination address */
 "subtitle.enterDestinationAddress" = "Enter destination address";
-
-/* Subtitle for access expired */
-"subtitle.accessExpiredDescription" = "Your invitation to access Code has expired. You can log out and use a different account with a valid invitation status.";
 
 /* Subtitle for no linked phone number */
 "subtitle.noLinkedPhoneNumber" = "No Linked\nPhone Number";
@@ -719,12 +677,6 @@
 /* Description when the encounters no internet connection */
 "error.description.noInternet" = "Please check your internet connection or try again later.";
 
-/* Title when the user hasn't been invited yet */
-"error.title.notInvitedYet" = "You Haven't Been Invited Yet";
-
-/* Description when the user hasn't been invited yet */
-"error.description.notInvitedYet" = "To join the waitlist go to %@";
-
 /* Title when the phone number confirmation code failed to send */
 "error.title.failedToSendCode" = "Failed to Send";
 
@@ -767,12 +719,6 @@
 /* Description when camera access is required */
 "error.description.cameraAccessRequired" = "Please allow access to the camera in Settings to use Code.";
 
-/* Title when contacts access is required */
-"error.title.contactsAccessRequired" = "Contacts Access Required";
-
-/* Description when contacts access is required */
-"error.description.contactsAccessRequired" = "Please allow access to the contacts in Settings to send invites.";
-
 /* Title when account creation failed */
 "error.title.failedToCreateAccount" = "Failed to Create Account";
 
@@ -791,35 +737,11 @@
 /* Description when unlocked account is trying to login */
 "error.description.timelockUnlocked" = "Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key in Code.";
 
-/* Title when contact invitation failed */
-"error.title.invitationFailed" = "Invitation Failed";
-
-/* Description when contact invitation failed */
-"error.description.invitationFailed" = "Sorry, we experienced a network issue. Please try inviting your friend again.";
-
-/* Title when no invites left to invite contacts */
-"error.title.noInvitesLeft" = "You Have No Invites";
-
-/* Description when no invites left to invite contacts */
-"error.description.noInvitesLeft" = "Code is currently invite-only. We will notify you when there are more invites available.";
-
 /* Title when withdrawal fails */
 "error.title.failedWithdrawal" = "Transaction Failed";
 
 /* Description when withdrawal fails */
 "error.description.failedWithdrawal" = "Failed to withdraw your funds. Something went wrong, please attempt your withdrawal again.";
-
-/* Title when inviting an invalid phone number */
-"error.title.invalidInvitePhone" = "Invalid Phone Number";
-
-/* Description when inviting an invalid phone number */
-"error.description.invalidInvitePhone" = "Please enter a valid phone number and try again.";
-
-/* Title when using an invalid invite code */
-"error.title.invalidInviteCode" = "Invite Code Invalid or Expired";
-
-/* Description when using an invalid invite code */
-"error.description.invalidInviteCode" = "Please enter a different Invite Code and try again.";
 
 /* Title when remote send Kin link has expired */
 "error.title.linkExpired" = "Link Expired";

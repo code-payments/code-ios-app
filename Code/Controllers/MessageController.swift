@@ -8,6 +8,7 @@
 import Foundation
 import MessageUI
 
+/// Was used from the ContactsScreen
 class MessageController: NSObject, ObservableObject, MFMessageComposeViewControllerDelegate {
     
     private var result: ((SendResult) -> Void)?

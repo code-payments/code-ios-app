@@ -19,7 +19,6 @@ class VerifyPhoneViewModel: ObservableObject {
 
     @Published var isShowingConfirmCodeScreen: Bool = false
     @Published var isShowingConfirmCodeScreenFromInvite: Bool = false
-    @Published var isShowingInviteCodeScreen: Bool = false
     
     @Published private(set) var region: Region
     @Published private(set) var enteredPhone: String = ""
@@ -139,12 +138,6 @@ class VerifyPhoneViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 sendCodeButtonState = .normal
                 
-            } 
-            
-            catch ErrorSendCode.notInvited {
-                isShowingInviteCodeScreen = true
-                try await Task.delay(milliseconds: 500)
-                sendCodeButtonState = .normal
             }
             
             catch ErrorSendCode.invalidPhoneNumber, ErrorSendCode.unsupportedPhoneNumber {
@@ -252,7 +245,6 @@ class VerifyPhoneViewModel: ObservableObject {
         inviteCodeButtonState = .loading
         Task {
             do {
-                try await client.redeem(inviteCode: enteredInviteCode, for: phone)
                 try await client.sendCode(phone: phone)
                 try await Task.delay(milliseconds: 500)
                 inviteCodeButtonState = .success
@@ -261,9 +253,6 @@ class VerifyPhoneViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 inviteCodeButtonState = .normal
                 
-            } catch ErrorSendInvite.inviteCodeNotFound, ErrorSendInvite.inviteCodeRevoked, ErrorSendInvite.inviteCodeExpired, ErrorSendInvite.inviteCountExceeded {
-                inviteCodeButtonState = .normal
-                showInviteCodeInvalid()
             } catch {
                 inviteCodeButtonState = .normal
             }
@@ -397,19 +386,6 @@ class VerifyPhoneViewModel: ObservableObject {
             style: .error,
             title: Localized.Error.Title.eSimNotSupported,
             description: Localized.Error.Description.eSimNotSupported,
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    // MARK: - Invite Errors -
-    
-    private func showInviteCodeInvalid() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.invalidInviteCode,
-            description: Localized.Error.Description.invalidInviteCode,
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
