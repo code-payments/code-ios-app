@@ -399,8 +399,10 @@ struct SettingsScreen: View {
             get: { biometrics.isEnabled },
             set: { enabled in
                 Task {
-                    let enabled = await biometrics.setEnabledAndVerify(enabled)
-                    Analytics.requireBiometrics(enabled: enabled)
+                    let verified = await biometrics.setEnabledAndVerify(enabled)
+                    if verified {
+                        Analytics.requireBiometrics(enabled: enabled)
+                    }
                 }
             }
         )
