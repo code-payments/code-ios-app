@@ -51,26 +51,6 @@ class ContentController: ObservableObject {
                 question: Localized.Faq.Q._6,
                 answer:   Localized.Faq.A._6
             ),
-            FAQ(
-                question: Localized.Faq.Q._7,
-                answer:   Localized.Faq.A._7
-            ),
-            FAQ(
-                question: Localized.Faq.Q._8,
-                answer:   Localized.Faq.A._8
-            ),
-            FAQ(
-                question: Localized.Faq.Q._9,
-                answer:   Localized.Faq.A._9
-            ),
-            FAQ(
-                question: Localized.Faq.Q._10,
-                answer:   Localized.Faq.A._10
-            ),
-            FAQ(
-                question: Localized.Faq.Q._11,
-                answer:   Localized.Faq.A._11
-            ),
         ]
     }
 }

@@ -343,52 +343,32 @@ internal enum Localized {
 
   internal enum Faq {
     internal enum A {
-      /// Code is a payments app that makes it simple to send money to anyone, anywhere in the world.
+      /// We believe payments should be simple, powerful, and global. By building with advanced blockchain technology Code offers features that traditional payments apps can't, like global peer to peer transfers, micropayments that unlock individual articles online, and zero fee tips for your favorite creators.
       internal static let _1 = Localized.tr("Localizable", "faq.a._1")
-      /// We plan to sustain ourselves through an upcoming subscription model, similar to what Signal and Twitter do.
-      internal static let _10 = Localized.tr("Localizable", "faq.a._10")
-      /// As a not-for-profit organization all the money we make will be reinvested into our mission of driving global financial inclusion. Your support is appreciated.
-      internal static let _11 = Localized.tr("Localizable", "faq.a._11")
-      /// Code is built using blockchain technology. This enables Code to offer global payments that are fast, free, and private.
+      /// Kin is a cryptocurrency like Bitcoin, but is also designed for fast, inexpensive payments.
       internal static let _2 = Localized.tr("Localizable", "faq.a._2")
-      /// Kin is a cryptocurrency like Bitcoin, only optimized for small, everyday transactions. Kin is what enables payments to be fast and free.
+      /// Like Bitcoin there is only a limited amount of Kin available. If more people buy Kin the value goes up, and if more people sell Kin the value goes down. This dynamic allows everyone who holds Kin to share in the value creation if adoption of Kin grows.
       internal static let _3 = Localized.tr("Localizable", "faq.a._3")
-      /// Your Kin is stored on the Solana blockchain. Only your Access Key can be used to access it.
+      /// You can buy Kin with your debit card. This is accessible in the Get Kin tab.
       internal static let _4 = Localized.tr("Localizable", "faq.a._4")
-      /// Kin is like cash. The only way to get it back is for them to give it back.
+      /// Yes you can. Selling Kin is supported on a number of cryptocurrency exchanges.
       internal static let _5 = Localized.tr("Localizable", "faq.a._5")
-      /// No there aren't. Exchange rates are updated in real time and no fees are added.
+      /// There are three main ways you can help: talk about your Code experience on social media, encourage your friends to try out Code for themselves, and encourage your favorite websites to integrate Code payments by asking them to check out [getcode.com](https://getcode.com).
       internal static let _6 = Localized.tr("Localizable", "faq.a._6")
-      /// Buying Kin is currently a bit complicated. This will get easier over time as new features are launched. For now the simplest way to buy Kin is from a friend who already has Code. You can find other ways at [reddit.com/r/buykin](https://www.reddit.com/r/buykin/)
-      internal static let _7 = Localized.tr("Localizable", "faq.a._7")
-      /// Yes you can. Kin can be sold on cryptocurrency exchanges. If you need help ask a friend who knows crypto.
-      internal static let _8 = Localized.tr("Localizable", "faq.a._8")
-      /// Similar to other cryptocurrencies the value of Kin is based on supply and demand. If more people buy Kin the value increases. If more people sell Kin the value decreases.
-      internal static let _9 = Localized.tr("Localizable", "faq.a._9")
     }
     internal enum Q {
       /// What is Code?
       internal static let _1 = Localized.tr("Localizable", "faq.q._1")
-      /// How does Code make money?
-      internal static let _10 = Localized.tr("Localizable", "faq.q._10")
-      /// What will Code do with the money it makes?
-      internal static let _11 = Localized.tr("Localizable", "faq.q._11")
-      /// How does Code achieve this?
-      internal static let _2 = Localized.tr("Localizable", "faq.q._2")
       /// Why are Code payments denominated in Kin?
-      internal static let _3 = Localized.tr("Localizable", "faq.q._3")
-      /// Where is my Kin stored?
-      internal static let _4 = Localized.tr("Localizable", "faq.q._4")
-      /// What if I send Kin to the wrong person?
-      internal static let _5 = Localized.tr("Localizable", "faq.q._5")
-      /// Are there any fees when making payments in different currencies?
-      internal static let _6 = Localized.tr("Localizable", "faq.q._6")
-      /// How do I get more Kin?
-      internal static let _7 = Localized.tr("Localizable", "faq.q._7")
-      /// Can I sell my Kin?
-      internal static let _8 = Localized.tr("Localizable", "faq.q._8")
+      internal static let _2 = Localized.tr("Localizable", "faq.q._2")
       /// Why does the value of Kin change?
-      internal static let _9 = Localized.tr("Localizable", "faq.q._9")
+      internal static let _3 = Localized.tr("Localizable", "faq.q._3")
+      /// How do I buy more Kin?
+      internal static let _4 = Localized.tr("Localizable", "faq.q._4")
+      /// Can I sell Kin?
+      internal static let _5 = Localized.tr("Localizable", "faq.q._5")
+      /// How can I help?
+      internal static let _6 = Localized.tr("Localizable", "faq.q._6")
     }
   }
 
