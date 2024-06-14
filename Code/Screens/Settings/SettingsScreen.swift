@@ -398,7 +398,10 @@ struct SettingsScreen: View {
         Binding(
             get: { biometrics.isEnabled },
             set: { enabled in
-                biometrics.setEnabledAndVerify(enabled)
+                Task {
+                    let enabled = await biometrics.setEnabledAndVerify(enabled)
+                    Analytics.requireBiometrics(enabled: enabled)
+                }
             }
         )
     }
@@ -406,7 +409,10 @@ struct SettingsScreen: View {
     private func cameraAutoStartDisabledBinding() -> Binding<Bool> {
         Binding(
             get: { !preferences.cameraAutoStartDisabled },
-            set: { preferences.cameraAutoStartDisabled = !$0 }
+            set: { enabled in
+                preferences.cameraAutoStartDisabled = !enabled
+                Analytics.cameraAutoStart(enabled: enabled)
+            }
         )
     }
     

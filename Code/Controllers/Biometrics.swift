@@ -47,17 +47,17 @@ class Biometrics: ObservableObject {
     
     // MARK: - Enable -
     
-    func setEnabledAndVerify(_ enabled: Bool) {
+    func setEnabledAndVerify(_ enabled: Bool) async -> Bool {
         isEnabled = enabled
-        Task {
-            let context  = Context(policy: policy)
-            let verified = await context.verify(reason: enabled ? .enable : .disable)
-            if verified {
-                storedEnabled = enabled
-            } else {
-                isEnabled = !enabled
-            }
+        let context  = Context(policy: policy)
+        let verified = await context.verify(reason: enabled ? .enable : .disable)
+        if verified {
+            storedEnabled = enabled
+        } else {
+            isEnabled = !enabled
         }
+        
+        return verified
     }
     
     // MARK: - Actions -

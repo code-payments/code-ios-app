@@ -253,6 +253,22 @@ extension Analytics {
     }
 }
 
+// MARK: - Settings -
+
+extension Analytics {
+    static func cameraAutoStart(enabled: Bool) {
+        track(.cameraAutoStart, properties: [
+            .state: enabled ? String.yes : String.no
+        ])
+    }
+    
+    static func requireBiometrics(enabled: Bool) {
+        track(.requireBiometrics, properties: [
+            .state: enabled ? String.yes : String.no
+        ])
+    }
+}
+
 // MARK: - Definitions -
 
 extension Analytics {
@@ -288,6 +304,11 @@ extension Analytics {
         case privacyMigration = "Privacy Migration"
         
         case backgroundSwap = "Background Swap Initiated"
+        
+        // Settings
+        
+        case requireBiometrics = "Require Biometrics"
+        case cameraAutoStart = "Camera Auto Start"
         
         // Errors
         case errorRequest = "Error Request"
