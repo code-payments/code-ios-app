@@ -50,7 +50,7 @@
 	<key>NSContactsUsageDescription</key>
 	<string>Access to contacts is required to send invitations.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>We will use Face ID to provide additional security for transactions.</string>
+	<string>Face ID is used to help keep your Kin secure.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We will save your Access Key to your library.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
@@ -90,10 +90,10 @@
 		<key>apiKey</key>
 		<string>$(BUGSNAG)</string>
 	</dict>
-    <key>kado</key>
-    <dict>
-        <key>apiKey</key>
-        <string>$(KADO)</string>
-    </dict>
+	<key>kado</key>
+	<dict>
+		<key>apiKey</key>
+		<string>$(KADO)</string>
+	</dict>
 </dict>
 </plist>
