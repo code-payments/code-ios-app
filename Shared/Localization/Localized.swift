@@ -471,7 +471,7 @@ internal enum Localized {
     internal static let accessKeySnapshotDescription = Localized.tr("Localizable", "subtitle.accessKeySnapshotDescription")
     /// Code enables you to receive Kin by pointing your camera at the digital bill on another user's phone
     internal static let allowCameraAccess = Localized.tr("Localizable", "subtitle.allowCameraAccess")
-    /// You need to allow camera access to be able to receive Kin
+    /// You need to turn on Camera in Settings to scan Codes
     internal static let allowCameraSettings = Localized.tr("Localizable", "subtitle.allowCameraSettings")
     /// Authenticate to access Code.
     internal static let authenticateToAccess = Localized.tr("Localizable", "subtitle.authenticateToAccess")

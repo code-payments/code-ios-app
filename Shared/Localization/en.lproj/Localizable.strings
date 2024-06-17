@@ -453,7 +453,7 @@
 "subtitle.updateRequiredDescription" = "We've made some changes to improve the experience. You'll need to update the app to keep using Code.";
 
 /* Subtitle for allow camera access via settings */
-"subtitle.allowCameraSettings" = "You need to allow camera access to be able to receive Kin";
+"subtitle.allowCameraSettings" = "You need to turn on Camera in Settings to scan Codes";
 
 /* Subtitle for allow camera access via prompt */
 "subtitle.allowCameraAccess" = "Code enables you to receive Kin by pointing your camera at the digital bill on another user's phone";
