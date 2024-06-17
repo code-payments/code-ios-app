@@ -89,7 +89,7 @@ struct ScanScreen: View {
             if !cameraAuthorized {
                 authorizeView(isVisible: isInterfaceVisible)
             } else if !preferences.cameraEnabled {
-                manualCameraStart()
+                manualCameraStart(isVisible: isInterfaceVisible)
             }
             
             interfaceView(isVisible: isInterfaceVisible)
@@ -112,17 +112,21 @@ struct ScanScreen: View {
         }
     }
     
-    @ViewBuilder private func manualCameraStart() -> some View {
+    @ViewBuilder private func manualCameraStart(isVisible: Bool) -> some View {
         VStack(spacing: 40) {
-            Text(Localized.Subtitle.startCameraToScan)
-                .frame(maxWidth: 240)
-                .multilineTextAlignment(.center)
-            
-            BubbleButton(text: Localized.Action.startCamera) {
-                preferences.cameraEnabled.toggle()
+            if isVisible {
+                Group {
+                    Text(Localized.Subtitle.startCameraToScan)
+                        .frame(maxWidth: 240)
+                        .multilineTextAlignment(.center)
+                    
+                    BubbleButton(text: Localized.Action.startCamera) {
+                        preferences.cameraEnabled.toggle()
+                    }
+                }
+                .transition(fadeTransition())
             }
         }
-        .transition(fadeTransition())
         .padding(40)
         .font(.appTextSmall)
         .foregroundColor(.textMain)
