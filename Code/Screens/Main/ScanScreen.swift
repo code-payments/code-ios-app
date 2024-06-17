@@ -130,6 +130,9 @@ struct ScanScreen: View {
         .padding(40)
         .font(.appTextSmall)
         .foregroundColor(.textMain)
+        .onAppear {
+            cameraSession.stop()
+        }
     }
     
     @ViewBuilder private func authorizeView(isVisible: Bool) -> some View {
