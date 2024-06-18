@@ -43,6 +43,16 @@ enum Analytics {
         track(event.rawValue, properties: container)
     }
     
+    static func track(_ action: Action, properties: [Property: AnalyticsValue]? = nil) {
+        var container: [String: AnalyticsValue] = [:]
+        
+        properties?.forEach { key, value in
+            container[key.rawValue] = value
+        }
+        
+        track(action.rawValue, properties: container)
+    }
+    
     private static func track(_ name: String, properties: [String: AnalyticsValue]? = nil) {
         mixpanel.track(event: name, properties: properties)
     }

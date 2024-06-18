@@ -52,6 +52,8 @@ class IntroViewModel: ObservableObject {
         regenerateMnemonic()
         trace(.note, components: "Initiating create for owner: \(inflighMnemonic.solanaKeyPair().publicKey.base58)")
         isShowingPhoneVerificationScreen = true
+        
+        Analytics.action(.actionCreateAccount)
     }
     
     func startLogin() {
@@ -84,6 +86,7 @@ class IntroViewModel: ObservableObject {
         Task {
             do {
                 try await PhotoLibrary.saveSecretRecoveryPhraseSnapshot(for: inflighMnemonic)
+                Analytics.actionConfirmAccessKey(didSaveToPhotos: true)
                 createAccount()
             } catch {
                 bannerController.show(
@@ -109,6 +112,7 @@ class IntroViewModel: ObservableObject {
             position: .bottom,
             actions: [
                 .destructive(title: Localized.Action.yesWroteThemDown) { [weak self] in
+                    Analytics.actionConfirmAccessKey(didSaveToPhotos: false)
                     self?.createAccount()
                 },
                 .cancel(title: Localized.Action.cancel),
@@ -216,7 +220,6 @@ class IntroViewModel: ObservableObject {
                     ownerPublicKey: inflighMnemonic.solanaKeyPair().publicKey,
                     error: nil
                 )
-                    
             }
 //            catch ErrorCreateIntent.denied {
 //                createAccountButtonState = .normal
@@ -280,6 +283,7 @@ class IntroViewModel: ObservableObject {
         }
         
         sessionAuthenticator.completeLogin(with: initializedAccount)
+        Analytics.action(.actionCompletedOnboarding)
     }
     
     // MARK: - Errors -

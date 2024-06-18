@@ -243,6 +243,20 @@ extension Analytics {
     }
 }
 
+// MARK: - Actions -
+
+extension Analytics {
+    static func action(_ action: Analytics.Action) {
+        track(action)
+    }
+    
+    static func actionConfirmAccessKey(didSaveToPhotos: Bool) {
+        track(.actionConfirmAccessKey, properties: [
+            .source: didSaveToPhotos ? "Saved to Photos" : "Wrote it Down",
+        ])
+    }
+}
+
 // MARK: - Migration -
 
 extension Analytics {
@@ -270,6 +284,16 @@ extension Analytics {
 }
 
 // MARK: - Definitions -
+
+extension Analytics {
+    enum Action: String {
+        case actionCreateAccount       = "Action: Create Account"
+        case actionEnterPhone          = "Action: Enter Phone"
+        case actionVerifyPhone         = "Action: Verify Phone"
+        case actionConfirmAccessKey    = "Action: Confirm Access Key"
+        case actionCompletedOnboarding = "Action: Completed Onboarding"
+    }
+}
 
 extension Analytics {
     enum Name: String {
@@ -353,6 +377,8 @@ extension Analytics {
         case voidingSend = "Voiding Send"
         
         case percentDelta = "Percent Delta"
+        
+        case source = "Source"
     }
 }
 

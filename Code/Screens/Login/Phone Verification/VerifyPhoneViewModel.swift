@@ -138,6 +138,7 @@ class VerifyPhoneViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 sendCodeButtonState = .normal
                 
+                Analytics.action(.actionEnterPhone)
             }
             
             catch ErrorSendCode.invalidPhoneNumber, ErrorSendCode.unsupportedPhoneNumber {
@@ -201,6 +202,8 @@ class VerifyPhoneViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 confirmCodeButtonState = .normal
                 enteredCode = ""
+                
+                Analytics.action(.actionVerifyPhone)
                 
             } catch ErrorValidateCode.invalidCode {
                 enteredCode = ""
