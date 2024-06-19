@@ -52,7 +52,8 @@ enum ErrorReporting {
         }
         
         let fileName = file.components(separatedBy: "/").last ?? "unknown"
-        userInfo["location"] = "\(fileName):\(line)"
+        let location = "\(fileName):\(function):\(line)"
+        userInfo["location"] = location
         
         buildUserInfo(&userInfo)
         
@@ -66,7 +67,18 @@ enum ErrorReporting {
             userInfo: userInfo
         )
         
-        Bugsnag.notifyError(customError)
+        Bugsnag.notifyError(customError) { event in
+            if !event.errors.isEmpty {
+                event.errors[0].errorClass = "\(error)"
+                event.errors[0].errorMessage = reason ?? ""
+            }
+            
+            // Skip the line numbers to maintain grouping
+            // even when files and line numbers change.
+            event.groupingHash = "\(fileName):\(function)"
+            
+            return true
+        }
     }
 }
 

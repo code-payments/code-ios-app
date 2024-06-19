@@ -701,7 +701,7 @@ extension DestinationMetadata {
 
 // MARK: - Errors -
 
-public enum ErrorSubmitIntent: Error {
+public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugStringConvertible {
     public enum DeniedReason: Int {
         /// No reason is available
         case unspecified // = 0
@@ -719,17 +719,25 @@ public enum ErrorSubmitIntent: Error {
     /// Denied by a guard (spam, money laundering, etc)
     case denied([DeniedReason])
     /// The intent is invalid.
-    case invalidIntent
+    case invalidIntent([String])
     /// There is an issue with provided signatures.
     case signatureError
     /// Server detected client has stale state.
-    case staleState
+    case staleState([String])
     /// Unknown reason
     case unknown //= -1
     /// Device token unavailable
     case deviceTokenUnavailable //= -2
     
     init(error: Code_Transaction_V2_SubmitIntentResponse.Error) {
+        let reasonStrings: [String] = error.errorDetails.compactMap {
+            if case .reasonString(let object) = $0.type {
+                return !object.reason.isEmpty ? object.reason : nil
+            } else {
+                return nil
+            }
+        }
+        
         switch error.code {
         case .denied:
             let reasons: [DeniedReason] = error.errorDetails.compactMap {
@@ -743,17 +751,39 @@ public enum ErrorSubmitIntent: Error {
             self = .denied(reasons)
             
         case .invalidIntent:
-            self = .invalidIntent
+            self = .invalidIntent(reasonStrings)
             
         case .signatureError:
             self = .signatureError
             
         case .staleState:
-            self = .staleState
+            self = .staleState(reasonStrings)
             
         case .UNRECOGNIZED:
             self = .unknown
         }
+    }
+    
+    public var description: String {
+        switch self {
+        case .denied(let reasons):
+            let string = reasons.map { "\($0)" }.joined(separator: ", ")
+            return "denied(\(string))"
+        case .invalidIntent(let reasons):
+            return "invalidIntent(\(reasons.joined(separator: ", ")))"
+        case .signatureError:
+            return "signatureError"
+        case .staleState(let reasons):
+            return "staleState(\(reasons.joined(separator: ", ")))"
+        case .unknown:
+            return "unknown"
+        case .deviceTokenUnavailable:
+            return "deviceTokenUnavailable"
+        }
+    }
+    
+    public var debugDescription: String {
+        description
     }
 }
 
