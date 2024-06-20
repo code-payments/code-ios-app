@@ -293,6 +293,8 @@ class FlowController: ObservableObject {
                 destination: destination
             )
             
+            Analytics.withdrawal(amount: amount)
+            
         } catch {
             ErrorReporting.capturePayment(
                 error: error,

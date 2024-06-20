@@ -151,13 +151,22 @@ extension Analytics {
 // MARK: - Cash Transfer -
 
 extension Analytics {
-    static func transfer(amount: KinAmount, currency: CurrencyCode, successful: Bool, error: Error?) {
+    static func withdrawal(amount: KinAmount) {
+        track(.withdrawal, properties: [
+            .amount: amount.kin.analyticsValue,
+            .fiat: amount.fiat.analyticsValue,
+            .fx: amount.rate.fx.analyticsValue,
+            .currency: amount.rate.currency.rawValue,
+        ])
+    }
+    
+    static func transfer(amount: KinAmount, successful: Bool, error: Error?) {
         track(.transfer, properties: [
             .state: successful ? String.success : String.failure,
             .amount: amount.kin.analyticsValue,
             .fiat: amount.fiat.analyticsValue,
             .fx: amount.rate.fx.analyticsValue,
-            .currency: currency.rawValue,
+            .currency: amount.rate.currency.rawValue,
         ], error: error)
     }
     
@@ -315,6 +324,7 @@ extension Analytics {
         case tipCard = "Tip Card"
         
         // Transfer
+        case withdrawal = "Withdrawal"
         case transfer = "Transfer"
         case requestPayment = "Request Payment"
         case tip = "Tip"

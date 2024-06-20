@@ -100,7 +100,6 @@ class SendTransaction {
                         try await self.sendFundsAndPoll(destinationTokenAccount: paymentRequest.account)
                         Analytics.transfer(
                             amount: amount,
-                            currency: currency,
                             successful: true,
                             error: nil
                         )
@@ -109,7 +108,6 @@ class SendTransaction {
                     } catch {
                         Analytics.transfer(
                             amount: amount,
-                            currency: currency,
                             successful: false,
                             error: error
                         )
