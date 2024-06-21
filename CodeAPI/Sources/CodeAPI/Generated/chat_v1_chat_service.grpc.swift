@@ -11,6 +11,8 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
+/// Deprecated: Use the v2 service
+///
 /// Usage: instantiate `Code_Chat_V1_ChatClient`, then call methods of this protocol to make API calls.
 public protocol Code_Chat_V1_ChatClientProtocol: GRPCClient {
   var serviceName: String { get }
@@ -244,6 +246,7 @@ public struct Code_Chat_V1_ChatNIOClient: Code_Chat_V1_ChatClientProtocol {
   }
 }
 
+/// Deprecated: Use the v2 service
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public protocol Code_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
@@ -577,6 +580,8 @@ public enum Code_Chat_V1_ChatClientMetadata {
   }
 }
 
+/// Deprecated: Use the v2 service
+///
 /// To build a server, implement a class that conforms to this protocol.
 public protocol Code_Chat_V1_ChatProvider: CallHandlerProvider {
   var interceptors: Code_Chat_V1_ChatServerInterceptorFactoryProtocol? { get }
@@ -682,6 +687,8 @@ extension Code_Chat_V1_ChatProvider {
   }
 }
 
+/// Deprecated: Use the v2 service
+///
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public protocol Code_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendable {
