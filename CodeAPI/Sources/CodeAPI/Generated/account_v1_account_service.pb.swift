@@ -443,6 +443,18 @@ public struct Code_Account_V1_TokenAccountInfo {
   /// Clears the value of `relationship`. Subsequent reads from it will return its default value.
   public mutating func clearRelationship() {_uniqueStorage()._relationship = nil}
 
+  /// Time the account was created, if available. For Code accounts, this is
+  /// the time of intent submission. Otherwise, for external accounts, it is
+  /// the tiem created on the blockchain.
+  public var createdAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._createdAt = newValue}
+  }
+  /// Returns true if `createdAt` has been explicitly set.
+  public var hasCreatedAt: Bool {return _storage._createdAt != nil}
+  /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
+  public mutating func clearCreatedAt() {_uniqueStorage()._createdAt = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum BalanceSource: SwiftProtobuf.Enum {
@@ -980,6 +992,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     12: .standard(proto: "original_exchange_data"),
     13: .same(proto: "mint"),
     16: .same(proto: "relationship"),
+    17: .standard(proto: "created_at"),
   ]
 
   fileprivate class _StorageClass {
@@ -997,6 +1010,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     var _originalExchangeData: Code_Transaction_V2_ExchangeData? = nil
     var _mint: Code_Common_V1_SolanaAccountId? = nil
     var _relationship: Code_Common_V1_Relationship? = nil
+    var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 
     #if swift(>=5.10)
       // This property is used as the initial default value for new instances of the type.
@@ -1025,6 +1039,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       _originalExchangeData = source._originalExchangeData
       _mint = source._mint
       _relationship = source._relationship
+      _createdAt = source._createdAt
     }
   }
 
@@ -1057,6 +1072,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._originalExchangeData) }()
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._mint) }()
         case 16: try { try decoder.decodeSingularMessageField(value: &_storage._relationship) }()
+        case 17: try { try decoder.decodeSingularMessageField(value: &_storage._createdAt) }()
         default: break
         }
       }
@@ -1111,6 +1127,9 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       try { if let v = _storage._relationship {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 16)
       } }()
+      try { if let v = _storage._createdAt {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1134,6 +1153,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         if _storage._originalExchangeData != rhs_storage._originalExchangeData {return false}
         if _storage._mint != rhs_storage._mint {return false}
         if _storage._relationship != rhs_storage._relationship {return false}
+        if _storage._createdAt != rhs_storage._createdAt {return false}
         return true
       }
       if !storagesAreEqual {return false}
