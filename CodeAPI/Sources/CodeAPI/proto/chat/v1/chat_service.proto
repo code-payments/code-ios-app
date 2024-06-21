@@ -11,6 +11,7 @@ import "transaction/v2/transaction_service.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
+// Deprecated: Use the v2 service
 service Chat {
     // GetChats gets the set of chats for an owner account
     rpc GetChats(GetChatsRequest) returns (GetChatsResponse);

@@ -8,6 +8,7 @@ option objc_class_prefix = "CPBAccountV1";
 
 import "common/v1/model.proto";
 import "transaction/v2/transaction_service.proto";
+import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 service Account {
@@ -224,4 +225,9 @@ message TokenAccountInfo {
     // The relationship with a third party that this account has established with.
     // This only applies to relevant account types (eg. RELATIONSHIP).
     common.v1.Relationship relationship = 16;
+
+    // Time the account was created, if available. For Code accounts, this is
+    // the time of intent submission. Otherwise, for external accounts, it is
+    // the tiem created on the blockchain.
+    google.protobuf.Timestamp created_at = 17;
 }
