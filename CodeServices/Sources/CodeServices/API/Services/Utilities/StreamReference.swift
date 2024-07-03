@@ -111,12 +111,12 @@ public class BidirectionalStreamReference<Request, Response>: Cancellable {
     
     public func destroy() {
         timeoutHandler = nil
-        cancelTimeout()
         cancel()
         release()
     }
     
     public func cancel() {
+        cancelTimeout()
         stream?.cancel(promise: nil)
     }
     
