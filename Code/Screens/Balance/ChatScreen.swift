@@ -19,6 +19,10 @@ struct ChatScreen: View {
     @ObservedObject private var chat: Chat
     @ObservedObject private var historyController: HistoryController
     
+    @State private var isShowingConversation: Bool = false
+    
+    @State private var messageListState = MessageList.State()
+    
     // MARK: - Init -
     
     init(chat: Chat, historyController: HistoryController) {
@@ -47,23 +51,15 @@ struct ChatScreen: View {
         historyController.fetchChats()
     }
     
-    @State private var isShowingConversation: Bool = false
-    
     // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                Flow(isActive: $isShowingConversation) {
-                    ConversationScreen(
-                        chatID: chat.id,
-                        owner: historyController.owner
-                    )
-                }
-                
                 MessageList(
-                    messages: chat.messages,
+                    chat: chat,
                     exchange: exchange,
+                    state: $messageListState,
                     useV2: betaFlags.hasEnabled(.alternativeBubbles),
                     showThank: betaFlags.hasEnabled(.conversations)
                 )
@@ -217,19 +213,17 @@ struct ChatScreen_Previews: PreviewProvider {
     private static let chat = Chat(
         id: .mock,
         cursor: .mock1,
-        title: .domain(Domain("wsj.com")!),
-        pointer: .unknown,
-        unreadCount: 0,
+        kind: .notification,
+        title: "wsj.com",
         canMute: false,
-        isMuted: false,
         canUnsubscribe: true,
-        isSubscribed: false,
-        isVerified: false,
+        members: [],
         messages: [
             Chat.Message(
                 id: .mock2,
+                senderID: .mock2,
                 date: .now.adding(days: -1),
-                isReceived: nil,
+                cursor: .mock2,
                 contents: [
                     .localized("A tranquil lake sits in a verdant valley, reflecting the blue sky. Lush forests surround it, alive with the sounds of nature."),
                     .kin(
@@ -242,8 +236,9 @@ struct ChatScreen_Previews: PreviewProvider {
             ),
             Chat.Message(
                 id: .mock3,
+                senderID: .mock2,
                 date: .now,
-                isReceived: nil,
+                cursor: .mock2,
                 contents: [
                     .localized("As the sun sets in the desert, golden light bathes the sand dunes. Wind shapes the landscape, ever-changing and mesmerizing."),
                     .localized("In a cozy village, homes with thatched roofs dot the landscape. Community life thrives, marked by shared traditions and simple joys."),

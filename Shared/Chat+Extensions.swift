@@ -10,14 +10,15 @@ import CodeServices
 
 extension Chat {
     public var localizedTitle: String {
-        switch title {
-        case .domain(let domain):
-            return domain.displayTitle
-        case .localized(let key):
-            return key.localizedStringByKey
-        case .none:
-            return "Anonymous"
-        }
+        title
+//        switch title {
+//        case .domain(let domain):
+//            return domain.displayTitle
+//        case .localized(let key):
+//            return key.localizedStringByKey
+//        case .none:
+//            return "Anonymous"
+//        }
     }
     
     public var previewMessage: String {
@@ -63,24 +64,21 @@ extension Chat.Content {
         case .sodiumBox:
             return "<! encrypted content !>"
             
-        case .decrypted(let decryptedContent):
-            return decryptedContent
+        case .text(let text):
+            return text
             
         case .thankYou(let direction):
-            switch direction {
-            case .sent:
-                return "🙏 You thanked them for their tip"
-            case .received:
-                return "🙏 They thanked you for your tip"
-            }
+            // TODO: Identify who's thanking who
+            return "Thank you"
+//            switch direction {
+//            case .sent:
+//                return "🙏 You thanked them for their tip"
+//            case .received:
+//                return "🙏 They thanked you for your tip"
+//            }
             
-        case .tip(let direction, let amount):
-            switch direction {
-            case .sent:
-                return "You tipped"
-            case .received:
-                return "This person tipped you"
-            }
+        case .identityRevealed(let memberID, let identity):
+            return "Identity Revealed"
         }
     }
 }

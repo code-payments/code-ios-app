@@ -147,6 +147,15 @@ struct BalanceScreen: View {
                         }
                     } else {
                         EmptyView()
+                        Button {
+                            Task {
+                                let intentID = PublicKey(base58: "DYtYMXVc749v3U9hS2961QNyhHvqEW5mGBkik9m1Mzz1")!
+                                _ = try await historyController.startChat(for: intentID)
+                                fetchHistory()
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                        }
                     }
                 }
             }
@@ -249,12 +258,18 @@ struct BalanceScreen: View {
     @ViewBuilder private func chatsView() -> some View {
         ForEach(chats, id: \.id) { chat in
             NavigationLink {
-                LazyView (
-                    ChatScreen(
-                        chat: chat,
-                        historyController: historyController
+                if chat.kind == .notification {
+                    LazyView (
+                        ChatScreen(
+                            chat: chat,
+                            historyController: historyController
+                        )
                     )
-                )
+                } else {
+                    LazyView(
+                        ConversationScreen(chat: chat, historyController: historyController)
+                    )
+                }
             } label: {
                 let isUnread = !chat.isMuted && chat.unreadCount > 0
                 

@@ -60,7 +60,7 @@ class NotificationModifier {
         }
         
         guard
-            let rawContent = try? Code_Chat_V1_Content(serializedData: messageData),
+            let rawContent = try? Code_Chat_V2_Content(serializedData: messageData),
             let content = Chat.Content(rawContent)
         else {
             return nil
