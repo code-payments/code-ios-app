@@ -38,6 +38,12 @@ extension ID {
     }
 }
 
+extension ID: Comparable {
+    public static func < (lhs: ID, rhs: ID) -> Bool {
+        lhs.data.lexicographicallyPrecedes(rhs.data)
+    }
+}
+
 extension ID: CustomStringConvertible {
     public var description: String {
         uuid?.uuidString ?? data.hexEncodedString()

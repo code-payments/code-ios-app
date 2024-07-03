@@ -12,10 +12,10 @@ import Combine
 import GRPC
 import SwiftProtobuf
 
-class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
+class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
-    func openChatStream(chatID: ID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], Error>) -> Void) -> ChatMessageStreamReference {
-        trace(.open, components: "Chat \(chatID.description)]", "Opening stream.")
+    func openChatStream(chatID: ChatID, memberID: MemberID, owner: KeyPair, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
+        trace(.open, components: "Chat \(chatID.description)", "Opening stream.")
         
         let streamReference = ChatMessageStreamReference()
         streamReference.retain()
@@ -29,6 +29,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
             
             self?.openChatStream(
                 chatID: chatID,
+                memberID: memberID,
                 owner: owner,
                 assigningTo: streamReference,
                 completion: completion
@@ -37,6 +38,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         
         openChatStream(
             chatID: chatID,
+            memberID: memberID,
             owner: owner,
             assigningTo: streamReference,
             completion: completion
@@ -45,7 +47,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         return streamReference
     }
     
-    private func openChatStream(chatID: ID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[Chat.Message], Error>) -> Void) {
+    private func openChatStream(chatID: ChatID, memberID: MemberID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) {
         let queue = self.queue
         
         reference.cancel()
@@ -59,13 +61,10 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
             switch result {
             case .events(let eventBatch):
                 
-                let messages = eventBatch.events
-                    .flatMap { $0.messages }
-                    .map { Chat.Message($0) }
-                
+                let events = eventBatch.events.compactMap { Chat.Event($0) }
                 queue.async {
-                    trace(.receive, components: "Chat \(chatID.description)", "Received \(messages.count) messages.")
-                    completion(.success(messages))
+//                    trace(.receive, components: "Chat \(chatID.description)", "Received \(events.count) events.")
+                    completion(.success(events))
                 }
                 
             case .ping(let ping):
@@ -73,9 +72,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
                     break
                 }
                 
-                // TODO: Track ping timestamps and reopen stream if we haven't received a ping in `pingDelay` * 2
-                
-                let request = Code_Chat_V1_StreamChatEventsRequest.with {
+                let request = Code_Chat_V2_StreamChatEventsRequest.with {
                     $0.type = .pong(.with {
                         $0.timestamp = Google_Protobuf_Timestamp(date: .now())
                     })
@@ -84,11 +81,15 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
                 reference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
                 
                 _ = stream.sendMessage(request)
-                trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
+//                trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
                 
                 // TODO: Handle message sent
                 
                 break
+                
+            case .error(let streamError):
+                let error = ErrorOpenChatStream(rawValue: streamError.code.rawValue) ?? .unknown
+                completion(.failure(error))
             }
         }
         
@@ -101,6 +102,7 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
                 trace(.note, components: "Chat \(chatID.description)", "Reconnecting keepalive stream...")
                 self.openChatStream(
                     chatID: chatID,
+                    memberID: memberID,
                     owner: owner,
                     assigningTo: streamReference,
                     completion: completion
@@ -110,9 +112,10 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
             }
         }
         
-        let request = Code_Chat_V1_StreamChatEventsRequest.with {
+        let request = Code_Chat_V2_StreamChatEventsRequest.with {
             $0.openStream = .with {
                 $0.chatID    = .with { $0.value = chatID.data }
+                $0.memberID  = .with { $0.value = memberID.data }
                 $0.owner     = owner.publicKey.codeAccountID
                 $0.signature = $0.sign(with: owner)
             }
@@ -122,10 +125,72 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
     }
     
+    func startChat(owner: KeyPair, tipIntentID: PublicKey, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+        
+        let request = Code_Chat_V2_StartChatRequest.with {
+            $0.owner = owner.publicKey.codeAccountID
+            $0.tipChat = .with {
+                $0.intentID = tipIntentID.codeIntentID
+            }
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.startChat(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorStartChat(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                DispatchQueue.main.async {
+                    let chat = Chat(response.chat)
+                    trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chat.id.data.hexEncodedString())")
+                    completion(.success(chat))
+                }
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func sendMessage(chatID: ChatID, memberID: MemberID, owner: KeyPair, content: Chat.Content, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+        
+        let request = Code_Chat_V2_SendMessageRequest.with {
+            $0.chatID    = .with { $0.value = chatID.data }
+            $0.memberID  = .with { $0.value = memberID.data }
+            $0.content   = [content.codeContent]
+            $0.owner     = owner.publicKey.codeAccountID
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.sendMessage(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                DispatchQueue.main.async {
+                    let message = Chat.Message(response.message)
+                    trace(.success, components: "Owner: \(owner.publicKey.base58)", "Message: \(message.id.data.hexEncodedString())")
+                    completion(.success(message))
+                }
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
     func fetchChats(owner: KeyPair, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
-        let request = Code_Chat_V1_GetChatsRequest.with {
+        let request = Code_Chat_V2_GetChatsRequest.with {
             $0.owner = owner.publicKey.codeAccountID
             $0.signature = $0.sign(with: owner)
         }
@@ -150,11 +215,12 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchMessages(chatID: ID, owner: KeyPair, direction: MessageDirection, pageSize: Int, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
+    func fetchMessages(chatID: ChatID, memberID: MemberID, owner: KeyPair, direction: MessageDirection, pageSize: Int, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())", "Page size: \(pageSize)")
         
-        let request = Code_Chat_V1_GetMessagesRequest.with {
+        let request = Code_Chat_V2_GetMessagesRequest.with {
             $0.chatID   = .with { $0.value = chatID.data }
+            $0.memberID = .with { $0.value = memberID.data }
             $0.owner    = owner.publicKey.codeAccountID
             $0.pageSize = UInt32(pageSize)
             
@@ -193,14 +259,15 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func advancePointer(chatID: ID, to messageID: ID, owner: KeyPair, completion: @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
+    func advancePointer(chatID: ChatID, to messageID: MessageID, memberID: MemberID, owner: KeyPair, completion: @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())")
         
-        let request = Code_Chat_V1_AdvancePointerRequest.with {
+        let request = Code_Chat_V2_AdvancePointerRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
-            $0.pointer = Code_Chat_V1_Pointer.with {
-                $0.kind = .read
-                $0.value = Code_Chat_V1_ChatMessageId.with { $0.value = messageID.data }
+            $0.pointer = Code_Chat_V2_Pointer.with {
+                $0.type = .read
+                $0.value = .with { $0.value = messageID.data }
+                $0.memberID = .with { $0.value = memberID.data }
             }
             $0.owner = owner.publicKey.codeAccountID
             $0.signature = $0.sign(with: owner)
@@ -223,10 +290,10 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func setMuteState(chatID: ID, muted: Bool, owner: KeyPair, completion: @escaping (Result<Void, ErrorSetMuteState>) -> Void) {
+    func setMuteState(chatID: ChatID, muted: Bool, owner: KeyPair, completion: @escaping (Result<Void, ErrorSetMuteState>) -> Void) {
         trace(.send, components: "Chat ID: \(chatID.data.hexEncodedString())")
         
-        let request = Code_Chat_V1_SetMuteStateRequest.with {
+        let request = Code_Chat_V2_SetMuteStateRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
             $0.isMuted = muted
             $0.owner = owner.publicKey.codeAccountID
@@ -250,10 +317,10 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func setSubscriptionState(chatID: ID, subscribed: Bool, owner: KeyPair, completion: @escaping (Result<Void, ErrorSetSubscriptionState>) -> Void) {
+    func setSubscriptionState(chatID: ChatID, subscribed: Bool, owner: KeyPair, completion: @escaping (Result<Void, ErrorSetSubscriptionState>) -> Void) {
         trace(.send, components: "Chat ID: \(chatID.data.hexEncodedString())")
         
-        let request = Code_Chat_V1_SetSubscriptionStateRequest.with {
+        let request = Code_Chat_V2_SetSubscriptionStateRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
             $0.isSubscribed = subscribed
             $0.owner = owner.publicKey.codeAccountID
@@ -281,11 +348,33 @@ class ChatService: CodeService<Code_Chat_V1_ChatNIOClient> {
 // MARK: - Types -
 
 public enum MessageDirection {
-    case ascending(from: ID?)
-    case descending(upTo: ID?)
+    case ascending(from: MessageID?)
+    case descending(upTo: MessageID?)
 }
 
 // MARK: - Errors -
+
+public enum ErrorOpenChatStream: Int, Error {
+    case denied
+    case chatNotFound
+    case unknown = -1
+}
+
+public enum ErrorStartChat: Int, Error {
+    case ok
+    case denied
+    case invalidParameter
+    case unknown = -1
+}
+
+public enum ErrorSendMessage: Int, Error {
+    case ok
+    case denied
+    case chatNotFound
+    case invalidChatType
+    case invalidContentType
+    case unknown = -1
+}
 
 public enum ErrorFetchChats: Int, Error {
     case ok
@@ -322,39 +411,47 @@ public enum ErrorSetSubscriptionState: Int, Error {
 
 // MARK: - Interceptors -
 
-extension InterceptorFactory: Code_Chat_V1_ChatClientInterceptorFactoryProtocol {
-    func makeStreamChatEventsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_StreamChatEventsRequest, CodeAPI.Code_Chat_V1_StreamChatEventsResponse>] {
+extension InterceptorFactory: Code_Chat_V2_ChatClientInterceptorFactoryProtocol {
+    func makeStartChatInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_StartChatRequest, CodeAPI.Code_Chat_V2_StartChatResponse>] {
         makeInterceptors()
     }
     
-    func makeSendMessageInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_SendMessageRequest, CodeAPI.Code_Chat_V1_SendMessageResponse>] {
+    func makeRevealIdentityInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_RevealIdentityRequest, CodeAPI.Code_Chat_V2_RevealIdentityResponse>] {
         makeInterceptors()
     }
     
-    func makeSetMuteStateInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_SetMuteStateRequest, CodeAPI.Code_Chat_V1_SetMuteStateResponse>] {
+    func makeStreamChatEventsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_StreamChatEventsRequest, CodeAPI.Code_Chat_V2_StreamChatEventsResponse>] {
         makeInterceptors()
     }
     
-    func makeSetSubscriptionStateInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_SetSubscriptionStateRequest, CodeAPI.Code_Chat_V1_SetSubscriptionStateResponse>] {
+    func makeSendMessageInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_SendMessageRequest, CodeAPI.Code_Chat_V2_SendMessageResponse>] {
         makeInterceptors()
     }
     
-    func makeGetChatsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_GetChatsRequest, CodeAPI.Code_Chat_V1_GetChatsResponse>] {
+    func makeSetMuteStateInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_SetMuteStateRequest, CodeAPI.Code_Chat_V2_SetMuteStateResponse>] {
         makeInterceptors()
     }
     
-    func makeGetMessagesInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_GetMessagesRequest, CodeAPI.Code_Chat_V1_GetMessagesResponse>] {
+    func makeSetSubscriptionStateInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_SetSubscriptionStateRequest, CodeAPI.Code_Chat_V2_SetSubscriptionStateResponse>] {
         makeInterceptors()
     }
     
-    func makeAdvancePointerInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V1_AdvancePointerRequest, CodeAPI.Code_Chat_V1_AdvancePointerResponse>] {
+    func makeGetChatsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_GetChatsRequest, CodeAPI.Code_Chat_V2_GetChatsResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeGetMessagesInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_GetMessagesRequest, CodeAPI.Code_Chat_V2_GetMessagesResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeAdvancePointerInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_AdvancePointerRequest, CodeAPI.Code_Chat_V2_AdvancePointerResponse>] {
         makeInterceptors()
     }
 }
 
 // MARK: - GRPCClientType -
 
-extension Code_Chat_V1_ChatNIOClient: GRPCClientType {
+extension Code_Chat_V2_ChatNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
         self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
     }

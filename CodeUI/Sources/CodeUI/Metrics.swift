@@ -15,7 +15,7 @@ public enum Metrics {}
 extension Metrics {
     
     public static let buttonHeight: CGFloat = 64.0
-    public static let buttonHeightThin: CGFloat = 54.0
+    public static let buttonHeightThin: CGFloat = 44.0
     public static let buttonRadius: CGFloat = 6.0
     public static let buttonPadding: CGFloat = 20.0
     public static let buttonLineWidth: CGFloat = 1.0

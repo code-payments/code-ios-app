@@ -12,7 +12,7 @@ import CodeServices
 class HistoryController: ObservableObject {
     
     let owner: KeyPair
-
+    
     @Published private(set) var hasFetchedChats: Bool = false
     
     @Published private(set) var chats: [Chat] = []
@@ -25,6 +25,8 @@ class HistoryController: ObservableObject {
     private let pageSize: Int = 100
     
     private var fetchInflight: Bool = false
+    
+    private var latestPointers: [ChatID: MessageID] = [:]
     
     // MARK: - Init -
     
@@ -45,12 +47,32 @@ class HistoryController: ObservableObject {
         trace(.warning, components: "Deallocating HistoryController")
     }
     
-    // MARK: - Fetch -
+    // MARK: - Stream -
+    
+    func openChatStream(chatID: ChatID, memberID: MemberID, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
+        client.openChatStream(chatID: chatID, memberID: memberID, owner: owner, completion: completion)
+    }
+    
+    // MARK: - Messages -
+    
+    func send(content: Chat.Content, in chat: Chat, from member: Chat.Member) async throws -> Chat.Message {
+        try await sendMessage(
+            in: chat.id,
+            from: member.id,
+            content: content
+        )
+    }
+    
+    // MARK: - Chats -
     
     func fetchChats() {
         Task {
             try await fetchChats()
         }
+    }
+    
+    func startChat(for tipIntentID: PublicKey) async throws -> Chat {
+        try await client.startChat(owner: owner, tipIntentID: tipIntentID)
     }
     
     private func fetchChats() async throws {
@@ -76,15 +98,39 @@ class HistoryController: ObservableObject {
         unreadCount = computeUnreadCount(for: chats)
     }
     
+    // MARK: - Pointers -
+    
+    private func setReadPointer(to message: Chat.Message, chat: Chat) {
+        latestPointers[chat.id] = message.id
+    }
+    
+    private func shouldAdvanceReadPointer(for message: Chat.Message, chat: Chat) -> Bool {
+        if let latestMessageID = latestPointers[chat.id] {
+            return message.id > latestMessageID
+        }
+        return true
+    }
+    
     // MARK: - Chats -
     
     func advanceReadPointer(for chat: Chat) async throws {
+        guard let selfMember = chat.selfMember else {
+            return
+        }
+        
         if let newestMessage = chat.newestMessage {
+            guard shouldAdvanceReadPointer(for: newestMessage, chat: chat) else {
+                return
+            }
+                
             try await client.advancePointer(
                 chatID: chat.id,
                 to: newestMessage.id,
+                memberID: selfMember.id,
                 owner: owner
             )
+            
+            setReadPointer(to: newestMessage, chat: chat)
             
             chat.resetUnreadCount()
             
@@ -133,6 +179,16 @@ class HistoryController: ObservableObject {
     }
     
     // MARK: - Fetching -
+    
+    @CronActor
+    private func sendMessage(in chatID: ChatID, from memberID: MemberID, content: Chat.Content) async throws -> Chat.Message {
+        try await client.sendMessage(
+            chatID: chatID,
+            memberID: memberID,
+            owner: owner,
+            content: content
+        )
+    }
     
     @CronActor
     private func fetchAllChatsAndMessages() async throws -> [Chat] {
@@ -244,7 +300,7 @@ class HistoryController: ObservableObject {
             }
             
             for await (chat, messages) in group {
-                await chat.appendMessages(messages)
+                await chat.insertMessages(messages)
                 chatContainer.append(chat)
             }
         }
@@ -287,23 +343,30 @@ class HistoryController: ObservableObject {
     
     @CronActor
     private func fetchAndDecryptMessages(chat: Chat, direction: MessageDirection, pageSize: Int) async throws -> [Chat.Message] {
-        var messages = try await self.client.fetchMessages(
+        guard let selfMember = await chat.selfMember else {
+            return []
+        }
+        
+        let messages = try await self.client.fetchMessages(
             chatID: chat.id,
+            memberID: selfMember.id,
             owner: self.owner,
             direction: direction,
             pageSize: pageSize
         )
         
-        // Decrypt message if domain found. If decryption fails for
-        // what ever reason, we'll pass through the message array as is
-        if case .domain(let domain) = await chat.title {
-            let hasEncryptedContent = messages.first { $0.hasEncryptedContent } != nil
-            if hasEncryptedContent, let relationship = self.organizer.relationship(for: domain) {
-                do {
-                    messages = try messages.map { try $0.decrypting(using: relationship.cluster.authority.keyPair) }
-                } catch {}
-            }
-        }
+        // TODO: Handle encryption
+        
+//        // Decrypt message if domain found. If decryption fails for
+//        // what ever reason, we'll pass through the message array as is
+//        if case .domain(let domain) = await chat.title {
+//            let hasEncryptedContent = messages.first { $0.hasEncryptedContent } != nil
+//            if hasEncryptedContent, let relationship = self.organizer.relationship(for: domain) {
+//                do {
+//                    messages = try messages.map { try $0.decrypting(using: relationship.cluster.authority.keyPair) }
+//                } catch {}
+//            }
+//        }
         
         return messages
     }

@@ -10,16 +10,14 @@ import CodeUI
 import CodeServices
 
 struct ConversationScreen: View {
-    
-    let chatID: ID
-    let owner: KeyPair
+
+    @ObservedObject var chat: Chat
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @State private var input: String = ""
-    @State private var messages: [Chat.Message] = []
     
     @State private var showingTips: Bool = false
     
@@ -27,30 +25,63 @@ struct ConversationScreen: View {
     
     @State private var stream: ChatMessageStreamReference?
     
+    @State private var messageListState = MessageList.State()
+    
+    @FocusState private var isEditorFocused: Bool
+    
+    private let historyController: HistoryController
+    
     // MARK: - Init -
     
-    init(chatID: ID, owner: KeyPair) {
-        self.chatID = ID(data: Data(fromHexEncodedString: "468f158662880905e966f7c27f36b39e368837887aa5cf889cb55d91537d1a76")!)
-        self.owner = owner
+    init(chat: Chat, historyController: HistoryController) {
+        self.chat = chat
+        self.historyController = historyController
     }
     
     private func didAppear() {
-        stream = client.openChatStream(chatID: chatID, owner: owner) { result in
+        startStream()
+        advanceReadPointer()
+    }
+    
+    private func didDisappear() {
+        destroyStream()
+    }
+    
+    private func advanceReadPointer() {
+        Task {
+            try await historyController.advanceReadPointer(for: chat)
+        }
+    }
+    
+    // MARK: - Streams -
+    
+    private func startStream() {
+        guard let selfMember = chat.selfMember else {
+            return
+        }
+        
+        stream = historyController.openChatStream(chatID: chat.id, memberID: selfMember.id) { result in
             switch result {
-            case .success(let messages):
-                streamUpdate(messages: messages)
-            case .failure(let failure):
-                break
+            case .success(let events):
+                streamUpdate(events: events)
+                
+            case .failure(let error):
+                destroyStream()
+                switch error {
+                case .unknown:
+                    break
+                case .chatNotFound:
+                    break
+                case .denied:
+                    break
+                }
+                // TODO: Show error
             }
         }
     }
     
-    private func didDisappear() {
+    private func destroyStream() {
         stream?.destroy()
-    }
-    
-    private func streamUpdate(messages: [Chat.Message]) {
-        print("Messages: \(messages)")
     }
     
     // MARK: - Body -
@@ -65,14 +96,16 @@ struct ConversationScreen: View {
                 }
                 
                 MessageList(
-                    messages: messages,
+                    chat: chat,
                     exchange: exchange,
+                    state: $messageListState,
                     useV2: betaFlags.hasEnabled(.alternativeBubbles),
                     showThank: true
                 )
                 
                 HStack(alignment: .bottom) {
                     conversationTextView()
+                        .focused($isEditorFocused)
                         .font(.appTextMessage)
                         .foregroundColor(.backgroundMain)
                         .tint(.backgroundMain)
@@ -84,7 +117,7 @@ struct ConversationScreen: View {
                         .cornerRadius(20)
                     
                     Button {
-                        send(content: input)
+                        sendMessage(text: input)
                     } label: {
                         Image.asset(.paperplane)
                             .resizable()
@@ -95,6 +128,14 @@ struct ConversationScreen: View {
                 .padding(.horizontal, 10)
                 .padding(.top, 5)
                 .padding(.bottom, 8)
+                .onChange(of: isEditorFocused) { focused in
+                    if focused {
+                        Task {
+                            try await Task.delay(milliseconds: 50)
+                            scrollToBottom()
+                        }
+                    }
+                }
             }
         }
         .onAppear(perform: didAppear)
@@ -102,47 +143,8 @@ struct ConversationScreen: View {
         .interactiveDismissDisabled()
         .navigationBarHidden(false)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showingTips.toggle()
-                } label: {
-                    Image(systemName: "ellipsis.message.fill")
-                }
-            }
             ToolbarItem(placement: .principal) {
                 title()
-            }
-        }
-        .confirmationDialog("Select a color", isPresented: $showingTips, titleVisibility: .visible) {
-            Button("\(isShowingRevealIdentity ? "Hide" : "Show") Reveal") {
-                isShowingRevealIdentity.toggle()
-            }
-            Button("Send Message") {
-                input = "/stext Hey, how's it going?"
-            }
-            Button("Receive Message") {
-                input = "/rtext Pretty good, how are you?"
-            }
-            
-            Button("Send Payment") {
-                input = "/s 5.00 usd"
-            }
-            Button("Receive Payment") {
-                input = "/r 5.00 usd"
-            }
-            
-            Button("Send Tip") {
-                input = "/stip 10.00 usd"
-            }
-            Button("Receive Tip") {
-                input = "/rtip 10.00 usd"
-            }
-            
-            Button("Send Thanks") {
-                input = "/sthanks"
-            }
-            Button("Receive Thanks") {
-                input = "/rthanks"
             }
         }
     }
@@ -152,10 +154,10 @@ struct ConversationScreen: View {
             AvatarView(value: .placeholder, diameter: 30)
             
             VStack(alignment: .leading, spacing: 0) {
-                Text("TontonTwitch")
+                Text(chat.title)
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
-                Text("Last seen today")
+                Text("Last seen recently")
                     .font(.appTextHeading)
                     .foregroundColor(.textSecondary)
             }
@@ -177,231 +179,46 @@ struct ConversationScreen: View {
     
     // MARK: - Actions -
     
-    private func send(content: String) {
-        guard !input.isEmpty else {
+    private func sendMessage(text: String) {
+        guard let selfMember = chat.selfMember else {
             return
         }
         
-        let m = generateMessages(for: content)
-        
-        guard !m.isEmpty else {
-            return
-        }
-        
-        messages.append(m[0])
-        
-        if m.count > 1 {
-            Task {
-                try await Task.delay(seconds: 1)
-                messages.append(contentsOf: m.suffix(from: 1))
-            }
+        Task {
+            try await historyController.send(
+                content: .text(text),
+                in: chat,
+                from: selfMember
+            )
         }
         
         input = ""
     }
     
-    private func generateMessages(for input: String) -> [Chat.Message] {
-        var messages: [Chat.Message] = []
-        
-        if input.hasPrefix("/") {
-            let c = input.components(separatedBy: " ")
-            if !c.isEmpty {
-                
-                let arg1 = c.count > 1 ? c[1] : nil
-                let arg2 = c.count > 2 ? c[2] : nil
-                
-                switch c[0] {
-                case "/s":
-                    
-                    guard let amount = arg1?.decimalValue else {
-                        return []
-                    }
-                    
-                    let currency = CurrencyCode(currencyCode: arg2 ?? "") ?? .usd
-                    
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: false,
-                            contents: [
-                                .kin(.exact(.init(fiat: amount, rate: Rate(fx: 0.000016, currency: currency))), .gave)
-                            ]
-                        )
-                    )
-                    
-                case "/r":
-                    
-                    guard let amount = arg1?.decimalValue else {
-                        return []
-                    }
-                    
-                    let currency = CurrencyCode(currencyCode: arg2 ?? "") ?? .usd
-                    
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: true,
-                            contents: [
-                                .kin(.exact(.init(fiat: amount, rate: Rate(fx: 0.000016, currency: currency))), .received)
-                            ]
-                        )
-                    )
-                    
-                case "/sthanks":
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: false,
-                            contents: [
-                                .thankYou(.sent)
-                            ]
-                        )
-                    )
-                    
-                case "/rthanks":
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: true,
-                            contents: [
-                                .thankYou(.received)
-                            ]
-                        )
-                    )
-                    
-                case "/stip":
-                    
-                    guard let amount = arg1?.decimalValue else {
-                        return []
-                    }
-                    
-                    let currency = CurrencyCode(currencyCode: arg2 ?? "") ?? .usd
-                    
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: false,
-                            contents: [
-                                .tip(.sent, .exact(.init(fiat: amount, rate: Rate(fx: 0.000016, currency: currency))))
-                            ]
-                        )
-                    )
-                    
-                case "/rtip":
-                    
-                    guard let amount = arg1?.decimalValue else {
-                        return []
-                    }
-                    
-                    let currency = CurrencyCode(currencyCode: arg2 ?? "") ?? .usd
-                    
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: true,
-                            contents: [
-                                .tip(.received, .exact(.init(fiat: amount, rate: Rate(fx: 0.000016, currency: currency))))
-                            ]
-                        )
-                    )
-                    
-                case "/stext":
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: false,
-                            contents: [
-                                .localized(input.replacingOccurrences(of: "/stext ", with: ""))
-                            ]
-                        )
-                    )
-                    
-                case "/rtext":
-                    messages.append(
-                        Chat.Message(
-                            id: .random,
-                            date: .now,
-                            isReceived: true,
-                            contents: [
-                                .localized(input.replacingOccurrences(of: "/rtext ", with: ""))
-                            ]
-                        )
-                    )
-                    
-                default:
-                    return []
+    private func streamUpdate(events: [Chat.Event]) {
+        for event in events {
+            switch event {
+            case .message(let message):
+                trace(.receive, components: "Message: \(message.id.data.hexEncodedString())", "Text: \(message.contents.map { $0.localizedText }.joined(separator: " | "))")
+                let newCount = chat.insertMessages([message])
+                if newCount > 0 {
+                    scrollToBottom()
+                    advanceReadPointer()
                 }
+                
+            case .pointer(let pointer):
+                chat.setPointer(pointer)
+                trace(.receive, components: "Pointer \(pointer.kind) pointer to: \(pointer.messageID.data.hexEncodedString())")
             }
-        } else {
-            messages.append(
-                Chat.Message(
-                    id: .random,
-                    date: .now,
-                    isReceived: false,
-                    contents: [
-                        .localized(input)
-                    ]
-                )
-            )
-            
-            messages.append(
-                Chat.Message(
-                    id: .random,
-                    date: .now,
-                    isReceived: true,
-                    contents: [
-                        .localized(input)
-                    ]
-                )
-            )
         }
-        
-        return messages
+    }
+    
+    private func scrollToBottom() {
+        messageListState.scrollToBottom = true
     }
 }
 
-struct RevealIdentityBanner: View {
-    
-    var action: VoidAction
-    
-    init(action: @escaping VoidAction) {
-        self.action = action
-    }
-    
-    var body: some View {
-        HStack {
-            Text("Your messages are showing up anonymously.\nWould you like to reveal your identity?")
-                .font(.appTextSmall)
-                .foregroundColor(.textSecondary)
-                .multilineTextAlignment(.leading)
-            
-            Spacer()
-            
-            Button {
-                action()
-            } label: {
-                TextBubble(
-                    style: .filled,
-                    text: "Reveal",
-                    paddingVertical: 2,
-                    paddingHorizontal: 6
-                )
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 10)
-    }
-}
-
-#Preview {
-    ConversationScreen(chatID: .mock, owner: .mock)
-        .environmentObjectsForSession()
-}
+//#Preview {
+//    ConversationScreen(chat: .mock, owner: .mock)
+//        .environmentObjectsForSession()
+//}

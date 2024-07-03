@@ -1,14 +1,15 @@
 //
 //  Array+Keyed.swift
-//  Code
+//  CodeServices
 //
-//  Created by Dima Bart on 2022-04-01.
+//  Created by Dima Bart.
+//  Copyright © 2021 Code Inc. All rights reserved.
 //
 
 import Foundation
 
 extension Array {
-    func elementsKeyed<T>(by keyPath: KeyPath<Element, T>) -> [T: Element] where T: Hashable {
+    public func elementsKeyed<T>(by keyPath: KeyPath<Element, T>) -> [T: Element] where T: Hashable {
         var container: [T: Element] = [:]
         for element in self {
             let key = element[keyPath: keyPath]
