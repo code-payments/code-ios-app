@@ -60,8 +60,9 @@ class MessageListTests: XCTestCase {
         let messages = dates.map {
             Chat.Message(
                 id: .random,
+                senderID: nil,
                 date: $0,
-                isReceived: false,
+                cursor: .random,
                 contents: []
             )
         }
