@@ -23,11 +23,14 @@ struct ChatScreen: View {
     
     @State private var messageListState = MessageList.State()
     
+    @StateObject private var viewModel: ChatViewModel
+    
     // MARK: - Init -
     
-    init(chat: Chat, historyController: HistoryController) {
+    init(chat: Chat, historyController: HistoryController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
         self.chat = chat
         self.historyController = historyController
+        self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
     private func didAppear() {
@@ -60,8 +63,7 @@ struct ChatScreen: View {
                     chat: chat,
                     exchange: exchange,
                     state: $messageListState,
-                    useV2: betaFlags.hasEnabled(.alternativeBubbles),
-                    showThank: betaFlags.hasEnabled(.conversations)
+                    delegate: viewModel
                 )
                 
                 if chat.canMute || chat.canUnsubscribe {
@@ -97,17 +99,6 @@ struct ChatScreen: View {
         }
         .navigationBarHidden(false)
         .navigationBarTitle(Text(chat.localizedTitle))
-        .if(betaFlags.hasEnabled(.conversations)) { $0
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        isShowingConversation.toggle()
-                    } label: {
-                        Image(systemName: "ellipsis")
-                    }
-                }
-            }
-        }
     }
     
     @ViewBuilder private func button(title: String, action: @escaping VoidAction) -> some View {
@@ -230,7 +221,7 @@ struct ChatScreen_Previews: PreviewProvider {
                         .exact(KinAmount(
                             fiat: 5.00,
                             rate: Rate(fx: 0.000014, currency: .usd)
-                        )), .received
+                        )), .received, .mock
                     ),
                 ]
             ),
@@ -246,7 +237,7 @@ struct ChatScreen_Previews: PreviewProvider {
                         .exact(KinAmount(
                             fiat: 5.00,
                             rate: Rate(fx: 0.000014, currency: .usd)
-                        )), .received
+                        )), .received, .mock
                     ),
                 ]
             )
@@ -258,7 +249,8 @@ struct ChatScreen_Previews: PreviewProvider {
             NavigationView {
                 ChatScreen(
                     chat: chat,
-                    historyController: .mock
+                    historyController: .mock,
+                    viewModel: ChatViewModel(historyController: .mock)
                 )
                 .navigationBarTitleDisplayMode(.inline)
             }

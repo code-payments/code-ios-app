@@ -91,8 +91,6 @@ extension BetaFlags {
         case canUnsubcribe
         case tips
         case disableBuyModule
-        case conversations
-        case alternativeBubbles
         
         var id: String {
             localizedTitle
@@ -114,10 +112,6 @@ extension BetaFlags {
                 return "Tips"
             case .disableBuyModule:
                 return "Disable Buy Module"
-            case .conversations:
-                return "Conversations"
-            case .alternativeBubbles:
-                return "Alternative Bubbles"
             }
         }
         
@@ -137,10 +131,6 @@ extension BetaFlags {
                 return "If enabled, and option to request a tip will appear in the Get Kin screen."
             case .disableBuyModule:
                 return "If enabled, the Buy Module will appear to be disabled."
-            case .conversations:
-                return "If enabled, an experimental conversation view will become available via the 'Mute' button."
-            case .alternativeBubbles:
-                return "If enabled, conversation view will use an alternative look to timestamps in payment bubbles."
             }
         }
     }
