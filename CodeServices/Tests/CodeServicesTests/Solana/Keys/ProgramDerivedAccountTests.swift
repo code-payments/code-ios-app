@@ -24,7 +24,7 @@ class ProgramDerivedAccountTests: XCTestCase {
     
     func testLegacyTimelockDerivation() {
         let owner = PublicKey(base58: "8XfsstyiyT4rCY8ydYthXLisgPHHZFXVtJbcRSsebkWo")!
-        let derivedAccounts = TimelockDerivedAccounts(owner: owner, legacy: true)
+        let derivedAccounts = TimelockDerivedAccounts(owner: owner)
         
         XCTAssertEqual(derivedAccounts.owner.base58, owner.base58)
         XCTAssertEqual(derivedAccounts.state.publicKey.base58, "BsJs1qFrhJU6QZp3yniAkLfECA898a8yTxbJhVsY9rW2")
