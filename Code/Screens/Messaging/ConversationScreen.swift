@@ -31,11 +31,14 @@ struct ConversationScreen: View {
     
     private let historyController: HistoryController
     
+    @StateObject private var viewModel: ChatViewModel
+    
     // MARK: - Init -
     
-    init(chat: Chat, historyController: HistoryController) {
+    init(chat: Chat, historyController: HistoryController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
         self.chat = chat
         self.historyController = historyController
+        self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
     private func didAppear() {
@@ -99,40 +102,41 @@ struct ConversationScreen: View {
                     chat: chat,
                     exchange: exchange,
                     state: $messageListState,
-                    useV2: betaFlags.hasEnabled(.alternativeBubbles),
-                    showThank: true
+                    delegate: viewModel
                 )
                 
-                HStack(alignment: .bottom) {
-                    conversationTextView()
-                        .focused($isEditorFocused)
-                        .font(.appTextMessage)
-                        .foregroundColor(.backgroundMain)
-                        .tint(.backgroundMain)
-                        .multilineTextAlignment(.leading)
-                        .frame(minHeight: 35, maxHeight: 95, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 5)
-                        .background(.white)
-                        .cornerRadius(20)
-                    
-                    Button {
-                        sendMessage(text: input)
-                    } label: {
-                        Image.asset(.paperplane)
-                            .resizable()
-                            .frame(width: 36, height: 36, alignment: .center)
-                            .padding(2)
+                if chat.kind == .twoWay {
+                    HStack(alignment: .bottom) {
+                        conversationTextView()
+                            .focused($isEditorFocused)
+                            .font(.appTextMessage)
+                            .foregroundColor(.backgroundMain)
+                            .tint(.backgroundMain)
+                            .multilineTextAlignment(.leading)
+                            .frame(minHeight: 35, maxHeight: 95, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 5)
+                            .background(.white)
+                            .cornerRadius(20)
+                        
+                        Button {
+                            sendMessage(text: input)
+                        } label: {
+                            Image.asset(.paperplane)
+                                .resizable()
+                                .frame(width: 36, height: 36, alignment: .center)
+                                .padding(2)
+                        }
                     }
-                }
-                .padding(.horizontal, 10)
-                .padding(.top, 5)
-                .padding(.bottom, 8)
-                .onChange(of: isEditorFocused) { focused in
-                    if focused {
-                        Task {
-                            try await Task.delay(milliseconds: 50)
-                            scrollToBottom()
+                    .padding(.horizontal, 10)
+                    .padding(.top, 5)
+                    .padding(.bottom, 8)
+                    .onChange(of: isEditorFocused) { focused in
+                        if focused {
+                            Task {
+                                try await Task.delay(milliseconds: 50)
+                                scrollToBottom()
+                            }
                         }
                     }
                 }
@@ -150,19 +154,25 @@ struct ConversationScreen: View {
     }
     
     @ViewBuilder private func title() -> some View {
-        HStack(spacing: 10) {
-            AvatarView(value: .placeholder, diameter: 30)
-            
-            VStack(alignment: .leading, spacing: 0) {
-                Text(chat.title)
-                    .font(.appTextMedium)
-                    .foregroundColor(.textMain)
-                Text("Last seen recently")
-                    .font(.appTextHeading)
-                    .foregroundColor(.textSecondary)
+        if chat.kind == .twoWay {
+            HStack(spacing: 10) {
+                AvatarView(value: .placeholder, diameter: 30)
+                
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(chat.title)
+                        .font(.appTextMedium)
+                        .foregroundColor(.textMain)
+//                    Text("Last seen recently")
+//                        .font(.appTextHeading)
+//                        .foregroundColor(.textSecondary)
+                }
+                
+                Spacer()
             }
-            
-            Spacer()
+        } else {
+            Text(chat.title)
+                .font(.appTitle)
+                .foregroundColor(.textMain)
         }
     }
     

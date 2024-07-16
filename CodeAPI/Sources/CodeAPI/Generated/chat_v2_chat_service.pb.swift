@@ -1551,6 +1551,8 @@ public struct Code_Chat_V2_ChatMemberId {
   public init() {}
 }
 
+/// A chat
+///
 /// todo: Support is_verified in a clean way
 public struct Code_Chat_V2_ChatMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -1607,6 +1609,7 @@ public struct Code_Chat_V2_ChatMetadata {
   fileprivate var _cursor: Code_Chat_V2_Cursor? = nil
 }
 
+/// A message in a chat
 public struct Code_Chat_V2_ChatMessage {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1667,6 +1670,7 @@ public struct Code_Chat_V2_ChatMessage {
   fileprivate var _cursor: Code_Chat_V2_Cursor? = nil
 }
 
+/// A user in a chat
 public struct Code_Chat_V2_ChatMember {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1724,6 +1728,7 @@ public struct Code_Chat_V2_ChatMember {
   fileprivate var _identity: Code_Chat_V2_ChatMemberIdentity? = nil
 }
 
+/// Identity to an external social platform that can be linked to a Code account
 public struct Code_Chat_V2_ChatMemberIdentity {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1913,7 +1918,7 @@ public struct Code_Chat_V2_LocalizedContent {
   public init() {}
 }
 
-/// Exchange data content for movement of a value of Kin.
+/// Exchange data content for movement of a value of Kin
 public struct Code_Chat_V2_ExchangeDataContent {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2105,6 +2110,8 @@ public struct Code_Chat_V2_NaclBoxEncryptedContent {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// The sender's public key that is used to derive the shared private key for
+  /// decryption for message content.
   public var peerPublicKey: Code_Common_V1_SolanaAccountId {
     get {return _peerPublicKey ?? Code_Common_V1_SolanaAccountId()}
     set {_peerPublicKey = newValue}
@@ -2114,8 +2121,10 @@ public struct Code_Chat_V2_NaclBoxEncryptedContent {
   /// Clears the value of `peerPublicKey`. Subsequent reads from it will return its default value.
   public mutating func clearPeerPublicKey() {self._peerPublicKey = nil}
 
+  /// Globally random nonce that is unique to this encrypted piece of content
   public var nonce: Data = Data()
 
+  /// The encrypted piece of message content 
   public var encryptedPayload: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -2125,6 +2134,7 @@ public struct Code_Chat_V2_NaclBoxEncryptedContent {
   fileprivate var _peerPublicKey: Code_Common_V1_SolanaAccountId? = nil
 }
 
+/// Thank you content that is used to thank Code users for tips
 public struct Code_Chat_V2_ThankYouContent {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2147,6 +2157,8 @@ public struct Code_Chat_V2_ThankYouContent {
   fileprivate var _tipIntent: Code_Common_V1_IntentId? = nil
 }
 
+/// Identity revealed content that is inserted into chat whenever a chat member
+/// reveals their identity
 public struct Code_Chat_V2_IdentityRevealedContent {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for

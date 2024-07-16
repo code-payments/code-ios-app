@@ -38,7 +38,7 @@ extension Environment {
     var network: Network {
         switch self {
         case .dev:
-            return .testNet
+            return .mainNet//.testNet
         case .prod:
             return .mainNet
         }

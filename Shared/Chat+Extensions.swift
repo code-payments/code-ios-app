@@ -38,7 +38,7 @@ extension Chat {
             filtered = contents
         }
         
-        return filtered.map { $0.localizedText }.joined(separator: " ")
+        return filtered.map { $0.localizedText }.joined(separator: " ").trimmingCharacters(in: .whitespaces)
     }
 }
 
@@ -48,7 +48,7 @@ extension Chat.Content {
         case .localized(let key):
             return key.localizedStringByKey
             
-        case .kin(let genericAmount, let verb):
+        case .kin(let genericAmount, let verb, _):
             let amount: String
             
             switch genericAmount {

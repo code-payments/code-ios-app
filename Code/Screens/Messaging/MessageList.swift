@@ -9,7 +9,13 @@ import SwiftUI
 import CodeServices
 import CodeUI
 
+public protocol MessageListDelegate: AnyObject {
+    func didInteract(chat: Chat, message: Chat.Message, reference: Chat.Reference)
+}
+
 public struct MessageList: View {
+    
+    public weak var delegate: MessageListDelegate?
     
     private let scrollViewBottomID = "com.code.scrollView.bottomID"
     
@@ -17,21 +23,17 @@ public struct MessageList: View {
     private let messages: [MessageGroup]
     private let exchange: Exchange
     
-    private let useV2: Bool
-    private let showThank: Bool
-    
     @Binding private var state: State
     
     // MARK: - Init -
     
     @MainActor
-    init(chat: Chat, exchange: Exchange, state: Binding<State>, useV2: Bool = false, showThank: Bool = false) {
+    init(chat: Chat, exchange: Exchange, state: Binding<State>, delegate: MessageListDelegate? = nil) {
         self.chat = chat
         self.messages = chat.messages.groupByDay()
         self.exchange = exchange
         self._state = state
-        self.useV2 = useV2
-        self.showThank = showThank
+        self.delegate = delegate
     }
     
     // MARK: - Actions -
@@ -107,31 +109,21 @@ public struct MessageList: View {
                                     location: .forIndex(index, count: message.contents.count)
                                 )
                                 
-                            case .kin(let amount, let verb):
+                            case .kin(let amount, let verb, let reference):
                                 if let rate = rate(for: amount.currency) {
                                     let amount = amount.amountUsing(rate: rate)
                                     
-                                    if useV2 {
-                                        MessagePaymentV2(
-                                            state: message.state(for: chat.recipientPointers),
-                                            verb: verb,
-                                            amount: amount,
-                                            isReceived: isReceived,
-                                            date: message.date,
-                                            location: .forIndex(index, count: message.contents.count),
-                                            showThank: showThank
-                                        )
-                                    } else {
-                                        MessagePayment(
-                                            state: message.state(for: chat.recipientPointers),
-                                            verb: verb,
-                                            amount: amount,
-                                            isReceived: isReceived,
-                                            date: message.date,
-                                            location: .forIndex(index, count: message.contents.count),
-                                            showThank: showThank
-                                        )
-                                    }
+                                    MessagePayment(
+                                        state: message.state(for: chat.recipientPointers),
+                                        verb: verb,
+                                        amount: amount,
+                                        isReceived: isReceived,
+                                        date: message.date,
+                                        location: .forIndex(index, count: message.contents.count),
+                                        action: {
+                                            action(for: message, reference: reference)
+                                        }
+                                    )
                                 } else {
                                     // If a rate for this currency isn't found, we can't
                                     // represent the value so we fallback to a Kin amount
@@ -142,7 +134,9 @@ public struct MessageList: View {
                                         isReceived: isReceived,
                                         date: message.date,
                                         location: .forIndex(index, count: message.contents.count),
-                                        showThank: showThank
+                                        action: {
+                                            action(for: message, reference: reference)
+                                        }
                                     )
                                 }
                                 
@@ -206,6 +200,10 @@ public struct MessageList: View {
     @MainActor
     private func rate(for currency: CurrencyCode) -> Rate? {
         exchange.rate(for: currency)
+    }
+    
+    private func action(for message: Chat.Message, reference: Chat.Reference) {
+        delegate?.didInteract(chat: chat, message: message, reference: reference)
     }
 }
 

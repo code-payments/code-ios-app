@@ -13,7 +13,7 @@ extension Chat {
     public enum Content: Equatable, Hashable {
         case text(String)
         case localized(String)
-        case kin(GenericAmount, Verb)
+        case kin(GenericAmount, Verb, Reference)
         case sodiumBox(EncryptedData)
         case thankYou(PublicKey) // IntentID
         case identityRevealed(MemberID, Chat.Member.Identity)
@@ -67,6 +67,10 @@ extension Chat.Content {
             
         case .exchangeData(let exchange):
             
+            guard let reference = Chat.Reference(exchange.reference) else {
+                return nil
+            }
+            
             let verb: Chat.Verb
             
             switch exchange.verb {
@@ -114,7 +118,7 @@ extension Chat.Content {
                     )
                 )
                 
-                self = .kin(.exact(amount), verb)
+                self = .kin(.exact(amount), verb, reference)
                 
             case .partial(let partial):
                 guard let currency = CurrencyCode(currencyCode: partial.currency) else {
@@ -126,7 +130,7 @@ extension Chat.Content {
                     amount: partial.nativeAmount
                 )
                 
-                self = .kin(.partial(fiat), verb)
+                self = .kin(.partial(fiat), verb, reference)
                 
             case .none:
                 return nil
