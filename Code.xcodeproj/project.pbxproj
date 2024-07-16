@@ -86,6 +86,7 @@
 		9A557DA028AC34A400A58BB1 /* Reachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A557D9F28AC34A300A58BB1 /* Reachability.swift */; };
 		9A57221925EE92BC00B243FC /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A57221825EE92BC00B243FC /* SettingsScreen.swift */; };
 		9A57224925EEDC4200B243FC /* DepositScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A57224825EEDC4200B243FC /* DepositScreen.swift */; };
+		9A579A452C459B4800C3B592 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A579A442C459B4800C3B592 /* ChatViewModel.swift */; };
 		9A5E35E726261E190066E4C8 /* AccessKeyScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A5E35E626261E190066E4C8 /* AccessKeyScreen.swift */; };
 		9A646986275FE634008B1498 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A646985275FE634008B1498 /* Analytics.swift */; };
 		9A64698E275FF9CD008B1498 /* Events.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A64698D275FF9CD008B1498 /* Events.swift */; };
@@ -336,6 +337,7 @@
 		9A557D9F28AC34A300A58BB1 /* Reachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reachability.swift; sourceTree = "<group>"; };
 		9A57221825EE92BC00B243FC /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		9A57224825EEDC4200B243FC /* DepositScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepositScreen.swift; sourceTree = "<group>"; };
+		9A579A442C459B4800C3B592 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		9A592D762B17AF5500735BB0 /* base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = base.xcconfig; sourceTree = "<group>"; };
 		9A5E35E626261E190066E4C8 /* AccessKeyScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessKeyScreen.swift; sourceTree = "<group>"; };
 		9A646985275FE634008B1498 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
@@ -570,8 +572,8 @@
 		9A0B8D912AD0594900F3C5A1 /* Balance */ = {
 			isa = PBXGroup;
 			children = (
-				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
 				9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */,
+				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
 				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
 				9AA9799D2C75210F00395552 /* ChatsScreen.swift */,
 				9AA1C30B2BE12DBF0037F272 /* ConversationScreen.swift */,
@@ -760,6 +762,8 @@
 				9A6740D32C34726C00F9F7BD /* TimestampView.swift */,
 				9A6740D52C3472A600F9F7BD /* FiatField.swift */,
 				9A6740DB2C3485E000F9F7BD /* RevealIdentityBanner.swift */,
+				9A579A442C459B4800C3B592 /* ChatViewModel.swift */,
+				9AA1C30B2BE12DBF0037F272 /* ConversationScreen.swift */,
 			);
 			path = Messaging;
 			sourceTree = "<group>";
@@ -1547,6 +1551,7 @@
 				9A084D7226165CDC00F3C9B9 /* Stopwatch.swift in Sources */,
 				9A6740D22C34722D00F9F7BD /* MessageItem.swift in Sources */,
 				9A3E945227473EC700789CF6 /* LoginScreen.swift in Sources */,
+				9A579A452C459B4800C3B592 /* ChatViewModel.swift in Sources */,
 				9A2B16C52B73FF86008DB36D /* DepositUSDCScreen.swift in Sources */,
 				9ACFA004261DFDA6007F97B4 /* Environment.swift in Sources */,
 				9AED1104258BE1310088D902 /* AppDelegate.swift in Sources */,
@@ -2074,7 +2079,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 2.1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -2112,7 +2117,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 2.1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -2146,7 +2151,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 2.1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -2179,7 +2184,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 2.1.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kin.code.CodePushExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;

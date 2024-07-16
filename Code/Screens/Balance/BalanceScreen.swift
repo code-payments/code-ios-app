@@ -28,6 +28,8 @@ struct BalanceScreen: View {
     @State private var isShowingBuyMoreKin: Bool = false
     @State private var isShowingCurrencySelection: Bool = false
     
+    @StateObject private var viewModel: ChatViewModel
+    
     private var chats: [Chat] {
         historyController.chats
 //        [
@@ -71,6 +73,7 @@ struct BalanceScreen: View {
         self.session = session
         self.historyController = historyController
         self._isPresented = isPresented
+        self._viewModel = StateObject(wrappedValue: ChatViewModel(historyController: historyController))
     }
     
     // MARK: - Appear -
@@ -88,7 +91,7 @@ struct BalanceScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationView {
+        NavigationStack(path: $viewModel.navigationPath) {
             Background(color: .backgroundMain) {
                 GeometryReader { geometry in
                     if session.hasBalance && historyController.hasFetchedChats {
@@ -124,6 +127,13 @@ struct BalanceScreen: View {
                     }
                 }
             }
+            .navigationDestination(for: Chat.self) { chat in
+                ConversationScreen(
+                    chat: chat,
+                    historyController: historyController,
+                    viewModel: viewModel
+                )
+            }
             .navigationBarTitle(Text(Localized.Title.balance), displayMode: .inline)
             .sheet(isPresented: $isShowingBuckets) {
                 BucketScreen(
@@ -147,15 +157,6 @@ struct BalanceScreen: View {
                         }
                     } else {
                         EmptyView()
-                        Button {
-                            Task {
-                                let intentID = PublicKey(base58: "DYtYMXVc749v3U9hS2961QNyhHvqEW5mGBkik9m1Mzz1")!
-                                _ = try await historyController.startChat(for: intentID)
-                                fetchHistory()
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis")
-                        }
                     }
                 }
             }
@@ -258,67 +259,59 @@ struct BalanceScreen: View {
     
     @ViewBuilder private func chatsView() -> some View {
         ForEach(chats, id: \.id) { chat in
-            NavigationLink {
-                if chat.kind == .notification {
-                    LazyView (
-                        ChatScreen(
-                            chat: chat,
-                            historyController: historyController
-                        )
-                    )
-                } else {
-                    LazyView(
-                        ConversationScreen(chat: chat, historyController: historyController)
-                    )
-                }
-            } label: {
-                let isUnread = !chat.isMuted && chat.unreadCount > 0
-                
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 10) {
-                        Text(chat.localizedTitle)
-                            .foregroundColor(.textMain)
-                            .font(.appTextMedium)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        if let newestMessage = chat.newestMessage {
-                            Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
-                                .foregroundColor(isUnread ? .textSuccess : .textSecondary)
-                                .font(.appTextSmall)
-                                .lineLimit(1)
-                        }
-                    }
-                    .frame(height: 23) // Ensures the same height with and without Bubble
-                    
-                    HStack(alignment: .top, spacing: 5) {
-                        Text(chat.previewMessage)
-                            .foregroundColor(.textSecondary)
-                            .font(.appTextMedium)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                        
-                        Spacer()
-                        
-                        if chat.isMuted {
-                            Image.system(.speakerSlash)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 20, height: 20, alignment: .trailing)
-                            .foregroundColor(.textSecondary)
-                        }
-                        
-                        if isUnread {
-                            Bubble(size: .large, count: chat.unreadCount)
-                        }
-                    }
-                }
-                .padding([.trailing, .top, .bottom], 20)
-                .vSeparator(color: .rowSeparator)
-                .padding(.leading, 20)
+            NavigationLink(value: chat) {
+                navigationLabel(for: chat)
             }
         }
+    }
+    
+    @ViewBuilder
+    private func navigationLabel(for chat: Chat) -> some View {
+        let isUnread = !chat.isMuted && chat.unreadCount > 0
+        
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 10) {
+                Text(chat.localizedTitle)
+                    .foregroundColor(.textMain)
+                    .font(.appTextMedium)
+                    .lineLimit(1)
+                
+                Spacer()
+                
+                if let newestMessage = chat.newestMessage {
+                    Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
+                        .foregroundColor(isUnread ? .textSuccess : .textSecondary)
+                        .font(.appTextSmall)
+                        .lineLimit(1)
+                }
+            }
+            .frame(height: 23) // Ensures the same height with and without Bubble
+            
+            HStack(alignment: .top, spacing: 5) {
+                Text(chat.previewMessage)
+                    .foregroundColor(.textSecondary)
+                    .font(.appTextMedium)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                Spacer()
+                
+                if chat.isMuted {
+                    Image.system(.speakerSlash)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 20, height: 20, alignment: .trailing)
+                    .foregroundColor(.textSecondary)
+                }
+                
+                if isUnread {
+                    Bubble(size: .large, count: chat.unreadCount)
+                }
+            }
+        }
+        .padding([.trailing, .top, .bottom], 20)
+        .vSeparator(color: .rowSeparator)
+        .padding(.leading, 20)
     }
     
     // MARK: - Formatting -

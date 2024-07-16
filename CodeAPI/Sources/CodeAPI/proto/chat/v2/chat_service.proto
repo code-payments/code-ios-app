@@ -393,6 +393,8 @@ enum PointerType {
     READ                 = 3;
 }
 
+// A chat
+//
 // todo: Support is_verified in a clean way
 message ChatMetadata {
     // Globally unique ID for this chat
@@ -432,6 +434,7 @@ message ChatMetadata {
     Cursor cursor = 7;
 }
 
+// A message in a chat
 message ChatMessage {
     // Globally unique ID for this message
     ChatMessageId message_id = 1 [(validate.rules).message.required = true];
@@ -454,6 +457,7 @@ message ChatMessage {
     Cursor cursor = 5;
 }
 
+// A user in a chat
 message ChatMember {
     // Globally unique ID for this chat member
     ChatMemberId member_id = 1 [(validate.rules).message.required = true];
@@ -489,6 +493,7 @@ message ChatMember {
     bool is_subscribed = 7;
 }
 
+// Identity to an external social platform that can be linked to a Code account
 message ChatMemberIdentity {
     // The external social platform linked to this chat member
     Platform platform = 1 [(validate.rules).enum = {
@@ -551,7 +556,7 @@ message LocalizedContent {
     }];
 }
 
-// Exchange data content for movement of a value of Kin.
+// Exchange data content for movement of a value of Kin
 message ExchangeDataContent {
     enum Verb {
         UNKNOWN      = 0;
@@ -596,19 +601,24 @@ message ExchangeDataContent {
 
 // Encrypted piece of content using NaCl box encryption
 message NaclBoxEncryptedContent {
+    // The sender's public key that is used to derive the shared private key for
+    // decryption for message content.
     common.v1.SolanaAccountId peer_public_key = 1 [(validate.rules).message.required = true];
 
+    // Globally random nonce that is unique to this encrypted piece of content
     bytes nonce = 2 [(validate.rules).bytes = {
         min_len: 24
         max_len: 24
     }];
 
+    // The encrypted piece of message content 
     bytes encrypted_payload = 3 [(validate.rules).bytes = {
         min_len: 1
         max_len: 1024
     }];
 }
 
+// Thank you content that is used to thank Code users for tips
 message ThankYouContent {
     // The tip intent that is being thanked.
     common.v1.IntentId tip_intent = 1 [(validate.rules).message.required = true];
@@ -622,6 +632,8 @@ message ThankYouContent {
     reserved 3;
 }
 
+// Identity revealed content that is inserted into chat whenever a chat member
+// reveals their identity
 message IdentityRevealedContent {
     // The chat member who revealed their identity
     ChatMemberId member_id = 1 [(validate.rules).message.required = true];
