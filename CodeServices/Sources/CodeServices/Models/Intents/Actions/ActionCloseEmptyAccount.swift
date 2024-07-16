@@ -17,17 +17,15 @@ struct ActionCloseEmptyAccount: ActionType {
 
     let type: AccountType
     let cluster: AccountCluster
-    let legacy: Bool
     
     static let configCountRequirement: Int = 1
     
-    init(type: AccountType, cluster: AccountCluster, legacy: Bool = false) {
+    init(type: AccountType, cluster: AccountCluster) {
         self.id = 0
         self.signer = cluster.authority.keyPair
         
         self.type = type
         self.cluster = cluster
-        self.legacy = legacy
     }
     
     func transactions() throws -> [SolanaTransaction] {
@@ -64,7 +62,7 @@ extension ActionCloseEmptyAccount {
         .with {
             $0.id = UInt32(id)
             $0.closeEmptyAccount = .with {
-                $0.accountType = legacy ? .legacyPrimary2022 : type.accountType
+                $0.accountType = type.accountType
                 $0.authority = cluster.authority.keyPair.publicKey.codeAccountID
                 $0.token = cluster.vaultPublicKey.codeAccountID
             }
