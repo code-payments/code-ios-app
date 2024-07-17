@@ -9,17 +9,6 @@ import Foundation
 import CodeServices
 
 extension Chat {
-    public var localizedTitle: String {
-        title
-//        switch title {
-//        case .domain(let domain):
-//            return domain.displayTitle
-//        case .localized(let key):
-//            return key.localizedStringByKey
-//        case .none:
-//            return "Anonymous"
-//        }
-    }
     
     public var previewMessage: String {
         guard let contents = newestMessage?.contents else {

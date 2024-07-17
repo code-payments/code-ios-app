@@ -98,7 +98,7 @@ struct ChatScreen: View {
             }
         }
         .navigationBarHidden(false)
-        .navigationBarTitle(Text(chat.localizedTitle))
+        .navigationBarTitle(Text(chat.displayName))
     }
     
     @ViewBuilder private func button(title: String, action: @escaping VoidAction) -> some View {
@@ -154,12 +154,12 @@ struct ChatScreen: View {
         let description: String
         
         if shouldMute {
-            title = Localized.Prompt.Title.mute(chat.localizedTitle)
-            description = Localized.Prompt.Description.mute(chat.localizedTitle)
+            title = Localized.Prompt.Title.mute(chat.displayName)
+            description = Localized.Prompt.Description.mute(chat.displayName)
             action = Localized.Action.mute
         } else {
-            title = Localized.Prompt.Title.unmute(chat.localizedTitle)
-            description = Localized.Prompt.Description.unmute(chat.localizedTitle)
+            title = Localized.Prompt.Title.unmute(chat.displayName)
+            description = Localized.Prompt.Description.unmute(chat.displayName)
             action = Localized.Action.unmute
         }
         
@@ -182,8 +182,8 @@ struct ChatScreen: View {
         if chat.isSubscribed {
             bannerController.show(
                 style: .error,
-                title: Localized.Prompt.Title.unsubscribe(chat.localizedTitle),
-                description: Localized.Prompt.Description.unsubscribe(chat.localizedTitle),
+                title: Localized.Prompt.Title.unsubscribe(chat.displayName),
+                description: Localized.Prompt.Description.unsubscribe(chat.displayName),
                 position: .bottom,
                 isDismissable: false,
                 actions: [

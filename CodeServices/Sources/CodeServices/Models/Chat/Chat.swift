@@ -53,6 +53,21 @@ public class Chat: Identifiable, ObservableObject {
         members.first { $0.isSelf }
     }
     
+    /// In a two-way chat, the member that isn't `self`
+    public var otherMember: Member? {
+        guard members.count == 2 else {
+            return nil
+        }
+        
+        return members.first { !$0.isSelf }
+    }
+    
+    /// The title for the chat that defaults to identifying the 'other'
+    /// member if their identity is available, otherwise `title`
+    public var displayName: String {
+        otherMember?.identity.name ?? title
+    }
+    
     public var recipientPointers: [Pointer] {
         guard members.count == 2 else {
             return []
