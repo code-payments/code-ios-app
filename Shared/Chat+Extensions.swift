@@ -67,17 +67,11 @@ extension Chat.Content {
         case .text(let text):
             return text
             
-        case .thankYou(let direction):
+        case .thankYou:
             // TODO: Identify who's thanking who
             return "Thank you"
-//            switch direction {
-//            case .sent:
-//                return "🙏 You thanked them for their tip"
-//            case .received:
-//                return "🙏 They thanked you for your tip"
-//            }
             
-        case .identityRevealed(let memberID, let identity):
+        case .identityRevealed:
             return "Identity Revealed"
         }
     }
