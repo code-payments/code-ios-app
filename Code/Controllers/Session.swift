@@ -46,7 +46,7 @@ class Session: ObservableObject {
     private let reachability: Reachability
     private let betaFlags: BetaFlags
     private let abacus: Abacus
-    private let historyController: HistoryController
+    private let chatController: ChatController
 
     private let flowController: FlowController
     private let giftCardVault: GiftCardVault
@@ -73,7 +73,7 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(organizer: Organizer, user: User, client: Client, exchange: Exchange, cameraSession: CameraSession<CodeExtractor>, bannerController: BannerController, reachability: Reachability, betaFlags: BetaFlags, abacus: Abacus, historyController: HistoryController) {
+    init(organizer: Organizer, user: User, client: Client, exchange: Exchange, cameraSession: CameraSession<CodeExtractor>, bannerController: BannerController, reachability: Reachability, betaFlags: BetaFlags, abacus: Abacus, chatController: ChatController) {
         self.organizer = organizer
         self.user = user
         self.client = client
@@ -83,7 +83,7 @@ class Session: ObservableObject {
         self.reachability = reachability
         self.betaFlags = betaFlags
         self.abacus = abacus
-        self.historyController = historyController
+        self.chatController = chatController
         
         self.tipController = TipController(organizer: organizer, client: client, bannerController: bannerController)
         self.flowController = FlowController(client: client, organizer: organizer)
@@ -96,7 +96,7 @@ class Session: ObservableObject {
         
         poll()
         
-        historyController.fetchChats()
+        chatController.fetchChats()
         
         Task {
             //try? await fetchAccountsForInstallation()
@@ -154,7 +154,7 @@ class Session: ObservableObject {
             
             showToast(amount: metadata.amount, isDeposit: true)
             
-            historyController.fetchChats()
+            chatController.fetchChats()
         }
     }
     
@@ -1630,7 +1630,7 @@ extension Session {
         reachability: .mock,
         betaFlags: .mock,
         abacus: .mock,
-        historyController: .mock
+        chatController: .mock
     )
 }
 

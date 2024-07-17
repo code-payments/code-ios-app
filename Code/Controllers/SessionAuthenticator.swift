@@ -223,7 +223,7 @@ final class SessionAuthenticator: ObservableObject {
         
         let organizer = Organizer(mnemonic: keyAccount.mnemonic)
         
-        let historyController = HistoryController(client: client, organizer: organizer)
+        let chatController = ChatController(client: client, organizer: organizer)
         
         let session = Session(
             organizer: organizer,
@@ -235,14 +235,14 @@ final class SessionAuthenticator: ObservableObject {
             reachability: reachability,
             betaFlags: betaFlags,
             abacus: abacus,
-            historyController: historyController
+            chatController: chatController
         )
         
         session.delegate = self
         
         return SessionContainer(
             session: session,
-            historyController: historyController
+            chatController: chatController
         )
     }
     
@@ -395,7 +395,7 @@ extension SessionAuthenticator {
 
 struct SessionContainer {
     let session: Session
-    let historyController: HistoryController
+    let chatController: ChatController
 }
 
 // MARK: - InitializedAccount -
@@ -433,6 +433,6 @@ extension SessionContainer {
     @MainActor
     static let mock = SessionContainer(
         session: .mock,
-        historyController: .mock
+        chatController: .mock
     )
 }
