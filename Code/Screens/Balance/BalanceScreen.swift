@@ -17,7 +17,7 @@ struct BalanceScreen: View {
     @Binding public var isPresented: Bool
     
     @ObservedObject private var session: Session
-    @ObservedObject private var historyController: HistoryController
+    @ObservedObject private var chatController: ChatController
 
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var client: Client
@@ -31,7 +31,7 @@ struct BalanceScreen: View {
     @StateObject private var viewModel: ChatViewModel
     
     private var chats: [Chat] {
-        historyController.chats
+        chatController.chats
 //        [
 //            Chat(
 //                id: .mock, 
@@ -69,11 +69,11 @@ struct BalanceScreen: View {
     
     // MARK: - Init -
     
-    public init(session: Session, historyController: HistoryController, isPresented: Binding<Bool>) {
+    public init(session: Session, chatController: ChatController, isPresented: Binding<Bool>) {
         self.session = session
-        self.historyController = historyController
+        self.chatController = chatController
         self._isPresented = isPresented
-        self._viewModel = StateObject(wrappedValue: ChatViewModel(historyController: historyController))
+        self._viewModel = StateObject(wrappedValue: ChatViewModel(chatController: chatController))
     }
     
     // MARK: - Appear -
@@ -85,7 +85,7 @@ struct BalanceScreen: View {
     }
     
     private func fetchHistory() {
-        historyController.fetchChats()
+        chatController.fetchChats()
     }
     
     // MARK: - Body -
@@ -94,7 +94,7 @@ struct BalanceScreen: View {
         NavigationStack(path: $viewModel.navigationPath) {
             Background(color: .backgroundMain) {
                 GeometryReader { geometry in
-                    if session.hasBalance && historyController.hasFetchedChats {
+                    if session.hasBalance && chatController.hasFetchedChats {
                         VStack(spacing: 0) {
                             if hasTransactions {
                                 ScrollBox(color: .backgroundMain) {
@@ -130,7 +130,7 @@ struct BalanceScreen: View {
             .navigationDestination(for: Chat.self) { chat in
                 ConversationScreen(
                     chat: chat,
-                    historyController: historyController,
+                    chatController: chatController,
                     viewModel: viewModel
                 )
             }
@@ -339,7 +339,7 @@ struct BalanceScreen_Previews: PreviewProvider {
         Preview(devices: .iPhoneSE, .iPhoneMini, .iPhoneMax) {
             BalanceScreen(
                 session: .mock,
-                historyController: .mock,
+                chatController: .mock,
                 isPresented: .constant(true)
             )
         }
