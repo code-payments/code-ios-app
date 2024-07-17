@@ -62,7 +62,6 @@ class SendTransaction {
         
         let rendezvous = payload.rendezvous
         let amount = amount
-        let currency = amount.rate.currency
         let tray = organizer.tray
 
         messageStream = client.openMessageStream(rendezvous: rendezvous) { [weak self] result in

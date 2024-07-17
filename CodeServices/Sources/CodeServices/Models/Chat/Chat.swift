@@ -15,7 +15,7 @@ public typealias MemberID = ID
 public typealias MessageID = ID
 
 @MainActor
-public class Chat: Identifiable, ObservableObject {
+public class Chat: ObservableObject {
     
     /// The members in this chat
     ///
