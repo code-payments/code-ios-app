@@ -56,8 +56,20 @@ extension Chat {
 
 extension Chat.Member {
     public enum Identity: Equatable, Hashable {
+        
         case unknown(String)
         case twitter(String)
+        
+        public var name: String? {
+            let name: String
+            
+            switch self {
+            case .unknown(let n): name = n
+            case .twitter(let n): name = n
+            }
+            
+            return !name.isEmpty ? name : nil
+        }
     }
 }
 
