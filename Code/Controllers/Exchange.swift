@@ -142,7 +142,7 @@ class Exchange: ObservableObject {
         if let currency = localCurrency {
             if let rate = rates.rate(for: currency) {
                 localRate = rate
-                trace(.note, components: "Updated the local currency: \(currency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
+//                trace(.note, components: "Updated the local currency: \(currency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
             } else {
                 // If a rate for a local currency isn't found,
                 // default to US currency and region
@@ -154,7 +154,7 @@ class Exchange: ObservableObject {
         if let currency = entryCurrency {
             if let rate = rates.rate(for: currency) {
                 entryRate = rate
-                trace(.note, components: "Updated the entry currency: \(currency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
+//                trace(.note, components: "Updated the entry currency: \(currency)", "Staleness \(rates.date.minutesBetween(date: .now())) min", "Date: \(rates.date.formatted())")
             } else {
                 // If a rate for an entry currency isn't found,
                 // default to US currency and region
