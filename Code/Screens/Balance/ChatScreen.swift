@@ -17,7 +17,7 @@ struct ChatScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var chat: Chat
-    @ObservedObject private var historyController: HistoryController
+    @ObservedObject private var chatController: ChatController
     
     @State private var isShowingConversation: Bool = false
     
@@ -27,9 +27,9 @@ struct ChatScreen: View {
     
     // MARK: - Init -
     
-    init(chat: Chat, historyController: HistoryController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
+    init(chat: Chat, chatController: ChatController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
         self.chat = chat
-        self.historyController = historyController
+        self.chatController = chatController
         self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
@@ -45,13 +45,13 @@ struct ChatScreen: View {
     private func advanceReadPointer() {
         if chat.unreadCount > 0 {
             Task {
-                try await historyController.advanceReadPointer(for: chat)
+                try await chatController.advanceReadPointer(for: chat)
             }
         }
     }
     
     private func fetchAllMessages() {
-        historyController.fetchChats()
+        chatController.fetchChats()
     }
     
     // MARK: - Body -
@@ -118,13 +118,13 @@ struct ChatScreen: View {
     
     private func setMuteState(muted: Bool) {
         Task {
-            try await historyController.setMuted(muted, for: chat)
+            try await chatController.setMuted(muted, for: chat)
         }
     }
     
     private func setSubscriptionState() {
         Task {
-            try await historyController.setSubscribed(!chat.isSubscribed, for: chat)
+            try await chatController.setSubscribed(!chat.isSubscribed, for: chat)
         }
     }
 
@@ -249,8 +249,8 @@ struct ChatScreen_Previews: PreviewProvider {
             NavigationView {
                 ChatScreen(
                     chat: chat,
-                    historyController: .mock,
-                    viewModel: ChatViewModel(historyController: .mock)
+                    chatController: .mock,
+                    viewModel: ChatViewModel(chatController: .mock)
                 )
                 .navigationBarTitleDisplayMode(.inline)
             }

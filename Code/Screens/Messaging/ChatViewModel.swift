@@ -14,12 +14,12 @@ class ChatViewModel: ObservableObject {
     
     @Published var navigationPath: [Chat] = []
     
-    private let historyController: HistoryController
+    private let chatController: ChatController
     
     // MARK: - Init -
     
-    init(historyController: HistoryController) {
-        self.historyController = historyController
+    init(chatController: ChatController) {
+        self.chatController = chatController
     }
 }
 
@@ -31,10 +31,10 @@ extension ChatViewModel: MessageListDelegate {
         
         Task {
             // Check if this is a valid intentID
-            let chat = try await historyController.startChat(for: intentID)
+            let chat = try await chatController.startChat(for: intentID)
             navigationPath.append(chat)
             
-            historyController.fetchChats()
+            chatController.fetchChats()
         }
     }
 }

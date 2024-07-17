@@ -1,5 +1,5 @@
 //
-//  HistoryController.swift
+//  ChatController.swift
 //  Code
 //
 //  Created by Dima Bart on 2021-07-13.
@@ -9,7 +9,7 @@ import Foundation
 import CodeServices
 
 @MainActor
-class HistoryController: ObservableObject {
+class ChatController: ObservableObject {
     
     let owner: KeyPair
     
@@ -44,7 +44,7 @@ class HistoryController: ObservableObject {
     }
     
     deinit {
-        trace(.warning, components: "Deallocating HistoryController")
+        trace(.warning, components: "Deallocating ChatController")
     }
     
     // MARK: - Stream -
@@ -405,8 +405,8 @@ private extension Array where Element == Chat {
 
 // MARK: - Mock -
 
-extension HistoryController {
-    static let mock = HistoryController(
+extension ChatController {
+    static let mock = ChatController(
         client: .mock,
         organizer: .mock2
     )

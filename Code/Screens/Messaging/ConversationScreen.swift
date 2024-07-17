@@ -29,15 +29,15 @@ struct ConversationScreen: View {
     
     @FocusState private var isEditorFocused: Bool
     
-    private let historyController: HistoryController
+    private let chatController: ChatController
     
     @StateObject private var viewModel: ChatViewModel
     
     // MARK: - Init -
     
-    init(chat: Chat, historyController: HistoryController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
+    init(chat: Chat, chatController: ChatController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
         self.chat = chat
-        self.historyController = historyController
+        self.chatController = chatController
         self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
@@ -52,7 +52,7 @@ struct ConversationScreen: View {
     
     private func advanceReadPointer() {
         Task {
-            try await historyController.advanceReadPointer(for: chat)
+            try await chatController.advanceReadPointer(for: chat)
         }
     }
     
@@ -63,7 +63,7 @@ struct ConversationScreen: View {
             return
         }
         
-        stream = historyController.openChatStream(chatID: chat.id, memberID: selfMember.id) { result in
+        stream = chatController.openChatStream(chatID: chat.id, memberID: selfMember.id) { result in
             switch result {
             case .success(let events):
                 streamUpdate(events: events)
@@ -195,7 +195,7 @@ struct ConversationScreen: View {
         }
         
         Task {
-            try await historyController.send(
+            try await chatController.send(
                 content: .text(text),
                 in: chat,
                 from: selfMember
