@@ -147,10 +147,10 @@ public struct MessageList: View {
                                     location: .forIndex(index, count: message.contents.count)
                                 )
                                 
-                            case .thankYou(let intentID):
+                            case .thankYou:
                                 MessageAction(text: content.localizedText)
                                 
-                            case .identityRevealed(let memberID, let identity):
+                            case .identityRevealed:
                                 MessageAction(text: "Identity Revealed")
                                 
 //                            case .tip(let direction, let amount):
