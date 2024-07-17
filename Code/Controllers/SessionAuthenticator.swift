@@ -383,6 +383,8 @@ extension SessionAuthenticator {
 }
 
 extension SessionContainer {
+    
+    @MainActor
     static let mock = SessionContainer(
         session: .mock,
         chatController: .mock
