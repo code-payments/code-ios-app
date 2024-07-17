@@ -53,12 +53,12 @@ extension Chat {
                 return .read
             }
             
-            let delivered = pointers.first { $0.kind == .delivered }
-            if let delivered, id <= delivered.messageID {
-                return .delivered
-            }
+//            let delivered = pointers.first { $0.kind == .delivered }
+//            if let delivered, id <= delivered.messageID {
+//                return .delivered
+//            }
             
-            return .sent
+            return .delivered
         }
         
         public func decrypting(using keyPair: KeyPair) throws -> Message {
