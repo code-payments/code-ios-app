@@ -159,7 +159,7 @@ struct ConversationScreen: View {
                 AvatarView(value: .placeholder, diameter: 30)
                 
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(chat.title)
+                    Text(chat.displayName)
                         .font(.appTextMedium)
                         .foregroundColor(.textMain)
 //                    Text("Last seen recently")
