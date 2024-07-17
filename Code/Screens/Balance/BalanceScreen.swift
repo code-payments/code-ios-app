@@ -271,7 +271,7 @@ struct BalanceScreen: View {
         
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 10) {
-                Text(chat.localizedTitle)
+                Text(chat.displayName)
                     .foregroundColor(.textMain)
                     .font(.appTextMedium)
                     .lineLimit(1)
