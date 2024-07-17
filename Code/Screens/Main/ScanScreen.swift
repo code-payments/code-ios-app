@@ -13,7 +13,7 @@ import AVKit
 struct ScanScreen: View {
     
     @ObservedObject private var session: Session
-    @ObservedObject private var historyController: HistoryController
+    @ObservedObject private var chatController: ChatController
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
@@ -64,13 +64,13 @@ struct ScanScreen: View {
     
     init(sessionContainer: SessionContainer) {
         self.session = sessionContainer.session
-        self.historyController = sessionContainer.historyController
+        self.chatController = sessionContainer.chatController
         self._tooltipViewModel = StateObject(wrappedValue: TooltipViewModel(owner: sessionContainer.session.organizer.ownerKeyPair.publicKey))
     }
     
     fileprivate init(sessionContainer: SessionContainer, overrideAuthorization: AVAuthorizationStatus) {
         self.session = sessionContainer.session
-        self.historyController = sessionContainer.historyController
+        self.chatController = sessionContainer.chatController
         self.overrideAuthorization = overrideAuthorization
         self._tooltipViewModel = StateObject(wrappedValue: TooltipViewModel(owner: sessionContainer.session.organizer.ownerKeyPair.publicKey))
     }
@@ -407,11 +407,19 @@ struct ScanScreen: View {
                             aligment: .bottom,
                             binding: $isPresentingHistory
                         )
+                        .if(chatController.unreadCount > 0) { $0
+                            .badged(chatController.unreadCount, insets: .init(
+                                top: 22,
+                                leading: 0,
+                                bottom: 0,
+                                trailing: 8
+                            ))
+                        }
                     }
                     .sheet(isPresented: $isPresentingHistory) { [unowned session] in
                         BalanceScreen(
                             session: session,
-                            historyController: historyController,
+                            chatController: chatController,
                             isPresented: $isPresentingHistory
                         )
                         .environmentObject(exchange)

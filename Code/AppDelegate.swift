@@ -168,7 +168,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         appContainer.pushController.appDidBecomeActive()
         
         if case .loggedIn(let container) = appContainer.sessionAuthenticator.state {
-            container.historyController.appDidBecomeActive()
+            container.chatController.appDidBecomeActive()
         }
     }
     
