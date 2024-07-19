@@ -68,6 +68,14 @@ public class Chat: ObservableObject {
         otherMember?.identity.name ?? title
     }
     
+    public var canRevealSelfIdentity: Bool {
+        !hasRevealedSelfIdentity && kind == .twoWay
+    }
+    
+    private var hasRevealedSelfIdentity: Bool {
+        selfMember?.identity.isKnown ?? false
+    }
+    
     public var recipientPointers: [Pointer] {
         guard members.count == 2 else {
             return []

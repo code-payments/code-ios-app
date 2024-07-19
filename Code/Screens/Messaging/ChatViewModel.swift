@@ -21,6 +21,12 @@ class ChatViewModel: ObservableObject {
     init(chatController: ChatController) {
         self.chatController = chatController
     }
+    
+    // MARK: - Identity -
+    
+    func revealSelfIdentity() {
+        
+    }
 }
 
 extension ChatViewModel: MessageListDelegate {
