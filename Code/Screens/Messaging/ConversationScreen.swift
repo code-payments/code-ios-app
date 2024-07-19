@@ -16,12 +16,9 @@ struct ConversationScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var betaFlags: BetaFlags
+    @EnvironmentObject private var bannerController: BannerController
     
     @State private var input: String = ""
-    
-    @State private var showingTips: Bool = false
-    
-    @State private var isShowingRevealIdentity: Bool = false
     
     @State private var stream: ChatMessageStreamReference?
     
@@ -92,9 +89,19 @@ struct ConversationScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                if isShowingRevealIdentity {
+                if chat.canRevealSelfIdentity {
                     RevealIdentityBanner {
-                        isShowingRevealIdentity.toggle()
+                        bannerController.show(
+                            style: .notification,
+                            title: "Reveal your identity?",
+                            description: "\(chat.displayName) will be able to see that you are \(chat.selfMember?.identity.name ?? "_")",
+                            position: .bottom,
+                            isDismissable: true,
+                            actions: [
+                                .prominent(title: Localized.Action.yes, action: viewModel.revealSelfIdentity),
+                                .subtle(title: Localized.Action.cancel, action: {}),
+                            ]
+                        )
                     }
                 }
                 
