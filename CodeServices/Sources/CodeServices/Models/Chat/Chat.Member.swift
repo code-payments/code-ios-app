@@ -60,6 +60,15 @@ extension Chat.Member {
         case unknown(String)
         case twitter(String)
         
+        public var isKnown: Bool {
+            switch self {
+            case .unknown:
+                return false
+            case .twitter:
+                return true
+            }
+        }
+        
         public var name: String? {
             let name: String
             

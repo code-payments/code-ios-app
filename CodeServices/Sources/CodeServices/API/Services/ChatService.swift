@@ -25,7 +25,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
                 return
             }
             
-            trace(.warning, components: "Chat \(chatID.description)]", "Stream timed out")
+            trace(.warning, components: "Chat \(chatID.description)", "Stream timed out")
             
             self?.openChatStream(
                 chatID: chatID,
