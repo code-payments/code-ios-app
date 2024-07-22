@@ -84,32 +84,24 @@ extension Chat {
             )
         }
         
-//        private static func isReceived(contents: [Content]) -> Bool {
-//            for content in contents {
-//                switch content {
-//                case .kin(_, let verb):
-//                    switch verb {
-//                    case .gave, .withdrew, .sent, .spent, .paid, .tipSent:
-//                        return false
-//                    case .received, .returned, .purchased, .deposited, .tipReceived, .unknown:
-//                        continue
-//                    }
-//                    
-//                case .localized, .sodiumBox, .decrypted, .thankYou:
-//                    continue
-//                    
-//                case .tip(let messageDirection, _):
-//                    switch messageDirection {
-//                    case .sent:
-//                        return false
-//                    case .received:
-//                        continue
-//                    }
-//                }
-//            }
-//            
-//            return true
-//        }
+        public func isContentReceived() -> Bool {
+            for content in contents {
+                switch content {
+                case .kin(_, let verb, _):
+                    switch verb {
+                    case .gave, .withdrew, .sent, .spent, .paid, .tipSent:
+                        return false
+                    case .received, .returned, .purchased, .deposited, .tipReceived, .unknown:
+                        continue
+                    }
+                    
+                case .text, .localized, .sodiumBox, .thankYou, .identityRevealed:
+                    continue
+                }
+            }
+            
+            return true
+        }
     }
 }
 
