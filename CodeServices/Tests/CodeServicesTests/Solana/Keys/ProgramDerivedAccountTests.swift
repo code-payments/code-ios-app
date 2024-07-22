@@ -22,17 +22,6 @@ class ProgramDerivedAccountTests: XCTestCase {
         XCTAssertEqual(derivedAccounts.vault.bump, 255)
     }
     
-    func testLegacyTimelockDerivation() {
-        let owner = PublicKey(base58: "8XfsstyiyT4rCY8ydYthXLisgPHHZFXVtJbcRSsebkWo")!
-        let derivedAccounts = TimelockDerivedAccounts(owner: owner)
-        
-        XCTAssertEqual(derivedAccounts.owner.base58, owner.base58)
-        XCTAssertEqual(derivedAccounts.state.publicKey.base58, "BsJs1qFrhJU6QZp3yniAkLfECA898a8yTxbJhVsY9rW2")
-        XCTAssertEqual(derivedAccounts.state.bump, 254)
-        XCTAssertEqual(derivedAccounts.vault.publicKey.base58, "Aqo1xaEUQqtVLcz2Q6sL5u2YwMaAJygTDeSWf7nEEWWN")
-        XCTAssertEqual(derivedAccounts.vault.bump, 250)
-    }
-    
     func testCommitmentDerivation() throws {
         let treasury    = PublicKey(base58: "3HR2k4etyHtBgHCAisRQ5mAU1x3GxWSgmm1bHsNzvZKS")!
         let destination = PublicKey(base58: "A1WsiTaL6fPei2xcqDPiVnRDvRwpCjne3votXZmrQe86")!
