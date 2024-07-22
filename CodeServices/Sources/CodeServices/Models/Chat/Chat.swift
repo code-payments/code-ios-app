@@ -166,7 +166,10 @@ public class Chat: ObservableObject {
     // MARK: - Messages -
     
     public func isMessageFromSelf(_ message: Message) -> Bool {
-        message.senderID == selfMember?.id
+        // For notification messages the sender
+        // isn't self but we want it to appear
+        // on the 'self' side
+        message.senderID == selfMember?.id || !message.isContentReceived()
     }
     
     @discardableResult
