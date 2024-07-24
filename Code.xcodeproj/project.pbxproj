@@ -116,8 +116,8 @@
 		9A71BD442A2A2E1500D31F56 /* GetFriendStartedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A71BD432A2A2E1500D31F56 /* GetFriendStartedScreen.swift */; };
 		9A7C408128DDE0C7007DA414 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9A7C408328DDE0C7007DA414 /* Localizable.strings */; };
 		9A7FF89B269C71B10090B457 /* BillCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7FF89A269C71B10090B457 /* BillCanvas.swift */; };
-		9A8162872C90A9E900392088 /* EnterUsernameScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */; };
 		9A7FF8A1269DD5CD0090B457 /* ChatController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7FF8A0269DD5CD0090B457 /* ChatController.swift */; };
+		9A8162872C90A9E900392088 /* EnterUsernameScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */; };
 		9A829A4028A57852005F4F87 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A829A3F28A57852005F4F87 /* AppContainer.swift */; };
 		9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672027345419005F1113 /* SessionAuthenticator.swift */; };
 		9A88672427359B56005F1113 /* NotificationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672327359B56005F1113 /* NotificationController.swift */; };
@@ -404,8 +404,8 @@
 		9A7C40A728DDE142007DA414 /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = uk.lproj/Localizable.strings; sourceTree = "<group>"; };
 		9A7C40A828DDE144007DA414 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		9A7FF89A269C71B10090B457 /* BillCanvas.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BillCanvas.swift; sourceTree = "<group>"; };
-		9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterUsernameScreen.swift; sourceTree = "<group>"; };
 		9A7FF8A0269DD5CD0090B457 /* ChatController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatController.swift; sourceTree = "<group>"; };
+		9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterUsernameScreen.swift; sourceTree = "<group>"; };
 		9A829A3F28A57852005F4F87 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
 		9A88672027345419005F1113 /* SessionAuthenticator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAuthenticator.swift; sourceTree = "<group>"; };
 		9A88672327359B56005F1113 /* NotificationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationController.swift; sourceTree = "<group>"; };
@@ -751,7 +751,6 @@
 		9A6740C82C34712F00F9F7BD /* Messaging */ = {
 			isa = PBXGroup;
 			children = (
-				9A0C60902AD05A3C00A57875 /* MessageList.swift */,
 				9A6740D92C3472EF00F9F7BD /* MessageText.swift */,
 				9A6740CD2C3471F400F9F7BD /* MessagePayment.swift */,
 				9A6740C92C34718600F9F7BD /* MessageTitle.swift */,
@@ -763,7 +762,6 @@
 				9A6740D52C3472A600F9F7BD /* FiatField.swift */,
 				9A6740DB2C3485E000F9F7BD /* RevealIdentityBanner.swift */,
 				9A579A442C459B4800C3B592 /* ChatViewModel.swift */,
-				9AA1C30B2BE12DBF0037F272 /* ConversationScreen.swift */,
 			);
 			path = Messaging;
 			sourceTree = "<group>";
@@ -1534,7 +1532,6 @@
 				9A9F26992A169CC000FA47DF /* GetKinScreen.swift in Sources */,
 				9AEF1912260A7BCF00EB2410 /* UIApplication+Root.swift in Sources */,
 				9AD87C7F2BC04A3B00F33A08 /* ConnectXScreen.swift in Sources */,
-				9AD87C7F2BC04A3B00F33A08 /* RequestTipScreen.swift in Sources */,
 				9A6740CE2C3471F400F9F7BD /* MessagePayment.swift in Sources */,
 				9A557D9D28A6BB2F00A58BB1 /* PushController.swift in Sources */,
 				9A033392278F61E8005C630A /* ConfirmPhoneScreen.swift in Sources */,

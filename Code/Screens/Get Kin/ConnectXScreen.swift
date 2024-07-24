@@ -13,13 +13,15 @@ struct ConnectXScreen: View {
     
     @Binding public var isPresented: Bool
     
+    private let reason: Reason
     private let tipController: TipController
     
     @State private var nonce = UUID()
     
     // MARK: - Init -
     
-    init(tipController: TipController, isPresented: Binding<Bool>) {
+    init(reason: Reason, tipController: TipController, isPresented: Binding<Bool>) {
+        self.reason = reason
         self.tipController = tipController
         self._isPresented = isPresented
     }
@@ -33,7 +35,7 @@ struct ConnectXScreen: View {
                     Text(Localized.Title.receiveTips)
                         .font(.appDisplayMedium)
                     
-                    Text(Localized.Subtitle.tipCardXDescription)
+                    Text(reason.subtitle)
                         .font(.appTextMedium)
                 }
                 
@@ -41,7 +43,7 @@ struct ConnectXScreen: View {
                 
                 HStack(alignment: .top, spacing: 15) {
                     PlaceholderAvatar(diameter: 25)
-                    Text(tipController.generateTwitterAuthMessage(nonce: nonce))
+                    Text(tipController.generateTwitterAuthMessage(nonce: nonce, short: reason.isTwitterPromptShort))
                         .font(.appTextSmall)
                         .foregroundColor(.textMain)
                 }
@@ -58,7 +60,7 @@ struct ConnectXScreen: View {
                     title: Localized.Action.messageGetCode
                 ) {
                     Analytics.messageCodeOnX()
-                    tipController.openTwitterWithAuthenticationText(nonce: nonce)
+                    tipController.openTwitterWithAuthenticationText(nonce: nonce, short: reason.isTwitterPromptShort)
                     Task {
                         try await Task.delay(milliseconds: 500)
                         isPresented = false
@@ -74,6 +76,40 @@ struct ConnectXScreen: View {
         .navigationBarTitle(Text(""), displayMode: .inline)
         .onAppear {
             Analytics.openConnectX()
+        }
+    }
+}
+
+extension ConnectTwitterScreen {
+    enum Reason {
+        case tipCard
+        case identity
+        
+        var isTwitterPromptShort: Bool {
+            switch self {
+            case .tipCard:
+                return false
+            case .identity:
+                return true
+            }
+        }
+        
+        var title: String {
+            switch self {
+            case .tipCard:
+                return Localized.Title.requestTip
+            case .identity:
+                return Localized.Title.connectAccount
+            }
+        }
+        
+        var subtitle: String {
+            switch self {
+            case .tipCard:
+                return Localized.Subtitle.tipCardXDescription
+            case .identity:
+                return Localized.Subtitle.connectAccountTwitterDescription
+            }
         }
     }
 }

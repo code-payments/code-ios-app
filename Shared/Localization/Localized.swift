@@ -102,6 +102,8 @@ internal enum Localized {
     internal static let removeYourPhoneNumber = Localized.tr("Localizable", "action.removeYourPhoneNumber")
     /// Request a Tip
     internal static let requestTip = Localized.tr("Localizable", "action.requestTip")
+    /// Reveal
+    internal static let reveal = Localized.tr("Localizable", "action.reveal")
     /// Save Access Key to My Photos
     internal static let saveAccessKey = Localized.tr("Localizable", "action.saveAccessKey")
     /// Save to Photos
@@ -501,6 +503,8 @@ internal enum Localized {
     internal static let comingSoon = Localized.tr("Localizable", "subtitle.comingSoon")
     /// @getcode I’d like to connect my X account so I can receive tips from people all over the world
     internal static let connectXTweetText = Localized.tr("Localizable", "subtitle.connectXTweetText")
+    /// Connecting your X account allows you to reveal your identity to the people you tip. To connect your account post to X.
+    internal static let connectAccountTwitterDescription = Localized.tr("Localizable", "subtitle.connectAccountTwitterDescription")
     /// Delete
     internal static let delete = Localized.tr("Localizable", "subtitle.delete")
     /// Make sure you have your Secret Recovery Phrase saved, and then enter “Delete” to delete your Code account. This action is irreversible.
@@ -581,6 +585,8 @@ internal enum Localized {
     internal static func requestNewOneIn(_ p1: Any) -> String {
       return Localized.tr("Localizable", "subtitle.requestNewOneIn", String(describing: p1))
     }
+    /// Your messages are showing up anonymously. Would you like to reveal your identity?
+    internal static let revealIdentityDescription = Localized.tr("Localizable", "subtitle.revealIdentityDescription")
     /// Scan this QR code with your phone's camera to download the Code Wallet app
     internal static let scanThisQRCode = Localized.tr("Localizable", "subtitle.scanThisQRCode")
     /// Scan to download the\nCode Wallet app
@@ -677,6 +683,8 @@ internal enum Localized {
     internal static let betaFlags = Localized.tr("Localizable", "title.betaFlags")
     /// Buy & Sell Kin
     internal static let buySellKin = Localized.tr("Localizable", "title.buySellKin")
+    /// Connect Account
+    internal static let connectAccount = Localized.tr("Localizable", "title.connectAccount")
     /// Deposit Kin
     internal static let depositKin = Localized.tr("Localizable", "title.depositKin")
     /// Enter Access Key Words
