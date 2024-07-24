@@ -14,12 +14,14 @@ class ChatViewModel: ObservableObject {
     
     @Published var navigationPath: [Chat] = []
     
+    @Published var isShowingConnectTwitter: Bool = false
+    
     var twitterUser: TwitterUser? {
         tipController.twitterUser
     }
     
-    private let chatController: ChatController
-    private let tipController: TipController
+    let chatController: ChatController
+    let tipController: TipController
     
     // MARK: - Init -
     
@@ -30,8 +32,13 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Identity -
     
+    func canRevealIdentity() -> Bool {
+        twitterUser?.username != nil
+    }
+    
     func revealSelfIdentity(chat: Chat) {
         guard let username = twitterUser?.username else {
+            isShowingConnectTwitter = true
             return
         }
         

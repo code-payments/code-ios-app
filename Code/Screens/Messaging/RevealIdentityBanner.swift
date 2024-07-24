@@ -10,15 +10,17 @@ import CodeUI
 
 struct RevealIdentityBanner: View {
     
+    var text: String
     var action: VoidAction
     
-    init(action: @escaping VoidAction) {
+    init(text: String, action: @escaping VoidAction) {
+        self.text = text
         self.action = action
     }
     
     var body: some View {
         HStack {
-            Text("Your messages are showing up anonymously.\nWould you like to reveal your identity?")
+            Text(text)
                 .font(.appTextSmall)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.leading)
@@ -30,7 +32,7 @@ struct RevealIdentityBanner: View {
             } label: {
                 TextBubble(
                     style: .filled,
-                    text: "Reveal",
+                    text: Localized.Action.reveal,
                     paddingVertical: 2,
                     paddingHorizontal: 6
                 )
