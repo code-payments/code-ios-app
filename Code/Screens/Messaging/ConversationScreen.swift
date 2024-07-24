@@ -108,7 +108,12 @@ struct ConversationScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 if chat.canRevealSelfIdentity {
-                    RevealIdentityBanner {
+                    RevealIdentityBanner(text: Localized.Subtitle.revealIdentityDescription) {
+                        guard viewModel.canRevealIdentity() else {
+                            viewModel.revealSelfIdentity(chat: chat)
+                            return
+                        }
+                        
                         bannerController.show(
                             style: .notification,
                             title: "Reveal your identity?",
@@ -171,6 +176,20 @@ struct ConversationScreen: View {
                 }
             }
             .animation(.easeInOut, value: chat.canRevealSelfIdentity)
+            .sheet(isPresented: $viewModel.isShowingConnectTwitter) {
+                NavigationView {
+                    ConnectTwitterScreen(
+                        reason: .identity,
+                        tipController: viewModel.tipController,
+                        isPresented: $viewModel.isShowingConnectTwitter
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            ToolbarCloseButton(binding: $viewModel.isShowingConnectTwitter)
+                        }
+                    }
+                }
+            }
         }
         .onAppear(perform: didAppear)
         .onDisappear(perform: didDisappear)

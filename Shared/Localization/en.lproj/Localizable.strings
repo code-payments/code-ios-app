@@ -233,6 +233,9 @@
 /* Action to message Code to connect X, do not translate '@getcode' */
 "action.messageGetCode" = "Message @getcode to Connect";
 
+/* Action to reveal identity */
+"action.reveal" = "Reveal";
+
 
 
 
@@ -274,6 +277,9 @@
 
 /* Title for Request a Tip */
 "title.receiveTips" = "Receive Tips";
+
+/* Title for Connect Account */
+"title.connectAccount" = "Connect Account";
 
 /* Title for Get More Kin */
 "title.getMoreKin" = "Get More Kin";
@@ -517,6 +523,12 @@
 
 /* Subtitle for a description on connecting your X */
 "subtitle.tipCardTwitterDescription" = "Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card post to X.";
+
+/* Subtitle for a description on connecting your X */
+"subtitle.connectAccountTwitterDescription" = "Connecting your X account allows you to reveal your identity to the people you tip. To connect your account post to X.";
+
+/* Subtitle for a description on revealing your identity */
+"subtitle.revealIdentityDescription" = "Your messages are showing up anonymously. Would you like to reveal your identity?";
 
 /* Subtitle for a description on getting a friend started on Code */
 "subtitle.getFriendStartedOnCode" = "Get $5 of Kin for free when you get a friend to sign up for Code and you send them their first Kin.";
