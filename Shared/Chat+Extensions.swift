@@ -62,6 +62,16 @@ extension Chat.Content {
             
         case .identityRevealed:
             return "Identity Revealed"
+            
+        case .identity(let direction, let identity):
+            let name = identity.name ?? "anonymous"
+            
+            switch direction {
+            case .fromSelf:
+                return "You revealed your identity as \(name)"
+            case .fromOther:
+                return "\(name) revealed their identity"
+            }
         }
     }
 }
