@@ -199,16 +199,31 @@ public class Chat: ObservableObject {
         return newMessages.count
     }
     
-    public func setSortedMessages(_ messages: [Message]) {
-        self.messages = messages
-    }
-    
     public func setMessages(_ messages: [Message]) {
         setSortedMessages(messages.sortedByDateDesc())
     }
     
+    private func setSortedMessages(_ messages: [Message]) {
+        self.messages = messages.map {
+            var mappedMessage = $0
+            mappedMessage.contents = $0.contents.map {
+                if case .identityRevealed(let memberID, let identity) = $0 {
+                    let direction: Chat.Content.Direction = memberID == selfMember?.id ? .fromSelf : .fromOther
+                    return .identity(direction, identity)
+                } else {
+                    return $0
+                }
+            }
+            return mappedMessage
+        }
+    }
+    
     public func latestMessage() -> Message? {
         messages.last // Order is ascending
+    }
+    
+    public func popLast() -> Message? {
+        messages.popLast()
     }
     
     @discardableResult

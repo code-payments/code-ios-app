@@ -340,6 +340,10 @@ final class SessionAuthenticator: ObservableObject {
         
         accountManager.resetForLogout()
         
+        if case .loggedIn(let container) = state {
+            container.session.prepareForLogout()
+        }
+        
         state = .loggedOut
         UserDefaults.wasLoggedIn = false
         

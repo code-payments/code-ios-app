@@ -250,7 +250,7 @@ struct ChatScreen_Previews: PreviewProvider {
                 ChatScreen(
                     chat: chat,
                     chatController: .mock,
-                    viewModel: ChatViewModel(chatController: .mock)
+                    viewModel: ChatViewModel(chatController: .mock, tipController: .mock)
                 )
                 .navigationBarTitleDisplayMode(.inline)
             }

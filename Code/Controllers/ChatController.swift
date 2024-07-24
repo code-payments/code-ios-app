@@ -98,6 +98,21 @@ class ChatController: ObservableObject {
         unreadCount = computeUnreadCount(for: chats)
     }
     
+    // MARK: - Identity -
+    
+    func revealSelfIdentity(chat: Chat, username: String) async throws -> Chat.Message {
+        guard let selfMemeber = chat.selfMember else {
+            throw Error.selfMemberNotFound
+        }
+        
+        return try await client.revealIdentity(
+            chatID: chat.id,
+            memberID: selfMemeber.id,
+            twitterUsername: username,
+            owner: owner
+        )
+    }
+    
     // MARK: - Pointers -
     
     private func setReadPointer(to message: Chat.Message, chat: Chat) {
@@ -379,6 +394,12 @@ class ChatController: ObservableObject {
     
     func appDidBecomeActive() {
         fetchChats()
+    }
+}
+
+extension ChatController {
+    enum Error: Swift.Error {
+        case selfMemberNotFound
     }
 }
 
