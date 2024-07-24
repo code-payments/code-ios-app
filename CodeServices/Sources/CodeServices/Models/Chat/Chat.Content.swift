@@ -17,6 +17,14 @@ extension Chat {
         case sodiumBox(EncryptedData)
         case thankYou(PublicKey) // IntentID
         case identityRevealed(MemberID, Chat.Member.Identity)
+        case identity(Direction, Chat.Member.Identity)
+    }
+}
+
+extension Chat.Content {
+    public enum Direction {
+        case fromSelf
+        case fromOther
     }
 }
 
@@ -48,7 +56,7 @@ extension Chat.Content {
                 }
             }
             
-        case .localized, .kin, .sodiumBox:
+        case .localized, .kin, .sodiumBox, .identity:
             fatalError("Content unsupported")
         }
     }

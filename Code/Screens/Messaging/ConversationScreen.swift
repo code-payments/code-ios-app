@@ -30,6 +30,12 @@ struct ConversationScreen: View {
     
     @StateObject private var viewModel: ChatViewModel
     
+//    @State private var revealVisible: Bool = false
+//    
+//    @State private var poller: Poller?
+//    
+//    @State private var lastMessage: Chat.Message?
+    
     // MARK: - Init -
     
     init(chat: Chat, chatController: ChatController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
@@ -38,7 +44,19 @@ struct ConversationScreen: View {
         self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
+//    private func poll() {
+//        revealVisible.toggle()
+//        if let lastMessage {
+//            self.lastMessage = nil
+//            chat.insertMessages([lastMessage])
+//        } else {
+//            lastMessage = chat.popLast()
+//        }
+//    }
+    
     private func didAppear() {
+//        self.poller = Poller(seconds: 4, action: poll)
+        
         startStream()
         advanceReadPointer()
     }
@@ -94,15 +112,18 @@ struct ConversationScreen: View {
                         bannerController.show(
                             style: .notification,
                             title: "Reveal your identity?",
-                            description: "\(chat.displayName) will be able to see that you are \(chat.selfMember?.identity.name ?? "_")",
+                            description: "\(chat.displayName) will be able to see that you are \(viewModel.twitterUser?.username ?? "_")",
                             position: .bottom,
                             isDismissable: true,
                             actions: [
-                                .prominent(title: Localized.Action.yes, action: viewModel.revealSelfIdentity),
+                                .prominent(title: Localized.Action.yes) {
+                                    viewModel.revealSelfIdentity(chat: chat)
+                                },
                                 .subtle(title: Localized.Action.cancel, action: {}),
                             ]
                         )
                     }
+                    .transition(.move(edge: .top))
                 }
                 
                 MessageList(
@@ -111,6 +132,7 @@ struct ConversationScreen: View {
                     state: $messageListState,
                     delegate: viewModel
                 )
+                .transition(.scale)
                 
                 if chat.kind == .twoWay {
                     HStack(alignment: .bottom) {
@@ -148,6 +170,7 @@ struct ConversationScreen: View {
                     }
                 }
             }
+            .animation(.easeInOut, value: chat.canRevealSelfIdentity)
         }
         .onAppear(perform: didAppear)
         .onDisappear(perform: didDisappear)

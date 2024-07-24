@@ -35,6 +35,12 @@ extension Client {
         }
     }
     
+    public func revealIdentity(chatID: ChatID, memberID: MemberID, twitterUsername: String, owner: KeyPair) async throws -> Chat.Message {
+        try await withCheckedThrowingContinuation { c in
+            chatService.revealIdentity(chatID: chatID, memberID: memberID, twitterUsername: twitterUsername, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func fetchMessages(chatID: ChatID, memberID: MemberID, owner: KeyPair, direction: MessageDirection = .ascending(from: nil), pageSize: Int) async throws -> [Chat.Message] {
         try await withCheckedThrowingContinuation { c in
             chatService.fetchMessages(chatID: chatID, memberID: memberID, owner: owner, direction: direction, pageSize: pageSize) { c.resume(with: $0) }

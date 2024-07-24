@@ -73,7 +73,13 @@ struct BalanceScreen: View {
         self.session = session
         self.chatController = chatController
         self._isPresented = isPresented
-        self._viewModel = StateObject(wrappedValue: ChatViewModel(chatController: chatController))
+        
+        let chatViewModel = ChatViewModel(
+            chatController: chatController,
+            tipController: session.tipController
+        )
+        
+        self._viewModel = StateObject(wrappedValue: chatViewModel)
     }
     
     // MARK: - Appear -

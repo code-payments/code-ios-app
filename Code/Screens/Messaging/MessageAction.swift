@@ -21,10 +21,10 @@ public struct MessageAction: View {
             Spacer()
             Text(text)
                 .font(.appTextHeading)
-                .foregroundColor(.textMain)
+                .foregroundColor(.textSecondary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color.backgroundMessageReceived)
+                .background(Color.backgroundMessageReceived.opacity(0.2))
                 .cornerRadius(99)
             Spacer()
         }
