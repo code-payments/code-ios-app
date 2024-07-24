@@ -275,43 +275,47 @@ struct BalanceScreen: View {
     private func navigationLabel(for chat: Chat) -> some View {
         let isUnread = !chat.isMuted && chat.unreadCount > 0
         
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 10) {
-                Text(chat.displayName)
-                    .foregroundColor(.textMain)
-                    .font(.appTextMedium)
-                    .lineLimit(1)
-                
-                Spacer()
-                
-                if let newestMessage = chat.newestMessage {
-                    Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
-                        .foregroundColor(isUnread ? .textSuccess : .textSecondary)
-                        .font(.appTextSmall)
-                        .lineLimit(1)
-                }
-            }
-            .frame(height: 23) // Ensures the same height with and without Bubble
+        HStack(spacing: 15) {
+            GeneratedAvatarView(data: chat.id.data, diameter: 60.0)
             
-            HStack(alignment: .top, spacing: 5) {
-                Text(chat.previewMessage)
-                    .foregroundColor(.textSecondary)
-                    .font(.appTextMedium)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                
-                Spacer()
-                
-                if chat.isMuted {
-                    Image.system(.speakerSlash)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20, alignment: .trailing)
-                    .foregroundColor(.textSecondary)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 10) {
+                    Text(chat.displayName)
+                        .foregroundColor(.textMain)
+                        .font(.appTextMedium)
+                        .lineLimit(1)
+                    
+                    Spacer()
+                    
+                    if let newestMessage = chat.newestMessage {
+                        Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
+                            .foregroundColor(isUnread ? .textSuccess : .textSecondary)
+                            .font(.appTextSmall)
+                            .lineLimit(1)
+                    }
                 }
+                .frame(height: 23) // Ensures the same height with and without Bubble
                 
-                if isUnread {
-                    Bubble(size: .large, count: chat.unreadCount)
+                HStack(alignment: .top, spacing: 5) {
+                    Text(chat.previewMessage)
+                        .foregroundColor(.textSecondary)
+                        .font(.appTextMedium)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    Spacer()
+                    
+                    if chat.isMuted {
+                        Image.system(.speakerSlash)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 20, height: 20, alignment: .trailing)
+                            .foregroundColor(.textSecondary)
+                    }
+                    
+                    if isUnread {
+                        Bubble(size: .large, count: chat.unreadCount)
+                    }
                 }
             }
         }
