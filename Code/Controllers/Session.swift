@@ -113,6 +113,10 @@ class Session: ObservableObject {
         trace(.warning, components: "Deallocating Session")
     }
     
+    func prepareForLogout() {
+        tipController.deleteAuthenticatedUser()
+    }
+    
     // MARK: - Setters -
     
     private func setIsReceivingRemoteSend(_ value: Bool) {

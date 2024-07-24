@@ -147,11 +147,8 @@ public struct MessageList: View {
                                     location: .forIndex(index, count: message.contents.count)
                                 )
                                 
-                            case .thankYou:
+                            case .thankYou, .identityRevealed, .identity:
                                 MessageAction(text: content.localizedText)
-                                
-                            case .identityRevealed:
-                                MessageAction(text: "Identity Revealed")
                                 
 //                            case .tip(let direction, let amount):
 //                                
@@ -281,7 +278,7 @@ private extension GeometryProxy {
         switch content {
         case .localized, .kin, .sodiumBox, .text:
             return size.width * 0.70
-        case .thankYou, .identityRevealed:
+        case .thankYou, .identityRevealed, .identity:
             return size.width
         }
     }

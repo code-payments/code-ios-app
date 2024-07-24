@@ -14,18 +14,33 @@ class ChatViewModel: ObservableObject {
     
     @Published var navigationPath: [Chat] = []
     
+    var twitterUser: TwitterUser? {
+        tipController.twitterUser
+    }
+    
     private let chatController: ChatController
+    private let tipController: TipController
     
     // MARK: - Init -
     
-    init(chatController: ChatController) {
+    init(chatController: ChatController, tipController: TipController) {
         self.chatController = chatController
+        self.tipController = tipController
     }
     
     // MARK: - Identity -
     
-    func revealSelfIdentity() {
+    func revealSelfIdentity(chat: Chat) {
+        guard let username = twitterUser?.username else {
+            return
+        }
         
+        Task {
+            try await chatController.revealSelfIdentity(chat: chat, username: username)
+            
+            // TODO: Should update from stream instead
+            chatController.fetchChats()
+        }
     }
 }
 

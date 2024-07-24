@@ -27,7 +27,7 @@ extension Chat {
         public let cursor: Cursor
         
         /// Ordered message content. A message may have more than one piece of content.
-        public let contents: [Content]
+        public var contents: [Content]
         
         public var hasEncryptedContent: Bool {
             contents.first {
@@ -69,7 +69,7 @@ extension Chat {
                 cursor: cursor,
                 contents: contents.map { content in
                     switch content {
-                    case .localized, .kin, .text, .thankYou, .identityRevealed:
+                    case .localized, .kin, .text, .thankYou, .identityRevealed, .identity:
                         return content // Passthrough
                         
                     case .sodiumBox(let encryptedData):
@@ -95,7 +95,7 @@ extension Chat {
                         continue
                     }
                     
-                case .text, .localized, .sodiumBox, .thankYou, .identityRevealed:
+                case .text, .localized, .sodiumBox, .thankYou, .identityRevealed, .identity:
                     continue
                 }
             }

@@ -187,6 +187,37 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         }
     }
     
+    func revealIdentity(chatID: ChatID, memberID: MemberID, twitterUsername: String, owner: KeyPair, completion: @escaping (Result<Chat.Message, ErrorRevealIdentity>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+        
+        let request = Code_Chat_V2_RevealIdentityRequest.with {
+            $0.chatID    = .with { $0.value = chatID.data }
+            $0.memberID  = .with { $0.value = memberID.data }
+            $0.identity  = .with { $0.platform = .twitter; $0.username = twitterUsername }
+            $0.owner     = owner.publicKey.codeAccountID
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.revealIdentity(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorRevealIdentity(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                DispatchQueue.main.async {
+                    let message = Chat.Message(response.message)
+                    trace(.success, components: "Owner: \(owner.publicKey.base58)", "Message: \(message.id.data.hexEncodedString())")
+                    completion(.success(message))
+                }
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
     func fetchChats(owner: KeyPair, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
@@ -373,6 +404,14 @@ public enum ErrorSendMessage: Int, Error {
     case chatNotFound
     case invalidChatType
     case invalidContentType
+    case unknown = -1
+}
+
+public enum ErrorRevealIdentity: Int, Error {
+    case ok
+    case denied
+    case chatNotFound
+    case differentIdentityRevealed
     case unknown = -1
 }
 
