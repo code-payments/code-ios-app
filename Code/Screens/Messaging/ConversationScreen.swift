@@ -186,7 +186,8 @@ struct ConversationScreen: View {
     @ViewBuilder private func title() -> some View {
         if chat.kind == .twoWay {
             HStack(spacing: 10) {
-                AvatarView(value: .placeholder, diameter: 30)
+//                AvatarView(value: .placeholder, diameter: 30)
+                GeneratedAvatarView(data: chat.id.data, diameter: 30)
                 
                 VStack(alignment: .leading, spacing: 0) {
                     Text(chat.displayName)
