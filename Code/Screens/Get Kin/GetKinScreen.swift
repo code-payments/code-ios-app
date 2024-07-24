@@ -131,7 +131,8 @@ struct GetKinScreen: View {
                                     title: Localized.Action.requestTip,
                                     showChevron: false
                                 ) {
-                                    RequestTipScreen(
+                                    ConnectTwitterScreen(
+                                        reason: .tipCard,
                                         tipController: tipController,
                                         isPresented: $isPresented
                                     )

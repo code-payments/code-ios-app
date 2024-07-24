@@ -161,7 +161,7 @@ class TipController: ObservableObject {
     
     // MARK: - Auth Message -
     
-    func generateTwitterAuthMessage(nonce: UUID) -> String {
+    func generateTwitterAuthMessage(nonce: UUID, short: Bool) -> String {
         let signature = organizer.ownerKeyPair.sign(nonce.data)
         let components = [
             "CodeAccount",
@@ -170,7 +170,10 @@ class TipController: ObservableObject {
             signature.base58,
         ]
         
-        let text = "I'm connecting my X account with @getcode so I can receive tips from people all over the world."
+        var text = "I'm connecting my X account with @getcode"
+        if !short {
+            text = "\(text) so I can receive tips from people all over the world."
+        }
         let auth = components.joined(separator: ":")
         let message = "\(text)\n\n\(auth)"
         
@@ -181,8 +184,8 @@ class TipController: ObservableObject {
         "Hey @\(username) you should set up your @getcode Tip Card so I can tip you some cash.\n\ngetcode.com/download"
     }
     
-    func openTwitterWithAuthenticationText(nonce: UUID) {
-        let message = generateTwitterAuthMessage(nonce: nonce).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+    func openTwitterWithAuthenticationText(nonce: UUID, short: Bool) {
+        let message = generateTwitterAuthMessage(nonce: nonce, short: short).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
         let url = URL.tweet(content: message)
         
         didOpenTwitter()

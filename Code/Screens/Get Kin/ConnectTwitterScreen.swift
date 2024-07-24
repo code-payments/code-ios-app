@@ -1,5 +1,5 @@
 //
-//  RequestTipScreen.swift
+//  ConnectTwitterScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-04-05.
@@ -9,17 +9,19 @@ import SwiftUI
 import CodeUI
 import CodeServices
 
-struct RequestTipScreen: View {
+struct ConnectTwitterScreen: View {
     
     @Binding public var isPresented: Bool
     
+    private let reason: Reason
     private let tipController: TipController
     
     @State private var nonce = UUID()
     
     // MARK: - Init -
     
-    init(tipController: TipController, isPresented: Binding<Bool>) {
+    init(reason: Reason, tipController: TipController, isPresented: Binding<Bool>) {
+        self.reason = reason
         self.tipController = tipController
         self._isPresented = isPresented
     }
@@ -30,10 +32,10 @@ struct RequestTipScreen: View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 40) {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(Localized.Title.requestTip)
+                    Text(reason.title)
                         .font(.appDisplayMedium)
                     
-                    Text(Localized.Subtitle.tipCardTwitterDescription)
+                    Text(reason.subtitle)
                         .font(.appTextMedium)
                 }
                 
@@ -41,7 +43,7 @@ struct RequestTipScreen: View {
                 
                 HStack(alignment: .top, spacing: 15) {
                     PlaceholderAvatar(diameter: 25)
-                    Text(tipController.generateTwitterAuthMessage(nonce: nonce))
+                    Text(tipController.generateTwitterAuthMessage(nonce: nonce, short: reason.isTwitterPromptShort))
                         .font(.appTextSmall)
                         .foregroundColor(.textMain)
                 }
@@ -57,7 +59,7 @@ struct RequestTipScreen: View {
                     image: Image.asset(.twitter),
                     title: Localized.Action.postToConnect
                 ) {
-                    tipController.openTwitterWithAuthenticationText(nonce: nonce)
+                    tipController.openTwitterWithAuthenticationText(nonce: nonce, short: reason.isTwitterPromptShort)
                     Task {
                         try await Task.delay(milliseconds: 500)
                         isPresented = false
@@ -74,9 +76,44 @@ struct RequestTipScreen: View {
     }
 }
 
+extension ConnectTwitterScreen {
+    enum Reason {
+        case tipCard
+        case identity
+        
+        var isTwitterPromptShort: Bool {
+            switch self {
+            case .tipCard:
+                return false
+            case .identity:
+                return true
+            }
+        }
+        
+        var title: String {
+            switch self {
+            case .tipCard:
+                return Localized.Title.requestTip
+            case .identity:
+                return Localized.Title.connectAccount
+            }
+        }
+        
+        var subtitle: String {
+            switch self {
+            case .tipCard:
+                return Localized.Subtitle.tipCardTwitterDescription
+            case .identity:
+                return Localized.Subtitle.connectAccountTwitterDescription
+            }
+        }
+    }
+}
+
 #Preview {
-    RequestTipScreen(
-        tipController: .mock, 
+    ConnectTwitterScreen(
+        reason: .tipCard,
+        tipController: .mock,
         isPresented: .constant(true)
     )
 }
