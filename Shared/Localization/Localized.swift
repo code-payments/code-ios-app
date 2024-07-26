@@ -126,6 +126,8 @@ internal enum Localized {
     internal static let swipeToPay = Localized.tr("Localizable", "action.swipeToPay")
     /// Swipe to Tip
     internal static let swipeToTip = Localized.tr("Localizable", "action.swipeToTip")
+    /// Tap to Reveal Your Identity
+    internal static let tapToReveal = Localized.tr("Localizable", "action.tapToReveal")
     /// Try a Different Code Account
     internal static let tryDifferentCodeAccount = Localized.tr("Localizable", "action.tryDifferentCodeAccount")
     /// Tweet Them
@@ -569,7 +571,7 @@ internal enum Localized {
     internal static func requestNewOneIn(_ p1: Any) -> String {
       return Localized.tr("Localizable", "subtitle.requestNewOneIn", String(describing: p1))
     }
-    /// Your messages are showing up anonymously. Would you like to reveal your identity?
+    /// Your messages are showing up anonymously.
     internal static let revealIdentityDescription = Localized.tr("Localizable", "subtitle.revealIdentityDescription")
     /// Scan this QR code with your phone's camera to download the Code Wallet app
     internal static let scanThisQRCode = Localized.tr("Localizable", "subtitle.scanThisQRCode")

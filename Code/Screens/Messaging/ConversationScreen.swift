@@ -108,25 +108,35 @@ struct ConversationScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 if chat.canRevealSelfIdentity {
-                    RevealIdentityBanner(text: Localized.Subtitle.revealIdentityDescription) {
+                    RevealIdentityBanner(
+                        text: Localized.Subtitle.revealIdentityDescription,
+                        underlined: Localized.Action.tapToReveal
+                    ) {
                         guard viewModel.canRevealIdentity() else {
                             viewModel.revealSelfIdentity(chat: chat)
                             return
                         }
                         
-                        bannerController.show(
-                            style: .notification,
-                            title: "Reveal your identity?",
-                            description: "\(chat.displayName) will be able to see that you are \(viewModel.twitterUser?.username ?? "_")",
-                            position: .bottom,
-                            isDismissable: true,
-                            actions: [
-                                .prominent(title: Localized.Action.yes) {
-                                    viewModel.revealSelfIdentity(chat: chat)
-                                },
-                                .subtle(title: Localized.Action.cancel, action: {}),
-                            ]
-                        )
+                        isEditorFocused = false
+                        
+                        Task {
+                            // Wait for the keyboard to close
+                            try await Task.delay(milliseconds: 300)
+                            
+                            bannerController.show(
+                                style: .notification,
+                                title: "Reveal your identity?",
+                                description: "\(chat.displayName) will be able to see that you are \(viewModel.twitterUser?.username ?? "_")",
+                                position: .bottom,
+                                isDismissable: true,
+                                actions: [
+                                    .prominent(title: Localized.Action.yes) {
+                                        viewModel.revealSelfIdentity(chat: chat)
+                                    },
+                                    .subtle(title: Localized.Action.cancel, action: {}),
+                                ]
+                            )
+                        }
                     }
                     .transition(.move(edge: .top))
                 }
