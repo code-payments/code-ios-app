@@ -134,7 +134,7 @@ struct BalanceScreen: View {
                 }
             }
             .navigationDestination(for: Chat.self) { chat in
-                ConversationScreen(
+                ChatScreen(
                     chat: chat,
                     chatController: chatController,
                     viewModel: viewModel

@@ -13,24 +13,25 @@ struct ChatsScreen: View {
     
     @Binding public var isPresented: Bool
     
+    @EnvironmentObject private var session: Session
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var bannerController: BannerController
     @EnvironmentObject private var notificationController: NotificationController
     @EnvironmentObject private var betaFlags: BetaFlags
     
-    @ObservedObject private var historyController: HistoryController
+    @ObservedObject private var chatController: ChatController
     
     @State private var isShowingEnterUsername: Bool = false
     @State private var isShowingConversation: Bool = false
     
     private var chats: [Chat] {
-        historyController.chats
+        chatController.chats
     }
     
     // MARK: - Init -
     
-    init(historyController: HistoryController, isPresented: Binding<Bool>) {
-        self.historyController = historyController
+    init(chatController: ChatController, isPresented: Binding<Bool>) {
+        self.chatController = chatController
         self._isPresented = isPresented
     }
     
@@ -43,7 +44,7 @@ struct ChatsScreen: View {
     }
     
     private func fetchAllMessages() {
-        historyController.fetchChats()
+        chatController.fetchChats()
     }
     
     // MARK: - Body -
@@ -98,7 +99,11 @@ struct ChatsScreen: View {
                 LazyView (
                     ChatScreen(
                         chat: chat,
-                        historyController: historyController
+                        chatController: chatController,
+                        viewModel: ChatViewModel(
+                            chatController: chatController,
+                            tipController: session.tipController
+                        )
                     )
                 )
             } label: {
@@ -106,7 +111,7 @@ struct ChatsScreen: View {
                 
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 10) {
-                        Text(chat.localizedTitle)
+                        Text(chat.title)
                             .foregroundColor(.textMain)
                             .font(.appTextMedium)
                             .lineLimit(1)
@@ -156,7 +161,7 @@ struct ChatsScreen: View {
 
 #Preview {
     ChatsScreen(
-        historyController: .mock,
+        chatController: .mock,
         isPresented: .constant(true)
     )
 }

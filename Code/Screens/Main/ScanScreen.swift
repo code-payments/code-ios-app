@@ -376,17 +376,18 @@ struct ScanScreen: View {
                             maxWidth: 80,
                             maxHeight: 80,
                             fullWidth: true,
-                            badge: historyController.unreadCount,
+                            badge: chatController.unreadCount,
                             aligment: .bottom,
                             binding: $isPresentingChat
                         )
                         .sheet(isPresented: $isPresentingChat) {
                             NavigationStack {
                                 ChatsScreen(
-                                    historyController: historyController,
+                                    chatController: chatController,
                                     isPresented: $isPresentingChat
                                 )
                             }
+                            .environmentObject(session)
                             .environmentObject(client)
                             .environmentObject(exchange)
                             .environmentObject(betaFlags)
@@ -403,7 +404,7 @@ struct ScanScreen: View {
                             maxWidth: 80,
                             maxHeight: 80,
                             fullWidth: true,
-                            badge: historyController.unreadCount,
+                            badge: chatController.unreadCount,
                             aligment: .bottom,
                             binding: $isPresentingHistory
                         )

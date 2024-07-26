@@ -236,6 +236,9 @@
 /* Action to reveal identity */
 "action.reveal" = "Reveal";
 
+/* Action to reveal identity */
+"action.tapToReveal" = "Tap to Reveal Your Identity";
+
 
 
 
@@ -528,7 +531,7 @@
 "subtitle.connectAccountTwitterDescription" = "Connecting your X account allows you to reveal your identity to the people you tip. To connect your account post to X.";
 
 /* Subtitle for a description on revealing your identity */
-"subtitle.revealIdentityDescription" = "Your messages are showing up anonymously. Would you like to reveal your identity?";
+"subtitle.revealIdentityDescription" = "Your messages are showing up anonymously.";
 
 /* Subtitle for a description on getting a friend started on Code */
 "subtitle.getFriendStartedOnCode" = "Get $5 of Kin for free when you get a friend to sign up for Code and you send them their first Kin.";

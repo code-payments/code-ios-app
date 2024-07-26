@@ -209,7 +209,7 @@ class TipController: ObservableObject {
     
     // MARK: - Auth Message -
     
-    func generateTwitterAuthMessage(nonce: UUID, short: Bool) -> String {
+    func generateTwitterAuthMessage(nonce: UUID) -> String {
         let signature = organizer.ownerKeyPair.sign(nonce.data)
         let components = [
             "CodeAccount",
@@ -228,8 +228,8 @@ class TipController: ObservableObject {
         "Hey @\(username) you should set up your @getcode Tip Card so I can tip you some cash.\n\ngetcode.com/download"
     }
     
-    func openTwitterWithAuthenticationText(nonce: UUID, short: Bool) {
-        let message = generateTwitterAuthMessage(nonce: nonce, short: short).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+    func openTwitterWithAuthenticationText(nonce: UUID) {
+        let message = generateTwitterAuthMessage(nonce: nonce).addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
         let url = URL.tweet(content: message)
         
         didOpenTwitter()
