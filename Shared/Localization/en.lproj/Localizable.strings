@@ -428,6 +428,9 @@
 /* Subtitle for access key snapshot */
 "subtitle.accessKeySnapshotDescription" = "If you're on iOS15 or above, tap and hold the QR code to log in. Alternatively you can log in manually by entering the 12 words in the Code Log In screen.";
 
+/* Subtitle for access key snapshot warning */
+"subtitle.accessKeySnapshotWarning" = "Warning! This image gives access to all the funds you have in Code. Do not share this image with anyone else. Keep it secure and safe.";
+
 /* Subtitle for logging in with access key */
 "subtitle.loginDescription" = "Check your photos for the Access Key you saved when you first created your account.";
 

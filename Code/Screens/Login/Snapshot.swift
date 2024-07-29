@@ -18,6 +18,16 @@ struct Snapshot: View {
             VStack {
                 Spacer()
                 
+                Text(Localized.Subtitle.accessKeySnapshotWarning)
+                    .font(.appTextSmall)
+                    .foregroundColor(.textError)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 255)
+                    .padding(.bottom, 20)
+                
+                Spacer()
+                
                 AccessKey(
                     mnemonic: mnemonic,
                     url: .login(with: mnemonic)

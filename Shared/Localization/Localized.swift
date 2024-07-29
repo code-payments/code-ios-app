@@ -469,6 +469,8 @@ internal enum Localized {
     internal static let accessKeyFaceID = Localized.tr("Localizable", "subtitle.accessKeyFaceID")
     /// If you're on iOS15 or above, tap and hold the QR code to log in. Alternatively you can log in manually by entering the 12 words in the Code Log In screen.
     internal static let accessKeySnapshotDescription = Localized.tr("Localizable", "subtitle.accessKeySnapshotDescription")
+    /// Warning! This image gives access to all the funds you have in Code. Do not share this image with anyone else. Keep it secure and safe.
+    internal static let accessKeySnapshotWarning = Localized.tr("Localizable", "subtitle.accessKeySnapshotWarning")
     /// Code enables you to receive Kin by pointing your camera at the digital bill on another user's phone
     internal static let allowCameraAccess = Localized.tr("Localizable", "subtitle.allowCameraAccess")
     /// You need to turn on Camera in Settings to scan Codes
