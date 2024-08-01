@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Käyttöoikeusavaimesi on ainoa keino käyttää rahojasi. Pidä se yksityisenä ja turvassa.";
 "subtitle.accessKeyFaceID" = "Vahvista henkilöllisyytesi nähdäksesi käyttöoikeusavaimesi.";
 "subtitle.accessKeySnapshotDescription" = "Jos versiosi on iOS 15 tai uudempi, kirjaudu sisään napauttamalla ja pitämällä QR-koodia. Voit vaihtoehtoisesti kirjautua manuaalisesti syöttämällä 12 sanaasi näytöllä olevaan Coden lokiin.";
+"subtitle.accessKeySnapshotWarning" = "Varoitus! Tämä kuva antaa pääsyn kaikkiin Code-varoihisi. Älä jaa tätä kuvaa kenenkään muun kanssa. Säilytä se turvallisesti tallessa.";
 "subtitle.allowCameraAccess" = "Code antaa sinun vastaanottaa kinejä osoittamalla kamerasi toisen käyttäjän puhelimessa olevaan digitaaliseen seteliin";
 "subtitle.allowCameraSettings" = "Sinun on annettava kameran käyttöoikeudet voidaksesi saada kinejä";
 "subtitle.authenticateToAccess" = "Todenna henkilöllisyytesi, jotta voit käyttää Codea.";

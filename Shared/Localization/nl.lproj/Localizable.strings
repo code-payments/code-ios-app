@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Je toegangscode is de enige manier om toegang te krijgen tot je geld. Gelieve ze privé te houden en veilig op te slaan.";
 "subtitle.accessKeyFaceID" = "Je identiteit verifiëren om je toegangscode te zien.";
 "subtitle.accessKeySnapshotDescription" = "Als je iOS15 of hoger gebruikt, tik je op de QR-code en houd je deze vast om in te loggen. Je kunt ook handmatig inloggen door de 12 woorden in te voeren in het Code-inlogscherm.";
+"subtitle.accessKeySnapshotWarning" = "Opgepast! Deze afbeelding geeft toegang tot alle fondsen die je hebt in Code. Deel deze afbeelding met niemand. Houd deze veilig en zeker.";
 "subtitle.allowCameraAccess" = "Met Code kun je KIN ontvangen door je camera op de digitale rekening op de telefoon van een andere gebruiker te richten";
 "subtitle.allowCameraSettings" = "Je dient toegang tot de camera toe te staan om KIN te kunnen ontvangen";
 "subtitle.authenticateToAccess" = "Verifieer voor toegang tot Code.";

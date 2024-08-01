@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Kunci Akses anda adalah satu-satunya cara untuk mengakses dana anda. Sila pastikan ia peribadi dan selamat.";
 "subtitle.accessKeyFaceID" = "Sahkan identiti anda untuk melihat Kunci Akses anda.";
 "subtitle.accessKeySnapshotDescription" = "Jika anda menggunakan iOS 15 atau ke atas, ketik dan pegang kod QR untuk log masuk. Sebagai alternatif anda boleh log masuk secara manual dengan memasukkan 12 perkataan dalam skrin Log Masuk Code.";
+"subtitle.accessKeySnapshotWarning" = "Amaran! Imej ini memberi akses kepada semua dana yang anda ada di dalam Code. Jangan kongsi imej ini dengan sesiapa. Pastikan ia dilindungi dan selamat.";
 "subtitle.allowCameraAccess" = "Code membolehkan anda menerima Kin dengan menghalakan kamera anda ke bil digital pada telefon pengguna lain";
 "subtitle.allowCameraSettings" = "Anda perlu membenarkan akses kamera untuk menerima Kin";
 "subtitle.authenticateToAccess" = "Sahkan untuk mengakses Code.";

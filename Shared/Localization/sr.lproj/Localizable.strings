@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Vaš ključ za pristup je jedini način da pristupite svojim sredstvima. Čuvajte ga u privatnosti i na sigurnom.";
 "subtitle.accessKeyFaceID" = "Potvrdite svoj identitet da biste videli svoj ključ za pristup.";
 "subtitle.accessKeySnapshotDescription" = "Ako ste na iOS15 ili operativnom sistemu iznad, dodirnite i držite QR kod da biste se prijavili. Pored toga, možete se prijaviti ručno tako što ćete uneti 12 reči na ekranu za prijavu pomoću koda.";
+"subtitle.accessKeySnapshotWarning" = "Упозорење! Ова слика даје приступ свим средствима које имате у Code новчанику. Немојте да делите ову слику ни са ким другим. Чувајте је на сигурном и безбедном месту.";
 "subtitle.allowCameraAccess" = "Code vam omogućava da primite Kin tako što ćete usmeriti kameru ka digitalnom računu na telefonu drugog korisnika";
 "subtitle.allowCameraSettings" = "Morate da dozvolite pristup kameri da biste mogli da primite Kin";
 "subtitle.authenticateToAccess" = "Потврдите идентитет да бисте приступили Code новчанику.";

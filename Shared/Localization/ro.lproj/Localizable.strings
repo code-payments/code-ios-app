@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Cheia ta de acces reprezintă singura modalitate prin care îți poți accesa fondurile. Asigură-te că o păstrezi în confidențialitate și siguranță.";
 "subtitle.accessKeyFaceID" = "Verifică-ți identitatea pentru a-ți vizualiza cheia de acces.";
 "subtitle.accessKeySnapshotDescription" = "Dacă folosești iOS15 sau mai recent, apasă și ține apăsat codul QR pentru a te conecta. Alternative, te poți conecta manual introducând cele 12 cuvinte în ecranul de conectare la Code.";
+"subtitle.accessKeySnapshotWarning" = "Atenție! Această imagine asigură accesul la toate fondurile pe care le aveți în Code. Nu divulgați această imagine nimănui altcuiva. Păstrați-o în condiții de siguranță și protecție.";
 "subtitle.allowCameraAccess" = "Code îți permite să primești Kin încadrând cu fotocamera factura digitală de pe telefonul unui alt utilizator";
 "subtitle.allowCameraSettings" = "Va fi nevoie să permiți accesul la fotocamera pentru a putea primi Kin";
 "subtitle.authenticateToAccess" = "Autentificați-te pentru a accesa Code.";

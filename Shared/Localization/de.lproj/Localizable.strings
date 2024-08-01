@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Ihr Zugangsschlüssel ist die einzige Möglichkeit, wie Sie auf Ihr Geld zugreifen können. Bitte bewahren Sie ihn geschützt und sicher auf.";
 "subtitle.accessKeyFaceID" = "Verifizieren Sie Ihre Identität, um Ihren Zugangsschlüssel anzuzeigen.";
 "subtitle.accessKeySnapshotDescription" = "Wenn Sie mit iOS 15 oder höher arbeiten, tippen Sie einfach auf den QR-Code und halten Sie ihn gedrückt, um sich anzumelden. Alternativ können Sie sich auch manuell anmelden, indem Sie die 12 Wörter in den Log-In-Bildschirm von Code eingeben.";
+"subtitle.accessKeySnapshotWarning" = "Achtung! Dieses Bild ermöglicht Ihnen den Zugriff auf alle Gelder, die Sie in „Code\" haben. Teilen Sie dieses Bild nicht mit anderen. Bewahren Sie es sicher auf.";
 "subtitle.allowCameraAccess" = "Mit Code können Sie Kin empfangen, indem Sie Ihre Kamera auf die digitale Rechnung auf dem Telefon eines anderen Benutzers richten.";
 "subtitle.allowCameraSettings" = "Sie müssen den Zugriff auf die Kamera erlauben, um Kin empfangen zu können.";
 "subtitle.authenticateToAccess" = "Authentifizierung für den Zugriff auf Code.";

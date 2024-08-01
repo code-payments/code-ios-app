@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Twój klucz dostępu to jedyny sposób uzyskania dostępu do Twoich środków. Nie przekazuj go nikomu i trzymaj go w bezpiecznym miejscu.";
 "subtitle.accessKeyFaceID" = "Zweryfikuj tożsamość, żeby zobaczyć Klucz dostępu.";
 "subtitle.accessKeySnapshotDescription" = "Jeśli masz urządzenie z systemem operacyjnym iOS15 lub nowszą wersją, stuknij i przytrzymaj kod QR, żeby się zalogować. Alternatywnie możesz się zalogować ręcznie, wpisując 12 słów na ekranie logowania Code.";
+"subtitle.accessKeySnapshotWarning" = "Ostrzeżenie! Ten obraz daje dostęp do wszystkich środków, które posiadasz w Code. Nie udostępniaj tego obrazu nikomu innemu. Przechowuj go w bezpiecznym miejscu.";
 "subtitle.allowCameraAccess" = "Code umożliwia otrzymywanie Kin poprzez wskazywanie kamerą na banknot cyfrowy na telefonie innego użytkownika";
 "subtitle.allowCameraSettings" = "Żeby móc otrzymywać Kin, trzeba zezwolić na dostęp do kamery";
 "subtitle.authenticateToAccess" = "Uwierzytelnij, aby uzyskać dostęp do Code.";

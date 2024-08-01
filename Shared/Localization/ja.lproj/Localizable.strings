@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "アクセスキーは,お客様の資金にアクセスする唯一の方法です。公表せずに安全に保管してください。";
 "subtitle.accessKeyFaceID" = "お客様のアクセスキーを表示するために本人確認を行ってください。";
 "subtitle.accessKeySnapshotDescription" = "iOS15以降を使用している場合は,QRコードを長押ししてログインします。または,Codeログイン画面に12ワードを入力して,手動でログインすることもできます。";
+"subtitle.accessKeySnapshotWarning" = "警告！この画像は,あなたがCodeに保有しているすべての資金へのアクセスを提供するものです。この画像を他人と共有しないでください。安全に保管してください。";
 "subtitle.allowCameraAccess" = "Codeを使用すると,他のユーザーの電話のデジタル請求書にカメラを向けることで,Kinを受信することができます";
 "subtitle.allowCameraSettings" = "Kinを受信できるようにするには,カメラへのアクセスを許可する必要があります";
 "subtitle.authenticateToAccess" = "Codeにアクセスするには認証を行ってください。";

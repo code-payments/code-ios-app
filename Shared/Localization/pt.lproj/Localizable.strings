@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "A Sua Chave de Acesso é a única forma de aceder aos seus fundos. Mantenha-o privado e seguro.";
 "subtitle.accessKeyFaceID" = "Verifique a sua identidade para ver a sua Chave de Acesso.";
 "subtitle.accessKeySnapshotDescription" = "Se estiver no iOS15 ou superior, toque e segure no código QR para iniciar sessão. Em alternativa, pode iniciar sessão manualmente introduzindo as 12 palavras no ecrã de Inicio de Sessão Code.";
+"subtitle.accessKeySnapshotWarning" = "Atenção! Esta imagem dá acesso a todos os fundos que tem no Code. Não partilhe esta imagem com ninguém. Mantenha-a segura e protegida.";
 "subtitle.allowCameraAccess" = "A Code permite-lhe receber Kin apontando a sua câmara ao recibo digital no telemóvel de outro utilizador";
 "subtitle.allowCameraSettings" = "Tem de permitir o acesso à câmara para ser capaz de receber Kin";
 "subtitle.authenticateToAccess" = "Autenticar para aceder à Code.";

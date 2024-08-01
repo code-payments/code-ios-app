@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Váš prístupový kľúč je jediný spôsob, ako získať prístup k vašim finančným prostriedkom. Uchovávajte ho v súkromí a bezpečí.";
 "subtitle.accessKeyFaceID" = "Ak chcete zobraziť prístupový kľúč, overte svoju totožnosť.";
 "subtitle.accessKeySnapshotDescription" = "Ak používate systém iOS15 alebo novší, prihláste sa klepnutím a podržaním QR kódu. Prípadne sa môžete prihlásiť manuálne zadaním 12 slov na obrazovke Prihlásenie kódu.";
+"subtitle.accessKeySnapshotWarning" = "Upozornenie! Tento obrázok umožňuje prístup ku všetkým prostriedkom, ktoré máte v kóde. Nezdieľajte tento obrázok s nikým iným. Udržujte ho v bezpečí.";
 "subtitle.allowCameraAccess" = "Kód vám umožňuje získať Kin nasmerovaním fotoaparátu na digitálny účet na telefóne iného používateľa";
 "subtitle.allowCameraSettings" = "Aby ste mohli prijímať Kin, musíte povoliť prístup k fotoaparátu";
 "subtitle.authenticateToAccess" = "Overte ore prístup ku Code.";

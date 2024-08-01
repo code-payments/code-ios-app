@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "A hozzáférési kulcs az egyetlen módja annak, hogy hozzáférjen pénzeszközeihez. Kérjük, tartsa privátban és legyen óvatos.";
 "subtitle.accessKeyFaceID" = "A hozzáférési kulcs megtekintéséhez igazolja személyazonosságát.";
 "subtitle.accessKeySnapshotDescription" = "Ha iOS 15 vagy újabb rendszert használ, érintse meg és tartsa lenyomva a QR-kódot a bejelentkezéshez. Másik megoldásként manuálisan is bejelentkezhet úgy, hogy beírja a 12 szót a Code bejelentkezés képernyőn.";
+"subtitle.accessKeySnapshotWarning" = "Figyelem! Ez a kép hozzáférést biztosít a Code-ban lévő összes pénzeszközéhez. Ne ossza meg ezt a képet senki mással. Tartsa biztonságban.";
 "subtitle.allowCameraAccess" = "A Code lehetővé teszi a Kin fogadását, ha kameráját egy másik felhasználó telefonján lévő digitális számlára irányítja";
 "subtitle.allowCameraSettings" = "A Kin fogadásához engedélyeznie kell a kamerához való hozzáférést";
 "subtitle.authenticateToAccess" = "Azonosítsa magát a Code eléréséhez.";

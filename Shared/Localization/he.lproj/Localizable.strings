@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "מפתח הגישה שלך הוא הדרך היחידה לגשת לכספים שלך. אנא שמור אותו בסוד ובמקום בטוח.";
 "subtitle.accessKeyFaceID" = "אמת את הזהות שלך כדי לצפות במפתח הגישה שלך.";
 "subtitle.accessKeySnapshotDescription" = "אם אתה משתמש ב-iOS15 ומעלה, לחץ והחזק על קוד ה-QR כדי להתחבר. לחלופין אתה יכול להתחבר ידנית באמצעות הקלדת 12 המילים במסך ההתחברות של קוד.";
+"subtitle.accessKeySnapshotWarning" = "אזהרה! תמונה זו מעניקה גישה לכל הכספים שיש לך ב-Code. אין לשתף תמונה זו עם אף אחד אחר. יש לשמור אותה מאובטחת ובטוחה.";
 "subtitle.allowCameraAccess" = "קוד מאפשרת לך לקבל קין באמצעות כיוון המצלמה שלך לשטר דיגיטלי בטלפון של משתמש אחר";
 "subtitle.allowCameraSettings" = "אתה צריך לאפשר גישה למצלמה כדי שתוכל לקבל קין.";
 "subtitle.authenticateToAccess" = "יש לאמת כדי לגשת ל-Code.";

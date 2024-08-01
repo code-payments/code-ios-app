@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Kunci Akses Anda adalah satu-satunya cara untuk mengakses dana Anda. Harap jaga kerahasiaan dan keamanannya.";
 "subtitle.accessKeyFaceID" = "Verifikasi identitas Anda untuk melihat Kunci Akses Anda.";
 "subtitle.accessKeySnapshotDescription" = "Jika Anda menggunakan iOS15 atau lebih tinggi, ketuk dan tahan kode QR untuk masuk. Atau Anda dapat masuk secara manual dengan memasukkan 12 kata di Layar Masuk Code.";
+"subtitle.accessKeySnapshotWarning" = "Peringatan! Gambar ini memberikan akses ke semua dana yang Anda miliki di Kode. Jangan bagikan gambar ini ke orang lain. Jaga agar tetap aman dan terlindungi.";
 "subtitle.allowCameraAccess" = "Code memungkinkan Anda menerima Kin dengan mengarahkan kamera Anda ke tagihan digital di ponsel pengguna lain";
 "subtitle.allowCameraSettings" = "Anda perlu mengizinkan akses kamera untuk dapat menerima Kin";
 "subtitle.authenticateToAccess" = "Autentikasikan untuk mengakses Code.";

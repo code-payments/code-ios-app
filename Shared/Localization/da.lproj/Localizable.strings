@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Du kan kun få adgang til dine midler ved hjælp af en adgangskode. Sørg for at gemme den sikkert og privat.";
 "subtitle.accessKeyFaceID" = "Bekræft din identitet for at se din adgangskode";
 "subtitle.accessKeySnapshotDescription" = "Hvis du anvender iOS15 eller nyere, tap og hold QR-koden nede for at logge ind. Alternativt kan du logge ind manuelt ved at indtaste de 12 ord i Code log ind-skærmen.";
+"subtitle.accessKeySnapshotWarning" = "Advarsel! Dette billede giver adgang til alle de funds, du har i Code. Del ikke dette billede med andre. Hold det sikkert og beskyttet.";
 "subtitle.allowCameraAccess" = "Code giver dig mulighed for at modtage Kin, ved at rette dit kamera mod den digitale regning på en anden brugers telefon";
 "subtitle.allowCameraSettings" = "Du skal tillade kameraadgang for at modtage Kin";
 "subtitle.authenticateToAccess" = "Godkend for at få adgang til Code.";

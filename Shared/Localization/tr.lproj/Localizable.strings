@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Erişim Anahtarın, paralarına erişmenin tek yoludur. Lütfen kişisel ve güvenli olarak sakla.";
 "subtitle.accessKeyFaceID" = "Erişim Anahtarını görüntülemek için kimliğini doğrula.";
 "subtitle.accessKeySnapshotDescription" = "iOS15 veya üstü bir işletim sistemine sahipsen oturum açmak için QR koduna dokun ve basılı tut. Alternatif olarak Code Giriş ekranında 12 kelimeyi girerek manuel olarak giriş yapabilirsin.";
+"subtitle.accessKeySnapshotWarning" = "Uyarı! Bu görüntü, Code'da sahip olduğunuz tüm fonlara erişim sağlar. Bu görüntüyü başka kimseyle paylaşmayın. Emniyetli bir şekilde saklayın.";
 "subtitle.allowCameraAccess" = "Code, kameranı başka bir kullanıcının telefonundaki dijital faturaya doğrultarak Kin almanı sağlar.";
 "subtitle.allowCameraSettings" = "Kin alabilmek için kamera erişimine izin vermen gerekiyor";
 "subtitle.authenticateToAccess" = "Code'a erişmek için kimlik doğrulaması yapın.";

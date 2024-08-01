@@ -209,6 +209,7 @@
 "subtitle.accessKeyDescription" = "Votre clé d'accès est le seul moyen d'accéder à vos fonds. Veuillez la conserver en toute confidentialité et en toute sécurité.";
 "subtitle.accessKeyFaceID" = "Vérifier votre identité pour afficher votre clé d'accès.";
 "subtitle.accessKeySnapshotDescription" = "Si vous utilisez iOS15 ou une version ultérieure, appuyez sur le code QR et maintenez-le enfoncé pour vous connecter. Vous pouvez également vous connecter manuellement en saisissant les 12 mots sur l'écran Connexion à Code.";
+"subtitle.accessKeySnapshotWarning" = "Attention ! Cette image permet d'accéder à vos fonds dans Code. Ne partagez pas cette image avec d'autres personnes. Gardez-la en toute sécurité.";
 "subtitle.allowCameraAccess" = "Code vous permet de recevoir Kin en pointant votre appareil photo sur la facture numérique du téléphone d'un autre utilisateur";
 "subtitle.allowCameraSettings" = "Vous devez autoriser l'accès à la caméra pour pouvoir recevoir des Kin";
 "subtitle.authenticateToAccess" = "Authentifiez-vous pour accéder à Code.";
