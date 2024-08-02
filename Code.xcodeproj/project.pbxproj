@@ -195,6 +195,7 @@
 		9AEFE85425B74A4A001FCB19 /* ScanScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEFE85325B74A49001FCB19 /* ScanScreen.swift */; };
 		9AF73B5827DA7F9800C038FB /* Kin+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF73B5727DA7F9800C038FB /* Kin+Formatting.swift */; };
 		9AF73B5E27DE682D00C038FB /* CodeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AF73B5D27DE682D00C038FB /* CodeUI */; };
+		9AF817CE2C5BFF5A00B880AB /* Kado.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF817CD2C5BFF5A00B880AB /* Kado.swift */; };
 		9AF9473E2AB0E5FC00C8629F /* RouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF9473D2AB0E5FC00C8629F /* RouteTests.swift */; };
 		9AFF973A25DFFF140094174A /* ContainerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AFF973925DFFF140094174A /* ContainerScreen.swift */; };
 /* End PBXBuildFile section */
@@ -466,6 +467,7 @@
 		9AEFE85325B74A49001FCB19 /* ScanScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanScreen.swift; sourceTree = "<group>"; };
 		9AF004EF29CE36110069C67D /* no */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = no; path = no.lproj/Localizable.strings; sourceTree = "<group>"; };
 		9AF73B5727DA7F9800C038FB /* Kin+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Kin+Formatting.swift"; sourceTree = "<group>"; };
+		9AF817CD2C5BFF5A00B880AB /* Kado.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kado.swift; sourceTree = "<group>"; };
 		9AF9473D2AB0E5FC00C8629F /* RouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteTests.swift; sourceTree = "<group>"; };
 		9AFF973925DFFF140094174A /* ContainerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -566,6 +568,7 @@
 				9A9F26982A169CC000FA47DF /* GetKinScreen.swift */,
 				9AD87C7E2BC04A3B00F33A08 /* RequestTipScreen.swift */,
 				9A0F08382BBC7B7900C65489 /* EnterTipScreen.swift */,
+				9AF817CD2C5BFF5A00B880AB /* Kado.swift */,
 			);
 			path = "Get Kin";
 			sourceTree = "<group>";
@@ -1453,6 +1456,7 @@
 				9AA47D402B76AA9600F1B9B7 /* Chat+Extensions.swift in Sources */,
 				9A03338B278E0C88005C630A /* VerifyPhoneScreen.swift in Sources */,
 				9A57224925EEDC4200B243FC /* DepositScreen.swift in Sources */,
+				9AF817CE2C5BFF5A00B880AB /* Kado.swift in Sources */,
 				9AE8F56228CA6513009C251F /* CurrencySelectionViewModel.swift in Sources */,
 				9A8B265F2C18AC74009FB349 /* BiometricsAuthScreen.swift in Sources */,
 				9A17FFC72B911D4C00FFC09F /* RequestKinScreen.swift in Sources */,

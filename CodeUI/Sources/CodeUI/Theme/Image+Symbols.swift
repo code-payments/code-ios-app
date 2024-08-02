@@ -136,6 +136,7 @@ public enum Asset: String {
     case tip
     case settings
     case camera
+    case reload
     
     // Third-Party
     

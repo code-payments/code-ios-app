@@ -326,7 +326,8 @@ struct EnterTipScreen: View {
                 client: .mock,
                 exchange: .mock,
                 bannerController: .mock,
-                betaFlags: .mock
+                betaFlags: .mock,
+                isRootPresented: .constant(true)
             )
         )
     }

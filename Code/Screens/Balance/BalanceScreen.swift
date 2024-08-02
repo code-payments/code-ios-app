@@ -218,7 +218,8 @@ struct BalanceScreen: View {
                             client: client,
                             exchange: exchange,
                             bannerController: bannerController,
-                            betaFlags: betaFlags
+                            betaFlags: betaFlags,
+                            isRootPresented: $isPresented
                         )
                     )
                 )
