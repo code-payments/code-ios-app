@@ -120,7 +120,16 @@ class BuyKinViewModel: ObservableObject {
             )
         }
         
-        navigationPath = [kadoURL]
+        if betaFlags.hasEnabled(.kadoInApp) {
+            navigationPath = [kadoURL]
+            
+        } else {
+            kadoURL.openWithApplication()
+            Task {
+                try await Task.delay(milliseconds: 200)
+                isRootPresented.wrappedValue = false
+            }
+        }
     }
     
     func establishSwapRelationshipIfNeeded() async throws {
@@ -154,9 +163,8 @@ class BuyKinViewModel: ObservableObject {
         let route = "https://app.kado.money/"
         var components = URLComponents(string: route)!
         
-        components.percentEncodedQueryItems = [
+        var items = [
             URLQueryItem(name: "apiKey",          value: apiKey),
-            URLQueryItem(name: "isMobileWebview", value: "true"),
             URLQueryItem(name: "onPayAmount",     value: "\(amount.fiat)"),
             URLQueryItem(name: "onPayCurrency",   value: kadoEntryRate.currency.rawValue.uppercased()),
             URLQueryItem(name: "onRevCurrency",   value: "USDC"),
@@ -167,6 +175,14 @@ class BuyKinViewModel: ObservableObject {
             URLQueryItem(name: "onToAddress",     value: session.organizer.swapDepositAddress.base58),
             URLQueryItem(name: "memo",            value: nonce.generateBlockchainMemo()),
         ]
+        
+        if betaFlags.hasEnabled(.kadoInApp) {
+            items.append(
+                URLQueryItem(name: "isMobileWebview", value: "true")
+            )
+        }
+        
+        components.percentEncodedQueryItems = items
         
         trace(.warning, components: "Navigatin to Kado URL: \(components.url!)")
         
