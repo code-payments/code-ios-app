@@ -90,8 +90,6 @@ extension BetaFlags {
         case giveRequests
         case canUnsubcribe
         case disableBuyModule
-        case conversations
-        case alternativeBubbles
         case kadoInApp
         
         var id: String {
@@ -112,10 +110,6 @@ extension BetaFlags {
                 return "Can Unsubscribe"
             case .disableBuyModule:
                 return "Disable Buy Module"
-            case .conversations:
-                return "Conversations"
-            case .alternativeBubbles:
-                return "Alternative Bubbles"
             case .kadoInApp:
                 return "Kado In-app Flow"
             }
@@ -135,10 +129,6 @@ extension BetaFlags {
                 return "If enabled, an option to unsubscribe from a chat will appear for supported chats."
             case .disableBuyModule:
                 return "If enabled, the Buy Module will appear to be disabled."
-            case .conversations:
-                return "If enabled, an experimental conversation view will become available via the 'Mute' button."
-            case .alternativeBubbles:
-                return "If enabled, conversation view will use an alternative look to timestamps in payment bubbles."
             case .kadoInApp:
                 return "If enabled, the Kado purchase experience will open in an in-app browser."
             }
