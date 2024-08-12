@@ -204,7 +204,7 @@
 "action.buyMoreKin" = "Buy More Kin";
 
 /* Action to buy kin */
-"action.buyKin" = "Buy Kin";
+"action.addCash" = "Add Cash with a Debit Card";
 
 /* Action to buy kin */
 "action.requestTip" = "Request a Tip";
@@ -251,14 +251,14 @@
 /* Title for Give Kin */
 "title.giveKin" = "Give Kin";
 
-/* Title for Get Kin */
-"title.getKin" = "Get Kin";
+/* Title for Get Cash */
+"title.getCash" = "Get Cash";
 
 /* Title for Tip Kin */
 "title.tipKin" = "Tip Kin";
 
 /* Title for Request Kin */
-"title.requestKin" = "Request Kin";
+"title.requestCash" = "Request Cash";
 
 /* Title for Request a Tip */
 "title.requestTip" = "Request a Tip";
@@ -930,7 +930,7 @@
 "faq.a._3" = "Like Bitcoin there is only a limited amount of Kin available. If more people buy Kin the value goes up, and if more people sell Kin the value goes down. This dynamic allows everyone who holds Kin to share in the value creation if adoption of Kin grows.";
 
 "faq.q._4" = "How do I buy more Kin?";
-"faq.a._4" = "You can buy Kin with your debit card. This is accessible in the Get Kin tab.";
+"faq.a._4" = "You can buy Kin with your debit card. This is accessible in the Get Cash tab.";
 
 "faq.q._5" = "Can I sell Kin?";
 "faq.a._5" = "Yes you can. Selling Kin is supported on a number of cryptocurrency exchanges.";

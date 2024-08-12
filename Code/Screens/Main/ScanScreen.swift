@@ -241,7 +241,7 @@ struct ScanScreen: View {
             Group {
                 if isVisible {
                     LargeButton(
-                        title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestKin : Localized.Title.getKin,
+                        title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestCash : Localized.Title.getCash,
                         image: .asset(.wallet),
                         maxWidth: 80,
                         maxHeight: 80,
@@ -576,7 +576,7 @@ extension ScanScreen {
         @ViewBuilder private func bottomBar() -> some View {
             HStack(alignment: .bottom) {
                 LargeButton(
-                    title: Localized.Title.getKin,
+                    title: Localized.Title.getCash,
                     image: .asset(.wallet),
                     maxWidth: 80,
                     maxHeight: 80,

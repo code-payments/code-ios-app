@@ -42,7 +42,7 @@ struct RequestKinScreen: View {
     }
     
     private var title: String {
-        Localized.Title.requestKin
+        Localized.Title.requestCash
     }
     
     // MARK: - Init -

@@ -12,6 +12,8 @@ import Foundation
 internal enum Localized {
 
   internal enum Action {
+    /// Add Cash with a Debit Card
+    internal static let addCash = Localized.tr("Localizable", "action.addCash")
     /// Allow Camera Access
     internal static let allowCameraAccess = Localized.tr("Localizable", "action.allowCameraAccess")
     /// Allow Access to Contacts
@@ -20,8 +22,6 @@ internal enum Localized {
     internal static let allowPushNotifications = Localized.tr("Localizable", "action.allowPushNotifications")
     /// Balance
     internal static let balance = Localized.tr("Localizable", "action.balance")
-    /// Buy Kin
-    internal static let buyKin = Localized.tr("Localizable", "action.buyKin")
     /// Buy More Kin
     internal static let buyMoreKin = Localized.tr("Localizable", "action.buyMoreKin")
     /// Cancel
@@ -319,7 +319,7 @@ internal enum Localized {
       internal static let _2 = Localized.tr("Localizable", "faq.a._2")
       /// Like Bitcoin there is only a limited amount of Kin available. If more people buy Kin the value goes up, and if more people sell Kin the value goes down. This dynamic allows everyone who holds Kin to share in the value creation if adoption of Kin grows.
       internal static let _3 = Localized.tr("Localizable", "faq.a._3")
-      /// You can buy Kin with your debit card. This is accessible in the Get Kin tab.
+      /// You can buy Kin with your debit card. This is accessible in the Get Cash tab.
       internal static let _4 = Localized.tr("Localizable", "faq.a._4")
       /// Yes you can. Selling Kin is supported on a number of cryptocurrency exchanges.
       internal static let _5 = Localized.tr("Localizable", "faq.a._5")
@@ -671,10 +671,10 @@ internal enum Localized {
     internal static let failed = Localized.tr("Localizable", "title.failed")
     /// FAQ
     internal static let faq = Localized.tr("Localizable", "title.faq")
+    /// Get Cash
+    internal static let getCash = Localized.tr("Localizable", "title.getCash")
     /// Get a Friend Started on Code
     internal static let getFriendStartedOnCode = Localized.tr("Localizable", "title.getFriendStartedOnCode")
-    /// Get Kin
-    internal static let getKin = Localized.tr("Localizable", "title.getKin")
     /// Get More Kin
     internal static let getMoreKin = Localized.tr("Localizable", "title.getMoreKin")
     /// Give Kin
@@ -703,8 +703,8 @@ internal enum Localized {
     internal static let referFriend = Localized.tr("Localizable", "title.referFriend")
     /// Referral Bonus
     internal static let referralBonus = Localized.tr("Localizable", "title.referralBonus")
-    /// Request Kin
-    internal static let requestKin = Localized.tr("Localizable", "title.requestKin")
+    /// Request Cash
+    internal static let requestCash = Localized.tr("Localizable", "title.requestCash")
     /// Request a Tip
     internal static let requestTip = Localized.tr("Localizable", "title.requestTip")
     /// Require Face ID

@@ -49,7 +49,7 @@ struct GetKinScreen: View {
                         Image.asset(.graphicWallet)
                         
                         VStack(alignment: .leading, spacing: 20) {
-                            Text(Localized.Title.getKin)
+                            Text(Localized.Title.getCash)
                                 .font(.appDisplayMedium)
                             
                             Text(Localized.Subtitle.getKin)
@@ -96,7 +96,7 @@ struct GetKinScreen: View {
                         
                         row(
                             asset: .dollar,
-                            title: Localized.Action.buyKin,
+                            title: Localized.Action.addCash,
                             accessory: nil
                         ) {
                             isShowingBuyKin = true
