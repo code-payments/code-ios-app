@@ -88,6 +88,8 @@ class TipController: ObservableObject {
                 showLinkingSuccess(for: user)
                 cancelPolling()
                 
+                Analytics.tipCardLinked()
+                
             } catch {
                 // Continue polling
             }

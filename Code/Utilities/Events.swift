@@ -138,6 +138,10 @@ extension Analytics {
             .xUsername: username,
         ])
     }
+    
+    static func tipCardLinked() {
+        track(.tipCardLinked)
+    }
 }
 
 // MARK: - Swap -
@@ -348,6 +352,7 @@ extension Analytics {
         case errorRequest = "Error Request"
         
         case recompute = "Recompute"
+        case tipCardLinked = "Tip Card Linked"
     }
 }
 
