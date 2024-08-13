@@ -27,6 +27,7 @@ enum ErrorReporting {
                 "kin": amount.kin.description,
                 "fx": amount.rate.fx.formatted(),
                 "fiat": amount.kin.formattedFiat(rate: amount.rate, suffix: nil),
+                "currency": amount.rate.currency.rawValue.uppercased(),
             ]
         }
     }
