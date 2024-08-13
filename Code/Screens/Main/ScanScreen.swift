@@ -25,6 +25,7 @@ struct ScanScreen: View {
     @EnvironmentObject private var bannerController: BannerController
     @EnvironmentObject private var biometrics: Biometrics
     @EnvironmentObject private var preferences: Preferences
+    @EnvironmentObject private var pushController: PushController
     
     @State private var sendState: ButtonState = .normal
     
@@ -70,6 +71,18 @@ struct ScanScreen: View {
         self._tooltipViewModel = StateObject(wrappedValue: TooltipViewModel(owner: sessionContainer.session.organizer.ownerKeyPair.publicKey))
     }
     
+    private func authorizePushNotificationsIfNeeded() {
+        Task {
+            // The push notifican status isn't
+            // available right away so we'll wait
+            try await Task.delay(seconds: 1)
+            
+            if pushController.authorizationStatus == .notDetermined {
+                pushController.authorize { _ in }
+            }
+        }
+    }
+    
     // MARK: - Body -
     
     var body: some View {
@@ -109,6 +122,9 @@ struct ScanScreen: View {
                     betaFlags: betaFlags
                 )
             )
+        }
+        .onAppear {
+            authorizePushNotificationsIfNeeded()
         }
     }
     
