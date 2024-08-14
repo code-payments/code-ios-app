@@ -10,6 +10,15 @@ import Combine
 import CodeServices
 import CodeUI
 
+extension UserDefaults {
+    
+    @Defaults(.launchCount) 
+    fileprivate static var launchCount: Int?
+    
+    @Defaults(.wasLoggedIn)
+    fileprivate static var wasLoggedIn: Bool?
+}
+
 @MainActor
 final class SessionAuthenticator: ObservableObject {
     
@@ -41,8 +50,6 @@ final class SessionAuthenticator: ObservableObject {
     
     private var biometricsQueue: [ThrowingAction] = []
     
-    @Defaults(.launchCount) private static var launchCount: Int?
-    
     // MARK: - Init -
     
     init(client: Client, exchange: Exchange, cameraSession: CameraSession<CodeExtractor>, bannerController: BannerController, reachability: Reachability, betaFlags: BetaFlags, abacus: Abacus, biometrics: Biometrics) {
@@ -58,23 +65,32 @@ final class SessionAuthenticator: ObservableObject {
         
         // Update launch state.
         // This is a fresh install.
-        if Self.launchCount == nil {
+        if UserDefaults.launchCount == nil {
             trace(.note, components: "First launch...")
         }
         
-        Self.launchCount = (Self.launchCount ?? 0) + 1
-        trace(.note, components: "Launch count: \(Self.launchCount!)")
+        UserDefaults.launchCount = (UserDefaults.launchCount ?? 0) + 1
+        trace(.note, components: "Launch count: \(UserDefaults.launchCount!)")
         
-        let performMigration: (MnemonicPhrase) -> Void = { seedPhrase in
+        initializeState { mnemonic in // Migration
             Task {
                 do {
-                    self.completeLogin(with: try await self.initialize(using: seedPhrase))
+                    self.completeLogin(with: try await self.initialize(using: mnemonic))
                 } catch {
                     Analytics.userMigrationFailed()
                     self.state = .loggedOut
                 }
             }
+            
+        } didAuthenticate: { keyAccount, user in
+            self.completeLogin(with: InitializedAccount(keyAccount: keyAccount, user: user))
         }
+        
+        updateBiometricsState()
+    }
+    
+    private func initializeState(count: Int = 0, migration: @escaping (MnemonicPhrase) -> Void, didAuthenticate: @escaping (KeyAccount, User) -> Void) {
+        trace(.warning)
         
         // The most important Keychain item is the key account
         // because it's the only thing we can't derive. If the
@@ -84,11 +100,20 @@ final class SessionAuthenticator: ObservableObject {
         
         if let keyAccount = keyAccount {
             if let user = user {
-                completeLogin(with: InitializedAccount(keyAccount: keyAccount, user: user))
+                didAuthenticate(keyAccount, user)
+                
+                if count > 0 {
+                    trace(.failure, components: "Logged in after \(count) retries")
+                    Task {
+                        // Mixpanel isn't initialized yet
+                        try await Task.delay(seconds: 1)
+                        Analytics.loginByRetry(count: count)
+                    }
+                }
                 
             } else {
                 state = .migrating
-                performMigration(keyAccount.mnemonic)
+                migration(keyAccount.mnemonic)
             }
             
             // Inserting a new version of this key account
@@ -102,26 +127,34 @@ final class SessionAuthenticator: ObservableObject {
                 state = .pending
             } else {
                 state = .loggedOut
-            }
-            
-            // It's possible the keychain credentials
-            // rely on being loaded from iCloud and can
-            // be delayed. We'll check after some time
-            // to see if the state has changed.
-            Task {
-                try await Task.delay(seconds: 5)
                 
-                let (keyAccount, user) = accountManager.fetchCurrent()
-                if keyAccount != nil || user != user {
-                    // If the a keyaccount or user exists at this point
-                    // it means that something went wrong in the initial
-                    // query so the user "appears" logged out.
-                    Analytics.unintentialLogout()
+                // Only attempt to recover if there was an
+                // account that was previous already logged in
+                if UserDefaults.wasLoggedIn == true {
+                    
+                    // Try a total of 6 times, first attempt +
+                    // 5 more retries after that
+                    if count <= 5 {
+                        
+                        // It's possible the keychain credentials
+                        // haven't been decoded yet and aren't
+                        // available. We'll wait 1 second and
+                        // retry a few times.
+                        Task {
+                            try await Task.delay(seconds: 1)
+                            initializeState(
+                                count: count + 1,
+                                migration: migration,
+                                didAuthenticate: didAuthenticate
+                            )
+                        }
+                        
+                    } else {
+                        Analytics.unintentialLogout()
+                    }
                 }
             }
         }
-        
-        updateBiometricsState()
     }
     
     // MARK: - Biometrics -
@@ -281,6 +314,7 @@ final class SessionAuthenticator: ObservableObject {
         )
         
         state = .loggedIn(container)
+        UserDefaults.wasLoggedIn = true
         
         Analytics.setIdentity(initializedAccount.user)
     }
@@ -296,6 +330,7 @@ final class SessionAuthenticator: ObservableObject {
         accountManager.resetForLogout()
         
         state = .loggedOut
+        UserDefaults.wasLoggedIn = false
         
         trace(.note, components: "Logged out")
     }
@@ -383,6 +418,8 @@ extension SessionAuthenticator {
 }
 
 extension SessionContainer {
+    
+    @MainActor
     static let mock = SessionContainer(
         session: .mock,
         historyController: .mock

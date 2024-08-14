@@ -43,6 +43,12 @@ extension Analytics {
         ])
     }
     
+    static func loginByRetry(count: Int) {
+        track(.loginByRetry, properties: [
+            .retryCount: count,
+        ])
+    }
+    
     static func createAccount(isSuccessful: Bool, ownerPublicKey: PublicKey?, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .result: isSuccessful,
@@ -317,6 +323,7 @@ extension Analytics {
         // Account
         case logout = "Logout"
         case login = "Login"
+        case loginByRetry = "Login by Retry"
         case createAccount = "Create Account"
         case unintentionalLogout = "Unintentional Logout"
         case userMigrationFailed = "User Migration Failed"
@@ -394,6 +401,7 @@ extension Analytics {
         case percentDelta = "Percent Delta"
         
         case source = "Source"
+        case retryCount = "Retry Count"
     }
 }
 

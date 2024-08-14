@@ -40,6 +40,10 @@ struct SavedLoginScreen: View {
             }
     }
     
+    private var rate: Rate {
+        exchange.deviceRate
+    }
+    
     // MARK: - Init -
     
     init(client: Client, sessionAuthenticator: SessionAuthenticator) {
@@ -85,8 +89,9 @@ struct SavedLoginScreen: View {
                                 
                                 VStack(spacing: 5) {
                                     HStack(spacing: 15) {
-                                        Flag(style: CurrencyCode.cad.flagStyle, size: .regular)
-                                        Text(formattedLocalValue(for: accounts[index]))
+                                        let account = accounts[index]
+                                        Flag(style: rate.currency.flagStyle, size: .regular)
+                                        Text(formattedLocalValue(for: account))
                                             .font(.appDisplayMedium)
                                     }
                                     
@@ -140,7 +145,7 @@ struct SavedLoginScreen: View {
     }
     
     private func formattedLocalValue(for account: HistoricalAccount) -> String {
-        "\(account.formattedFiat(rate: exchange.localRate))"
+        "\(account.formattedFiat(rate: rate))"
     }
     
     // MARK: - Actions -
