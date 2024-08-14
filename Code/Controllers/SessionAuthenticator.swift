@@ -142,10 +142,17 @@ final class SessionAuthenticator: ObservableObject {
                         // retry a few times.
                         Task {
                             try await Task.delay(seconds: 1)
+                            let nextCount = count + 1
                             initializeState(
-                                count: count + 1,
+                                count: nextCount,
                                 migration: migration,
                                 didAuthenticate: didAuthenticate
+                            )
+                            
+                            ErrorReporting.breadcrumb(
+                                name: "Retrying login",
+                                metadata: ["count": "\(nextCount)"],
+                                type: .process
                             )
                         }
                         

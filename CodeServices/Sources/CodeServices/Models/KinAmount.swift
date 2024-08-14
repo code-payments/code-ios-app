@@ -66,6 +66,17 @@ public struct KinAmount: Equatable, Hashable, Codable {
     }
 }
 
+extension KinAmount {
+    public var descriptionDictionary: [String: String] {
+        [
+            "kin": kin.description,
+            "fx": rate.fx.formatted(),
+            "fiat": kin.formattedFiat(rate: rate, suffix: nil),
+            "currency": rate.currency.rawValue.uppercased(),
+        ]
+    }
+}
+
 extension UUID {
     
     public var bytes: [Byte] {

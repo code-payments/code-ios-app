@@ -167,6 +167,14 @@ class Exchange: ObservableObject {
         // it should only ever change with
         // the system locale
         deviceRate = rates.rate(for: CurrencyCode.local() ?? .usd) ?? rates.rateForUSD()
+        
+        ErrorReporting.breadcrumb(
+            name: "[Background] Updated rates",
+            metadata: [
+                "date": rates.date,
+            ],
+            type: .process
+        )
     }
     
     func rate(for currency: CurrencyCode) -> Rate? {

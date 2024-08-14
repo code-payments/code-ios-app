@@ -167,7 +167,8 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         firebase.appDidReceiveMessage(notification.request.content.userInfo)
         
         DispatchQueue.main.async {
-            switch notification.request.content.categoryIdentifier {
+            let category = notification.request.content.categoryIdentifier
+            switch category {
             case "ChatMessage":
                 NotificationCenter.default.post(name: .messageNotificationReceived, object: nil)
             case "Twitter":
@@ -175,6 +176,14 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
             default:
                 NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
             }
+            
+            ErrorReporting.breadcrumb(
+                name: "[Push] Push notification shown",
+                metadata: [
+                    "category": category,
+                ],
+                type: .process
+            )
         }
         
 //        let isActive = await UIApplication.shared.applicationState == .active

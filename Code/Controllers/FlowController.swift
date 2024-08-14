@@ -42,10 +42,24 @@ class FlowController: ObservableObject {
     }
     
     private func fetchLimits() async throws {
-        limits = try await client.fetchTransactionLimits(
+        let limits = try await client.fetchTransactionLimits(
             owner: organizer.ownerKeyPair,
             since: .todayAtMidnight()
         )
+        
+        var metadata: [String: Any] = [:]
+        if let sendLimit = limits.sendLimitFor(currency: .usd) {
+            metadata["limitNextTx"] = sendLimit.nextTransaction
+            metadata["isStale"] = limits.isStale ? true : false
+        }
+        
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Fetched limits",
+            metadata: metadata,
+            type: .process
+        )
+        
+        self.limits = limits
     }
     
     // MARK: - Balance -
@@ -53,6 +67,14 @@ class FlowController: ObservableObject {
     func fetchBalance() async throws -> Kin {
         let infos = try await client.fetchAccountInfos(owner: organizer.ownerKeyPair)
         organizer.setAccountInfo(infos)
+        
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Fetched account infos",
+            metadata: [
+                "tray": organizer.tray.reportableRepresentation(),
+            ],
+            type: .process
+        )
         
         await swapIfNeeded()
         
@@ -135,6 +157,17 @@ class FlowController: ObservableObject {
             isWithdrawal: withdrawal,
             tipAccount: tipAccount
         )
+        
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Transferred",
+            metadata: [
+                "fee": fee.description,
+                "rendezvous": rendezvous.base58,
+                "tipAccount": tipAccount?.username ?? "nil"
+            ],
+            amount: truncatedAmount,
+            type: .process
+        )
     }
     
     // MARK: - Flow Remote Send -
@@ -148,6 +181,15 @@ class FlowController: ObservableObject {
             organizer: organizer,
             rendezvous: rendezvous,
             giftCard: giftCard
+        )
+        
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Sent remotely",
+            metadata: [
+                "rendezvous": rendezvous.base58,
+            ],
+            amount: truncatedAmount,
+            type: .process
         )
         
         return organizer.availableBalance
@@ -182,6 +224,12 @@ class FlowController: ObservableObject {
             isVoiding: false
         )
         
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Receive remotely",
+            amount: kinAmount,
+            type: .process
+        )
+        
         let balance = try await fetchBalance()
         
         return (kinAmount, balance)
@@ -195,6 +243,12 @@ class FlowController: ObservableObject {
             isVoiding: true
         )
         
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Refund gift card",
+            kin: amount,
+            type: .process
+        )
+        
         return try await fetchBalance()
     }
     
@@ -202,7 +256,14 @@ class FlowController: ObservableObject {
     
     func airdropFirstKin() async throws -> (metadata: PaymentMetadata, balance: Kin) {
         let metadata = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
-        let balance  = try await fetchBalance()
+        
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Airdrop complete",
+            amount: metadata.amount,
+            type: .process
+        )
+        
+        let balance = try await fetchBalance()
         
         try await receiveFromPrimaryIfWithinLimits()
         
@@ -293,6 +354,12 @@ class FlowController: ObservableObject {
                 destination: destination
             )
             
+            ErrorReporting.breadcrumb(
+                name: "[FLOW] Withdraw completed",
+                amount: amount,
+                type: .process
+            )
+            
             Analytics.withdrawal(amount: amount)
             
         } catch {
@@ -338,6 +405,12 @@ class FlowController: ObservableObject {
                 organizer: organizer
             )
             
+            ErrorReporting.breadcrumb(
+                name: "[FLOW] Received from primary",
+                kin: depositAmount.truncating(),
+                type: .process
+            )
+            
             try await fetchLimits()
         }
     }
@@ -356,6 +429,12 @@ class FlowController: ObservableObject {
         try await client.receiveFromIncoming(
             amount: incomingBalance,
             organizer: organizer
+        )
+        
+        ErrorReporting.breadcrumb(
+            name: "[FLOW] Received from incoming",
+            kin: incomingBalance,
+            type: .process
         )
         
         trace(.success, components: "Received from incoming: \(incomingBalance)")
@@ -378,6 +457,15 @@ class FlowController: ObservableObject {
                 domain: relationship.domain,
                 amount: relationship.partialBalance,
                 organizer: organizer
+            )
+            
+            ErrorReporting.breadcrumb(
+                name: "[FLOW] Received from relationship",
+                metadata: [
+                    "domain": relationship.domain.relationshipHost,
+                ],
+                kin: relationship.partialBalance,
+                type: .process
             )
             
             receivedTotal = receivedTotal + relationship.partialBalance

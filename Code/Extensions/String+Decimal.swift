@@ -12,3 +12,19 @@ extension String {
         Decimal(string: self)
     }
 }
+
+extension Dictionary {
+    static func +(lhs: Dictionary<Key, Value>, rhs: Dictionary<Key, Value>) -> Dictionary<Key, Value> {
+        var container: [Key: Value] = [:]
+        
+        lhs.forEach { key, value in
+            container[key] = value
+        }
+        
+        rhs.forEach { key, value in
+            container[key] = value
+        }
+        
+        return container
+    }
+}

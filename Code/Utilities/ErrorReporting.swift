@@ -16,19 +16,54 @@ enum ErrorReporting {
     }
     
     static func breadcrumb(_ breadcrumb: Breadcrumb) {
-        Bugsnag.leaveBreadcrumb(withMessage: breadcrumb.rawValue)
+        Bugsnag.leaveBreadcrumb(
+            breadcrumb.rawValue,
+            metadata: nil,
+            type: .navigation
+        )
+    }
+    
+    enum BreadcrumbType {
+        case user
+        case process
+        case request
+        
+        var value: BSGBreadcrumbType {
+            switch self {
+            case .user:    return .user
+            case .process: return .process
+            case .request: return .request
+            }
+        }
+    }
+    
+    static func breadcrumb(name: String, metadata: [String: Any] = [:], amount: KinAmount? = nil, kin: Kin? = nil, type: BreadcrumbType) {
+        var container: [String: Any] = [:]
+        
+        metadata.forEach { key, value in
+            container[key] = value
+        }
+        
+        if let amount {
+            container["amount"] = amount.descriptionDictionary
+        }
+        
+        if let kin {
+            container["kin"] = kin.description
+        }
+        
+        Bugsnag.leaveBreadcrumb(
+            name,
+            metadata: container,
+            type: type.value
+        )
     }
     
     static func capturePayment(error: Swift.Error, rendezvous: PublicKey, tray: Tray, amount: KinAmount, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
         capture(error, reason: reason, file: file, function: function, line: line) { userInfo in
             userInfo["rendezvous"] = rendezvous.base58
             userInfo["tray"]   = tray.reportableRepresentation()
-            userInfo["amount"] = [
-                "kin": amount.kin.description,
-                "fx": amount.rate.fx.formatted(),
-                "fiat": amount.kin.formattedFiat(rate: amount.rate, suffix: nil),
-                "currency": amount.rate.currency.rawValue.uppercased(),
-            ]
+            userInfo["amount"] = amount.descriptionDictionary
         }
     }
     

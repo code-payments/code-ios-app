@@ -576,15 +576,31 @@ class Session: ObservableObject {
         
         switch payload.kind {
         case .cash, .giftCard:
+            ErrorReporting.breadcrumb(
+                name: "[Bill] Scanned cash",
+                type: .user
+            )
             attemptReceive(payload)
             
         case .requestPayment, .requestPaymentV2:
+            ErrorReporting.breadcrumb(
+                name: "[Bill] Scanned request card",
+                type: .user
+            )
             attemptPayment(payload, request: request)
             
         case .login:
+            ErrorReporting.breadcrumb(
+                name: "[Bill] Scanned login card",
+                type: .user
+            )
             attemptLogin(payload, request: request)
             
         case .tip:
+            ErrorReporting.breadcrumb(
+                name: "[Bill] Scanned tip card",
+                type: .user
+            )
             attemptTip(payload)
         }
     }
@@ -636,6 +652,11 @@ class Session: ObservableObject {
                     self?.cancelTip()
                 }
             ))
+        
+        ErrorReporting.breadcrumb(
+            name: "[Bill] Show my tip card",
+            type: .user
+        )
         
         UIApplication.shouldPauseInterfaceReset = true
     }
@@ -1212,6 +1233,14 @@ class Session: ObservableObject {
             client: client,
             flowController: flowController
         )
+        
+        if !bill.didReceive {
+            ErrorReporting.breadcrumb(
+                name: "[Bill] Pull out cash",
+                amount: bill.amount,
+                type: .user
+            )
+        }
         
         presentSend(transaction: transaction, bill: bill)
         
