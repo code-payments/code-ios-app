@@ -143,6 +143,7 @@ class PushController: ObservableObject {
 
 // MARK: - UNUserNotificationCenterDelegate -
 
+@MainActor
 private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, MessagingDelegate {
     
     var didReceiveFCMToken: ((String?) -> Void)?
@@ -205,7 +206,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         }
     }
     
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         trace(.warning, components: "Received FCM token: \(fcmToken ?? "nil")")
         DispatchQueue.main.async { [weak self] in
             self?.didReceiveFCMToken?(fcmToken)
