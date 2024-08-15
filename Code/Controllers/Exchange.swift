@@ -171,7 +171,7 @@ class Exchange: ObservableObject {
         ErrorReporting.breadcrumb(
             name: "[Background] Updated rates",
             metadata: [
-                "date": rates.date,
+                "date": rates.date.description,
             ],
             type: .process
         )
