@@ -60,7 +60,7 @@ extension LargeButton where Content == Image {
     public init(title: String?, image: Image, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, aligment: Alignment = .center, binding: Binding<Bool>) {
         self.init(
             title: title,
-            content: { image },
+            image: image,
             spacing: spacing,
             maxWidth: maxWidth,
             maxHeight: maxHeight,
@@ -68,6 +68,18 @@ extension LargeButton where Content == Image {
         ) {
             binding.wrappedValue.toggle()
         }
+    }
+    
+    public init(title: String?, image: Image, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, aligment: Alignment = .center, action: @escaping VoidAction) {
+        self.init(
+            title: title,
+            content: { image },
+            spacing: spacing,
+            maxWidth: maxWidth,
+            maxHeight: maxHeight,
+            aligment: aligment,
+            action: action
+        )
     }
 }
 

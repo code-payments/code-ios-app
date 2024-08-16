@@ -77,6 +77,8 @@ public enum Asset: String {
     case close
     case history
     case wallet
+    case tipcard
+    
     case checkmark
     case checkmarkLarge
     case google = "google.button"

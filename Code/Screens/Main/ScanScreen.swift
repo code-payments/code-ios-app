@@ -257,13 +257,18 @@ struct ScanScreen: View {
             Group {
                 if isVisible {
                     LargeButton(
-                        title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestCash : Localized.Title.getCash,
-                        image: .asset(.wallet),
+                        title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestCash : Localized.Title.tipCard,
+                        image: .asset(.tipcard),
                         maxWidth: 80,
                         maxHeight: 80,
-                        aligment: .bottomLeading,
-                        binding: $isPresentingGetKin
-                    )
+                        aligment: .bottomLeading
+                    ) {
+                        if let user = session.tipController.twitterUser {
+                            session.presentMyTipCard(user: user)
+                        } else {
+                            isPresentingGetKin = true
+                        }
+                    }
                     .sheet(isPresented: $isPresentingGetKin) {
                         if betaFlags.hasEnabled(.giveRequests) {
                             RequestKinScreen(
@@ -274,10 +279,21 @@ struct ScanScreen: View {
                             .environmentObject(exchange)
                             .environmentObject(reachability)
                         } else {
-                            GetKinScreen(
-                                session: session,
-                                isPresented: $isPresentingGetKin
-                            )
+                            NavigationStack {
+                                RequestTipScreen(
+                                    tipController: session.tipController,
+                                    isPresented: $isPresentingGetKin
+                                )
+                                .toolbar {
+                                    ToolbarItem(placement: .navigationBarTrailing) {
+                                        ToolbarCloseButton(binding: $isPresentingGetKin)
+                                    }
+                                }
+                            }
+//                            GetKinScreen(
+//                                session: session,
+//                                isPresented: $isPresentingGetKin
+//                            )
                             .environmentObject(betaFlags)
                             .environmentObject(client)
                             .environmentObject(exchange)
@@ -454,8 +470,6 @@ struct ScanScreen: View {
                 ) { [weak session] in
                     Task {
                         session?.rejectPayment(ignoreRedirect: true)
-                        try await Task.delay(milliseconds: 400)
-                        isPresentingGetKin.toggle()
                     }
                     
                 } dismissAction: { [weak session] in
@@ -592,8 +606,8 @@ extension ScanScreen {
         @ViewBuilder private func bottomBar() -> some View {
             HStack(alignment: .bottom) {
                 LargeButton(
-                    title: Localized.Title.getCash,
-                    image: .asset(.wallet),
+                    title: Localized.Title.tipCard,
+                    image: .asset(.tipcard),
                     maxWidth: 80,
                     maxHeight: 80,
                     aligment: .bottomLeading,

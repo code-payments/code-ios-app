@@ -725,6 +725,8 @@ internal enum Localized {
     internal static let switchAccounts = Localized.tr("Localizable", "title.switchAccounts")
     /// Terms of Service
     internal static let termsOfService = Localized.tr("Localizable", "title.termsOfService")
+    /// Tip Card
+    internal static let tipCard = Localized.tr("Localizable", "title.tipCard")
     /// Tip Kin
     internal static let tipKin = Localized.tr("Localizable", "title.tipKin")
     /// Unknown

@@ -254,6 +254,9 @@
 /* Title for Get Cash */
 "title.getCash" = "Get Cash";
 
+/* Title for Tip Card */
+"title.tipCard" = "Tip Card";
+
 /* Title for Tip Kin */
 "title.tipKin" = "Tip Kin";
 
