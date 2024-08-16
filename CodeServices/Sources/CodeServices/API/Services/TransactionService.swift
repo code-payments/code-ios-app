@@ -473,7 +473,20 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         // it's robust.
         
         reference.stream?.status.whenCompleteBlocking(onto: queue) { result in
-            trace(.warning, components: "Stream closed: \(result)")
+            switch result {
+            case .success(let status):
+                if status.code == .ok {
+                    trace(.success, components: "Stream closed")
+                    // Completion called in the success block
+                } else {
+                    trace(.warning, components: "Stream closed: \(status)")
+                    completion(.failure(.grpcStatus(status)))
+                }
+                
+            case .failure(let error):
+                trace(.failure, components: "Stream closed: \(error)")
+                completion(.failure(.grpcError(error)))
+            }
             
             // We release the stream reference after the stream has been
             // closed and there's no further actions required
@@ -728,6 +741,10 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     case unknown //= -1
     /// Device token unavailable
     case deviceTokenUnavailable //= -2
+    /// gRPC status
+    case grpcStatus(GRPCStatus)
+    /// gRPC error
+    case grpcError(Error)
     
     init(error: Code_Transaction_V2_SubmitIntentResponse.Error) {
         let reasonStrings: [String] = error.errorDetails.compactMap {
@@ -779,6 +796,10 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
             return "unknown"
         case .deviceTokenUnavailable:
             return "deviceTokenUnavailable"
+        case .grpcStatus(let status):
+            return "grpcStatus(\(status.code.rawValue))"
+        case .grpcError(let error):
+            return "grpcError(\(error.localizedDescription))"
         }
     }
     
