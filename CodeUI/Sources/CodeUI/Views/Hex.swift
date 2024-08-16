@@ -10,22 +10,41 @@ import SwiftUI
 
 public struct Hex: Shape {
     
-    public init() {}
+    public let stroke: CGFloat?
+    
+    public init(stroke: CGFloat? = nil) {
+        self.stroke = stroke
+    }
     
     public func path(in rect: CGRect) -> Path {
+        if let stroke {
+            return .hexIn(rect: rect).strokedPath(
+                .init(
+                    lineWidth: stroke,
+                    lineCap: .round,
+                    lineJoin: .miter
+                )
+            )
+        } else {
+            return .hexIn(rect: rect)
+        }
+    }
+}
+
+extension Path {
+    static func hexIn(rect: CGRect) -> Path {
+        let size   = min(rect.width, rect.height) / 2.0
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        
         var path = Path()
         
-        let center  = CGPoint(x: rect.midX, y: rect.midY)
-        let size    = min(rect.width, rect.height) / 2.0
-        let corners = (0..<6).map { index in
+        (0..<6).map { index in
             let angle = CGFloat.pi / 3 * CGFloat(index)
             return CGPoint(
                 x: center.x + size * sin(angle),
                 y: center.y + size * cos(angle)
             )
-        }
-        
-        corners.enumerated().forEach { index, point in
+        }.enumerated().forEach { index, point in
             if index == 0 {
                 path.move(to: point)
             } else {

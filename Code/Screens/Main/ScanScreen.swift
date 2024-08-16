@@ -322,7 +322,7 @@ struct ScanScreen: View {
                         LargeButton(
                             title: Localized.Action.giveKin,
                             content: {
-                                Hex()
+                                Hex(stroke: 4)
                                     .frame(width: 54, height: 60, alignment: .center)
                             },
                             spacing: 8,
@@ -619,7 +619,7 @@ extension ScanScreen {
                 LargeButton(
                     title: Localized.Action.giveKin,
                     content: {
-                        Hex()
+                        Hex(stroke: 4)
                             .frame(width: 54, height: 60, alignment: .center)
                     },
                     spacing: 8,
