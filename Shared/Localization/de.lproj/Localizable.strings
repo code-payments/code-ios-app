@@ -1,3 +1,4 @@
+"action.addCash" = "Bargeld mit einer Debitkarte hinzufügen\n";
 "action.allowCameraAccess" = "Kamera-Zugriff erlauben";
 "action.allowContacts" = "Zugriff auf Kontakte zulassen";
 "action.allowPushNotifications" = "Push-Benachrichtigungen zulassen";
@@ -320,6 +321,7 @@
 "title.failed" = "Fehlgeschlagen";
 "title.faq" = "FAQ";
 "title.gaveKin" = "Überwiesen";
+"title.getCash" = "Bargeld erhalten\n";
 "title.getFriendStartedOnCode" = "Gewinne einen deiner Freunde für Code";
 "title.getKin" = "Kin erhalten";
 "title.getMoreKin" = "Mehr Kin erhalten\n";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Letzte Währungen";
 "title.referFriend" = "Empfehle Sie uns an einen Freund oder eine Freundin weiter und erhalten Sie 5 $ dafür";
 "title.referralBonus" = "Empfehlungsbonus";
+"title.requestCash" = "Bargeld anfordern";
 "title.requestKin" = "Kin anfordern";
 "title.requestTip" = "Trinkgeld anfordern";
 "title.requireFaceID" = "Face ID erforderlich";

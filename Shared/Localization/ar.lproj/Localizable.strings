@@ -1,3 +1,4 @@
+"action.addCash" = "أضف نقودًا عن طريق استخدام بطاقة الخصم";
 "action.allowCameraAccess" = "السماح بإتاحة الوصول إلى الكاميرا";
 "action.allowContacts" = "السماح بإتاحة الوصول إلى جهات الاتصال";
 "action.allowPushNotifications" = "السماح بالإشعارات اللحظية";
@@ -320,6 +321,7 @@
 "title.failed" = "فشلت العملية";
 "title.faq" = "الأسئلة الشائعة";
 "title.gaveKin" = "الممنوحة";
+"title.getCash" = "احصل غلى نقود";
 "title.getFriendStartedOnCode" = "احصل على صديق بدأ في Code";
 "title.getKin" = "احصل على Kin";
 "title.getMoreKin" = "احصل على المزيد من Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "العملات الأخيرة";
 "title.referFriend" = "ارسل طلب إحالة لصديق, واحصل على 5 دولارات";
 "title.referralBonus" = "مكافأة الإحالة";
+"title.requestCash" = "طلب نقود";
 "title.requestKin" = "اطلب Kin";
 "title.requestTip" = "اطلب إكرامية";
 "title.requireFaceID" = "مطلوب Face ID\n\n";

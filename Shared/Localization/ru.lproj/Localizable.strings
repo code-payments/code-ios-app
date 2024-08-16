@@ -1,3 +1,4 @@
+"action.addCash" = "Добавить наличные с помощью дебетовой карты";
 "action.allowCameraAccess" = "Разрешить доступ к камере";
 "action.allowContacts" = "Разрешить доступ к контактам";
 "action.allowPushNotifications" = "Разрешить push-уведомления";
@@ -320,6 +321,7 @@
 "title.failed" = "Сбой";
 "title.faq" = "Частые вопросы";
 "title.gaveKin" = "Дал(-а)";
+"title.getCash" = "Получить наличные";
 "title.getFriendStartedOnCode" = "Пригласите друга начать пользоваться Code";
 "title.getKin" = "Получить Kin";
 "title.getMoreKin" = "Получить больше Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Недавние валюты";
 "title.referFriend" = "Приведите друга, получите 5 долл. США";
 "title.referralBonus" = "Реферальный бонус";
+"title.requestCash" = "Потребовать наличные";
 "title.requestKin" = "Запросить кин";
 "title.requestTip" = "Запросить чаевые";
 "title.requireFaceID" = "Запрашивать Face ID";

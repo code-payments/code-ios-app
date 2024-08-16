@@ -1,3 +1,4 @@
+"action.addCash" = "Tambahkan Uang Tunai dengan Kartu Debit";
 "action.allowCameraAccess" = "Izinkan Akses Kamera";
 "action.allowContacts" = "Izinkan Akses ke Kontak";
 "action.allowPushNotifications" = "Izinkan Pemberitahuan Push";
@@ -320,6 +321,7 @@
 "title.failed" = "Gagal";
 "title.faq" = "Tanya-Jawab";
 "title.gaveKin" = "Memberi";
+"title.getCash" = "Dapatkan Uang Tunai";
 "title.getFriendStartedOnCode" = "Ajak Teman Memulai Code";
 "title.getKin" = "Dapatkan Kin";
 "title.getMoreKin" = "Dapatkan Lebih Banyak Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Mata Uang Terbaru";
 "title.referFriend" = "Ajak Teman, Dapatkan $5";
 "title.referralBonus" = "Bonus Referensi";
+"title.requestCash" = "Minta Uang Tunai";
 "title.requestKin" = "Minta Kin";
 "title.requestTip" = "Minta Tip";
 "title.requireFaceID" = "Memerlukan  Face ID";

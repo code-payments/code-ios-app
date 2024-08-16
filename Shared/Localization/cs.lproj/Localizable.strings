@@ -1,3 +1,4 @@
+"action.addCash" = "Přidání hotovosti pomocí debetní karty";
 "action.allowCameraAccess" = "Umožnit přístup fotoaparátu";
 "action.allowContacts" = "Povolit přístup ke kontaktům";
 "action.allowPushNotifications" = "Povolit zprávy push";
@@ -320,6 +321,7 @@
 "title.failed" = "Selhalo";
 "title.faq" = "Časté dotazy";
 "title.gaveKin" = "Darováno";
+"title.getCash" = "Získat hotovost";
 "title.getFriendStartedOnCode" = "Začněte kamarádem používat Code";
 "title.getKin" = "Získat Kin";
 "title.getMoreKin" = "Získejte další Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Poslední měny";
 "title.referFriend" = "Doporučte kamaráda a získejte 5 USD";
 "title.referralBonus" = "Bonus za doporučení";
+"title.requestCash" = "Žádost o hotovost";
 "title.requestKin" = "Požádat o Kin";
 "title.requestTip" = "Požádat o spropitné";
 "title.requireFaceID" = "Vyžaduje Face ID";

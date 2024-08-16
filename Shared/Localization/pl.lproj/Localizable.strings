@@ -1,3 +1,4 @@
+"action.addCash" = "Dodaj Cash z użyciem karty debetowej";
 "action.allowCameraAccess" = "Zezwól na dostęp do kamery";
 "action.allowContacts" = "Zezwól na dostęp do kontaktów";
 "action.allowPushNotifications" = "Zezwól na powiadomienia typu push";
@@ -320,6 +321,7 @@
 "title.failed" = "NIe powiodło się";
 "title.faq" = "Często zadawane pytania";
 "title.gaveKin" = "Dał";
+"title.getCash" = "Otrzymaj Cash";
 "title.getFriendStartedOnCode" = "Poleć znajomemu aplikację Code";
 "title.getKin" = "Uzyskaj kin";
 "title.getMoreKin" = "Zdobądź więcej Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Niedawne waluty";
 "title.referFriend" = "Poleć znajomemu i otrzymaj 5 $";
 "title.referralBonus" = "Bonus za polecenie";
+"title.requestCash" = "Poproś o Cash";
 "title.requestKin" = "Poproś o Kin";
 "title.requestTip" = "Poproś o napiwek";
 "title.requireFaceID" = "Wymagaj Face ID";

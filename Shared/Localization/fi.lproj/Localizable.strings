@@ -1,3 +1,4 @@
+"action.addCash" = "Lisää rahaa pankkikortilla";
 "action.allowCameraAccess" = "Salli kameran käyttöoikeudet";
 "action.allowContacts" = "Salli yhteystietojen käyttöoikeudet";
 "action.allowPushNotifications" = "Salli palveluilmoitukset";
@@ -320,6 +321,7 @@
 "title.failed" = "Epäonnistui";
 "title.faq" = "UKK";
 "title.gaveKin" = "Antoi";
+"title.getCash" = "Nosta rahaa";
 "title.getFriendStartedOnCode" = "Auta kaveri alkuun Coden parissa";
 "title.getKin" = "Hae Kin";
 "title.getMoreKin" = "Hanki lisää kinejä";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Viimeaikaiset valuutat";
 "title.referFriend" = "Suosita ystävää, saat 5 $";
 "title.referralBonus" = "Suositusbonus";
+"title.requestCash" = "Pyydä rahaa";
 "title.requestKin" = "Pyydä kinejä";
 "title.requestTip" = "Pyydä tippi";
 "title.requireFaceID" = "Vaadi kasvotunnistus";

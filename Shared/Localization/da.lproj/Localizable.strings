@@ -1,3 +1,4 @@
+"action.addCash" = "Tilføj kontanter med et betalingskort";
 "action.allowCameraAccess" = "Tillad kameraadgang";
 "action.allowContacts" = "Tillad adgang til kontakter";
 "action.allowPushNotifications" = "Tillad pushnotifikationer";
@@ -320,6 +321,7 @@
 "title.failed" = "Mislykkedes";
 "title.faq" = "FAQ";
 "title.gaveKin" = "Gav";
+"title.getCash" = "Få kontanter";
 "title.getFriendStartedOnCode" = "Få en ven i gang med Code";
 "title.getKin" = "Få Kin";
 "title.getMoreKin" = "Få flere Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Seneste valutaer";
 "title.referFriend" = "Henvis en ven, få $5";
 "title.referralBonus" = "Henvisningsbonus";
+"title.requestCash" = "Anmod om kontanter";
 "title.requestKin" = "Anmod om Kin";
 "title.requestTip" = "Anmod om drikkepenge";
 "title.requireFaceID" = "Kræv Face ID";

@@ -1,3 +1,4 @@
+"action.addCash" = "Banka Kartıyla Nakit Ekle";
 "action.allowCameraAccess" = "Kamera Erişimine İzin Ver";
 "action.allowContacts" = "Kişiler'e Erişime İzin Ver";
 "action.allowPushNotifications" = "Anlık Bildirimlere İzin Ver";
@@ -320,6 +321,7 @@
 "title.failed" = "Başarısız";
 "title.faq" = "SSS";
 "title.gaveKin" = "Verdi";
+"title.getCash" = "Nakıt Al";
 "title.getFriendStartedOnCode" = "Bir Arkadaşınızı Code'a başlatın";
 "title.getKin" = "Kin Al";
 "title.getMoreKin" = "Daha Fazla Kin Al";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Son Para Birimleri";
 "title.referFriend" = "Bir Arkadaş Yönlendir, $5'ı Kazan";
 "title.referralBonus" = "Yönlendirme Bonusu";
+"title.requestCash" = "Nakit Talep Et";
 "title.requestKin" = "Kin Talep Et";
 "title.requestTip" = "Bahşiş İste";
 "title.requireFaceID" = "Face ID gerekir";

@@ -1,3 +1,4 @@
+"action.addCash" = "Добавете парична сума  с дебитна карта";
 "action.allowCameraAccess" = "Разреши достъп до камерата ";
 "action.allowContacts" = "Разреши достъп до контактите ";
 "action.allowPushNotifications" = "Разреши насочени известия ";
@@ -320,6 +321,7 @@
 "title.failed" = "Неуспешно ";
 "title.faq" = "Често задавани въпроси ";
 "title.gaveKin" = "Даде";
+"title.getCash" = "Вземете парична сума ";
 "title.getFriendStartedOnCode" = "Вземете \"Приятел се присъедини\" към Code";
 "title.getKin" = "Получаване на средства в Kin";
 "title.getMoreKin" = "Получавайте повече Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Последно използвани валути ";
 "title.referFriend" = "Препоръчай на приятел, вземи $5";
 "title.referralBonus" = "Бонус за препоръка";
+"title.requestCash" = "Направете заявка за парична сума ";
 "title.requestKin" = "Поискай Kin";
 "title.requestTip" = "Поискай бакшиш";
 "title.requireFaceID" = "Изискване на Face ID";

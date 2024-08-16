@@ -1,3 +1,4 @@
+"action.addCash" = "Lägg till kontanter med ett betalkort";
 "action.allowCameraAccess" = "Tillåt åtkomst till kameran";
 "action.allowContacts" = "Tillåt åtkomst till kontakter";
 "action.allowPushNotifications" = "Tillåt push-notiser";
@@ -320,6 +321,7 @@
 "title.failed" = "Misslyckad";
 "title.faq" = "VANLIGA FRÅGOR";
 "title.gaveKin" = "Gav";
+"title.getCash" = "Få kontanter";
 "title.getFriendStartedOnCode" = "Få en vän att börja med Code";
 "title.getKin" = "Få Kin";
 "title.getMoreKin" = "Skaffa mer Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Senaste valutorna";
 "title.referFriend" = "Värva en vän, få 5 USD";
 "title.referralBonus" = "Värvningsbonus";
+"title.requestCash" = "Begär kontanter";
 "title.requestKin" = "Begär Kin";
 "title.requestTip" = "Be om dricks";
 "title.requireFaceID" = "Kräv Face ID";

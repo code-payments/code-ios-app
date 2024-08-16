@@ -1,3 +1,4 @@
+"action.addCash" = "Adăugați numerar cu un card de debit";
 "action.allowCameraAccess" = "Permite accesul la fotocameră";
 "action.allowContacts" = "Permite accesul la contacte";
 "action.allowPushNotifications" = "Permite notificările push";
@@ -320,6 +321,7 @@
 "title.failed" = "Eșuat";
 "title.faq" = "Întrebări frecvente";
 "title.gaveKin" = "Trimis";
+"title.getCash" = "Obțineți numerar";
 "title.getFriendStartedOnCode" = "Ajutați un prieten să înceapă cu Code";
 "title.getKin" = "Obține kin";
 "title.getMoreKin" = "Obține mai mulţi Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Valute folosite recent";
 "title.referFriend" = "Recomandați un prieten, primiți 5 dolari";
 "title.referralBonus" = "Bonus de recomandare";
+"title.requestCash" = "Solicitați numerar";
 "title.requestKin" = "Solicită monede Kin";
 "title.requestTip" = "Solicită un bacșiș";
 "title.requireFaceID" = "Solicită Face ID";

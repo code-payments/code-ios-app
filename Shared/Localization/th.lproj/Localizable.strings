@@ -1,3 +1,4 @@
+"action.addCash" = "เติมเงินสดด้วยบัตรเดบิต";
 "action.allowCameraAccess" = "อนุญาตให้เข้าถึงกล้อง";
 "action.allowContacts" = "อนุญาตให้เข้าถึงรายชื่อติดต่อ";
 "action.allowPushNotifications" = "อนุญาตให้แจ้งเตือนแบบพุช";
@@ -320,6 +321,7 @@
 "title.failed" = "ล้มเหลว";
 "title.faq" = "คำถามที่พบบ่อย";
 "title.gaveKin" = "ให้";
+"title.getCash" = "รับเงินสด";
 "title.getFriendStartedOnCode" = "ชวนเพื่อนมาเริ่มต้นใช้งาน Code";
 "title.getKin" = "รับ Kin";
 "title.getMoreKin" = "รับ Kin เพิ่มเติม";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "สกุลเงินล่าสุด";
 "title.referFriend" = "แนะนำเพื่อน รับ $5";
 "title.referralBonus" = "โบนัสการแนะนำ";
+"title.requestCash" = "ขอรับเงินสด";
 "title.requestKin" = "ขอรับ Kin";
 "title.requestTip" = "ขอรับทิป";
 "title.requireFaceID" = "ต้องใช้ Face ID";

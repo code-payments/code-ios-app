@@ -1,3 +1,4 @@
+"action.addCash" = "Ajouter des liquidités avec une carte de débit";
 "action.allowCameraAccess" = "Autoriser l'accès à la caméra";
 "action.allowContacts" = "Autoriser l'accès aux contacts";
 "action.allowPushNotifications" = "Autoriser les notifications push";
@@ -320,6 +321,7 @@
 "title.failed" = "Échoué";
 "title.faq" = "FAQ";
 "title.gaveKin" = "Donné";
+"title.getCash" = "Obtenir des liquidités";
 "title.getFriendStartedOnCode" = "Invitez un ami à s'inscrire sur Code";
 "title.getKin" = "Obtenir des Kin";
 "title.getMoreKin" = "Obtenir plus de Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Devises récentes";
 "title.referFriend" = "Parrainez un ami, recevez 5 $";
 "title.referralBonus" = "Bonus de parrainage";
+"title.requestCash" = "Demander des liquidités";
 "title.requestKin" = "Demander des Kin";
 "title.requestTip" = "Demander un pourboire";
 "title.requireFaceID" = "Nécessite Face ID";

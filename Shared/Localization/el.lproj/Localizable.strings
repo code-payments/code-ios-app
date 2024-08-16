@@ -1,3 +1,4 @@
+"action.addCash" = "Προσθέστε μετρητά με χρεωστική κάρτα";
 "action.allowCameraAccess" = "Να Επιτρέπεται η Πρόσβαση στην Κάμερα";
 "action.allowContacts" = "Να Επιτρέπεται η Πρόσβαση στις Επαφές";
 "action.allowPushNotifications" = "Να Επιτρέπονται οι Ειδοποιήσεις Push";
@@ -320,6 +321,7 @@
 "title.failed" = "Απέτυχε";
 "title.faq" = "Αριθμός Τηλεφώνου";
 "title.gaveKin" = "Δόθηκε";
+"title.getCash" = "Λάβετε μετρητά";
 "title.getFriendStartedOnCode" = "Βρες ένα Φίλο να Ξεκινήσει στο Code";
 "title.getKin" = "Λάβετε Kin";
 "title.getMoreKin" = "Αποκτήστε Περισσότερα Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Πρόσφατα Νομίσματα";
 "title.referFriend" = "Σύστησε ένα Φίλο, Λάβε $5";
 "title.referralBonus" = "Δώρο Σύστασης Φίλου";
+"title.requestCash" = "Ζητήστε μετρητά";
 "title.requestKin" = "Ζητήστε Kin";
 "title.requestTip" = "Ζητήστε Φιλοδώρημα";
 "title.requireFaceID" = "Απαιτείται Αναγνώριση Προσώπου";

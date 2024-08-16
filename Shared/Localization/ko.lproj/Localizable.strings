@@ -1,3 +1,4 @@
+"action.addCash" = "직불 카드로 현금 추가";
 "action.allowCameraAccess" = "카메라 접근 허용";
 "action.allowContacts" = "연락처 접근 허용";
 "action.allowPushNotifications" = "푸쉬 알림 허용";
@@ -320,6 +321,7 @@
 "title.failed" = "실패함";
 "title.faq" = "자주 묻는 질문";
 "title.gaveKin" = "보낸 내역";
+"title.getCash" = "현금 받기";
 "title.getFriendStartedOnCode" = "친구가 Code를 시작하게 만들기";
 "title.getKin" = "Kin 받기";
 "title.getMoreKin" = "킨 더 확보하기";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "최근 통화";
 "title.referFriend" = "친구 추천하고 $5 받으세요";
 "title.referralBonus" = "추천 보너스";
+"title.requestCash" = "현금 요청";
 "title.requestKin" = "킨 요청";
 "title.requestTip" = "팁 요청";
 "title.requireFaceID" = "Face ID 필요";

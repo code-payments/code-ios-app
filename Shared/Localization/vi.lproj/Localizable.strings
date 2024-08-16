@@ -1,3 +1,4 @@
+"action.addCash" = "Thêm Tiền mặt Bằng Thẻ Ghi nợ";
 "action.allowCameraAccess" = "Cho phép Truy cập Camera";
 "action.allowContacts" = "Cho phép Truy cập vào Danh bạ";
 "action.allowPushNotifications" = "Cho phép Thông báo Đẩy";
@@ -320,6 +321,7 @@
 "title.failed" = "Không thành công";
 "title.faq" = "Hỏi Đáp";
 "title.gaveKin" = "Đã tặng";
+"title.getCash" = "Nhận Tiền mặt";
 "title.getFriendStartedOnCode" = "Mời một người bạn bắt đầu dùng Code";
 "title.getKin" = "Nhận Kin";
 "title.getMoreKin" = "Nhận Thêm Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Đơn vị tiền tệ Gần đây";
 "title.referFriend" = "Giới thiệu một người bạn - Nhận 5$";
 "title.referralBonus" = "Tiền thưởng Giới thiệu";
+"title.requestCash" = "Yêu cầu Tiền mặt";
 "title.requestKin" = "Yêu cầu Kin";
 "title.requestTip" = "Yêu cầu Tiền boa";
 "title.requireFaceID" = "Cần có Face ID";

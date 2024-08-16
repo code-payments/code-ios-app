@@ -1,3 +1,4 @@
+"action.addCash" = "Voeg contant geld toe met een bankpas";
 "action.allowCameraAccess" = "Toegang tot camera toestaan";
 "action.allowContacts" = "Toegang tot contacten toestaan";
 "action.allowPushNotifications" = "Pushmeldingen toestaan";
@@ -320,6 +321,7 @@
 "title.failed" = "Mislukt";
 "title.faq" = "Veelgestelde Vragen";
 "title.gaveKin" = "Geschonken";
+"title.getCash" = "Ontvang contant geld";
 "title.getFriendStartedOnCode" = "Laat een vriend beginnen met Code";
 "title.getKin" = "Krijg Kin";
 "title.getMoreKin" = "Verkrijg meer Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Recente valuta";
 "title.referFriend" = "Verwijs een vriend en ontvang $5";
 "title.referralBonus" = "Verwijzingsbonus";
+"title.requestCash" = "Vraag contant geld aan";
 "title.requestKin" = "Kin aanvragen";
 "title.requestTip" = "Een fooi aanvragen";
 "title.requireFaceID" = "Vereist gezichts-ID";

@@ -1,3 +1,4 @@
+"action.addCash" = "Внести гроші з дебетової картки";
 "action.allowCameraAccess" = "Дозволити доступ до камери";
 "action.allowContacts" = "Дозволити доступ до контактів";
 "action.allowPushNotifications" = "Дозволити push-сповіщення";
@@ -320,6 +321,7 @@
 "title.failed" = "Не вдалося";
 "title.faq" = "Часто задавані питання";
 "title.gaveKin" = "Надано";
+"title.getCash" = "Отримати гроші.";
 "title.getFriendStartedOnCode" = "Запросіть друга в Code";
 "title.getKin" = "Отримати Kin";
 "title.getMoreKin" = "Отримати більше Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Останні валюти";
 "title.referFriend" = "Порекомендуйте другу, отримайте 5 дол.";
 "title.referralBonus" = "Реферальний бонус";
+"title.requestCash" = "Запросити грошовий переказ";
 "title.requestKin" = "Запит на Kin";
 "title.requestTip" = "Запросити чайові";
 "title.requireFaceID" = "Вимагати Face ID";

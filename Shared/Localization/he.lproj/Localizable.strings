@@ -1,3 +1,4 @@
+"action.addCash" = "הוספת כסף באמצעות כרטיס חיוב";
 "action.allowCameraAccess" = "אפשר גישה למצלמה ";
 "action.allowContacts" = "אפשר גישה לאנשי הקשר";
 "action.allowPushNotifications" = "אפשר הודעות דחיפה";
@@ -320,6 +321,7 @@
 "title.failed" = "נכשל";
 "title.faq" = "שאלות נפוצות";
 "title.gaveKin" = "העברות שבוצעו";
+"title.getCash" = "קבלת כסף";
 "title.getFriendStartedOnCode" = "עודד חבר להתחיל להשתמש ב-Code";
 "title.getKin" = "השגת Kin";
 "title.getMoreKin" = "השיגו עוד Kin";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "סוגי מטבע בשימוש לאחרונה";
 "title.referFriend" = "הפנה חבר, קבל 5$";
 "title.referralBonus" = "בונוס הפניה";
+"title.requestCash" = "בקשת כסף";
 "title.requestKin" = "בקשת Kin";
 "title.requestTip" = "בקשת טיפ";
 "title.requireFaceID" = "נדרש Face ID";

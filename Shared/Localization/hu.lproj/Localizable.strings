@@ -1,3 +1,4 @@
+"action.addCash" = "Adj hozzá készpént egy bankkártyával";
 "action.allowCameraAccess" = "Kamera-hozzáférés engedélyezése";
 "action.allowContacts" = "Hozzáférés engedélyezése a névjegyekhez";
 "action.allowPushNotifications" = "Push értesítések engedélyezése";
@@ -320,6 +321,7 @@
 "title.failed" = "Sikertelen";
 "title.faq" = "GYIK";
 "title.gaveKin" = "Adott";
+"title.getCash" = "Kapj készpénzt";
 "title.getFriendStartedOnCode" = "Szerezz egy barátot elkezdte használni a Code-ot";
 "title.getKin" = "Szerezz Kint";
 "title.getMoreKin" = "Szerezzen több Kin-t";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Legutóbbi pénznemek";
 "title.referFriend" = "Ajánlj egy barátot, kapsz 5 dollárt";
 "title.referralBonus" = "Ajánlói bónusz";
+"title.requestCash" = "Kérj készpénzt";
 "title.requestKin" = "Kin kérése";
 "title.requestTip" = "Kérj borravalót";
 "title.requireFaceID" = "Face ID-t igényel";

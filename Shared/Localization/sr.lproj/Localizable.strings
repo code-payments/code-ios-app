@@ -1,3 +1,4 @@
+"action.addCash" = "Додај готовину помоћу дебитне картице";
 "action.allowCameraAccess" = "Dozvoli pristup kameri";
 "action.allowContacts" = "Dozvoli pristup kontaktima";
 "action.allowPushNotifications" = "Dozvoli prosleđena obaveštenja";
@@ -320,6 +321,7 @@
 "title.failed" = "Nije uspelo";
 "title.faq" = "Najčešća pitanja";
 "title.gaveKin" = "Dato";
+"title.getCash" = "Узми готовину";
 "title.getFriendStartedOnCode" = "Нека пријатељ започне са Кодом";
 "title.getKin" = "Прибави Кин";
 "title.getMoreKin" = "Набавите још кинова";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "Nedavne valute";
 "title.referFriend" = "Препоручите пријатеља, узмите 5$";
 "title.referralBonus" = "Бонус за препоруке";
+"title.requestCash" = "Захтевај готовину";
 "title.requestKin" = "Затражи Кин";
 "title.requestTip" = "Затражи напојницу";
 "title.requireFaceID" = "Захтевање Face ID-ја";

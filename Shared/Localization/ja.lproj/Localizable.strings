@@ -1,3 +1,4 @@
+"action.addCash" = "デビットカードで現金を追加する";
 "action.allowCameraAccess" = "カメラへのアクセスを許可する";
 "action.allowContacts" = "連絡先へのアクセスを許可する";
 "action.allowPushNotifications" = "プッシュ通知を許可する";
@@ -320,6 +321,7 @@
 "title.failed" = "失敗しました";
 "title.faq" = "よくある質問";
 "title.gaveKin" = "与えた";
+"title.getCash" = "現金を得る";
 "title.getFriendStartedOnCode" = "友だちにCodeを始めさせる";
 "title.getKin" = "Kinを入手";
 "title.getMoreKin" = "Kinをもっと入手する";
@@ -342,6 +344,7 @@
 "title.recentCurrencies" = "最近の通貨";
 "title.referFriend" = "友だちを紹介して5ドルもらおう";
 "title.referralBonus" = "紹介ボーナス";
+"title.requestCash" = "現金を要求する";
 "title.requestKin" = "Kinをリクエスト";
 "title.requestTip" = "チップをリクエストする";
 "title.requireFaceID" = "Face IDが必要";
