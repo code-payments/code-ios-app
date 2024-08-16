@@ -367,8 +367,9 @@ struct ScanScreen: View {
                     }
                 } else {
                     if !session.billState.hideBillButtons {
-                        HStack(spacing: 0) {
+                        HStack(alignment: .center, spacing: 30) {
                             if let primaryAction = session.billState.primaryAction {
+                                Spacer()
                                 CapsuleButton(
                                     state: sendState,
                                     asset: primaryAction.asset,
@@ -383,7 +384,7 @@ struct ScanScreen: View {
                                         sendState = .normal
                                     }
                                 }
-                                .frame(maxWidth: .infinity)
+                                .fixedSize(horizontal: true, vertical: false)
                             }
                             
                             if let secondaryAction = session.billState.secondaryAction {
@@ -394,10 +395,11 @@ struct ScanScreen: View {
                                 ) {
                                     secondaryAction.action()
                                 }
-                                .frame(maxWidth: .infinity)
+                                Spacer()
+                            } else {
+                                Spacer()
                             }
                         }
-                        .padding(.horizontal, 40)
                     }
                 }
             }

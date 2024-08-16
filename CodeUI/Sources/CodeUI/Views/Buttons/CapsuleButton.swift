@@ -14,13 +14,13 @@ public struct CapsuleButton: View {
     
     private let state: ButtonState
     private let image: Image
-    private let title: String
+    private let title: String?
     private let style: UIBlurEffect.Style
     private let action: VoidAction
     
     // MARK: - Init -
     
-    public init(state: ButtonState, systemSymbol: SystemSymbol, title: String, style: UIBlurEffect.Style = .systemUltraThinMaterial, action: @escaping VoidAction) {
+    public init(state: ButtonState, systemSymbol: SystemSymbol, title: String?, style: UIBlurEffect.Style = .systemUltraThinMaterial, action: @escaping VoidAction) {
         self.init(
             state: state,
             image: Image.system(systemSymbol),
@@ -30,7 +30,7 @@ public struct CapsuleButton: View {
         )
     }
     
-    public init(state: ButtonState, asset: Asset, title: String, style: UIBlurEffect.Style = .systemUltraThinMaterial, action: @escaping VoidAction) {
+    public init(state: ButtonState, asset: Asset, title: String?, style: UIBlurEffect.Style = .systemUltraThinMaterial, action: @escaping VoidAction) {
         self.init(
             state: state,
             image: Image.asset(asset),
@@ -40,7 +40,7 @@ public struct CapsuleButton: View {
         )
     }
     
-    public init(state: ButtonState, image: Image, title: String, style: UIBlurEffect.Style = .systemUltraThinMaterial, binding: Binding<Bool>) {
+    public init(state: ButtonState, image: Image, title: String?, style: UIBlurEffect.Style = .systemUltraThinMaterial, binding: Binding<Bool>) {
         self.init(
             state: state,
             image: image,
@@ -51,7 +51,7 @@ public struct CapsuleButton: View {
         }
     }
     
-    public init(state: ButtonState, image: Image, title: String, style: UIBlurEffect.Style = .systemUltraThinMaterial, action: @escaping VoidAction) {
+    public init(state: ButtonState, image: Image, title: String?, style: UIBlurEffect.Style = .systemUltraThinMaterial, action: @escaping VoidAction) {
         self.state  = state
         self.image  = image
         self.title  = title
@@ -70,10 +70,12 @@ public struct CapsuleButton: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: 25, maxHeight: 25)
                     
-                    Text(title)
-                        .lineLimit(1)
-                        .font(.appTextMedium)
-                        .minimumScaleFactor(0.8)
+                    if let title {
+                        Text(title)
+                            .lineLimit(1)
+                            .font(.appTextMedium)
+                            .minimumScaleFactor(0.8)
+                    }
                 }
                 .opacity(state == .normal ? 1 : 0)
                 .overlay {

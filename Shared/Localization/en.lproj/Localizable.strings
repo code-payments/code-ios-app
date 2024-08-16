@@ -92,6 +92,9 @@
 /* Share */
 "action.share" = "Share";
 
+/* Share as a URL */
+"action.shareAsURL" = "Share as a URL";
+
 /* Later */
 "action.later" = "Later";
 

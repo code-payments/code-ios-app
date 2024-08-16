@@ -117,7 +117,7 @@ extension BillState {
 extension BillState {
     struct SecondaryAction {
         var asset: Asset
-        var title: String
+        var title: String?
         var action: VoidAction
     }
 }

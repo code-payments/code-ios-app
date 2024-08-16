@@ -640,14 +640,14 @@ class Session: ObservableObject {
             .hideBillButtons(false)
             .primaryAction(.init(
                 asset: .send,
-                title: Localized.Action.share,
+                title: Localized.Action.shareAsURL,
                 action: { [weak self] in
                     self?.shareMyTipCard(user: user)
                 }
             ))
             .secondaryAction(.init(
-                asset: .done,
-                title: Localized.Action.done,
+                asset: .cancel,
+                title: Localized.Action.cancel,
                 action: { [weak self] in
                     self?.cancelTip()
                 }
