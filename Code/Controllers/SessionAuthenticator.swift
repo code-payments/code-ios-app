@@ -334,6 +334,10 @@ final class SessionAuthenticator: ObservableObject {
     }
     
     func logout() {
+        if case .loggedIn(let container) = state {
+            container.session.prepareForLogout()
+        }
+        
         accountManager.resetForLogout()
         
         state = .loggedOut

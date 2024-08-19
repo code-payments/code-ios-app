@@ -117,6 +117,10 @@ class TipController: ObservableObject {
         return true
     }
     
+    func prepareForLogout() {
+        deleteAuthenticatedUser()
+    }
+    
     // MARK: - Actions -
     
     func fetchUser(username: String, payload: Code.Payload) async throws {
