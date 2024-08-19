@@ -102,7 +102,7 @@ public struct CapsuleButton: View {
                 .animation(nil, value: state)
                 .foregroundColor(Color.textMain)
                 .padding(.vertical, 16)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, title == nil ? 16 : 20) // Stretch a little when we have text
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: .greatestFiniteMagnitude))
