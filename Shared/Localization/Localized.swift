@@ -52,8 +52,8 @@ internal enum Localized {
     internal static let downloadNow = Localized.tr("Localizable", "action.downloadNow")
     /// Exit
     internal static let exit = Localized.tr("Localizable", "action.exit")
-    /// Give Kin
-    internal static let giveKin = Localized.tr("Localizable", "action.giveKin")
+    /// Give
+    internal static let give = Localized.tr("Localizable", "action.give")
     /// Join the Waitlist
     internal static let joinWaitlist = Localized.tr("Localizable", "action.joinWaitlist")
     /// Later
@@ -88,6 +88,8 @@ internal enum Localized {
     internal static let postToConnect = Localized.tr("Localizable", "action.postToConnect")
     /// Put in Wallet
     internal static let putInWallet = Localized.tr("Localizable", "action.putInWallet")
+    /// Receive
+    internal static let receive = Localized.tr("Localizable", "action.receive")
     /// Recover Existing Account
     internal static let recoverExistingAccount = Localized.tr("Localizable", "action.recoverExistingAccount")
     /// Remind
@@ -679,8 +681,8 @@ internal enum Localized {
     internal static let getFriendStartedOnCode = Localized.tr("Localizable", "title.getFriendStartedOnCode")
     /// Get More Kin
     internal static let getMoreKin = Localized.tr("Localizable", "title.getMoreKin")
-    /// Give Kin
-    internal static let giveKin = Localized.tr("Localizable", "title.giveKin")
+    /// Give Cash
+    internal static let giveCash = Localized.tr("Localizable", "title.giveCash")
     /// Insufficient Funds
     internal static let insufficientFunds = Localized.tr("Localizable", "title.insufficientFunds")
     /// Limited Time Offer

@@ -256,50 +256,20 @@ struct ScanScreen: View {
         HStack(alignment: .bottom) {
             Group {
                 if isVisible {
+                    Spacer()
+                    
                     LargeButton(
-                        title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestCash : Localized.Title.tipCard,
-                        image: .asset(.tipcard),
+                        title: Localized.Action.give,
+                        content: {
+                            Hex(stroke: 3)
+                                .frame(width: 32, height: 30, alignment: .center)
+                        },
+                        spacing: 8,
                         maxWidth: 80,
                         maxHeight: 80,
-                        aligment: .bottomLeading
-                    ) {
-                        if let user = session.tipController.twitterUser {
-                            session.presentMyTipCard(user: user)
-                        } else {
-                            isPresentingGetKin = true
-                        }
-                    }
-                    .sheet(isPresented: $isPresentingGetKin) {
-                        if betaFlags.hasEnabled(.giveRequests) {
-                            RequestKinScreen(
-                                session: session,
-                                isPresented: $isPresentingGetKin
-                            )
-                            .environmentObject(bannerController)
-                            .environmentObject(exchange)
-                            .environmentObject(reachability)
-                        } else {
-                            NavigationStack {
-                                RequestTipScreen(
-                                    tipController: session.tipController,
-                                    isPresented: $isPresentingGetKin
-                                )
-                                .toolbar {
-                                    ToolbarItem(placement: .navigationBarTrailing) {
-                                        ToolbarCloseButton(binding: $isPresentingGetKin)
-                                    }
-                                }
-                            }
-//                            GetKinScreen(
-//                                session: session,
-//                                isPresented: $isPresentingGetKin
-//                            )
-                            .environmentObject(betaFlags)
-                            .environmentObject(client)
-                            .environmentObject(exchange)
-                            .environmentObject(bannerController)
-                        }
-                    }
+                        aligment: .bottomLeading,
+                        binding: $isPresentingGiveKin
+                    )
                     
                     Spacer()
                     
@@ -320,17 +290,49 @@ struct ScanScreen: View {
                         }
                         
                         LargeButton(
-                            title: Localized.Action.giveKin,
-                            content: {
-                                Hex(stroke: 4)
-                                    .frame(width: 54, height: 60, alignment: .center)
-                            },
-                            spacing: 8,
+                            title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestCash : Localized.Action.receive,
+                            image: .asset(.tipcard),
                             maxWidth: 80,
                             maxHeight: 80,
-                            aligment: .bottom,
-                            binding: $isPresentingGiveKin
-                        )
+                            aligment: .bottom
+                        ) {
+                            if let user = session.tipController.twitterUser {
+                                session.presentMyTipCard(user: user)
+                            } else {
+                                isPresentingGetKin = true
+                            }
+                        }
+                        .sheet(isPresented: $isPresentingGetKin) {
+                            if betaFlags.hasEnabled(.giveRequests) {
+                                RequestKinScreen(
+                                    session: session,
+                                    isPresented: $isPresentingGetKin
+                                )
+                                .environmentObject(bannerController)
+                                .environmentObject(exchange)
+                                .environmentObject(reachability)
+                            } else {
+                                NavigationStack {
+                                    RequestTipScreen(
+                                        tipController: session.tipController,
+                                        isPresented: $isPresentingGetKin
+                                    )
+                                    .toolbar {
+                                        ToolbarItem(placement: .navigationBarTrailing) {
+                                            ToolbarCloseButton(binding: $isPresentingGetKin)
+                                        }
+                                    }
+                                }
+    //                            GetKinScreen(
+    //                                session: session,
+    //                                isPresented: $isPresentingGetKin
+    //                            )
+                                .environmentObject(betaFlags)
+                                .environmentObject(client)
+                                .environmentObject(exchange)
+                                .environmentObject(bannerController)
+                            }
+                        }
                     }
                     
                     Spacer()
@@ -365,6 +367,8 @@ struct ScanScreen: View {
                         .environmentObject(bannerController)
                         .environmentObject(notificationController)
                     }
+                    
+                    Spacer()
                 } else {
                     if !session.billState.hideBillButtons {
                         HStack(alignment: .center, spacing: 30) {
@@ -405,7 +409,6 @@ struct ScanScreen: View {
             }
             .transition(fadeTransition())
         }
-        .padding([.trailing, .leading], isVisible ? 30 : 0)
         .padding(.bottom, 10)
         .sheet(isPresented: $isPresentingGiveKin) { [unowned session] in
             GiveKinScreen(session: session, isPresented: $isPresentingGiveKin)
@@ -607,9 +610,15 @@ extension ScanScreen {
         
         @ViewBuilder private func bottomBar() -> some View {
             HStack(alignment: .bottom) {
+                Spacer()
+                
                 LargeButton(
-                    title: Localized.Title.tipCard,
-                    image: .asset(.tipcard),
+                    title: Localized.Action.give,
+                    content: {
+                        Hex(stroke: 3)
+                            .frame(width: 32, height: 30, alignment: .center)
+                    },
+                    spacing: 8,
                     maxWidth: 80,
                     maxHeight: 80,
                     aligment: .bottomLeading,
@@ -619,12 +628,8 @@ extension ScanScreen {
                 Spacer()
                 
                 LargeButton(
-                    title: Localized.Action.giveKin,
-                    content: {
-                        Hex(stroke: 4)
-                            .frame(width: 54, height: 60, alignment: .center)
-                    },
-                    spacing: 8,
+                    title: Localized.Action.receive,
+                    image: .asset(.tipcard),
                     maxWidth: 80,
                     maxHeight: 80,
                     aligment: .bottom,
@@ -641,8 +646,9 @@ extension ScanScreen {
                     aligment: .bottomTrailing,
                     binding: .constant(false)
                 )
+                
+                Spacer()
             }
-            .padding([.trailing, .leading], 30)
             .padding(.bottom, 10)
         }
     }

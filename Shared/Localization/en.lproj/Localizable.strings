@@ -143,8 +143,11 @@
 /* Action to put the bill in the wallet */
 "action.putInWallet" = "Put in Wallet";
 
-/* Action to begin the 'Give Kin' flow */
-"action.giveKin" = "Give Kin";
+/* Action to give */
+"action.give" = "Give";
+
+/* Action to receive */
+"action.receive" = "Receive";
 
 /* Action to view account balance and transaction history */
 "action.balance" = "Balance";
@@ -251,8 +254,8 @@
 /* Title for unknown */
 "title.unknown" = "Unknown";
 
-/* Title for Give Kin */
-"title.giveKin" = "Give Kin";
+/* Title for Give Cash */
+"title.giveCash" = "Give Cash";
 
 /* Title for Get Cash */
 "title.getCash" = "Get Cash";

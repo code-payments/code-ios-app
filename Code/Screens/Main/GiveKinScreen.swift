@@ -43,7 +43,7 @@ struct GiveKinScreen: View {
     }
     
     private var title: String {
-        return Localized.Title.giveKin
+        return Localized.Title.giveCash
     }
     
     // MARK: - Init -
