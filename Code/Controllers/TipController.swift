@@ -68,7 +68,7 @@ class TipController: ObservableObject {
     }
     
     private func startPolling() {
-        self.poller = Poller(seconds: 20) { [weak self] in
+        self.poller = Poller(seconds: 5) { [weak self] in
             self?.poll()
         }
     }
