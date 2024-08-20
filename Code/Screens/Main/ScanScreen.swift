@@ -267,7 +267,7 @@ struct ScanScreen: View {
                         spacing: 8,
                         maxWidth: 80,
                         maxHeight: 80,
-                        aligment: .bottomLeading,
+                        aligment: .bottom,
                         binding: $isPresentingGiveKin
                     )
                     
@@ -335,6 +335,27 @@ struct ScanScreen: View {
                         }
                     }
                     
+                    if betaFlags.hasEnabled(.chatTab) {
+                        Spacer()
+                        
+                        LargeButton(
+                            title: Localized.Action.chat,
+                            image: .asset(.chat),
+                            maxWidth: 80,
+                            maxHeight: 80,
+                            aligment: .bottom,
+                            binding: $isPresentingHistory
+                        )
+                        .if(historyController.unreadCount > 0) { $0
+                            .badged(historyController.unreadCount, insets: .init(
+                                top: 22,
+                                leading: 0,
+                                bottom: 0,
+                                trailing: 8
+                            ))
+                        }
+                    }
+                    
                     Spacer()
                     
                     ToastContainer(toast: toast()) {
@@ -343,7 +364,7 @@ struct ScanScreen: View {
                             image: .asset(.history),
                             maxWidth: 80,
                             maxHeight: 80,
-                            aligment: .bottomTrailing,
+                            aligment: .bottom,
                             binding: $isPresentingHistory
                         )
                         .if(historyController.unreadCount > 0) { $0
@@ -621,7 +642,7 @@ extension ScanScreen {
                     spacing: 8,
                     maxWidth: 80,
                     maxHeight: 80,
-                    aligment: .bottomLeading,
+                    aligment: .bottom,
                     binding: .constant(false)
                 )
                 
@@ -643,7 +664,7 @@ extension ScanScreen {
                     image: .asset(.history),
                     maxWidth: 80,
                     maxHeight: 80,
-                    aligment: .bottomTrailing,
+                    aligment: .bottom,
                     binding: .constant(false)
                 )
                 

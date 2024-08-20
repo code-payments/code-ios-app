@@ -78,6 +78,7 @@ public enum Asset: String {
     case history
     case wallet
     case tipcard
+    case chat
     
     case checkmark
     case checkmarkLarge

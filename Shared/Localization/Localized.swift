@@ -28,6 +28,8 @@ internal enum Localized {
     internal static let cancel = Localized.tr("Localizable", "action.cancel")
     /// Cancel Send
     internal static let cancelSend = Localized.tr("Localizable", "action.cancelSend")
+    /// Chat
+    internal static let chat = Localized.tr("Localizable", "action.chat")
     /// Collect This Cash
     internal static let collectCash = Localized.tr("Localizable", "action.collectCash")
     /// Confirm

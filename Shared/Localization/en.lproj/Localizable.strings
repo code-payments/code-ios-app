@@ -149,6 +149,9 @@
 /* Action to receive */
 "action.receive" = "Receive";
 
+/* Action to chat */
+"action.chat" = "Chat";
+
 /* Action to view account balance and transaction history */
 "action.balance" = "Balance";
 

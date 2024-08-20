@@ -93,6 +93,7 @@ extension BetaFlags {
         case conversations
         case alternativeBubbles
         case kadoInApp
+        case chatTab
         
         var id: String {
             localizedTitle
@@ -118,6 +119,8 @@ extension BetaFlags {
                 return "Alternative Bubbles"
             case .kadoInApp:
                 return "Kado In-app Flow"
+            case .chatTab:
+                return "Chat Tab"
             }
         }
         
@@ -141,6 +144,8 @@ extension BetaFlags {
                 return "If enabled, conversation view will use an alternative look to timestamps in payment bubbles."
             case .kadoInApp:
                 return "If enabled, the Kado purchase experience will open in an in-app browser."
+            case .chatTab:
+                return "If enabled, a fourth chat tab will appear on the camera screen."
             }
         }
     }
