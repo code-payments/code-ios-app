@@ -261,11 +261,8 @@ struct ScanScreen: View {
                     
                     LargeButton(
                         title: Localized.Action.give,
-                        content: {
-                            Hex(stroke: 3)
-                                .frame(width: 32, height: 30, alignment: .center)
-                        },
-                        spacing: 8,
+                        image: .asset(.hex),
+                        spacing: 12,
                         maxWidth: 80,
                         maxHeight: 80,
                         aligment: .bottom,
@@ -293,6 +290,7 @@ struct ScanScreen: View {
                         LargeButton(
                             title: betaFlags.hasEnabled(.giveRequests) ? Localized.Title.requestCash : Localized.Action.receive,
                             image: .asset(.tipcard),
+                            spacing: 12,
                             maxWidth: 80,
                             maxHeight: 80,
                             aligment: .bottom
@@ -342,6 +340,7 @@ struct ScanScreen: View {
                         LargeButton(
                             title: Localized.Action.chat,
                             image: .asset(.chat),
+                            spacing: 12,
                             maxWidth: 80,
                             maxHeight: 80,
                             aligment: .bottom,
@@ -375,6 +374,7 @@ struct ScanScreen: View {
                         LargeButton(
                             title: Localized.Action.balance,
                             image: .asset(.history),
+                            spacing: 12,
                             maxWidth: 80,
                             maxHeight: 80,
                             aligment: .bottom,
@@ -648,11 +648,8 @@ extension ScanScreen {
                 
                 LargeButton(
                     title: Localized.Action.give,
-                    content: {
-                        Hex(stroke: 3)
-                            .frame(width: 32, height: 30, alignment: .center)
-                    },
-                    spacing: 8,
+                    image: .asset(.hex),
+                    spacing: 12,
                     maxWidth: 80,
                     maxHeight: 80,
                     aligment: .bottom,
@@ -664,6 +661,7 @@ extension ScanScreen {
                 LargeButton(
                     title: Localized.Action.receive,
                     image: .asset(.tipcard),
+                    spacing: 12,
                     maxWidth: 80,
                     maxHeight: 80,
                     aligment: .bottom,
@@ -675,6 +673,7 @@ extension ScanScreen {
                 LargeButton(
                     title: Localized.Action.balance,
                     image: .asset(.history),
+                    spacing: 12,
                     maxWidth: 80,
                     maxHeight: 80,
                     aligment: .bottom,

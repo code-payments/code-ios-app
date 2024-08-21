@@ -79,6 +79,7 @@ public enum Asset: String {
     case wallet
     case tipcard
     case chat
+    case hex
     
     case checkmark
     case checkmarkLarge
