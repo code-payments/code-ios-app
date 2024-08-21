@@ -248,7 +248,7 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            row(asset: .dollar, title: Localized.Action.buyMoreKin) {
+            row(asset: .dollar, title: Localized.Action.addCash) {
                 isPresentingBuyKin.toggle()
             }
             .sheet(isPresented: $isPresentingBuyKin) {
@@ -338,7 +338,7 @@ struct SettingsScreen: View {
             Image.asset(asset)
                 .frame(minWidth: 45)
             Text(title)
-                .lineLimit(1)
+                .multilineTextAlignment(.leading)
                 .truncationMode(.tail)
             Spacer()
             if let badge = badge {
@@ -352,7 +352,7 @@ struct SettingsScreen: View {
             Image.asset(asset)
                 .frame(minWidth: 45)
             Text(title)
-                .lineLimit(1)
+                .multilineTextAlignment(.leading)
                 .truncationMode(.tail)
             Spacer()
             if let badge = badge {
@@ -368,7 +368,7 @@ struct SettingsScreen: View {
             image
                 .frame(minWidth: 45)
             Toggle(title, isOn: isEnabled)
-                .lineLimit(1)
+                .multilineTextAlignment(.leading)
                 .truncationMode(.tail)
                 .padding(.trailing, 2)
         }

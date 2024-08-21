@@ -205,7 +205,7 @@ struct BalanceScreen: View {
                 .frame(maxWidth: .infinity)
             }
             
-            CodeButton(style: .filled, title: Localized.Action.buyMoreKin) {
+            CodeButton(style: .filled, title: Localized.Action.addCash) {
                 isShowingBuyMoreKin = true
             }
             .padding(.top, 15)

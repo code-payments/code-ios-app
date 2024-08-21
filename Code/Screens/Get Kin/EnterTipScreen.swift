@@ -212,7 +212,7 @@ struct EnterTipScreen: View {
     // MARK: - Appear -
     
     private func didAppear() {
-        ErrorReporting.breadcrumb(.buyMoreKinScreen)
+        ErrorReporting.breadcrumb(.enterTipScreen)
     }
     
     // MARK: - Body -

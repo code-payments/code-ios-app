@@ -72,7 +72,8 @@ public struct CapsuleButton: View {
                     
                     if let title {
                         Text(title)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                             .font(.appTextMedium)
                             .minimumScaleFactor(0.8)
                     }
@@ -101,7 +102,8 @@ public struct CapsuleButton: View {
                 }
                 .animation(nil, value: state)
                 .foregroundColor(Color.textMain)
-                .padding(.vertical, 16)
+                .frame(height: 57)
+//                .padding(.vertical, 16)
                 .padding(.horizontal, title == nil ? 16 : 20) // Stretch a little when we have text
             }
         }

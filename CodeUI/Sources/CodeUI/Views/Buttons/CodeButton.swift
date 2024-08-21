@@ -69,7 +69,8 @@ public struct CodeButton: View {
                                 .frame(width: 20, height: 20, alignment: .center)
                         }
                         Text(title)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
                             .minimumScaleFactor(0.8)
                     }
                     
@@ -87,6 +88,9 @@ public struct CodeButton: View {
                             .renderingMode(.template)
                             .foregroundColor(.textSuccess)
                         Text(text)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .minimumScaleFactor(0.8)
                             .foregroundColor(.textMain)
                     }
                 }

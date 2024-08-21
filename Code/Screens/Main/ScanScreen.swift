@@ -422,7 +422,6 @@ struct ScanScreen: View {
                                         sendState = .normal
                                     }
                                 }
-                                .fixedSize(horizontal: true, vertical: false)
                             }
                             
                             if let secondaryAction = session.billState.secondaryAction {
