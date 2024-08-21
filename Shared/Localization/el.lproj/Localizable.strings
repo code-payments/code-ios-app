@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Ενεργοποιήστε το Face ID";
 "action.enableTouchID" = "Ενεργοποιήστε το Touch ID";
 "action.exit" = "Έξοδος";
+"action.give" = "Δώσε \n";
 "action.giveKin" = "Δώστε Kin";
 "action.invite" = "Πρόσκληση";
 "action.invites" = "Προσκλήσεις";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Επικόλληση από Πρόχειρο";
 "action.postToConnect" = "Στείλε Μήνυμα για Σύνδεση του Λογαριασμού ";
 "action.putInWallet" = "Τοποθέτηση σε Πορτοφόλι";
+"action.receive" = "Λάβε ";
 "action.recoverExistingAccount" = "Ανάκτηση Υπάρχοντος Λογαριασμού";
 "action.remind" = "Υπενθύμιση";
 "action.removePhoneNumber" = "Κατάργηση Αριθμού Τηλεφώνου";
@@ -52,6 +54,7 @@
 "action.send" = "Αποστολή";
 "action.sendVerificationCode" = "Αποστολή Κωδικού Επαλήθευσης";
 "action.share" = "Κοινοποίηση";
+"action.shareAsURL" = "Κοινή χρήση ως URL(Ενιαίος Εντοπιστής Πόρων)";
 "action.shareDownloadLink" = "Μοιράσου το Σύνδεσμο Λήψης";
 "action.shareVideo" = "Μοιραστείτε Αυτό το Βίντεο";
 "action.showMyTipCard" = "Κοινοποίηση της Κάρτας Φιλοδωρημάτων μου";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Βρες ένα Φίλο να Ξεκινήσει στο Code";
 "title.getKin" = "Λάβετε Kin";
 "title.getMoreKin" = "Αποκτήστε Περισσότερα Kin";
+"title.giveCash" = "Δώσε Μετρητά ";
 "title.giveKin" = "Δώστε Kin";
 "title.insufficientFunds" = "Ανεπαρκή Κεφάλαια";
 "title.inviteFriend" = "Προσκαλέστε έναν Φίλο";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Δαπανημένα";
 "title.switchAccounts" = "Εναλλαγή Λογαριασμών";
 "title.termsOfService" = "Όροι Χρήσης";
+"title.tipCard" = "Συμβουλή ";
 "title.tipKin" = "Φιλοδώρημα Kin";
 "title.unknown" = "Άγνωστο";
 "title.updateRequired" = "Απαιτείται Ενημέρωση";

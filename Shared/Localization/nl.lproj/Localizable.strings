@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Gezichts-ID inschakelen";
 "action.enableTouchID" = "Touch-ID inschakelen";
 "action.exit" = "Afsluiten";
+"action.give" = "Geven";
 "action.giveKin" = "KIN schenken";
 "action.invite" = "Uitnodigen";
 "action.invites" = "Uitnodigingen";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Plakken van klembord";
 "action.postToConnect" = "Post om het account te verbinden";
 "action.putInWallet" = "In wallet plaatsen";
+"action.receive" = "Ontvangen";
 "action.recoverExistingAccount" = "Bestaand account herstellen";
 "action.remind" = "Herinneren";
 "action.removePhoneNumber" = "Telefoonnummer verwijderen";
@@ -52,6 +54,7 @@
 "action.send" = "Verzenden";
 "action.sendVerificationCode" = "Verificatiecode sturen";
 "action.share" = "Delen";
+"action.shareAsURL" = "Delen als URL";
 "action.shareDownloadLink" = "Downloadlink delen";
 "action.shareVideo" = "Deel deze video";
 "action.showMyTipCard" = "Toon mijn fooikaart";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Laat een vriend beginnen met Code";
 "title.getKin" = "Krijg Kin";
 "title.getMoreKin" = "Verkrijg meer Kin";
+"title.giveCash" = "Contant geven";
 "title.giveKin" = "KIN schenken";
 "title.insufficientFunds" = "Onvoldoende fondsen";
 "title.inviteFriend" = "Een vriend uitnodigen";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Besteed";
 "title.switchAccounts" = "Wisselen van account";
 "title.termsOfService" = "Servicevoorwaarden";
+"title.tipCard" = "Fooikaart";
 "title.tipKin" = "Fooi-kin";
 "title.unknown" = "Onbekend";
 "title.updateRequired" = "Update vereist";

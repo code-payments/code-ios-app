@@ -1,4 +1,4 @@
-"action.addCash" = "Bargeld mit einer Debitkarte hinzufügen\n";
+"action.addCash" = "Bargeld mit einer Debitkarte hinzufügen";
 "action.allowCameraAccess" = "Kamera-Zugriff erlauben";
 "action.allowContacts" = "Zugriff auf Kontakte zulassen";
 "action.allowPushNotifications" = "Push-Benachrichtigungen zulassen";
@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Face ID aktivieren";
 "action.enableTouchID" = "Touch ID aktivieren";
 "action.exit" = "Beenden";
+"action.give" = "Geben";
 "action.giveKin" = "Kin überweisen";
 "action.invite" = "Einladen";
 "action.invites" = "Einladen";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Aus Zwischenablage einfügen";
 "action.postToConnect" = "Posten, um das Konto zu verbinden";
 "action.putInWallet" = "In Wallet legen";
+"action.receive" = "Erhalten";
 "action.recoverExistingAccount" = "Bestehendes Konto wiederherstellen";
 "action.remind" = "Erinnern";
 "action.removePhoneNumber" = "Telefonnummer entfernen";
@@ -52,6 +54,7 @@
 "action.send" = "Senden";
 "action.sendVerificationCode" = "Verifizierungscode senden";
 "action.share" = "Teilen";
+"action.shareAsURL" = "Als URL teilen";
 "action.shareDownloadLink" = "Download-Link teilen";
 "action.shareVideo" = "Dieses Video teilen\n";
 "action.showMyTipCard" = "Meine Trinkgeldkarte anzeigen";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Gewinne einen deiner Freunde für Code";
 "title.getKin" = "Kin erhalten";
 "title.getMoreKin" = "Mehr Kin erhalten\n";
+"title.giveCash" = "Geld geben";
 "title.giveKin" = "Kin überweisen";
 "title.insufficientFunds" = "Unzureichende Mittel\n";
 "title.inviteFriend" = "Einen Freund einladen";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Ausgegeben";
 "title.switchAccounts" = "Konten wechseln";
 "title.termsOfService" = "Servicebedingungen";
+"title.tipCard" = "Tippkarte";
 "title.tipKin" = "Kin-Trinkgeld geben";
 "title.unknown" = "Unbekannt";
 "title.updateRequired" = "Aktualisierung erforderlich";

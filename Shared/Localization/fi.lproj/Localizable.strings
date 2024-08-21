@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Ota kasvotunnistus käyttöön";
 "action.enableTouchID" = "Ota kosketustunnistus käyttöön";
 "action.exit" = "Poistu";
+"action.give" = "Anna";
 "action.giveKin" = "Anna kinejä";
 "action.invite" = "Kutsu";
 "action.invites" = "Kutsut";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Liitä leikepöydältä";
 "action.postToConnect" = "Julkaise yhdistettävälle tilille";
 "action.putInWallet" = "Pane lompakkoon";
+"action.receive" = "Ota vastaan";
 "action.recoverExistingAccount" = "Palauta olemassa oleva tili";
 "action.remind" = "Muistuta";
 "action.removePhoneNumber" = "Poista puhelinnumero";
@@ -52,6 +54,7 @@
 "action.send" = "Lähetä";
 "action.sendVerificationCode" = "Lähetä vahvistuskoodi";
 "action.share" = "Jaa";
+"action.shareAsURL" = "Jaa URL-osoitteena";
 "action.shareDownloadLink" = "Jaa latauslinkki";
 "action.shareVideo" = "Jaa tämä video";
 "action.showMyTipCard" = "Näytä tippikorttini";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Auta kaveri alkuun Coden parissa";
 "title.getKin" = "Hae Kin";
 "title.getMoreKin" = "Hanki lisää kinejä";
+"title.giveCash" = "Anna rahaa";
 "title.giveKin" = "Antoi kinejä";
 "title.insufficientFunds" = "Riittämättömästi varoja";
 "title.inviteFriend" = "Kutsu ystävä";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Käytetty";
 "title.switchAccounts" = "Vaihda tilejä";
 "title.termsOfService" = "Palveluehdot";
+"title.tipCard" = "Tippikortti";
 "title.tipKin" = "Anna kinejä tippinä";
 "title.unknown" = "Tuntematon";
 "title.updateRequired" = "Päivitys vaaditaan";

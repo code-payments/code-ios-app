@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Aktivera Face ID";
 "action.enableTouchID" = "Aktivera Touch ID";
 "action.exit" = "Avsluta";
+"action.give" = "Ge";
 "action.giveKin" = "Ge Kin";
 "action.invite" = "Bjud in";
 "action.invites" = "Bjuder in";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Klistra in från Urklipp";
 "action.postToConnect" = "Posta för att koppla kontot";
 "action.putInWallet" = "Lägg i plånboken";
+"action.receive" = "Ta emot";
 "action.recoverExistingAccount" = "Återskapa befintligt konto";
 "action.remind" = "Påminn";
 "action.removePhoneNumber" = "Ta bort telefonnummer";
@@ -52,6 +54,7 @@
 "action.send" = "Skicka";
 "action.sendVerificationCode" = "Skicka verifieringskod";
 "action.share" = "Dela";
+"action.shareAsURL" = "Dela som webbadress";
 "action.shareDownloadLink" = "Dela nedladdningslänk";
 "action.shareVideo" = "Dela den här videon";
 "action.showMyTipCard" = "Visa mitt drickskort";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Få en vän att börja med Code";
 "title.getKin" = "Få Kin";
 "title.getMoreKin" = "Skaffa mer Kin";
+"title.giveCash" = "Ge pengar";
 "title.giveKin" = "Ge Kin";
 "title.insufficientFunds" = "Otillräckliga medel";
 "title.inviteFriend" = "Bjud in en vän";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Spenderat";
 "title.switchAccounts" = "Byt konto";
 "title.termsOfService" = "Villkor för tjänsten";
+"title.tipCard" = "Drickskort";
 "title.tipKin" = "Ge Kin i dricks";
 "title.unknown" = "Okänt";
 "title.updateRequired" = "Uppdatering krävs";

@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Mengaktifkan ID Wajah";
 "action.enableTouchID" = "Mengaktifkan ID Sentuhan";
 "action.exit" = "Keluar";
+"action.give" = "Beri";
 "action.giveKin" = "Beri Kin";
 "action.invite" = "Ajak";
 "action.invites" = "Ajakan";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Tampal Dari Papan Keratan";
 "action.postToConnect" = "Siar untuk Menghubungkan Akaun";
 "action.putInWallet" = "Masukkan dalam Dompet";
+"action.receive" = "Terima";
 "action.recoverExistingAccount" = "Pulihkan Akaun Sedia Ada";
 "action.remind" = "Ingatkan";
 "action.removePhoneNumber" = "Singkirkan Nombor Telefon";
@@ -52,6 +54,7 @@
 "action.send" = "Hantar";
 "action.sendVerificationCode" = "Hantar Kod Pengesahan";
 "action.share" = "Kongsi";
+"action.shareAsURL" = "Kongsikan sebagai URL";
 "action.shareDownloadLink" = "Kongsi Pautan Muat Turun";
 "action.shareVideo" = "Kongsi Video Ini";
 "action.showMyTipCard" = "Tunjuk Kad Tip Saya";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Dapatkan Rakan untuk Bermula menggunakan Code";
 "title.getKin" = "Dapatkan Kin";
 "title.getMoreKin" = "Dapatkan Lebih Banyak Kin";
+"title.giveCash" = "Beri Wang";
 "title.giveKin" = "Beri Kin";
 "title.insufficientFunds" = "Dana Tidak Mencukupi";
 "title.inviteFriend" = "Ajak Kawan";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Perbelanjaan";
 "title.switchAccounts" = "Tukar Akaun";
 "title.termsOfService" = "Syarat Perkhidmatan";
+"title.tipCard" = "Kad Petua";
 "title.tipKin" = "Tip Kin";
 "title.unknown" = "Tidak diketahui";
 "title.updateRequired" = "Kemas Kini Diperlukan";

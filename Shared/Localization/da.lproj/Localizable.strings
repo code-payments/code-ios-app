@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Aktiver Face ID";
 "action.enableTouchID" = "Aktiver Touch ID ";
 "action.exit" = "Forlad";
+"action.give" = "Giv";
 "action.giveKin" = "Giv Kin";
 "action.invite" = "Inviter";
 "action.invites" = "Invitationer";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Indsæt fra udklipsholder";
 "action.postToConnect" = "Slå noget op for at forbinde konto";
 "action.putInWallet" = "Læg i Wallet";
+"action.receive" = "Modtag";
 "action.recoverExistingAccount" = "Genskab eksisterende konto";
 "action.remind" = "Husk";
 "action.removePhoneNumber" = "Fjern telefonnummer";
@@ -52,6 +54,7 @@
 "action.send" = "Send";
 "action.sendVerificationCode" = "Send verifikationskode";
 "action.share" = "Del";
+"action.shareAsURL" = "Del som en URL";
 "action.shareDownloadLink" = "Del downloadlink";
 "action.shareVideo" = "Del denne video";
 "action.showMyTipCard" = "Vis mit drikkepengekort";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Få en ven i gang med Code";
 "title.getKin" = "Få Kin";
 "title.getMoreKin" = "Få flere Kin";
+"title.giveCash" = "Giv kontanter";
 "title.giveKin" = "Giv Kin";
 "title.insufficientFunds" = "Ikke nok penge";
 "title.inviteFriend" = "Inviter en ven";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Brugt";
 "title.switchAccounts" = "Skift konti";
 "title.termsOfService" = "Servicebetingelser";
+"title.tipCard" = "Tipkort";
 "title.tipKin" = "Giv drikkepenge i Kin";
 "title.unknown" = "Ukendt ";
 "title.updateRequired" = "Opdatering nødvendig ";

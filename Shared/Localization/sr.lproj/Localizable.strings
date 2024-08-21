@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Омогући Face ID  ";
 "action.enableTouchID" = "Омогући Touch ID  ";
 "action.exit" = "Izađi";
+"action.give" = "Дај";
 "action.giveKin" = "Daj Kin";
 "action.invite" = "Pozovi";
 "action.invites" = "Pozivi";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Nalepi iz ostave";
 "action.postToConnect" = "Поставите објаву да повежете налог";
 "action.putInWallet" = "Stavi u novčanik";
+"action.receive" = "Прими";
 "action.recoverExistingAccount" = "Oporavi postojeći nalog";
 "action.remind" = "Podseti";
 "action.removePhoneNumber" = "Ukloni broj telefona";
@@ -52,6 +54,7 @@
 "action.send" = "Пошаљи";
 "action.sendVerificationCode" = "Pošalji verifikacioni kod";
 "action.share" = "Подели";
+"action.shareAsURL" = "Дели као URL адресу";
 "action.shareDownloadLink" = "Подели везу за преузимање";
 "action.shareVideo" = "Дели овај видео-запис";
 "action.showMyTipCard" = "Покажи моју картицу за напојнице";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Нека пријатељ започне са Кодом";
 "title.getKin" = "Прибави Кин";
 "title.getMoreKin" = "Набавите још кинова";
+"title.giveCash" = "Давање готовине";
 "title.giveKin" = "Daj Kin";
 "title.insufficientFunds" = "Нема довољно средстава";
 "title.inviteFriend" = "Pozovi prijatelja";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Потрошено";
 "title.switchAccounts" = "Promeni naloge";
 "title.termsOfService" = "Uslovi korišcenja usluge";
+"title.tipCard" = "Картица са саветом";
 "title.tipKin" = "Дај напојницу у виду Кина";
 "title.unknown" = "Непознато";
 "title.updateRequired" = "Potrebno je ažuriranje";

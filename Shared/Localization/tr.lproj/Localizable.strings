@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Face ID'yi etkinleştir";
 "action.enableTouchID" = "Touch ID'yi etkinleştir";
 "action.exit" = "Çıkış";
+"action.give" = "Ver";
 "action.giveKin" = "Kin Ver";
 "action.invite" = "Davet Et";
 "action.invites" = "Davetler";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Panodan Yapıştır";
 "action.postToConnect" = "Hesabı Bağlamak için Gönder";
 "action.putInWallet" = "Cüzdana Yerleştir";
+"action.receive" = "Al";
 "action.recoverExistingAccount" = "Mevcut Hesabı Kurtar";
 "action.remind" = "Hatırlat";
 "action.removePhoneNumber" = "Telefon Numarasını Kaldır";
@@ -52,6 +54,7 @@
 "action.send" = "Gönder";
 "action.sendVerificationCode" = "Doğrulama Kodu Gönder";
 "action.share" = "Paylaş";
+"action.shareAsURL" = "URL olarak paylaş";
 "action.shareDownloadLink" = "İndirme Bağlantısı Paylaş";
 "action.shareVideo" = "Bu Videoyu Paylaş";
 "action.showMyTipCard" = "Bahşiş Kartımı Göster";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Bir Arkadaşınızı Code'a başlatın";
 "title.getKin" = "Kin Al";
 "title.getMoreKin" = "Daha Fazla Kin Al";
+"title.giveCash" = "Nakit Ver";
 "title.giveKin" = "Kin Ver";
 "title.insufficientFunds" = "Yetersiz Bakiye";
 "title.inviteFriend" = "Arkadaşını Davet Et";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Harcanan";
 "title.switchAccounts" = "Hesap Değiştir";
 "title.termsOfService" = "Hizmet Şartları";
+"title.tipCard" = "Bahşiş Kartı";
 "title.tipKin" = "Bahşiş Olarak Kin Ver";
 "title.unknown" = "Bilinmeyen";
 "title.updateRequired" = "Güncelleme Gerekli";

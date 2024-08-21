@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Разрешете лицево разпознаване";
 "action.enableTouchID" = "Разрешете разпознаване чрез докосване";
 "action.exit" = "Изход ";
+"action.give" = "Дайте";
 "action.giveKin" = "Задай член на семейството";
 "action.invite" = "Покани ";
 "action.invites" = "Покани ";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Постави от клипборда";
 "action.postToConnect" = "Публикувайте за да свържете акаунт ";
 "action.putInWallet" = "Постави в портфейл ";
+"action.receive" = "Получете";
 "action.recoverExistingAccount" = "Възстанови съществуващ профил ";
 "action.remind" = "Напомняне ";
 "action.removePhoneNumber" = "Премахване на телефонен номер ";
@@ -52,6 +54,7 @@
 "action.send" = "Изпращане ";
 "action.sendVerificationCode" = "Изпрати код за потвърждение ";
 "action.share" = "Сподели";
+"action.shareAsURL" = "Споделете като URL";
 "action.shareDownloadLink" = "Споделете линк за сваляне";
 "action.shareVideo" = "Споделете този видео клип";
 "action.showMyTipCard" = "Покажи моята карта за бакшиши";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Вземете \"Приятел се присъедини\" към Code";
 "title.getKin" = "Получаване на средства в Kin";
 "title.getMoreKin" = "Получавайте повече Kin";
+"title.giveCash" = "Дайте кеш";
 "title.giveKin" = "Посочете член на семейството ";
 "title.insufficientFunds" = "Недостатъчна наличност ";
 "title.inviteFriend" = "Покани приятел";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Похарчено";
 "title.switchAccounts" = "Смени акаунти ";
 "title.termsOfService" = "Условия на ползване ";
+"title.tipCard" = "Карта за бакшиши";
 "title.tipKin" = "Бакшиш Kin";
 "title.unknown" = "Неизвестен";
 "title.updateRequired" = "Необходимо е обновяване ";

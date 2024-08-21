@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Povolit Face ID";
 "action.enableTouchID" = "Povolit Touch ID";
 "action.exit" = "Odejít";
+"action.give" = "Dát";
 "action.giveKin" = "Darovat kin";
 "action.invite" = "Přizvat";
 "action.invites" = "Pozvánky";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Vložit z vývěsky";
 "action.postToConnect" = "Zveřejnit příspěvek pro připojení účtu";
 "action.putInWallet" = "Vložit do peněženky";
+"action.receive" = "Přijmout";
 "action.recoverExistingAccount" = "Obnovit stávající účet";
 "action.remind" = "Připomenout";
 "action.removePhoneNumber" = "Odstranit telefonní číslo";
@@ -52,6 +54,7 @@
 "action.send" = "Odeslat";
 "action.sendVerificationCode" = "Zaslat ověřovací kód";
 "action.share" = "Sdílet";
+"action.shareAsURL" = "Sdílet jako adresu URL";
 "action.shareDownloadLink" = "Sdílet odkaz stažení";
 "action.shareVideo" = "Sdílet toto video";
 "action.showMyTipCard" = "Ukázat kartu spropitného";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Začněte kamarádem používat Code";
 "title.getKin" = "Získat Kin";
 "title.getMoreKin" = "Získejte další Kin";
+"title.giveCash" = "Dát hotovost";
 "title.giveKin" = "Darovat kin";
 "title.insufficientFunds" = "Nedostatek prostředků";
 "title.inviteFriend" = "Přizvat přítele";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Utraceno";
 "title.switchAccounts" = "Přepnout účet";
 "title.termsOfService" = "Všeobecné obchodní podmínky";
+"title.tipCard" = "Karta tipu";
 "title.tipKin" = "Dát Kin spropitné";
 "title.unknown" = "Neznámé";
 "title.updateRequired" = "Je nutná aktualizace";

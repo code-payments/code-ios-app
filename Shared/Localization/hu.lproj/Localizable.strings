@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Arc azonosítás bekapcsolása";
 "action.enableTouchID" = "Érintéses azonosítás bekapcsolása";
 "action.exit" = "Kilépés";
+"action.give" = "Adj";
 "action.giveKin" = "Kin adása";
 "action.invite" = "Meghív";
 "action.invites" = "Meghívottak";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Beillesztés a vágólapról";
 "action.postToConnect" = "Írj bejegyzést, hogy csatlakoztasd a fiókodat";
 "action.putInWallet" = "Walletba helyez";
+"action.receive" = "Kapj";
 "action.recoverExistingAccount" = "Meglévő fiók helyreállítása";
 "action.remind" = "Emlékeztet";
 "action.removePhoneNumber" = "Telefonszám eltávolítása";
@@ -52,6 +54,7 @@
 "action.send" = "Küldés";
 "action.sendVerificationCode" = "Ellenőrző kód küldése";
 "action.share" = "Megosztás";
+"action.shareAsURL" = "Megosztás URL-ként";
 "action.shareDownloadLink" = "Letöltési hivatkozás megosztása";
 "action.shareVideo" = "Ossza meg ezt a videót";
 "action.showMyTipCard" = "Borravalós kártyám mutatása";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Szerezz egy barátot elkezdte használni a Code-ot";
 "title.getKin" = "Szerezz Kint";
 "title.getMoreKin" = "Szerezzen több Kin-t";
+"title.giveCash" = "Adj készpénzt";
 "title.giveKin" = "Kin felvétele";
 "title.insufficientFunds" = "Nincs elég tőke";
 "title.inviteFriend" = "Hívd meg egy barátod";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Elköltött";
 "title.switchAccounts" = "Fiókcsere";
 "title.termsOfService" = "Szolgáltatási feltételek";
+"title.tipCard" = "Borravalós kártya";
 "title.tipKin" = "Kin borravaló";
 "title.unknown" = "Ismeretlen";
 "title.updateRequired" = "Frissítés szükséges";

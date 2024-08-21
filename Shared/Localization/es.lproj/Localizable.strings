@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Habilitar identificación facial";
 "action.enableTouchID" = "Habilitar identificación táctil";
 "action.exit" = "Salir";
+"action.give" = "Dar";
 "action.giveKin" = "Dar Kin";
 "action.invite" = "Invitar";
 "action.invites" = "Invitaciones";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Pegar desde el portapapeles";
 "action.postToConnect" = "Publica para conectar la cuenta";
 "action.putInWallet" = "Guardar en el monedero";
+"action.receive" = "Recibir";
 "action.recoverExistingAccount" = "Recuperar cuenta existente";
 "action.remind" = "Recordar";
 "action.removePhoneNumber" = "Eliminar número de teléfono";
@@ -52,6 +54,7 @@
 "action.send" = "Enviar";
 "action.sendVerificationCode" = "Enviar código de verificación";
 "action.share" = "Compartir";
+"action.shareAsURL" = "Compartir como URL";
 "action.shareDownloadLink" = "Compartir enlace de descarga";
 "action.shareVideo" = "Compartir este vídeo";
 "action.showMyTipCard" = "Mostrar mi tarjeta de propinas";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Inicia a un amigo en Code";
 "title.getKin" = "Obtener Kin";
 "title.getMoreKin" = "Obtenga más Kin";
+"title.giveCash" = "Dar efectivo";
 "title.giveKin" = "Dar Kin";
 "title.insufficientFunds" = "Fondos insuficientes";
 "title.inviteFriend" = "Invitar a un amigo";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Gastado";
 "title.switchAccounts" = "Cambiar de cuenta";
 "title.termsOfService" = "Términos y condiciones";
+"title.tipCard" = "Tarjeta de propina";
 "title.tipKin" = "Dar Kin de propina";
 "title.unknown" = "Desconocido";
 "title.updateRequired" = "Actualización requerida";

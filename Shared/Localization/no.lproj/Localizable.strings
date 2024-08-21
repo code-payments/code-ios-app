@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Aktiver Face ID";
 "action.enableTouchID" = "Aktiver Touch ID";
 "action.exit" = "Avslutt";
+"action.give" = "Gi";
 "action.giveKin" = "Gi Kin";
 "action.invite" = "Inviter";
 "action.invites" = "Invitasjoner";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Lim inn fra utklippstavlen";
 "action.postToConnect" = "Skriv et innlegg for å koble til kontoen";
 "action.putInWallet" = "Legg i lommeboken";
+"action.receive" = "Motta";
 "action.recoverExistingAccount" = "Gjenopprett eksisterende konto";
 "action.remind" = "Påminn";
 "action.removePhoneNumber" = "Fjern telefonnummer";
@@ -52,6 +54,7 @@
 "action.send" = "Send";
 "action.sendVerificationCode" = "Send bekreftelseskode";
 "action.share" = "Del";
+"action.shareAsURL" = "Del som nettadresse";
 "action.shareDownloadLink" = "Del nedlastingslenke";
 "action.shareVideo" = "Del denne videoen";
 "action.showMyTipCard" = "Vis tipskortet mitt";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Få en venn i gang med Code";
 "title.getKin" = "Skaff deg Kin";
 "title.getMoreKin" = "Få flere Kin";
+"title.giveCash" = "Gi kontanter";
 "title.giveKin" = "Gi Kin";
 "title.insufficientFunds" = "Utilstrekkelige midler";
 "title.inviteFriend" = "Inviter en venn";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Brukt";
 "title.switchAccounts" = "Bytt konto";
 "title.termsOfService" = "Brukervilkår";
+"title.tipCard" = "Tipskort";
 "title.tipKin" = "Tips Kin";
 "title.unknown" = "Ukjent";
 "title.updateRequired" = "Oppdatering kreves";

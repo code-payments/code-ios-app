@@ -22,6 +22,7 @@
 "action.enableFaceID" = "הפוך Face ID לזמין";
 "action.enableTouchID" = "הפוך Touch ID לזמין";
 "action.exit" = "יציאה";
+"action.give" = "תן";
 "action.giveKin" = "תן קין";
 "action.invite" = "הזמן";
 "action.invites" = "הזמנות";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "הדבק מהלוח";
 "action.postToConnect" = "יש להעלות פוסט כדי לחבר את החשבון";
 "action.putInWallet" = "שים בארנק";
+"action.receive" = "קבל";
 "action.recoverExistingAccount" = "שחזר חשבון קיים";
 "action.remind" = "הזכר";
 "action.removePhoneNumber" = "הסר מספר טלפון";
@@ -52,6 +54,7 @@
 "action.send" = "שליחה";
 "action.sendVerificationCode" = "שלח קוד אימות";
 "action.share" = "שיתוף";
+"action.shareAsURL" = "שיתוף כ-URL";
 "action.shareDownloadLink" = "שתף קישור להורדה";
 "action.shareVideo" = "שתפו סרטון זה";
 "action.showMyTipCard" = "הצג את כרטיס הטיפים שלי";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "עודד חבר להתחיל להשתמש ב-Code";
 "title.getKin" = "השגת Kin";
 "title.getMoreKin" = "השיגו עוד Kin";
+"title.giveCash" = "תן מזומן";
 "title.giveKin" = "העבר קין";
 "title.insufficientFunds" = "אין מספיק כספים";
 "title.inviteFriend" = "הזמן חבר";
@@ -359,6 +363,7 @@
 "title.spentKin" = "הוצאו";
 "title.switchAccounts" = "החלף חשבון";
 "title.termsOfService" = "תנאי שימוש";
+"title.tipCard" = "כרטיס טיפ";
 "title.tipKin" = "מתן Kin כטיפ";
 "title.unknown" = "לא ידוע";
 "title.updateRequired" = "נדרש עדכון";

@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Activează Face ID";
 "action.enableTouchID" = "Activează Touch ID";
 "action.exit" = "Ieșire";
+"action.give" = "Trimite";
 "action.giveKin" = "Dă Kin";
 "action.invite" = "Invită";
 "action.invites" = "Invitații";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Lipește din clipboard";
 "action.postToConnect" = "Postează pentru a conecta contul";
 "action.putInWallet" = "Pune în portofel";
+"action.receive" = "Primește";
 "action.recoverExistingAccount" = "Recuperează un cont existent";
 "action.remind" = "Reamintește";
 "action.removePhoneNumber" = "Elimină numărul de telefon";
@@ -52,6 +54,7 @@
 "action.send" = "Trimite";
 "action.sendVerificationCode" = "Trimite verificarea pentru Code";
 "action.share" = "Distribuie";
+"action.shareAsURL" = "Distribuie ca adresă URL";
 "action.shareDownloadLink" = "Partajați link-ul de descărcare";
 "action.shareVideo" = "Partajează acest videoclip";
 "action.showMyTipCard" = "Arată cardul meu de bacșiș";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Ajutați un prieten să înceapă cu Code";
 "title.getKin" = "Obține kin";
 "title.getMoreKin" = "Obține mai mulţi Kin";
+"title.giveCash" = "Trimite cash";
 "title.giveKin" = "Trimite Kin";
 "title.insufficientFunds" = "Fonduri insuficiente";
 "title.inviteFriend" = "Invită un prieten";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Cheltuiți";
 "title.switchAccounts" = "Folosește alt cont";
 "title.termsOfService" = "Termeni de utilizare";
+"title.tipCard" = "Card de bacșiș";
 "title.tipKin" = "Trimite bacșiș monede Kin";
 "title.unknown" = "Necunoscut";
 "title.updateRequired" = "Este necesară actualizarea";

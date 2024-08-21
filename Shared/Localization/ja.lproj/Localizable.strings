@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Face IDを有効にする";
 "action.enableTouchID" = "Touch IDを有効にする";
 "action.exit" = "終了する";
+"action.give" = "渡す";
 "action.giveKin" = "Kinを与える";
 "action.invite" = "招待";
 "action.invites" = "招待";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "クリップボードから貼り付ける";
 "action.postToConnect" = "投稿してアカウントを接続";
 "action.putInWallet" = "ウォレットに入れる";
+"action.receive" = "受け取る";
 "action.recoverExistingAccount" = "既存のアカウントを復元する";
 "action.remind" = "リマインド";
 "action.removePhoneNumber" = "電話番号を削除する";
@@ -52,6 +54,7 @@
 "action.send" = "送信";
 "action.sendVerificationCode" = "確認コードを送信する";
 "action.share" = "共有";
+"action.shareAsURL" = "URLとして共有する";
 "action.shareDownloadLink" = "ダウンロードリンクを共有";
 "action.shareVideo" = "この動画をシェアする";
 "action.showMyTipCard" = "チップカードを表示する";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "友だちにCodeを始めさせる";
 "title.getKin" = "Kinを入手";
 "title.getMoreKin" = "Kinをもっと入手する";
+"title.giveCash" = "現金を渡す";
 "title.giveKin" = "Kinを与える";
 "title.insufficientFunds" = "資金不足";
 "title.inviteFriend" = "友達を招待する";
@@ -359,6 +363,7 @@
 "title.spentKin" = "使用済み";
 "title.switchAccounts" = "アカウントを切り替える";
 "title.termsOfService" = "利用規約";
+"title.tipCard" = "チップカード";
 "title.tipKin" = "Kinにチップを支払う";
 "title.unknown" = "不明";
 "title.updateRequired" = "更新が必要です";

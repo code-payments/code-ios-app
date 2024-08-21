@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Включить Face ID";
 "action.enableTouchID" = "Включить Touch ID";
 "action.exit" = "Выйти";
+"action.give" = "Дать";
 "action.giveKin" = "Дать Kin";
 "action.invite" = "Пригласить";
 "action.invites" = "Приглашения";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Вставить из буфера обмена";
 "action.postToConnect" = "Опубликуйте пост, чтобы подключить аккаунт";
 "action.putInWallet" = "Положить в кошелек";
+"action.receive" = "Получить";
 "action.recoverExistingAccount" = "Восстановить существующую учетную запись";
 "action.remind" = "Напомнить";
 "action.removePhoneNumber" = "Удалить номер телефона";
@@ -52,6 +54,7 @@
 "action.send" = "Отправить";
 "action.sendVerificationCode" = "Отправить код проверки";
 "action.share" = "Поделиться";
+"action.shareAsURL" = "Поделиться в виде URL";
 "action.shareDownloadLink" = "Поделитесь ссылкой для загрузки";
 "action.shareVideo" = "Поделитесь этим видео";
 "action.showMyTipCard" = "Показать мою карту чаевых";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Пригласите друга начать пользоваться Code";
 "title.getKin" = "Получить Kin";
 "title.getMoreKin" = "Получить больше Kin";
+"title.giveCash" = "Дать деньги";
 "title.giveKin" = "Дал(-а) Kin";
 "title.insufficientFunds" = "Недостаточно средств";
 "title.inviteFriend" = "Пригласить друга";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Потрачено";
 "title.switchAccounts" = "Переключить учетные записи";
 "title.termsOfService" = "Условия пользования";
+"title.tipCard" = "Карточка чаевых";
 "title.tipKin" = "Дать чаевые в кин";
 "title.unknown" = "Неизвестный";
 "title.updateRequired" = "Требуется обновление";

@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Activez Face ID";
 "action.enableTouchID" = "Activez Touch ID";
 "action.exit" = "Quitter";
+"action.give" = "Donner";
 "action.giveKin" = "Donner Kin";
 "action.invite" = "Inviter";
 "action.invites" = "Invitations";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Coller depuis le presse-papiers";
 "action.postToConnect" = "Publier sur le compte connecté";
 "action.putInWallet" = "Mettre dans le portefeuille";
+"action.receive" = "Recevoir";
 "action.recoverExistingAccount" = "Récupérer le compte existant";
 "action.remind" = "Rappeler";
 "action.removePhoneNumber" = "Supprimer le numéro de téléphone";
@@ -52,6 +54,7 @@
 "action.send" = "Envoyer";
 "action.sendVerificationCode" = "Envoyer le code de vérification";
 "action.share" = "Partager";
+"action.shareAsURL" = "Partager comme URL";
 "action.shareDownloadLink" = "Partagez le lien de téléchargement";
 "action.shareVideo" = "Partager cette vidéo";
 "action.showMyTipCard" = "Afficher ma carte de pourboires";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Invitez un ami à s'inscrire sur Code";
 "title.getKin" = "Obtenir des Kin";
 "title.getMoreKin" = "Obtenir plus de Kin";
+"title.giveCash" = "Donner de l'argent";
 "title.giveKin" = "Donner Kin";
 "title.insufficientFunds" = "Fonds insuffisants";
 "title.inviteFriend" = "Inviter un ami";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Dépensé";
 "title.switchAccounts" = "Échanger des comptes";
 "title.termsOfService" = "Conditions d'utilisation";
+"title.tipCard" = "Carte conseil";
 "title.tipKin" = "Donner un pourboire en Kin";
 "title.unknown" = "Inconnu";
 "title.updateRequired" = "Mise à jour requise";

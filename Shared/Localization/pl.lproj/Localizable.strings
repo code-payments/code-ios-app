@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Włącz funkcję Face ID";
 "action.enableTouchID" = "Włącz funkcję Touch ID";
 "action.exit" = "Wyjdź";
+"action.give" = "Podaruj";
 "action.giveKin" = "Daj Kin";
 "action.invite" = "Zaproś";
 "action.invites" = "Zaproszenia";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Wklej ze schowka";
 "action.postToConnect" = "Wyślij post, aby podłączyć konto";
 "action.putInWallet" = "Umieść w portfelu";
+"action.receive" = "Otrzymaj";
 "action.recoverExistingAccount" = "Odzyskaj istniejące konto";
 "action.remind" = "Przypomnij";
 "action.removePhoneNumber" = "Usuń numer telefonu";
@@ -52,6 +54,7 @@
 "action.send" = "Wyślij";
 "action.sendVerificationCode" = "Wyślij kod weryfikacyjny";
 "action.share" = "Udostępnij";
+"action.shareAsURL" = "Udostępnij URL";
 "action.shareDownloadLink" = "Udostępnij odnośnik do pobrania";
 "action.shareVideo" = "Udostępnij ten film";
 "action.showMyTipCard" = "Pokaż moją kartę napiwków";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Poleć znajomemu aplikację Code";
 "title.getKin" = "Uzyskaj kin";
 "title.getMoreKin" = "Zdobądź więcej Kin";
+"title.giveCash" = "Podaruj gotówkę";
 "title.giveKin" = "Daj Kin";
 "title.insufficientFunds" = "Niewystarczające środki";
 "title.inviteFriend" = "Zaproś znajomego";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Wydano";
 "title.switchAccounts" = "Przełącz konta";
 "title.termsOfService" = "Warunki świadczenia usług";
+"title.tipCard" = "Karta napiwkowa";
 "title.tipKin" = "Napiwek Kin";
 "title.unknown" = "Nieznane";
 "title.updateRequired" = "Wymagana aktualizacja";

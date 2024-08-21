@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Увімкнути Face ID";
 "action.enableTouchID" = "Увімкнути Touch ID";
 "action.exit" = "Вийти";
+"action.give" = "Дати";
 "action.giveKin" = "Дати Кін";
 "action.invite" = "Запросити";
 "action.invites" = "Запрошення";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Вставити з буфера обміну";
 "action.postToConnect" = "Зробіть публікацію, щоб прив’язати акаунт";
 "action.putInWallet" = "Покласти в гаманець";
+"action.receive" = "Отримати";
 "action.recoverExistingAccount" = "Відновити існуючий акаунт";
 "action.remind" = "Нагадати";
 "action.removePhoneNumber" = "Видалити номер телефону";
@@ -52,6 +54,7 @@
 "action.send" = "Надіслати";
 "action.sendVerificationCode" = "Надіслати код підтвердження";
 "action.share" = "Поділитися";
+"action.shareAsURL" = "Поділитися як URL-адресою";
 "action.shareDownloadLink" = "Поділитись посиланням на завантаження";
 "action.shareVideo" = "Поділитися цим відео";
 "action.showMyTipCard" = "Показати мою картку для чайових";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Запросіть друга в Code";
 "title.getKin" = "Отримати Kin";
 "title.getMoreKin" = "Отримати більше Kin";
+"title.giveCash" = "Дати готівку";
 "title.giveKin" = "Дати Kin";
 "title.insufficientFunds" = "Недостатньо коштів";
 "title.inviteFriend" = "Запросити друга";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Витрачено";
 "title.switchAccounts" = "Змінити акаунт";
 "title.termsOfService" = "Умови обслуговування";
+"title.tipCard" = "Картка з підказками";
 "title.tipKin" = "Дати чайові у Kin";
 "title.unknown" = "Невідомо";
 "title.updateRequired" = "Потрібне оновлення";

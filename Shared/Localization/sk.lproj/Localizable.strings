@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Povoliť Face ID";
 "action.enableTouchID" = "Povoliť Touch ID";
 "action.exit" = "Odísť";
+"action.give" = "Dať";
 "action.giveKin" = "Dať Kin";
 "action.invite" = "Pozvať";
 "action.invites" = "Pozýva";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Prilepiť zo schránky";
 "action.postToConnect" = "Uverejniť pre prepojenie účtu";
 "action.putInWallet" = "Vložiť do peňaženky";
+"action.receive" = "Dostať";
 "action.recoverExistingAccount" = "Obnoviť existujúci účet";
 "action.remind" = "Pripomenúť";
 "action.removePhoneNumber" = "Odstrániť telefónne číslo";
@@ -52,6 +54,7 @@
 "action.send" = "Odoslať";
 "action.sendVerificationCode" = "Poslať overovací kód";
 "action.share" = "Zdieľať";
+"action.shareAsURL" = "Zdieľať ako adresu URL";
 "action.shareDownloadLink" = "Zdieľať odkaz na stiahnutie";
 "action.shareVideo" = "Zdieľajte toto video";
 "action.showMyTipCard" = "Zobraziť moju tipovaciu kartu";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Začnite používať kód priateľa";
 "title.getKin" = "Získajte Kin";
 "title.getMoreKin" = "Získajte viac Kinov";
+"title.giveCash" = "Dať hotovosť";
 "title.giveKin" = "Dať Kin";
 "title.insufficientFunds" = "Nedostatok prostriedkov";
 "title.inviteFriend" = "Pozvať priateľa";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Použité";
 "title.switchAccounts" = "Prepnúť účty";
 "title.termsOfService" = "Podmienky služby";
+"title.tipCard" = "Karta tringeltov";
 "title.tipKin" = "Tipovať kin";
 "title.unknown" = "Neznámy";
 "title.updateRequired" = "Vyžaduje sa aktualizácia";

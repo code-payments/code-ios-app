@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Abilita Face ID";
 "action.enableTouchID" = "Abilita Touch ID";
 "action.exit" = "Esci";
+"action.give" = "Dare";
 "action.giveKin" = "Dona Kin";
 "action.invite" = "Invita";
 "action.invites" = "Inviti";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Incolla dagli appunti";
 "action.postToConnect" = "Pubblica per Connettere l'Account";
 "action.putInWallet" = "Metti nel portafoglio";
+"action.receive" = "Ricevere";
 "action.recoverExistingAccount" = "Recupera un account esistente";
 "action.remind" = "Ricorda";
 "action.removePhoneNumber" = "Rimuovi numero di telefono";
@@ -52,6 +54,7 @@
 "action.send" = "Invia";
 "action.sendVerificationCode" = "Invia codice di verifica";
 "action.share" = "Condividi";
+"action.shareAsURL" = "Condividi come URL";
 "action.shareDownloadLink" = "Condividi link per il download";
 "action.shareVideo" = "Condividi questo video";
 "action.showMyTipCard" = "Moatra la mia Tip Card";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Fai iniziare un amico su Code";
 "title.getKin" = "Ottieni Kin";
 "title.getMoreKin" = "Ottieni più Kin";
+"title.giveCash" = "Dare denaro";
 "title.giveKin" = "Dona Kin";
 "title.insufficientFunds" = "Fondi insufficienti";
 "title.inviteFriend" = "Invita un amico";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Spesi";
 "title.switchAccounts" = "Cambia account";
 "title.termsOfService" = "Termini di servizio";
+"title.tipCard" = "Carta suggerimento";
 "title.tipKin" = "Mancia Kin";
 "title.unknown" = "Sconosciuto";
 "title.updateRequired" = "Aggiornamento richiesto";

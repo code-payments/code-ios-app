@@ -22,6 +22,7 @@
 "action.enableFaceID" = "تفعيل خاصية التعرّف على الوجه";
 "action.enableTouchID" = "تفعيل خاصية التعرّف على بصمة الإصبع";
 "action.exit" = "الخروج";
+"action.give" = "أعط";
 "action.giveKin" = "منح الأموال";
 "action.invite" = "الدعوة";
 "action.invites" = "الدعوات";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "اللصق من الحافظة";
 "action.postToConnect" = "انشر لربط حساب ";
 "action.putInWallet" = "الوضع في المحفظة";
+"action.receive" = "استقبل";
 "action.recoverExistingAccount" = "استعادة الحساب الموجود بالفعل";
 "action.remind" = "التذكير";
 "action.removePhoneNumber" = "حذف رقم الهاتف";
@@ -52,6 +54,7 @@
 "action.send" = "تم الإرسال";
 "action.sendVerificationCode" = "إرسال رمز التحقق";
 "action.share" = "مشاركة";
+"action.shareAsURL" = "مشاركة كعنوان URL";
 "action.shareDownloadLink" = "شارك رابط التنزيل";
 "action.shareVideo" = "شارك مقطع الفيديو هذا";
 "action.showMyTipCard" = "عرض بطاقة الإكرامية الخاصة بي";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "احصل على صديق بدأ في Code";
 "title.getKin" = "احصل على Kin";
 "title.getMoreKin" = "احصل على المزيد من Kin";
+"title.giveCash" = "أعط النقود";
 "title.giveKin" = "منح الأموال";
 "title.insufficientFunds" = "الرصيد غير كافٍ";
 "title.inviteFriend" = "دعوة صديق";
@@ -359,6 +363,7 @@
 "title.spentKin" = "النقود المصروفة";
 "title.switchAccounts" = "تبديل الحسابات";
 "title.termsOfService" = "شروط الخدمة";
+"title.tipCard" = "بطاقة Tip ";
 "title.tipKin" = "إكرامية Kin";
 "title.unknown" = "غير معروف";
 "title.updateRequired" = "التحديث مطلوب";

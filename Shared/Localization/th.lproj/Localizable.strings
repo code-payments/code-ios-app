@@ -22,6 +22,7 @@
 "action.enableFaceID" = "เปิดใช้งาน Face ID";
 "action.enableTouchID" = "เปิดใช้งาน Touch ID";
 "action.exit" = "ออก";
+"action.give" = "ให้";
 "action.giveKin" = "ให้ Kin";
 "action.invite" = "เชิญ";
 "action.invites" = "เชิญ";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "วางจากคลิปบอร์ด";
 "action.postToConnect" = "โพสต์เพื่อเชื่อมโยงบัญชี\n";
 "action.putInWallet" = "ใส่ในกระเป๋าเงิน";
+"action.receive" = "รับ";
 "action.recoverExistingAccount" = "กู้คืนบัญชีที่มีอยู่";
 "action.remind" = "เตือน";
 "action.removePhoneNumber" = "ลบหมายเลขโทรศัพท์";
@@ -52,6 +54,7 @@
 "action.send" = "ส่ง";
 "action.sendVerificationCode" = "ส่งรหัสยืนยัน";
 "action.share" = "แชร์";
+"action.shareAsURL" = "แชร์เป็น URL";
 "action.shareDownloadLink" = "แชร์ลิงก์ดาวน์โหลด";
 "action.shareVideo" = "แชร์วิดีโอนี้";
 "action.showMyTipCard" = "แสดงบัตรทิปของฉัน";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "ชวนเพื่อนมาเริ่มต้นใช้งาน Code";
 "title.getKin" = "รับ Kin";
 "title.getMoreKin" = "รับ Kin เพิ่มเติม";
+"title.giveCash" = "ให้เงินสด";
 "title.giveKin" = "ให้ Kin";
 "title.insufficientFunds" = "เงินทุนไม่เพียงพอ";
 "title.inviteFriend" = "ชวนเพื่อน";
@@ -359,6 +363,7 @@
 "title.spentKin" = "ใช้จ่าย";
 "title.switchAccounts" = "สลับบัญชี";
 "title.termsOfService" = "เงื่อนไขการให้บริการ";
+"title.tipCard" = "บัตรทิป";
 "title.tipKin" = "ให้ทิปเป็น Kin";
 "title.unknown" = "ไม่ทราบ";
 "title.updateRequired" = "จำเป็นต้องอัปเดต";

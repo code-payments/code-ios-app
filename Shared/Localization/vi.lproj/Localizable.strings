@@ -22,6 +22,7 @@
 "action.enableFaceID" = "Bật Face ID";
 "action.enableTouchID" = "Bật Touch ID";
 "action.exit" = "Thoát";
+"action.give" = "Cho";
 "action.giveKin" = "Tặng Kin";
 "action.invite" = "Mời";
 "action.invites" = "Lời mời";
@@ -42,6 +43,7 @@
 "action.pasteFromClipboard" = "Dán Từ Khay nhớ tạm";
 "action.postToConnect" = "Hãy đăng bài để kết nối tài khoản";
 "action.putInWallet" = "Đặt trong Ví";
+"action.receive" = "Nhận";
 "action.recoverExistingAccount" = "Khôi phục Tài khoản Hiện có";
 "action.remind" = "Nhắc nhở";
 "action.removePhoneNumber" = "Xóa Số Điện thoại";
@@ -52,6 +54,7 @@
 "action.send" = "Gửi";
 "action.sendVerificationCode" = "Gửi Mã Xác minh";
 "action.share" = "Chia sẻ";
+"action.shareAsURL" = "Chia sẻ dưới dạng URL";
 "action.shareDownloadLink" = "Chia sẻ đường liên kết tải xuống";
 "action.shareVideo" = "Chia sẻ Video Này";
 "action.showMyTipCard" = "Hiển thị Thẻ tiền boa của tôi";
@@ -325,6 +328,7 @@
 "title.getFriendStartedOnCode" = "Mời một người bạn bắt đầu dùng Code";
 "title.getKin" = "Nhận Kin";
 "title.getMoreKin" = "Nhận Thêm Kin";
+"title.giveCash" = "Cho Tiền mặt";
 "title.giveKin" = "Tặng Kin";
 "title.insufficientFunds" = "Không đủ Tiền";
 "title.inviteFriend" = "Mời Bạn bè";
@@ -359,6 +363,7 @@
 "title.spentKin" = "Đã chi tiêu";
 "title.switchAccounts" = "Chuyển đổi Tài khoản";
 "title.termsOfService" = "Điều khoản Dịch vụ";
+"title.tipCard" = "Thẻ Boa";
 "title.tipKin" = "Boa Kin";
 "title.unknown" = "Không xác định";
 "title.updateRequired" = "Cần Cập nhật";
