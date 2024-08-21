@@ -32,6 +32,7 @@ struct ScanScreen: View {
     @State private var isPresentingFAQs: Bool = false
     @State private var isPresentingGetKin: Bool = false
     @State private var isPresentingHistory: Bool = false
+    @State private var isPresentingChat: Bool = false
     @State private var isPresentingGiveKin: Bool = false
     @State private var isPresentingBillExchange: Bool = false
     @State private var isPresentingSettings: Bool = false
@@ -344,7 +345,7 @@ struct ScanScreen: View {
                             maxWidth: 80,
                             maxHeight: 80,
                             aligment: .bottom,
-                            binding: $isPresentingHistory
+                            binding: $isPresentingChat
                         )
                         .if(historyController.unreadCount > 0) { $0
                             .badged(historyController.unreadCount, insets: .init(
@@ -353,6 +354,18 @@ struct ScanScreen: View {
                                 bottom: 0,
                                 trailing: 8
                             ))
+                        }
+                        .sheet(isPresented: $isPresentingChat) {
+                            NavigationStack {
+                                ChatsScreen(
+                                    historyController: historyController,
+                                    isPresented: $isPresentingChat
+                                )
+                            }
+                            .environmentObject(exchange)
+                            .environmentObject(betaFlags)
+                            .environmentObject(bannerController)
+                            .environmentObject(notificationController)
                         }
                     }
                     
