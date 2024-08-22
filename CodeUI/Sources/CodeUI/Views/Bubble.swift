@@ -36,18 +36,21 @@ extension Bubble {
         
         case regular
         case large
+        case extraLarge
         
         var dimension: CGFloat {
             switch self {
-            case .regular: return 16
-            case .large:   return 22
+            case .regular:    return 16
+            case .large:      return 22
+            case .extraLarge: return 24
             }
         }
         
         var font: Font {
             switch self {
-            case .regular: return .appTextHeading
-            case .large:   return .appTextSmall
+            case .regular:    return .appTextHeading
+            case .large:      return .appTextSmall
+            case .extraLarge: return .appTextMedium
             }
         }
     }

@@ -59,7 +59,7 @@ extension EdgeInsets {
 // MARK: - View -
 
 extension View {
-    public func badged(_ count: Int, size: Bubble.Size = .large, insets: EdgeInsets = .zero, reverseX: Bool = false, reverseY: Bool = false) -> some View {
+    public func badged(_ count: Int, size: Bubble.Size = .extraLarge, insets: EdgeInsets = .zero, reverseX: Bool = false, reverseY: Bool = false) -> some View {
         modifier(
             Badged(
                 count: count,
@@ -82,7 +82,7 @@ struct Badged_Previews: PreviewProvider {
             } label: {
                 Rectangle()
                     .fill(.red)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 60, height: 60)
             }
             .badged(3, insets: .init(top: 0, leading: 20, bottom: 0, trailing: 10), reverseX: true, reverseY: false)
         }

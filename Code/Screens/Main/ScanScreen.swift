@@ -340,17 +340,10 @@ struct ScanScreen: View {
                             maxWidth: 80,
                             maxHeight: 80,
                             fullWidth: true,
+                            badge: historyController.unreadCount,
                             aligment: .bottom,
                             binding: $isPresentingChat
                         )
-                        .if(historyController.unreadCount > 0) { $0
-                            .badged(historyController.unreadCount, insets: .init(
-                                top: 22,
-                                leading: 0,
-                                bottom: 0,
-                                trailing: 8
-                            ))
-                        }
                         .sheet(isPresented: $isPresentingChat) {
                             NavigationStack {
                                 ChatsScreen(
@@ -373,17 +366,10 @@ struct ScanScreen: View {
                             maxWidth: 80,
                             maxHeight: 80,
                             fullWidth: true,
+                            badge: historyController.unreadCount,
                             aligment: .bottom,
                             binding: $isPresentingHistory
                         )
-                        .if(historyController.unreadCount > 0) { $0
-                            .badged(historyController.unreadCount, insets: .init(
-                                top: 22,
-                                leading: 0,
-                                bottom: 0,
-                                trailing: 8
-                            ))
-                        }
                     }
                     .sheet(isPresented: $isPresentingHistory) { [unowned session] in
                         BalanceScreen(
@@ -674,6 +660,15 @@ extension ScanScreen {
             .padding(.bottom, 10)
         }
     }
+}
+
+extension EdgeInsets {
+    static let badgeBalance = EdgeInsets(
+        top: 10,
+        leading: 0,
+        bottom: 0,
+        trailing: 10
+    )
 }
 
 // MARK: - Tooltip Properties -
