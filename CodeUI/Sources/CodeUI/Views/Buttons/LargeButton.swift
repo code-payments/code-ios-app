@@ -15,28 +15,31 @@ public struct LargeButton<Content>: View where Content: View {
     private let spacing: CGFloat
     private let maxWidth: CGFloat?
     private let maxHeight: CGFloat?
+    private let fullWidth: Bool
     private let aligment: Alignment
     private let action: VoidAction
     
-    public init(title: String?, content: @escaping () -> Content, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, aligment: Alignment = .center, binding: Binding<Bool>) {
+    public init(title: String?, content: @escaping () -> Content, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, fullWidth: Bool = false, aligment: Alignment = .center, binding: Binding<Bool>) {
         self.init(
             title: title,
             content: content,
             spacing: spacing,
             maxWidth: maxWidth,
             maxHeight: maxHeight,
+            fullWidth: fullWidth,
             aligment: aligment
         ) {
             binding.wrappedValue.toggle()
         }
     }
     
-    public init(title: String?, content: @escaping () -> Content, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, aligment: Alignment = .center, action: @escaping VoidAction) {
+    public init(title: String?, content: @escaping () -> Content, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, fullWidth: Bool = false, aligment: Alignment = .center, action: @escaping VoidAction) {
         self.title     = title
         self.content   = content
         self.spacing   = spacing
         self.maxWidth  = maxWidth
         self.maxHeight = maxHeight
+        self.fullWidth = fullWidth
         self.aligment  = aligment
         self.action    = action
     }
@@ -51,32 +54,37 @@ public struct LargeButton<Content>: View where Content: View {
                 }
             }
             .frame(minWidth: maxWidth, minHeight: maxHeight, alignment: aligment)
+            .if(fullWidth) { $0
+                .frame(maxWidth: .infinity)
+            }
         }
         .foregroundColor(.textMain)
     }
 }
 
 extension LargeButton where Content == Image {
-    public init(title: String?, image: Image, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, aligment: Alignment = .center, binding: Binding<Bool>) {
+    public init(title: String?, image: Image, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, fullWidth: Bool = false, aligment: Alignment = .center, binding: Binding<Bool>) {
         self.init(
             title: title,
             image: image,
             spacing: spacing,
             maxWidth: maxWidth,
             maxHeight: maxHeight,
+            fullWidth: fullWidth,
             aligment: aligment
         ) {
             binding.wrappedValue.toggle()
         }
     }
     
-    public init(title: String?, image: Image, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, aligment: Alignment = .center, action: @escaping VoidAction) {
+    public init(title: String?, image: Image, spacing: CGFloat = 0, maxWidth: CGFloat? = nil, maxHeight: CGFloat? = nil, fullWidth: Bool = false, aligment: Alignment = .center, action: @escaping VoidAction) {
         self.init(
             title: title,
             content: { image },
             spacing: spacing,
             maxWidth: maxWidth,
             maxHeight: maxHeight,
+            fullWidth: fullWidth,
             aligment: aligment,
             action: action
         )

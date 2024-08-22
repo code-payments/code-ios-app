@@ -257,19 +257,16 @@ struct ScanScreen: View {
         HStack(alignment: .bottom) {
             Group {
                 if isVisible {
-                    Spacer()
-                    
                     LargeButton(
                         title: Localized.Action.give,
                         image: .asset(.hex),
                         spacing: 12,
                         maxWidth: 80,
                         maxHeight: 80,
+                        fullWidth: true,
                         aligment: .bottom,
                         binding: $isPresentingGiveKin
                     )
-                    
-                    Spacer()
                     
                     VStack(spacing: 5) {
                         if betaFlags.hasEnabled(.showConnectivityStatus) && reachability.status == .offline {
@@ -293,6 +290,7 @@ struct ScanScreen: View {
                             spacing: 12,
                             maxWidth: 80,
                             maxHeight: 80,
+                            fullWidth: true,
                             aligment: .bottom
                         ) {
                             if let user = session.tipController.twitterUser {
@@ -335,14 +333,13 @@ struct ScanScreen: View {
                     }
                     
                     if betaFlags.hasEnabled(.chatTab) {
-                        Spacer()
-                        
                         LargeButton(
                             title: Localized.Action.chat,
                             image: .asset(.chat),
                             spacing: 12,
                             maxWidth: 80,
                             maxHeight: 80,
+                            fullWidth: true,
                             aligment: .bottom,
                             binding: $isPresentingChat
                         )
@@ -368,8 +365,6 @@ struct ScanScreen: View {
                         }
                     }
                     
-                    Spacer()
-                    
                     ToastContainer(toast: toast()) {
                         LargeButton(
                             title: Localized.Action.balance,
@@ -377,6 +372,7 @@ struct ScanScreen: View {
                             spacing: 12,
                             maxWidth: 80,
                             maxHeight: 80,
+                            fullWidth: true,
                             aligment: .bottom,
                             binding: $isPresentingHistory
                         )
@@ -402,7 +398,6 @@ struct ScanScreen: View {
                         .environmentObject(notificationController)
                     }
                     
-                    Spacer()
                 } else {
                     if !session.billState.hideBillButtons {
                         HStack(alignment: .center, spacing: 30) {
@@ -643,19 +638,16 @@ extension ScanScreen {
         
         @ViewBuilder private func bottomBar() -> some View {
             HStack(alignment: .bottom) {
-                Spacer()
-                
                 LargeButton(
                     title: Localized.Action.give,
                     image: .asset(.hex),
                     spacing: 12,
                     maxWidth: 80,
                     maxHeight: 80,
+                    fullWidth: true,
                     aligment: .bottom,
                     binding: .constant(false)
                 )
-                
-                Spacer()
                 
                 LargeButton(
                     title: Localized.Action.receive,
@@ -663,11 +655,10 @@ extension ScanScreen {
                     spacing: 12,
                     maxWidth: 80,
                     maxHeight: 80,
+                    fullWidth: true,
                     aligment: .bottom,
                     binding: .constant(false)
                 )
-                
-                Spacer()
                 
                 LargeButton(
                     title: Localized.Action.balance,
@@ -675,11 +666,10 @@ extension ScanScreen {
                     spacing: 12,
                     maxWidth: 80,
                     maxHeight: 80,
+                    fullWidth: true,
                     aligment: .bottom,
                     binding: .constant(false)
                 )
-                
-                Spacer()
             }
             .padding(.bottom, 10)
         }
