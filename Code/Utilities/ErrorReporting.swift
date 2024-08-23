@@ -74,11 +74,11 @@ enum ErrorReporting {
         }
     }
     
-    static func captureError(_ error: Swift.Error, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
-        capture(error, reason: reason, file: file, function: function, line: line) { _ in }
+    static func captureError(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
+        capture(error, reason: reason, id: id, file: file, function: function, line: line) { _ in }
     }
     
-    private static func capture(_ error: Swift.Error, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
+    private static func capture(_ error: Swift.Error, reason: String? = nil, id: String? = nil, file: String = #file, function: String = #function, line: Int = #line, buildUserInfo: (inout [String: Any]) -> Void) {
         let swiftError = error as NSError
         
         var userInfo: [String: Any] = [:]
@@ -111,7 +111,11 @@ enum ErrorReporting {
             
             // Skip the line numbers to maintain grouping
             // even when files and line numbers change.
-            event.groupingHash = "\(fileName):\(function)"
+            var hash = "\(fileName):\(function)"
+            if let id {
+                hash = "\(hash):\(id)"
+            }
+            event.groupingHash = hash
             
             return true
         }

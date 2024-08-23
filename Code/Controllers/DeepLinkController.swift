@@ -57,6 +57,8 @@ final class DeepLinkController {
             {
                 let giftCard = GiftCardAccount(mnemonic: mnemonic)
                 return actionForReceiveRemoteSend(giftCard: giftCard)
+            } else {
+                ErrorReporting.captureError(Error.failedToParseGiftCard, id: "giftCard")
             }
             
         case .paymentRequest:
@@ -70,6 +72,8 @@ final class DeepLinkController {
                     kind: .paymentRequest(request),
                     sessionAuthenticator: sessionAuthenticator
                 )
+            } else {
+                ErrorReporting.captureError(Error.failedToParsePaymentRequest, id: "micropayment")
             }
             
         case .loginRequest:
@@ -83,6 +87,8 @@ final class DeepLinkController {
                     kind: .loginRequest(request),
                     sessionAuthenticator: sessionAuthenticator
                 )
+            } else {
+                ErrorReporting.captureError(Error.failedToParseLoginRequest, id: "webLogin")
             }
             
         case .tip(let username):
@@ -104,6 +110,8 @@ final class DeepLinkController {
                     kind: .tip(username),
                     sessionAuthenticator: sessionAuthenticator
                 )
+            } else {
+                ErrorReporting.captureError(Error.failedToParseTipLink, id: "tipLink")
             }
             
         default:
@@ -126,6 +134,15 @@ final class DeepLinkController {
             kind: .receiveRemoteSend(giftCard),
             sessionAuthenticator: sessionAuthenticator
         )
+    }
+}
+
+extension DeepLinkController {
+    enum Error: Swift.Error {
+        case failedToParsePaymentRequest
+        case failedToParseLoginRequest
+        case failedToParseTipLink
+        case failedToParseGiftCard
     }
 }
 

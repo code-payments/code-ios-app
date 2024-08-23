@@ -34,7 +34,9 @@ struct Route {
         
         var fragments: [Fragment.Key: Fragment] = [:]
         
-        if let urlFragment = components.fragment {
+        // We need to use the percentEncoded fragment otherwise
+        // we'll get partial data if base64 includes a /
+        if let urlFragment = url.fragment(percentEncoded: true) {
             let components = urlFragment.components(separatedBy: "/")
             components.forEach { component in
                 if let fragment = Route.Fragment(fragmentString: component) {
@@ -130,7 +132,7 @@ extension Route {
         
         init(key: Key, value: String) {
             self.key = key
-            self.value = value
+            self.value = value.removingPercentEncoding ?? value
         }
     }
 }
