@@ -30,7 +30,7 @@ struct RequestTipScreen: View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 40) {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text(Localized.Title.requestTip)
+                    Text(Localized.Title.receiveTips)
                         .font(.appDisplayMedium)
                     
                     Text(Localized.Subtitle.tipCardTwitterDescription)

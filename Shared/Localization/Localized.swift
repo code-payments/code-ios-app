@@ -703,6 +703,8 @@ internal enum Localized {
     internal static let phoneNumber = Localized.tr("Localizable", "title.phoneNumber")
     /// Privacy Policy
     internal static let privacyPolicy = Localized.tr("Localizable", "title.privacyPolicy")
+    /// Receive Tips
+    internal static let receiveTips = Localized.tr("Localizable", "title.receiveTips")
     /// Recent Currencies
     internal static let recentCurrencies = Localized.tr("Localizable", "title.recentCurrencies")
     /// Refer a Friend, Get $5
@@ -711,8 +713,6 @@ internal enum Localized {
     internal static let referralBonus = Localized.tr("Localizable", "title.referralBonus")
     /// Request Cash
     internal static let requestCash = Localized.tr("Localizable", "title.requestCash")
-    /// Request a Tip
-    internal static let requestTip = Localized.tr("Localizable", "title.requestTip")
     /// Require Face ID
     internal static let requireFaceID = Localized.tr("Localizable", "title.requireFaceID")
     /// Require Passcode

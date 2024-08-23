@@ -273,7 +273,7 @@
 "title.requestCash" = "Request Cash";
 
 /* Title for Request a Tip */
-"title.requestTip" = "Request a Tip";
+"title.receiveTips" = "Receive Tips";
 
 /* Title for Get More Kin */
 "title.getMoreKin" = "Get More Kin";
