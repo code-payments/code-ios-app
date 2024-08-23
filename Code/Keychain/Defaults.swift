@@ -18,6 +18,7 @@ enum DefaultsKey: String {
     case launchCount = "com.code.launchCount"
     case betaFlags = "com.code.debug.preferences"
     case twitterUser = "com.code.social.twitterUser"
+    case hasSeenTipCard = "com.code.social.hasSeenTipCard"
     case wasLoggedIn = "com.code.state.wasLoggedIn"
     
     case tooltipLogo = "com.code.tooltip.logo"

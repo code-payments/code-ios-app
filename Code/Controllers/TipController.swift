@@ -13,6 +13,8 @@ class TipController: ObservableObject {
     
     weak var delegate: TipControllerDelegate?
     
+    @Published private(set) var hasBadge: Bool = false
+    
     @Published private(set) var twitterUser: TwitterUser?
     
     private(set) var inflightUser: (String, Code.Payload)?
@@ -32,6 +34,8 @@ class TipController: ObservableObject {
     
     @Defaults(.twitterUser) private var authenticatedTwitterUser: TwitterUser?
     
+    @Defaults(.hasSeenTipCard) private var hasSeenTipCard: Bool?
+    
     private var primaryTipAddress: PublicKey {
         organizer.primaryVault
     }
@@ -43,6 +47,8 @@ class TipController: ObservableObject {
         self.client = client
         self.bannerController = bannerController
         
+        self.hasBadge = hasSeenTipCard == false
+        
         if !assignUserIfAuthenticated() {
             poll()
         }
@@ -53,6 +59,18 @@ class TipController: ObservableObject {
                 await self.pushNotificationReceived()
             }
         }
+    }
+    
+    // MARK: - Badge -
+    
+    func setHasSeenTipCard() {
+        hasSeenTipCard = true
+        hasBadge = false
+    }
+    
+    private func resetHasSeenTipCard() {
+        hasSeenTipCard = false
+        hasBadge = true
     }
     
     // MARK: - Push -
@@ -87,6 +105,8 @@ class TipController: ObservableObject {
                 
                 showLinkingSuccess(for: user)
                 cancelPolling()
+                
+                resetHasSeenTipCard()
                 
                 Analytics.tipCardLinked()
                 

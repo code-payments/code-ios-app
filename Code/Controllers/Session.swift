@@ -627,6 +627,8 @@ class Session: ObservableObject {
             return
         }
         
+        tipController.setHasSeenTipCard()
+        
         let payload = Code.Payload(
             kind: .tip,
             username: user.username

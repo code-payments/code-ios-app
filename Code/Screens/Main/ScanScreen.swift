@@ -291,6 +291,8 @@ struct ScanScreen: View {
                             maxWidth: 80,
                             maxHeight: 80,
                             fullWidth: true,
+                            badge: session.tipController.hasBadge ? 1 : 0,
+                            badgeInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 5),
                             aligment: .bottom
                         ) {
                             if let user = session.tipController.twitterUser {
