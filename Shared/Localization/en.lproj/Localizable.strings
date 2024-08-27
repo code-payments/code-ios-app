@@ -380,6 +380,9 @@
 /* Title for requiring passcode */
 "title.autoStartCamera" = "Auto Start Camera";
 
+/* Title for turning on notifications for Code */
+"title.turnOnNotifications" = "Turn On Notifications for Code";
+
 
 
 
@@ -592,6 +595,9 @@
 
 /* Subtitle for starting your camera to scan codes */
 "subtitle.startCameraToScan" = "You need to start your camera to scan Codes";
+
+/* Subtitle for turning on notifications for Code */
+"subtitle.turnOnNotifications" = "Allow Code to send you notifications when you receive Tips from other Code users.";
 
 
 

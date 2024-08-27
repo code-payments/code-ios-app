@@ -141,6 +141,12 @@ class PushController: ObservableObject {
     }
 }
 
+extension PushController {
+    static func getAuthorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+}
+
 // MARK: - UNUserNotificationCenterDelegate -
 
 @MainActor

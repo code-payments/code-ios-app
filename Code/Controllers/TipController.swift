@@ -36,6 +36,8 @@ class TipController: ObservableObject {
     
     @Defaults(.hasSeenTipCard) private var hasSeenTipCard: Bool?
     
+    @Defaults(.wasPromptedPush) private var wasPromptedPush: Bool?
+    
     private var primaryTipAddress: PublicKey {
         organizer.primaryVault
     }
@@ -71,12 +73,32 @@ class TipController: ObservableObject {
     private func resetHasSeenTipCard() {
         hasSeenTipCard = false
         hasBadge = true
+        
+        resetPushPrompted()
     }
     
     // MARK: - Push -
     
     private func pushNotificationReceived() {
         poll()
+    }
+    
+    func shouldPromptForPushPermissions() async -> Bool {
+        if wasPromptedPush != true {
+            let status = await PushController.getAuthorizationStatus()
+            if status != .authorized {
+                return true
+            }
+        }
+        return false
+    }
+    
+    func setPushPrompted() {
+        wasPromptedPush = true
+    }
+    
+    private func resetPushPrompted() {
+        wasPromptedPush = false
     }
     
     // MARK: - Polling -

@@ -124,6 +124,23 @@ struct ScanScreen: View {
                 )
             )
         }
+        .sheet(isPresented: $session.isShowingPushPrompt) {
+            PartialSheet {
+                SheetGeneric(
+                    asset: .bell,
+                    title: Localized.Title.turnOnNotifications,
+                    description: Localized.Subtitle.turnOnNotifications,
+                    actionName: Localized.Action.openSettings,
+                    isPresented: $session.isShowingPushPrompt
+                ) {
+                    URL.openSettings()
+                    Task {
+                        try await Task.delay(milliseconds: 300)
+                        session.isShowingPushPrompt = false
+                    }
+                }
+            }
+        }
         .onAppear {
             authorizePushNotificationsIfNeeded()
         }

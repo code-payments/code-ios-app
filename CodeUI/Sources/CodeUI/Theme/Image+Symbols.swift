@@ -102,6 +102,7 @@ public enum Asset: String {
     case videoBuyKin
     case videoSellKin
     case done
+    case bell
     
     // Messaging
     

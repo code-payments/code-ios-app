@@ -20,6 +20,8 @@ class Session: ObservableObject {
     
     @Published var showTipEntry: Bool = false
     
+    @Published var isShowingPushPrompt: Bool = false
+    
     @Published private(set) var isReceivingRemoteSend: Bool = false
     
     @Published private(set) var hasBalance: Bool = false
@@ -664,11 +666,23 @@ class Session: ObservableObject {
             type: .user
         )
         
+        promptForPushPermissionsIfNeeded()
+        
         UIApplication.shouldPauseInterfaceReset = true
     }
     
     private func shareMyTipCard(user: TwitterUser) {
         ShareSheet.present(url: URL.tipCard(with: user.username))
+    }
+    
+    private func promptForPushPermissionsIfNeeded() {
+        Task {
+            if await tipController.shouldPromptForPushPermissions() {
+                try await Task.delay(milliseconds: 500)
+                isShowingPushPrompt = true
+                tipController.setPushPrompted()
+            }
+        }
     }
     
     func presentScannedTipCard(payload: Code.Payload, username: String) {

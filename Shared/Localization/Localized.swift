@@ -589,6 +589,8 @@ internal enum Localized {
     internal static let startCameraToScan = Localized.tr("Localizable", "subtitle.startCameraToScan")
     /// Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card post to X.
     internal static let tipCardTwitterDescription = Localized.tr("Localizable", "subtitle.tipCardTwitterDescription")
+    /// Allow Code to send you notifications when you receive Tips from other Code users.
+    internal static let turnOnNotifications = Localized.tr("Localizable", "subtitle.turnOnNotifications")
     /// Type "%@"
     internal static func typeDelete(_ p1: Any) -> String {
       return Localized.tr("Localizable", "subtitle.typeDelete", String(describing: p1))
@@ -735,6 +737,8 @@ internal enum Localized {
     internal static let tipCard = Localized.tr("Localizable", "title.tipCard")
     /// Tip Kin
     internal static let tipKin = Localized.tr("Localizable", "title.tipKin")
+    /// Turn On Notifications for Code
+    internal static let turnOnNotifications = Localized.tr("Localizable", "title.turnOnNotifications")
     /// Unknown
     internal static let unknown = Localized.tr("Localizable", "title.unknown")
     /// Update Required
