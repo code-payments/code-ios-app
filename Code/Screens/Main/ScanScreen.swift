@@ -198,18 +198,19 @@ struct ScanScreen: View {
     }
     
     @ViewBuilder private func cameraPreviewView() -> some View {
-        CameraPreviewView(session: cameraSession)
-            .background(Color.backgroundMain)
-            .edgesIgnoringSafeArea(.all)
-            .navigationBarHidden(true)
-            .onAppear {
-                do {
-                    try cameraSession.configureDevices()
-                    cameraSession.start()
-                } catch {
-                    trace(.failure, components: "Error configuring camera session: \(error)")
-                }
+        CameraViewport(
+            session: cameraSession,
+            enableGestures: betaFlags.hasEnabled(.cameraGestures)
+        )
+        .navigationBarHidden(true)
+        .onAppear {
+            do {
+                try cameraSession.configureDevices()
+                cameraSession.start()
+            } catch {
+                trace(.failure, components: "Error configuring camera session: \(error)")
             }
+        }
     }
     
     @ViewBuilder private func interfaceView(isVisible: Bool) -> some View {
@@ -458,6 +459,7 @@ struct ScanScreen: View {
             action: billAction,
             dismissHandler: dismissBill
         )
+        .allowsHitTesting(session.presentationState.isPresenting)
         .edgesIgnoringSafeArea(.all)
         .onChange(of: notificationController.willResignActive) { [weak session] _ in
             session?.willResignActive()

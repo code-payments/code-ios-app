@@ -94,6 +94,7 @@ extension BetaFlags {
         case alternativeBubbles
         case kadoInApp
         case chatTab
+        case cameraGestures
         
         var id: String {
             localizedTitle
@@ -121,6 +122,8 @@ extension BetaFlags {
                 return "Kado In-app Flow"
             case .chatTab:
                 return "Chat Tab"
+            case .cameraGestures:
+                return "Camera Gestures"
             }
         }
         
@@ -146,6 +149,8 @@ extension BetaFlags {
                 return "If enabled, the Kado purchase experience will open in an in-app browser."
             case .chatTab:
                 return "If enabled, a fourth chat tab will appear on the camera screen."
+            case .cameraGestures:
+                return "If enabled, gestures will allow you to tap to focus, pinch to zoom and drag to zoom on the camera screen."
             }
         }
     }

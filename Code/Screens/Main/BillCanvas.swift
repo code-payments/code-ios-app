@@ -55,6 +55,13 @@ enum PresentationState: Equatable {
     
     case visible(Style)
     case hidden(Style)
+    
+    var isPresenting: Bool {
+        switch self {
+        case .visible: return true
+        case .hidden:  return false
+        }
+    }
 }
 
 // MARK: - _BillCanvasController -
@@ -196,6 +203,13 @@ private class _BillCanvasController: UIViewController {
     func update(presentationState: PresentationState, bill: BillState.Bill?) {
         if let bill = bill {
             updateContent(bill: bill)
+        }
+        
+        // Disable user interaction when there is no interactive
+        // content to prevent capturing touch events unnecessarily
+        switch presentationState {
+        case .visible: view.isUserInteractionEnabled = true
+        case .hidden:  view.isUserInteractionEnabled = false
         }
         
         // Only animate if the state is different
