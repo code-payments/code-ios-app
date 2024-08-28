@@ -25,7 +25,7 @@ struct WithdrawAddressScreen: View {
     
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: .center, spacing: 20) {
+            VStack(alignment: .center, spacing: 10) {
                 NavigationLink(isActive: $isPresentingSummary) {
                     LazyView(
                         WithdrawSummaryScreen(viewModel: viewModel)
@@ -39,7 +39,7 @@ struct WithdrawAddressScreen: View {
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 20)
                 
                 VStack(spacing: 10) {
                     InputContainer(size: .regular) {
@@ -68,8 +68,10 @@ struct WithdrawAddressScreen: View {
                 ) {
                     _ = viewModel.attemptPasteAddressFromClipboard()
                 }
+                .padding(.top, 5)
                 
                 Spacer()
+                    .frame(minHeight: 1)
                 
                 CodeButton(
                     style: .filled,
@@ -91,12 +93,18 @@ struct WithdrawAddressScreen: View {
     @ViewBuilder private func message(for metadata: DestinationMetadata) -> some View {
         switch metadata.kind {
         case .unknown:
-            HStack(spacing: 6) {
+            HStack(alignment: .top, spacing: 6) {
                 Image.system(.xmark)
-                Text(Localized.Subtitle.invalidTokenAccount)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(Localized.Subtitle.invalidTokenAccount)
+                        .lineLimit(1)
+                        .font(.appTextHeading)
+                    Text(Localized.Subtitle.invalidTokenAccountDescription)
+                        .font(.appTextCaption)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 1)
             }
-            .font(.appTextHeading)
             .foregroundColor(.textError)
             
         case .owner, .token:

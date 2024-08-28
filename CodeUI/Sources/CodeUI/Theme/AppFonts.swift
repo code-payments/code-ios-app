@@ -26,7 +26,7 @@ extension Font {
     public static let appTextMessage:   Font = .default(size: 16, weight: .medium)
     public static let appTextBody:      Font = .default(size: 16, weight: .regular)
     public static let appTextHeading:   Font = .default(size: 12, weight: .bold)
-    public static let appTextCaption:   Font = .default(size: 12, weight: .bold)
+    public static let appTextCaption:   Font = .default(size: 12, weight: .medium)
     
     public static let appTextAccessKey: Font = .default(size: 9, weight: .bold)
     public static let appTextSeed:      Font = .fixedWidth(size: 16)

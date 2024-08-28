@@ -533,6 +533,8 @@ internal enum Localized {
     internal static let insufficientFundsDescription = Localized.tr("Localizable", "subtitle.insufficientFundsDescription")
     /// Invalid destination account
     internal static let invalidTokenAccount = Localized.tr("Localizable", "subtitle.invalidTokenAccount")
+    /// Please make sure the address you're withdrawing to has been initialized by your wallet provider. A shortcut to achieve this is to first swap a tiny amount of SOL for Kin in the wallet you're trying to send to.
+    internal static let invalidTokenAccountDescription = Localized.tr("Localizable", "subtitle.invalidTokenAccountDescription")
     /// Learn more
     internal static let learnMore = Localized.tr("Localizable", "subtitle.learnMore")
     /// Your phone number is linked with this Code account. Friends can find you using this phone number.

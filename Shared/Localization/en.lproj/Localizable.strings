@@ -530,6 +530,9 @@
 /* Subtitle for invalid token account */
 "subtitle.invalidTokenAccount" = "Invalid destination account";
 
+/* Subtitle for invalid token account description */
+"subtitle.invalidTokenAccountDescription" = "Please make sure the address you're withdrawing to has been initialized by your wallet provider. A shortcut to achieve this is to first swap a tiny amount of SOL for Kin in the wallet you're trying to send to.";
+
 /* Subtitle for valid token account */
 "subtitle.validTokenAccount" = "Valid token account";
 
