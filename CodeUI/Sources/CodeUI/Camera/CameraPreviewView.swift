@@ -247,38 +247,18 @@ public class _CameraPreviewView: UIView {
             return
         }
         
-        func easeOut(easeIn: Bool = false, value: Double, from inputRange: ClosedRange<Double>, to outputRange: ClosedRange<Double>) -> Double {
-            // Normalize the value to a 0 to 1 range
-            let normalizedValue = (value - inputRange.lowerBound) / (inputRange.upperBound - inputRange.lowerBound)
-            
-            let easedValue: Double
-            if easeIn {
-                // easeInOut formula
-                if normalizedValue < 0.5 {
-                    easedValue = 4 * pow(normalizedValue, 3)
-                } else {
-                    easedValue = 1 - pow(-2 * normalizedValue + 2, 3) / 2
-                }
-                
-            } else {
-                // easeOut formula
-                easedValue = 1 - pow(1 - normalizedValue, 3)
-            }
-            
-            // Map the eased value to the output range
-            let mappedValue = easedValue * (outputRange.upperBound - outputRange.lowerBound) + outputRange.lowerBound
-            
-            return mappedValue
-        }
-        
         let timeElapsed = Date.now.timeIntervalSince1970 - reverseStart.timeIntervalSince1970
         let factorToAnimate = gestureZoomFactor - 1.0
         let duration: Double = 0.3
-        let factorDelta = easeOut(
-            easeIn: false,
+        
+        // We're mapping the timeElapsed value from
+        // time to zoomDelta along an easing curve
+        let factorDelta = Curve.ease(
             value: timeElapsed,
             from: 0.0...duration,
-            to:   0.0...factorToAnimate
+            to: 0.0...factorToAnimate,
+            easeIn: false,
+            easeOut: true
         )
         
         setZoomFactor(gestureZoomFactor - factorDelta, device: currentDevice)
@@ -318,9 +298,15 @@ public class _CameraPreviewView: UIView {
             
         case .changed:
             let translation = gesture.translation(in: gesture.view)
-            let dragAmount = translation.y / 50.0
+            let zoomDelta   = Curve.ease(
+                value: translation.y,
+                from: 0...350,
+                to: 0...10,
+                easeIn: true,
+                easeOut: false
+            )
             
-            setZoomFactor(gestureZoomFactor - dragAmount, device: device)
+            setZoomFactor(gestureZoomFactor - zoomDelta, device: device)
             
         case .ended, .failed:
             gestureZoomFactor = device.videoZoomFactor
