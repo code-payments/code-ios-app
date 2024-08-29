@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "더 많은 Kin 구매";
 "action.cancel" = "취소";
 "action.cancelSend" = "보내기 취소";
+"action.chat" = "채팅";
 "action.collectCash" = "이 현금 모으기";
 "action.confirm" = "확인";
 "action.connectToX" = "X에 연결";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "아래의 입금 주소로 Kin을 전송하여 Code 지갑으로 입금하세요. 복사하려면 탭하세요. ";
 "subtitle.insufficientFundsDescription" = "킨을 더 확보한 후에 다시 결제해 보세요";
 "subtitle.invalidTokenAccount" = "잘못된 대상 계좌";
+"subtitle.invalidTokenAccountDescription" = "인출하려는 대상 주소가 해당 월렛 제공자에 의해 초기화되었는지 확인하세요. 이를 달성하는 지름길은 먼저 보내려는 대상 월렛에서 소액의 SOL을 Kin으로 바꾸는 것입니다.";
 "subtitle.inviteCode" = "초대 코드";
 "subtitle.inviteCodeDescription" = "Code는 현재 초대제로 운영되고 있습니다. 앱에 액세스하려면 초대 코드가 필요합니다.";
 "subtitle.inviteCount" = "초대 %d";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Code를 스캔하려면 카메라를 시작해야 합니다";
 "subtitle.tipCardForX" = "팁 카드를 사용하면 전 세계 Code 사용자로부터 팁을 받을 수 있습니다. 팁 카드에 액세스하려면 X-Identity를 연결하세요.";
 "subtitle.tipCardTwitterDescription" = "팁 카드를 사용하면 전 세계 Code 사용자로부터 팁을 받을 수 있습니다. 팁 카드에 액세스하려면 X에 게시하세요.";
+"subtitle.turnOnNotifications" = "다른 Code 사용자로부터 팁을 받을 때 Code가 알림을 보낼 수 있도록 허용합니다.";
 "subtitle.typeDelete" = "유형 \"%@\"";
 "subtitle.updateRequiredDescription" = "경험 개선을 위해 변경사항을 적용했습니다. Code를 계속 사용하려면 앱을 업데이트 하세요. ";
 "subtitle.validOwnerAccount" = "유효한 소유자 계좌";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "개인정보 보호정책";
 "title.purchased" = "구매 완료";
 "title.push.twitterAccountConnected" = "X 계정이 성공적으로 연결됨";
+"title.receiveTips" = "팁 받기";
 "title.received" = "받은 내역";
 "title.recentCurrencies" = "최근 통화";
 "title.referFriend" = "친구 추천하고 $5 받으세요";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "서비스 약관";
 "title.tipCard" = "팁 카드";
 "title.tipKin" = "팁 킨";
+"title.turnOnNotifications" = "Code에 대한 알림 켜기";
 "title.unknown" = "알 수 없음";
 "title.updateRequired" = "업데이트 요구됨";
 "title.verifyPhoneNumber" = "전화번호 인증";

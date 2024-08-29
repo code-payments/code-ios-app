@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "ซื้อ Kin เพิ่มเติม";
 "action.cancel" = "ยกเลิก";
 "action.cancelSend" = "ยกเลิกการส่ง";
+"action.chat" = "แชท";
 "action.collectCash" = "รับเงินสดนี้";
 "action.confirm" = "ยืนยัน";
 "action.connectToX" = "เชื่อมต่อกับ X\n";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "ฝาก Kin ลงในกระเป๋าเงิน Code ของคุณโดยส่ง Kin ไปยังที่อยู่ฝากเงินของคุณด้านล่าง แตะเพื่อคัดลอก";
 "subtitle.insufficientFundsDescription" = "โปรดรับ Kin เพิ่มแล้วลองชำระเงินอีกครั้ง";
 "subtitle.invalidTokenAccount" = "บัญชีปลายทางไม่ถูกต้อง";
+"subtitle.invalidTokenAccountDescription" = "โปรดตรวจสอบให้แน่ใจว่าที่อยู่ที่คุณกำลังถอนเงินไปนั้นได้รับการตั้งค่าโดยผู้ให้บริการกระเป๋าเงินของคุณแล้ว วิธีลัดในการตรวจสอบคือการแลกเปลี่ยน SOL จำนวนเล็กน้อยเป็น Kin ในกระเป๋าเงินที่คุณกำลังจะส่งไป";
 "subtitle.inviteCode" = "รหัสเชิญ";
 "subtitle.inviteCodeDescription" = "ขณะนี้ Code ใช้ระบบเชิญเท่านั้น คุณจะต้องมีรหัสเชิญเพื่อเข้าถึงแอป";
 "subtitle.inviteCount" = "%d คำเชิญ";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "คุณต้องเปิดใช้งานกล้องเพื่อสแกน Code";
 "subtitle.tipCardForX" = "บัตรทิปของคุณช่วยให้คุณได้รับทิปจากผู้ใช้ Code ทั่วโลก ในการเข้าถึงบัตรทิปของคุณ ให้เชื่อมต่อข้อมูลประจำตัว X ของคุณ";
 "subtitle.tipCardTwitterDescription" = "บัตรทิปช่วยให้คุณได้รับทิปจากผู้ใช้ Code ทั่วโลก ในการเข้าถึงบัตรทิปของคุณ ให้โพสต์บน X";
+"subtitle.turnOnNotifications" = "อนุญาตให้ Code ส่งการแจ้งเตือนถึงคุณเมื่อคุณได้รับทิปจากผู้ใช้ Code รายอื่น";
 "subtitle.typeDelete" = "พิมพ์  \"%@\"";
 "subtitle.updateRequiredDescription" = "เราได้ทำการเปลี่ยนแปลงบางอย่างเพื่อปรับปรุงประสบการณ์ หากต้องการใช้ Code ต่อไปคุณจะต้องอัปเดตแอป";
 "subtitle.validOwnerAccount" = "บัญชีเจ้าของที่ถูกต้อง";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "นโยบายความเป็นส่วนตัว";
 "title.purchased" = "ซื้อแล้ว";
 "title.push.twitterAccountConnected" = "เชื่อมต่อบัญชี X สำเร็จ";
+"title.receiveTips" = "รับทิป";
 "title.received" = "ได้รับแล้ว";
 "title.recentCurrencies" = "สกุลเงินล่าสุด";
 "title.referFriend" = "แนะนำเพื่อน รับ $5";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "เงื่อนไขการให้บริการ";
 "title.tipCard" = "บัตรทิป";
 "title.tipKin" = "ให้ทิปเป็น Kin";
+"title.turnOnNotifications" = "เปิดการแจ้งเตือนสำหรับ Code";
 "title.unknown" = "ไม่ทราบ";
 "title.updateRequired" = "จำเป็นต้องอัปเดต";
 "title.verifyPhoneNumber" = "ยืนยันหมายเลขโทรศัพท์";

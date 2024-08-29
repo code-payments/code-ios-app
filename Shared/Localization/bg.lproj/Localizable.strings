@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Закупете повече Kin";
 "action.cancel" = "Откажи";
 "action.cancelSend" = "Отмени изпращането ";
+"action.chat" = "Чат";
 "action.collectCash" = "Вземете парите";
 "action.confirm" = "Потвърди ";
 "action.connectToX" = "Свържи се с Х";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Депозирайте член на семейството към вашия кодиран портфейл като изпратите член на семейството към вашия адрес на депозиране по - долу. Натиснете, за да копирате. ";
 "subtitle.insufficientFundsDescription" = "Моля, вземете повече Kin и след това опитайте да платите отново";
 "subtitle.invalidTokenAccount" = "Невалидна сметка на получателя";
+"subtitle.invalidTokenAccountDescription" = "Моля, уверете се, че адресът, на който теглите, е инициализиран от Вашия доставчик на портфейл. Пряк път за постигане на това е първо да размените малко количество SOL за Kin в портфейла, до който се опитвате да изпратите.";
 "subtitle.inviteCode" = "Покана Code";
 "subtitle.inviteCodeDescription" = "Code към момента е само с покани. Ще ви е необходима покана Code, за да получите достъп до приложението.";
 "subtitle.inviteCount" = "%d покани ";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Трябва да стартирате камерата си, за да сканирате кодове";
 "subtitle.tipCardForX" = "Вашата карта за бакшиши ви позволява да получавате бакшиши от потребители на Code от целия свят. За достъп до вашата карта за бакшиши, свържете своята идентичност в Х. ";
 "subtitle.tipCardTwitterDescription" = "С вашата карта за бакшиши може да получавате подаръци от потребители на Code по цял свят. За достъп до картата за бакшиши публикувайте в социалната мрежа X.";
+"subtitle.turnOnNotifications" = "Позволете на Code да Ви изпраща известия, когато получавате съвети от други потребители на Code.";
 "subtitle.typeDelete" = "Напишете \"%@\"";
 "subtitle.updateRequiredDescription" = "Направихме някои промени, за да подобрим качеството. Трябва да подновите приложението, за да използвате кода. ";
 "subtitle.validOwnerAccount" = "Валидна сметка на собственика";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Политика за поверителност";
 "title.purchased" = "Закупено";
 "title.push.twitterAccountConnected" = "Профилът в Хе свързан успешно";
+"title.receiveTips" = "Получаване на съвети";
 "title.received" = "Получено ";
 "title.recentCurrencies" = "Последно използвани валути ";
 "title.referFriend" = "Препоръчай на приятел, вземи $5";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Условия на ползване ";
 "title.tipCard" = "Карта за бакшиши";
 "title.tipKin" = "Бакшиш Kin";
+"title.turnOnNotifications" = "Включете известия за Code";
 "title.unknown" = "Неизвестен";
 "title.updateRequired" = "Необходимо е обновяване ";
 "title.verifyPhoneNumber" = "Потвърди телефонен номер ";

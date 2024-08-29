@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Daha Fazla Kin Satın Al";
 "action.cancel" = "İptal et";
 "action.cancelSend" = "Göndermeyi İptal Et";
+"action.chat" = "Sohbet";
 "action.collectCash" = "Bu Parayı Topla";
 "action.confirm" = "Onayla";
 "action.connectToX" = "X'e Bağlan";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Aşağıda bulunan Para Yatırma Adresine göndererek Code cüzdanına Kin yatır. Kopyalamak için dokun.";
 "subtitle.insufficientFundsDescription" = "Lütfen daha fazla Kin alın ve tekrar ödeme yapmayı deneyin";
 "subtitle.invalidTokenAccount" = "Geçersiz hedef hesabı";
+"subtitle.invalidTokenAccountDescription" = "Lütfen çekim yapacağınız adresin cüzdan sağlayıcınız tarafından başlatıldığından emin olun. Bunu başarmanın bir kestirmesi, gönderim yapmayı düşündüğünüz cüzdanda küçük bir miktar SOL'u Kin ile takas etmektir. ";
 "subtitle.inviteCode" = "Davet Kodu";
 "subtitle.inviteCodeDescription" = "Şu anda Code'a katılım sadece davetledir. Uygulamaya erişmek için bir Davet Koduna ihtiyacınız olacak.";
 "subtitle.inviteCount" = "%d Davet";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Code'ları taramak için kameranızı başlatmanız gerekir";
 "subtitle.tipCardForX" = "Bahşiş Kartın, dünyanın dört bir yanındaki Code kullanıcılarından bahşişler almana olanak tanır. Tip Kartına erişmek için X kimliğini bağla.";
 "subtitle.tipCardTwitterDescription" = "Bahşiş Kartınız, dünyanın her yerindeki Code kullanıcılarından ipuçları almanızı sağlar. Bahşiş Kartınıza erişmek için X'e gönderin.";
+"subtitle.turnOnNotifications" = "Diğer Code kullanıcılarından ipuçları aldığınızda Code'un size bildirim göndermesine izin verin.\n\n\n\n\n\n\n";
 "subtitle.typeDelete" = "\"%@\" yaz";
 "subtitle.updateRequiredDescription" = "Deneyimi iyileştirmek için bazı değişiklikler yaptık. Code'u kullanmaya devam etmek için uygulamayı güncellemen gerekiyor.";
 "subtitle.validOwnerAccount" = "Geçerli sahip hesabı";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Gizlilik Politikası";
 "title.purchased" = "Satın alındı";
 "title.push.twitterAccountConnected" = "X Hesabı Başarıyla Bağlandı";
+"title.receiveTips" = "İpuçları Alın";
 "title.received" = "Aldı";
 "title.recentCurrencies" = "Son Para Birimleri";
 "title.referFriend" = "Bir Arkadaş Yönlendir, $5'ı Kazan";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Hizmet Şartları";
 "title.tipCard" = "Bahşiş Kartı";
 "title.tipKin" = "Bahşiş Olarak Kin Ver";
+"title.turnOnNotifications" = "Code için Bildirimleri Açın";
 "title.unknown" = "Bilinmeyen";
 "title.updateRequired" = "Güncelleme Gerekli";
 "title.verifyPhoneNumber" = "Telefon Numarasını Doğrula";

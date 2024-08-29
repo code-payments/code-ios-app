@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "További Kinek vásárlása";
 "action.cancel" = "Mégsem";
 "action.cancelSend" = "Küldés törlése";
+"action.chat" = "Csevegés";
 "action.collectCash" = "Gyűjtsd össze ezt a pénzt";
 "action.confirm" = "Megerősít";
 "action.connectToX" = "Csatlakozás X-hez";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Fizesse be Kint Code tárcájába úgy, hogy elküldi a Kint az alábbi befizetési címére. Koppintson a másoláshoz.";
 "subtitle.insufficientFundsDescription" = "Kérjük, szerezzen több Kin-t, majd próbáljon újra fizetni";
 "subtitle.invalidTokenAccount" = "Érvénytelen célfiók";
+"subtitle.invalidTokenAccountDescription" = "Kérjük, győződjön meg róla, hogy a cím, amelyre a kifizetést végzi, inicializálva lett a pénztárca szolgáltatója által. Ezt úgy érheti el, ha először egy kevés SOL-t Kin-re vált a tárcában, ahová küldeni szeretne.";
 "subtitle.inviteCode" = "Meghívó kód";
 "subtitle.inviteCodeDescription" = "A kód jelenleg csak meghívásra használható. Az alkalmazás eléréséhez meghívókódra lesz szüksége.";
 "subtitle.inviteCount" = "%d meghívó";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "El kell indítania a fényképezőgépet a Code-ok beolvasásához.";
 "subtitle.tipCardForX" = "A Borravalós kártya lehetővé teszi, hogy borravalót kapj a Code felhasználóitól a világ minden tájáról. A Borravalós kártyához való hozzáféréshez csatlakoztasd az X azonosítódat.";
 "subtitle.tipCardTwitterDescription" = "A Borravalós kártyával borravalót kaphatsz a Code felhasználóitól a világ minden tájáról. A Borravalós kártyát eléréséhez írj az X-re.";
+"subtitle.turnOnNotifications" = "Engedélyezze, hogy a Code értesítést küldjön, amikor borravalót kap más Code felhasználóktól.";
 "subtitle.typeDelete" = "Írd be: \"%@\"";
 "subtitle.updateRequiredDescription" = "Néhány változtatást eszközöltünk az élmény javítása érdekében. A Code használatának folytatásához frissítenie kell az alkalmazást.";
 "subtitle.validOwnerAccount" = "Érvényes tulajdonosi fiók";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Adatvédelmi irányelvek";
 "title.purchased" = "Megvásárolva";
 "title.push.twitterAccountConnected" = "X-fiók sikeresen csatlakoztatva";
+"title.receiveTips" = "Kapjon borravalót";
 "title.received" = "Fogadva";
 "title.recentCurrencies" = "Legutóbbi pénznemek";
 "title.referFriend" = "Ajánlj egy barátot, kapsz 5 dollárt";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Szolgáltatási feltételek";
 "title.tipCard" = "Borravalós kártya";
 "title.tipKin" = "Kin borravaló";
+"title.turnOnNotifications" = "Értesítések bekapcsolása a Code-hoz";
 "title.unknown" = "Ismeretlen";
 "title.updateRequired" = "Frissítés szükséges";
 "title.verifyPhoneNumber" = "Telefonszám ellenőrzése";

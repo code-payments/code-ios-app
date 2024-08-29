@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Comprar más Kin";
 "action.cancel" = "Cancelar";
 "action.cancelSend" = "Cancelar envío";
+"action.chat" = "Chat";
 "action.collectCash" = "Cobra este dinero";
 "action.confirm" = "Confirmar";
 "action.connectToX" = "Conectar con X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Deposita Kin en tu monedero Code enviando Kin a tu dirección de depósito que aparece a continuación. Toca para copiar.";
 "subtitle.insufficientFundsDescription" = "Consiga más Kin e intente pagar de nuevo.";
 "subtitle.invalidTokenAccount" = "Cuenta de destino no válida";
+"subtitle.invalidTokenAccountDescription" = "Asegúrese de que el proveedor de su monedero ha inicializado la dirección a la que está retirando dinero. Un método rápido para conseguirlo es cambiar primero una pequeña cantidad de SOL por Kin en el monedero al que intenta enviar.";
 "subtitle.inviteCode" = "Invitar a Code";
 "subtitle.inviteCodeDescription" = "Actualmente, Code es solo por invitación. Necesitará una invitación para poder acceder.";
 "subtitle.inviteCount" = "%d invitaciones";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Debes abrir tu cámara para escanear Codes";
 "subtitle.tipCardForX" = "Tu tarjeta de propinas te permite recibir propinas de usuarios de Code de todo el mundo. Para poder acceder a tu tarjeta de propinas, conecta con tu identidad de X.";
 "subtitle.tipCardTwitterDescription" = "Con tu tarjeta de propinas puedes recibir propinas de usuarios de Code de todo el mundo. Para acceder a tu tarjeta de propinas, publica en X. ";
+"subtitle.turnOnNotifications" = "Permita que Code le envíe notificaciones cuando reciba Sugerencias de otros usuarios de Code.";
 "subtitle.typeDelete" = "Escribe \"%@\"";
 "subtitle.updateRequiredDescription" = "Hemos realizado algunos cambios para mejorar la experiencia. Tendrás que actualizar la aplicación para seguir utilizando Code.";
 "subtitle.validOwnerAccount" = "Cuenta de titular válida";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Política de privacidad";
 "title.purchased" = "Comprado";
 "title.push.twitterAccountConnected" = "Cuenta de X conectada correctamente";
+"title.receiveTips" = "Recibir sugerencias";
 "title.received" = "Recibió";
 "title.recentCurrencies" = "Divisas recientes";
 "title.referFriend" = "Recomienda a un amigo y consigue 5 $";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Términos y condiciones";
 "title.tipCard" = "Tarjeta de propina";
 "title.tipKin" = "Dar Kin de propina";
+"title.turnOnNotifications" = "Activar las notificaciones de código";
 "title.unknown" = "Desconocido";
 "title.updateRequired" = "Actualización requerida";
 "title.verifyPhoneNumber" = "Verificar número de teléfono";

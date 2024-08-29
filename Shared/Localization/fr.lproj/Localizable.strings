@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Acheter davantage de Kin";
 "action.cancel" = "Annuler";
 "action.cancelSend" = "Annuler l’envoi";
+"action.chat" = "Discussion";
 "action.collectCash" = "Collecter cet argent";
 "action.confirm" = "Confirmer";
 "action.connectToX" = "Se connecter à X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Déposer Kin dans votre porte-monnaie Code en envoyant Kin à votre adresse de dépôt ci-dessous. Taper pour copier.";
 "subtitle.insufficientFundsDescription" = "Veuillez obtenir plus de Kin et essayez de payer à nouveau";
 "subtitle.invalidTokenAccount" = "Compte de destination invalide";
+"subtitle.invalidTokenAccountDescription" = "Assurez-vous que l'adresse de retrait a été validée par votre fournisseur de portefeuille. Pour ce faire, il suffit d'échanger un peu de SOL contre du kin dans le portefeuille vers lequel vous essayez d'envoyer de l'argent.";
 "subtitle.inviteCode" = "Code d'invitation";
 "subtitle.inviteCodeDescription" = "Le code est actuellement réservé aux invités. Vous aurez besoin d'un code d'invitation pour accéder à l'application.";
 "subtitle.inviteCount" = "%d d'invitations";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Vous devez activer votre caméra pour scanner les Codes";
 "subtitle.tipCardForX" = "Votre carte de pourboires vous permet de recevoir des pourboires de la part des utilisateurs de Code dans le monde entier. Pour accéder à votre carte de pourboires, connectez votre identifiant X.";
 "subtitle.tipCardTwitterDescription" = "Votre Tip Card vous permet de recevoir des conseils d'utilisateurs de Code du monde entier. Publiez sur X pour accéder à Tip Card.";
+"subtitle.turnOnNotifications" = "Autoriser Code à vous envoyer des notifications lorsque vous recevez des conseils d'autres utilisateurs de l'application.";
 "subtitle.typeDelete" = "Saisissez « %@ »";
 "subtitle.updateRequiredDescription" = "Nous avons effectué quelques changements pour améliorer l'expérience. Vous devrez mettre à jour l'application pour continuer à utiliser Code.";
 "subtitle.validOwnerAccount" = "Propriétaire du compte invalide";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Politique de confidentialité";
 "title.purchased" = "Acheté";
 "title.push.twitterAccountConnected" = "Compte X connecté avec succès";
+"title.receiveTips" = "Obtenir des conseils";
 "title.received" = "Reçu";
 "title.recentCurrencies" = "Devises récentes";
 "title.referFriend" = "Parrainez un ami, recevez 5 $";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Conditions d'utilisation";
 "title.tipCard" = "Carte conseil";
 "title.tipKin" = "Donner un pourboire en Kin";
+"title.turnOnNotifications" = "Activer les notifications de Code";
 "title.unknown" = "Inconnu";
 "title.updateRequired" = "Mise à jour requise";
 "title.verifyPhoneNumber" = "Vérifier le numéro de téléphone";

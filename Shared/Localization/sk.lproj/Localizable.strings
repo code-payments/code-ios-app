@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Kúpiť viac meny Kin";
 "action.cancel" = "Zrušiť";
 "action.cancelSend" = "Zrušiť odoslanie";
+"action.chat" = "Chat";
 "action.collectCash" = "Získajte tieto peniaze";
 "action.confirm" = "Potvrdiť";
 "action.connectToX" = "Pripojiť sa k sieti X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Vložte Kin do svojej peňaženky s kódom odoslaním Kinu na vašu depozitnú adresu nižšie. Klepnutím skopírujete.";
 "subtitle.insufficientFundsDescription" = "Získajte viac Kinov a skúste platbu zopakovať";
 "subtitle.invalidTokenAccount" = "Neplatný cieľový účet";
+"subtitle.invalidTokenAccountDescription" = "Uistite sa, že adresa, na ktorú sa sťahujete, bola inicializovaná vaším poskytovateľom peňaženky. Skratkou, ako to dosiahnuť, je najprv vymeniť malé množstvo SOL za Kin v peňaženke, do ktorej sa pokúšate niečo poslať.";
 "subtitle.inviteCode" = "Pozývací kód";
 "subtitle.inviteCodeDescription" = "Kód slúži momentálne len ako pozvánka. Na prístup do aplikácie budete potrebovať pozývací kód.";
 "subtitle.inviteCount" = "%d pozvaní";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Ak chcete skenovať Code-y, musíte spustiť fotoaparát";
 "subtitle.tipCardForX" = "Vaša tipovacia karta vám umožňuje dostávať tipy od používateľov peňaženky Code z celého sveta. Ak chcete získať prístup k svojej tipovacej karte, pripojte sa účtom X.";
 "subtitle.tipCardTwitterDescription" = "Vaša Tipová karta vám umožňuje dostávať tipy od používateľov Kódu z celého sveta. Ak chcete získať prístup k príspevku Tipová karta na X.";
+"subtitle.turnOnNotifications" = "Povoľte Kódu, aby vám posielal upozornenia, keď dostanete tipy od iných používateľov Kódu.";
 "subtitle.typeDelete" = "Napíšte „%@\"";
 "subtitle.updateRequiredDescription" = "Urobili sme niekoľko zmien na zlepšenie prostredia. Ak chcete naďalej používať kód, musíte si aplikáciu aktualizovať.";
 "subtitle.validOwnerAccount" = "Platný účet vlastníka";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Zásady ochrany osobných údajov";
 "title.purchased" = "Zakúpené";
 "title.push.twitterAccountConnected" = "Účet X bol úspešne pripojený";
+"title.receiveTips" = "Prijať tipy";
 "title.received" = "Prijaté";
 "title.recentCurrencies" = "Najnovšie meny";
 "title.referFriend" = "Odporučte priateľa a získajte 5 dolárov";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Podmienky služby";
 "title.tipCard" = "Karta tringeltov";
 "title.tipKin" = "Tipovať kin";
+"title.turnOnNotifications" = "Zapnúť oznámenia na Kód";
 "title.unknown" = "Neznámy";
 "title.updateRequired" = "Vyžaduje sa aktualizácia";
 "title.verifyPhoneNumber" = "Overiť telefónne číslo";

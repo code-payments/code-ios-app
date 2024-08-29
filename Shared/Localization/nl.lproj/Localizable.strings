@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Koop meer Kin";
 "action.cancel" = "Annuleren";
 "action.cancelSend" = "Verzenden Annuleren";
+"action.chat" = "Chat";
 "action.collectCash" = "Claim dit geld";
 "action.confirm" = "Bevestigen";
 "action.connectToX" = "Verbinden met X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Stort KIN in je Code-wallet door KIN naar je stortingsadres hieronder te sturen. Tik om te kopiëren.";
 "subtitle.insufficientFundsDescription" = "Verkrijg meer Kin en probeer opnieuw te betalen";
 "subtitle.invalidTokenAccount" = "Ongeldig bestemmingsaccount";
+"subtitle.invalidTokenAccountDescription" = "Zorg ervoor dat het adres waarnaar je geld opneemt is geïnitialiseerd door je portefeuille-provider. Een kortere weg om dit te bereiken is door eerst een kleine hoeveelheid SOL om te ruilen voor Kin in de portefeuille waarnaar je probeert te versturen.";
 "subtitle.inviteCode" = "Uitnodigingscode";
 "subtitle.inviteCodeDescription" = "Code is momenteel alleen op uitnodiging. Je hebt een uitnodigingscode nodig om toegang te krijgen tot de app.";
 "subtitle.inviteCount" = "%d uitnodigingen";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Je moet je camera opstarten om Codes te scannen.";
 "subtitle.tipCardForX" = "Met je fooikaart kunt je fooien ontvangen van codegebruikers over de hele wereld. Om toegang te krijgen tot je fooikaart, verbind je X-identiteit.";
 "subtitle.tipCardTwitterDescription" = "Met je fooikaart kunt je fooien ontvangen van Code-gebruikers over de hele wereld. Om toegang te krijgen tot je fooikaart, post op X.";
+"subtitle.turnOnNotifications" = "Code toestaan om je meldingen te sturen wanneer je Fooi van andere Code-gebruikers ontvangt.";
 "subtitle.typeDelete" = "Typ '%@'";
 "subtitle.updateRequiredDescription" = "We hebben enkele wijzigingen doorgevoerd om de ervaring te verbeteren. Je dient de app te updaten om Code te blijven gebruiken.";
 "subtitle.validOwnerAccount" = "Geldig eigenaarsaccount";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Privacybeleid";
 "title.purchased" = "Aangeschaft";
 "title.push.twitterAccountConnected" = "Het X-account is met succes verbonden";
+"title.receiveTips" = "Fooi ontvangen";
 "title.received" = "Ontvangen";
 "title.recentCurrencies" = "Recente valuta";
 "title.referFriend" = "Verwijs een vriend en ontvang $5";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Servicevoorwaarden";
 "title.tipCard" = "Fooikaart";
 "title.tipKin" = "Fooi-kin";
+"title.turnOnNotifications" = "Schakel meldingen in voor Code";
 "title.unknown" = "Onbekend";
 "title.updateRequired" = "Update vereist";
 "title.verifyPhoneNumber" = "Telefoonnummer verifiëren";

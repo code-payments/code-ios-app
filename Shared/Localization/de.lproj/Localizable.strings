@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Mehr Kin kaufen";
 "action.cancel" = "Abbrechen";
 "action.cancelSend" = "Senden abbrechen";
+"action.chat" = "Chat";
 "action.collectCash" = "Erhalten Sie Ihr Guthaben";
 "action.confirm" = "Bestätigen";
 "action.connectToX" = "Mit X verbinden";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Sie können Code-Wallet mit Kin aufladen, indem Sie Kin an Ihre unten angegebene Einzahlungsadresse senden. Zum Kopieren einfach Tippen.";
 "subtitle.insufficientFundsDescription" = "Bitte mehr Kin besorgen und dann erneut versuchen zu bezahlen.";
 "subtitle.invalidTokenAccount" = "Ungültiges Empfängerkonto";
+"subtitle.invalidTokenAccountDescription" = "Bitte vergewissern Sie sich, dass die Adresse, an die Sie abheben wollen, von Ihrem Wallet-Anbieter initialisiert wurde. Sie können dies schneller erreichen, wenn Sie zuerst eine kleine Menge SOL gegen Kin in der Wallet tauschen, an die Sie senden möchten.";
 "subtitle.inviteCode" = "Einladungscode";
 "subtitle.inviteCodeDescription" = "Code ist derzeit nur mit Einladung nutzbar. Sie benötigen einen Einladungscode, um auf die App zuzugreifen.";
 "subtitle.inviteCount" = "%d Einladungen";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Starten Sie für einen Codes-Scan bitte Ihre Kamera";
 "subtitle.tipCardForX" = "Mit Ihrer Trinkgeldkarte können Sie von Code-Nutzerinnen und -Nutzern auf der ganzen Welt Trinkgeld erhalten. Verbinden Sie Ihr X-Konto, um auf Ihre Trinkgeldkarte zuzugreifen.";
 "subtitle.tipCardTwitterDescription" = "Mit Ihrer Tipp-Karte können Sie Tipps von Code-Benutzern aus der ganzen Welt erhalten. Um auf Ihre Tipp-Karte zuzugreifen, posten Sie an X.";
+"subtitle.turnOnNotifications" = "Erlauben Sie Code, Ihnen Benachrichtigungen zu senden, wenn Sie Tipps von anderen Code-Nutzern erhalten.";
 "subtitle.typeDelete" = "Geben Sie „%@\" ein";
 "subtitle.updateRequiredDescription" = "Wir haben einige Änderungen vorgenommen, um das Nutzererlebnis zu verbessern. Die App muss aktualisiert werden, um Code weiterhin nutzen zu können.";
 "subtitle.validOwnerAccount" = "Gültiges Inhaberkonto";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Datenschutzrichtlinien";
 "title.purchased" = "Gekauft";
 "title.push.twitterAccountConnected" = "X-Konto erfolgreich verbunden";
+"title.receiveTips" = "Tipps erhalten";
 "title.received" = "Empfangen";
 "title.recentCurrencies" = "Letzte Währungen";
 "title.referFriend" = "Empfehle Sie uns an einen Freund oder eine Freundin weiter und erhalten Sie 5 $ dafür";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Servicebedingungen";
 "title.tipCard" = "Tippkarte";
 "title.tipKin" = "Kin-Trinkgeld geben";
+"title.turnOnNotifications" = "Benachrichtigungen für Code einschalten";
 "title.unknown" = "Unbekannt";
 "title.updateRequired" = "Aktualisierung erforderlich";
 "title.verifyPhoneNumber" = "Telefonnummer verifizieren";

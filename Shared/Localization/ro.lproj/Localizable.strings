@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Cumpără mai multe monede Kin";
 "action.cancel" = "Anulare";
 "action.cancelSend" = "Anulează trimiterea";
+"action.chat" = "Chat";
 "action.collectCash" = "Colectați acești bani";
 "action.confirm" = "Confirmare";
 "action.connectToX" = "Conectează-te la X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Depozitează Kin în portofelul tău Code trimițând o sumă în Kin la adresa ta de depozit de mai jos. Apasă pentru a copia.";
 "subtitle.insufficientFundsDescription" = "Te rugăm să obții mai mulţi Kin și apoi să încerci să plătești din nou";
 "subtitle.invalidTokenAccount" = "Cont de destinație nevalid";
+"subtitle.invalidTokenAccountDescription" = "Asigură-te că adresa la care retragi bani a fost inițializată de furnizorul portofelului tău. O scurtătură pentru a realiza aceasta este să schimbi mai întâi o cantitate mică de SOL pentru Kin în portofelul către care încerci să transferi.";
 "subtitle.inviteCode" = "Cod de invitație";
 "subtitle.inviteCodeDescription" = "Momentan Code este accesibil doar pe bază de invitație. Vei avea nevoie de un cod de invitație pentru a accesa aplicația.";
 "subtitle.inviteCount" = "%d invitații";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Trebuie să pornești camera foto pentru a scana Coduri";
 "subtitle.tipCardForX" = "Cardul tău de bacșiș îți permite să primești bacșișuri de la utilizatorii Code din întreaga lume. Pentru a accesa Cardul tău de bacșiș, conectează-te cu contul tău X.";
 "subtitle.tipCardTwitterDescription" = "Cardul tău de bacșișuri îți permite să primești bacșișuri de la utilizatorii Code din întreaga lume. Pentru a-ți accesa Cardul de bacșișuri, postează pe X.";
+"subtitle.turnOnNotifications" = "Permite Code să-ți trimită notificări atunci când primești Sugestii de la alți utilizatori Code.";
 "subtitle.typeDelete" = "Scrie „%@\"";
 "subtitle.updateRequiredDescription" = "Am făcut unele modificări pentru a îmbunătăți experiența de utilizare. Va fi nevoie să actualizezi aplicația pentru a putea folosi mai departe Code.";
 "subtitle.validOwnerAccount" = "Cont de proprietar valid";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Politică de confidențialitate";
 "title.purchased" = "Achiziționat";
 "title.push.twitterAccountConnected" = "Contul X a fost conectat cu succes";
+"title.receiveTips" = "Primește Sugestii";
 "title.received" = "Primit";
 "title.recentCurrencies" = "Valute folosite recent";
 "title.referFriend" = "Recomandați un prieten, primiți 5 dolari";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Termeni de utilizare";
 "title.tipCard" = "Card de bacșiș";
 "title.tipKin" = "Trimite bacșiș monede Kin";
+"title.turnOnNotifications" = "Activează notificările pentru Code";
 "title.unknown" = "Necunoscut";
 "title.updateRequired" = "Este necesară actualizarea";
 "title.verifyPhoneNumber" = "Verifică numărul de telefon";

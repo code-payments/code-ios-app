@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Kupte další Kiny";
 "action.cancel" = "Zrušit";
 "action.cancelSend" = "Zrušit odeslání";
+"action.chat" = "Chat";
 "action.collectCash" = "Vybrat tuto hotovost";
 "action.confirm" = "Potvrdit";
 "action.connectToX" = "Připojení k X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Uložit kin do kódové peněženky odesláním kinu na níže uvedenou ukládací adresu. Klepnutím zkopírujete.";
 "subtitle.insufficientFundsDescription" = "Získejte další Kin a pak zkuste zaplatit znovu";
 "subtitle.invalidTokenAccount" = "Neplatný cílový účet";
+"subtitle.invalidTokenAccountDescription" = "Prosím ujistěte se, že adresa, na kterou vybíráte, byla inicializována poskytovatelem peněženky. Rychlá cesta, jak toho dosáhnout, je nejprve vyměnit malé množství SOL za Kin v peněžence, na kterou se snažíte poslat.";
 "subtitle.inviteCode" = "Kód pozvánky";
 "subtitle.inviteCodeDescription" = "Code je v současné době pouze pro zvané. K přístupu do aplikace budete potřebovat pozvánku.";
 "subtitle.inviteCount" = "%d přizvání";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Pro naskenování kódů musíte spustit svůj fotoaparát";
 "subtitle.tipCardForX" = "Vaše karta spropitného vám umožňuje přijímat spropitné od uživatelů služby Code z celého světa. Pro přístup ke kartě Tip Card připojte svou identitu X.";
 "subtitle.tipCardTwitterDescription" = "Tip Card vám umožňuje přijímat spropitné od uživatelů Code z celého světa. Přístup k Tip Card získáte po zveřejnění příspěvku na X. ";
+"subtitle.turnOnNotifications" = "Povolte aplikaci Code, aby vám zasílala oznámení, když obdržíte spropitné od jiných uživatelů aplikace Code.";
 "subtitle.typeDelete" = "Napište \"%@\"";
 "subtitle.updateRequiredDescription" = "Udělali jsme jistá zdokonalení užívání. Abyste mohli kód i nadále využívat, budete si muset aktualizovat aplikaci.";
 "subtitle.validOwnerAccount" = "Platný účet vlastníka";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Ochrana soukromí";
 "title.purchased" = "Zakoupeno";
 "title.push.twitterAccountConnected" = "X Účet úspěšně připojen";
+"title.receiveTips" = "Získat spropitné";
 "title.received" = "Obdrženo";
 "title.recentCurrencies" = "Poslední měny";
 "title.referFriend" = "Doporučte kamaráda a získejte 5 USD";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Všeobecné obchodní podmínky";
 "title.tipCard" = "Karta tipu";
 "title.tipKin" = "Dát Kin spropitné";
+"title.turnOnNotifications" = "Zapnutí oznámení pro Code";
 "title.unknown" = "Neznámé";
 "title.updateRequired" = "Je nutná aktualizace";
 "title.verifyPhoneNumber" = "Ověřit telefonní číslo";

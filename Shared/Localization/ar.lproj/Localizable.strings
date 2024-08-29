@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "اشترِ مزيدًا من عملات Kin";
 "action.cancel" = "إلغاء";
 "action.cancelSend" = "إلغاء الإرسال";
+"action.chat" = "الدردشة";
 "action.collectCash" = "اجمع هذه النقود";
 "action.confirm" = "تأكيد";
 "action.connectToX" = "الربط بحساب X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "قم بإيداع الأموال في محفظة Code الخاصة بك عن طريق إرسالها إلى عنوان الإيداع الخاص بك أدناه. انقر للنسخ.";
 "subtitle.insufficientFundsDescription" = "يُرجى الحصول على المزيد من Kin ثم محاولة الدفع مرة أخرى";
 "subtitle.invalidTokenAccount" = "حساب المستلم غير صحيح";
+"subtitle.invalidTokenAccountDescription" = "يرجى التأكد من أن العنوان الذي تقوم بالسحب إليه قد تمت تهيئته بواسطة مزود المحفظة الخاص بك. هناك طريقة مختصرة لتحقيق ذلك وهي استبدال مبلغ صغير من SOL بعملة Kin في المحفظة التي تحاول الإرسال إليها.";
 "subtitle.inviteCode" = "رمز الدعوة";
 "subtitle.inviteCodeDescription" = "الوصول إلى Code حاليًا بالدعوة فقط. ستحتاج إلى رمز دعوة للوصول إلى التطبيق.";
 "subtitle.inviteCount" = "%d دعوات";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "أنت بحاجة إلى تشغيل الكاميرا لمسح الرموز ضوئيًا";
 "subtitle.tipCardForX" = "تتيح لك بطاقة الإكرامية الخاصة بك تلقي الإكراميات من مستخدمي Code في جميع أنحاء العالم. للوصول إلى بطاقة الإكرامية الخاصة بك, قم بتوصيل هوية X الخاصة بك.";
 "subtitle.tipCardTwitterDescription" = "تتيح لك بطاقة النصائح تلقي نصائح من مستخدمي Code في جميع أنحاء العالم. للوصول إلى بطاقة النصائح انشر على X.";
+"subtitle.turnOnNotifications" = "اسمح لـ Code بإرسال إشعارات إليك عندما تتلقى نصائح من مستخدمي Code الآخرين.";
 "subtitle.typeDelete" = "اكتب \"%@\"";
 "subtitle.updateRequiredDescription" = "لقد أجرينا بعض التغييرات لتحسين التجربة. ستحتاج إلى تحديث التطبيق للاستمرار في استخدام Code.";
 "subtitle.validOwnerAccount" = "حساب المالك صحيح";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "سياسة الخصوصية";
 "title.purchased" = "تم الشراء";
 "title.push.twitterAccountConnected" = "تم ربط حساب X بنجاح";
+"title.receiveTips" = "تلقي النصائح";
 "title.received" = "المستلمة";
 "title.recentCurrencies" = "العملات الأخيرة";
 "title.referFriend" = "ارسل طلب إحالة لصديق, واحصل على 5 دولارات";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "شروط الخدمة";
 "title.tipCard" = "بطاقة Tip ";
 "title.tipKin" = "إكرامية Kin";
+"title.turnOnNotifications" = "تشغيل الإشعارات لـ Code";
 "title.unknown" = "غير معروف";
 "title.updateRequired" = "التحديث مطلوب";
 "title.verifyPhoneNumber" = "التحقق من رقم الهاتف";

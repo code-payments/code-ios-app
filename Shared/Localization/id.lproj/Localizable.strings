@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Beli Lebih Banyak Kin";
 "action.cancel" = "Batal";
 "action.cancelSend" = "Batal Kirim";
+"action.chat" = "Mengobrol";
 "action.collectCash" = "Ambil Uang Ini";
 "action.confirm" = "Konfirmasi";
 "action.connectToX" = "Sambungkan ke X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Setor Kin ke dompet Code Anda dengan mengirim Kin ke Alamat Setoran Anda di bawah ini. Ketuk untuk menyalin.";
 "subtitle.insufficientFundsDescription" = "Dapatkan lebih banyak Kin dan kemudian coba bayar lagi";
 "subtitle.invalidTokenAccount" = "Akun tujuan tidak valid";
+"subtitle.invalidTokenAccountDescription" = "Pastikan alamat penarikan Anda sudah diinisialisasi oleh penyedia dompet Anda. Jalan pintas untuk mencapai in adalah dengan menukar sedikit SOL dengan Kin di dompet tujuan pengiriman Anda.\n";
 "subtitle.inviteCode" = "Kode Undangan";
 "subtitle.inviteCodeDescription" = "Code saat ini hanya untuk undangan. Anda perlu Kode Undangan untuk mengakses aplikasi.";
 "subtitle.inviteCount" = "%d Undangan";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Anda perlu memulai kamera Anda untuk memindai Code";
 "subtitle.tipCardForX" = "Kartu Tip Anda memungkinkan Anda menerima tip dari pengguna Code di seluruh dunia. Untuk mengakses Kartu Tip Anda, hubungkan identitas X Anda.";
 "subtitle.tipCardTwitterDescription" = "Kartu Tip Anda memungkinkan Anda menerima tip dari pengguna Code di seluruh dunia. Untuk mengakses Kartu Tip, kirim postingan ke X.";
+"subtitle.turnOnNotifications" = "Izinkan Code mengirimi Anda pemberitahuan saat Anda menerima Tip dari pengguna Code lainnya.";
 "subtitle.typeDelete" = "Tikkan \"%@\"";
 "subtitle.updateRequiredDescription" = "Kami telah melakukan beberapa perubahan untuk meningkatkan pengalaman. Anda harus memperbarui aplikasi untuk tetap menggunakan Code.";
 "subtitle.validOwnerAccount" = "Akun pemilik yang valid";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Kebijakan Privasi";
 "title.purchased" = "Dibeli";
 "title.push.twitterAccountConnected" = "Akun X Berhasil Tersambung";
+"title.receiveTips" = "Terima Tip";
 "title.received" = "Menerima";
 "title.recentCurrencies" = "Mata Uang Terbaru";
 "title.referFriend" = "Ajak Teman, Dapatkan $5";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Ketentuan Layanan";
 "title.tipCard" = "Kartu Tip";
 "title.tipKin" = "Beri Tip Kin";
+"title.turnOnNotifications" = "Nyalakan Notifikasi untuk Code";
 "title.unknown" = "Tak Dikenal";
 "title.updateRequired" = "Memerlukan Pembaruan";
 "title.verifyPhoneNumber" = "Verifikasi Nomor Telepon";

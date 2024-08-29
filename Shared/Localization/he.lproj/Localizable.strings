@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "לקנות kin יותר";
 "action.cancel" = "ביטול";
 "action.cancelSend" = "בטל שליחה";
+"action.chat" = "צ'אט";
 "action.collectCash" = "אסוף את המזומן הזה";
 "action.confirm" = "אישור";
 "action.connectToX" = "התחבר ל-X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "הפקד קין לארנק הקוד שלך על ידי שליחת קין לכתובת ההפקדות שלך המצוינת מטה. הקש להעתקה.";
 "subtitle.insufficientFundsDescription" = "אנא השיגו עוד Kin ואז נסו לשלם שוב";
 "subtitle.invalidTokenAccount" = "חשבון יעד לא חוקי";
+"subtitle.invalidTokenAccountDescription" = "נא ודאו שהכתובת שאליה אתם מושכים אותחלה על ידי ספק הארנק שלכם. דרך קצרה לעשות זאת היא להחליף תחילה כמות קטנה של SOL ל-Kin בארנק שאליו אתם מנסים לשלוח.";
 "subtitle.inviteCode" = "קוד הזמנה";
 "subtitle.inviteCodeDescription" = "Code היא כרגע בהזמנה בלבד. תזדקק לקוד הזמנה כדי לגשת לאפליקציה.";
 "subtitle.inviteCount" = "%d הזמנות";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "עליך להפעיל את המצלמה כדי לסרוק קודים";
 "subtitle.tipCardForX" = "כרטיס הטיפים שלכם מאפשר לכם לקבל טיפים ממשתמשי Code מכל רחבי העולם. כדי לגשת לכרטיס הטיפים שלכם חברו את זהות X שלכם.";
 "subtitle.tipCardTwitterDescription" = "ה\"טיפקארד\" שלך מאפשר לך לקבל טיפים ממשתמשי קוד בכל רחבי העולם. כדי לגשת ל\"טיפקארד\" שלך, עליך להעלות פוסט ל-X.";
+"subtitle.turnOnNotifications" = "אפשרו ל-Code לשלוח לכם הודעות כשאתם מקבלים טיפים ממשתמשי Code אחרים.";
 "subtitle.typeDelete" = "יש להקליד \"%@\"";
 "subtitle.updateRequiredDescription" = "עשינו כמה שינויים כדי לשפר את חווית המשתמש. תצטרך לעדכן את האפליקציה כדי להמשיך להשתמש בקוד.";
 "subtitle.validOwnerAccount" = "חשבון בעלים תקף";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "מדיניות פרטיות";
 "title.purchased" = "נרכש";
 "title.push.twitterAccountConnected" = "חשבון X חובר בהצלחה";
+"title.receiveTips" = "קבלו טיפים";
 "title.received" = "הפקדות שהתקבלו";
 "title.recentCurrencies" = "סוגי מטבע בשימוש לאחרונה";
 "title.referFriend" = "הפנה חבר, קבל 5$";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "תנאי שימוש";
 "title.tipCard" = "כרטיס טיפ";
 "title.tipKin" = "מתן Kin כטיפ";
+"title.turnOnNotifications" = "הפעילו הודעות עבור Code";
 "title.unknown" = "לא ידוע";
 "title.updateRequired" = "נדרש עדכון";
 "title.verifyPhoneNumber" = "אימות מספר טלפון";

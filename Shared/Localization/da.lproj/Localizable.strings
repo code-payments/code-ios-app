@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Køb flere Kin";
 "action.cancel" = "Slet";
 "action.cancelSend" = "Annuller send";
+"action.chat" = "Chat";
 "action.collectCash" = "Indsaml disse kontanter";
 "action.confirm" = "Bekræft";
 "action.connectToX" = "Opret forbindelse til X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Indsæt Kin i din Code wallet ved at sende Kin til din deponeringsadresse nedenfor. Tap for at kopiere.";
 "subtitle.insufficientFundsDescription" = "Få venligst flere Kin, og prøv derefter at betale igen";
 "subtitle.invalidTokenAccount" = "Ugyldig destinationskonto";
+"subtitle.invalidTokenAccountDescription" = "Sørg for, at den adresse, du hæver til, er blevet initialiseret af din tegnebogsudbyder. En genvej til at opnå dette er først at veksle en lille smule SOL til Kin i den tegnebog, du prøver at sende til.";
 "subtitle.inviteCode" = "Invitationskode";
 "subtitle.inviteCodeDescription" = "Koden kan i øjeblikket kun fås ved invitation. Du skal bruge en invitationskode for at få adgang til appen.";
 "subtitle.inviteCount" = "%d invitationer";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Du skal starte dit kamera for at scanne koder";
 "subtitle.tipCardForX" = "Med dit drikkepengekort kan du modtage drikkepenge fra Code-brugere over hele verden. For at få adgang til dit drikkepengekort skal du forbinde din X-identitet.\n";
 "subtitle.tipCardTwitterDescription" = "Dit Tip Card lader dig modtage donationer fra Code-brugere over hele verden. Slå noget op på X for at tilgå dit Tip Card.";
+"subtitle.turnOnNotifications" = "Tillad, at Code sender dig notifikationer, når du modtager tip fra andre Code-brugere.";
 "subtitle.typeDelete" = "Tast \"%@\"";
 "subtitle.updateRequiredDescription" = "Vi har foretaget nogle ændringer for at forbedre oplevelsen. Du skal opdatere appen for at fortsætte med at anvende Code.";
 "subtitle.validOwnerAccount" = "Gyldig ejerkonto";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Privatlivspolitik";
 "title.purchased" = "Købt";
 "title.push.twitterAccountConnected" = "X-konto forbundet";
+"title.receiveTips" = "Modtag tips";
 "title.received" = "Modtog";
 "title.recentCurrencies" = "Seneste valutaer";
 "title.referFriend" = "Henvis en ven, få $5";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Servicebetingelser";
 "title.tipCard" = "Tipkort";
 "title.tipKin" = "Giv drikkepenge i Kin";
+"title.turnOnNotifications" = "Slå notifikationer for Code til";
 "title.unknown" = "Ukendt ";
 "title.updateRequired" = "Opdatering nødvendig ";
 "title.verifyPhoneNumber" = "Bekræft telefonnummer";

@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Mua thêm Kin";
 "action.cancel" = "Hủy";
 "action.cancelSend" = "Hủy Gửi";
+"action.chat" = "Trò chuyện";
 "action.collectCash" = "Thu Số tiền Này";
 "action.confirm" = "Xác nhận";
 "action.connectToX" = "Kết nối với X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Gửi Kin đến Địa chỉ Nạp tiền của bạn ở bên dưới để nạp Kin vào ví Mã của bạn. Nhấn để sao chép.";
 "subtitle.insufficientFundsDescription" = "Vui lòng nhận thêm Kin rồi thử thanh toán lại";
 "subtitle.invalidTokenAccount" = "Tài khoản đích không hợp lệ";
+"subtitle.invalidTokenAccountDescription" = "Vui lòng đảm bảo rằng địa chỉ bạn đang rút tiền về đã được nhà cung cấp ví của bạn khởi tạo. Một cách nhanh chóng để thực hiện điều này là trước tiên hãy đổi một khoản nhỏ SOL sang Kin trong ví mà bạn đang cố gắng gửi đến.";
 "subtitle.inviteCode" = "Mã Mời";
 "subtitle.inviteCodeDescription" = "Chúng tôi hiện chỉ cung cấp Mã thông qua hình thức mời. Bạn sẽ cần Mã Mời để truy cập ứng dụng này.";
 "subtitle.inviteCount" = "%d Lời mời";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Bạn cần bật camera để quét Mã";
 "subtitle.tipCardForX" = "Thẻ Tiền boa của bạn giúp bạn có thể nhận tiền boa từ người dùng Code trên toàn thế giới. Để truy cập Thẻ Tiền boa, hãy kết nối danh tính X của bạn.";
 "subtitle.tipCardTwitterDescription" = "Thẻ Tip cho phép bạn nhận tiền tip từ người dùng Code trên toàn thế giới. Để sử dụng Thẻ Tip của mình, hãy đăng bài trên X.";
+"subtitle.turnOnNotifications" = "Cho phép Code gửi thông báo cho bạn khi bạn nhận được tiền típ từ những người dùng Code khác.";
 "subtitle.typeDelete" = "Gõ \"%@\"";
 "subtitle.updateRequiredDescription" = "Chúng tôi đã thực hiện một số thay đổi để cải thiện trải nghiệm. Bạn sẽ cần cập nhật ứng dụng để tiếp tục sử dụng Mã.";
 "subtitle.validOwnerAccount" = "Tài khoản chủ sở hữu hợp lệ";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Chính sách Quyền riêng tư";
 "title.purchased" = "Đã mua";
 "title.push.twitterAccountConnected" = "Tài khoản X được kết nối thành công";
+"title.receiveTips" = "Nhận tiền típ";
 "title.received" = "Đã nhận";
 "title.recentCurrencies" = "Đơn vị tiền tệ Gần đây";
 "title.referFriend" = "Giới thiệu một người bạn - Nhận 5$";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Điều khoản Dịch vụ";
 "title.tipCard" = "Thẻ Boa";
 "title.tipKin" = "Boa Kin";
+"title.turnOnNotifications" = "Bật thông báo cho Code";
 "title.unknown" = "Không xác định";
 "title.updateRequired" = "Cần Cập nhật";
 "title.verifyPhoneNumber" = "Xác minh Số Điện thoại";

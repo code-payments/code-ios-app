@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Comprar mais Kin";
 "action.cancel" = "Cancelar";
 "action.cancelSend" = "Cancelar envio";
+"action.chat" = "Conversar";
 "action.collectCash" = "Recebe este dinheiro";
 "action.confirm" = "Confirmar";
 "action.connectToX" = "Conectar ao X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Deposite Kin na sua carteira Code enviando Kin para o seu Endereço de Depósito abaixo. Toque para copiar.";
 "subtitle.insufficientFundsDescription" = "Obtenha mais Kin e tente pagar novamente";
 "subtitle.invalidTokenAccount" = "Conta de destino inválida";
+"subtitle.invalidTokenAccountDescription" = "Certifique-se de que o endereço para o qual está a fazer o levantamento foi inicializado pelo seu fornecedor de carteira. Um atalho para conseguir isto é trocar primeiro uma pequena quantidade de SOL por Kin na carteira para a qual está a tentar enviar.";
 "subtitle.inviteCode" = "Código de Convite";
 "subtitle.inviteCodeDescription" = "A Code apenas está disponível através de convite. Irá necessitar de um Código de Convite para aceder à aplicação.";
 "subtitle.inviteCount" = "%d Convites";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Para ler códigos, tem de ativar a sua câmara";
 "subtitle.tipCardForX" = "O seu Cartão de Recompensas permite-lhe receber recompensas de utilizadores da Code de todo o mundo. Para ter acesso ao seu Cartão de Recompensas, conecte a sua identidade X.";
 "subtitle.tipCardTwitterDescription" = "O seu Cartão de gorjetas permite-lhe receber gorjetas de utilizadores do Code em todo o mundo. Para aceder ao seu Cartão de gorjetas, faça uma publicação no X.";
+"subtitle.turnOnNotifications" = "Permita que o Code lhe envie notificações quando receber gorjetas de outros utilizadores do Code.";
 "subtitle.typeDelete" = "Digite \"%@\"";
 "subtitle.updateRequiredDescription" = "Fizemos algumas alterações para melhorar a experiência. Terá que atualizar a aplicação para continuar a usar a Code.";
 "subtitle.validOwnerAccount" = "Conta de proprietário válida";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Política de Privacidade";
 "title.purchased" = "Adquirido";
 "title.push.twitterAccountConnected" = "Conta X conectada com êxito";
+"title.receiveTips" = "Receber gorjetas";
 "title.received" = "Recebeu";
 "title.recentCurrencies" = "Moedas Recentes";
 "title.referFriend" = "Refira a uma amigo, ganhe 5€";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Termos de Serviço";
 "title.tipCard" = "Cartão de Dica";
 "title.tipKin" = "Dar recompensa em Kin";
+"title.turnOnNotifications" = "Ativar notificações do Code";
 "title.unknown" = "Desconhecido";
 "title.updateRequired" = "Atualização Necessária";
 "title.verifyPhoneNumber" = "Verificar Número de Telefone";

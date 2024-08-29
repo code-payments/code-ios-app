@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "さらにKinを購入";
 "action.cancel" = "キャンセル";
 "action.cancelSend" = "送信をキャンセル";
+"action.chat" = "チャット";
 "action.collectCash" = "このお金を受け取る";
 "action.confirm" = "確認する";
 "action.connectToX" = "Xに接続する";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "以下の入金アドレスにKinを送信することによって,KinをCodeウォレットに入金します。タップしてコピーしてください。";
 "subtitle.insufficientFundsDescription" = "Kinをもっと入手してから再度お支払いをお試しください";
 "subtitle.invalidTokenAccount" = "無効な送金先アカウント";
+"subtitle.invalidTokenAccountDescription" = "引き出し先のアドレスがウォレットプロバイダーによりイニシャライズされていることをご確認ください。これを行うための近道は,まず送信先のウォレットで少額のSOLをKinに交換することです。";
 "subtitle.inviteCode" = "招待コード";
 "subtitle.inviteCodeDescription" = "Codeは現在招待制です。 アプリにアクセスするには招待コードが必要です。";
 "subtitle.inviteCount" = "%dの招待";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "カメラを起動してコードをスキャンする必要があります";
 "subtitle.tipCardForX" = "チップカードを使用すると,世界中のCodeユーザーからチップを受け取ることができます。チップカードにアクセスするには,XのIDを接続してください。";
 "subtitle.tipCardTwitterDescription" = "チップカードを使用すると世界中のCodeユーザーからチップを受け取れます。チップカードにアクセスするにはXに投稿してください。";
+"subtitle.turnOnNotifications" = "他のCodeユーザーからTipをもらった時にCodeからの通知を受け取れるようにしてください。";
 "subtitle.typeDelete" = "\"%@\"と入力";
 "subtitle.updateRequiredDescription" = "エクスペリエンスを向上させるために,いくつかの変更を行いました。Codeを使い続けるには,アプリを更新する必要があります。";
 "subtitle.validOwnerAccount" = "有効なオーナーアカウント";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "プライバシーポリシー";
 "title.purchased" = "購入済み";
 "title.push.twitterAccountConnected" = "Xアカウントが正常に接続されました";
+"title.receiveTips" = "Tipを受け取る";
 "title.received" = "受信済み";
 "title.recentCurrencies" = "最近の通貨";
 "title.referFriend" = "友だちを紹介して5ドルもらおう";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "利用規約";
 "title.tipCard" = "チップカード";
 "title.tipKin" = "Kinにチップを支払う";
+"title.turnOnNotifications" = "Codeの通知をオンにしてください";
 "title.unknown" = "不明";
 "title.updateRequired" = "更新が必要です";
 "title.verifyPhoneNumber" = "電話番号を確認する";

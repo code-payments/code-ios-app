@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Купити більше Kin";
 "action.cancel" = "Скасувати";
 "action.cancelSend" = "Скасувати надсилання";
+"action.chat" = "Чат";
 "action.collectCash" = "Заберіть ці гроші";
 "action.confirm" = "Підтвердити";
 "action.connectToX" = "Підключитися до X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Внесіть Kin у свій гаманець Code, надіславши Kin на свою депозитну адресу нижче. Торкніться, щоб скопіювати.";
 "subtitle.insufficientFundsDescription" = "Будь ласка, отримайте більше Kin та спробуйте оплатити знову";
 "subtitle.invalidTokenAccount" = "Недійсний рахунок призначення";
+"subtitle.invalidTokenAccountDescription" = "Будь ласка, переконайтесь, що адреса, на яку ви виводите кошти, була ініціалізована провайдером вашого гаманця. Зробити це найпростіше можна переславши спочатку  невеличку суму SOL для Kin у гаманець, в який ви намагаєтесь надіслати кошти.";
 "subtitle.inviteCode" = "Код запрошення ";
 "subtitle.inviteCodeDescription" = "Приєднатись до Code зараз можна тільки за запрошенням. Вам знадобиться Код запрошення, щоб отримати доступ до застосунку.";
 "subtitle.inviteCount" = "%d запрошень";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Вам потрібно увімкнути камеру, щоб сканувати коди.";
 "subtitle.tipCardForX" = "Ваша картка для чайових дозволяє отримувати чайові від користувачів Code з усього світу. Щоб скористатися вашою карткою, підключіть свій ідентифікатор X.";
 "subtitle.tipCardTwitterDescription" = "Картка для чайових дозволяє отримувати чайові від користувачів Code зі всього світу. Щоб отримати доступ до вашої картки для чайових, зробіть публікацію в X.";
+"subtitle.turnOnNotifications" = "Дозвольте Code надсилати вам сповіщення, коли ви отримуєте Чайові від інших користувачів Code.";
 "subtitle.typeDelete" = "Уведіть \"%@\"";
 "subtitle.updateRequiredDescription" = "Ми внесли деякі зміни, щоб покращити роботу. Вам слід оновити застосунок, щоб і надалі використовувати Code.";
 "subtitle.validOwnerAccount" = "Дійсний рахунок власника";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Політика конфіденційності";
 "title.purchased" = "Куплено";
 "title.push.twitterAccountConnected" = "Акаунт X успішно підключено";
+"title.receiveTips" = "Отримати Чайові";
 "title.received" = "Отримано";
 "title.recentCurrencies" = "Останні валюти";
 "title.referFriend" = "Порекомендуйте другу, отримайте 5 дол.";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Умови обслуговування";
 "title.tipCard" = "Картка з підказками";
 "title.tipKin" = "Дати чайові у Kin";
+"title.turnOnNotifications" = "Увімкнути сповіщення для Code";
 "title.unknown" = "Невідомо";
 "title.updateRequired" = "Потрібне оновлення";
 "title.verifyPhoneNumber" = "Підтвердити номер телефону";

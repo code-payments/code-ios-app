@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Kup więcej Kin";
 "action.cancel" = "Anuluj";
 "action.cancelSend" = "Anuluj wysyłanie";
+"action.chat" = "Czat";
 "action.collectCash" = "Odbierz te pieniądze";
 "action.confirm" = "Potwierdź";
 "action.connectToX" = "Połącz z X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Zdeponuj Kin w swoim portfelu Code, wysyłając Kin na poniższy adres depozytowy. Stuknij, żeby skopiować.";
 "subtitle.insufficientFundsDescription" = "Zdobądź więcej Kin, a następnie spróbuj zapłacić ponownie";
 "subtitle.invalidTokenAccount" = "Nieprawidłowe konto docelowe";
+"subtitle.invalidTokenAccountDescription" = "Upewnij się, że wycofywany adres został inicjalizowany przez dostawcę Twojego portfela. Można to osiągnąć na skróty, najpierw wymieniając małą ilość SOL na Kin w portfelu, na który chcesz przesłać środki.";
 "subtitle.inviteCode" = "Kod zaproszenia";
 "subtitle.inviteCodeDescription" = "Kod jest obecnie dostępny wyłącznie na zaproszenie. Żeby uzyskać dostęp do aplikacji, będziesz potrzebować kodu zaproszenia.";
 "subtitle.inviteCount" = "%d zaproszenia";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Aby skanować Code, musisz uruchomić kamerę";
 "subtitle.tipCardForX" = "Twoja karta napiwków umożliwia otrzymywanie napiwków od użytkowników Code na całym świecie. Aby uzyskać dostęp do karty napiwków, połącz swoją tożsamość X.";
 "subtitle.tipCardTwitterDescription" = "Twoja karta napiwkowa pozwala Ci otrzymywać napiwki od użytkowników Code na całym świecie.  Aby uzyskać dostęp do karty napiwkowej, wyślij post do X. ";
+"subtitle.turnOnNotifications" = "Zezwól aplikacji Code na wysyłanie Ci powiadomień, gdy otrzymasz wskazówki od innych użytkowników aplikacji.";
 "subtitle.typeDelete" = "Wpisz „%@\"";
 "subtitle.updateRequiredDescription" = "Dokonaliśmy paru zmian, żeby usprawnić korzystanie z usługi. Żeby nadal używać Code, musisz zaktualizować aplikację.";
 "subtitle.validOwnerAccount" = "Prawidłowe konto właściciela";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Zasady prywatności";
 "title.purchased" = "Kupione";
 "title.push.twitterAccountConnected" = "Pomyślnie połączono konto X";
+"title.receiveTips" = "Otrzymaj wskazówki";
 "title.received" = "Otrzymane";
 "title.recentCurrencies" = "Niedawne waluty";
 "title.referFriend" = "Poleć znajomemu i otrzymaj 5 $";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Warunki świadczenia usług";
 "title.tipCard" = "Karta napiwkowa";
 "title.tipKin" = "Napiwek Kin";
+"title.turnOnNotifications" = "Włącz powiadomienia dla aplikacji Code";
 "title.unknown" = "Nieznane";
 "title.updateRequired" = "Wymagana aktualizacja";
 "title.verifyPhoneNumber" = "Zweryfikuj numer telefonu";

@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Купить больше Kin";
 "action.cancel" = "Отменить";
 "action.cancelSend" = "Отменить отправку";
+"action.chat" = "Общаться";
 "action.collectCash" = "Заберите эти деньги";
 "action.confirm" = "Подтвердить";
 "action.connectToX" = "Подключиться к X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Внесите Kin на свой кошелек Code, отправив Kin на свой депозитный адрес ниже. Коснитесь, чтобы скопировать.";
 "subtitle.insufficientFundsDescription" = "Получите больше Kin и попробуйте заплатить еще раз";
 "subtitle.invalidTokenAccount" = "Неверный целевой счет";
+"subtitle.invalidTokenAccountDescription" = "Пожалуйста, убедитесь, что адрес, на который вы выводите средства, был инициализирован провайдером вашего кошелька. Для этого можно сначала обменять небольшое количество SOL на Kin в кошельке, на который вы пытаетесь отправить средства.";
 "subtitle.inviteCode" = "Пригласительный код";
 "subtitle.inviteCodeDescription" = "В настоящее время Code только по приглашению. Для доступа к приложению вам понадобится пригласительный код.";
 "subtitle.inviteCount" = "%d приглашений";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Вам нужно запустить камеру для сканирования кодов";
 "subtitle.tipCardForX" = "Ваша карта чаевых позволяет вам получать чаевые от пользователей Code со всего мира. Чтобы получить доступ к своей карте чаевых, подключите свою личность X.";
 "subtitle.tipCardTwitterDescription" = "Ваша карта чаевых позволяет вам получать чаевые от пользователей Code со всего мира. Чтобы получить доступ к карточке чаевых, опублиуйте пост в X.";
+"subtitle.turnOnNotifications" = "Разрешите Code отправлять вам уведомления, когда вы получаете советы от других пользователей Code.";
 "subtitle.typeDelete" = "Введите «%@‎»";
 "subtitle.updateRequiredDescription" = "Мы кое-что изменили, чтобы улучшить ваш опыт пользования. Вам придется обновить приложение, чтобы продолжить пользоваться Code.";
 "subtitle.validOwnerAccount" = "Действительный счет владельца";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Политика конфиденциальности";
 "title.purchased" = "Куплено";
 "title.push.twitterAccountConnected" = "Аккаунт X успешно подключен";
+"title.receiveTips" = "Получать советы";
 "title.received" = "Получил(-а)";
 "title.recentCurrencies" = "Недавние валюты";
 "title.referFriend" = "Приведите друга, получите 5 долл. США";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Условия пользования";
 "title.tipCard" = "Карточка чаевых";
 "title.tipKin" = "Дать чаевые в кин";
+"title.turnOnNotifications" = "Включить уведомления от Code";
 "title.unknown" = "Неизвестный";
 "title.updateRequired" = "Требуется обновление";
 "title.verifyPhoneNumber" = "Подтвердить номер телефона";

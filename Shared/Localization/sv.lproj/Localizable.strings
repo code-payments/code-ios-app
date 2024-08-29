@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Köp mer Kin";
 "action.cancel" = "Avbryt";
 "action.cancelSend" = "Avbryt skicka";
+"action.chat" = "Chatt";
 "action.collectCash" = "Ta emot pengarna";
 "action.confirm" = "Bekräfta";
 "action.connectToX" = "Anslut till X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Sätt in Kin i din Code wallet genom att skicka Kin till din insättningsadress nedan. Tryck på för att kopiera.";
 "subtitle.insufficientFundsDescription" = "Skaffa mer Kin och försök sedan att betala igen";
 "subtitle.invalidTokenAccount" = "Ogiltigt mottagarkonto";
+"subtitle.invalidTokenAccountDescription" = "Kontrollera att adressen du gör uttag till har initialiserats av din plånboksleverantör. En genväg är att först växla en liten mängd SOL mot Kin i den plånbok du försöker skicka till.";
 "subtitle.inviteCode" = "Inbjudningskod";
 "subtitle.inviteCodeDescription" = "Code är i nuläget endast för inbjudna. Du behöver en inbjudningskod för att komma åt appen.";
 "subtitle.inviteCount" = "%d bjuder in";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Du måste starta kameran för att skanna koder";
 "subtitle.tipCardForX" = "Med ditt drickskort kan du ta emot tips från Code-användare över hela världen. Koppla din profil på X för att få tillgång till ditt tipskort.";
 "subtitle.tipCardTwitterDescription" = "Med ditt drickskort kan du ta emot dricks från Code-användare världen över. Posta på X för att få tillgång till ditt drickskort.";
+"subtitle.turnOnNotifications" = "Tillåt Code att skicka meddelanden till dig när du får dricks från andra Code-användare.";
 "subtitle.typeDelete" = "Skriv \"%@\"";
 "subtitle.updateRequiredDescription" = "Vi har gjort några ändringar för att förbättra upplevelsen. Du måste uppdatera appen för att fortsätta använda Code.";
 "subtitle.validOwnerAccount" = "Giltigt ägarkonto";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Integritetspolicy";
 "title.purchased" = "Köpt";
 "title.push.twitterAccountConnected" = "X-kontot är nu kopplat";
+"title.receiveTips" = "Få dricks";
 "title.received" = "Mottagen";
 "title.recentCurrencies" = "Senaste valutorna";
 "title.referFriend" = "Värva en vän, få 5 USD";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Villkor för tjänsten";
 "title.tipCard" = "Drickskort";
 "title.tipKin" = "Ge Kin i dricks";
+"title.turnOnNotifications" = "Aktivera aviseringar för Code";
 "title.unknown" = "Okänt";
 "title.updateRequired" = "Uppdatering krävs";
 "title.verifyPhoneNumber" = "Verifiera telefonnummer";

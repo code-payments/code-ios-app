@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Osta lisää Kin-klikkoja";
 "action.cancel" = "Peruuta";
 "action.cancelSend" = "Peruuta lähettäminen";
+"action.chat" = "Keskustelu";
 "action.collectCash" = "Ota käteisrahat vastaan";
 "action.confirm" = "Vahvista";
 "action.connectToX" = "Yhdistä X:ään";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Talleta kinejä Code-kukkaroosi lähettämällä kinejä talletusosoitteeseesi tämän alla. Kopioi napauttamalla.";
 "subtitle.insufficientFundsDescription" = "Hanki lisää kinejä ja yritä sitten maksaa uudelleen";
 "subtitle.invalidTokenAccount" = "Virheellinen kohdetili";
+"subtitle.invalidTokenAccountDescription" = "Varmista, että lompakkopalvelujen tarjoajasi on alustanut osoitteen, josta nostat varoja. Tämä onnistuu nopeasti vaihtamalla ensin hyvin pienen määrän solanoita Kiniksi siinä lompakossa, johon yrität lähettää varoja.";
 "subtitle.inviteCode" = "Kutsukoodi";
 "subtitle.inviteCodeDescription" = "Code on tällä hetkellä vain kutsukäytössä. Tarvitset kutsukoodin voidaksesi käyttää sovellusta.";
 "subtitle.inviteCount" = "%d kutsua";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Sinun on käynnistettävä kamerasi voidaksesi lukea Codeja";
 "subtitle.tipCardForX" = "Tippikorttisi avulla voit vastaanottaa tippejä Coden käyttäjiltä kaikkialta maailmasta. Yhdistä X-henkilöllisyytesi, jotta voit käyttää tippikorttiasi.";
 "subtitle.tipCardTwitterDescription" = "Tippikorttisi avulla voit vastaanottaa tippejä Coden käyttäjiltä kaikkialla maailmassa. Pääset käyttämään tippikorttiasi tekemällä julkaisun X-palvelussa.";
+"subtitle.turnOnNotifications" = "Salli Coden lähettää ilmoituksia, kun saat tippiä muilta Coden käyttäjiltä.";
 "subtitle.typeDelete" = "Kirjoita \"%@\"";
 "subtitle.updateRequiredDescription" = "Olemme tehneet eräitä muutoksia parantaaksemme käyttökokemusta. Sinun on päivitettävä sovellus jatkaaksesi Coden käyttämistä.";
 "subtitle.validOwnerAccount" = "Pätevä omistajan tili";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Tietosuojakäytäntö";
 "title.purchased" = "Ostettu";
 "title.push.twitterAccountConnected" = "X-tilin yhdistäminen onnistui";
+"title.receiveTips" = "Vastaanota tippejä";
 "title.received" = "Sai";
 "title.recentCurrencies" = "Viimeaikaiset valuutat";
 "title.referFriend" = "Suosita ystävää, saat 5 $";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Palveluehdot";
 "title.tipCard" = "Tippikortti";
 "title.tipKin" = "Anna kinejä tippinä";
+"title.turnOnNotifications" = "Ota Coden ilmoitukset käyttöön";
 "title.unknown" = "Tuntematon";
 "title.updateRequired" = "Päivitys vaaditaan";
 "title.verifyPhoneNumber" = "Vahvista puhelinnumero";

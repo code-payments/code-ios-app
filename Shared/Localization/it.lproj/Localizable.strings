@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Acquista altri Kin";
 "action.cancel" = "Annulla";
 "action.cancelSend" = "Cancella invio";
+"action.chat" = "Chatta";
 "action.collectCash" = "Ritira questi soldi";
 "action.confirm" = "Conferma";
 "action.connectToX" = "Connetti a X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Deposita Kin nel tuo portafoglio Code inviando Kin al tuo indirizzo di deposito qui sotto. Tocca per copiare.";
 "subtitle.insufficientFundsDescription" = "Ottieni più Kin e poi prova a pagare di nuovo";
 "subtitle.invalidTokenAccount" = "Conto di destinazione non valido";
+"subtitle.invalidTokenAccountDescription" = "Assicurati che l'indirizzo da cui stai effettuando il ritiro sia stato inizializzato dal fornitore del tuo portafoglio. Una scorciatoia per raggiungere questo obiettivo è scambiare prima una piccola quantità di SOL con Kin nel portafoglio a cui stai tentando di inviare.";
 "subtitle.inviteCode" = "Codice di Invito";
 "subtitle.inviteCodeDescription" = "Code è attualmente solo su invito. Avrai bisogno di un Codice di Invito per accedere all'app.";
 "subtitle.inviteCount" = "%d inviti";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "È necessario aprire la fotocamera per scansionare i codici";
 "subtitle.tipCardForX" = "La tua Tip Card ti consente di ricevere mance dagli utenti di Code in tutto il mondo. Per accedere alla tua Tip Card collega la tua identità X.";
 "subtitle.tipCardTwitterDescription" = "La tua Tip Card ti consente di ricevere mance dagli utenti di Code in tutto il mondo. Per accedere alla tua Tip Card, pubblica su X.";
+"subtitle.turnOnNotifications" = "Consenti a Code di inviarti notifiche quando ricevi mance da altri utenti di Code.";
 "subtitle.typeDelete" = "Digita \"%@\"";
 "subtitle.updateRequiredDescription" = "Abbiamo apportato alcune modifiche per migliorare l'esperienza. Dovrai aggiornare l'app per poter continuare a utilizzare Code.";
 "subtitle.validOwnerAccount" = "Account proprietario valido";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Informativa sulla privacy";
 "title.purchased" = "Acquisti";
 "title.push.twitterAccountConnected" = "Account X connesso con successo";
+"title.receiveTips" = "Ricevi mance";
 "title.received" = "Ricevuti";
 "title.recentCurrencies" = "Valute recenti";
 "title.referFriend" = "Invita un amico, ricevi 5 $";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Termini di servizio";
 "title.tipCard" = "Carta suggerimento";
 "title.tipKin" = "Mancia Kin";
+"title.turnOnNotifications" = "Attiva le notifiche per Code";
 "title.unknown" = "Sconosciuto";
 "title.updateRequired" = "Aggiornamento richiesto";
 "title.verifyPhoneNumber" = "Verifica numero di telefono";

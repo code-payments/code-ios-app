@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Beli Lagi Kin";
 "action.cancel" = "Batal";
 "action.cancelSend" = "Batal Hantar";
+"action.chat" = "Sembang";
 "action.collectCash" = "Kumpul Wang Tunai Ini";
 "action.confirm" = "Sahkan";
 "action.connectToX" = "Berhubung kepada X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Depositkan Kin ke dompet Code anda dengan menghantar Kin ke Alamat Deposit anda di bawah. Ketik untuk salin.";
 "subtitle.insufficientFundsDescription" = "Sila dapatkan lebih banyak Kin dan kemudian cuba bayar sekali lagi";
 "subtitle.invalidTokenAccount" = "Akaun destinasi tidak sah";
+"subtitle.invalidTokenAccountDescription" = "Sila pastikan alamat yang anda tarik balik telah diparamkan oleh pembekal dompet anda. Jalan pintas untuk mencapai ini adalah dengan menukar sejumlah kecil SOL untuk Kin dahulu dalam dompet yang anda cuba hantar.";
 "subtitle.inviteCode" = "Kod Jemputan";
 "subtitle.inviteCodeDescription" = "Kod pada masa ini adalah jemputan sahaja. Anda memerlukan Kod Jemputan untuk mengakses aplikasi itu.";
 "subtitle.inviteCount" = "%d Ajakan";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Anda perlu memulakan kamera anda untuk mengimbas Codes";
 "subtitle.tipCardForX" = "Kad Tip anda membolehkan anda menerima tip dari pengguna Code di seluruh dunia. Untuk mengakses Kad Tip anda sila hubungkan identiti X anda.";
 "subtitle.tipCardTwitterDescription" = "Kad Tip anda membolehkan anda menerima tip dari pengguna Kod di serata dunia. Untuk mengakses ke Kad Tip anda sila siarkan ke X.";
+"subtitle.turnOnNotifications" = "Benarkan Code untuk menghantar pemberitahuan kepada anda apabila anda menerima Petua daripada pengguna Code lain. ";
 "subtitle.typeDelete" = "Jenis \"%@\"";
 "subtitle.updateRequiredDescription" = "Kami telah melakukan beberapa perubahan untuk meningkatkan pengalaman. Anda perlu mengemas kini aplikasi untuk terus menggunakan Code.";
 "subtitle.validOwnerAccount" = "Akaun pemilik sah";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Dasar Privasi";
 "title.purchased" = "Dibeli";
 "title.push.twitterAccountConnected" = "Akaun X Berjaya Dihubungkan";
+"title.receiveTips" = "Terima Petua";
 "title.received" = "Diterima";
 "title.recentCurrencies" = "Mata Wang Baru";
 "title.referFriend" = "Rujuk Rakan, Dapat $5";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Syarat Perkhidmatan";
 "title.tipCard" = "Kad Petua";
 "title.tipKin" = "Tip Kin";
+"title.turnOnNotifications" = "Hidupkan Pemberitahuan untuk Code";
 "title.unknown" = "Tidak diketahui";
 "title.updateRequired" = "Kemas Kini Diperlukan";
 "title.verifyPhoneNumber" = "Sahkan Nombor Telefon";

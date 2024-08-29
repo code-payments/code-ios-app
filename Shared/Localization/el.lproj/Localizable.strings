@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Αγοράστε περισσότερα Kin";
 "action.cancel" = "Ακύρωση";
 "action.cancelSend" = "Ακύρωση αποστολής";
+"action.chat" = "Συνομιλία ";
 "action.collectCash" = "Σύλλεξε Αυτά τα Μετρητά";
 "action.confirm" = "Επιβεβαίωση";
 "action.connectToX" = "Σύνδεση με X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Καταθέστε Kin στο πορτοφόλι σας Code στέλνοντας Kin στην παρακάτω Διεύθυνση Κατάθεσης. Πατήστε για αντιγραφή.";
 "subtitle.insufficientFundsDescription" = "Αποκτήστε περισσότερα Kin και, στη συνέχεια, δοκιμάστε ξανά να πληρώσετε ";
 "subtitle.invalidTokenAccount" = "Μη έγκυρος λογαριασμός προορισμού";
+"subtitle.invalidTokenAccountDescription" = "Παρακαλούμε να βεβαιωθείς ότι η διεύθυνση στην οποία κάνεις ανάληψη έχει αρχικοποιηθεί από τον πάροχο του πορτοφολιού σου. Μια συντόμευση για να το πετύχεις αυτό είναι να ανταλλάξεις πρώτα μια μικρή ποσότητα SOL ( Solana) με Kin στο πορτοφόλι στο οποίο προσπαθείς να στείλεις. ";
 "subtitle.inviteCode" = "Κωδικός Πρόσκλησης";
 "subtitle.inviteCodeDescription" = "Το Code είναι προς το παρόν μόνο με πρόσκληση. Θα χρειαστείτε έναν κωδικό πρόσκλησης για να αποκτήσετε πρόσβαση στην εφαρμογή.";
 "subtitle.inviteCount" = "%d Προσκλήσεις";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Πρέπει να κάνεις εκκίνηση της κάμερας για να σαρώσεις το Codes";
 "subtitle.tipCardForX" = "Η Κάρτα Φιλοδωρημάτων σας επιτρέπει να λαμβάνετε φιλοδωρήματα από χρήστες του Code σε όλο τον κόσμο. Για να αποκτήσετε πρόσβαση στην Κάρτα Φιλοδωρημάτων σας συνδέστε την ταυτότητά σας X.";
 "subtitle.tipCardTwitterDescription" = "Η Κάρτα Συμβουλών σου επιτρέπει να λαμβάνεις συμβουλές από χρήστες του Code σε ολόκληρο τον κόσμο. Για πρόσβαση στην  Κάρτα Συμβουλών σου στείλε μήνυμα στο Χ.";
+"subtitle.turnOnNotifications" = "Να επιτρέπεται στο Code να σου στέλνει ειδοποιήσεις όταν λαμβάνεις Συμβουλές από άλλους χρήστες του Code.";
 "subtitle.typeDelete" = "Πληκτρολογήστε \"%@\"";
 "subtitle.updateRequiredDescription" = "Κάναμε κάποιες αλλαγές για να βελτιώσουμε την εμπειρία. Θα πρέπει να ενημερώσετε την εφαρμογή για να συνεχίσετε να χρησιμοποιείτε το Code.";
 "subtitle.validOwnerAccount" = "Έγκυρος λογαριασμός ιδιοκτήτη";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Πολιτική Απορρήτου";
 "title.purchased" = "Αγοράστηκε";
 "title.push.twitterAccountConnected" = "Επιτυχής Σύνδεση Λογαριασμού X";
+"title.receiveTips" = "Λάβε Συμβουλές ";
 "title.received" = "Παραλήφθηκε";
 "title.recentCurrencies" = "Πρόσφατα Νομίσματα";
 "title.referFriend" = "Σύστησε ένα Φίλο, Λάβε $5";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Όροι Χρήσης";
 "title.tipCard" = "Συμβουλή ";
 "title.tipKin" = "Φιλοδώρημα Kin";
+"title.turnOnNotifications" = "Ενεργοποίησε τις Ειδοποιήσεις για το Code";
 "title.unknown" = "Άγνωστο";
 "title.updateRequired" = "Απαιτείται Ενημέρωση";
 "title.verifyPhoneNumber" = "Επαλήθευση Αριθμού Τηλεφώνου";

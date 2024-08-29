@@ -7,6 +7,7 @@
 "action.buyMoreKin" = "Kupite više valuta Kin";
 "action.cancel" = "Otkaži";
 "action.cancelSend" = "Откажи слање";
+"action.chat" = "Ћаскај";
 "action.collectCash" = "Покупите овај новац";
 "action.confirm" = "Potvrdi";
 "action.connectToX" = "Повежи се на X";
@@ -246,6 +247,7 @@
 "subtitle.howToDeposit" = "Uložite Kin u svoj Code novčanik tako što ćete poslati Kin na svoju adresu za ulaganje ispod. Dodirnite da biste kopirali.";
 "subtitle.insufficientFundsDescription" = "Набавите још кинова, а затим покушајте поново да платите";
 "subtitle.invalidTokenAccount" = "Неважећи одредишни налог";
+"subtitle.invalidTokenAccountDescription" = "Уверите се да је добављач новчаника покренуо адресу на коју повлачите. Да бисте ово брже постигли, прво размените мањи износ сола за кин у новчанику у који покушавате да пошаљете.";
 "subtitle.inviteCode" = "Позивни Код";
 "subtitle.inviteCodeDescription" = "Код је тренутно само позив. Биће вам потребан позивни Код да бисте приступили апликацији.";
 "subtitle.inviteCount" = "%d poziva";
@@ -280,6 +282,7 @@
 "subtitle.startCameraToScan" = "Морате да покренете камеру да бисте скенирали кодове";
 "subtitle.tipCardForX" = "Ваша картица за напојнице вам омогућава да примате напојнице од корисника Code апликације из целог света. Да бисте приступили вашој картици за напојнице повежите се са својим X идентитетом.";
 "subtitle.tipCardTwitterDescription" = "Ваша картица за напојнице вам омогућава да примате напојнице од корисника Code апликације из целог света. Да бисте приступили вашој картици за напојнице поставите објаву на X платформи.";
+"subtitle.turnOnNotifications" = "Дозволите апликацији Code да вам шаље обавештења кад добијете савете од других корисника апликације Code.";
 "subtitle.typeDelete" = "Откуцајте \"%@\"";
 "subtitle.updateRequiredDescription" = "Napravili smo neke izmene da bismo poboljšali iskustvo. Moraćete da ažurirate aplikaciju da biste nastavili da koristite Code.";
 "subtitle.validOwnerAccount" = "Важећи налог власника";
@@ -344,6 +347,7 @@
 "title.privacyPolicy" = "Pravila o privatnosti";
 "title.purchased" = "Kupljeno";
 "title.push.twitterAccountConnected" = "X налог успешно повезан";
+"title.receiveTips" = "Добијте савете";
 "title.received" = "Primljeno";
 "title.recentCurrencies" = "Nedavne valute";
 "title.referFriend" = "Препоручите пријатеља, узмите 5$";
@@ -365,6 +369,7 @@
 "title.termsOfService" = "Uslovi korišcenja usluge";
 "title.tipCard" = "Картица са саветом";
 "title.tipKin" = "Дај напојницу у виду Кина";
+"title.turnOnNotifications" = "Укључите обавештења за Code";
 "title.unknown" = "Непознато";
 "title.updateRequired" = "Potrebno je ažuriranje";
 "title.verifyPhoneNumber" = "Potvrdi broj telefona";
