@@ -299,8 +299,8 @@ public class _CameraPreviewView: UIView {
         case .changed:
             let translation = gesture.translation(in: gesture.view)
             let zoomDelta   = Curve.ease(
-                value: translation.y,
-                from: 0...350,
+                value: -translation.y,
+                from: 0...250,
                 to: 0...10,
                 easeIn: true,
                 easeOut: false
