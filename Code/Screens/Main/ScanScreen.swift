@@ -668,6 +668,19 @@ extension ScanScreen {
                     binding: .constant(false)
                 )
                 
+                if BetaFlags.shared.hasEnabled(.chatTab) {
+                    LargeButton(
+                        title: Localized.Action.chat,
+                        image: .asset(.chat),
+                        spacing: 12,
+                        maxWidth: 80,
+                        maxHeight: 80,
+                        fullWidth: true,
+                        aligment: .bottom,
+                        binding: .constant(false)
+                    )
+                }
+                
                 LargeButton(
                     title: Localized.Action.balance,
                     image: .asset(.history),
