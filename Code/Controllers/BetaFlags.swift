@@ -95,6 +95,7 @@ extension BetaFlags {
         case kadoInApp
         case chatTab
         case cameraGestures
+        case reverseZoom
         
         var id: String {
             localizedTitle
@@ -124,6 +125,8 @@ extension BetaFlags {
                 return "Chat Tab"
             case .cameraGestures:
                 return "Camera Gestures"
+            case .reverseZoom:
+                return "Reverse Zoom"
             }
         }
         
@@ -151,6 +154,8 @@ extension BetaFlags {
                 return "If enabled, a fourth chat tab will appear on the camera screen."
             case .cameraGestures:
                 return "If enabled, gestures will allow you to tap to focus, pinch to zoom and drag to zoom on the camera screen."
+            case .reverseZoom:
+                return "If enabled, gesture to zoom-in will become 'drag up' instead of 'drag down'."
             }
         }
     }

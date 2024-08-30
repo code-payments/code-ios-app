@@ -18,10 +18,12 @@ public struct CameraViewport: View {
     
     private let session: AnyCameraSession
     private let enableGestures: Bool
+    private let reverseZoom: Bool
     
-    public init(session: AnyCameraSession, enableGestures: Bool) {
+    public init(session: AnyCameraSession, enableGestures: Bool, reverseZoom: Bool) {
         self.session = session
         self.enableGestures = enableGestures
+        self.reverseZoom = reverseZoom
     }
     
     public var body: some View {
@@ -29,6 +31,7 @@ public struct CameraViewport: View {
             CameraPreviewView(
                 session: session,
                 enableGestures: enableGestures,
+                reverseZoom: reverseZoom,
                 focusEvent: didFocus
             )
             
@@ -104,11 +107,13 @@ public struct CameraPreviewView: View, UIViewRepresentable {
     
     private let session: AnyCameraSession
     private let enableGestures: Bool
+    private let reverseZoom: Bool
     private let focusEvent: (CGPoint) -> Void
     
-    public init(session: AnyCameraSession, enableGestures: Bool, focusEvent: @escaping (CGPoint) -> Void) {
+    public init(session: AnyCameraSession, enableGestures: Bool, reverseZoom: Bool, focusEvent: @escaping (CGPoint) -> Void) {
         self.session = session
         self.enableGestures = enableGestures
+        self.reverseZoom = reverseZoom
         self.focusEvent = focusEvent
     }
     
@@ -122,6 +127,7 @@ public struct CameraPreviewView: View, UIViewRepresentable {
     public func updateUIView(_ uiView: _CameraPreviewView, context: Context) {
         uiView.session = session
         uiView.setGestures(enabled: enableGestures)
+        uiView.reverseZoom = reverseZoom
     }
 }
 
@@ -140,6 +146,8 @@ public class _CameraPreviewView: UIView {
     }
     
     var focusEvent: (CGPoint) -> Void = { _ in }
+    
+    var reverseZoom: Bool = false
     
     private var currentDevice: AVCaptureDevice? {
         previewLayer.session?.inputs.compactMap {
@@ -299,7 +307,7 @@ public class _CameraPreviewView: UIView {
         case .changed:
             let translation = gesture.translation(in: gesture.view)
             let zoomDelta   = Curve.ease(
-                value: -translation.y,
+                value: reverseZoom ? translation.y : -translation.y,
                 from: 0...250,
                 to: 0...10,
                 easeIn: true,

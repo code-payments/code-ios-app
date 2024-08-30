@@ -200,7 +200,8 @@ struct ScanScreen: View {
     @ViewBuilder private func cameraPreviewView() -> some View {
         CameraViewport(
             session: cameraSession,
-            enableGestures: betaFlags.hasEnabled(.cameraGestures)
+            enableGestures: betaFlags.hasEnabled(.cameraGestures),
+            reverseZoom: betaFlags.hasEnabled(.reverseZoom)
         )
         .navigationBarHidden(true)
         .onAppear {
