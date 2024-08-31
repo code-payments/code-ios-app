@@ -226,8 +226,8 @@ public class _CameraPreviewView: UIView {
         let location   = gesture.location(in: gesture.view)
         let bounds     = gesture.view?.bounds ?? .zero
         let focusPoint = CGPoint(
-            x: 1.0 - (location.x / bounds.width),
-            y: location.y / bounds.height
+            x: location.y / bounds.height,
+            y: 1 - (location.x / bounds.width)
         )
         
         self.focusEvent(location)
@@ -342,12 +342,12 @@ public class _CameraPreviewView: UIView {
             
             if device.isFocusPointOfInterestSupported {
                 device.focusPointOfInterest = normalizedPoint
-                device.focusMode = .autoFocus
+                device.focusMode = .continuousAutoFocus
             }
             
             if device.isExposurePointOfInterestSupported {
                 device.exposurePointOfInterest = normalizedPoint
-                device.exposureMode = .autoExpose
+                device.exposureMode = .continuousAutoExposure
             }
             
             device.unlockForConfiguration()
