@@ -547,6 +547,15 @@ class Session: ObservableObject {
     
     // MARK: - Receive -
     
+    func attemptScanFromLibrary(image: UIImage) {
+        guard let payload = CodeExtractor.extract(from: image) else {
+            // Show error
+            return
+        }
+        
+        attempt(payload, request: nil)
+    }
+    
     func attempt(_ payload: Code.Payload, request: DeepLinkRequest?) {
         guard canPresentCard() else {
             trace(.warning, components: "Can't initiate send.")

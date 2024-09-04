@@ -37,8 +37,11 @@ struct ScanScreen: View {
     @State private var isPresentingBillExchange: Bool = false
     @State private var isPresentingSettings: Bool = false
     @State private var isPresentingDownload: Bool = false
+    @State private var isPresentingScanFromLibrary: Bool = false
     
     @StateObject private var tooltipViewModel: TooltipViewModel
+    
+    @State private var selectedLibraryImage = UIImage()
     
     private var overrideAuthorization: AVAuthorizationStatus?
     
@@ -201,7 +204,7 @@ struct ScanScreen: View {
         CameraViewport(
             session: cameraSession,
             enableGestures: true,
-            reverseZoom: betaFlags.hasEnabled(.reverseZoom)
+            reverseZoom: false
         )
         .navigationBarHidden(true)
         .onAppear {
@@ -223,7 +226,7 @@ struct ScanScreen: View {
     }
     
     @ViewBuilder private func topBar(isVisible: Bool) -> some View {
-        HStack {
+        HStack(alignment: .top) {
             Group {
                 if isVisible {
                     Button {
@@ -247,25 +250,39 @@ struct ScanScreen: View {
                     
                     Spacer()
                     
-                    RoundButton(
-                        asset: .hamburger,
-                        size: .regular,
-                        binding: $isPresentingSettings
-                    )
-                    .padding(.trailing, 20)
-                    .sheet(isPresented: $isPresentingSettings) { [unowned session] in
-                        SettingsScreen(
-                            session: session,
-                            isPresented: $isPresentingSettings
+                    VStack(spacing: 20) {
+                        RoundButton(
+                            asset: .hamburger,
+                            size: .regular,
+                            binding: $isPresentingSettings
                         )
-                        .environmentObject(betaFlags)
-                        .environmentObject(client)
-                        .environmentObject(exchange)
-                        .environmentObject(exchange)
-                        .environmentObject(betaFlags)
-                        .environmentObject(bannerController)
-                        .environmentObject(biometrics)
+                        .sheet(isPresented: $isPresentingSettings) { [unowned session] in
+                            SettingsScreen(
+                                session: session,
+                                isPresented: $isPresentingSettings
+                            )
+                            .environmentObject(betaFlags)
+                            .environmentObject(client)
+                            .environmentObject(exchange)
+                            .environmentObject(exchange)
+                            .environmentObject(betaFlags)
+                            .environmentObject(bannerController)
+                            .environmentObject(biometrics)
+                        }
+                        
+                        if betaFlags.hasEnabled(.scanFromLibrary) {
+                            RoundButton(
+                                asset: .photo,
+                                size: .regular,
+                                binding: $isPresentingScanFromLibrary
+                            )
+                            .sheet(isPresented: $isPresentingScanFromLibrary) { [unowned session] in
+                                PickerView(selection: session.attemptScanFromLibrary)
+                                    .edgesIgnoringSafeArea(.all)
+                            }
+                        }
                     }
+                    .padding([.top, .trailing], 20)
                 }
             }
             .transition(fadeTransition())
@@ -626,7 +643,7 @@ extension ScanScreen {
         }
         
         @ViewBuilder private func topBar() -> some View {
-            HStack {
+            HStack(alignment: .top) {
                 Image.asset(.codeBrand)
                     .resizable()
                     .renderingMode(.template)
@@ -635,12 +652,24 @@ extension ScanScreen {
                     .foregroundColor(.textMain)
                     .padding(20)
                 Spacer()
-                RoundButton(
-                    asset: .hamburger,
-                    size: .regular,
-                    binding: .constant(false)
-                )
-                .padding(.trailing, 20)
+                VStack(spacing: 20) {
+                    RoundButton(
+                        asset: .hamburger,
+                        size: .regular,
+                        binding: .constant(false)
+                    )
+                    .padding(.trailing, 20)
+                    
+                    if BetaFlags.shared.hasEnabled(.scanFromLibrary) {
+                        RoundButton(
+                            asset: .photo,
+                            size: .regular,
+                            binding: .constant(false)
+                        )
+                        .padding(.trailing, 20)
+                    }
+                }
+                .padding(.top, 20)
             }
         }
         

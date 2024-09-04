@@ -96,6 +96,7 @@ public enum Asset: String {
     case graphicCameraAccess
     case graphicPushPermission
     case hamburger
+    case photo
     case deleteBubble
     case graphicWallet
     case youtube
