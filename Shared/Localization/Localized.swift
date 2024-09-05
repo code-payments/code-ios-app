@@ -226,6 +226,8 @@ internal enum Localized {
       internal static let linkExpired = Localized.tr("Localizable", "error.description.linkExpired")
       /// Please re-enter your phone number and try again.
       internal static let maxAttemptsReached = Localized.tr("Localizable", "error.description.maxAttemptsReached")
+      /// Please select a different image with a Code, or try to get an image that shows the Code more clearly.
+      internal static let noCodeFound = Localized.tr("Localizable", "error.description.noCodeFound")
       /// Please check your internet connection or try again later.
       internal static let noInternet = Localized.tr("Localizable", "error.description.noInternet")
       /// The maximum you can purchase is %@. Please enter a smaller amount.
@@ -294,6 +296,8 @@ internal enum Localized {
       internal static let linkExpired = Localized.tr("Localizable", "error.title.linkExpired")
       /// Maximum Attempts Reached
       internal static let maxAttemptsReached = Localized.tr("Localizable", "error.title.maxAttemptsReached")
+      /// No Code Found
+      internal static let noCodeFound = Localized.tr("Localizable", "error.title.noCodeFound")
       /// No Internet Connection
       internal static let noInternet = Localized.tr("Localizable", "error.title.noInternet")
       /// Purchase Too Large

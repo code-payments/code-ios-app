@@ -19,8 +19,8 @@ class CodeExtractor: CameraSessionExtractor {
     
     required init() {}
     
-    static func extract(from image: UIImage) -> Code.Payload? {
-        if let wholeImage = image.extractSample() {
+    static func extract(from image: UIImage) throws -> Code.Payload? {
+        if let wholeImage = try image.extractSample() {
             var container = RedundancyContainer<Data>(threshold: 1)
             if let payload = Self.processSample(
                 sample: wholeImage,
@@ -32,7 +32,7 @@ class CodeExtractor: CameraSessionExtractor {
             }
         }
         
-        return image.slidingWindowSearch { sample in
+        return try image.slidingWindowSearch { sample in
             var container = RedundancyContainer<Data>(threshold: 1)
             return Self.processSample(
                 sample: sample,
@@ -110,15 +110,19 @@ class CodeExtractor: CameraSessionExtractor {
     }
 }
 
+extension CodeExtractor {
+    enum Error: Swift.Error {
+        case failedToGenerateConversionInfo
+        case failedToConvert
+    }
+}
+
 // MARK: - UIImage -
 
 extension UIImage {
 
-    // Perform sliding window search on a 3x3 grid with 50% overlap in top-to-bottom, left-to-right order
-    func slidingWindowSearch<T>(
-        scan: (CodeExtractor.Sample) -> T? // Scan function for each window
-    ) -> T? {
-        // Get image dimensions
+    /// Perform sliding window search on a 3x3 grid with 50% overlap in top-to-bottom, left-to-right order
+    func slidingWindowSearch<T>(scan: (CodeExtractor.Sample) -> T?) throws -> T? {
         let width  = Int(self.size.width)
         let height = Int(self.size.height)
         
@@ -130,9 +134,9 @@ extension UIImage {
         let stepX = windowWidth  / 2
         let stepY = windowHeight / 2
         
+        // Precompute all the windows first
         var windows: [CGRect] = []
         
-        // Iterate through grid top to bottom, left to right
         let rowCount = height / stepY
         for r in 0..<rowCount {
             
@@ -152,7 +156,9 @@ extension UIImage {
             }
         }
         
-        let payload: T? = windows.iterateCenterOut { index, windowRect in
+        // For each window, feed it into the code scanner and see
+        // if we get any scanned payload, exit as soon as we find one
+        let payload: T? = try windows.iterateCenterOut { index, windowRect in
             // Crop the image for the current window
             guard let windowImage = self.cropped(to: windowRect) else {
                 return nil
@@ -161,7 +167,7 @@ extension UIImage {
             print("Scanning \(index): \(windowRect)")
             
             // Extract YUV sample for the window
-            guard let windowSample = windowImage.extractSample() else {
+            guard let windowSample = try windowImage.extractSample() else {
                 return nil
             }
 
@@ -267,7 +273,7 @@ extension UIImage {
         
         guard generateInfoResult == kvImageNoError else {
             trace(.failure, components: "Failed to generate YUV conversion info: \(generateInfoResult)")
-            throw Error.failedToGenerateConversionInfo
+            throw CodeExtractor.Error.failedToGenerateConversionInfo
         }
         
         // 5. Perform the RGB to YUV 420 conversion info using the
@@ -284,7 +290,7 @@ extension UIImage {
 
         guard conversionResult == kvImageNoError else {
             trace(.failure, components: "Failed to convert image to YUV: \(conversionResult)")
-            throw Error.failedToConvert
+            throw CodeExtractor.Error.failedToConvert
         }
 
         // 6. Split the interleaved UV plane into separate U and V planes
@@ -325,11 +331,6 @@ extension UIImage {
             data: combinedData
         )
     }
-    
-    enum Error: Swift.Error {
-        case failedToGenerateConversionInfo
-        case failedToConvert
-    }
 }
 
 // MARK: - Sample -
@@ -342,12 +343,10 @@ extension CodeExtractor {
     }
 }
 
-extension Array {
-    func iterateCenterOut<T>(action: (Int, Element) -> T?) -> T? {
-        let centerIndex = self.count / 2
-        
-        // Iterate over the array, expanding from the center outwards
-        for offset in 0..<self.count {
+private extension Array {
+    func iterateCenterOut<T>(action: (Int, Element) throws -> T?) rethrows -> T? {
+        let centerIndex = count / 2
+        for offset in 0..<count {
             let index: Int
             if offset == 0 {
                 index = centerIndex // Start with the center
@@ -357,9 +356,8 @@ extension Array {
                 index = centerIndex - offset / 2 // Left of the center
             }
             
-            // Ensure the index is within bounds
-            if index >= 0 && index < self.count {
-                if let result = action(index, self[index]) {
+            if index >= 0 && index < count {
+                if let result = try action(index, self[index]) {
                     return result
                 }
             }

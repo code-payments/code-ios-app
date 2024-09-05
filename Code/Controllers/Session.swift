@@ -548,12 +548,17 @@ class Session: ObservableObject {
     // MARK: - Receive -
     
     func attemptScanFromLibrary(image: UIImage) {
-        guard let payload = CodeExtractor.extract(from: image) else {
-            // Show error
-            return
+        do {
+            if let payload = try CodeExtractor.extract(from: image) {
+                attempt(payload, request: nil)
+            } else {
+                showNoCodeFoundError()
+            }
+            
+        } catch {
+            ErrorReporting.captureError(error)
+            showNoCodeFoundError()
         }
-        
-        attempt(payload, request: nil)
     }
     
     func attempt(_ payload: Code.Payload, request: DeepLinkRequest?) {
@@ -1411,6 +1416,17 @@ class Session: ObservableObject {
     }
     
     // MARK: - Errors -
+    
+    private func showNoCodeFoundError() {
+        bannerController.show(
+            style: .error,
+            title: Localized.Error.Title.noCodeFound,
+            description: Localized.Error.Description.noCodeFound,
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
     
     private func showPaymentRequestError() {
         bannerController.show(
