@@ -7,6 +7,7 @@
 
 import AVKit
 import CodeUI
+import CodeServices
 import CodeScanner
 import Accelerate
 
@@ -181,51 +182,79 @@ extension UIImage {
         return UIImage(cgImage: cgImage)
     }
     
-    func extractSample(scale: Int = 1) -> CodeExtractor.Sample? {
+    func extractSample() throws -> CodeExtractor.Sample? {
         guard let cgImage = cgImage else { return nil }
 
         let start = Date.now.timeIntervalSince1970
         
-        let width = cgImage.width * scale
-        let height = cgImage.height * scale
+        let width  = cgImage.width
+        let height = cgImage.height
 
-        // Create a buffer for the RGBA data
-        var rgbaData = [UInt8](repeating: 0, count: width * height * 4)
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        // 1. Draw the RGB image and get the raw bitmap
+        
+        var rgbaData = Data(count: width * height * 4)
 
         guard let context = CGContext(
-            data: &rgbaData,
+            data: rgbaData.withUnsafeMutableBytes { $0.baseAddress },
             width: width,
             height: height,
             bitsPerComponent: 8,
             bytesPerRow: width * 4,
-            space: colorSpace,
+            space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
         ) else {
             return nil
         }
 
-        // Draw the image into the RGBA buffer
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        // Set up the vImage buffer for the source (RGBA)
-        var sourceBuffer = vImage_Buffer(data: &rgbaData, height: vImagePixelCount(height), width: vImagePixelCount(width), rowBytes: width * 4)
+        // 2. Set up the vImage buffer for the source (RGBA)
+        
+        var sourceBuffer = rgbaData.withUnsafeMutableBytes { pointer -> vImage_Buffer in
+            vImage_Buffer(
+                data: pointer.baseAddress!,
+                height: vImagePixelCount(height),
+                width: vImagePixelCount(width),
+                rowBytes: width * 4
+            )
+        }
 
-        // Allocate buffers for the Y and UV planes
-        var yPlane = [UInt8](repeating: 0, count: width * height)
-        var uvPlane = [UInt8](repeating: 0, count: width * height / 2) // Interleaved UV plane (4:2:0)
+        // 3. Allocate memory for the Y and UV plane buffers
+        
+        var yPlane  = Data(count: width * height)
+        var uvPlane = Data(count: width * height / 2) // Interleaved UV plane (4:2:0)
+        
+        var yBuffer = yPlane.withUnsafeMutableBytes { pointer -> vImage_Buffer in
+            vImage_Buffer(
+                data: pointer.baseAddress!,
+                height: vImagePixelCount(height),
+                width: vImagePixelCount(width),
+                rowBytes: width
+            )
+        }
+        
+        var uvBuffer = uvPlane.withUnsafeMutableBytes { pointer -> vImage_Buffer in
+            vImage_Buffer(
+                data: pointer.baseAddress!,
+                height: vImagePixelCount(height / 2),
+                width: vImagePixelCount(width / 2),
+                rowBytes: width
+            )
+        }
 
-        // Create vImage buffers for the Y plane and UV plane
-        var yBuffer = vImage_Buffer(data: &yPlane, height: vImagePixelCount(height), width: vImagePixelCount(width), rowBytes: width)
-        var uvBuffer = vImage_Buffer(data: &uvPlane, height: vImagePixelCount(height / 2), width: vImagePixelCount(width / 2), rowBytes: width)
-
-        // Define pixel range for full-range YUV
+        // 4. Generate the conversion info for the operation
+        
         var pixelRange = vImage_YpCbCrPixelRange(
-            Yp_bias: 0, CbCr_bias: 128, YpRangeMax: 255, CbCrRangeMax: 255,
-            YpMax: 255, YpMin: 0, CbCrMax: 255, CbCrMin: 0
+            Yp_bias: 0,
+            CbCr_bias: 128,
+            YpRangeMax: 255,
+            CbCrRangeMax: 255,
+            YpMax: 255,
+            YpMin: 0,
+            CbCrMax: 255,
+            CbCrMin: 0
         )
-
-        // Create the conversion info using the ITU-R BT.709 conversion matrix and the pixel range
+        
         var info = vImage_ARGBToYpCbCr()
         let generateInfoResult = vImageConvert_ARGBToYpCbCr_GenerateConversion(
             kvImage_ARGBToYpCbCrMatrix_ITU_R_709_2, // Use the BT.709 matrix
@@ -237,11 +266,13 @@ extension UIImage {
         )
         
         guard generateInfoResult == kvImageNoError else {
-            print("Error generating conversion info: \(generateInfoResult)")
-            return nil
+            trace(.failure, components: "Failed to generate YUV conversion info: \(generateInfoResult)")
+            throw Error.failedToGenerateConversionInfo
         }
-
-        // Perform the RGB to YUV 420 conversion
+        
+        // 5. Perform the RGB to YUV 420 conversion info using the
+        // ITU-R BT.709 conversion matrix and the pixel range
+        
         let conversionResult = vImageConvert_ARGB8888To420Yp8_CbCr8(
             &sourceBuffer,
             &yBuffer,
@@ -251,30 +282,53 @@ extension UIImage {
             vImage_Flags(kvImageNoFlags)
         )
 
-        // Check for conversion errors
         guard conversionResult == kvImageNoError else {
-            print("Error in vImage conversion: \(conversionResult)")
-            return nil
+            trace(.failure, components: "Failed to convert image to YUV: \(conversionResult)")
+            throw Error.failedToConvert
         }
 
-        // Split the interleaved UV plane into separate U and V planes
-        var uPlane = [UInt8](repeating: 0, count: (width / 2) * (height / 2))
-        var vPlane = [UInt8](repeating: 0, count: (width / 2) * (height / 2))
-        for i in 0..<(width / 2 * height / 2) {
-            uPlane[i] = uvPlane[2 * i]
-            vPlane[i] = uvPlane[2 * i + 1]
+        // 6. Split the interleaved UV plane into separate U and V planes
+        
+        var uPlane = Data(count: (width / 2) * (height / 2))
+        var vPlane = Data(count: (width / 2) * (height / 2))
+        
+        uvPlane.withUnsafeBytes { pointer in
+            let uvBytes = pointer.bindMemory(to: UInt8.self)
+            
+            uPlane.withUnsafeMutableBytes { uPointer in
+                vPlane.withUnsafeMutableBytes { vPointer in
+                    
+                    let u = uPointer.bindMemory(to: UInt8.self).baseAddress!
+                    let v = vPointer.bindMemory(to: UInt8.self).baseAddress!
+            
+                    for i in 0..<(width / 2 * height / 2) {
+                        u[i] = uvBytes[2 * i]
+                        v[i] = uvBytes[2 * i + 1]
+                    }
+                }
+            }
         }
 
-        // Combine Y, U, and V planes into a single Data object
+        // 7. Combine Y, U, and V planes
         var combinedData = Data()
-        combinedData.append(yPlane, count: yPlane.count)
-        combinedData.append(uPlane, count: uPlane.count)
-        combinedData.append(vPlane, count: vPlane.count)
+        combinedData.reserveCapacity(yPlane.count + uPlane.count + vPlane.count)
+        
+        combinedData.append(yPlane)
+        combinedData.append(uPlane)
+        combinedData.append(vPlane)
         
         print("Conversion took: \(Date.now.timeIntervalSince1970 - start) seconds")
 
-        // Return the final Sample with width, height, and the combined YUV data
-        return .init(width: width, height: height, data: combinedData)
+        return .init(
+            width: width,
+            height: height,
+            data: combinedData
+        )
+    }
+    
+    enum Error: Swift.Error {
+        case failedToGenerateConversionInfo
+        case failedToConvert
     }
 }
 
