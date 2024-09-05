@@ -26,6 +26,13 @@ extension Analytics {
     static func userMigrationFailed() {
         track(.userMigrationFailed)
     }
+    
+    static func photoScanned(success: Bool, timeToScan: Stopwatch.Milliseconds) {
+        track(.photoScanned, properties: [
+            .result: success,
+            .time: timeToScan,
+        ])
+    }
 }
 
 // MARK: - Account -
@@ -350,6 +357,8 @@ extension Analytics {
         
         case backgroundSwap = "Background Swap Initiated"
         
+        case photoScanned = "Photo Scanned"
+        
         // Settings
         
         case requireBiometrics = "Require Biometrics"
@@ -375,6 +384,7 @@ extension Analytics {
         case inputChangeCount = "Input change count"
         case result = "Result"
         case grabTime = "Grab Time"
+        case time = "Time"
         
         // Bill
         case state = "State"

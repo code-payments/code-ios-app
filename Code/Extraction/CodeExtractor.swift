@@ -20,25 +20,17 @@ class CodeExtractor: CameraSessionExtractor {
     required init() {}
     
     static func extract(from image: UIImage) throws -> Code.Payload? {
+        let isHD = true
+        
         if let wholeImage = try image.extractSample() {
-            var container = RedundancyContainer<Data>(threshold: 1)
-            if let payload = Self.processSample(
-                sample: wholeImage,
-                hd: true,
-                container: &container
-            ) {
+            if let (_, payload) = Self.processSample(sample: wholeImage, hd: isHD) {
                 print("Success on whole scan")
                 return payload
             }
         }
         
         return try image.slidingWindowSearch { sample in
-            var container = RedundancyContainer<Data>(threshold: 1)
-            return Self.processSample(
-                sample: sample,
-                hd: true,
-                container: &container
-            )
+            Self.processSample(sample: sample, hd: isHD)?.1
         }
     }
     
@@ -62,15 +54,23 @@ class CodeExtractor: CameraSessionExtractor {
         return payload
     }
     
-    private static func processSample(sample: Sample, hd: Bool, container: inout RedundancyContainer<Data>) -> Code.Payload? {
+    private static func processSample(sample: Sample, hd: Bool) -> (Data, Code.Payload)? {
         guard let data = KikCodes.scan(sample.data, width: sample.width, height: sample.height, hd: hd) else {
             return nil
         }
         
         let result = KikCodes.decode(data)
 
-        if let payload = try? Code.Payload(data: result) {
-            container.insert(result)
+        guard let payload = try? Code.Payload(data: result) else {
+            return nil
+        }
+        
+        return (result, payload)
+    }
+    
+    private static func processSample(sample: Sample, hd: Bool, container: inout RedundancyContainer<Data>) -> Code.Payload? {
+        if let (data, payload) = processSample(sample: sample, hd: hd) {
+            container.insert(data)
             
             if let _ = container.value {
                 container.reset()
@@ -123,8 +123,15 @@ extension UIImage {
 
     /// Perform sliding window search on a 3x3 grid with 50% overlap in top-to-bottom, left-to-right order
     func slidingWindowSearch<T>(scan: (CodeExtractor.Sample) -> T?) throws -> T? {
-        let width  = Int(self.size.width)
-        let height = Int(self.size.height)
+        let width  = Int(size.width)
+        let height = Int(size.height)
+        
+        let minSize = 20
+        guard width >= minSize && height >= minSize else {
+            // Image resolution won't provide
+            // sufficiently scannable code
+            return nil
+        }
         
         // Calculate window size for a 3x3 grid
         let windowWidth  = width  / 3
@@ -156,6 +163,8 @@ extension UIImage {
             }
         }
         
+        print("Window: \(windows[0].size)")
+        
         // For each window, feed it into the code scanner and see
         // if we get any scanned payload, exit as soon as we find one
         let payload: T? = try windows.iterateCenterOut { index, windowRect in
@@ -164,7 +173,7 @@ extension UIImage {
                 return nil
             }
             
-            print("Scanning \(index): \(windowRect)")
+            print("Scanning \(index): \(windowRect.origin)")
             
             // Extract YUV sample for the window
             guard let windowSample = try windowImage.extractSample() else {
@@ -190,8 +199,6 @@ extension UIImage {
     
     func extractSample() throws -> CodeExtractor.Sample? {
         guard let cgImage = cgImage else { return nil }
-
-        let start = Date.now.timeIntervalSince1970
         
         let width  = cgImage.width
         let height = cgImage.height
@@ -334,8 +341,6 @@ extension UIImage {
         combinedData.append(yPlane)
         combinedData.append(uPlane)
         combinedData.append(vPlane)
-        
-        print("Conversion took: \(Date.now.timeIntervalSince1970 - start) seconds")
 
         return .init(
             width: width,

@@ -548,16 +548,25 @@ class Session: ObservableObject {
     // MARK: - Receive -
     
     func attemptScanFromLibrary(image: UIImage) {
-        do {
-            if let payload = try CodeExtractor.extract(from: image) {
-                attempt(payload, request: nil)
-            } else {
-                showNoCodeFoundError()
+        Task.detached {
+            do {
+                let stopwatch = Stopwatch()
+                var scanned = false
+                if let payload = try CodeExtractor.extract(from: image) {
+                    await self.attempt(payload, request: nil)
+                    scanned = true
+                } else {
+                    await self.showNoCodeFoundError()
+                }
+                
+                let milliseconds = stopwatch.measure(in: .milliseconds)
+                trace(.warning, components: "Scanned in \(milliseconds) ms")
+                Analytics.photoScanned(success: scanned, timeToScan: milliseconds)
+                
+            } catch {
+                ErrorReporting.captureError(error)
+                await self.showNoCodeFoundError()
             }
-            
-        } catch {
-            ErrorReporting.captureError(error)
-            showNoCodeFoundError()
         }
     }
     
