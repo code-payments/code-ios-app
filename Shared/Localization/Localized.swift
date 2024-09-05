@@ -226,7 +226,7 @@ internal enum Localized {
       internal static let linkExpired = Localized.tr("Localizable", "error.description.linkExpired")
       /// Please re-enter your phone number and try again.
       internal static let maxAttemptsReached = Localized.tr("Localizable", "error.description.maxAttemptsReached")
-      /// Please select a different image with a Code, or try to get an image that shows the Code more clearly.
+      /// Please try to get an image that shows the code more clearly.
       internal static let noCodeFound = Localized.tr("Localizable", "error.description.noCodeFound")
       /// Please check your internet connection or try again later.
       internal static let noInternet = Localized.tr("Localizable", "error.description.noInternet")

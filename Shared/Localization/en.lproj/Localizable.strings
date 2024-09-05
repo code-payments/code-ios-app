@@ -843,7 +843,7 @@
 "error.title.noCodeFound" = "No Code Found";
 
 /* Description when a code isn't found in an image being scanned */
-"error.description.noCodeFound" = "Please select a different image with a Code, or try to get an image that shows the Code more clearly.";
+"error.description.noCodeFound" = "Please try to get an image that shows the code more clearly.";
 
 
 
