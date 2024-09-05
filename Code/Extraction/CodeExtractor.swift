@@ -298,18 +298,30 @@ extension UIImage {
         var uPlane = Data(count: (width / 2) * (height / 2))
         var vPlane = Data(count: (width / 2) * (height / 2))
         
-        uvPlane.withUnsafeBytes { pointer in
-            let uvBytes = pointer.bindMemory(to: UInt8.self)
-            
+        uvPlane.withUnsafeBytes { uvBytes in
             uPlane.withUnsafeMutableBytes { uPointer in
                 vPlane.withUnsafeMutableBytes { vPointer in
                     
+                    let uv = uvBytes.bindMemory(to: UInt8.self).baseAddress!
                     let u = uPointer.bindMemory(to: UInt8.self).baseAddress!
                     let v = vPointer.bindMemory(to: UInt8.self).baseAddress!
-            
-                    for i in 0..<(width / 2 * height / 2) {
-                        u[i] = uvBytes[2 * i]
-                        v[i] = uvBytes[2 * i + 1]
+                    
+                    let count = width / 2 * height / 2
+
+                    // Process the UV plane by unrolling the loop for better performance
+                    var i = 0
+                    while i < count {
+                        // Copy two UV pairs per iteration (unrolled loop)
+                        u[i] = uv[2 * i]     // U plane from even index
+                        v[i] = uv[2 * i + 1] // V plane from odd index
+                        
+                        // You can also unroll further if needed
+                        if i + 1 < count {
+                            u[i + 1] = uv[2 * (i + 1)]
+                            v[i + 1] = uv[2 * (i + 1) + 1]
+                        }
+                        
+                        i += 2 // Increment by 2 due to unrolling
                     }
                 }
             }
