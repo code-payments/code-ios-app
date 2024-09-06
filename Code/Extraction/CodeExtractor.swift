@@ -123,10 +123,25 @@ extension UIImage {
 
     /// Perform sliding window search on a 3x3 grid with 50% overlap in top-to-bottom, left-to-right order
     func slidingWindowSearch<T>(scan: (CodeExtractor.Sample) -> T?) throws -> T? {
-        let width  = Int(size.width)
-        let height = Int(size.height)
+        
+        // This is necessary because sometimes portrait images,
+        // for some reason, report landscape size and the orientation
+        // doesn't match the dimensions so we have to invert manually
+        let invert: Bool
+        switch imageOrientation {
+        case .up, .upMirrored, .down, .downMirrored:
+            invert = false
+        case .left, .right, .leftMirrored, .rightMirrored:
+            invert = true
+        @unknown default:
+            invert = false
+        }
+        
+        let width  = Int(invert ? size.height : size.width)
+        let height = Int(invert ? size.width  : size.height)
         
         let minSize = 20
+        
         guard width >= minSize && height >= minSize else {
             // Image resolution won't provide
             // sufficiently scannable code
@@ -144,26 +159,28 @@ extension UIImage {
         // Precompute all the windows first
         var windows: [CGRect] = []
         
-        let rowCount = height / stepY
-        for r in 0..<rowCount {
-            
-            let columnCount = width / stepX
-            for c in 0..<columnCount {
+        let rCount = 5
+        let cCount = 5
+        
+        for r in 0..<rCount {
+            for c in 0..<cCount {
+                
                 let x = c * stepX
                 let y = r * stepY
-
-                let windowRect = CGRect(
-                    x: x,
-                    y: y,
-                    width: windowWidth,
-                    height: windowHeight
-                )
                 
-                windows.append(windowRect)
+                windows.append(
+                    CGRect(
+                        x: x,
+                        y: y,
+                        width: windowWidth,
+                        height: windowHeight
+                    )
+                )
             }
         }
         
-        print("Window: \(windows[0].size)")
+//        print("Window (\(windows.count)): \(windows[0].size)")
+//        print("\(windows.map { "\($0.origin.x), \($0.origin.y)" })")        
         
         // For each window, feed it into the code scanner and see
         // if we get any scanned payload, exit as soon as we find one
