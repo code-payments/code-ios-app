@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "죄송합니다, 네트워크 문제가 발생했습니다. 친구 초대를 다시 시도하십시오. ";
 "error.description.linkExpired" = "이 Kin은 24시간 이내에 수령하지 않았기 때문에 보낸 사람에게 자동으로 반환되었습니다. Kin을 다시 보내달라고 요청하세요.";
 "error.description.maxAttemptsReached" = "전화번호를 다시 입력하고 다시 시도하십시오. ";
+"error.description.noCodeFound" = "코드가 더 명확하게 보이는 이미지를 사용해 보세요.";
 "error.description.noInternet" = "인터넷 연결 상태를 확인하거나 나중에 다시 시도하십시오. ";
 "error.description.noInvitesLeft" = "Code는 현재 초대로만 이용이 가능합니다. 더 많은 초대를 보낼 수 있을 때 알림을 보내드리겠습니다. ";
 "error.description.notInvitedYet" = "대기자 명단에 등록하려면 %@로 이동하세요";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "초대 실패";
 "error.title.linkExpired" = "링크가 만료됨";
 "error.title.maxAttemptsReached" = "최대 시도 횟수에 도달했습니다.";
+"error.title.noCodeFound" = "코드를 찾을 수 없습니다";
 "error.title.noInternet" = "인터넷에 연결되지 않음";
 "error.title.noInvitesLeft" = "초대가 없습니다";
 "error.title.notInvitedYet" = "아직 초대를 받지 못했습니다";

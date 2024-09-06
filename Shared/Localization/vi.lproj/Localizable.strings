@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Rất tiếc, chúng tôi đã gặp sự cố mạng. Hãy thử mời lại bạn bè của bạn.";
 "error.description.linkExpired" = "Kin này đã tự động được trả lại cho người gửi vì đã không được thu thập trong vòng 24 giờ. Xin vui lòng yêu cầu họ gửi Kin một lần nữa.";
 "error.description.maxAttemptsReached" = "Xin vui lòng nhập lại số điện thoại của bạn và thử lại.";
+"error.description.noCodeFound" = "Xin vui lòng cố gắng lấy một hình ảnh cho thấy mã rõ ràng hơn.";
 "error.description.noInternet" = "Xin vui lòng kiểm tra kết nối internet của bạn hoặc thử lại sau.";
 "error.description.noInvitesLeft" = "Mã hiện chỉ dành cho người được mời. Chúng tôi sẽ thông báo cho bạn khi có thêm lời mời.";
 "error.description.notInvitedYet" = "Để tham gia danh sách chờ, hãy truy cập %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Lời mời Không thành công";
 "error.title.linkExpired" = "Liên kết Đã hết hạn";
 "error.title.maxAttemptsReached" = "Đã đạt đến Số lần Thử Tối đa";
+"error.title.noCodeFound" = "Không tìm thấy mã nào";
 "error.title.noInternet" = "Không có Kết nối Internet";
 "error.title.noInvitesLeft" = "Bạn Không Có Lời mời";
 "error.title.notInvitedYet" = "Bạn Vẫn Chưa Được Mời";

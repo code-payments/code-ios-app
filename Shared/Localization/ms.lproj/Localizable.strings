@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Maaf, kami mengalami masalah rangkaian. Sila cuba mengajak rakan anda sekali lagi.";
 "error.description.linkExpired" = "Kin ini telah dikembalikan secara automatik kepada pengirim kerana ia tidak dikumpulkan dalam masa 24 jam. Sila minta mereka menghantar Kin sekali lagi.";
 "error.description.maxAttemptsReached" = "Sila masukkan semula nombor telefon anda dan cuba lagi.";
+"error.description.noCodeFound" = "Sila cuba untuk mendapatkan imej yang menunjukkan kod itu lebih jelas.";
 "error.description.noInternet" = "Sila periksa sambungan internet anda atau cuba lagi kemudian.";
 "error.description.noInvitesLeft" = "Pada masa ini Code hanya atas ajakan sahaja. Kami akan memberitahu anda apabila lebih banyak ajakan boleh didapati.";
 "error.description.notInvitedYet" = "Untuk menyertai senarai tunggu pergi ke %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Ajakan Gagal";
 "error.title.linkExpired" = "Pautan Tamat Tempoh";
 "error.title.maxAttemptsReached" = "Percubaan Maksimum Dicapai ";
+"error.title.noCodeFound" = "Tiada Kod Ditemui";
 "error.title.noInternet" = "Tiada Sambungan Internet";
 "error.title.noInvitesLeft" = "Anda Tiada Ajakan";
 "error.title.notInvitedYet" = "Anda Belum Lagi Diajak";

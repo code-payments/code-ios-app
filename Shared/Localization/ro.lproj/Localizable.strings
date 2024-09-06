@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Ne pare rău, avem probleme de rețea. Te rugăm să încerci din nou să-ți inviți prietenul.";
 "error.description.linkExpired" = "Acest kin a fost returnat automat expeditorului deoarece nu a fost colectat în termen de 24 de ore. Roagă-l să trimită din nou kin-ul.";
 "error.description.maxAttemptsReached" = "Introdu din nou numărul de telefon și încearcă din nou.";
+"error.description.noCodeFound" = "Vă rugăm să încercați să obțineți o imagine care să prezinte codul mai clar.";
 "error.description.noInternet" = "Verifică-ți conexiunea la internet sau încearcă din nou mai târziu.";
 "error.description.noInvitesLeft" = "Code este în prezent doar pe bază de invitație. Îți vom da de știre când vor fi disponibile alte invitații.";
 "error.description.notInvitedYet" = "Alătură-te la lista de așteptare pentru %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Invitația a eșuat.";
 "error.title.linkExpired" = "Linkul a expirat";
 "error.title.maxAttemptsReached" = "Ai atins numărul maxim de tentative";
+"error.title.noCodeFound" = "Nu s-a găsit niciun Code";
 "error.title.noInternet" = "Fără conexiune la internet";
 "error.title.noInvitesLeft" = "Nu ai nicio invitație.";
 "error.title.notInvitedYet" = "Nu ai fost încă invitat";

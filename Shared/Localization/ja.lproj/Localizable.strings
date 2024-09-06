@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "申し訳ありませんが,ネットワークの問題が発生しました。もう一度お友達を招待してみてください。";
 "error.description.linkExpired" = "このKinは24時間以内に収集されなかったため,自動的に送信者に返送されました。もう一度Kinを送ってもらうようリクエストしてください。";
 "error.description.maxAttemptsReached" = "電話番号を再入力して,再試行してください。";
+"error.description.noCodeFound" = "コードがもっとはっきり見える画像を入手してください。";
 "error.description.noInternet" = "インターネット接続を確認するか,後で再試行してください。";
 "error.description.noInvitesLeft" = "Codeは現在招待制です。利用できる追加の招待がありましたら,お知らせいたします。";
 "error.description.notInvitedYet" = "順番待ちリストに参加するには,%@にアクセスします";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "招待に失敗しました";
 "error.title.linkExpired" = "リンクの有効期限が切れています";
 "error.title.maxAttemptsReached" = "最大試行回数に達しました";
+"error.title.noCodeFound" = "コードが見つかりません";
 "error.title.noInternet" = "インターネット接続なし";
 "error.title.noInvitesLeft" = "お客様には招待がありません";
 "error.title.notInvitedYet" = "お客様はまだ招待されていません";

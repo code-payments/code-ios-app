@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Lo sentimos, hemos tenido un problema con la red. Intenta invitar de nuevo a tu amigo.";
 "error.description.linkExpired" = "Este Kin fue devuelto automáticamente al remitente porque no fue recogido en 24 horas. Pídeles que vuelvan a enviar el Kin.";
 "error.description.maxAttemptsReached" = "Vuelve a introducir tu número de teléfono e inténtalo de nuevo.";
+"error.description.noCodeFound" = "Intenta conseguir una imagen que muestre el código de forma más clara.";
 "error.description.noInternet" = "Comprueba tu conexión a internet o inténtalo más tarde.";
 "error.description.noInvitesLeft" = "Actualmente, Code está disponible solo mediante invitación. Te avisaremos cuando haya más invitaciones disponibles.";
 "error.description.notInvitedYet" = "Para unirte a la lista de espera, ve a %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Invitación fallida";
 "error.title.linkExpired" = "Enlace caducado";
 "error.title.maxAttemptsReached" = "Se ha alcanzado el número máximo de intentos";
+"error.title.noCodeFound" = "No se encuentra ningún código";
 "error.title.noInternet" = "No hay conexión a internet";
 "error.title.noInvitesLeft" = "No tienes invitaciones";
 "error.title.notInvitedYet" = "Aún no te han invitado";

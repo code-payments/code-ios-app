@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "عذرًا, لقد واجهنا مشكلة في الشبكة. يُرجى محاولة دعوة صديقك مرة أخرى.";
 "error.description.linkExpired" = "تمت إعادة عملة Kin هذه تلقائيًا إلى المرسل لأنه لم يتم جمعها في غضون 24 ساعة. من فضلك اطلب منهم إرسال Kin مرة أخرى.";
 "error.description.maxAttemptsReached" = "يُرجى إعادة إدخال رقم هاتفك والمحاولة مرة أخرى.";
+"error.description.noCodeFound" = "يُرجى محاولة التقاط صورة توضح الرمز بشكل أكثر وضوحاً.";
 "error.description.noInternet" = "يُرجى التحقق من اتصالك بالإنترنت أو المحاولة مرة أخرى لاحقًا.";
 "error.description.noInvitesLeft" = "Code حاليًا بالدعوة فقط. سنخطرك عند توفر المزيد من الدعوات.";
 "error.description.notInvitedYet" = "للانضمام إلى قائمة الانتظار, اذهب إلى %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "فشلت الدعوة";
 "error.title.linkExpired" = "انتهت صلاحية الرابط";
 "error.title.maxAttemptsReached" = "تم بلوغ الحد الأقصى من المحاولات";
+"error.title.noCodeFound" = "لم نعثر على الرمز";
 "error.title.noInternet" = "لا توجد اتصال بشبكة الإنترنت";
 "error.title.noInvitesLeft" = "لا توجد لديك دعوات";
 "error.title.notInvitedYet" = "لم تتم دعوتك بعد";

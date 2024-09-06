@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Maaf, kami mengalami masalah jaringan. Silakan coba mengundang teman Anda lagi.";
 "error.description.linkExpired" = "Kin ini secara otomatis dikembalikan ke pengirim karena tidak diambil dalam waktu 24 jam. Silakan minta mereka untuk mengirim Kin lagi.";
 "error.description.maxAttemptsReached" = "Silakan masukkan kembali nomor telepon Anda dan coba lagi.";
+"error.description.noCodeFound" = "Silakan coba untuk mendapatkan gambar yang menampilkan kode lebih jelas.";
 "error.description.noInternet" = "Silakan periksa koneksi internet Anda atau coba lagi nanti.";
 "error.description.noInvitesLeft" = "Code saat ini hanya untuk undangan. Kami akan memberi tahu Anda ketika ada lebih banyak undangan yang tersedia.";
 "error.description.notInvitedYet" = "Untuk bergabung dengan daftar tunggu masuklah ke %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Undangan Gagal";
 "error.title.linkExpired" = "Tautan Kedaluwarsa";
 "error.title.maxAttemptsReached" = "Upaya Maksimum Tercapai";
+"error.title.noCodeFound" = "Kode Tidak Ditemukan";
 "error.title.noInternet" = "Tidak Ada Sambungan Internet";
 "error.title.noInvitesLeft" = "Anda Tidak Memiliki Undangan";
 "error.title.notInvitedYet" = "Anda Belum Diundang";

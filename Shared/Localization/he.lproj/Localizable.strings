@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "מצטערים, חווינו בעיית תקשורת. אנא נסה שנית להזמין את חברך.";
 "error.description.linkExpired" = "Kin זה הוחזר אוטומטית לשולח מכיוון שהוא לא נאסף תוך 24 שעות. נא לבקש מהם לשלוח שוב את ה-Kin.";
 "error.description.maxAttemptsReached" = "אנא הכנס מחדש את מספר הטלפון שלך ונסה שנית.";
+"error.description.noCodeFound" = "אנא נסו לצלם תמונה שמראה את הקוד יותר בבירור.";
 "error.description.noInternet" = "אנא בדוק את חיבור האינטרנט שלך או נסה שנית מאוחר יותר.";
 "error.description.noInvitesLeft" = "קוד היא כרגע בהזמנה בלבד. נודיע לך כשיהיו הזמנות פנויות נוספות.";
 "error.description.notInvitedYet" = "כדי להצטרף לרשימת ההמתנה עבור ל-%@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "ההזמנה נכשלה";
 "error.title.linkExpired" = "פג תוקף הקישור";
 "error.title.maxAttemptsReached" = "מספר הניסיונות הגיע לערך המקסימלי האפשרי";
+"error.title.noCodeFound" = "לא נמצא קוד";
 "error.title.noInternet" = "אין חיבור לאינטרנט";
 "error.title.noInvitesLeft" = "אין לך הזמנות";
 "error.title.notInvitedYet" = "עדיין לא הוזמנת";

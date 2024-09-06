@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Przepraszamy, wystąpił problem z siecią. Spróbuj jeszcze raz zaprosić znajomego.";
 "error.description.linkExpired" = "Kin został automatycznie zwrócony do nadawcy, ponieważ nie został odebrany w ciągu 24 godzin. Poproś go o ponowne wysłanie tej kryptowaluty.";
 "error.description.maxAttemptsReached" = "Wpisz ponownie numer telefonu i spróbuj jeszcze raz.";
+"error.description.noCodeFound" = "Spróbuj uzyskać obraz, na którym będzie wyraźniej widać kod.";
 "error.description.noInternet" = "Sprawdź połączenie z Internetem lub spróbuj ponownie później.";
 "error.description.noInvitesLeft" = "Code jest aktualnie wyłącznie na zaproszenie. Powiadomimy Cię, kiedy będzie dostępnych więcej zaproszeń.";
 "error.description.notInvitedYet" = "Żeby dołączyć do listy oczekujących, przejdź do %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Zaproszenie nie powiodło się";
 "error.title.linkExpired" = "Odnośnik wygasł";
 "error.title.maxAttemptsReached" = "Osiągnięto maksymalną liczbę prób";
+"error.title.noCodeFound" = "Nie znaleziono kodu";
 "error.title.noInternet" = "Brak połączenia z Internetem";
 "error.title.noInvitesLeft" = "Nie masz zaproszeń";
 "error.title.notInvitedYet" = "Nie zaproszono Cię jeszcze";

@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "ขออภัย เราประสบปัญหาเกี่ยวกับเครือข่าย โปรดลองเชิญเพื่อนของคุณอีกครั้ง";
 "error.description.linkExpired" = "Kin นี้ได้ถูกส่งคืนให้กับผู้ส่งโดยอัตโนมัติเพราะมันไม่ถูกเก็บภายใน 24 ชั่วโมง โปรดขอให้พวกเขาส่ง Kin อีกครั้ง";
 "error.description.maxAttemptsReached" = "โปรดป้อนหมายเลขโทรศัพท์ใหม่แล้วลองอีกครั้ง";
+"error.description.noCodeFound" = "โปรดพยายาม\nหาภาพที่แสดง code ได้ชัดเจนกว่านี้l";
 "error.description.noInternet" = "โปรดตรวจสอบการเชื่อมต่อทางอินเทอร์เน็ตหรือลองอีกครั้งในภายหลัง!";
 "error.description.noInvitesLeft" = "ปัจจุบันใช้ Code ได้เฉพาะผู้ที่ได้รับเชิญเท่านั้น เราจะแจ้งให้คุณทราบเมื่อมีคำเชิญเพิ่มเติม";
 "error.description.notInvitedYet" = "หากต้องการเข้าร่วมรายการรอให้ไปที่ %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "การเชิญล้มเหลว";
 "error.title.linkExpired" = "ลิงก์หมดอายุแล้ว";
 "error.title.maxAttemptsReached" = "ถึงจำนวนการพยายามสูงสุดแล้ว";
+"error.title.noCodeFound" = "ไม่พบ Code";
 "error.title.noInternet" = "ไม่มีการเชื่อมต่อทางอินเทอร์เน็ต";
 "error.title.noInvitesLeft" = "คุณไม่มีคำเชิญ";
 "error.title.notInvitedYet" = "คุณยังไม่ได้รับเชิญ";

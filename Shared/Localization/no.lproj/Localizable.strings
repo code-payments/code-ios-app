@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Beklager, vi har hadde et nettverksproblem. Prøv å invitere vennen din på nytt.";
 "error.description.linkExpired" = "Denne Kin ble automatisk returnert til avsenderen fordi den ikke ble hentet innen 24 timer. Be dem sende Kin igjen.";
 "error.description.maxAttemptsReached" = "Skriv inn telefonnummeret ditt på nytt og prøv på nytt.";
+"error.description.noCodeFound" = "Prøv å ta et bilde som viser koden tydeligere.";
 "error.description.noInternet" = "Sjekk Internettforbindelsen din eller prøv igjen senere.";
 "error.description.noInvitesLeft" = "Koden gjelder for øyeblikket kun for invitasjoner. Vi vil varsle deg når det er flere invitasjoner tilgjengelig.";
 "error.description.notInvitedYet" = "For å bli med på ventelisten, gå til %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Invitasjon mislyktes";
 "error.title.linkExpired" = "Lenke utløpt";
 "error.title.maxAttemptsReached" = "Maksimalt antall forsøk nådd";
+"error.title.noCodeFound" = "Ingen kode funnet";
 "error.title.noInternet" = "Ingen Internettforbindelse";
 "error.title.noInvitesLeft" = "Du har ingen invitasjoner";
 "error.title.notInvitedYet" = "Du har ikke blitt invitert ennå";

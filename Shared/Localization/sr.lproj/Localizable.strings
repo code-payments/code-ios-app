@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Žao nam je, došlo je do problema sa mrežom. Pokušajte ponovo da pozovete svog prijatelja.";
 "error.description.linkExpired" = "Овај Кин је аутоматски враћен пошиљаоцу јер није преузет у року од 24 сата. Замолите их да поново пошаљу Кин.";
 "error.description.maxAttemptsReached" = "Ponovo unesite broj telefona i pokušajte ponovo.";
+"error.description.noCodeFound" = "Покушајте да добијете слику на којој је код јасније приказан.";
 "error.description.noInternet" = "Proverite svoju internet konekciju ili pokušajte ponovo kasnije.";
 "error.description.noInvitesLeft" = "Code je trenutno samo za pozvane. Obavestićemo vas kada bude dostupno više poziva.";
 "error.description.notInvitedYet" = "Da biste se pridružili listi čekanja idite na %@\n";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Poziv nije uspeo";
 "error.title.linkExpired" = "Веза је истекла";
 "error.title.maxAttemptsReached" = "Dostignut je maksimalan broj pokušaja";
+"error.title.noCodeFound" = "Није пронађен код";
 "error.title.noInternet" = "Nema internet konekcije";
 "error.title.noInvitesLeft" = "Nemate pozivnice";
 "error.title.notInvitedYet" = "Još uvek niste pozvani";

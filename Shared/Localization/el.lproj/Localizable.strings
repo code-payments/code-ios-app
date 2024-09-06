@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Λυπούμαστε, αντιμετωπίσαμε ένα πρόβλημα δικτύου. Προσπαθήστε να καλέσετε ξανά τον φίλο σας.";
 "error.description.linkExpired" = "Αυτό το Kin επιστράφηκε αυτόματα στον αποστολέα επειδή δεν παραλήφθηκε εντός 24 ωρών. Παρακαλείστε να τους ζητήσετε να στείλουν ξανά το Kin.";
 "error.description.maxAttemptsReached" = "Εισαγάγετε ξανά τον αριθμό τηλεφώνου σας και δοκιμάστε πάλι.";
+"error.description.noCodeFound" = "Παρακαλούμε να προσπαθήσεις να λάβεις μια εικόνα που να δείχνει τον κωδικό πιο καθαρά.";
 "error.description.noInternet" = "Ελέγξτε τη σύνδεσή σας στο διαδίκτυο ή δοκιμάστε ξανά αργότερα.";
 "error.description.noInvitesLeft" = "Το Code είναι προς το παρόν μόνο για όσους έχουν προσκληθεί. Θα σας ειδοποιήσουμε όταν υπάρξουν περισσότερες διαθέσιμες προσκλήσεις.";
 "error.description.notInvitedYet" = "Για να εγγραφείτε στη λίστα αναμονής μεταβείτε στο %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Πρόσκληση Απέτυχε";
 "error.title.linkExpired" = "Σύνδεσμος έληξε";
 "error.title.maxAttemptsReached" = "Υπέρβαση Αριθμού Προσπαθειών";
+"error.title.noCodeFound" = "Δεν Βρέθηκε το Code";
 "error.title.noInternet" = "Δεν Υπάρχει Σύνδεση Στο Διαδίκτυο";
 "error.title.noInvitesLeft" = "Δεν Έχετε Προσκλήσεις";
 "error.title.notInvitedYet" = "Δεν Έχετε Προσκληθεί Ακόμα";

@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Съжаляваме, но имаме проблем с връзката. Моля, опитайте да поканите вашия приятел отново. ";
 "error.description.linkExpired" = "Тези средства в Kin бяха автоматично върнати на подателя, защото не бяха взети в рамките на 24 часа. Моля, помолете ги да ги изпратят отново.";
 "error.description.maxAttemptsReached" = "Моля, въведете отново вашия телефонен номер и опитайте отново. ";
+"error.description.noCodeFound" = "Моля, опитайте да вземете изображение, което показва кода по-ясно.";
 "error.description.noInternet" = "Моля, проверете вашата връзка с Интернет или опитайте отново по - късно. ";
 "error.description.noInvitesLeft" = "Кодът временно е само с покана. Ще бъдете известени, когато има налични покани. ";
 "error.description.notInvitedYet" = "Отидете на %@, за да се включите в изчакващи. ";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Неуспешна покана ";
 "error.title.linkExpired" = "Връзката е изтекла";
 "error.title.maxAttemptsReached" = "Максималният брой опити е достигнат ";
+"error.title.noCodeFound" = "Не е намерен код";
 "error.title.noInternet" = "Нямате връзка с Интернет ";
 "error.title.noInvitesLeft" = "Нямате покани ";
 "error.title.notInvitedYet" = "Все още нямате покана ";

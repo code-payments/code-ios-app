@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Ľutujeme, vyskytol sa problém so sieťou. Skúste znova pozvať svojho priateľa.";
 "error.description.linkExpired" = "Tento Kin bol automaticky vrátený odosielateľovi, pretože nebol vyzdvihnutý do 24 hodín. Požiadajte ho, aby znovu poslali Kin.";
 "error.description.maxAttemptsReached" = "Znova zadajte svoje telefónne číslo a skúste to znova.";
+"error.description.noCodeFound" = "Skúste získať obrázok, ktorý zobrazuje kód jasnejšie.";
 "error.description.noInternet" = "Skontrolujte svoje internetové pripojenie alebo to skúste znova neskôr.";
 "error.description.noInvitesLeft" = "Kód je momentálne len na pozvanie. Keď budú k dispozícii ďalšie pozvánky, budeme vás informovať.";
 "error.description.notInvitedYet" = "Ak sa chcete pridať do zoznamu čakateľov, prejdite na %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Pozvanie zlyhalo";
 "error.title.linkExpired" = "Platnosť odkazu vypršala";
 "error.title.maxAttemptsReached" = "Maximálny dosiahnutý počet pokusov";
+"error.title.noCodeFound" = "Nenašiel sa žiaden kód";
 "error.title.noInternet" = "Žiadne internetové pripojenie";
 "error.title.noInvitesLeft" = "Nemáte žiadne pozvánky";
 "error.title.notInvitedYet" = "Zatiaľ ste neboli pozvaný";

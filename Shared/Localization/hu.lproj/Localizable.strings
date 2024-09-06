@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Sajnáljuk, hálózati problémát tapasztaltunk. Kérjük, próbálja meg újra meghívni barátját.";
 "error.description.linkExpired" = "Ez a Kin automatikusan visszaérkezett a küldőhöz, mert 24 órán belül nem vették fel. Légyszíves kérdezd meg őket, hogy elküldjed-e ismét.";
 "error.description.maxAttemptsReached" = "Kérjük, adja meg újra a telefonszámát, és próbálja újra.";
+"error.description.noCodeFound" = "Próbáljon meg egy olyan képet szerezni, amin jobban látszik a kód.";
 "error.description.noInternet" = "Kérjük, ellenőrizze internetkapcsolatát, vagy próbálja újra később.";
 "error.description.noInvitesLeft" = "A Code-ra jelenleg csak meghívni lehet embereket. Értesíteni fogjuk, ha további meghívók elérhetővé válnak.";
 "error.description.notInvitedYet" = "A várólistához való csatlakozáshoz menjen a %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Meghívás sikertelen";
 "error.title.linkExpired" = "A link lejárt";
 "error.title.maxAttemptsReached" = "Elérte a kísérletek maximális számát";
+"error.title.noCodeFound" = "Nem található kód";
 "error.title.noInternet" = "Nincs internetkapcsolat";
 "error.title.noInvitesLeft" = "Nincsenek meghívói";
 "error.title.notInvitedYet" = "Még nem kapott meghívást";

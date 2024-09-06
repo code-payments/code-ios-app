@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Üzgünüz, bir ağ sorunu yaşadık. Lütfen arkadaşını tekrar davet etmeyi dene.";
 "error.description.linkExpired" = "Bu Kin, 24 saat içinde alınmadığı için otomatik olarak gönderene iade edildi. Lütfen Kin'i tekrar göndermelerini iste.";
 "error.description.maxAttemptsReached" = "Lütfen telefon numaranı yeniden gir ve tekrar dene.";
+"error.description.noCodeFound" = "Lütfen kodu daha net gösteren bir görsel elde etmeye çalışın.";
 "error.description.noInternet" = "Lütfen internet bağlantını kontrol et veya daha sonra tekrar dene.";
 "error.description.noInvitesLeft" = "Şu anda Code'a yalnızca davetle katılınabilir. Daha fazla davetiye olduğunda seni haberdar edeceğiz.";
 "error.description.notInvitedYet" = "Bekleme listesine girmek için %@ adresine git";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Davet Başarısız";
 "error.title.linkExpired" = "Bağlantının Süresi Doldu";
 "error.title.maxAttemptsReached" = "Maksimum Denemeye Ulaşıldı";
+"error.title.noCodeFound" = "Kod Bulunamadı";
 "error.title.noInternet" = "İnternet Bağlantısı Yok";
 "error.title.noInvitesLeft" = "Davetin Yok";
 "error.title.notInvitedYet" = "Henüz Davet Edilmedin";

@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Het spijt ons, er is een netwerkprobleem opgetreden. Probeer je vriend opnieuw uit te nodigen.";
 "error.description.linkExpired" = "Deze Kin is automatisch teruggestuurd naar de afzender omdat deze niet binnen 24 uur is opgehaald. Vraag ze alsjeblieft om de Kin opnieuw te sturen.";
 "error.description.maxAttemptsReached" = "Voer je telefoonnummer opnieuw in en probeer het opnieuw.";
+"error.description.noCodeFound" = "Probeer een afbeelding te vinden waarop de code duidelijker te zien is.";
 "error.description.noInternet" = "Controleer je internetverbinding of probeer het later opnieuw.";
 "error.description.noInvitesLeft" = "Code is momenteel alleen op uitnodiging. We laten het je weten als er meer uitnodigingen beschikbaar zijn.";
 "error.description.notInvitedYet" = "Ga naar %@ om je in te schrijven op de wachtlijst";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Uitnodiging mislukt";
 "error.title.linkExpired" = "Link Verlopen";
 "error.title.maxAttemptsReached" = "Maximum aantal pogingen bereikt";
+"error.title.noCodeFound" = "Geen code gevonden";
 "error.title.noInternet" = "Geen internetverbinding";
 "error.title.noInvitesLeft" = "Je hebt geen uitnodigingen";
 "error.title.notInvitedYet" = "Je hebt nog geen uitnodiging ontvangen";

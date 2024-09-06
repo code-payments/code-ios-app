@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Kärsimme valitettavasti verkko-ongelmasta. Kokeile ystäväsi kutsumista uudestaan.";
 "error.description.linkExpired" = "Tämä kin palautettiin automaattisesti lähettäjälle, koska sitä ei lunastettu 24 tunnin kuluessa. Pyydä häntä lähettämään kin uudelleen.";
 "error.description.maxAttemptsReached" = "Syötä puhelinnumerosi uudelleen ja yritä taas.";
+"error.description.noCodeFound" = "Koeta ottaa kuva, jossa koodi näkyisi selvemmin.";
 "error.description.noInternet" = "Tarkista Internet-yhteytesi tai yritä myöhemmin uudestaan.";
 "error.description.noInvitesLeft" = "Code on tällä hetkellä käytettävissä vain kutsusta. Ilmoitamme sinulle, kun lisää kutsuja on saatavilla.";
 "error.description.notInvitedYet" = "Jos haluat liittyä odotuslistalle, mene tänne: %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Kutsu epäonnistui";
 "error.title.linkExpired" = "Linkki vanhentunut";
 "error.title.maxAttemptsReached" = "Yritysten enimmäismäärä täyttynyt";
+"error.title.noCodeFound" = "Koodia ei löytynyt";
 "error.title.noInternet" = "Ei Internet-yhteyttä";
 "error.title.noInvitesLeft" = "Sinulla ei ole kutsuja";
 "error.title.notInvitedYet" = "Sinua ei ole vielä kutsuttu";

@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Извините, у нас возникла проблема с сетью. Попробуйте пригласить друга снова.";
 "error.description.linkExpired" = "Этот Kin был автоматически возвращен отправителю, так как не был получен в течение 24 часов. Пожалуйста, попросите их снова прислать Kin.";
 "error.description.maxAttemptsReached" = "Введите свой номер телефона повторно и попробуйте снова.";
+"error.description.noCodeFound" = "Постарайтесь получить изображение, на котором будет более четко виден код.";
 "error.description.noInternet" = "Проверьте свое соединение с интернетом или попробуйте снова позже.";
 "error.description.noInvitesLeft" = "Code сейчас доступен только по приглашению. Мы сообщим вам, когда будет доступно больше приглашений.";
 "error.description.notInvitedYet" = "Для присоединения к списку ожидания посетите %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Сбой приглашения";
 "error.title.linkExpired" = "Срок действия ссылки истек";
 "error.title.maxAttemptsReached" = "Использовано максимальное количество попыток";
+"error.title.noCodeFound" = "Код не найден";
 "error.title.noInternet" = "Нет соединения с интернетом";
 "error.title.noInvitesLeft" = "У вас нет приглашений";
 "error.title.notInvitedYet" = "Вас еще не пригласили";

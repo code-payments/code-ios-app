@@ -110,6 +110,7 @@
 "error.description.invitationFailed" = "Litujeme, ale nastal problém v síti. Zkuste přítele přizvat znovu.";
 "error.description.linkExpired" = "Tento druh byl automaticky vrácen odesílateli, protože nebyl vyzvednut do 24 hodin. Požádejte je, aby Kin poslali znovu.";
 "error.description.maxAttemptsReached" = "Zadejte znovu telefonní číslo a zkuste to znovu.";
+"error.description.noCodeFound" = "Zkuste získat snímek, který zobrazuje kód jasněji.";
 "error.description.noInternet" = "Zkontrolujte připojení k internetu nebo to zkuste později.";
 "error.description.noInvitesLeft" = "Kód momentálně funguje jen na přizvání. Jakmile bude k dispozici více pozvánek, dáme vám vědět. ";
 "error.description.notInvitedYet" = "Pokud se chcete zapsat na čekací listinu, jděte na %@";
@@ -147,6 +148,7 @@
 "error.title.invitationFailed" = "Přizvání se nezdařilo";
 "error.title.linkExpired" = "Platnost odkazu vypršela";
 "error.title.maxAttemptsReached" = "Byl dosažen maximální počet pokusů";
+"error.title.noCodeFound" = "Kód nebyl nalezen";
 "error.title.noInternet" = "Chybí internetové připojení";
 "error.title.noInvitesLeft" = "Nemáte žádná přizvání";
 "error.title.notInvitedYet" = "Dosud jste nebyli přizváni.";
