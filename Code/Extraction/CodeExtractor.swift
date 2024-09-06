@@ -190,7 +190,7 @@ extension UIImage {
                 return nil
             }
             
-            print("Scanning \(index): \(windowRect.origin)")
+//            print("Scanning \(index): \(windowRect.origin)")
             
             // Extract YUV sample for the window
             guard let windowSample = try windowImage.extractSample() else {
@@ -199,7 +199,7 @@ extension UIImage {
 
             // Perform scan on the extracted sample
             if let result = scan(windowSample) {
-                return result // Return result if found
+                return result
             }
             
             return nil
@@ -208,9 +208,11 @@ extension UIImage {
         return payload
     }
     
-    // Helper function to crop a UIImage to a specific CGRect
     private func cropped(to rect: CGRect) -> UIImage? {
-        guard let cgImage = self.cgImage?.cropping(to: rect) else { return nil }
+        guard let cgImage = cgImage?.cropping(to: rect) else {
+            return nil
+        }
+        
         return UIImage(cgImage: cgImage)
     }
     
@@ -339,7 +341,6 @@ extension UIImage {
                         u[i] = uv[2 * i]     // U plane from even index
                         v[i] = uv[2 * i + 1] // V plane from odd index
                         
-                        // You can also unroll further if needed
                         if i + 1 < count {
                             u[i + 1] = uv[2 * (i + 1)]
                             v[i + 1] = uv[2 * (i + 1) + 1]
