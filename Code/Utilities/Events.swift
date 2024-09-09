@@ -155,6 +155,14 @@ extension Analytics {
     static func tipCardLinked() {
         track(.tipCardLinked)
     }
+    
+    static func openConnectX() {
+        track(.actionOpenConnectX)
+    }
+    
+    static func messageCodeOnX() {
+        track(.actionMessageCodeOnX)
+    }
 }
 
 // MARK: - Swap -
@@ -318,6 +326,9 @@ extension Analytics {
         case actionVerifyPhone         = "Action: Verify Phone"
         case actionConfirmAccessKey    = "Action: Confirm Access Key"
         case actionCompletedOnboarding = "Action: Completed Onboarding"
+        
+        case actionOpenConnectX        = "Action: Open Connect X Screen"
+        case actionMessageCodeOnX      = "Action: Message Code on X"
     }
 }
 

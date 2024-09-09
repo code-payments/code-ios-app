@@ -57,6 +57,7 @@ struct RequestTipScreen: View {
                     image: Image.asset(.twitter),
                     title: Localized.Action.postToConnect
                 ) {
+                    Analytics.messageCodeOnX()
                     tipController.openTwitterWithAuthenticationText(nonce: nonce)
                     Task {
                         try await Task.delay(milliseconds: 500)
@@ -71,6 +72,9 @@ struct RequestTipScreen: View {
             .padding(.horizontal, 20)
         }
         .navigationBarTitle(Text(""), displayMode: .inline)
+        .onAppear {
+            Analytics.openConnectX()
+        }
     }
 }
 
