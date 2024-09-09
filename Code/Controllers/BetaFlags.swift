@@ -94,7 +94,6 @@ extension BetaFlags {
         case alternativeBubbles
         case kadoInApp
         case chatTab
-        case scanFromLibrary
         
         var id: String {
             localizedTitle
@@ -122,8 +121,6 @@ extension BetaFlags {
                 return "Kado In-app Flow"
             case .chatTab:
                 return "Chat Tab"
-            case .scanFromLibrary:
-                return "Scan From Library"
             }
         }
         
@@ -149,8 +146,6 @@ extension BetaFlags {
                 return "If enabled, the Kado purchase experience will open in an in-app browser."
             case .chatTab:
                 return "If enabled, a fourth chat tab will appear on the camera screen."
-            case .scanFromLibrary:
-                return "If enabled, a button will appear below the menu button to enable scanning from library."
             }
         }
     }

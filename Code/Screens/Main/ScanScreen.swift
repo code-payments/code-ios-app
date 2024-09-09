@@ -270,16 +270,14 @@ struct ScanScreen: View {
                             .environmentObject(biometrics)
                         }
                         
-                        if betaFlags.hasEnabled(.scanFromLibrary) {
-                            RoundButton(
-                                asset: .photo,
-                                size: .regular,
-                                binding: $isPresentingScanFromLibrary
-                            )
-                            .sheet(isPresented: $isPresentingScanFromLibrary) { [unowned session] in
-                                PickerView(selection: session.attemptScanFromLibrary)
-                                    .edgesIgnoringSafeArea(.all)
-                            }
+                        RoundButton(
+                            asset: .photo,
+                            size: .regular,
+                            binding: $isPresentingScanFromLibrary
+                        )
+                        .sheet(isPresented: $isPresentingScanFromLibrary) { [unowned session] in
+                            PickerView(selection: session.attemptScanFromLibrary)
+                                .edgesIgnoringSafeArea(.all)
                         }
                     }
                     .padding([.top, .trailing], 20)
@@ -660,14 +658,12 @@ extension ScanScreen {
                     )
                     .padding(.trailing, 20)
                     
-                    if BetaFlags.shared.hasEnabled(.scanFromLibrary) {
-                        RoundButton(
-                            asset: .photo,
-                            size: .regular,
-                            binding: .constant(false)
-                        )
-                        .padding(.trailing, 20)
-                    }
+                    RoundButton(
+                        asset: .photo,
+                        size: .regular,
+                        binding: .constant(false)
+                    )
+                    .padding(.trailing, 20)
                 }
                 .padding(.top, 20)
             }
