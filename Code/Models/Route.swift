@@ -93,12 +93,34 @@ extension Route {
                 return .login
             case "cash", "c":
                 return .cash
-            case "payment-request-modal-desktop", "payment-request-modal-mobile":
+                
+            case
+                "payment-request-modal-desktop",
+                "payment-request-modal-mobile",
+                "payment-request-page-desktop",
+                "payment-request-page-mobile",
+                "payment-request-card-desktop",
+                "payment-request-card-mobile":
                 return .paymentRequest
-            case "login-request-modal-desktop", "login-request-modal-mobile":
+                
+            case 
+                "login-request-modal-desktop",
+                "login-request-modal-mobile",
+                "login-request-page-desktop",
+                "login-request-page-mobile",
+                "login-request-card-desktop",
+                "login-request-card-mobile":
                 return .loginRequest
-            case "tip-request-modal-mobile", "tip-request-modal-desktop", "tip-request-page-mobile", "tip-request-page-desktop":
+                
+            case 
+                "tip-request-modal-desktop",
+                "tip-request-modal-mobile",
+                "tip-request-page-desktop",
+                "tip-request-page-mobile",
+                "tip-request-card-desktop",
+                "tip-request-card-mobile":
                 return .tipSDK
+                
             default:
                 return .unknown(url.lastPathComponent)
             }
