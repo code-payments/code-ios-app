@@ -167,7 +167,7 @@
 		9AD5D72F25F13A18007388AE /* BalanceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D72E25F13A18007388AE /* BalanceScreen.swift */; };
 		9AD5D85825F26E4C007388AE /* CodeScanner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5D84C25F26E3C007388AE /* CodeScanner.framework */; };
 		9AD5E64C25F2BF3E007388AE /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E64B25F2BF3E007388AE /* opencv2.framework */; };
-		9AD87C7F2BC04A3B00F33A08 /* RequestTipScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD87C7E2BC04A3B00F33A08 /* RequestTipScreen.swift */; };
+		9AD87C7F2BC04A3B00F33A08 /* ConnectXScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD87C7E2BC04A3B00F33A08 /* ConnectXScreen.swift */; };
 		9AE0834228EC8E7D00350407 /* DeleteAccountScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834128EC8E7D00350407 /* DeleteAccountScreen.swift */; };
 		9AE0834528EC918800350407 /* DeleteAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834428EC918800350407 /* DeleteAccountViewModel.swift */; };
 		9AE0834728EC973B00350407 /* ConfirmDeleteScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834628EC973B00350407 /* ConfirmDeleteScreen.swift */; };
@@ -437,7 +437,7 @@
 		9AD5D72E25F13A18007388AE /* BalanceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceScreen.swift; sourceTree = "<group>"; };
 		9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = CodeScanner.xcodeproj; path = CodeScanner/CodeScanner.xcodeproj; sourceTree = "<group>"; };
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
-		9AD87C7E2BC04A3B00F33A08 /* RequestTipScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestTipScreen.swift; sourceTree = "<group>"; };
+		9AD87C7E2BC04A3B00F33A08 /* ConnectXScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectXScreen.swift; sourceTree = "<group>"; };
 		9AE0834128EC8E7D00350407 /* DeleteAccountScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteAccountScreen.swift; sourceTree = "<group>"; };
 		9AE0834428EC918800350407 /* DeleteAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteAccountViewModel.swift; sourceTree = "<group>"; };
 		9AE0834628EC973B00350407 /* ConfirmDeleteScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmDeleteScreen.swift; sourceTree = "<group>"; };
@@ -569,7 +569,7 @@
 			children = (
 				9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */,
 				9A9F26982A169CC000FA47DF /* GetKinScreen.swift */,
-				9AD87C7E2BC04A3B00F33A08 /* RequestTipScreen.swift */,
+				9AD87C7E2BC04A3B00F33A08 /* ConnectXScreen.swift */,
 				9A0F08382BBC7B7900C65489 /* EnterTipScreen.swift */,
 				9AF817CD2C5BFF5A00B880AB /* Kado.swift */,
 			);
@@ -1489,7 +1489,7 @@
 				9AEFE84E25B61EAB001FCB19 /* GiveKinScreen.swift in Sources */,
 				9A9F26992A169CC000FA47DF /* GetKinScreen.swift in Sources */,
 				9AEF1912260A7BCF00EB2410 /* UIApplication+Root.swift in Sources */,
-				9AD87C7F2BC04A3B00F33A08 /* RequestTipScreen.swift in Sources */,
+				9AD87C7F2BC04A3B00F33A08 /* ConnectXScreen.swift in Sources */,
 				9A557D9D28A6BB2F00A58BB1 /* PushController.swift in Sources */,
 				9A033392278F61E8005C630A /* ConfirmPhoneScreen.swift in Sources */,
 				9A9469BB27A090E10028F27E /* MessageController.swift in Sources */,

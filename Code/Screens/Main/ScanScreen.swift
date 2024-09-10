@@ -346,7 +346,7 @@ struct ScanScreen: View {
                                 .environmentObject(reachability)
                             } else {
                                 NavigationStack {
-                                    RequestTipScreen(
+                                    ConnectXScreen(
                                         tipController: session.tipController,
                                         isPresented: $isPresentingGetKin
                                     )

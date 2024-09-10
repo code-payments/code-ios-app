@@ -131,7 +131,7 @@ struct GetKinScreen: View {
                                 title: Localized.Action.requestTip,
                                 showChevron: false
                             ) {
-                                RequestTipScreen(
+                                ConnectXScreen(
                                     tipController: tipController,
                                     isPresented: $isPresented
                                 )

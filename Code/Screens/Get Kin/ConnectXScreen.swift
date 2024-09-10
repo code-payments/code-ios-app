@@ -1,5 +1,5 @@
 //
-//  RequestTipScreen.swift
+//  ConnectXScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-04-05.
@@ -9,7 +9,7 @@ import SwiftUI
 import CodeUI
 import CodeServices
 
-struct RequestTipScreen: View {
+struct ConnectXScreen: View {
     
     @Binding public var isPresented: Bool
     
@@ -79,7 +79,7 @@ struct RequestTipScreen: View {
 }
 
 #Preview {
-    RequestTipScreen(
+    ConnectXScreen(
         tipController: .mock, 
         isPresented: .constant(true)
     )
