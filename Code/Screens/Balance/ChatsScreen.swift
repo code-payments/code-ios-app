@@ -20,6 +20,9 @@ struct ChatsScreen: View {
     
     @ObservedObject private var historyController: HistoryController
     
+    @State private var isShowingEnterUsername: Bool = false
+    @State private var isShowingConversation: Bool = false
+    
     private var chats: [Chat] {
         historyController.chats
     }
@@ -43,12 +46,16 @@ struct ChatsScreen: View {
         historyController.fetchChats()
     }
     
-    @State private var isShowingConversation: Bool = false
-    
     // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
+            NavigationLink(isActive: $isShowingEnterUsername) {
+                LazyView(
+                    EnterUsernameScreen()
+                )
+            } label: { EmptyView() }
+            
             VStack(spacing: 0) {
                 ScrollBox(color: .backgroundMain) {
                     LazyTable(
@@ -60,7 +67,7 @@ struct ChatsScreen: View {
                 }
                 
                 CodeButton(style: .filled, title: "Start a New Chat") {
-                    // Start chat
+                    isShowingEnterUsername = true
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)

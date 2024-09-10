@@ -387,6 +387,7 @@ struct ScanScreen: View {
                                     isPresented: $isPresentingChat
                                 )
                             }
+                            .environmentObject(client)
                             .environmentObject(exchange)
                             .environmentObject(betaFlags)
                             .environmentObject(bannerController)
