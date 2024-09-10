@@ -20,17 +20,20 @@ class CodeExtractor: CameraSessionExtractor {
     required init() {}
     
     static func extract(from image: UIImage) throws -> Code.Payload? {
-        let isHD = true
-        
         if let wholeImage = try image.extractSample() {
-            if let (_, payload) = Self.processSample(sample: wholeImage, hd: isHD) {
-                print("Success on whole scan")
+            if let (_, payload) = Self.processSample(sample: wholeImage, hd: true) {
+                print("Whole scan HD (true)")
+                return payload
+            }
+            
+            if let (_, payload) = Self.processSample(sample: wholeImage, hd: false) {
+                print("Whole scan HD (false)")
                 return payload
             }
         }
         
         return try image.slidingWindowSearch { sample in
-            Self.processSample(sample: sample, hd: isHD)?.1
+            Self.processSample(sample: sample, hd: true)?.1
         }
     }
     
