@@ -28,25 +28,33 @@ int kikCodeScan(
 
     int max_edge_size = std::max(height, width);
 
-    if (device_quality == SCAN_DEVICE_QUALITY_LOW) {
-        if (max_edge_size > 240) {
-            scale = 240.0 / max_edge_size;
-        }
-    }
-    else if (device_quality < SCAN_DEVICE_QUALITY_MEDIUM) {
-        if (max_edge_size > 320) {
-            scale = 320.0 / max_edge_size;
-        }
-    }
-    else if (device_quality < SCAN_DEVICE_QUALITY_HIGH) {
-        if (max_edge_size > 480) {
-            scale = 480.0 / max_edge_size;
-        }
-    }
-    else if (device_quality < SCAN_DEVICE_QUALITY_BEST) {
-        if (max_edge_size > 960) {
-            scale = 960.0 / max_edge_size;
-        }
+    switch (device_quality) {
+        case SCAN_DEVICE_QUALITY_LOW:
+            if (max_edge_size > 240) {
+                scale = 240.0 / max_edge_size;
+            }
+            break;
+
+        case SCAN_DEVICE_QUALITY_MEDIUM:
+            if (max_edge_size > 320) {
+                scale = 320.0 / max_edge_size;
+            }
+            break;
+
+        case SCAN_DEVICE_QUALITY_HIGH:
+            if (max_edge_size > 480) {
+                scale = 480.0 / max_edge_size;
+            }
+            break;
+
+        case SCAN_DEVICE_QUALITY_BEST:
+            if (max_edge_size > 960) {
+                scale = 960.0 / max_edge_size;
+            }
+            break;
+
+        default:
+            assert(false);
     }
 
     if (scale > 0.0) {

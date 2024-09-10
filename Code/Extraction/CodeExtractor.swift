@@ -20,20 +20,26 @@ class CodeExtractor: CameraSessionExtractor {
     required init() {}
     
     static func extract(from image: UIImage) throws -> Code.Payload? {
+        let qualities: [KikCodesScanQuality] = [
+            .low,
+            .medium,
+            .high,
+            .best,
+        ]
+        
         if let wholeImage = try image.extractSample() {
-            if let (_, payload) = Self.processSample(sample: wholeImage, hd: true) {
-                print("Whole scan HD (true)")
-                return payload
-            }
-            
-            if let (_, payload) = Self.processSample(sample: wholeImage, hd: false) {
-                print("Whole scan HD (false)")
-                return payload
+            for quality in qualities {
+                if let (_, payload) = Self.processSample(sample: wholeImage, quality: quality) {
+                    print("Whole scan [X]: \(quality)")
+                    return payload
+                } else {
+                    print("Whole scan [ ]: \(quality)")
+                }
             }
         }
         
         return try image.slidingWindowSearch { sample in
-            Self.processSample(sample: sample, hd: true)?.1
+            Self.processSample(sample: sample, quality: .high)?.1
         }
     }
     
@@ -50,15 +56,15 @@ class CodeExtractor: CameraSessionExtractor {
         
         let payload = Self.processSample(
             sample: sample,
-            hd: isHD,
+            quality: isHD ? .best : .high,
             container: &container
         )
         
         return payload
     }
     
-    private static func processSample(sample: Sample, hd: Bool) -> (Data, Code.Payload)? {
-        guard let data = KikCodes.scan(sample.data, width: sample.width, height: sample.height, hd: hd) else {
+    private static func processSample(sample: Sample, quality: KikCodesScanQuality) -> (Data, Code.Payload)? {
+        guard let data = KikCodes.scan(sample.data, width: sample.width, height: sample.height, quality: quality) else {
             return nil
         }
         
@@ -71,8 +77,8 @@ class CodeExtractor: CameraSessionExtractor {
         return (result, payload)
     }
     
-    private static func processSample(sample: Sample, hd: Bool, container: inout RedundancyContainer<Data>) -> Code.Payload? {
-        if let (data, payload) = processSample(sample: sample, hd: hd) {
+    private static func processSample(sample: Sample, quality: KikCodesScanQuality, container: inout RedundancyContainer<Data>) -> Code.Payload? {
+        if let (data, payload) = processSample(sample: sample, quality: quality) {
             container.insert(data)
             
             if let _ = container.value {

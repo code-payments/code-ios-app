@@ -50,19 +50,34 @@
 }
 
 + (nullable NSData *)scan:(nonnull NSData *)data width:(NSInteger)width height:(NSInteger)height {
-    [self scan:data width:width height:height hd:NO];
+    [self scan:data width:width height:height quality:KikCodesScanQualityHigh];
 }
 
-+ (nullable NSData *)scan:(nonnull NSData *)data width:(NSInteger)width height:(NSInteger)height hd:(BOOL)hd {
++ (nullable NSData *)scan:(nonnull NSData *)data width:(NSInteger)width height:(NSInteger)height quality:(KikCodesScanQuality)quality {
     uint8_t outData[MAIN_BYTE_COUNT] = ZERO_BYTES;
     
-    unsigned int quality = hd ? 9 : 3;
+    unsigned int qualityValue = [self deviceQualityForScanQuality:quality];
     
-    int result = kikCodeScan((unsigned char *)data.bytes, (unsigned int)width, (unsigned int)height, quality, outData, nil, nil, nil, nil);
+    int result = kikCodeScan((unsigned char *)data.bytes, (unsigned int)width, (unsigned int)height, qualityValue, outData, nil, nil, nil, nil);
     if (result == 0) {
         return [[NSData alloc] initWithBytes:outData length:MAIN_BYTE_COUNT];
     }
     return nil;
+}
+
++ (int)deviceQualityForScanQuality:(KikCodesScanQuality)quality {
+    switch (quality) {
+        case KikCodesScanQualityLow:
+            return 0;
+        case KikCodesScanQualityMedium:
+            return 3;
+        case KikCodesScanQualityHigh:
+            return 8;
+        case KikCodesScanQualityBest:
+            return 10;
+        default:
+            return 8;
+    }
 }
 
 @end
