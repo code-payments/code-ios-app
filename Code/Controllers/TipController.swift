@@ -218,9 +218,8 @@ class TipController: ObservableObject {
             signature.base58,
         ]
         
-        let text = "I'm connecting my X account with @getcode so I can receive tips from people all over the world."
         let auth = components.joined(separator: ":")
-        let message = "\(text)\n\n\(auth)"
+        let message = "\(Localized.Subtitle.connectXTweetText)\n\n\(auth)"
         
         return message
     }

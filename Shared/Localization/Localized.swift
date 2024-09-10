@@ -70,6 +70,8 @@ internal enum Localized {
     internal static let logIn = Localized.tr("Localizable", "action.logIn")
     /// Log Out
     internal static let logout = Localized.tr("Localizable", "action.logout")
+    /// Message @getcode to Connect
+    internal static let messageGetCode = Localized.tr("Localizable", "action.messageGetCode")
     /// Mute
     internal static let mute = Localized.tr("Localizable", "action.mute")
     /// Next
@@ -86,8 +88,6 @@ internal enum Localized {
     internal static let paste = Localized.tr("Localizable", "action.paste")
     /// Paste From Clipboard
     internal static let pasteFromClipboard = Localized.tr("Localizable", "action.pasteFromClipboard")
-    /// Post to Connect Account
-    internal static let postToConnect = Localized.tr("Localizable", "action.postToConnect")
     /// Put in Wallet
     internal static let putInWallet = Localized.tr("Localizable", "action.putInWallet")
     /// Receive
@@ -499,6 +499,8 @@ internal enum Localized {
     }
     /// Coming Soon
     internal static let comingSoon = Localized.tr("Localizable", "subtitle.comingSoon")
+    /// @getcode I’d like to connect my X account so I can receive tips from people all over the world
+    internal static let connectXTweetText = Localized.tr("Localizable", "subtitle.connectXTweetText")
     /// Delete
     internal static let delete = Localized.tr("Localizable", "subtitle.delete")
     /// Make sure you have your Secret Recovery Phrase saved, and then enter “Delete” to delete your Code account. This action is irreversible.

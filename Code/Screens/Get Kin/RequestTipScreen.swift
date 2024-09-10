@@ -55,7 +55,7 @@ struct RequestTipScreen: View {
                 CodeButton(
                     style: .filled,
                     image: Image.asset(.twitter),
-                    title: Localized.Action.postToConnect
+                    title: Localized.Action.messageGetCode
                 ) {
                     Analytics.messageCodeOnX()
                     tipController.openTwitterWithAuthenticationText(nonce: nonce)

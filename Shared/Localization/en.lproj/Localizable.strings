@@ -218,9 +218,6 @@
 /* Action to buy kin */
 "action.requestTip" = "Request a Tip";
 
-/* Action to connect to X */
-"action.postToConnect" = "Post to Connect Account";
-
 /* Action to show my tip card */
 "action.showMyTipCard" = "Show My Tip Card";
 
@@ -232,6 +229,9 @@
 
 /* Action to unlock code using biometrics or passcode */
 "action.unlockCode" = "Unlock Code";
+
+/* Action to message Code to connect X, do not translate '@getcode' */
+"action.messageGetCode" = "Message @getcode to Connect";
 
 
 
@@ -601,6 +601,9 @@
 
 /* Subtitle for turning on notifications for Code */
 "subtitle.turnOnNotifications" = "Allow Code to send you notifications when you receive Tips from other Code users.";
+
+/* Subtitle for connecting Code to X, do not translate '@getcode' */
+"subtitle.connectXTweetText" = "@getcode I’d like to connect my X account so I can receive tips from people all over the world";
 
 
 
