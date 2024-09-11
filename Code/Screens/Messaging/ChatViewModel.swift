@@ -43,7 +43,7 @@ class ChatViewModel: ObservableObject {
         }
         
         Task {
-            try await chatController.revealSelfIdentity(chat: chat, username: username)
+            _ = try await chatController.revealSelfIdentity(chat: chat, username: username)
             
             // TODO: Should update from stream instead
             chatController.fetchChats()
