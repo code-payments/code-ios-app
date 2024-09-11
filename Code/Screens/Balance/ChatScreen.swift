@@ -49,7 +49,29 @@ struct DirectMessageScreen: View {
             }
         }
         .navigationBarHidden(false)
-        .navigationBarTitle(Text(displayName))
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                title()
+            }
+        }
+    }
+    
+    @ViewBuilder private func title() -> some View {
+        HStack(spacing: 10) {
+            AvatarView(value: .placeholder, diameter: 30)
+//                GeneratedAvatarView(data: chat.id.data, diameter: 30)
+            
+            VStack(alignment: .leading, spacing: 0) {
+                Text(displayName)
+                    .font(.appTextMedium)
+                    .foregroundColor(.textMain)
+                Text("Last seen recently")
+                    .font(.appTextHeading)
+                    .foregroundColor(.textSecondary)
+            }
+            
+            Spacer()
+        }
     }
     
     enum State {
@@ -145,7 +167,6 @@ struct ChatScreen: View {
             }
         }
         .navigationBarHidden(false)
-        .navigationBarTitle(Text(chat.displayName))
     }
     
     @ViewBuilder private func button(title: String, action: @escaping VoidAction) -> some View {
