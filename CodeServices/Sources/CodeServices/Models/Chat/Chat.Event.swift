@@ -13,6 +13,7 @@ extension Chat {
     public enum Event {
         case message(Message)
         case pointer(Pointer)
+        case isTyping(Bool, MemberID)
     }
 }
 
@@ -28,6 +29,9 @@ extension Chat.Event {
             
         case .pointer(let pointer):
             self = .pointer(.init(pointer))
+            
+        case .isTyping(let state):
+            self = .isTyping(state.isTyping, ID(data: state.memberID.value))
         }
     }
 }

@@ -12,17 +12,18 @@ import CodeServices
 struct EnterUsernameScreen: View {
     
     @EnvironmentObject private var client: Client
+    @EnvironmentObject private var bannerController: BannerController
     
     @State private var enteredUsername: String = ""
     
-    private var canProceed: Bool {
-        enteredUsername.count >= 4
-    }
+    @State private var isShowingChat: Bool = false
+    
+    @ObservedObject private var viewModel: DirectMessageViewModel
     
     // MARK: - Init -
     
-    init() {
-        
+    init(viewModel: DirectMessageViewModel) {
+        self.viewModel = viewModel
     }
     
     // MARK: - Body -
@@ -45,8 +46,13 @@ struct EnterUsernameScreen: View {
                 
                 Spacer()
                 
-                CodeButton( style: .filled, title: Localized.Action.next, disabled: !canProceed) {
-                    
+                CodeButton(
+                    state: viewModel.beginChatState,
+                    style: .filled,
+                    title: Localized.Action.next,
+                    disabled: !viewModel.isValid(username: enteredUsername)
+                ) {
+                    viewModel.attemptChat(with: enteredUsername)
                 }
             }
             .foregroundColor(.textMain)
@@ -58,5 +64,5 @@ struct EnterUsernameScreen: View {
 }
 
 #Preview {
-    EnterUsernameScreen()
+    EnterUsernameScreen(viewModel: .mock)
 }

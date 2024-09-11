@@ -133,13 +133,9 @@ struct BalanceScreen: View {
                     }
                 }
             }
-            .navigationDestination(for: Chat.self) { chat in
-                ChatScreen(
-                    chat: chat,
-                    chatController: chatController,
-                    viewModel: viewModel
-                )
-            }
+//            .navigationDestination(for: Chat.self) { chat in
+//                DirectMessageScreen(state: .paid(chat, chatController))
+//            }
             .navigationBarTitle(Text(Localized.Title.balance), displayMode: .inline)
             .sheet(isPresented: $isShowingBuckets) {
                 BucketScreen(

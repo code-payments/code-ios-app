@@ -125,68 +125,67 @@ public struct Code_Transaction_V2_SubmitIntentRequest {
     /// The globally unique client generated intent ID. Use the original intent
     /// ID when operating on actions that mutate the intent.
     public var id: Code_Common_V1_IntentId {
-      get {return _id ?? Code_Common_V1_IntentId()}
-      set {_id = newValue}
+      get {return _storage._id ?? Code_Common_V1_IntentId()}
+      set {_uniqueStorage()._id = newValue}
     }
     /// Returns true if `id` has been explicitly set.
-    public var hasID: Bool {return self._id != nil}
+    public var hasID: Bool {return _storage._id != nil}
     /// Clears the value of `id`. Subsequent reads from it will return its default value.
-    public mutating func clearID() {self._id = nil}
+    public mutating func clearID() {_uniqueStorage()._id = nil}
 
     /// The verified owner account public key
     public var owner: Code_Common_V1_SolanaAccountId {
-      get {return _owner ?? Code_Common_V1_SolanaAccountId()}
-      set {_owner = newValue}
+      get {return _storage._owner ?? Code_Common_V1_SolanaAccountId()}
+      set {_uniqueStorage()._owner = newValue}
     }
     /// Returns true if `owner` has been explicitly set.
-    public var hasOwner: Bool {return self._owner != nil}
+    public var hasOwner: Bool {return _storage._owner != nil}
     /// Clears the value of `owner`. Subsequent reads from it will return its default value.
-    public mutating func clearOwner() {self._owner = nil}
+    public mutating func clearOwner() {_uniqueStorage()._owner = nil}
 
     /// Additional metadata that describes the high-level intention
     public var metadata: Code_Transaction_V2_Metadata {
-      get {return _metadata ?? Code_Transaction_V2_Metadata()}
-      set {_metadata = newValue}
+      get {return _storage._metadata ?? Code_Transaction_V2_Metadata()}
+      set {_uniqueStorage()._metadata = newValue}
     }
     /// Returns true if `metadata` has been explicitly set.
-    public var hasMetadata: Bool {return self._metadata != nil}
+    public var hasMetadata: Bool {return _storage._metadata != nil}
     /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
-    public mutating func clearMetadata() {self._metadata = nil}
+    public mutating func clearMetadata() {_uniqueStorage()._metadata = nil}
 
     /// The set of all ordered actions required to fulfill the intent
-    public var actions: [Code_Transaction_V2_Action] = []
+    public var actions: [Code_Transaction_V2_Action] {
+      get {return _storage._actions}
+      set {_uniqueStorage()._actions = newValue}
+    }
 
     /// The signature is of serialize(SubmitActions) without this field set using the
     /// private key of the owner account. This provides an authentication mechanism
     /// to the RPC.
     public var signature: Code_Common_V1_Signature {
-      get {return _signature ?? Code_Common_V1_Signature()}
-      set {_signature = newValue}
+      get {return _storage._signature ?? Code_Common_V1_Signature()}
+      set {_uniqueStorage()._signature = newValue}
     }
     /// Returns true if `signature` has been explicitly set.
-    public var hasSignature: Bool {return self._signature != nil}
+    public var hasSignature: Bool {return _storage._signature != nil}
     /// Clears the value of `signature`. Subsequent reads from it will return its default value.
-    public mutating func clearSignature() {self._signature = nil}
+    public mutating func clearSignature() {_uniqueStorage()._signature = nil}
 
     /// Device token for antispam measures against fake devices
     public var deviceToken: Code_Common_V1_DeviceToken {
-      get {return _deviceToken ?? Code_Common_V1_DeviceToken()}
-      set {_deviceToken = newValue}
+      get {return _storage._deviceToken ?? Code_Common_V1_DeviceToken()}
+      set {_uniqueStorage()._deviceToken = newValue}
     }
     /// Returns true if `deviceToken` has been explicitly set.
-    public var hasDeviceToken: Bool {return self._deviceToken != nil}
+    public var hasDeviceToken: Bool {return _storage._deviceToken != nil}
     /// Clears the value of `deviceToken`. Subsequent reads from it will return its default value.
-    public mutating func clearDeviceToken() {self._deviceToken = nil}
+    public mutating func clearDeviceToken() {_uniqueStorage()._deviceToken = nil}
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public init() {}
 
-    fileprivate var _id: Code_Common_V1_IntentId? = nil
-    fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
-    fileprivate var _metadata: Code_Transaction_V2_Metadata? = nil
-    fileprivate var _signature: Code_Common_V1_Signature? = nil
-    fileprivate var _deviceToken: Code_Common_V1_DeviceToken? = nil
+    fileprivate var _storage = _StorageClass.defaultInstance
   }
 
   public struct SubmitSignatures {
@@ -275,7 +274,7 @@ public struct Code_Transaction_V2_SubmitIntentResponse {
 
     /// The set of all server paremeters required to fill missing transaction
     /// details. Server guarantees to provide a message for each client action
-    /// in an order consistent with the received action list. 
+    /// in an order consistent with the received action list.
     public var serverParameters: [Code_Transaction_V2_ServerParameter] = []
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1315,7 +1314,7 @@ public struct Code_Transaction_V2_SwapRequest {
 
     /// Whether the client wants the RPC to wait for blockchain status. If false,
     /// then the RPC will return Success when the swap is submitted to the blockchain.
-    /// Otherwise, the RPC will observe and report back the status of the transaction. 
+    /// Otherwise, the RPC will observe and report back the status of the transaction.
     public var waitForBlockchainStatus: Bool = false
 
     /// The signature is of serialize(Initiate) without this field set using the
@@ -2027,6 +2026,19 @@ public struct Code_Transaction_V2_SendPrivatePaymentMetadata {
   /// Clears the value of `tippedUser`. Subsequent reads from it will return its default value.
   public mutating func clearTippedUser() {self._tippedUser = nil}
 
+  /// Is the payment for a friendship?
+  public var isFriendship: Bool = false
+
+  /// If is_friendship is true, the user being friended
+  public var friendedUser: Code_Transaction_V2_FriendedUser {
+    get {return _friendedUser ?? Code_Transaction_V2_FriendedUser()}
+    set {_friendedUser = newValue}
+  }
+  /// Returns true if `friendedUser` has been explicitly set.
+  public var hasFriendedUser: Bool {return self._friendedUser != nil}
+  /// Clears the value of `friendedUser`. Subsequent reads from it will return its default value.
+  public mutating func clearFriendedUser() {self._friendedUser = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2034,6 +2046,7 @@ public struct Code_Transaction_V2_SendPrivatePaymentMetadata {
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
   fileprivate var _tippedUser: Code_Transaction_V2_TippedUser? = nil
+  fileprivate var _friendedUser: Code_Transaction_V2_FriendedUser? = nil
 }
 
 /// Send a payment to a destination account publicly.
@@ -3445,7 +3458,7 @@ public struct Code_Transaction_V2_InvalidSignatureErrorDetails {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The action whose signature mismatched 
+  /// The action whose signature mismatched
   public var actionID: UInt32 = 0
 
   /// The transaction the server expected to have signed.
@@ -3719,7 +3732,7 @@ public struct Code_Transaction_V2_PaymentHistoryItem {
   /// If is_airdrop is true, the type of airdrop received.
   public var airdropType: Code_Transaction_V2_AirdropType = .unknown
 
-  /// Is this a micro payment? 
+  /// Is this a micro payment?
   public var isMicroPayment: Bool = false
 
   /// The intent ID associated with this history item
@@ -3975,6 +3988,60 @@ extension Code_Transaction_V2_TippedUser.Platform: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Code_Transaction_V2_FriendedUser {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var platform: Code_Transaction_V2_FriendedUser.Platform = .unknown
+
+  public var username: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Platform: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case unknown // = 0
+    case twitter // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unknown
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unknown
+      case 1: self = .twitter
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unknown: return 0
+      case .twitter: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Transaction_V2_FriendedUser.Platform: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Code_Transaction_V2_FriendedUser.Platform] = [
+    .unknown,
+    .twitter,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Code_Transaction_V2_Cursor {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -4090,6 +4157,8 @@ extension Code_Transaction_V2_MicroPaymentLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_BuyModuleLimit: @unchecked Sendable {}
 extension Code_Transaction_V2_TippedUser: @unchecked Sendable {}
 extension Code_Transaction_V2_TippedUser.Platform: @unchecked Sendable {}
+extension Code_Transaction_V2_FriendedUser: @unchecked Sendable {}
+extension Code_Transaction_V2_FriendedUser.Platform: @unchecked Sendable {}
 extension Code_Transaction_V2_Cursor: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
@@ -4186,56 +4255,106 @@ extension Code_Transaction_V2_SubmitIntentRequest.SubmitActions: SwiftProtobuf.M
     6: .standard(proto: "device_token"),
   ]
 
+  fileprivate class _StorageClass {
+    var _id: Code_Common_V1_IntentId? = nil
+    var _owner: Code_Common_V1_SolanaAccountId? = nil
+    var _metadata: Code_Transaction_V2_Metadata? = nil
+    var _actions: [Code_Transaction_V2_Action] = []
+    var _signature: Code_Common_V1_Signature? = nil
+    var _deviceToken: Code_Common_V1_DeviceToken? = nil
+
+    #if swift(>=5.10)
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+    #else
+      static let defaultInstance = _StorageClass()
+    #endif
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _id = source._id
+      _owner = source._owner
+      _metadata = source._metadata
+      _actions = source._actions
+      _signature = source._signature
+      _deviceToken = source._deviceToken
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._metadata) }()
-      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.actions) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
-      case 6: try { try decoder.decodeSingularMessageField(value: &self._deviceToken) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._id) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._owner) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._metadata) }()
+        case 4: try { try decoder.decodeRepeatedMessageField(value: &_storage._actions) }()
+        case 5: try { try decoder.decodeSingularMessageField(value: &_storage._signature) }()
+        case 6: try { try decoder.decodeSingularMessageField(value: &_storage._deviceToken) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._id {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._owner {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._metadata {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    if !self.actions.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.actions, fieldNumber: 4)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._id {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._owner {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._metadata {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+      if !_storage._actions.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._actions, fieldNumber: 4)
+      }
+      try { if let v = _storage._signature {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      } }()
+      try { if let v = _storage._deviceToken {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      } }()
     }
-    try { if let v = self._signature {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
-    try { if let v = self._deviceToken {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_SubmitIntentRequest.SubmitActions, rhs: Code_Transaction_V2_SubmitIntentRequest.SubmitActions) -> Bool {
-    if lhs._id != rhs._id {return false}
-    if lhs._owner != rhs._owner {return false}
-    if lhs._metadata != rhs._metadata {return false}
-    if lhs.actions != rhs.actions {return false}
-    if lhs._signature != rhs._signature {return false}
-    if lhs._deviceToken != rhs._deviceToken {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._id != rhs_storage._id {return false}
+        if _storage._owner != rhs_storage._owner {return false}
+        if _storage._metadata != rhs_storage._metadata {return false}
+        if _storage._actions != rhs_storage._actions {return false}
+        if _storage._signature != rhs_storage._signature {return false}
+        if _storage._deviceToken != rhs_storage._deviceToken {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -5910,6 +6029,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     4: .standard(proto: "is_remote_send"),
     5: .standard(proto: "is_tip"),
     6: .standard(proto: "tipped_user"),
+    7: .standard(proto: "is_friendship"),
+    8: .standard(proto: "friended_user"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -5924,6 +6045,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
       case 4: try { try decoder.decodeSingularBoolField(value: &self.isRemoteSend) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.isTip) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._tippedUser) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.isFriendship) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._friendedUser) }()
       default: break
       }
     }
@@ -5952,6 +6075,12 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     try { if let v = self._tippedUser {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     } }()
+    if self.isFriendship != false {
+      try visitor.visitSingularBoolField(value: self.isFriendship, fieldNumber: 7)
+    }
+    try { if let v = self._friendedUser {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -5962,6 +6091,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
     if lhs.isTip != rhs.isTip {return false}
     if lhs._tippedUser != rhs._tippedUser {return false}
+    if lhs.isFriendship != rhs.isFriendship {return false}
+    if lhs._friendedUser != rhs._friendedUser {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -8211,6 +8342,51 @@ extension Code_Transaction_V2_TippedUser: SwiftProtobuf.Message, SwiftProtobuf._
 }
 
 extension Code_Transaction_V2_TippedUser.Platform: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "UNKNOWN"),
+    1: .same(proto: "TWITTER"),
+  ]
+}
+
+extension Code_Transaction_V2_FriendedUser: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FriendedUser"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "platform"),
+    2: .same(proto: "username"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.platform) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.platform != .unknown {
+      try visitor.visitSingularEnumField(value: self.platform, fieldNumber: 1)
+    }
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_FriendedUser, rhs: Code_Transaction_V2_FriendedUser) -> Bool {
+    if lhs.platform != rhs.platform {return false}
+    if lhs.username != rhs.username {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_FriendedUser.Platform: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "UNKNOWN"),
     1: .same(proto: "TWITTER"),

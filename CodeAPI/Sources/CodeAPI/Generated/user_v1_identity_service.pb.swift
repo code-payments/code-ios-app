@@ -914,6 +914,26 @@ public struct Code_User_V1_GetTwitterUserRequest {
     set {query = .tipAddress(newValue)}
   }
 
+  /// An optional set of authentication information that allows for more
+  /// information to be returned in the request.
+  public var requestor: Code_Common_V1_SolanaAccountId {
+    get {return _requestor ?? Code_Common_V1_SolanaAccountId()}
+    set {_requestor = newValue}
+  }
+  /// Returns true if `requestor` has been explicitly set.
+  public var hasRequestor: Bool {return self._requestor != nil}
+  /// Clears the value of `requestor`. Subsequent reads from it will return its default value.
+  public mutating func clearRequestor() {self._requestor = nil}
+
+  public var signature: Code_Common_V1_Signature {
+    get {return _signature ?? Code_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Query: Equatable {
@@ -943,6 +963,9 @@ public struct Code_User_V1_GetTwitterUserRequest {
   }
 
   public init() {}
+
+  fileprivate var _requestor: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Code_Common_V1_Signature? = nil
 }
 
 public struct Code_User_V1_GetTwitterUserResponse {
@@ -1095,6 +1118,8 @@ public struct Code_User_V1_TwitterUser {
   // methods supported on all messages.
 
   /// Public key for a token account where tips are routed
+  ///
+  /// TODO(tip_rename): Candidate for renaming to something more generic.
   public var tipAddress: Code_Common_V1_SolanaAccountId {
     get {return _tipAddress ?? Code_Common_V1_SolanaAccountId()}
     set {_tipAddress = newValue}
@@ -1118,6 +1143,22 @@ public struct Code_User_V1_TwitterUser {
 
   /// The number of followers the user has on Twitter
   public var followerCount: UInt32 = 0
+
+  /// The cost of establishing the friendship (regardless if caller is a friend).
+  ///
+  /// This should not be cached for an extended period, as exchange rate / value
+  /// may change at any time.
+  public var friendshipCost: Code_Transaction_V2_ExchangeData {
+    get {return _friendshipCost ?? Code_Transaction_V2_ExchangeData()}
+    set {_friendshipCost = newValue}
+  }
+  /// Returns true if `friendshipCost` has been explicitly set.
+  public var hasFriendshipCost: Bool {return self._friendshipCost != nil}
+  /// Clears the value of `friendshipCost`. Subsequent reads from it will return its default value.
+  public mutating func clearFriendshipCost() {self._friendshipCost = nil}
+
+  /// Indicates the user is a friend of the caller.
+  public var isFriend: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1158,6 +1199,7 @@ public struct Code_User_V1_TwitterUser {
   public init() {}
 
   fileprivate var _tipAddress: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _friendshipCost: Code_Transaction_V2_ExchangeData? = nil
 }
 
 #if swift(>=4.2)
@@ -1887,6 +1929,8 @@ extension Code_User_V1_GetTwitterUserRequest: SwiftProtobuf.Message, SwiftProtob
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "username"),
     2: .standard(proto: "tip_address"),
+    10: .same(proto: "requestor"),
+    11: .same(proto: "signature"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1916,6 +1960,8 @@ extension Code_User_V1_GetTwitterUserRequest: SwiftProtobuf.Message, SwiftProtob
           self.query = .tipAddress(v)
         }
       }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._requestor) }()
+      case 11: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
       default: break
       }
     }
@@ -1937,11 +1983,19 @@ extension Code_User_V1_GetTwitterUserRequest: SwiftProtobuf.Message, SwiftProtob
     }()
     case nil: break
     }
+    try { if let v = self._requestor {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_User_V1_GetTwitterUserRequest, rhs: Code_User_V1_GetTwitterUserRequest) -> Bool {
     if lhs.query != rhs.query {return false}
+    if lhs._requestor != rhs._requestor {return false}
+    if lhs._signature != rhs._signature {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2115,6 +2169,8 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
     4: .standard(proto: "profile_pic_url"),
     5: .standard(proto: "verified_type"),
     6: .standard(proto: "follower_count"),
+    7: .standard(proto: "friendship_cost"),
+    10: .standard(proto: "is_friend"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2129,6 +2185,8 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 4: try { try decoder.decodeSingularStringField(value: &self.profilePicURL) }()
       case 5: try { try decoder.decodeSingularEnumField(value: &self.verifiedType) }()
       case 6: try { try decoder.decodeSingularUInt32Field(value: &self.followerCount) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._friendshipCost) }()
+      case 10: try { try decoder.decodeSingularBoolField(value: &self.isFriend) }()
       default: break
       }
     }
@@ -2157,6 +2215,12 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if self.followerCount != 0 {
       try visitor.visitSingularUInt32Field(value: self.followerCount, fieldNumber: 6)
     }
+    try { if let v = self._friendshipCost {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    if self.isFriend != false {
+      try visitor.visitSingularBoolField(value: self.isFriend, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2167,6 +2231,8 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs.profilePicURL != rhs.profilePicURL {return false}
     if lhs.verifiedType != rhs.verifiedType {return false}
     if lhs.followerCount != rhs.followerCount {return false}
+    if lhs._friendshipCost != rhs._friendshipCost {return false}
+    if lhs.isFriend != rhs.isFriend {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

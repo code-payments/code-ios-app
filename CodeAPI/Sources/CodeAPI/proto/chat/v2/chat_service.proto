@@ -70,6 +70,11 @@ service Chat {
 
     // SetSubscriptionState configures a chat member's susbscription state
     rpc SetSubscriptionState(SetSubscriptionStateRequest) returns (SetSubscriptionStateResponse);
+
+    // NotifyIsTypingRequest notifies a chat that the sending member is typing.
+    //
+    // These requests are transient, and may be dropped at any point.
+    rpc NotifyIsTyping(NotifyIsTypingRequest) returns (NotifyIsTypingResponse);
 }
 
 message GetChatsRequest {
@@ -152,6 +157,7 @@ message ChatStreamEvent {
 
         ChatMessage message = 1;
         Pointer     pointer = 2;
+        IsTyping    is_typing = 3;
     }
 }
 
@@ -194,33 +200,61 @@ message StartChatRequest {
 
     common.v1.Signature signature = 2 [(validate.rules).message.required = true];
 
+    ChatMemberIdentity self = 3 [(validate.rules).message.required = true];
+
     oneof parameters {
         option (validate.required) = true;
 
-        StartTipChatParameters tip_chat = 3;
+        StartTwoWayChatParameters two_way_chat = 4;
         // GroupChatParameters group_chat  = 4;
     }
 }
 
-// Starts a two-way chat between a tipper and tippee. Chat members are
-// inferred from the 12 word public keys involved in the intent. Only
-// the tippee can start the chat, and the tipper is anonymous if this
-// is the first between the involved Code users.
-message StartTipChatParameters {
-    // The tip's intent ID, which can be extracted from the reference in
-    // an ExchangeDataContent message content where the verb is RECEIVED_TIP.
-    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+// StartTwoWayChatParameters contains the parameters required to start
+// or recover a two way chat between the caller and the specified 'other_user'.
+//
+// The 'other_user' is currently the 'tip_address', normally retrieved from
+// user.Identity.GetTwitterUser(username).
+message StartTwoWayChatParameters {
+    // The account id of the user the caller wishes to chat with.
+    //
+    // This will be the `tip` (or equivalent) address.
+    common.v1.SolanaAccountId other_user = 1 [(validate.rules).message.required = true];
+
+    // The intent_id of the payment that initiated the chat/friendship.
+    //
+    // This field is optional. It is used as an optimization when the server has not
+    // yet observed the establishment of a friendship. In this case, the server will
+    // use the provided intent_id to verify the friendship.
+    //
+    // This is most likely to occur when initiating a chat with a user for the first
+    // time.
+    common.v1.IntentId intent_id = 2;
+
+    // The identity of the other user.
+    //
+    // Note: This can/should be removed with proper intent plumbing.
+    ChatMemberIdentity identity = 3 [(validate.rules).message.required = true];
 }
 
 message StartChatResponse {
     Result result = 1;
     enum Result {
-        OK                = 0;
-        DENIED            = 1;
+        OK = 0;
+
+        // DENIED indicates the caller is not allowed to start/join the chat.
+        DENIED = 1;
+
+        // INVALID_PRAMETER indicates one of the parameters is invalid.
         INVALID_PARAMETER = 2;
+
+        // PENDING indicates that the payment (for chat) intent is pending confirmation
+        // before the service will permit the creation of the chat. This can happen in
+        // cases where the block chain is particularly slow (beyond our RPC timeouts).
+        PENDING = 3;
     }
 
-    // The chat to use if the RPC was successful
+    // The chat to use if the RPC was successful.
     ChatMetadata chat = 2;
 }
 
@@ -347,6 +381,27 @@ message SetSubscriptionStateResponse {
     }
 }
 
+message NotifyIsTypingRequest {
+    ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    ChatMemberId member_id = 2  [(validate.rules).message.required = true];
+
+    bool is_typing = 3;
+
+    common.v1.SolanaAccountId owner = 4 [(validate.rules).message.required = true];
+
+    common.v1.Signature signature = 5 [(validate.rules).message.required = true];
+}
+
+message NotifyIsTypingResponse {
+    Result result = 1;
+    enum Result {
+        OK             = 0;
+        DENIED         = 1;
+        CHAT_NOT_FOUND = 2;
+    }
+}
+
 message ChatId {
     // Sufficient space is left for a consistent hash value, though other types
     // of values may be used.
@@ -429,8 +484,8 @@ message ChatMetadata {
 
     // Can the user unsubscribe from this chat?
     bool can_unsubscribe = 6;
- 
-    // Cursor value for this chat for reference in subsequent GetChatsRequest 
+
+    // Cursor value for this chat for reference in subsequent GetChatsRequest
     Cursor cursor = 7;
 }
 
@@ -453,7 +508,7 @@ message ChatMessage {
     // any time-based UUID message IDs.
     google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];
 
-    // Cursor value for this message for reference in a paged GetMessagesRequest 
+    // Cursor value for this message for reference in a paged GetMessagesRequest
     Cursor cursor = 5;
 }
 
@@ -505,6 +560,12 @@ message ChatMemberIdentity {
         min_len: 1
         max_len: 15 // Twitter limit
     }];
+
+    // If present, the URL of the users profile pic.
+    string profile_pic_url = 3 [(validate.rules).string = {
+        min_len: 1
+        max_len: 255 // Arbitrary limit
+    }];
 }
 
 // Pointer in a chat indicating a user's message history state in a chat.
@@ -518,7 +579,7 @@ message Pointer {
     }];
 
     // Everything at or before this message ID is considered to have the state
-    // inferred by the type of pointer. 
+    // inferred by the type of pointer.
     ChatMessageId value = 2 [(validate.rules).message.required = true];
 
     // The chat member associated with this pointer state
@@ -590,7 +651,7 @@ message ExchangeDataContent {
         transaction.v2.ExchangeDataWithoutRate partial = 3;
     }
 
-    // An ID that can be referenced to the source of the exchange of Kin 
+    // An ID that can be referenced to the source of the exchange of Kin
     oneof reference {
         option (validate.required) = true;
 
@@ -611,7 +672,7 @@ message NaclBoxEncryptedContent {
         max_len: 24
     }];
 
-    // The encrypted piece of message content 
+    // The encrypted piece of message content
     bytes encrypted_payload = 3 [(validate.rules).bytes = {
         min_len: 1
         max_len: 1024
@@ -650,4 +711,12 @@ message Cursor {
         min_len: 8
         max_len: 32
     }];
+}
+
+message IsTyping {
+    ChatMemberId member_id = 1 [(validate.rules).message.required = true];
+
+    // is_typing indicates whether or not the user is typing.
+    // If false, the user has explicitly stopped typing.
+    bool is_typing = 2;
 }

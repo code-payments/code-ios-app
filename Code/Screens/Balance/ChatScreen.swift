@@ -9,6 +9,55 @@ import SwiftUI
 import CodeUI
 import CodeServices
 
+struct DirectMessageScreen: View {
+    
+    @EnvironmentObject private var exchange: Exchange
+    @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var notificationController: NotificationController
+    @EnvironmentObject private var betaFlags: BetaFlags
+    
+    private let state: State
+    
+    var displayName: String {
+        switch state {
+        case .unpaid(let twitterUser):
+            return twitterUser.displayName
+        case .paid(let chat, _):
+            return chat.title
+        }
+    }
+    
+    init(state: State) {
+        self.state = state
+    }
+    
+    var body: some View {
+        Background(color: .backgroundMain) {
+            switch state {
+            case .paid(let chat, let chatController):
+                ChatScreen(chat: chat, chatController: chatController)
+                
+            case .unpaid(let twitterUser):
+                VStack {
+                    Spacer()
+                    
+                    CodeButton(style: .filledThin, title: "Send $1.00 to Start Chatting") {
+                        // Make payment
+                    }
+                }
+                .padding(20)
+            }
+        }
+        .navigationBarHidden(false)
+        .navigationBarTitle(Text(displayName))
+    }
+    
+    enum State {
+        case unpaid(TwitterUser)
+        case paid(Chat, ChatController)
+    }
+}
+
 struct ChatScreen: View {
     
     @EnvironmentObject private var exchange: Exchange
@@ -19,18 +68,16 @@ struct ChatScreen: View {
     @ObservedObject private var chat: Chat
     @ObservedObject private var chatController: ChatController
     
-    @State private var isShowingConversation: Bool = false
-    
     @State private var messageListState = MessageList.State()
     
-    @StateObject private var viewModel: ChatViewModel
+//    @StateObject private var viewModel: ChatViewModel
     
     // MARK: - Init -
     
-    init(chat: Chat, chatController: ChatController, viewModel: @autoclosure @escaping () -> ChatViewModel) {
+    init(chat: Chat, chatController: ChatController) {//}, viewModel: @autoclosure @escaping () -> ChatViewModel) {
         self.chat = chat
         self.chatController = chatController
-        self._viewModel = StateObject(wrappedValue: viewModel())
+//        self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
     private func didAppear() {
@@ -62,8 +109,8 @@ struct ChatScreen: View {
                 MessageList(
                     chat: chat,
                     exchange: exchange,
-                    state: $messageListState,
-                    delegate: viewModel
+                    state: $messageListState
+//                    delegate: viewModel
                 )
                 
                 if chat.canMute || chat.canUnsubscribe {
@@ -249,8 +296,7 @@ struct ChatScreen_Previews: PreviewProvider {
             NavigationView {
                 ChatScreen(
                     chat: chat,
-                    chatController: .mock,
-                    viewModel: ChatViewModel(chatController: .mock, tipController: .mock)
+                    chatController: .mock
                 )
                 .navigationBarTitleDisplayMode(.inline)
             }

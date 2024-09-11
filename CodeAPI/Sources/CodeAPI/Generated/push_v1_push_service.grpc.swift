@@ -20,6 +20,11 @@ public protocol Code_Push_V1_PushClientProtocol: GRPCClient {
     _ request: Code_Push_V1_AddTokenRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Push_V1_AddTokenRequest, Code_Push_V1_AddTokenResponse>
+
+  func removeToken(
+    _ request: Code_Push_V1_RemoveTokenRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Push_V1_RemoveTokenRequest, Code_Push_V1_RemoveTokenResponse>
 }
 
 extension Code_Push_V1_PushClientProtocol {
@@ -31,6 +36,9 @@ extension Code_Push_V1_PushClientProtocol {
   /// and adding an existing valid token will not fail. Token types will be
   /// validated against the user agent and any mismatches will result in an
   /// INVALID_ARGUMENT status error.
+  ///
+  /// The token will be unlinked from any and all other accounts that it was
+  /// previously bound to.
   ///
   /// - Parameters:
   ///   - request: Request to send to AddToken.
@@ -45,6 +53,27 @@ extension Code_Push_V1_PushClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeAddTokenInterceptors() ?? []
+    )
+  }
+
+  /// RemoveToken removes the provided push token from the account.
+  ///
+  /// The provided token must be bound to the current account.
+  /// Otherwise, the RPC will succeed with without removal.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to RemoveToken.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func removeToken(
+    _ request: Code_Push_V1_RemoveTokenRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Push_V1_RemoveTokenRequest, Code_Push_V1_RemoveTokenResponse> {
+    return self.makeUnaryCall(
+      path: Code_Push_V1_PushClientMetadata.Methods.removeToken.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveTokenInterceptors() ?? []
     )
   }
 }
@@ -115,6 +144,11 @@ public protocol Code_Push_V1_PushAsyncClientProtocol: GRPCClient {
     _ request: Code_Push_V1_AddTokenRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Push_V1_AddTokenRequest, Code_Push_V1_AddTokenResponse>
+
+  func makeRemoveTokenCall(
+    _ request: Code_Push_V1_RemoveTokenRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Push_V1_RemoveTokenRequest, Code_Push_V1_RemoveTokenResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -138,6 +172,18 @@ extension Code_Push_V1_PushAsyncClientProtocol {
       interceptors: self.interceptors?.makeAddTokenInterceptors() ?? []
     )
   }
+
+  public func makeRemoveTokenCall(
+    _ request: Code_Push_V1_RemoveTokenRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Push_V1_RemoveTokenRequest, Code_Push_V1_RemoveTokenResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Push_V1_PushClientMetadata.Methods.removeToken.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveTokenInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -151,6 +197,18 @@ extension Code_Push_V1_PushAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeAddTokenInterceptors() ?? []
+    )
+  }
+
+  public func removeToken(
+    _ request: Code_Push_V1_RemoveTokenRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Push_V1_RemoveTokenResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Push_V1_PushClientMetadata.Methods.removeToken.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveTokenInterceptors() ?? []
     )
   }
 }
@@ -176,6 +234,9 @@ public protocol Code_Push_V1_PushClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'addToken'.
   func makeAddTokenInterceptors() -> [ClientInterceptor<Code_Push_V1_AddTokenRequest, Code_Push_V1_AddTokenResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'removeToken'.
+  func makeRemoveTokenInterceptors() -> [ClientInterceptor<Code_Push_V1_RemoveTokenRequest, Code_Push_V1_RemoveTokenResponse>]
 }
 
 public enum Code_Push_V1_PushClientMetadata {
@@ -184,6 +245,7 @@ public enum Code_Push_V1_PushClientMetadata {
     fullName: "code.push.v1.Push",
     methods: [
       Code_Push_V1_PushClientMetadata.Methods.addToken,
+      Code_Push_V1_PushClientMetadata.Methods.removeToken,
     ]
   )
 
@@ -191,6 +253,12 @@ public enum Code_Push_V1_PushClientMetadata {
     public static let addToken = GRPCMethodDescriptor(
       name: "AddToken",
       path: "/code.push.v1.Push/AddToken",
+      type: GRPCCallType.unary
+    )
+
+    public static let removeToken = GRPCMethodDescriptor(
+      name: "RemoveToken",
+      path: "/code.push.v1.Push/RemoveToken",
       type: GRPCCallType.unary
     )
   }
@@ -204,7 +272,16 @@ public protocol Code_Push_V1_PushProvider: CallHandlerProvider {
   /// and adding an existing valid token will not fail. Token types will be
   /// validated against the user agent and any mismatches will result in an
   /// INVALID_ARGUMENT status error.
+  ///
+  /// The token will be unlinked from any and all other accounts that it was
+  /// previously bound to.
   func addToken(request: Code_Push_V1_AddTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Push_V1_AddTokenResponse>
+
+  /// RemoveToken removes the provided push token from the account.
+  ///
+  /// The provided token must be bound to the current account.
+  /// Otherwise, the RPC will succeed with without removal.
+  func removeToken(request: Code_Push_V1_RemoveTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Push_V1_RemoveTokenResponse>
 }
 
 extension Code_Push_V1_PushProvider {
@@ -228,6 +305,15 @@ extension Code_Push_V1_PushProvider {
         userFunction: self.addToken(request:context:)
       )
 
+    case "RemoveToken":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Push_V1_RemoveTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Push_V1_RemoveTokenResponse>(),
+        interceptors: self.interceptors?.makeRemoveTokenInterceptors() ?? [],
+        userFunction: self.removeToken(request:context:)
+      )
+
     default:
       return nil
     }
@@ -244,10 +330,22 @@ public protocol Code_Push_V1_PushAsyncProvider: CallHandlerProvider, Sendable {
   /// and adding an existing valid token will not fail. Token types will be
   /// validated against the user agent and any mismatches will result in an
   /// INVALID_ARGUMENT status error.
+  ///
+  /// The token will be unlinked from any and all other accounts that it was
+  /// previously bound to.
   func addToken(
     request: Code_Push_V1_AddTokenRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Push_V1_AddTokenResponse
+
+  /// RemoveToken removes the provided push token from the account.
+  ///
+  /// The provided token must be bound to the current account.
+  /// Otherwise, the RPC will succeed with without removal.
+  func removeToken(
+    request: Code_Push_V1_RemoveTokenRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Push_V1_RemoveTokenResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -278,6 +376,15 @@ extension Code_Push_V1_PushAsyncProvider {
         wrapping: { try await self.addToken(request: $0, context: $1) }
       )
 
+    case "RemoveToken":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Push_V1_RemoveTokenRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Push_V1_RemoveTokenResponse>(),
+        interceptors: self.interceptors?.makeRemoveTokenInterceptors() ?? [],
+        wrapping: { try await self.removeToken(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -289,6 +396,10 @@ public protocol Code_Push_V1_PushServerInterceptorFactoryProtocol: Sendable {
   /// - Returns: Interceptors to use when handling 'addToken'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeAddTokenInterceptors() -> [ServerInterceptor<Code_Push_V1_AddTokenRequest, Code_Push_V1_AddTokenResponse>]
+
+  /// - Returns: Interceptors to use when handling 'removeToken'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeRemoveTokenInterceptors() -> [ServerInterceptor<Code_Push_V1_RemoveTokenRequest, Code_Push_V1_RemoveTokenResponse>]
 }
 
 public enum Code_Push_V1_PushServerMetadata {
@@ -297,6 +408,7 @@ public enum Code_Push_V1_PushServerMetadata {
     fullName: "code.push.v1.Push",
     methods: [
       Code_Push_V1_PushServerMetadata.Methods.addToken,
+      Code_Push_V1_PushServerMetadata.Methods.removeToken,
     ]
   )
 
@@ -304,6 +416,12 @@ public enum Code_Push_V1_PushServerMetadata {
     public static let addToken = GRPCMethodDescriptor(
       name: "AddToken",
       path: "/code.push.v1.Push/AddToken",
+      type: GRPCCallType.unary
+    )
+
+    public static let removeToken = GRPCMethodDescriptor(
+      name: "RemoveToken",
+      path: "/code.push.v1.Push/RemoveToken",
       type: GRPCCallType.unary
     )
   }

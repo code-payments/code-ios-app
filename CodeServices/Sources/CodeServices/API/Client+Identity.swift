@@ -28,9 +28,9 @@ extension Client {
         }
     }
     
-    public func fetchTwitterUser(query: TwitterUserQuery) async throws -> TwitterUser {
+    public func fetchTwitterUser(owner: KeyPair, query: TwitterUserQuery) async throws -> TwitterUser {
         try await withCheckedThrowingContinuation { c in
-            identityService.fetchTwitterUser(query: query) { c.resume(with: $0) }
+            identityService.fetchTwitterUser(owner: owner, query: query) { c.resume(with: $0) }
         }
     }
     

@@ -115,7 +115,7 @@ message SubmitIntentRequest {
         // The globally unique client generated intent ID. Use the original intent
         // ID when operating on actions that mutate the intent.
         common.v1.IntentId id = 1 [(validate.rules).message.required = true];
-        
+
         // The verified owner account public key
         common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
 
@@ -159,7 +159,7 @@ message SubmitIntentResponse {
     message ServerParameters {
         // The set of all server paremeters required to fill missing transaction
         // details. Server guarantees to provide a message for each client action
-        // in an order consistent with the received action list. 
+        // in an order consistent with the received action list.
         repeated ServerParameter server_parameters = 1 [(validate.rules).repeated = {
             min_items: 1
             max_items: 256 // Arbitrary, but must match SubmitActions.actions.max_items
@@ -434,7 +434,7 @@ message SwapRequest {
 
         // Whether the client wants the RPC to wait for blockchain status. If false,
         // then the RPC will return Success when the swap is submitted to the blockchain.
-        // Otherwise, the RPC will observe and report back the status of the transaction. 
+        // Otherwise, the RPC will observe and report back the status of the transaction.
         bool wait_for_blockchain_status = 4;
 
         // The signature is of serialize(Initiate) without this field set using the
@@ -689,6 +689,12 @@ message SendPrivatePaymentMetadata {
 
     // If is_tip is true, the user being tipped
     TippedUser tipped_user = 6;
+
+    // Is the payment for a friendship?
+    bool is_friendship = 7;
+
+    // If is_friendship is true, the user being friended
+    FriendedUser friended_user = 8;
 }
 
 // Send a payment to a destination account publicly.
@@ -975,7 +981,7 @@ message NoPrivacyWithdrawAction {
 
     // The intended Kin quark amount to withdraw
     uint64 amount = 4 [(validate.rules).uint64.gt = 0];
-    
+
     // Whether the account is closed afterwards. This is always true, since there
     // are no current se cases to leave it open.
     bool should_close = 5 [(validate.rules).bool.const = true];
@@ -1212,8 +1218,8 @@ message ReasonStringErrorDetails {
 }
 
 message InvalidSignatureErrorDetails {
-    // The action whose signature mismatched 
-    uint32 action_id = 1; 
+    // The action whose signature mismatched
+    uint32 action_id = 1;
 
     // The transaction the server expected to have signed.
     common.v1.Transaction expected_transaction = 2 [(validate.rules).message.required = true];
@@ -1331,7 +1337,7 @@ message PaymentHistoryItem {
     // If is_airdrop is true, the type of airdrop received.
     AirdropType airdrop_type = 10;
 
-    // Is this a micro payment? 
+    // Is this a micro payment?
     bool is_micro_payment = 11;
 
     // The intent ID associated with this history item
@@ -1412,6 +1418,21 @@ message BuyModuleLimit {
 }
 
 message TippedUser {
+    Platform platform = 1 [(validate.rules).enum = {
+        in: [1] // TWITTER
+    }];
+    enum Platform {
+        UNKNOWN = 0;
+        TWITTER = 1;
+    }
+
+    string username = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 15
+    }];
+}
+
+message FriendedUser {
     Platform platform = 1 [(validate.rules).enum = {
         in: [1] // TWITTER
     }];

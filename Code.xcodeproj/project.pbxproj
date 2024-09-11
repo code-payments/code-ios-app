@@ -63,6 +63,8 @@
 		9A1A827928660A6F00A4979F /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9A1A827828660A6F00A4979F /* FirebaseCrashlytics */; };
 		9A1A827B28660A6F00A4979F /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 9A1A827A28660A6F00A4979F /* FirebaseMessaging */; };
 		9A1CE1D12C90C61E00B596CC /* MessageList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1CE1D02C90C61E00B596CC /* MessageList.swift */; };
+		9A1CE1DD2C91F32200B596CC /* TwitterUserController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1CE1DC2C91F32200B596CC /* TwitterUserController.swift */; };
+		9A1CE1DF2C92163000B596CC /* DirectMessageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1CE1DE2C92163000B596CC /* DirectMessageViewModel.swift */; };
 		9A1EBC5226246EFD003F8B19 /* String+Padding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5126246EFD003F8B19 /* String+Padding.swift */; };
 		9A1EBC5A26246FA8003F8B19 /* String+PaddingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5926246FA8003F8B19 /* String+PaddingTests.swift */; };
 		9A27FD472C0F487E00221457 /* DownloadScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A27FD462C0F487E00221457 /* DownloadScreen.swift */; };
@@ -315,6 +317,8 @@
 		9A18C738289D763B00B39AF6 /* WithdrawSummaryScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawSummaryScreen.swift; sourceTree = "<group>"; };
 		9A1A8272286608D500A4979F /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		9A1CE1D02C90C61E00B596CC /* MessageList.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MessageList.swift; sourceTree = "<group>"; };
+		9A1CE1DC2C91F32200B596CC /* TwitterUserController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwitterUserController.swift; sourceTree = "<group>"; };
+		9A1CE1DE2C92163000B596CC /* DirectMessageViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectMessageViewModel.swift; sourceTree = "<group>"; };
 		9A1EBC5126246EFD003F8B19 /* String+Padding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Padding.swift"; sourceTree = "<group>"; };
 		9A1EBC5926246FA8003F8B19 /* String+PaddingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+PaddingTests.swift"; sourceTree = "<group>"; };
 		9A27FD462C0F487E00221457 /* DownloadScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadScreen.swift; sourceTree = "<group>"; };
@@ -575,8 +579,8 @@
 			children = (
 				9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */,
 				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
-				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
 				9AA9799D2C75210F00395552 /* ChatsScreen.swift */,
+				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
 				9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */,
 			);
 			path = Balance;
@@ -603,6 +607,7 @@
 				9AE45EB429E9905100EE2F60 /* DeepLinkController.swift */,
 				9A103F8125B9BF180026EA62 /* Session.swift */,
 				9A9DD68F2BBDB9F300CAD548 /* TipController.swift */,
+				9A1CE1DC2C91F32200B596CC /* TwitterUserController.swift */,
 				9A301D1529B92E94006BA3F6 /* FlowController.swift */,
 				9AB7C58425E440A40007B3D5 /* Exchange.swift */,
 				9AC08A9A28CD0983006BF6F3 /* Biometrics.swift */,
@@ -762,6 +767,7 @@
 				9A6740D52C3472A600F9F7BD /* FiatField.swift */,
 				9A6740DB2C3485E000F9F7BD /* RevealIdentityBanner.swift */,
 				9A579A442C459B4800C3B592 /* ChatViewModel.swift */,
+				9A1CE1DE2C92163000B596CC /* DirectMessageViewModel.swift */,
 			);
 			path = Messaging;
 			sourceTree = "<group>";
@@ -1512,6 +1518,7 @@
 				9AAF605528B0041600D93888 /* Snapshot.swift in Sources */,
 				9AED11EE25910F020088D902 /* Localized.swift in Sources */,
 				9ACFA30C2A4A0FAD0057A5DF /* Abacus.swift in Sources */,
+				9A1CE1DF2C92163000B596CC /* DirectMessageViewModel.swift in Sources */,
 				9A57221925EE92BC00B243FC /* SettingsScreen.swift in Sources */,
 				9AB7C59825E59F700007B3D5 /* String+Decimal.swift in Sources */,
 				9A9C16C92AAF971D00B1A964 /* DeepLinkRequest.swift in Sources */,
@@ -1578,6 +1585,7 @@
 				9A6D6D352AE1AD55003D9569 /* String+Localized.swift in Sources */,
 				9AE0834228EC8E7D00350407 /* DeleteAccountScreen.swift in Sources */,
 				9AACF3B52C1C8D2300F48721 /* CronActor.swift in Sources */,
+				9A1CE1DD2C91F32200B596CC /* TwitterUserController.swift in Sources */,
 				9A71BD442A2A2E1500D31F56 /* GetFriendStartedScreen.swift in Sources */,
 				9A70501D2600F5CC0036A056 /* ContentController.swift in Sources */,
 				9A718BCF25C054B800DB5F70 /* CodeExtractor.swift in Sources */,

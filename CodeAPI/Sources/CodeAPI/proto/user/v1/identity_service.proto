@@ -291,6 +291,11 @@ message GetTwitterUserRequest {
         // The tip address to query against
         common.v1.SolanaAccountId tip_address = 2;
     }
+
+    // An optional set of authentication information that allows for more
+    // information to be returned in the request.
+    common.v1.SolanaAccountId requestor = 10;
+    common.v1.Signature signature = 11;
 }
 
 message GetTwitterUserResponse {
@@ -335,6 +340,8 @@ message PhoneMetadata {
 
 message TwitterUser {
     // Public key for a token account where tips are routed
+    //
+    // TODO(tip_rename): Candidate for renaming to something more generic.
     common.v1.SolanaAccountId tip_address = 1 [(validate.rules).message.required = true];
 
     // The user's username on Twitter
@@ -365,5 +372,18 @@ message TwitterUser {
     }
 
     // The number of followers the user has on Twitter
-    uint32 follower_count = 6;    
+    uint32 follower_count = 6;
+
+    // The cost of establishing the friendship (regardless if caller is a friend).
+    //
+    // This should not be cached for an extended period, as exchange rate / value
+    // may change at any time.
+    transaction.v2.ExchangeData friendship_cost = 7;
+
+    // ===========================================================
+    // The rest of the fields require authentication to be present.
+    // ===========================================================
+
+    // Indicates the user is a friend of the caller.
+    bool is_friend = 10;
 }

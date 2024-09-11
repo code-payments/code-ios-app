@@ -381,12 +381,12 @@ struct ScanScreen: View {
                             binding: $isPresentingChat
                         )
                         .sheet(isPresented: $isPresentingChat) {
-                            NavigationStack {
-                                ChatsScreen(
-                                    chatController: chatController,
-                                    isPresented: $isPresentingChat
-                                )
-                            }
+                            ChatsScreen(
+                                session: session,
+                                chatController: chatController,
+                                bannerController: bannerController,
+                                isPresented: $isPresentingChat
+                            )
                             .environmentObject(session)
                             .environmentObject(client)
                             .environmentObject(exchange)
