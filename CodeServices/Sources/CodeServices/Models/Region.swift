@@ -271,7 +271,7 @@ public enum Region: String, CaseIterable, Codable, Equatable, Hashable {
     }
     
     public static var current: Region? {
-        guard let region = Locale.current.regionCode else {
+        guard let region = Locale.current.region?.identifier else {
             return nil
         }
         
@@ -285,8 +285,8 @@ public enum Region: String, CaseIterable, Codable, Equatable, Hashable {
             let locale = Locale(identifier: identifier)
             
             guard
-                let currencyCode = locale.currencyCode,
-                let regionCode = locale.regionCode
+                let currencyCode = locale.currency?.identifier,
+                let regionCode = locale.region?.identifier
             else {
                 continue
             }
@@ -341,8 +341,8 @@ public enum Region: String, CaseIterable, Codable, Equatable, Hashable {
     }
     
     public static func printAvailableCurrencyCodes() {
-        for currencyCode in Locale.isoCurrencyCodes {
-            print(currencyCode)
+        for currency in Locale.Currency.isoCurrencies {
+            print(currency.identifier)
         }
     }
 }

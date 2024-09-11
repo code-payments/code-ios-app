@@ -190,7 +190,7 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable {
     // MARK: - Local -
     
     public static func local() -> CurrencyCode? {
-        guard let currencyCode = Locale.current.currencyCode else {
+        guard let currencyCode = Locale.current.currency?.identifier else {
             return nil
         }
         
@@ -216,7 +216,7 @@ extension CurrencyCode {
             let locale = Locale(identifier: $0)
             
             guard
-                let currencyCode = locale.currencyCode,
+                let currencyCode = locale.currency?.identifier,
                 let currency = CurrencyCode(currencyCode: currencyCode),
                 let symbol = locale.currencySymbol
             else {
