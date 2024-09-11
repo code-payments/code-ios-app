@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "전화번호 연결";
 "action.logIn" = "로그인";
 "action.logout" = "로그아웃";
+"action.messageGetCode" = "@getcode로 메시지를 보내 연결하기";
 "action.mute" = "음소거";
 "action.next" = "다음";
 "action.noTryAgain" = "아니요, 다시 시도하세요.";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "웰컴 보너스";
 "subtitle.chooseCountry" = "국가 선택";
 "subtitle.comingSoon" = "곧 출시";
+"subtitle.connectXTweetText" = "@getcode 전 세계 사람들에게서 팁을 받을 수 있도록 X 계정을 연결하고 싶습니다.";
 "subtitle.delete" = "삭제";
 "subtitle.deleteAccountDescription" = "Code 계정을 삭제하려면 복구 문구를 저장한 다음 \"삭제\"를 입력하세요. 삭제하면 되돌릴 수 없습니다.";
 "subtitle.didntGetCode" = "%@에서 코드를 받지 못했나요?";

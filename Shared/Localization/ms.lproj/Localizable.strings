@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Pautkan Nombor Telefon";
 "action.logIn" = "Log Masuk";
 "action.logout" = "Log Keluar";
+"action.messageGetCode" = "Hantar teks kepada @getcode untuk Berhubung";
 "action.mute" = "Senyap";
 "action.next" = "Seterusnya";
 "action.noTryAgain" = "Tidak. Cuba Lagi";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Bonus Selamat Datang";
 "subtitle.chooseCountry" = "Pilih negara";
 "subtitle.comingSoon" = "Akan datang";
+"subtitle.connectXTweetText" = "@getcode saya ingin menghubungkan akaun X saya supaya saya boleh menerima petua dari seluruh dunia ";
 "subtitle.delete" = "Padam";
 "subtitle.deleteAccountDescription" = "Pastikan anda telah menyimpan Frasa Pemulihan Rahsia anda, kemudian masukkan \"Padam\" untuk memadamkan akaun Code anda. Tindakan ini tidak dapat dipulihkan.";
 "subtitle.didntGetCode" = "Tidak menerima kod di %@?";

@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Prepojiť telefónne číslo";
 "action.logIn" = "Prihlásiť sa";
 "action.logout" = "Odhlásiť sa";
+"action.messageGetCode" = "Pošlite správu @getcode na pripojenie";
 "action.mute" = "Stlmiť";
 "action.next" = "Ďalší";
 "action.noTryAgain" = "Nie, skúsiť znova";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Uvítací bonus";
 "subtitle.chooseCountry" = "Vyberte si krajinu";
 "subtitle.comingSoon" = "Už čoskoro";
+"subtitle.connectXTweetText" = "@getcode Chcel by som prepojiť svoj účet X, aby som mohol dostávať tipy od ľudí z celého sveta";
 "subtitle.delete" = "Vymazať";
 "subtitle.deleteAccountDescription" = "Uistite sa, že máte uloženú svoju tajnú frázu na obnovenie, a potom zadajte „Odstrániť\", aby ste odstránili svoje konto v aplikácii Code. Táto akcia je nezvratná.";
 "subtitle.didntGetCode" = "Nedostali ste kód na %@?";

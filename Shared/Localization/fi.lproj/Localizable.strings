@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Yhdistä puhelinnumero";
 "action.logIn" = "Kirjaudu sisään";
 "action.logout" = "Kirjaudu ulos";
+"action.messageGetCode" = "Yhdistä lähettämällä viesti @getcode";
 "action.mute" = "Hiljennä";
 "action.next" = "Seuraava";
 "action.noTryAgain" = "Ei, yritä uudelleen";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Tervetulobonus";
 "subtitle.chooseCountry" = "Valitse maa";
 "subtitle.comingSoon" = "Tulossa pian";
+"subtitle.connectXTweetText" = "@getcode Haluaisin yhdistää X-tiliini, jotta voin saada tippejä ihmisiltä kaikkialta maailmassa";
 "subtitle.delete" = "Poista";
 "subtitle.deleteAccountDescription" = "Varmista, että olet tallentanut salaisen palautuslauseesi ja kirjoita sitten \"Poista\" Code-tilisi poistamiseksi. Tätä toimintoa ei voi perua.";
 "subtitle.didntGetCode" = "Etkö saanut koodia numeroon %@?";

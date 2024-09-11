@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "إرفاق رقم الهاتف";
 "action.logIn" = "تسجيل الدخول";
 "action.logout" = "تسجيل الخروج";
+"action.messageGetCode" = "أرسل رسالة إلي @getcode للربط";
 "action.mute" = "كتم الصوت";
 "action.next" = "التالي";
 "action.noTryAgain" = "لا, حاول مرة أخرى";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "مكافأة ترحيبية";
 "subtitle.chooseCountry" = "اختر بلدًا";
 "subtitle.comingSoon" = "قريباً";
+"subtitle.connectXTweetText" = "@getcode أرغب في ربط حسابي على X حتى أتمكن من تلقي النصائح من أشخاص في جميع أنحاء العالم";
 "subtitle.delete" = "حذف";
 "subtitle.deleteAccountDescription" = "تأكد من حفظ عبارة الاسترداد السرية الخاصة بك, ثم أدخل \"حذف\" لحذف حساب Code الخاص بك. لا يمكن الرجوع في هذا الإجراء.";
 "subtitle.didntGetCode" = "ألم تتلقى رمزًا على %@؟";

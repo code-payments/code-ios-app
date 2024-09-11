@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Liên kết Số Điện thoại";
 "action.logIn" = "Đăng nhập";
 "action.logout" = "Đăng xuất";
+"action.messageGetCode" = "Nhắn @getcode để kết nối";
 "action.mute" = "Tắt tiếng";
 "action.next" = "Tiếp theo";
 "action.noTryAgain" = "Không, Thử Lại";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Thưởng chào mừng";
 "subtitle.chooseCountry" = "Chọn một quốc gia";
 "subtitle.comingSoon" = "Sắp ra mắt";
+"subtitle.connectXTweetText" = "@getcode Tôi muốn kết nối tài khoản X của mình để có thể nhận được tiền típ từ mọi người trên khắp thế giới";
 "subtitle.delete" = "Xóa";
 "subtitle.deleteAccountDescription" = "Bạn nhớ lưu Cụm từ Khôi phục Bí mật, sau đó nhập \"Xóa\" để xóa tài khoản Code của mình. Bạn không thể đảo ngược hành động này.";
 "subtitle.didntGetCode" = "Bạn không nhận được mã xác minh tại %@?";

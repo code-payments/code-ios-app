@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Associer un numéro de téléphone";
 "action.logIn" = "Se connecter";
 "action.logout" = "Se déconnecter";
+"action.messageGetCode" = "Envoyez un message à @getcode pour le connecter";
 "action.mute" = "Mettre en sourdine";
 "action.next" = "Suivant";
 "action.noTryAgain" = "Non, réessayez";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Bonus de bienvenue";
 "subtitle.chooseCountry" = "Sélectionner un pays";
 "subtitle.comingSoon" = "À venir";
+"subtitle.connectXTweetText" = "@getcode J'aimerais connecter mon compte X pour pouvoir recevoir des versements de personnes du monde entier";
 "subtitle.delete" = "Supprimer";
 "subtitle.deleteAccountDescription" = "Assurez-vous d'avoir enregistré votre phrase secrète de récupération, puis tapez « Supprimer » pour supprimer votre compte Code. Cette action est irréversible.";
 "subtitle.didntGetCode" = "Vous n'avez pas reçu de code à %@ ?";

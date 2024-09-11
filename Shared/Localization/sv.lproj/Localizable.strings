@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Länka ett telefonnummer";
 "action.logIn" = "Logga in";
 "action.logout" = "Logga ut";
+"action.messageGetCode" = "Skriv till @getcode för att upprätta kontakt";
 "action.mute" = "Stäng av ljud";
 "action.next" = "Nästa";
 "action.noTryAgain" = "Nej, försök igen";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Välkomstbonus";
 "subtitle.chooseCountry" = "Välj ett land";
 "subtitle.comingSoon" = "Kommer snart";
+"subtitle.connectXTweetText" = "@getcode Jag skulle vilja koppla mitt X-konto så att jag kan få tips från människor över hela världen";
 "subtitle.delete" = "Radera";
 "subtitle.deleteAccountDescription" = "Se till att du har sparat din hemliga återställningsfras och skriv sedan \"Radera\" för att ta bort ditt Code-konto. Denna åtgärd kan inte ångras.";
 "subtitle.didntGetCode" = "Fick du ingen kod på %@?";

@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Eine Telefonnummer verknüpfen";
 "action.logIn" = "Einloggen";
 "action.logout" = "Abmelden";
+"action.messageGetCode" = "Schreibe @getcode, um Dich zu verbinden";
 "action.mute" = "Stummschalten";
 "action.next" = "Weiter";
 "action.noTryAgain" = "Nein, erneut versuchen";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Willkommensbonus";
 "subtitle.chooseCountry" = "Land auswählen";
 "subtitle.comingSoon" = "Demnächst erhältlich";
+"subtitle.connectXTweetText" = "@getcode Ich möchte mein X-Konto verknüpfen, damit ich Tipps von Menschen auf der ganzen Welt erhalte.";
 "subtitle.delete" = "Löschen";
 "subtitle.deleteAccountDescription" = "Vergewissern Sie sich, dass Sie Ihre geheime Wiederherstellungsphrase gespeichert haben, und geben Sie dann „Löschen\" ein, um Ihr Code-Konto zu löschen. Dieser Vorgang kann nicht rückgängig gemacht werden.";
 "subtitle.didntGetCode" = "Sie haben keinen Code bei %@ erhalten?";

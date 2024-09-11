@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Tautkan Nomor Telepon";
 "action.logIn" = "Masuk";
 "action.logout" = "Keluar";
+"action.messageGetCode" = "Kirim pesan ke @getcode untuk Menghubungkan";
 "action.mute" = "Bisukan";
 "action.next" = "Selanjutnya";
 "action.noTryAgain" = "Tidak, Coba Lagi";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Bonus Penyambutan";
 "subtitle.chooseCountry" = "Pilih salah satu negara";
 "subtitle.comingSoon" = "Segera Hadir";
+"subtitle.connectXTweetText" = "@getcode Saya ingin menghubungkan akun X saya agar bisa menerima kiat-kiat dari orang di seluruh dunia";
 "subtitle.delete" = "Hapus";
 "subtitle.deleteAccountDescription" = "Pastikan Anda menyimpan Frasa Pemulihan Rahasia, lalu masukkan \"Delete\" untuk menghapus akun Code Anda. Tindakan ini tidak dapat dibatalkan.";
 "subtitle.didntGetCode" = "Tidak mendapatkan kode di %@?";

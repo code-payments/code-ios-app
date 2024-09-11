@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Прив'язати номер телефону";
 "action.logIn" = "Увійти";
 "action.logout" = "Вийти";
+"action.messageGetCode" = "Надішліть повідомлення @getcode для підключення";
 "action.mute" = "Вимкнути звук";
 "action.next" = "Наступне";
 "action.noTryAgain" = "Ні, спробувати ще раз";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Вітальний бонус";
 "subtitle.chooseCountry" = "Вибрати країну";
 "subtitle.comingSoon" = "Скоро буде";
+"subtitle.connectXTweetText" = "@getcode Я хочу підключити свій обліковий запис X, щоб отримувати поради від людей з усього світу";
 "subtitle.delete" = "Видалити";
 "subtitle.deleteAccountDescription" = "Переконайтеся, що ви зберегли секретну фразу відновлення, а потім введіть «Видалити», щоб видалити обліковий запис Code. Ця дія незворотна.";
 "subtitle.didntGetCode" = "Не отримали код на %@?";

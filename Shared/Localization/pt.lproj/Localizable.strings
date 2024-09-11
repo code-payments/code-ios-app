@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Associar um Número de Telefone";
 "action.logIn" = "Iniciar Sessão";
 "action.logout" = "Terminar Sessão";
+"action.messageGetCode" = "Enviar mensagem a @getcode para Conectar";
 "action.mute" = "Silenciar";
 "action.next" = "Próximo";
 "action.noTryAgain" = "Não, tentar de novo";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Bónus de boas-vindas";
 "subtitle.chooseCountry" = "Escolher um país";
 "subtitle.comingSoon" = "Brevemente";
+"subtitle.connectXTweetText" = "@getcode Gostava de ligar a minha conta X para poder receber dicas de pessoas de todo o mundo";
 "subtitle.delete" = "Eliminar";
 "subtitle.deleteAccountDescription" = "Certifique-se de que guardou a sua frase de recuperação secreta, e depois selecione \"Eliminar\" para eliminar a sua conta da Code. Esta ação é irreversível.";
 "subtitle.didntGetCode" = "Não recebeu um código em %@?";

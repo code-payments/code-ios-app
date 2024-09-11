@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Linkuj numer telefonu";
 "action.logIn" = "Zaloguj się";
 "action.logout" = "Wyloguj się";
+"action.messageGetCode" = "Wyślij wiadomość do @getcode, aby się podłączyć";
 "action.mute" = "Wycisz";
 "action.next" = "Dalej";
 "action.noTryAgain" = "Nie, spróbuj ponownie";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Bonus powitalny";
 "subtitle.chooseCountry" = "Wybierz kraj";
 "subtitle.comingSoon" = "Wkrótce";
+"subtitle.connectXTweetText" = "@getcode Chcę podłączyć moje konto X, aby otrzymywać napiwki od ludzi z całego świata.";
 "subtitle.delete" = "Usuń";
 "subtitle.deleteAccountDescription" = "Upewnij się, że masz zapisaną swoją tajną frazę odzyskiwania, a następnie wprowadź „Usuń\", aby usunąć konto Code. Tego działania nie da się odwrócić.";
 "subtitle.didntGetCode" = "Nie otrzymałeś kodu w %@?";

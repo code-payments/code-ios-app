@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "電話番号をリンクする";
 "action.logIn" = "ログイン";
 "action.logout" = "ログアウト";
+"action.messageGetCode" = "@getcode にメッセージを送って連携する";
 "action.mute" = "ミュート";
 "action.next" = "次へ";
 "action.noTryAgain" = "いいえ,もう一度試してください";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "ウェルカムボーナス";
 "subtitle.chooseCountry" = "国を選択する";
 "subtitle.comingSoon" = "もうすぐ登場";
+"subtitle.connectXTweetText" = "@getcode Xアカウントと連携して,世界中の人たちからヒントをもらえるようにしたい";
 "subtitle.delete" = "削除";
 "subtitle.deleteAccountDescription" = "シークレットリカバリフレーズが保存されていることを確認し,「削除」と入力してCodeアカウントを削除してください。このアクションは元に戻せません。";
 "subtitle.didntGetCode" = "%@でコードを受け取りませんでしたか？";

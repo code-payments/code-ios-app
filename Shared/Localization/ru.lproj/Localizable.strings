@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Привязать номер телефона";
 "action.logIn" = "Войти";
 "action.logout" = "Выйти";
+"action.messageGetCode" = "Отправьте сообщение @getcode для привязки";
 "action.mute" = "Отключить звук";
 "action.next" = "Далее";
 "action.noTryAgain" = "Нет, попробовать еще раз";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Приветственный бонус";
 "subtitle.chooseCountry" = "Выбрать страну";
 "subtitle.comingSoon" = "Скоро выйдет";
+"subtitle.connectXTweetText" = "@getcode Я хотел бы привязать свой аккаунт X, чтобы получать советы от людей со всего мира";
 "subtitle.delete" = "Удалить";
 "subtitle.deleteAccountDescription" = "Убедитесь, что вы сохранили у себя свою секретную фразу восстановления, а затем введите «‎Удалить», чтобы удалить свою учетную запись Code. Это действие невозможно отменить.";
 "subtitle.didntGetCode" = "Не получили код на %@?";

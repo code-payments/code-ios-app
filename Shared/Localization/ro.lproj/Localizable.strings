@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Conectează un număr de telefon";
 "action.logIn" = "Conectare";
 "action.logout" = "Deconectare";
+"action.messageGetCode" = "Trimite mesaj către @getcode pentru Conectare";
 "action.mute" = "Pune în surdină";
 "action.next" = "Următorul";
 "action.noTryAgain" = "Nu, încearcă din nou";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Bonus de bun-venit";
 "subtitle.chooseCountry" = "Alege o țară";
 "subtitle.comingSoon" = "Urmează în curând";
+"subtitle.connectXTweetText" = "@getcode Vreau să-mi conectez contul X ca să primesc sfaturi de la oameni din toată lumea";
 "subtitle.delete" = "Șterge";
 "subtitle.deleteAccountDescription" = "Asigură-te că ai salvat Fraza ta secretă de recuperare, apoi scrie „Șterge\" pentru a-ți șterge contul Code. Această acțiune este ireversibilă.";
 "subtitle.didntGetCode" = "Nu ai primit un cod la %@?";

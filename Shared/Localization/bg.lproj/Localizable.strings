@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Свързване на телефонен номер ";
 "action.logIn" = "Вход ";
 "action.logout" = "Изход ";
+"action.messageGetCode" = "Изпратете съобщение @getcode за свързване";
 "action.mute" = "Изключване на звука ";
 "action.next" = "Следващ ";
 "action.noTryAgain" = "Не, опитайте отново";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Бонус за донре дошли";
 "subtitle.chooseCountry" = "Изберете държава ";
 "subtitle.comingSoon" = "Предстоящо";
+"subtitle.connectXTweetText" = "@getcode Искам да свържа моя акаунт в X, за да мога да получавам съвети от хора по цял свят";
 "subtitle.delete" = "Изтриване";
 "subtitle.deleteAccountDescription" = "Уверете се, че сте запазили своята Тайна фраза за възстановяване и след това въведете \"Изтриване\", за за изтриете своя профил в Код. Това действие е необратимо.";
 "subtitle.didntGetCode" = "Не получихте код на %@? ";

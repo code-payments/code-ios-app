@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "เชื่อมโยงหมายเลขโทรศัพท์";
 "action.logIn" = "เข้าสู่ระบบ";
 "action.logout" = "ออกจากระบบ";
+"action.messageGetCode" = "ส่งข้อความถึง @getcode เพื่อเชื่อมต่อ";
 "action.mute" = "ปิดเสียง";
 "action.next" = "ต่อไป";
 "action.noTryAgain" = "ไม่, ลองอีกครั้ง";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "โบนัสต้อนรับ";
 "subtitle.chooseCountry" = "เลือกประเทศ";
 "subtitle.comingSoon" = "จะมีให้บริการในเร็ว ๆ นี้";
+"subtitle.connectXTweetText" = "@getcode ฉันต้องการเชื่อมต่อบัญชี X ของฉันเพื่อที่จะได้รับทิปจากผู้คนทั่วโลก";
 "subtitle.delete" = "ลบ";
 "subtitle.deleteAccountDescription" = "ตรวจสอบให้แน่ใจว่าคุณได้บันทึกวลีกู้คืนแล้ว จากนั้นป้อนคำว่า \"ลบ\" เพื่อลบบัญชี Code ของคุณ การดำเนินการนี้ไม่สามารถย้อนกลับได้";
 "subtitle.didntGetCode" = "ไม่ได้รับรหัสที่ %@ หรือ";

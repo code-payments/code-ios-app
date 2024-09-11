@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Een telefoonnummer koppelen";
 "action.logIn" = "Inloggen";
 "action.logout" = "Uitloggen";
+"action.messageGetCode" = "Stuur een bericht aan @getcode om te verbinden";
 "action.mute" = "Dempen";
 "action.next" = "Volgende";
 "action.noTryAgain" = "Nee, probeer het opnieuw";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Welkomstbonus";
 "subtitle.chooseCountry" = "Een land kiezen";
 "subtitle.comingSoon" = "Binnenkort beschikbaar";
+"subtitle.connectXTweetText" = "@getcode Ik wil graag mijn X-account verbinden zodat ik tips kan ontvangen van mensen over de hele wereld";
 "subtitle.delete" = "Verwijderen";
 "subtitle.deleteAccountDescription" = "Zorg ervoor dat je je Geheime Herstelzin hebt opgeslagen en voer vervolgens 'Verwijderen' in om je Code-account te verwijderen. Deze actie is onomkeerbaar.";
 "subtitle.didntGetCode" = "Geen code ontvangen op %@?";

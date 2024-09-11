@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Telefon Numarası Bağla";
 "action.logIn" = "Giriş Yap";
 "action.logout" = "Çıkış Yap";
+"action.messageGetCode" = "Bağlamak için @getcode'a mesaj gönder";
 "action.mute" = "Sesi kapat";
 "action.next" = "İleri";
 "action.noTryAgain" = "Hayır, Tekrar Dene";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Hoş Geldiniz Bonusu";
 "subtitle.chooseCountry" = "Ülke seç";
 "subtitle.comingSoon" = "Çok Yakında";
+"subtitle.connectXTweetText" = "@getcode Dünyanın her yerindeki insanlardan ipuçları alabilmek için X hesabımı bağlamak istiyorum";
 "subtitle.delete" = "Sil";
 "subtitle.deleteAccountDescription" = "Gizli Kurtarma İfadeni kaydettiğinden emin ol ve sonra Code hesabını silmek için \"Sil\"e bas. Bu eylem geri alınamaz.";
 "subtitle.didntGetCode" = "%@'de bir kod almadın mı?";

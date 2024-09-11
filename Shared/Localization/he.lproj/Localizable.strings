@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "קשר מספר טלפון";
 "action.logIn" = "התחברות";
 "action.logout" = "יציאה מהחשבון";
+"action.messageGetCode" = "שלחו הודעה ל-@getcode כדי להתחבר";
 "action.mute" = "השתק";
 "action.next" = "הבא";
 "action.noTryAgain" = "לא, נסה שוב";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "בונוס מבורך";
 "subtitle.chooseCountry" = "בחר מדינה";
 "subtitle.comingSoon" = "יגיע בקרוב";
+"subtitle.connectXTweetText" = "@getcode, אני רוצה לחבר את חשבון X שלי כדי שאוכל לקבל טיפים מאנשים בכל רחבי העולם";
 "subtitle.delete" = "מחק";
 "subtitle.deleteAccountDescription" = "יש לוודא ששמרת את ביטוי השחזור הסודי שלך, ולאחר מכן להזין \"מחק\" כדי למחוק את חשבון Code שלך. פעולה זו היא בלתי הפיכה.";
 "subtitle.didntGetCode" = "לא קיבלת קוד ב-%@?";

@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Poveži broj telefona";
 "action.logIn" = "Prijavi se";
 "action.logout" = "Odjavi se";
+"action.messageGetCode" = "Пoшаљите поруку @getcode за повезивање";
 "action.mute" = "Искључи звук";
 "action.next" = "Sledeći";
 "action.noTryAgain" = "Не, покушајте поново";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Bonus dobrodošlice";
 "subtitle.chooseCountry" = "Izaberi zemlju";
 "subtitle.comingSoon" = "Долази ускоро";
+"subtitle.connectXTweetText" = "@getcode Желим да повежем свој X налог да бих добијао/ла савете од особа из целог света";
 "subtitle.delete" = "Избриши";
 "subtitle.deleteAccountDescription" = "Проверите да ли је сачувана ваша тајна фраза за опоравак, а онда унесите \"Обриши\" да бисте обрисали свој Code налог. Ова радња се не може поништити.";
 "subtitle.didntGetCode" = "Niste dobili kod na %@?";

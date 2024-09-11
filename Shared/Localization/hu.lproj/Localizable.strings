@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Kapcsoljon telefonszámot";
 "action.logIn" = "Bejelentkezés";
 "action.logout" = "Kijelentkezés";
+"action.messageGetCode" = "Üzenj a @getcode-nak a csatlakozáshoz";
 "action.mute" = "Némítás";
 "action.next" = "Következő";
 "action.noTryAgain" = "Nem, próbáld újra";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Üdvözlő bónusz";
 "subtitle.chooseCountry" = "Válasszon egy országot";
 "subtitle.comingSoon" = "Jön hamarosan";
+"subtitle.connectXTweetText" = "@getcode Csatlakoztatni akarom az X fiókomat, hogy borravalót kaphassak bárhonnan a világon.";
 "subtitle.delete" = "Törlés";
 "subtitle.deleteAccountDescription" = "Győződj meg róla, hogy a Titkos Helyreállítási Kifejezés el van mentve, majd nyomj \"Törlés\"-t a Code fiókod törléséhez. Ez a művelet nem visszavonható.";
 "subtitle.didntGetCode" = "Nem kapott kódot itt: %@?";

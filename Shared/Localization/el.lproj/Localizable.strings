@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Σύνδεση Αριθμού Τηλεφώνου";
 "action.logIn" = "Σύνδεση";
 "action.logout" = "Αποσύνδεση";
+"action.messageGetCode" = "Στείλε μήνυμα στο @getcode για Σύνδεση";
 "action.mute" = "Σίγαση";
 "action.next" = "Επόμενο";
 "action.noTryAgain" = "Όχι, δοκιμάστε ξανά";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Μπόνους καλωσορίσματος";
 "subtitle.chooseCountry" = "Επιλέξτε χώρα";
 "subtitle.comingSoon" = "Έρχεται Σύντομα";
+"subtitle.connectXTweetText" = "@getcode θα ήθελα να συνδέσω τον λογαριασμό μου X, ώστε να μπορώ να λαμβάνω συμβουλές από άτομα σε όλο τον κόσμο";
 "subtitle.delete" = "Διαγραφή";
 "subtitle.deleteAccountDescription" = "Βεβαιωθείτε ότι έχετε αποθηκεύσει τη Μυστική Φράση Ανάκτησης και, στη συνέχεια, πληκτρολογήστε \"Διαγραφή\" για να διαγράψετε τον λογαριασμό σας στο Code. Αυτή η ενέργεια είναι μη αναστρέψιμη.";
 "subtitle.didntGetCode" = "Δεν λάβατε κωδικό στο %@;";

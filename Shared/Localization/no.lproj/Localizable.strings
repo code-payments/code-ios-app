@@ -34,6 +34,7 @@
 "action.linkPhoneNumber" = "Koble til et telefonnummer";
 "action.logIn" = "Logg inn";
 "action.logout" = "Logg ut";
+"action.messageGetCode" = "Send @getcode for å koble til";
 "action.mute" = "Slå av lyden";
 "action.next" = "Neste";
 "action.noTryAgain" = "Nei, prøv igjen";
@@ -232,6 +233,7 @@
 "subtitle.chat.welcomeBonus" = "Velkomstbonus";
 "subtitle.chooseCountry" = "Velg et land";
 "subtitle.comingSoon" = "Kommer snart";
+"subtitle.connectXTweetText" = "@getcode Jeg vil gjerne koble til X-kontoen min slik at jeg kan motta tips fra folk fra hele verden";
 "subtitle.delete" = "Slett";
 "subtitle.deleteAccountDescription" = "Sørg for at du har den hemmelige gjenopprettings-setningen din lagret, og velg deretter «Slett» for å slette Code-kontoen din. Denne handlingen er irreversibel.";
 "subtitle.didntGetCode" = "Fikk du ikke en kode på %@?";
