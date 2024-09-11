@@ -53,6 +53,7 @@
 		9A103F8225B9BF180026EA62 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A103F8125B9BF180026EA62 /* Session.swift */; };
 		9A1535F62BB2005B0086EEF5 /* InfoPlist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1535F52BB2005B0086EEF5 /* InfoPlist.swift */; };
 		9A1654D726790419000A135E /* GRPC in Frameworks */ = {isa = PBXBuildFile; productRef = 9A1654D626790419000A135E /* GRPC */; };
+		9A1654DF267A31A4000A135E /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1654DE267A31A4000A135E /* Keychain.swift */; };
 		9A17FFC72B911D4C00FFC09F /* RequestKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */; };
 		9A18C735289C099000B39AF6 /* WithdrawViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18C734289C099000B39AF6 /* WithdrawViewModel.swift */; };
 		9A18C737289C11D500B39AF6 /* WithdrawAddressScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18C736289C11D500B39AF6 /* WithdrawAddressScreen.swift */; };
@@ -309,6 +310,7 @@
 		9A103F8125B9BF180026EA62 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		9A1535F52BB2005B0086EEF5 /* InfoPlist.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InfoPlist.swift; sourceTree = "<group>"; };
 		9A16229B284503EE00B138D3 /* CodeAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeAPI; sourceTree = "<group>"; };
+		9A1654DE267A31A4000A135E /* Keychain.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RequestKinScreen.swift; sourceTree = "<group>"; };
 		9A18C734289C099000B39AF6 /* WithdrawViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawViewModel.swift; sourceTree = "<group>"; };
 		9A18C736289C11D500B39AF6 /* WithdrawAddressScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawAddressScreen.swift; sourceTree = "<group>"; };
@@ -565,6 +567,7 @@
 		9A093D6B25D5C1E4000E7DD9 /* Keychain */ = {
 			isa = PBXGroup;
 			children = (
+				9A1654DE267A31A4000A135E /* Keychain.swift */,
 				9A093D6C25D5C1EF000E7DD9 /* Secure.swift */,
 				9A7050102600EEE90036A056 /* Defaults.swift */,
 			);
@@ -1589,6 +1592,7 @@
 				9A093D5825D46F45000E7DD9 /* Data+Bytes.swift in Sources */,
 				9A0F08342BBC753E00C65489 /* ModalInsufficientFunds.swift in Sources */,
 				9A646986275FE634008B1498 /* Analytics.swift in Sources */,
+				9A1654DF267A31A4000A135E /* Keychain.swift in Sources */,
 				9ACC074F28342BF1001F0081 /* Guards.swift in Sources */,
 				9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */,
 				9AD0A44E261B961B008CFD69 /* WithdrawAmountScreen.swift in Sources */,
@@ -1799,7 +1803,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -1948,7 +1952,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -2079,7 +2083,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2117,7 +2121,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2151,7 +2155,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2184,7 +2188,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2476,7 +2480,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -2514,7 +2518,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.15;
+				MARKETING_VERSION = 2.1.14;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
