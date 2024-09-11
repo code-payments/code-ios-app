@@ -13,26 +13,34 @@ struct ChatsScreen: View {
     
     @Binding public var isPresented: Bool
     
-    @EnvironmentObject private var session: Session
     @EnvironmentObject private var exchange: Exchange
-    @EnvironmentObject private var bannerController: BannerController
     @EnvironmentObject private var notificationController: NotificationController
     @EnvironmentObject private var betaFlags: BetaFlags
     
+    @ObservedObject private var session: Session
     @ObservedObject private var chatController: ChatController
-    
-    @State private var isShowingEnterUsername: Bool = false
-    @State private var isShowingConversation: Bool = false
+    @ObservedObject private var bannerController: BannerController
     
     private var chats: [Chat] {
         chatController.chats
     }
     
+    @StateObject private var viewModel: DirectMessageViewModel
+    
     // MARK: - Init -
     
-    init(chatController: ChatController, isPresented: Binding<Bool>) {
+    init(session: Session, chatController: ChatController, bannerController: BannerController, isPresented: Binding<Bool>) {
+        self.session = session
         self.chatController = chatController
+        self.bannerController = bannerController
         self._isPresented = isPresented
+        self._viewModel = StateObject(
+            wrappedValue: DirectMessageViewModel(
+                chatController: chatController,
+                twitterController: session.twitterUserController,
+                bannerController: bannerController
+            )
+        )
     }
     
     private func didAppear() {
@@ -50,44 +58,50 @@ struct ChatsScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            NavigationLink(isActive: $isShowingEnterUsername) {
-                LazyView(
-                    EnterUsernameScreen()
-                )
-            } label: { EmptyView() }
-            
-            VStack(spacing: 0) {
-                ScrollBox(color: .backgroundMain) {
-                    LazyTable(
-                        contentPadding: .scrollBox,
-                        content: {
-                            chatsView()
-                        }
-                    )
+        NavigationStack(path: $viewModel.navigationPath) {
+            Background(color: .backgroundMain) {
+                VStack(spacing: 0) {
+                    ScrollBox(color: .backgroundMain) {
+                        LazyTable(
+                            contentPadding: .scrollBox,
+                            content: {
+                                chatsView()
+                            }
+                        )
+                    }
+                    
+                    CodeButton(style: .filled, title: "Start a New Chat") {
+                        viewModel.startNewChat()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
                 }
-                
-                CodeButton(style: .filled, title: "Start a New Chat") {
-                    isShowingEnterUsername = true
+                .onAppear {
+                    didAppear()
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .onDisappear {
+                    didDisappear()
+                }
+                .onChange(of: notificationController.messageReceived) { _ in
+                    didAppear()
+                }
+                .navigationBarHidden(false)
+                .navigationBarTitle(Text(Localized.Action.chat))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ToolbarCloseButton(binding: $isPresented)
+                    }
+                }
             }
-            .onAppear {
-                didAppear()
-            }
-            .onDisappear {
-                didDisappear()
-            }
-            .onChange(of: notificationController.messageReceived) { _ in
-                didAppear()
-            }
-            .navigationBarHidden(false)
-            .navigationBarTitle(Text(Localized.Action.chat))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $isPresented)
+            .navigationDestination(for: DirectMessagePath.self) { path in
+                switch path {
+                case .enterUsername:
+                    EnterUsernameScreen(viewModel: viewModel)
+                case .chatUnpaid(let user):
+                    DirectMessageScreen(state: .unpaid(user))
+                case .chatPaid(let chat):
+                    DirectMessageScreen(state: .paid(chat, chatController))
                 }
             }
         }
@@ -97,14 +111,7 @@ struct ChatsScreen: View {
         ForEach(chats, id: \.id) { chat in
             NavigationLink {
                 LazyView (
-                    ChatScreen(
-                        chat: chat,
-                        chatController: chatController,
-                        viewModel: ChatViewModel(
-                            chatController: chatController,
-                            tipController: session.tipController
-                        )
-                    )
+                    DirectMessageScreen(state: .paid(chat, chatController))
                 )
             } label: {
                 let isUnread = !chat.isMuted && chat.unreadCount > 0
@@ -161,7 +168,9 @@ struct ChatsScreen: View {
 
 #Preview {
     ChatsScreen(
+        session: .mock,
         chatController: .mock,
+        bannerController: .mock,
         isPresented: .constant(true)
     )
 }

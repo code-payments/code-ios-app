@@ -31,7 +31,7 @@ public class Chat: ObservableObject {
     @Published public private(set) var messages: [Message]
     
     /// Unique chat identifier
-    public private(set) var id: ChatID
+    public let id: ChatID
     
     /// Cursor value for this chat for reference in subsequent GetChatsRequest
     public private(set) var cursor: Cursor
@@ -245,6 +245,7 @@ public class Chat: ObservableObject {
 }
 
 extension Chat: Hashable, Equatable {
+    nonisolated
     public static func == (lhs: Chat, rhs: Chat) -> Bool {
         lhs.id == rhs.id
     }

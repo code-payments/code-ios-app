@@ -33,6 +33,7 @@ class Session: ObservableObject {
     
     weak var delegate: SessionDelegate?
     
+    let twitterUserController: TwitterUserController
     let tipController: TipController
     
     let organizer: Organizer
@@ -85,6 +86,7 @@ class Session: ObservableObject {
         self.abacus = abacus
         self.chatController = chatController
         
+        self.twitterUserController = TwitterUserController(owner: organizer.ownerKeyPair, client: client)
         self.tipController = TipController(organizer: organizer, client: client, bannerController: bannerController)
         self.flowController = FlowController(client: client, organizer: organizer)
         self.giftCardVault = GiftCardVault()

@@ -289,17 +289,25 @@ extension IntentMetadata {
     }
     
     private static func paymentMetadata(for exchangeData: Code_Transaction_V2_ExchangeData) -> PaymentMetadata? {
-        guard let currency = CurrencyCode(currencyCode: exchangeData.currency) else {
+        guard let amount = exchangeData.kinAmount else {
             return nil
         }
         
-        return PaymentMetadata(
-            amount: KinAmount(
-                kin: Kin(quarks: exchangeData.quarks),
-                rate: Rate(
-                    fx: Decimal(exchangeData.exchangeRate),
-                    currency: currency
-                )
+        return PaymentMetadata(amount: amount)
+    }
+}
+
+extension Code_Transaction_V2_ExchangeData {
+    var kinAmount: KinAmount? {
+        guard let currency = CurrencyCode(currencyCode: currency) else {
+            return nil
+        }
+        
+        return KinAmount(
+            kin: Kin(quarks: quarks),
+            rate: Rate(
+                fx: Decimal(exchangeRate),
+                currency: currency
             )
         )
     }

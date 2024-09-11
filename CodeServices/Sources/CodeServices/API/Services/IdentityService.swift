@@ -103,7 +103,7 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
         }
     }
     
-    func fetchTwitterUser(query: TwitterUserQuery, completion: @escaping (Result<TwitterUser, Error>) -> Void) {
+    func fetchTwitterUser(owner: KeyPair, query: TwitterUserQuery, completion: @escaping (Result<TwitterUser, ErrorFetchTwitterUser>) -> Void) {
         trace(.send, components: "Query: \(query)")
         
         let request = Code_User_V1_GetTwitterUserRequest.with {
@@ -113,6 +113,8 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
             case .tipAddress(let tipAddress):
                 $0.tipAddress = tipAddress.codeAccountID
             }
+            $0.requestor = owner.publicKey.codeAccountID
+            $0.signature = $0.sign(with: owner)
         }
         
         let call = service.getTwitterUser(request)
@@ -126,7 +128,7 @@ class IdentityService: CodeService<Code_User_V1_IdentityNIOClient> {
                     completion(.success(user))
                 } catch {
                     trace(.failure, components: "Error: \(error)")
-                    completion(.failure(error))
+                    completion(.failure(.parseFailed))
                 }
                 
             } else {
@@ -227,6 +229,7 @@ public enum ErrorFetchTwitterUser: Int, Error {
     case ok
     case notFound
     case unknown = -1
+    case parseFailed = -2
 }
 
 public enum ErrorLoginToThirdParty: Int, Error {

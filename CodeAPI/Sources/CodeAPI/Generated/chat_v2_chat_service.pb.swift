@@ -536,11 +536,20 @@ public struct Code_Chat_V2_ChatStreamEvent {
     set {type = .pointer(newValue)}
   }
 
+  public var isTyping: Code_Chat_V2_IsTyping {
+    get {
+      if case .isTyping(let v)? = type {return v}
+      return Code_Chat_V2_IsTyping()
+    }
+    set {type = .isTyping(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable {
     case message(Code_Chat_V2_ChatMessage)
     case pointer(Code_Chat_V2_Pointer)
+    case isTyping(Code_Chat_V2_IsTyping)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Code_Chat_V2_ChatStreamEvent.OneOf_Type, rhs: Code_Chat_V2_ChatStreamEvent.OneOf_Type) -> Bool {
@@ -554,6 +563,10 @@ public struct Code_Chat_V2_ChatStreamEvent {
       }()
       case (.pointer, .pointer): return {
         guard case .pointer(let l) = lhs, case .pointer(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.isTyping, .isTyping): return {
+        guard case .isTyping(let l) = lhs, case .isTyping(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -769,22 +782,31 @@ public struct Code_Chat_V2_StartChatRequest {
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
+  public var self_p: Code_Chat_V2_ChatMemberIdentity {
+    get {return _self_p ?? Code_Chat_V2_ChatMemberIdentity()}
+    set {_self_p = newValue}
+  }
+  /// Returns true if `self_p` has been explicitly set.
+  public var hasSelf_p: Bool {return self._self_p != nil}
+  /// Clears the value of `self_p`. Subsequent reads from it will return its default value.
+  public mutating func clearSelf_p() {self._self_p = nil}
+
   public var parameters: Code_Chat_V2_StartChatRequest.OneOf_Parameters? = nil
 
   /// GroupChatParameters group_chat  = 4;
-  public var tipChat: Code_Chat_V2_StartTipChatParameters {
+  public var twoWayChat: Code_Chat_V2_StartTwoWayChatParameters {
     get {
-      if case .tipChat(let v)? = parameters {return v}
-      return Code_Chat_V2_StartTipChatParameters()
+      if case .twoWayChat(let v)? = parameters {return v}
+      return Code_Chat_V2_StartTwoWayChatParameters()
     }
-    set {parameters = .tipChat(newValue)}
+    set {parameters = .twoWayChat(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Parameters: Equatable {
     /// GroupChatParameters group_chat  = 4;
-    case tipChat(Code_Chat_V2_StartTipChatParameters)
+    case twoWayChat(Code_Chat_V2_StartTwoWayChatParameters)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Code_Chat_V2_StartChatRequest.OneOf_Parameters, rhs: Code_Chat_V2_StartChatRequest.OneOf_Parameters) -> Bool {
@@ -792,8 +814,8 @@ public struct Code_Chat_V2_StartChatRequest {
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch (lhs, rhs) {
-      case (.tipChat, .tipChat): return {
-        guard case .tipChat(let l) = lhs, case .tipChat(let r) = rhs else { preconditionFailure() }
+      case (.twoWayChat, .twoWayChat): return {
+        guard case .twoWayChat(let l) = lhs, case .twoWayChat(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       }
@@ -805,19 +827,39 @@ public struct Code_Chat_V2_StartChatRequest {
 
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
+  fileprivate var _self_p: Code_Chat_V2_ChatMemberIdentity? = nil
 }
 
-/// Starts a two-way chat between a tipper and tippee. Chat members are
-/// inferred from the 12 word public keys involved in the intent. Only
-/// the tippee can start the chat, and the tipper is anonymous if this
-/// is the first between the involved Code users.
-public struct Code_Chat_V2_StartTipChatParameters {
+/// StartTwoWayChatParameters contains the parameters required to start
+/// or recover a two way chat between the caller and the specified 'other_user'.
+///
+/// The 'other_user' is currently the 'tip_address', normally retrieved from
+/// user.Identity.GetTwitterUser(username).
+public struct Code_Chat_V2_StartTwoWayChatParameters {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The tip's intent ID, which can be extracted from the reference in
-  /// an ExchangeDataContent message content where the verb is RECEIVED_TIP.
+  /// The account id of the user the caller wishes to chat with.
+  ///
+  /// This will be the `tip` (or equivalent) address.
+  public var otherUser: Code_Common_V1_SolanaAccountId {
+    get {return _otherUser ?? Code_Common_V1_SolanaAccountId()}
+    set {_otherUser = newValue}
+  }
+  /// Returns true if `otherUser` has been explicitly set.
+  public var hasOtherUser: Bool {return self._otherUser != nil}
+  /// Clears the value of `otherUser`. Subsequent reads from it will return its default value.
+  public mutating func clearOtherUser() {self._otherUser = nil}
+
+  /// The intent_id of the payment that initiated the chat/friendship.
+  ///
+  /// This field is optional. It is used as an optimization when the server has not
+  /// yet observed the establishment of a friendship. In this case, the server will
+  /// use the provided intent_id to verify the friendship.
+  ///
+  /// This is most likely to occur when initiating a chat with a user for the first
+  /// time.
   public var intentID: Code_Common_V1_IntentId {
     get {return _intentID ?? Code_Common_V1_IntentId()}
     set {_intentID = newValue}
@@ -827,11 +869,25 @@ public struct Code_Chat_V2_StartTipChatParameters {
   /// Clears the value of `intentID`. Subsequent reads from it will return its default value.
   public mutating func clearIntentID() {self._intentID = nil}
 
+  /// The identity of the other user.
+  ///
+  /// Note: This can/should be removed with proper intent plumbing.
+  public var identity: Code_Chat_V2_ChatMemberIdentity {
+    get {return _identity ?? Code_Chat_V2_ChatMemberIdentity()}
+    set {_identity = newValue}
+  }
+  /// Returns true if `identity` has been explicitly set.
+  public var hasIdentity: Bool {return self._identity != nil}
+  /// Clears the value of `identity`. Subsequent reads from it will return its default value.
+  public mutating func clearIdentity() {self._identity = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
+  fileprivate var _otherUser: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _intentID: Code_Common_V1_IntentId? = nil
+  fileprivate var _identity: Code_Chat_V2_ChatMemberIdentity? = nil
 }
 
 public struct Code_Chat_V2_StartChatResponse {
@@ -841,7 +897,7 @@ public struct Code_Chat_V2_StartChatResponse {
 
   public var result: Code_Chat_V2_StartChatResponse.Result = .ok
 
-  /// The chat to use if the RPC was successful
+  /// The chat to use if the RPC was successful.
   public var chat: Code_Chat_V2_ChatMetadata {
     get {return _chat ?? Code_Chat_V2_ChatMetadata()}
     set {_chat = newValue}
@@ -856,8 +912,17 @@ public struct Code_Chat_V2_StartChatResponse {
   public enum Result: SwiftProtobuf.Enum {
     public typealias RawValue = Int
     case ok // = 0
+
+    /// DENIED indicates the caller is not allowed to start/join the chat.
     case denied // = 1
+
+    /// INVALID_PRAMETER indicates one of the parameters is invalid.
     case invalidParameter // = 2
+
+    /// PENDING indicates that the payment (for chat) intent is pending confirmation
+    /// before the service will permit the creation of the chat. This can happen in
+    /// cases where the block chain is particularly slow (beyond our RPC timeouts).
+    case pending // = 3
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -869,6 +934,7 @@ public struct Code_Chat_V2_StartChatResponse {
       case 0: self = .ok
       case 1: self = .denied
       case 2: self = .invalidParameter
+      case 3: self = .pending
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -878,6 +944,7 @@ public struct Code_Chat_V2_StartChatResponse {
       case .ok: return 0
       case .denied: return 1
       case .invalidParameter: return 2
+      case .pending: return 3
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -897,6 +964,7 @@ extension Code_Chat_V2_StartChatResponse.Result: CaseIterable {
     .ok,
     .denied,
     .invalidParameter,
+    .pending,
   ]
 }
 
@@ -1509,6 +1577,115 @@ extension Code_Chat_V2_SetSubscriptionStateResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Code_Chat_V2_NotifyIsTypingRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var chatID: Code_Chat_V2_ChatId {
+    get {return _chatID ?? Code_Chat_V2_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  public var memberID: Code_Chat_V2_ChatMemberId {
+    get {return _memberID ?? Code_Chat_V2_ChatMemberId()}
+    set {_memberID = newValue}
+  }
+  /// Returns true if `memberID` has been explicitly set.
+  public var hasMemberID: Bool {return self._memberID != nil}
+  /// Clears the value of `memberID`. Subsequent reads from it will return its default value.
+  public mutating func clearMemberID() {self._memberID = nil}
+
+  public var isTyping: Bool = false
+
+  public var owner: Code_Common_V1_SolanaAccountId {
+    get {return _owner ?? Code_Common_V1_SolanaAccountId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {return self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
+  public var signature: Code_Common_V1_Signature {
+    get {return _signature ?? Code_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
+  fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Code_Common_V1_Signature? = nil
+}
+
+public struct Code_Chat_V2_NotifyIsTypingResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_Chat_V2_NotifyIsTypingResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case chatNotFound // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      case 2: self = .chatNotFound
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .chatNotFound: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Chat_V2_NotifyIsTypingResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Code_Chat_V2_NotifyIsTypingResponse.Result] = [
+    .ok,
+    .denied,
+    .chatNotFound,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Code_Chat_V2_ChatId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1591,7 +1768,7 @@ public struct Code_Chat_V2_ChatMetadata {
   /// Can the user unsubscribe from this chat?
   public var canUnsubscribe: Bool = false
 
-  /// Cursor value for this chat for reference in subsequent GetChatsRequest 
+  /// Cursor value for this chat for reference in subsequent GetChatsRequest
   public var cursor: Code_Chat_V2_Cursor {
     get {return _cursor ?? Code_Chat_V2_Cursor()}
     set {_cursor = newValue}
@@ -1650,7 +1827,7 @@ public struct Code_Chat_V2_ChatMessage {
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
-  /// Cursor value for this message for reference in a paged GetMessagesRequest 
+  /// Cursor value for this message for reference in a paged GetMessagesRequest
   public var cursor: Code_Chat_V2_Cursor {
     get {return _cursor ?? Code_Chat_V2_Cursor()}
     set {_cursor = newValue}
@@ -1740,6 +1917,9 @@ public struct Code_Chat_V2_ChatMemberIdentity {
   /// The chat member's username on the external social platform
   public var username: String = String()
 
+  /// If present, the URL of the users profile pic.
+  public var profilePicURL: String = String()
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1758,7 +1938,7 @@ public struct Code_Chat_V2_Pointer {
   public var type: Code_Chat_V2_PointerType = .unknownPointerType
 
   /// Everything at or before this message ID is considered to have the state
-  /// inferred by the type of pointer. 
+  /// inferred by the type of pointer.
   public var value: Code_Chat_V2_ChatMessageId {
     get {return _value ?? Code_Chat_V2_ChatMessageId()}
     set {_value = newValue}
@@ -1950,7 +2130,7 @@ public struct Code_Chat_V2_ExchangeDataContent {
     set {exchangeData = .partial(newValue)}
   }
 
-  /// An ID that can be referenced to the source of the exchange of Kin 
+  /// An ID that can be referenced to the source of the exchange of Kin
   public var reference: Code_Chat_V2_ExchangeDataContent.OneOf_Reference? = nil
 
   public var intent: Code_Common_V1_IntentId {
@@ -1996,7 +2176,7 @@ public struct Code_Chat_V2_ExchangeDataContent {
   #endif
   }
 
-  /// An ID that can be referenced to the source of the exchange of Kin 
+  /// An ID that can be referenced to the source of the exchange of Kin
   public enum OneOf_Reference: Equatable {
     case intent(Code_Common_V1_IntentId)
     case signature(Code_Common_V1_Signature)
@@ -2124,7 +2304,7 @@ public struct Code_Chat_V2_NaclBoxEncryptedContent {
   /// Globally random nonce that is unique to this encrypted piece of content
   public var nonce: Data = Data()
 
-  /// The encrypted piece of message content 
+  /// The encrypted piece of message content
   public var encryptedPayload: Data = Data()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -2207,6 +2387,31 @@ public struct Code_Chat_V2_Cursor {
   public init() {}
 }
 
+public struct Code_Chat_V2_IsTyping {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var memberID: Code_Chat_V2_ChatMemberId {
+    get {return _memberID ?? Code_Chat_V2_ChatMemberId()}
+    set {_memberID = newValue}
+  }
+  /// Returns true if `memberID` has been explicitly set.
+  public var hasMemberID: Bool {return self._memberID != nil}
+  /// Clears the value of `memberID`. Subsequent reads from it will return its default value.
+  public mutating func clearMemberID() {self._memberID = nil}
+
+  /// is_typing indicates whether or not the user is typing.
+  /// If false, the user has explicitly stopped typing.
+  public var isTyping: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Code_Chat_V2_ChatType: @unchecked Sendable {}
 extension Code_Chat_V2_Platform: @unchecked Sendable {}
@@ -2231,7 +2436,7 @@ extension Code_Chat_V2_StreamChatEventsResponse: @unchecked Sendable {}
 extension Code_Chat_V2_StreamChatEventsResponse.OneOf_Type: @unchecked Sendable {}
 extension Code_Chat_V2_StartChatRequest: @unchecked Sendable {}
 extension Code_Chat_V2_StartChatRequest.OneOf_Parameters: @unchecked Sendable {}
-extension Code_Chat_V2_StartTipChatParameters: @unchecked Sendable {}
+extension Code_Chat_V2_StartTwoWayChatParameters: @unchecked Sendable {}
 extension Code_Chat_V2_StartChatResponse: @unchecked Sendable {}
 extension Code_Chat_V2_StartChatResponse.Result: @unchecked Sendable {}
 extension Code_Chat_V2_SendMessageRequest: @unchecked Sendable {}
@@ -2249,6 +2454,9 @@ extension Code_Chat_V2_SetMuteStateResponse.Result: @unchecked Sendable {}
 extension Code_Chat_V2_SetSubscriptionStateRequest: @unchecked Sendable {}
 extension Code_Chat_V2_SetSubscriptionStateResponse: @unchecked Sendable {}
 extension Code_Chat_V2_SetSubscriptionStateResponse.Result: @unchecked Sendable {}
+extension Code_Chat_V2_NotifyIsTypingRequest: @unchecked Sendable {}
+extension Code_Chat_V2_NotifyIsTypingResponse: @unchecked Sendable {}
+extension Code_Chat_V2_NotifyIsTypingResponse.Result: @unchecked Sendable {}
 extension Code_Chat_V2_ChatId: @unchecked Sendable {}
 extension Code_Chat_V2_ChatMessageId: @unchecked Sendable {}
 extension Code_Chat_V2_ChatMemberId: @unchecked Sendable {}
@@ -2269,6 +2477,7 @@ extension Code_Chat_V2_NaclBoxEncryptedContent: @unchecked Sendable {}
 extension Code_Chat_V2_ThankYouContent: @unchecked Sendable {}
 extension Code_Chat_V2_IdentityRevealedContent: @unchecked Sendable {}
 extension Code_Chat_V2_Cursor: @unchecked Sendable {}
+extension Code_Chat_V2_IsTyping: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -2596,6 +2805,7 @@ extension Code_Chat_V2_ChatStreamEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "message"),
     2: .same(proto: "pointer"),
+    3: .standard(proto: "is_typing"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2630,6 +2840,19 @@ extension Code_Chat_V2_ChatStreamEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
           self.type = .pointer(v)
         }
       }()
+      case 3: try {
+        var v: Code_Chat_V2_IsTyping?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .isTyping(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .isTyping(v)
+        }
+      }()
       default: break
       }
     }
@@ -2648,6 +2871,10 @@ extension Code_Chat_V2_ChatStreamEvent: SwiftProtobuf.Message, SwiftProtobuf._Me
     case .pointer?: try {
       guard case .pointer(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .isTyping?: try {
+      guard case .isTyping(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     }()
     case nil: break
     }
@@ -2895,7 +3122,8 @@ extension Code_Chat_V2_StartChatRequest: SwiftProtobuf.Message, SwiftProtobuf._M
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "owner"),
     2: .same(proto: "signature"),
-    3: .standard(proto: "tip_chat"),
+    3: .same(proto: "self"),
+    4: .standard(proto: "two_way_chat"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2906,17 +3134,18 @@ extension Code_Chat_V2_StartChatRequest: SwiftProtobuf.Message, SwiftProtobuf._M
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
-      case 3: try {
-        var v: Code_Chat_V2_StartTipChatParameters?
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._self_p) }()
+      case 4: try {
+        var v: Code_Chat_V2_StartTwoWayChatParameters?
         var hadOneofValue = false
         if let current = self.parameters {
           hadOneofValue = true
-          if case .tipChat(let m) = current {v = m}
+          if case .twoWayChat(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.parameters = .tipChat(v)
+          self.parameters = .twoWayChat(v)
         }
       }()
       default: break
@@ -2935,8 +3164,11 @@ extension Code_Chat_V2_StartChatRequest: SwiftProtobuf.Message, SwiftProtobuf._M
     try { if let v = self._signature {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    try { if case .tipChat(let v)? = self.parameters {
+    try { if let v = self._self_p {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if case .twoWayChat(let v)? = self.parameters {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -2944,16 +3176,19 @@ extension Code_Chat_V2_StartChatRequest: SwiftProtobuf.Message, SwiftProtobuf._M
   public static func ==(lhs: Code_Chat_V2_StartChatRequest, rhs: Code_Chat_V2_StartChatRequest) -> Bool {
     if lhs._owner != rhs._owner {return false}
     if lhs._signature != rhs._signature {return false}
+    if lhs._self_p != rhs._self_p {return false}
     if lhs.parameters != rhs.parameters {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Chat_V2_StartTipChatParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".StartTipChatParameters"
+extension Code_Chat_V2_StartTwoWayChatParameters: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StartTwoWayChatParameters"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "intent_id"),
+    1: .standard(proto: "other_user"),
+    2: .standard(proto: "intent_id"),
+    3: .same(proto: "identity"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2962,7 +3197,9 @@ extension Code_Chat_V2_StartTipChatParameters: SwiftProtobuf.Message, SwiftProto
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._otherUser) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._intentID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._identity) }()
       default: break
       }
     }
@@ -2973,14 +3210,22 @@ extension Code_Chat_V2_StartTipChatParameters: SwiftProtobuf.Message, SwiftProto
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._intentID {
+    try { if let v = self._otherUser {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._intentID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._identity {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Chat_V2_StartTipChatParameters, rhs: Code_Chat_V2_StartTipChatParameters) -> Bool {
+  public static func ==(lhs: Code_Chat_V2_StartTwoWayChatParameters, rhs: Code_Chat_V2_StartTwoWayChatParameters) -> Bool {
+    if lhs._otherUser != rhs._otherUser {return false}
     if lhs._intentID != rhs._intentID {return false}
+    if lhs._identity != rhs._identity {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3033,6 +3278,7 @@ extension Code_Chat_V2_StartChatResponse.Result: SwiftProtobuf._ProtoNameProvidi
     0: .same(proto: "OK"),
     1: .same(proto: "DENIED"),
     2: .same(proto: "INVALID_PARAMETER"),
+    3: .same(proto: "PENDING"),
   ]
 }
 
@@ -3557,6 +3803,106 @@ extension Code_Chat_V2_SetSubscriptionStateResponse.Result: SwiftProtobuf._Proto
   ]
 }
 
+extension Code_Chat_V2_NotifyIsTypingRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".NotifyIsTypingRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .standard(proto: "member_id"),
+    3: .standard(proto: "is_typing"),
+    4: .same(proto: "owner"),
+    5: .same(proto: "signature"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._memberID) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.isTyping) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._memberID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.isTyping != false {
+      try visitor.visitSingularBoolField(value: self.isTyping, fieldNumber: 3)
+    }
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Chat_V2_NotifyIsTypingRequest, rhs: Code_Chat_V2_NotifyIsTypingRequest) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._memberID != rhs._memberID {return false}
+    if lhs.isTyping != rhs.isTyping {return false}
+    if lhs._owner != rhs._owner {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Chat_V2_NotifyIsTypingResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".NotifyIsTypingResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Chat_V2_NotifyIsTypingResponse, rhs: Code_Chat_V2_NotifyIsTypingResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Chat_V2_NotifyIsTypingResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+    2: .same(proto: "CHAT_NOT_FOUND"),
+  ]
+}
+
 extension Code_Chat_V2_ChatId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ChatId"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -3862,6 +4208,7 @@ extension Code_Chat_V2_ChatMemberIdentity: SwiftProtobuf.Message, SwiftProtobuf.
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "platform"),
     2: .same(proto: "username"),
+    3: .standard(proto: "profile_pic_url"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3872,6 +4219,7 @@ extension Code_Chat_V2_ChatMemberIdentity: SwiftProtobuf.Message, SwiftProtobuf.
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.platform) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.profilePicURL) }()
       default: break
       }
     }
@@ -3884,12 +4232,16 @@ extension Code_Chat_V2_ChatMemberIdentity: SwiftProtobuf.Message, SwiftProtobuf.
     if !self.username.isEmpty {
       try visitor.visitSingularStringField(value: self.username, fieldNumber: 2)
     }
+    if !self.profilePicURL.isEmpty {
+      try visitor.visitSingularStringField(value: self.profilePicURL, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Chat_V2_ChatMemberIdentity, rhs: Code_Chat_V2_ChatMemberIdentity) -> Bool {
     if lhs.platform != rhs.platform {return false}
     if lhs.username != rhs.username {return false}
+    if lhs.profilePicURL != rhs.profilePicURL {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4435,6 +4787,48 @@ extension Code_Chat_V2_Cursor: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
 
   public static func ==(lhs: Code_Chat_V2_Cursor, rhs: Code_Chat_V2_Cursor) -> Bool {
     if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Chat_V2_IsTyping: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".IsTyping"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "member_id"),
+    2: .standard(proto: "is_typing"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._memberID) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.isTyping) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._memberID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.isTyping != false {
+      try visitor.visitSingularBoolField(value: self.isTyping, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Chat_V2_IsTyping, rhs: Code_Chat_V2_IsTyping) -> Bool {
+    if lhs._memberID != rhs._memberID {return false}
+    if lhs.isTyping != rhs.isTyping {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

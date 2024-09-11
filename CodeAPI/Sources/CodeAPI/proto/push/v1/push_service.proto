@@ -14,7 +14,16 @@ service Push {
     // and adding an existing valid token will not fail. Token types will be
     // validated against the user agent and any mismatches will result in an
     // INVALID_ARGUMENT status error.
+    //
+    // The token will be unlinked from any and all other accounts that it was
+    // previously bound to.
     rpc AddToken(AddTokenRequest) returns (AddTokenResponse);
+
+    // RemoveToken removes the provided push token from the account.
+    //
+    // The provided token must be bound to the current account.
+    // Otherwise, the RPC will succeed with without removal.
+    rpc RemoveToken(RemoveTokenRequest) returns (RemoveTokenResponse);
 }
 
 enum TokenType {
@@ -57,5 +66,34 @@ message AddTokenResponse {
         OK = 0;
         // The push token is invalid and wasn't stored.
         INVALID_PUSH_TOKEN = 1;
+    }
+}
+
+message RemoveTokenRequest {
+    // The public key of the owner account that signed this request message.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(AddTokenRequest) without this field set
+    // using the private key of owner_account_id. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The data container where the push token was stored.
+    common.v1.DataContainerId container_id = 3 [(validate.rules).message.required = true];
+
+    // The push token to remove.
+    string push_token = 4 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096 // todo: What's a reasonable size
+    }];
+
+    // The type of push token to remove.
+    TokenType token_type = 5 [(validate.rules).enum = {in: [1,2]}];
+}
+
+message RemoveTokenResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
     }
 }

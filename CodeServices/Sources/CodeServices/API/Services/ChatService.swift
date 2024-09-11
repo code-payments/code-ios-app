@@ -130,7 +130,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
         let request = Code_Chat_V2_StartChatRequest.with {
             $0.owner = owner.publicKey.codeAccountID
-            $0.tipChat = .with {
+            $0.twoWayChat = .with {
                 $0.intentID = tipIntentID.codeIntentID
             }
             $0.signature = $0.sign(with: owner)
@@ -451,6 +451,10 @@ public enum ErrorSetSubscriptionState: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Chat_V2_ChatClientInterceptorFactoryProtocol {
+    func makeNotifyIsTypingInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_NotifyIsTypingRequest, CodeAPI.Code_Chat_V2_NotifyIsTypingResponse>] {
+        makeInterceptors()
+    }
+    
     func makeStartChatInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_StartChatRequest, CodeAPI.Code_Chat_V2_StartChatResponse>] {
         makeInterceptors()
     }

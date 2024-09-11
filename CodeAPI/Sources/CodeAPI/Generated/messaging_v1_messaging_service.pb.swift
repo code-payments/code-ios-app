@@ -292,41 +292,39 @@ public struct Code_Messaging_V1_SendMessageRequest {
 
   /// The message to send. Types of messages clients can send are restricted.
   public var message: Code_Messaging_V1_Message {
-    get {return _message ?? Code_Messaging_V1_Message()}
-    set {_message = newValue}
+    get {return _storage._message ?? Code_Messaging_V1_Message()}
+    set {_uniqueStorage()._message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
-  public var hasMessage: Bool {return self._message != nil}
+  public var hasMessage: Bool {return _storage._message != nil}
   /// Clears the value of `message`. Subsequent reads from it will return its default value.
-  public mutating func clearMessage() {self._message = nil}
+  public mutating func clearMessage() {_uniqueStorage()._message = nil}
 
   /// The rendezvous key that the message should be routed to.
   public var rendezvousKey: Code_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Code_Messaging_V1_RendezvousKey()}
-    set {_rendezvousKey = newValue}
+    get {return _storage._rendezvousKey ?? Code_Messaging_V1_RendezvousKey()}
+    set {_uniqueStorage()._rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
-  public var hasRendezvousKey: Bool {return self._rendezvousKey != nil}
+  public var hasRendezvousKey: Bool {return _storage._rendezvousKey != nil}
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
-  public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
+  public mutating func clearRendezvousKey() {_uniqueStorage()._rendezvousKey = nil}
 
   /// The signature is of serialize(Message) using the PrivateKey of the keypair.
   public var signature: Code_Common_V1_Signature {
-    get {return _signature ?? Code_Common_V1_Signature()}
-    set {_signature = newValue}
+    get {return _storage._signature ?? Code_Common_V1_Signature()}
+    set {_uniqueStorage()._signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
-  public var hasSignature: Bool {return self._signature != nil}
+  public var hasSignature: Bool {return _storage._signature != nil}
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
-  public mutating func clearSignature() {self._signature = nil}
+  public mutating func clearSignature() {_uniqueStorage()._signature = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _message: Code_Messaging_V1_Message? = nil
-  fileprivate var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
-  fileprivate var _signature: Code_Common_V1_Signature? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 public struct Code_Messaging_V1_SendMessageResponse {
@@ -1409,41 +1407,85 @@ extension Code_Messaging_V1_SendMessageRequest: SwiftProtobuf.Message, SwiftProt
     3: .same(proto: "signature"),
   ]
 
+  fileprivate class _StorageClass {
+    var _message: Code_Messaging_V1_Message? = nil
+    var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
+    var _signature: Code_Common_V1_Signature? = nil
+
+    #if swift(>=5.10)
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+    #else
+      static let defaultInstance = _StorageClass()
+    #endif
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _message = source._message
+      _rendezvousKey = source._rendezvousKey
+      _signature = source._signature
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._message) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._rendezvousKey) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._message) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._rendezvousKey) }()
+        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._signature) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._message {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._rendezvousKey {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._signature {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._message {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._rendezvousKey {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      try { if let v = _storage._signature {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      } }()
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Messaging_V1_SendMessageRequest, rhs: Code_Messaging_V1_SendMessageRequest) -> Bool {
-    if lhs._message != rhs._message {return false}
-    if lhs._rendezvousKey != rhs._rendezvousKey {return false}
-    if lhs._signature != rhs._signature {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._message != rhs_storage._message {return false}
+        if _storage._rendezvousKey != rhs_storage._rendezvousKey {return false}
+        if _storage._signature != rhs_storage._signature {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

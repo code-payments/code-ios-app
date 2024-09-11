@@ -146,7 +146,9 @@ extension TwitterUser.VerificationStatus {
                 avatarURL: URL(string: "")!,
                 followerCount: 12_000,
                 tipAddress: .mock,
-                verificationStatus: .blue
+                verificationStatus: .blue,
+                costOfFriendship: .init(currency: .usd, amount: 1.00),
+                isFriend: false
             ),
             primaryAction: "Swipe to Tip",
             secondaryAction: "Cancel",

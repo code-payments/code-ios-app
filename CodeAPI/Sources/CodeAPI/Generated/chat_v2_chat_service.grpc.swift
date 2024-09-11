@@ -60,6 +60,11 @@ public protocol Code_Chat_V2_ChatClientProtocol: GRPCClient {
     _ request: Code_Chat_V2_SetSubscriptionStateRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>
+
+  func notifyIsTyping(
+    _ request: Code_Chat_V2_NotifyIsTypingRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Chat_V2_NotifyIsTypingRequest, Code_Chat_V2_NotifyIsTypingResponse>
 }
 
 extension Code_Chat_V2_ChatClientProtocol {
@@ -263,6 +268,26 @@ extension Code_Chat_V2_ChatClientProtocol {
       interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
+
+  /// NotifyIsTypingRequest notifies a chat that the sending member is typing.
+  ///
+  /// These requests are transient, and may be dropped at any point.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to NotifyIsTyping.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func notifyIsTyping(
+    _ request: Code_Chat_V2_NotifyIsTypingRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Chat_V2_NotifyIsTypingRequest, Code_Chat_V2_NotifyIsTypingResponse> {
+    return self.makeUnaryCall(
+      path: Code_Chat_V2_ChatClientMetadata.Methods.notifyIsTyping.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -370,6 +395,11 @@ public protocol Code_Chat_V2_ChatAsyncClientProtocol: GRPCClient {
     _ request: Code_Chat_V2_SetSubscriptionStateRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>
+
+  func makeNotifyIsTypingCall(
+    _ request: Code_Chat_V2_NotifyIsTypingRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Chat_V2_NotifyIsTypingRequest, Code_Chat_V2_NotifyIsTypingResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -485,6 +515,18 @@ extension Code_Chat_V2_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
+    )
+  }
+
+  public func makeNotifyIsTypingCall(
+    _ request: Code_Chat_V2_NotifyIsTypingRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Chat_V2_NotifyIsTypingRequest, Code_Chat_V2_NotifyIsTypingResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Chat_V2_ChatClientMetadata.Methods.notifyIsTyping.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? []
     )
   }
 }
@@ -610,6 +652,18 @@ extension Code_Chat_V2_ChatAsyncClientProtocol {
       interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
+
+  public func notifyIsTyping(
+    _ request: Code_Chat_V2_NotifyIsTypingRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Chat_V2_NotifyIsTypingResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Chat_V2_ChatClientMetadata.Methods.notifyIsTyping.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -657,6 +711,9 @@ public protocol Code_Chat_V2_ChatClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'setSubscriptionState'.
   func makeSetSubscriptionStateInterceptors() -> [ClientInterceptor<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'notifyIsTyping'.
+  func makeNotifyIsTypingInterceptors() -> [ClientInterceptor<Code_Chat_V2_NotifyIsTypingRequest, Code_Chat_V2_NotifyIsTypingResponse>]
 }
 
 public enum Code_Chat_V2_ChatClientMetadata {
@@ -673,6 +730,7 @@ public enum Code_Chat_V2_ChatClientMetadata {
       Code_Chat_V2_ChatClientMetadata.Methods.revealIdentity,
       Code_Chat_V2_ChatClientMetadata.Methods.setMuteState,
       Code_Chat_V2_ChatClientMetadata.Methods.setSubscriptionState,
+      Code_Chat_V2_ChatClientMetadata.Methods.notifyIsTyping,
     ]
   )
 
@@ -728,6 +786,12 @@ public enum Code_Chat_V2_ChatClientMetadata {
     public static let setSubscriptionState = GRPCMethodDescriptor(
       name: "SetSubscriptionState",
       path: "/code.chat.v2.Chat/SetSubscriptionState",
+      type: GRPCCallType.unary
+    )
+
+    public static let notifyIsTyping = GRPCMethodDescriptor(
+      name: "NotifyIsTyping",
+      path: "/code.chat.v2.Chat/NotifyIsTyping",
       type: GRPCCallType.unary
     )
   }
@@ -795,6 +859,11 @@ public protocol Code_Chat_V2_ChatProvider: CallHandlerProvider {
 
   /// SetSubscriptionState configures a chat member's susbscription state
   func setSubscriptionState(request: Code_Chat_V2_SetSubscriptionStateRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_SetSubscriptionStateResponse>
+
+  /// NotifyIsTypingRequest notifies a chat that the sending member is typing.
+  ///
+  /// These requests are transient, and may be dropped at any point.
+  func notifyIsTyping(request: Code_Chat_V2_NotifyIsTypingRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_NotifyIsTypingResponse>
 }
 
 extension Code_Chat_V2_ChatProvider {
@@ -888,6 +957,15 @@ extension Code_Chat_V2_ChatProvider {
         responseSerializer: ProtobufSerializer<Code_Chat_V2_SetSubscriptionStateResponse>(),
         interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? [],
         userFunction: self.setSubscriptionState(request:context:)
+      )
+
+    case "NotifyIsTyping":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Chat_V2_NotifyIsTypingRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Chat_V2_NotifyIsTypingResponse>(),
+        interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? [],
+        userFunction: self.notifyIsTyping(request:context:)
       )
 
     default:
@@ -988,6 +1066,14 @@ public protocol Code_Chat_V2_ChatAsyncProvider: CallHandlerProvider, Sendable {
     request: Code_Chat_V2_SetSubscriptionStateRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Chat_V2_SetSubscriptionStateResponse
+
+  /// NotifyIsTypingRequest notifies a chat that the sending member is typing.
+  ///
+  /// These requests are transient, and may be dropped at any point.
+  func notifyIsTyping(
+    request: Code_Chat_V2_NotifyIsTypingRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Chat_V2_NotifyIsTypingResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -1090,6 +1176,15 @@ extension Code_Chat_V2_ChatAsyncProvider {
         wrapping: { try await self.setSubscriptionState(request: $0, context: $1) }
       )
 
+    case "NotifyIsTyping":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Chat_V2_NotifyIsTypingRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Chat_V2_NotifyIsTypingResponse>(),
+        interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? [],
+        wrapping: { try await self.notifyIsTyping(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -1133,6 +1228,10 @@ public protocol Code_Chat_V2_ChatServerInterceptorFactoryProtocol: Sendable {
   /// - Returns: Interceptors to use when handling 'setSubscriptionState'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetSubscriptionStateInterceptors() -> [ServerInterceptor<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>]
+
+  /// - Returns: Interceptors to use when handling 'notifyIsTyping'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeNotifyIsTypingInterceptors() -> [ServerInterceptor<Code_Chat_V2_NotifyIsTypingRequest, Code_Chat_V2_NotifyIsTypingResponse>]
 }
 
 public enum Code_Chat_V2_ChatServerMetadata {
@@ -1149,6 +1248,7 @@ public enum Code_Chat_V2_ChatServerMetadata {
       Code_Chat_V2_ChatServerMetadata.Methods.revealIdentity,
       Code_Chat_V2_ChatServerMetadata.Methods.setMuteState,
       Code_Chat_V2_ChatServerMetadata.Methods.setSubscriptionState,
+      Code_Chat_V2_ChatServerMetadata.Methods.notifyIsTyping,
     ]
   )
 
@@ -1204,6 +1304,12 @@ public enum Code_Chat_V2_ChatServerMetadata {
     public static let setSubscriptionState = GRPCMethodDescriptor(
       name: "SetSubscriptionState",
       path: "/code.chat.v2.Chat/SetSubscriptionState",
+      type: GRPCCallType.unary
+    )
+
+    public static let notifyIsTyping = GRPCMethodDescriptor(
+      name: "NotifyIsTyping",
+      path: "/code.chat.v2.Chat/NotifyIsTyping",
       type: GRPCCallType.unary
     )
   }

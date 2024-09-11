@@ -120,7 +120,7 @@ class TipController: ObservableObject {
     private func poll() {
         Task {
             do {
-                let user = try await client.fetchTwitterUser(query: .tipAddress(primaryTipAddress))
+                let user = try await client.fetchTwitterUser(owner: organizer.ownerKeyPair, query: .tipAddress(primaryTipAddress))
                 
                 store(authenticatedUser: user)
                 assignUserIfAuthenticated()
@@ -180,7 +180,7 @@ class TipController: ObservableObject {
             return cachedUser
         }
         
-        let user = try await client.fetchTwitterUser(query: .username(username))
+        let user = try await client.fetchTwitterUser(owner: organizer.ownerKeyPair, query: .username(username))
         
         cachedUsers[key] = user
         
