@@ -33,7 +33,7 @@ struct ConnectXScreen: View {
                     Text(Localized.Title.receiveTips)
                         .font(.appDisplayMedium)
                     
-                    Text(Localized.Subtitle.tipCardTwitterDescription)
+                    Text(Localized.Subtitle.tipCardXDescription)
                         .font(.appTextMedium)
                 }
                 

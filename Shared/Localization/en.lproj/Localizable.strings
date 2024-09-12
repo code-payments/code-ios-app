@@ -516,7 +516,7 @@
 "subtitle.getKin" = "Code uses the cryptocurrency Kin for payments. Here are some ways to get more Kin into your Code wallet.";
 
 /* Subtitle for a description on connecting your X */
-"subtitle.tipCardTwitterDescription" = "Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card post to X.";
+"subtitle.tipCardXDescription" = "Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card message @getcode on X.";
 
 /* Subtitle for a description on getting a friend started on Code */
 "subtitle.getFriendStartedOnCode" = "Get $5 of Kin for free when you get a friend to sign up for Code and you send them their first Kin.";

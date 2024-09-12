@@ -595,8 +595,8 @@ internal enum Localized {
     internal static let someoneTippedYou = Localized.tr("Localizable", "subtitle.someoneTippedYou")
     /// You need to start your camera to scan Codes
     internal static let startCameraToScan = Localized.tr("Localizable", "subtitle.startCameraToScan")
-    /// Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card post to X.
-    internal static let tipCardTwitterDescription = Localized.tr("Localizable", "subtitle.tipCardTwitterDescription")
+    /// Your Tip Card lets you receive tips from Code users all over the world. To access your Tip Card message @getcode on X.
+    internal static let tipCardXDescription = Localized.tr("Localizable", "subtitle.tipCardXDescription")
     /// Allow Code to send you notifications when you receive Tips from other Code users.
     internal static let turnOnNotifications = Localized.tr("Localizable", "subtitle.turnOnNotifications")
     /// Type "%@"
