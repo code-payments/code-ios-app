@@ -24,6 +24,28 @@ final class DeepLinkController {
     // MARK: - Handle -
     
     func handle(open url: URL) -> DeepLinkAction? {
+        
+        // Hadle jump subdomains by forwarding the underlying
+        // URL to the correct handler. Don't perform any
+        // other action on jump subdomains.
+        let prefix = "https://jump.getcode.com/#source="
+        let urlString = url.absoluteString
+        if urlString.hasPrefix(prefix) {
+
+            let jumpString = urlString.replacingOccurrences(of: prefix, with: "")
+            guard
+                let decodedString = jumpString.removingPercentEncoding,
+                let jumpURL = URL(string: decodedString)
+            else {
+                return nil
+            }
+
+            trace(.warning, components: "Jumping to: \(jumpURL)")
+            return handle(open: jumpURL)
+        }
+        
+        // Resume handling URLs
+        
         guard let route = Route(url: url) else {
             return nil
         }
@@ -114,7 +136,7 @@ final class DeepLinkController {
                 ErrorReporting.captureError(Error.failedToParseTipLink, id: "tipLink")
             }
             
-        default:
+        case .unknown:
             break
         }
         
