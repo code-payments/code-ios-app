@@ -62,6 +62,11 @@ public class Chat: ObservableObject {
         return members.first { !$0.isSelf }
     }
     
+    /// In a two-way chat, the other member's avatar URL
+    public var otherMemberAvatarURL: URL? {
+        otherMember?.identity.avatarURL
+    }
+    
     /// The title for the chat that defaults to identifying the 'other'
     /// member if their identity is available, otherwise `title`
     public var displayName: String {

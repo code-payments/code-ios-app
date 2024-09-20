@@ -13,11 +13,11 @@ struct ChatsScreen: View {
     
     @Binding public var isPresented: Bool
     
-    @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var notificationController: NotificationController
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
+    @ObservedObject private var exchange: Exchange
     @ObservedObject private var chatController: ChatController
     @ObservedObject private var bannerController: BannerController
     
@@ -29,15 +29,17 @@ struct ChatsScreen: View {
     
     // MARK: - Init -
     
-    init(session: Session, chatController: ChatController, bannerController: BannerController, isPresented: Binding<Bool>) {
+    init(session: Session, exchange: Exchange, chatController: ChatController, bannerController: BannerController, isPresented: Binding<Bool>) {
         self.session = session
+        self.exchange = exchange
         self.chatController = chatController
         self.bannerController = bannerController
         self._isPresented = isPresented
         self._viewModel = StateObject(
             wrappedValue: DirectMessageViewModel(
+                session: session,
+                exchange: exchange,
                 chatController: chatController,
-                twitterController: session.twitterUserController,
                 bannerController: bannerController
             )
         )
@@ -98,10 +100,11 @@ struct ChatsScreen: View {
                 switch path {
                 case .enterUsername:
                     EnterUsernameScreen(viewModel: viewModel)
-                case .chatUnpaid(let user):
-                    DirectMessageScreen(state: .unpaid(user))
-                case .chatPaid(let chat):
-                    DirectMessageScreen(state: .paid(chat, chatController))
+                case .chat:
+                    ConversationContainer(
+                        chatController: chatController,
+                        viewModel: viewModel
+                    )
                 }
             }
         }
@@ -109,50 +112,53 @@ struct ChatsScreen: View {
     
     @ViewBuilder private func chatsView() -> some View {
         ForEach(chats, id: \.id) { chat in
-            NavigationLink {
-                LazyView (
-                    DirectMessageScreen(state: .paid(chat, chatController))
-                )
+            Button {
+                viewModel.selectChat(chat)
+                
             } label: {
                 let isUnread = !chat.isMuted && chat.unreadCount > 0
                 
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 10) {
-                        Text(chat.title)
-                            .foregroundColor(.textMain)
-                            .font(.appTextMedium)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        if let newestMessage = chat.newestMessage {
-                            Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
-                                .foregroundColor(isUnread ? .textSuccess : .textSecondary)
-                                .font(.appTextSmall)
-                                .lineLimit(1)
-                        }
-                    }
-                    .frame(height: 23) // Ensures the same height with and without Bubble
+                HStack(spacing: 15) {
+                    AvatarView(value: avatarValue(for: chat), diameter: 50)
                     
-                    HStack(alignment: .top, spacing: 5) {
-                        Text(chat.previewMessage)
-                            .foregroundColor(.textSecondary)
-                            .font(.appTextMedium)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                        
-                        Spacer()
-                        
-                        if chat.isMuted {
-                            Image.system(.speakerSlash)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20, alignment: .trailing)
-                                .foregroundColor(.textSecondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 10) {
+                            Text(chat.title)
+                                .foregroundColor(.textMain)
+                                .font(.appTextMedium)
+                                .lineLimit(1)
+                            
+                            Spacer()
+                            
+                            if let newestMessage = chat.newestMessage {
+                                Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
+                                    .foregroundColor(isUnread ? .textSuccess : .textSecondary)
+                                    .font(.appTextSmall)
+                                    .lineLimit(1)
+                            }
                         }
+                        .frame(height: 23) // Ensures the same height with and without Bubble
                         
-                        if isUnread {
-                            Bubble(size: .large, count: chat.unreadCount)
+                        HStack(alignment: .top, spacing: 5) {
+                            Text(chat.previewMessage)
+                                .foregroundColor(.textSecondary)
+                                .font(.appTextMedium)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                            
+                            Spacer()
+                            
+                            if chat.isMuted {
+                                Image.system(.speakerSlash)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 20, height: 20, alignment: .trailing)
+                                    .foregroundColor(.textSecondary)
+                            }
+                            
+                            if isUnread {
+                                Bubble(size: .large, count: chat.unreadCount)
+                            }
                         }
                     }
                 }
@@ -162,6 +168,14 @@ struct ChatsScreen: View {
             }
         }
     }
+    
+    private func avatarValue(for chat: Chat) -> AvatarView.Value {
+        if let url = chat.otherMemberAvatarURL {
+            return .url(url)
+        } else {
+            return .placeholder
+        }
+    }
 }
 
 // MARK: - Previews -
@@ -169,6 +183,7 @@ struct ChatsScreen: View {
 #Preview {
     ChatsScreen(
         session: .mock,
+        exchange: .mock,
         chatController: .mock,
         bannerController: .mock,
         isPresented: .constant(true)

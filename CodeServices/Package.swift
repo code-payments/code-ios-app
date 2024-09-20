@@ -18,7 +18,7 @@ let package = Package(
     dependencies: [
         .package(path: "../CodeAPI"),
         .package(url: "https://github.com/marmelroy/PhoneNumberKit", from: "3.7.4"),
-        .package(url: "https://github.com/karwa/swift-url", from: "0.4.1"),
+        .package(url: "https://github.com/karwa/swift-url", from: "0.4.2"),
         .package(url: "https://github.com/jedisct1/swift-sodium", from: "0.9.1"),
     ],
     targets: [

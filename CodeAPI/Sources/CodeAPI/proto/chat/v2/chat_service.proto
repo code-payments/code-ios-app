@@ -107,7 +107,7 @@ message GetChatsResponse {
 }
 
 message GetMessagesRequest {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     ChatMemberId member_id = 2 [(validate.rules).message.required = true];
 
@@ -142,7 +142,7 @@ message GetMessagesResponse {
 }
 
 message OpenChatEventStream {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     ChatMemberId member_id = 2  [(validate.rules).message.required = true];
 
@@ -259,7 +259,7 @@ message StartChatResponse {
 }
 
 message SendMessageRequest {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     ChatMemberId member_id = 2  [(validate.rules).message.required = true];
 
@@ -292,7 +292,7 @@ message SendMessageResponse {
 }
 
 message AdvancePointerRequest {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     Pointer pointer = 2 [(validate.rules).message.required = true];
 
@@ -313,7 +313,7 @@ message AdvancePointerResponse {
 }
 
 message RevealIdentityRequest {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     ChatMemberId member_id = 2 [(validate.rules).message.required = true];
 
@@ -338,7 +338,7 @@ message RevealIdentityResponse {
 }
 
 message SetMuteStateRequest {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     ChatMemberId member_id = 2  [(validate.rules).message.required = true];
 
@@ -360,7 +360,7 @@ message SetMuteStateResponse {
 }
 
 message SetSubscriptionStateRequest {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     ChatMemberId member_id = 2  [(validate.rules).message.required = true];
 
@@ -382,7 +382,7 @@ message SetSubscriptionStateResponse {
 }
 
 message NotifyIsTypingRequest {
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     ChatMemberId member_id = 2  [(validate.rules).message.required = true];
 
@@ -400,15 +400,6 @@ message NotifyIsTypingResponse {
         DENIED         = 1;
         CHAT_NOT_FOUND = 2;
     }
-}
-
-message ChatId {
-    // Sufficient space is left for a consistent hash value, though other types
-    // of values may be used.
-    bytes value = 1 [(validate.rules).bytes = {
-        min_len: 32
-        max_len: 32
-    }];
 }
 
 message ChatMessageId {
@@ -453,7 +444,7 @@ enum PointerType {
 // todo: Support is_verified in a clean way
 message ChatMetadata {
     // Globally unique ID for this chat
-    ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     // The type of chat
     ChatType type = 2 [(validate.rules).enum = {

@@ -162,7 +162,6 @@ extension BillState {
         var payload: Code.Payload
         var amount: KinAmount
         var username: String
-        var avatar: Image?
         var user: TwitterUser?
     }
 }

@@ -17,7 +17,7 @@ public struct ModalTipConfirmation: View {
     public let username: String
     public let amount: String
     public let currency: CurrencyCode
-    public let avatar: Image?
+    public let avatar: AvatarView.Value
     public let user: TwitterUser?
     public let primaryAction: String
     public let secondaryAction: String
@@ -28,7 +28,7 @@ public struct ModalTipConfirmation: View {
     // MARK: - Init -
     
 
-    public init(username: String, amount: String, currency: CurrencyCode, avatar: Image?, user: TwitterUser?, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
+    public init(username: String, amount: String, currency: CurrencyCode, avatar: AvatarView.Value, user: TwitterUser?, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
         self.username = username
         self.amount = amount
         self.currency = currency
@@ -48,12 +48,7 @@ public struct ModalTipConfirmation: View {
             VStack(spacing: 0) {
                 
                 VStack(alignment: .center) {
-                    
-                    if let avatar = avatar {
-                        AvatarView(value: .image(avatar))
-                    } else {
-                        AvatarView(value: .placeholder)
-                    }
+                    AvatarView(value: avatar)
                     
                     HStack {
                         Spacer()
@@ -139,7 +134,7 @@ extension TwitterUser.VerificationStatus {
             username: "ted_livingston",
             amount: "$5.00 of Kin",
             currency: .cad,
-            avatar: nil,
+            avatar: .placeholder,
             user: TwitterUser(
                 username: "ted_livingston",
                 displayName: "Ted Livingston",
@@ -148,7 +143,8 @@ extension TwitterUser.VerificationStatus {
                 tipAddress: .mock,
                 verificationStatus: .blue,
                 costOfFriendship: .init(currency: .usd, amount: 1.00),
-                isFriend: false
+                isFriend: false,
+                friendChatID: nil
             ),
             primaryAction: "Swipe to Tip",
             secondaryAction: "Cancel",

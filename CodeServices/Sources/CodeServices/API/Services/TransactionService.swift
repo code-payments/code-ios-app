@@ -54,7 +54,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Transfer -
     
-    func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool, tipAccount: TipAccount?, completion: @escaping (Result<IntentPrivateTransfer, Error>) -> Void) {
+    func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool, tipAccount: TipAccount?, chatID: ChatID?, completion: @escaping (Result<IntentPrivateTransfer, Error>) -> Void) {
         trace(.send)
         
         do {
@@ -66,7 +66,8 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 fee: fee,
                 additionalFees: additionalFees,
                 isWithdrawal: isWithdrawal,
-                tipAccount: tipAccount
+                tipAccount: tipAccount,
+                chatID: chatID
             )
             
             submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in

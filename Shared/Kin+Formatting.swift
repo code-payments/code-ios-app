@@ -29,7 +29,7 @@ extension Fiat {
         NumberFormatter.fiat(
             currency: currency,
             truncated: false,
-            suffix: currency.ofKinSuffix
+            suffix: showOfKin ? currency.ofKinSuffix : nil
         ).string(from: amount)!
     }
 }

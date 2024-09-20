@@ -14,8 +14,6 @@ struct EnterUsernameScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var bannerController: BannerController
     
-    @State private var enteredUsername: String = ""
-    
     @State private var isShowingChat: Bool = false
     
     @ObservedObject private var viewModel: DirectMessageViewModel
@@ -33,7 +31,7 @@ struct EnterUsernameScreen: View {
             VStack(alignment: .leading, spacing: 40) {
                 Spacer()
                 
-                TextField("X Username", text: $enteredUsername)
+                TextField("X Username", text: $viewModel.enteredUsername)
                     .font(.appDisplayMedium)
                     .frame(maxWidth: .infinity)
                     .truncationMode(.middle)
@@ -50,9 +48,9 @@ struct EnterUsernameScreen: View {
                     state: viewModel.beginChatState,
                     style: .filled,
                     title: Localized.Action.next,
-                    disabled: !viewModel.isValid(username: enteredUsername)
+                    disabled: !viewModel.isEnteredUsernameValid()
                 ) {
-                    viewModel.attemptChat(with: enteredUsername)
+                    viewModel.attemptChatWithEnteredUsername()
                 }
             }
             .foregroundColor(.textMain)

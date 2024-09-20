@@ -71,10 +71,6 @@ class ChatController: ObservableObject {
         }
     }
     
-    func startChat(for tipIntentID: PublicKey) async throws -> Chat {
-        try await client.startChat(owner: owner, tipIntentID: tipIntentID)
-    }
-    
     private func fetchChats() async throws {
         guard !fetchInflight else {
             return

@@ -28,7 +28,7 @@ struct BalanceScreen: View {
     @State private var isShowingBuyMoreKin: Bool = false
     @State private var isShowingCurrencySelection: Bool = false
     
-    @StateObject private var viewModel: ChatViewModel
+//    @StateObject private var viewModel: ChatViewModel
     
     private var chats: [Chat] {
         chatController.chats
@@ -74,12 +74,12 @@ struct BalanceScreen: View {
         self.chatController = chatController
         self._isPresented = isPresented
         
-        let chatViewModel = ChatViewModel(
-            chatController: chatController,
-            tipController: session.tipController
-        )
-        
-        self._viewModel = StateObject(wrappedValue: chatViewModel)
+//        let chatViewModel = ChatViewModel(
+//            chatController: chatController,
+//            tipController: session.tipController
+//        )
+//        
+//        self._viewModel = StateObject(wrappedValue: chatViewModel)
     }
     
     // MARK: - Appear -
@@ -97,7 +97,7 @@ struct BalanceScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack(path: $viewModel.navigationPath) {
+        NavigationStack/*(path: $viewModel.navigationPath)*/ {
             Background(color: .backgroundMain) {
                 GeometryReader { geometry in
                     if session.hasBalance && chatController.hasFetchedChats {

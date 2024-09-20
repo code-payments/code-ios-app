@@ -58,7 +58,7 @@ extension Chat.Member {
     public enum Identity: Equatable, Hashable {
         
         case unknown(String)
-        case twitter(String)
+        case twitter(String, URL?)
         
         public var isKnown: Bool {
             switch self {
@@ -74,10 +74,19 @@ extension Chat.Member {
             
             switch self {
             case .unknown(let n): name = n
-            case .twitter(let n): name = n
+            case .twitter(let n, _): name = n
             }
             
             return !name.isEmpty ? name : nil
+        }
+        
+        public var avatarURL: URL? {
+            switch self {
+            case .unknown:
+                return nil
+            case .twitter(_, let url):
+                return url
+            }
         }
     }
 }
@@ -104,7 +113,7 @@ extension Chat.Member.Identity {
         case .unknownPlatform:
             self = .unknown(proto.username)
         case .twitter:
-            self = .twitter(proto.username)
+            self = .twitter(proto.username, URL(string: proto.profilePicURL))
         case .UNRECOGNIZED:
             self = .unknown(proto.username)
         }

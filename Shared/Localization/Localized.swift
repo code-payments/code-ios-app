@@ -130,6 +130,8 @@ internal enum Localized {
     internal static let swipeToLogin = Localized.tr("Localizable", "action.swipeToLogin")
     /// Swipe to Pay
     internal static let swipeToPay = Localized.tr("Localizable", "action.swipeToPay")
+    /// Swipe to Send
+    internal static let swipeToSend = Localized.tr("Localizable", "action.swipeToSend")
     /// Swipe to Tip
     internal static let swipeToTip = Localized.tr("Localizable", "action.swipeToTip")
     /// Tap to Reveal Your Identity
