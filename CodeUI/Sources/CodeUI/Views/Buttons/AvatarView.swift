@@ -9,10 +9,11 @@
 #if canImport(UIKit)
 
 import SwiftUI
+import CodeServices
 
 public struct AvatarView: View {
     
-    public let value: Value
+    @State private var value: Value
     
     private let diameter: CGFloat
     
@@ -20,44 +21,60 @@ public struct AvatarView: View {
         CGSize(width: diameter, height: diameter)
     }
     
+    private var isLoaded: Bool {
+        switch value {
+        case .placeholder, .url:
+            return false
+        case .image:
+            return true
+        }
+    }
+    
+    private var loadedImage: UIImage {
+        switch value {
+        case .placeholder, .url:
+            return UIImage()
+        case .image(let image):
+            return image
+        }
+    }
+    
     // MARK: - Init -
     
     public init(value: Value, diameter: CGFloat = 80) {
-        self.value = value
+        self._value = State(wrappedValue: value)
         self.diameter = diameter
     }
     
     public var body: some View {
-//        AsyncImage(url: url) { phase in
-//            if let image = phase.image {
-//                image
-//                    .resizable()
-//                    .aspectRatio(contentMode: .fit)
-//                    .clipShape(Circle())
-//                    .drawingGroup()
-//            } else {
-//                PlaceholderAvatar()
-//            }
-//        }
-        Group {
-            switch value {
-            case .placeholder:
-                PlaceholderAvatar(diameter: diameter)
-            case .image(let image):
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .cornerRadius(diameter)
-            }
+        ZStack {
+            PlaceholderAvatar(diameter: diameter)
+                .opacity(isLoaded ? 0 : 1)
+            
+            Image(uiImage: loadedImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .mask(Circle())
+                .opacity(isLoaded ? 1 : 0)
         }
         .frame(width: diameter, height: diameter, alignment: .center)
+        .drawingGroup()
+        .onAppear {
+            if case .url(let imageURL) = value {
+                Task {
+                    let image = try await AvatarCache.shared.loadAvatar(url: imageURL)
+                    self.value = .image(image)
+                }
+            }
+        }
     }
 }
 
 extension AvatarView {
     public enum Value {
         case placeholder
-        case image(Image)
+        case image(UIImage)
+        case url(URL)
     }
 }
 

@@ -223,6 +223,20 @@ public struct Code_Common_V1_UserId {
   public init() {}
 }
 
+public struct Code_Common_V1_ChatId {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Sufficient space is left for a consistent hash value, though other types
+  /// of values may be used.
+  public var value: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// DataContainerId is a globally unique identifier for a container where a user
 /// can store a copy of their data
 public struct Code_Common_V1_DataContainerId {
@@ -513,6 +527,7 @@ extension Code_Common_V1_Blockhash: @unchecked Sendable {}
 extension Code_Common_V1_Signature: @unchecked Sendable {}
 extension Code_Common_V1_IntentId: @unchecked Sendable {}
 extension Code_Common_V1_UserId: @unchecked Sendable {}
+extension Code_Common_V1_ChatId: @unchecked Sendable {}
 extension Code_Common_V1_DataContainerId: @unchecked Sendable {}
 extension Code_Common_V1_DeviceToken: @unchecked Sendable {}
 extension Code_Common_V1_AppInstallId: @unchecked Sendable {}
@@ -788,6 +803,38 @@ extension Code_Common_V1_UserId: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
   }
 
   public static func ==(lhs: Code_Common_V1_UserId, rhs: Code_Common_V1_UserId) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Common_V1_ChatId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ChatId"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "value"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Common_V1_ChatId, rhs: Code_Common_V1_ChatId) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

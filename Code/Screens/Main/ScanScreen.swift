@@ -383,6 +383,7 @@ struct ScanScreen: View {
                         .sheet(isPresented: $isPresentingChat) {
                             ChatsScreen(
                                 session: session,
+                                exchange: exchange,
                                 chatController: chatController,
                                 bannerController: bannerController,
                                 isPresented: $isPresentingChat
@@ -408,14 +409,6 @@ struct ScanScreen: View {
                             aligment: .bottom,
                             binding: $isPresentingHistory
                         )
-                        .if(chatController.unreadCount > 0) { $0
-                            .badged(chatController.unreadCount, insets: .init(
-                                top: 22,
-                                leading: 0,
-                                bottom: 0,
-                                trailing: 8
-                            ))
-                        }
                     }
                     .sheet(isPresented: $isPresentingHistory) { [unowned session] in
                         BalanceScreen(
@@ -564,17 +557,20 @@ struct ScanScreen: View {
             )
             .zIndex(5)
             
-        } else if let tipConfirmation = session.billState.tipConfirmation {
+        } else if let tipConfirmation = session.billState.tipConfirmation, let user = tipConfirmation.user {
             ModalTipConfirmation(
                 username: tipConfirmation.username,
                 amount: tipConfirmation.amount.kin.formattedFiat(rate: tipConfirmation.amount.rate, showOfKin: true),
                 currency: tipConfirmation.amount.rate.currency,
-                avatar: tipConfirmation.avatar,
+                avatar: .url(user.avatarURL),
                 user: tipConfirmation.user,
                 primaryAction: Localized.Action.swipeToTip,
                 secondaryAction: Localized.Action.cancel,
                 paymentAction: { [weak session] in
-                    try await session?.completeTipPayment(amount: tipConfirmation.amount)
+                    try await session?.completeTipPayment(
+                        amount: tipConfirmation.amount,
+                        user: user
+                    )
                 },
                 dismissAction: { [weak session] in
                     session?.cancelTip()

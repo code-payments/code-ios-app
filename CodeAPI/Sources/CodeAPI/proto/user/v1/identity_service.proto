@@ -378,7 +378,7 @@ message TwitterUser {
     //
     // This should not be cached for an extended period, as exchange rate / value
     // may change at any time.
-    transaction.v2.ExchangeData friendship_cost = 7;
+    transaction.v2.ExchangeDataWithoutRate friendship_cost = 7;
 
     // ===========================================================
     // The rest of the fields require authentication to be present.
@@ -386,4 +386,11 @@ message TwitterUser {
 
     // Indicates the user is a friend of the caller.
     bool is_friend = 10;
+
+    // The ChatId used to communicate with this friend.
+    //
+    // This will always be set for authenticated users.
+    // If is_friend=false, this ChatId should be used when crafting
+    // the intent.
+    common.v1.ChatId friend_chat_id = 11;
 }

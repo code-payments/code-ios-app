@@ -184,7 +184,7 @@ extension Chat.Member.Identity {
                 $0.username = username
             }
             
-        case .twitter(let username):
+        case .twitter(let username, _):
             return .with {
                 $0.platform = .twitter
                 $0.username = username

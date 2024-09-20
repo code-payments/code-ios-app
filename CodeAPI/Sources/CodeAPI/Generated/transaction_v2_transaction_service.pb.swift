@@ -2026,18 +2026,18 @@ public struct Code_Transaction_V2_SendPrivatePaymentMetadata {
   /// Clears the value of `tippedUser`. Subsequent reads from it will return its default value.
   public mutating func clearTippedUser() {self._tippedUser = nil}
 
-  /// Is the payment for a friendship?
-  public var isFriendship: Bool = false
+  /// Is the payment for a chat?
+  public var isChat: Bool = false
 
-  /// If is_friendship is true, the user being friended
-  public var friendedUser: Code_Transaction_V2_FriendedUser {
-    get {return _friendedUser ?? Code_Transaction_V2_FriendedUser()}
-    set {_friendedUser = newValue}
+  /// If is_chat is true, the chat being paid for.
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
+    set {_chatID = newValue}
   }
-  /// Returns true if `friendedUser` has been explicitly set.
-  public var hasFriendedUser: Bool {return self._friendedUser != nil}
-  /// Clears the value of `friendedUser`. Subsequent reads from it will return its default value.
-  public mutating func clearFriendedUser() {self._friendedUser = nil}
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2046,7 +2046,7 @@ public struct Code_Transaction_V2_SendPrivatePaymentMetadata {
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
   fileprivate var _tippedUser: Code_Transaction_V2_TippedUser? = nil
-  fileprivate var _friendedUser: Code_Transaction_V2_FriendedUser? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
 }
 
 /// Send a payment to a destination account publicly.
@@ -6029,8 +6029,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     4: .standard(proto: "is_remote_send"),
     5: .standard(proto: "is_tip"),
     6: .standard(proto: "tipped_user"),
-    7: .standard(proto: "is_friendship"),
-    8: .standard(proto: "friended_user"),
+    7: .standard(proto: "is_chat"),
+    8: .standard(proto: "chat_id"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -6045,8 +6045,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
       case 4: try { try decoder.decodeSingularBoolField(value: &self.isRemoteSend) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.isTip) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._tippedUser) }()
-      case 7: try { try decoder.decodeSingularBoolField(value: &self.isFriendship) }()
-      case 8: try { try decoder.decodeSingularMessageField(value: &self._friendedUser) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.isChat) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
       default: break
       }
     }
@@ -6075,10 +6075,10 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     try { if let v = self._tippedUser {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     } }()
-    if self.isFriendship != false {
-      try visitor.visitSingularBoolField(value: self.isFriendship, fieldNumber: 7)
+    if self.isChat != false {
+      try visitor.visitSingularBoolField(value: self.isChat, fieldNumber: 7)
     }
-    try { if let v = self._friendedUser {
+    try { if let v = self._chatID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     } }()
     try unknownFields.traverse(visitor: &visitor)
@@ -6091,8 +6091,8 @@ extension Code_Transaction_V2_SendPrivatePaymentMetadata: SwiftProtobuf.Message,
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
     if lhs.isTip != rhs.isTip {return false}
     if lhs._tippedUser != rhs._tippedUser {return false}
-    if lhs.isFriendship != rhs.isFriendship {return false}
-    if lhs._friendedUser != rhs._friendedUser {return false}
+    if lhs.isChat != rhs.isChat {return false}
+    if lhs._chatID != rhs._chatID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

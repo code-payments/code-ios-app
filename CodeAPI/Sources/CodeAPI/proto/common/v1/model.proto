@@ -92,6 +92,15 @@ message UserId {
     }];
 }
 
+message ChatId {
+    // Sufficient space is left for a consistent hash value, though other types
+    // of values may be used.
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
 // DataContainerId is a globally unique identifier for a container where a user
 // can store a copy of their data
 message DataContainerId {

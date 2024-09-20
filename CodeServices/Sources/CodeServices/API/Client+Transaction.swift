@@ -17,7 +17,7 @@ extension Client {
         }
     }
     
-    public func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool, tipAccount: TipAccount?) async throws {
+    public func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool, tipAccount: TipAccount?, chatID: ChatID?) async throws {
         let intent = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 amount: amount,
@@ -28,6 +28,7 @@ extension Client {
                 destination: destination,
                 isWithdrawal: isWithdrawal,
                 tipAccount: tipAccount,
+                chatID: chatID,
                 completion: { c.resume(with: $0) }
             )
         }

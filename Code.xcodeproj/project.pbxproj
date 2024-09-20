@@ -89,7 +89,6 @@
 		9A557DA028AC34A400A58BB1 /* Reachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A557D9F28AC34A300A58BB1 /* Reachability.swift */; };
 		9A57221925EE92BC00B243FC /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A57221825EE92BC00B243FC /* SettingsScreen.swift */; };
 		9A57224925EEDC4200B243FC /* DepositScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A57224825EEDC4200B243FC /* DepositScreen.swift */; };
-		9A579A452C459B4800C3B592 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A579A442C459B4800C3B592 /* ChatViewModel.swift */; };
 		9A5E35E726261E190066E4C8 /* AccessKeyScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A5E35E626261E190066E4C8 /* AccessKeyScreen.swift */; };
 		9A646986275FE634008B1498 /* Analytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A646985275FE634008B1498 /* Analytics.swift */; };
 		9A64698E275FF9CD008B1498 /* Events.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A64698D275FF9CD008B1498 /* Events.swift */; };
@@ -136,6 +135,8 @@
 		9A8E68702B867EBC00914C23 /* MessageList+Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */; };
 		9A8E861627A44EB300213934 /* RestrictedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8E861527A44EB300213934 /* RestrictedScreen.swift */; };
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
+		9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */; };
+		9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */; };
 		9A9A273C27D00F76005EBBC6 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9A273B27D00F76005EBBC6 /* AccountManager.swift */; };
 		9A9A273F27D28AEE005EBBC6 /* AccountSelectionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9A273E27D28AEE005EBBC6 /* AccountSelectionScreen.swift */; };
 		9A9C16C92AAF971D00B1A964 /* DeepLinkRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */; };
@@ -342,7 +343,6 @@
 		9A557D9F28AC34A300A58BB1 /* Reachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reachability.swift; sourceTree = "<group>"; };
 		9A57221825EE92BC00B243FC /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
 		9A57224825EEDC4200B243FC /* DepositScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepositScreen.swift; sourceTree = "<group>"; };
-		9A579A442C459B4800C3B592 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		9A592D762B17AF5500735BB0 /* base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = base.xcconfig; sourceTree = "<group>"; };
 		9A5E35E626261E190066E4C8 /* AccessKeyScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessKeyScreen.swift; sourceTree = "<group>"; };
 		9A646985275FE634008B1498 /* Analytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Analytics.swift; sourceTree = "<group>"; };
@@ -427,6 +427,8 @@
 		9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MessageList+Tests.swift"; sourceTree = "<group>"; };
 		9A8E861527A44EB300213934 /* RestrictedScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RestrictedScreen.swift; sourceTree = "<group>"; };
 		9A9469BA27A090E10028F27E /* MessageController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageController.swift; sourceTree = "<group>"; };
+		9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationScreen.swift; sourceTree = "<group>"; };
+		9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationContainer.swift; sourceTree = "<group>"; };
 		9A9A273B27D00F76005EBBC6 /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountManager.swift; sourceTree = "<group>"; };
 		9A9A273E27D28AEE005EBBC6 /* AccountSelectionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSelectionScreen.swift; sourceTree = "<group>"; };
 		9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkRequest.swift; sourceTree = "<group>"; };
@@ -581,6 +583,8 @@
 				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
 				9AA9799D2C75210F00395552 /* ChatsScreen.swift */,
 				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
+				9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */,
+				9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */,
 				9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */,
 			);
 			path = Balance;
@@ -766,7 +770,6 @@
 				9A6740D32C34726C00F9F7BD /* TimestampView.swift */,
 				9A6740D52C3472A600F9F7BD /* FiatField.swift */,
 				9A6740DB2C3485E000F9F7BD /* RevealIdentityBanner.swift */,
-				9A579A442C459B4800C3B592 /* ChatViewModel.swift */,
 				9A1CE1DE2C92163000B596CC /* DirectMessageViewModel.swift */,
 			);
 			path = Messaging;
@@ -1497,6 +1500,7 @@
 				9A2A3A8B25C32F0D007A8C50 /* RedundancyContainer.swift in Sources */,
 				9A1EBC5226246EFD003F8B19 /* String+Padding.swift in Sources */,
 				9AE45EB529E9905100EE2F60 /* DeepLinkController.swift in Sources */,
+				9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */,
 				9A829A4028A57852005F4F87 /* AppContainer.swift in Sources */,
 				9AD5D72F25F13A18007388AE /* BalanceScreen.swift in Sources */,
 				9A6740D02C34721200F9F7BD /* MessageEncrypted.swift in Sources */,
@@ -1555,7 +1559,6 @@
 				9A084D7226165CDC00F3C9B9 /* Stopwatch.swift in Sources */,
 				9A6740D22C34722D00F9F7BD /* MessageItem.swift in Sources */,
 				9A3E945227473EC700789CF6 /* LoginScreen.swift in Sources */,
-				9A579A452C459B4800C3B592 /* ChatViewModel.swift in Sources */,
 				9A2B16C52B73FF86008DB36D /* DepositUSDCScreen.swift in Sources */,
 				9ACFA004261DFDA6007F97B4 /* Environment.swift in Sources */,
 				9AED1104258BE1310088D902 /* AppDelegate.swift in Sources */,
@@ -1583,6 +1586,7 @@
 				9A8E861627A44EB300213934 /* RestrictedScreen.swift in Sources */,
 				9A4283C12A055C5400792BFD /* GiftCardVault.swift in Sources */,
 				9A6D6D352AE1AD55003D9569 /* String+Localized.swift in Sources */,
+				9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */,
 				9AE0834228EC8E7D00350407 /* DeleteAccountScreen.swift in Sources */,
 				9AACF3B52C1C8D2300F48721 /* CronActor.swift in Sources */,
 				9A1CE1DD2C91F32200B596CC /* TwitterUserController.swift in Sources */,

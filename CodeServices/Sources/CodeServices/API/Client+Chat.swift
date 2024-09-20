@@ -23,9 +23,9 @@ extension Client {
         }
     }
     
-    public func startChat(owner: KeyPair, tipIntentID: PublicKey) async throws -> Chat {
+    public func startChat(owner: KeyPair, ownerUsername: String, intentID: PublicKey, destination: PublicKey) async throws -> Chat {
         try await withCheckedThrowingContinuation { c in
-            chatService.startChat(owner: owner, tipIntentID: tipIntentID) { c.resume(with: $0) }
+            chatService.startChat(owner: owner, ownerUsername: ownerUsername, intentID: intentID, destination: destination) { c.resume(with: $0) }
         }
     }
     

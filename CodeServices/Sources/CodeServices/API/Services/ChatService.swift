@@ -125,14 +125,25 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
     }
     
-    func startChat(owner: KeyPair, tipIntentID: PublicKey, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
+    func startChat(owner: KeyPair, ownerUsername: String, intentID: PublicKey, destination: PublicKey, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Chat_V2_StartChatRequest.with {
             $0.owner = owner.publicKey.codeAccountID
-            $0.twoWayChat = .with {
-                $0.intentID = tipIntentID.codeIntentID
+            $0.self_p = .with {
+                $0.platform = .twitter
+                $0.username = ownerUsername
             }
+            
+            $0.twoWayChat = .with {
+                $0.intentID  = intentID.codeIntentID
+                $0.otherUser = destination.codeAccountID
+                $0.identity  = .with {
+                    $0.platform = .twitter
+                    $0.username = ownerUsername
+                }
+            }
+            
             $0.signature = $0.sign(with: owner)
         }
         
@@ -147,7 +158,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
                     completion(.success(chat))
                 }
             } else {
-                trace(.success, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             

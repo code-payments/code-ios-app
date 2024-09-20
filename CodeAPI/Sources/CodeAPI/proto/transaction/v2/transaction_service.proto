@@ -690,11 +690,11 @@ message SendPrivatePaymentMetadata {
     // If is_tip is true, the user being tipped
     TippedUser tipped_user = 6;
 
-    // Is the payment for a friendship?
-    bool is_friendship = 7;
+    // Is the payment for a chat?
+    bool is_chat = 7;
 
-    // If is_friendship is true, the user being friended
-    FriendedUser friended_user = 8;
+    // If is_chat is true, the chat being paid for.
+    common.v1.ChatId chat_id = 8;
 }
 
 // Send a payment to a destination account publicly.

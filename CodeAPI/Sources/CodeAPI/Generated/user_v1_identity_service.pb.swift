@@ -1148,8 +1148,8 @@ public struct Code_User_V1_TwitterUser {
   ///
   /// This should not be cached for an extended period, as exchange rate / value
   /// may change at any time.
-  public var friendshipCost: Code_Transaction_V2_ExchangeData {
-    get {return _friendshipCost ?? Code_Transaction_V2_ExchangeData()}
+  public var friendshipCost: Code_Transaction_V2_ExchangeDataWithoutRate {
+    get {return _friendshipCost ?? Code_Transaction_V2_ExchangeDataWithoutRate()}
     set {_friendshipCost = newValue}
   }
   /// Returns true if `friendshipCost` has been explicitly set.
@@ -1159,6 +1159,20 @@ public struct Code_User_V1_TwitterUser {
 
   /// Indicates the user is a friend of the caller.
   public var isFriend: Bool = false
+
+  /// The ChatId used to communicate with this friend.
+  ///
+  /// This will always be set for authenticated users.
+  /// If is_friend=false, this ChatId should be used when crafting
+  /// the intent.
+  public var friendChatID: Code_Common_V1_ChatId {
+    get {return _friendChatID ?? Code_Common_V1_ChatId()}
+    set {_friendChatID = newValue}
+  }
+  /// Returns true if `friendChatID` has been explicitly set.
+  public var hasFriendChatID: Bool {return self._friendChatID != nil}
+  /// Clears the value of `friendChatID`. Subsequent reads from it will return its default value.
+  public mutating func clearFriendChatID() {self._friendChatID = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1199,7 +1213,8 @@ public struct Code_User_V1_TwitterUser {
   public init() {}
 
   fileprivate var _tipAddress: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _friendshipCost: Code_Transaction_V2_ExchangeData? = nil
+  fileprivate var _friendshipCost: Code_Transaction_V2_ExchangeDataWithoutRate? = nil
+  fileprivate var _friendChatID: Code_Common_V1_ChatId? = nil
 }
 
 #if swift(>=4.2)
@@ -2171,6 +2186,7 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
     6: .standard(proto: "follower_count"),
     7: .standard(proto: "friendship_cost"),
     10: .standard(proto: "is_friend"),
+    11: .standard(proto: "friend_chat_id"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2187,6 +2203,7 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
       case 6: try { try decoder.decodeSingularUInt32Field(value: &self.followerCount) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._friendshipCost) }()
       case 10: try { try decoder.decodeSingularBoolField(value: &self.isFriend) }()
+      case 11: try { try decoder.decodeSingularMessageField(value: &self._friendChatID) }()
       default: break
       }
     }
@@ -2221,6 +2238,9 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if self.isFriend != false {
       try visitor.visitSingularBoolField(value: self.isFriend, fieldNumber: 10)
     }
+    try { if let v = self._friendChatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2233,6 +2253,7 @@ extension Code_User_V1_TwitterUser: SwiftProtobuf.Message, SwiftProtobuf._Messag
     if lhs.followerCount != rhs.followerCount {return false}
     if lhs._friendshipCost != rhs._friendshipCost {return false}
     if lhs.isFriend != rhs.isFriend {return false}
+    if lhs._friendChatID != rhs._friendChatID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

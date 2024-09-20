@@ -740,8 +740,7 @@ class Session: ObservableObject {
             return
         }
         
-        let avatar = tipController.userAvatar
-        let user   = tipController.userMetadata
+        let user = tipController.userMetadata
         
         billState = billState
             .showTipConfirmation(
@@ -749,7 +748,6 @@ class Session: ObservableObject {
                     payload: payload,
                     amount: amount,
                     username: username,
-                    avatar: avatar,
                     user: user
                 )
             )
@@ -764,10 +762,7 @@ class Session: ObservableObject {
         }
     }
     
-    func completeTipPayment(amount: KinAmount) async throws {
-        guard let metadata = tipController.userMetadata else {
-            return
-        }
+    func completeTipPayment(amount: KinAmount, user: TwitterUser) async throws {
         
         // Generally, we would use the rendezvous key that
         // was generated from the scan code payload, however,
@@ -781,9 +776,9 @@ class Session: ObservableObject {
                 fee: 0,
                 additionalFees: [],
                 rendezvous: rendezvous,
-                destination: metadata.tipAddress,
+                destination: user.tipAddress,
                 withdrawal: true,
-                tipAccount: .x(metadata.username)
+                tipAccount: .x(user.username)
             )
             
             showToast(delayInMilliseconds: 1750, amount: amount, isDeposit: false)
@@ -840,6 +835,59 @@ class Session: ObservableObject {
             .secondaryAction(nil)
         
         UIApplication.shouldPauseInterfaceReset = false
+    }
+    
+    // MARK: - Chat -
+    
+    func payAndStartChat(amount: KinAmount, destination: PublicKey, chatID: ChatID) async throws -> Chat {
+        let rendezvous = PublicKey.generate()!
+        
+        do {
+            guard let selfUser = tipController.twitterUser else {
+                throw ChatError.twitterUnauthenticated
+            }
+            
+            try await flowController.transfer(
+                amount: amount,
+                fee: 0,
+                additionalFees: [],
+                rendezvous: rendezvous,
+                destination: destination,
+                withdrawal: true,
+                tipAccount: nil,
+                chatID: chatID
+            )
+            
+            let chat = try await client.startChat(
+                owner: organizer.ownerKeyPair,
+                ownerUsername: selfUser.username,
+                intentID: rendezvous, // In this case, rendezvous must be the transfer intent ID
+                destination: destination
+            )
+            
+            return chat
+//            Analytics.transferForTip(
+//                amount: amount,
+//                successful: true,
+//                error: nil
+//            )
+            
+        } catch {
+//            Analytics.transferForTip(
+//                amount: amount,
+//                successful: false,
+//                error: error
+//            )
+            
+            ErrorReporting.capturePayment(
+                error: error,
+                rendezvous: rendezvous,
+                tray: organizer.tray,
+                amount: amount
+            )
+            
+            throw error
+        }
     }
     
     // MARK: - Cash -
@@ -1576,6 +1624,10 @@ extension Session {
         case exchangeForCurrencyNotFound
         case messageForRendezvousNotFound
         case rendezvousFailedValidation
+    }
+    
+    enum ChatError: Swift.Error {
+        case twitterUnauthenticated
     }
 }
 

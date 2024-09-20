@@ -300,8 +300,8 @@ public struct Code_Chat_V2_GetMessagesRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -381,7 +381,7 @@ public struct Code_Chat_V2_GetMessagesRequest {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
@@ -467,8 +467,8 @@ public struct Code_Chat_V2_OpenChatEventStream {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -507,7 +507,7 @@ public struct Code_Chat_V2_OpenChatEventStream {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
@@ -975,8 +975,8 @@ public struct Code_Chat_V2_SendMessageRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -1020,7 +1020,7 @@ public struct Code_Chat_V2_SendMessageRequest {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
@@ -1108,8 +1108,8 @@ public struct Code_Chat_V2_AdvancePointerRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -1148,7 +1148,7 @@ public struct Code_Chat_V2_AdvancePointerRequest {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _pointer: Code_Chat_V2_Pointer? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
@@ -1223,8 +1223,8 @@ public struct Code_Chat_V2_RevealIdentityRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -1272,7 +1272,7 @@ public struct Code_Chat_V2_RevealIdentityRequest {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
   fileprivate var _identity: Code_Chat_V2_ChatMemberIdentity? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
@@ -1356,8 +1356,8 @@ public struct Code_Chat_V2_SetMuteStateRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -1398,7 +1398,7 @@ public struct Code_Chat_V2_SetMuteStateRequest {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
@@ -1469,8 +1469,8 @@ public struct Code_Chat_V2_SetSubscriptionStateRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -1511,7 +1511,7 @@ public struct Code_Chat_V2_SetSubscriptionStateRequest {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
@@ -1582,8 +1582,8 @@ public struct Code_Chat_V2_NotifyIsTypingRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -1624,7 +1624,7 @@ public struct Code_Chat_V2_NotifyIsTypingRequest {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _memberID: Code_Chat_V2_ChatMemberId? = nil
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
@@ -1686,20 +1686,6 @@ extension Code_Chat_V2_NotifyIsTypingResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
-public struct Code_Chat_V2_ChatId {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// Sufficient space is left for a consistent hash value, though other types
-  /// of values may be used.
-  public var value: Data = Data()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
 public struct Code_Chat_V2_ChatMessageId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1737,8 +1723,8 @@ public struct Code_Chat_V2_ChatMetadata {
   // methods supported on all messages.
 
   /// Globally unique ID for this chat
-  public var chatID: Code_Chat_V2_ChatId {
-    get {return _chatID ?? Code_Chat_V2_ChatId()}
+  public var chatID: Code_Common_V1_ChatId {
+    get {return _chatID ?? Code_Common_V1_ChatId()}
     set {_chatID = newValue}
   }
   /// Returns true if `chatID` has been explicitly set.
@@ -1782,7 +1768,7 @@ public struct Code_Chat_V2_ChatMetadata {
 
   public init() {}
 
-  fileprivate var _chatID: Code_Chat_V2_ChatId? = nil
+  fileprivate var _chatID: Code_Common_V1_ChatId? = nil
   fileprivate var _cursor: Code_Chat_V2_Cursor? = nil
 }
 
@@ -2457,7 +2443,6 @@ extension Code_Chat_V2_SetSubscriptionStateResponse.Result: @unchecked Sendable 
 extension Code_Chat_V2_NotifyIsTypingRequest: @unchecked Sendable {}
 extension Code_Chat_V2_NotifyIsTypingResponse: @unchecked Sendable {}
 extension Code_Chat_V2_NotifyIsTypingResponse.Result: @unchecked Sendable {}
-extension Code_Chat_V2_ChatId: @unchecked Sendable {}
 extension Code_Chat_V2_ChatMessageId: @unchecked Sendable {}
 extension Code_Chat_V2_ChatMemberId: @unchecked Sendable {}
 extension Code_Chat_V2_ChatMetadata: @unchecked Sendable {}
@@ -3901,38 +3886,6 @@ extension Code_Chat_V2_NotifyIsTypingResponse.Result: SwiftProtobuf._ProtoNamePr
     1: .same(proto: "DENIED"),
     2: .same(proto: "CHAT_NOT_FOUND"),
   ]
-}
-
-extension Code_Chat_V2_ChatId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ChatId"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "value"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.value.isEmpty {
-      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Chat_V2_ChatId, rhs: Code_Chat_V2_ChatId) -> Bool {
-    if lhs.value != rhs.value {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
 }
 
 extension Code_Chat_V2_ChatMessageId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

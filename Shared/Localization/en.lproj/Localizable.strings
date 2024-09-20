@@ -122,6 +122,9 @@
 /* Swipe to Tip */
 "action.swipeToTip" = "Swipe to Tip";
 
+/* Swipe to Send */
+"action.swipeToSend" = "Swipe to Send";
+
 /* Open Settings */
 "action.openSettings" = "Open Settings";
 
