@@ -1807,7 +1807,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -1956,7 +1956,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
@@ -2087,7 +2087,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2125,7 +2125,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2159,7 +2159,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2192,7 +2192,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.kin.code$(APP_ICON_SUFFIX).CodePushExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2484,7 +2484,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				OTHER_LDFLAGS = (
 					"-lc++",
 					"$(inherited)",
@@ -2522,7 +2522,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1.14;
+				MARKETING_VERSION = 2.1.16;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
 					"-lc++",
