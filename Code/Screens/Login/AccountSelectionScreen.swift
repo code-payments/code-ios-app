@@ -189,12 +189,12 @@ struct AccountSelectionScreen: View {
                             
                         } catch ErrorFetchAccountInfos.notFound {
                             await update(owner: owner.publicKey) {
-                                $0.isNotFound = true
+                                $0.setNotFound()
                             }
                             
                         } catch ErrorFetchAccountInfos.migrationRequired {
                             await update(owner: owner.publicKey) {
-                                $0.isMigrationRequired = true
+                                $0.setMigrationRequired()
                             }
                         }
                     }
@@ -203,7 +203,7 @@ struct AccountSelectionScreen: View {
         }
     }
     
-    private func update(owner: PublicKey, handler: (inout HistoricalAccount2) -> Void) {
+    private func update(owner: PublicKey, handler: @MainActor (inout HistoricalAccount2) -> Void) {
         let index = accounts.firstIndex { $0.details.account.ownerPublicKey == owner }
         
         guard let index = index else {
@@ -216,18 +216,21 @@ struct AccountSelectionScreen: View {
 
 // MARK: - HistoricalAccount -
 
-private class HistoricalAccount2: Identifiable {
+@MainActor
+class HistoricalAccount2: Identifiable {
     
+    nonisolated
     var id: String {
         details.account.ownerPublicKey.base58
     }
     
+    nonisolated
     let details: AccountDescription
     
     private(set) var organizer: Organizer
     
-    var isNotFound: Bool = false
-    var isMigrationRequired: Bool = false
+    private(set) var isNotFound: Bool = false
+    private(set) var isMigrationRequired: Bool = false
 
     init(details: AccountDescription) {
         self.details = details
@@ -244,6 +247,14 @@ private class HistoricalAccount2: Identifiable {
     
     func formattedFiat(rate: Rate) -> String {
         organizer.availableBalance.formattedFiat(rate: rate, showOfKin: false)
+    }
+    
+    func setNotFound() {
+        isNotFound = true
+    }
+    
+    func setMigrationRequired() {
+        isMigrationRequired = true
     }
 }
 

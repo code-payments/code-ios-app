@@ -9,7 +9,7 @@
 import Foundation
 
 extension Message {
-    public struct Header: Equatable {
+    public struct Header: Equatable, Sendable {
         
         static let length: Int = 3
         

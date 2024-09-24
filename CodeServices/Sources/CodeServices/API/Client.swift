@@ -11,7 +11,8 @@ import Combine
 import NIO
 import GRPC
 
-public class Client {
+@MainActor
+public class Client: ObservableObject {
     
     public let network: Network
     public let context: Context

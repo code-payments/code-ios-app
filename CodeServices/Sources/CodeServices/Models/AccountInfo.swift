@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct AccountInfo: Equatable {
+public struct AccountInfo: Equatable, Sendable {
     
     /// The account's derivation index for applicable account types. When this field
     /// doesn't apply, a zero value is provided.
@@ -106,7 +106,7 @@ extension AccountInfo {
 // MARK: - ManagementState -
 
 extension AccountInfo {
-    public enum ManagementState: Int, CaseIterable {
+    public enum ManagementState: Int, CaseIterable, Sendable {
         /// The state of the account is unknown. This may be returned when the
         /// data source is unstable and a reliable state cannot be determined.
         case unknown
@@ -141,7 +141,7 @@ extension AccountInfo {
 // MARK: - BlockchainState -
 
 extension AccountInfo {
-    public enum BlockchainState: Int, CaseIterable {
+    public enum BlockchainState: Int, CaseIterable, Sendable {
         /// The state of the account is unknown. This may be returned when the
         /// data source is unstable and a reliable state cannot be determined.
         case unknown
@@ -157,7 +157,7 @@ extension AccountInfo {
 // MARK: - BalanceSource -
 
 extension AccountInfo {
-    public enum BalanceSource: Int, CaseIterable {
+    public enum BalanceSource: Int, CaseIterable, Sendable {
         /// The account's balance could not be determined. This may be returned when
         /// the data source is unstable and a reliable balance cannot be determined.
         case unknown
@@ -175,7 +175,7 @@ extension AccountInfo {
 // MARK: - Claim State -
 
 extension AccountInfo {
-    public enum ClaimState: Int, CaseIterable {
+    public enum ClaimState: Int, CaseIterable, Sendable {
         /// could not be fetched by server.
         case unknown
         
@@ -194,7 +194,7 @@ extension AccountInfo {
 // MARK: - Relationship -
 
 extension AccountInfo {
-    public struct Relationship: Equatable {
+    public struct Relationship: Equatable, Sendable {
         
         public let domain: Domain
         

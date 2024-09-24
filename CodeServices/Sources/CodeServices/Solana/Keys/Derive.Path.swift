@@ -9,7 +9,7 @@
 import Foundation
 
 extension Derive {
-    public struct Path: Codable, Equatable, Hashable {
+    public struct Path: Codable, Equatable, Hashable, Sendable {
         
         public let indexes: [Index]
         public let password: String?
@@ -74,7 +74,7 @@ extension Derive.Path {
 // MARK: - Index -
 
 extension Derive.Path {
-    public struct Index: Codable, Equatable, Hashable {
+    public struct Index: Codable, Equatable, Hashable, Sendable {
         
         public var value: UInt32
         public var hardened: Bool

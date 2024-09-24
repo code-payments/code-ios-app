@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct MnemonicPhrase: Codable, Equatable, Hashable {
+public struct MnemonicPhrase: Codable, Equatable, Hashable, Sendable {
     
     public let kind: Kind
     public let words: [String]
@@ -109,7 +109,7 @@ extension MnemonicPhrase {
 // MARK: - Kind -
 
 extension MnemonicPhrase {
-    public enum Kind: Codable, Equatable, Hashable {
+    public enum Kind: Codable, Equatable, Hashable, Sendable {
         case words12
         case words24
     }

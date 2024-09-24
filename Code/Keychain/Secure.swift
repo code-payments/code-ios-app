@@ -18,6 +18,7 @@ enum SecureKey: String {
     case debugOptions = "com.code.debug.options"
 }
 
+@MainActor
 @propertyWrapper
 struct SecureData {
     
@@ -41,6 +42,7 @@ struct SecureData {
     }
 }
 
+@MainActor
 @propertyWrapper
 struct SecureString {
     
@@ -64,6 +66,7 @@ struct SecureString {
     }
 }
 
+@MainActor
 @propertyWrapper
 struct SecureCodable<T> where T: Codable {
     

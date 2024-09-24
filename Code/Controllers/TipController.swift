@@ -254,6 +254,7 @@ class TipController: ObservableObject {
 
 // MARK: - Delegate -
 
+@MainActor
 protocol TipControllerDelegate: AnyObject {
     func willShowTipCard(for user: TwitterUser)
 }

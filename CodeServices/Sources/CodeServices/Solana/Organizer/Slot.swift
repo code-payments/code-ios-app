@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Slot: Equatable, Codable, Hashable {
+public struct Slot: Equatable, Codable, Hashable, Sendable {
     
     var partialBalance: Kin
     
@@ -37,7 +37,7 @@ extension Slot {
 
 // MARK: - SlotType -
 
-public enum SlotType: Int, Equatable, CaseIterable, Codable {
+public enum SlotType: Int, Equatable, CaseIterable, Codable, Sendable {
     
     case bucket1
     case bucket10

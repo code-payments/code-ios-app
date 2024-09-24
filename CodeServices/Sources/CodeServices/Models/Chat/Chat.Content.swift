@@ -10,7 +10,7 @@ import Foundation
 import CodeAPI
 
 extension Chat {
-    public enum Content: Equatable, Hashable {
+    public enum Content: Equatable, Hashable, Sendable {
         case text(String)
         case localized(String)
         case kin(GenericAmount, Verb, Reference)
@@ -22,7 +22,7 @@ extension Chat {
 }
 
 extension Chat.Content {
-    public enum Direction {
+    public enum Direction: Sendable {
         case fromSelf
         case fromOther
     }

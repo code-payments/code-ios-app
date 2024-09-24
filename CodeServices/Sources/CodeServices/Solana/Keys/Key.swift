@@ -51,7 +51,7 @@ extension KeyType {
 
 // MARK: - Key16 -
 
-public struct Key16: KeyType, Equatable, Codable, Hashable {
+public struct Key16: KeyType, Equatable, Codable, Hashable, Sendable {
     
     public static let length = 16
     
@@ -74,7 +74,7 @@ extension Key16: CustomStringConvertible {
 
 // MARK: - Key32 -
 
-public struct Key32: KeyType, Equatable, Codable, Hashable {
+public struct Key32: KeyType, Equatable, Codable, Hashable, Sendable {
     
     public static let length = 32
     
@@ -103,7 +103,7 @@ extension Key32: Identifiable {
 
 // MARK: - Key64 -
 
-public struct Key64: KeyType, Equatable, Codable, Hashable {
+public struct Key64: KeyType, Equatable, Codable, Hashable, Sendable {
     
     public static let length = 64
     

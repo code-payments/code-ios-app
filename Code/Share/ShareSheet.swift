@@ -16,7 +16,7 @@ struct ShareSheet: UIViewControllerRepresentable {
     
     // MARK: - Init -
     
-    init(activityItem: UIActivityItemSource, completion: @escaping VoidAction) {
+    init(activityItem: UIActivityItemSource, completion: @escaping VoidActionSendable) {
         self.activityItem = activityItem
         self.completion = completion
     }
@@ -35,13 +35,18 @@ struct ShareSheet: UIViewControllerRepresentable {
     
     static func present(activityItem: UIActivityItemSource, completion: @escaping VoidAction) {
         let controller = CustomActivityController(activityItems: [activityItem], applicationActivities: nil)
-        controller.dismissHandler = completion
+        controller.dismissHandler = {
+            Task { @MainActor in
+                completion()
+            }
+        }
         
         ErrorReporting.breadcrumb(.remoteSendShareSheet)
         
         UIApplication.shared.rootViewController?.present(controller, animated: true, completion: nil)
     }
     
+    @MainActor
     static func present(url: URL) {
         let controller = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         
@@ -53,9 +58,10 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 // MARK: - CustomActivityController -
 
+@MainActor
 private class CustomActivityController: UIActivityViewController {
     
-    var dismissHandler: VoidAction?
+    nonisolated(unsafe) var dismissHandler: VoidAction?
     
     deinit {
         dismissHandler?()

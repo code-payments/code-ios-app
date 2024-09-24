@@ -10,6 +10,7 @@ import Combine
 import CodeServices
 import CodeUI
 
+@MainActor
 extension UserDefaults {
     
     @Defaults(.launchCount) 

@@ -6,10 +6,11 @@
 //
 
 import UIKit
-import UserNotifications
 import Combine
 import CodeServices
-import Firebase
+
+@preconcurrency import Firebase
+@preconcurrency import UserNotifications
 
 @MainActor
 class PushController: ObservableObject {
@@ -152,7 +153,7 @@ extension PushController {
 @MainActor
 private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, MessagingDelegate {
     
-    var didReceiveFCMToken: ((String?) -> Void)?
+    var didReceiveFCMToken: (@MainActor (String?) -> Void)?
     
     let firebase: Messaging
     
@@ -161,6 +162,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         super.init()
     }
     
+    nonisolated
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         trace(.warning, components: 
               "Date:     \(notification.date)",
@@ -171,7 +173,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
               "Info:     \(notification.request.content.userInfo)"
         )
         
-        firebase.appDidReceiveMessage(notification.request.content.userInfo)
+        await firebase.appDidReceiveMessage(notification.request.content.userInfo)
         
         DispatchQueue.main.async {
             let category = notification.request.content.categoryIdentifier
@@ -202,20 +204,22 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         return options
     }
     
+    nonisolated
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         trace(.warning, components: "Received response: \(response.actionIdentifier)")
         
-        firebase.appDidReceiveMessage(response.notification.request.content.userInfo)
+        await firebase.appDidReceiveMessage(response.notification.request.content.userInfo)
         
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
         }
     }
     
-    nonisolated func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    nonisolated
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         trace(.warning, components: "Received FCM token: \(fcmToken ?? "nil")")
-        DispatchQueue.main.async { [weak self] in
-            self?.didReceiveFCMToken?(fcmToken)
+        Task {
+            await self.didReceiveFCMToken?(fcmToken)
         }
     }
 }

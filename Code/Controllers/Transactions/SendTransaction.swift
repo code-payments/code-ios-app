@@ -7,7 +7,7 @@
 
 import Foundation
 import CodeServices
-import Combine
+@preconcurrency import Combine
 import CodeUI
 
 @MainActor

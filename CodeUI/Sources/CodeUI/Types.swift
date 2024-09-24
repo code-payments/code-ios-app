@@ -8,6 +8,7 @@
 
 import Foundation
 
+public typealias VoidActionSendable  = @Sendable () -> Void
 public typealias VoidAction  = () -> Void
 public typealias AsyncAction = () async -> Void
 public typealias ThrowingAction = () async throws -> Void

@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-public struct User: Equatable {
+public struct User: Equatable, Sendable {
     
     public let id: ID
     public let containerID: ID

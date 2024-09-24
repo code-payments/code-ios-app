@@ -10,7 +10,7 @@ import Foundation
 import CodeAPI
 
 extension Chat {
-    public struct Message: Equatable, Identifiable, Hashable {
+    public struct Message: Equatable, Identifiable, Hashable, Sendable {
         
         /// Globally unique ID for this message
         public let id: MessageID

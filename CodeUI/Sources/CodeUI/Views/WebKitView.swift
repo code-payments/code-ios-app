@@ -9,6 +9,7 @@
 import SwiftUI
 import WebKit
 
+@MainActor
 public protocol WebViewDelegate: AnyObject {
     func didFinishNavigation(to url: URL)
 }
@@ -72,6 +73,7 @@ public struct WebView: View {
     }
 }
 
+@MainActor
 class WebViewViewModel: ObservableObject {
     
     private(set) var webView: WKWebView!

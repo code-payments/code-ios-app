@@ -89,10 +89,13 @@ extension URL {
 }
 
 extension URL {
+    
+    @MainActor
     static func openSettings() {
         URL.settings.openWithApplication()
     }
     
+    @MainActor
     func openWithApplication() {
         if UIApplication.shared.canOpenURL(self) {
             UIApplication.shared.open(self, options: [:], completionHandler: nil)

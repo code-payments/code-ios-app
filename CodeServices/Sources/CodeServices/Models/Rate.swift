@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Rate: Codable, Equatable, Hashable {
+public struct Rate: Codable, Equatable, Hashable, Sendable {
     
     public var fx: Decimal
     public var currency: CurrencyCode

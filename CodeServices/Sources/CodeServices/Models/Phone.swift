@@ -7,9 +7,10 @@
 //
 
 import Foundation
+@preconcurrency
 import PhoneNumberKit
 
-public struct Phone: Codable, Equatable, Hashable {
+public struct Phone: Codable, Equatable, Hashable, Sendable {
     
     public let e164: String
     public let national: String

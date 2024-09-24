@@ -9,6 +9,7 @@ import Foundation
 import MessageUI
 
 /// Was used from the ContactsScreen
+@MainActor
 class MessageController: NSObject, ObservableObject, MFMessageComposeViewControllerDelegate {
     
     private var result: ((SendResult) -> Void)?
@@ -39,7 +40,14 @@ class MessageController: NSObject, ObservableObject, MFMessageComposeViewControl
     
     // MARK: - MFMessageComposeViewControllerDelegate -
     
+    nonisolated
     func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
+        Task {
+            await handleDidFinish(result: result)
+        }
+    }
+    
+    private func handleDidFinish(result: MessageComposeResult) {
         UIApplication.shared.rootViewController?.dismiss(animated: true, completion: nil)
         
         self.result?(SendResult(rawValue: result.rawValue) ?? .failed)

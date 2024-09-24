@@ -9,8 +9,8 @@
 import Foundation
 import CodeAPI
 
-public struct StreamMessage {
-    public enum Kind {
+public struct StreamMessage: Sendable {
+    public enum Kind: Sendable {
         case receiveRequest(ReceiveRequest)
         case paymentRequest(PaymentRequest)
         case loginRequest(LoginRequest)
@@ -26,14 +26,14 @@ public struct StreamMessage {
     }
 }
 
-public struct Fee: Equatable, Hashable {
+public struct Fee: Equatable, Hashable, Sendable {
     public var destination: PublicKey
     public var bps: Int
 }
 
-public struct ReceiveRequest {
+public struct ReceiveRequest: Sendable {
     
-    public enum Amount {
+    public enum Amount: Sendable {
         case exact(KinAmount)
         case partial(Fiat)
     }
@@ -57,7 +57,7 @@ public struct ReceiveRequest {
     }
 }
 
-public struct PaymentRequest {
+public struct PaymentRequest: Sendable {
     public let account: PublicKey
     public let signature: Signature
     
@@ -67,7 +67,7 @@ public struct PaymentRequest {
     }
 }
 
-public struct LoginRequest {
+public struct LoginRequest: Sendable {
     public let domain: Domain
     public let verifier: PublicKey
     public let rendezvous: PublicKey
@@ -81,7 +81,7 @@ public struct LoginRequest {
     }
 }
 
-public struct Airdrop {
+public struct Airdrop: Sendable {
     public let type: AirdropType
     public let date: Date
     public let kinAmount: KinAmount

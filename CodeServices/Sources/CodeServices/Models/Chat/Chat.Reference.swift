@@ -11,7 +11,7 @@ import CodeAPI
 
 extension Chat {
     /// An ID that can be referenced to the source of the exchange of Kin
-    public enum Reference: Equatable, Hashable {
+    public enum Reference: Equatable, Hashable, Sendable {
         case intent(PublicKey)
         case signature(Signature)
     }

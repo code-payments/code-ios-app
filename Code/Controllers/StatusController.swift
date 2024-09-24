@@ -8,6 +8,7 @@
 import Foundation
 import CodeServices
 
+@MainActor
 class StatusController: ObservableObject {
     
     @Published private(set) var status: Status = .default
@@ -30,7 +31,7 @@ class StatusController: ObservableObject {
     func fetchLatestStatus() {
         Task {
             let status = try await fetchStatus()
-            await update(status)
+            update(status)
         }
     }
     
@@ -54,7 +55,6 @@ class StatusController: ObservableObject {
         }
     }
     
-    @MainActor
     private func update(_ status: Status) {
         self.status = status
         updateUpgradeStatus()

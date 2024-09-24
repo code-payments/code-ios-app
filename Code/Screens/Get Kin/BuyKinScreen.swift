@@ -232,6 +232,7 @@ class BuyKinViewModel: ObservableObject {
 }
 
 extension BuyKinViewModel: WebViewDelegate {
+    
     func didFinishNavigation(to url: URL) {
         guard pendingOrderID != nil else {
             // Already polling

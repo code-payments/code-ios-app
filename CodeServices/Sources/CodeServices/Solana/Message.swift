@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Message: Equatable {
+public struct Message: Equatable, Sendable {
     
     public var header: Header
     public var accounts: [AccountMeta]

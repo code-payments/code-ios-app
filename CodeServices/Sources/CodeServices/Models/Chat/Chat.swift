@@ -31,6 +31,7 @@ public class Chat: ObservableObject {
     @Published public private(set) var messages: [Message]
     
     /// Unique chat identifier
+    nonisolated
     public let id: ChatID
     
     /// Cursor value for this chat for reference in subsequent GetChatsRequest
@@ -255,6 +256,7 @@ extension Chat: Hashable, Equatable {
         lhs.id == rhs.id
     }
     
+    nonisolated
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
@@ -269,7 +271,7 @@ extension Chat {
 }
 
 extension Chat {
-    public enum Verb: Equatable, Hashable {
+    public enum Verb: Equatable, Hashable, Sendable {
         case unknown     // = 0
         case gave        // = 1
         case received    // = 2
@@ -312,14 +314,17 @@ extension Chat {
 // MARK: - Description -
 
 extension Chat: CustomDebugStringConvertible, CustomStringConvertible {
+    
+    nonisolated
     public var description: String {
-        let messages = messages.map { message in
-            "\(message.date) \(message.id.data.hexEncodedString())"
-        }.joined(separator: "\n")
+//        let messages = messages.map { message in
+//            "\(message.date) \(message.id.data.hexEncodedString())"
+//        }.joined(separator: "\n")
         
-        return "\(id.data.hexEncodedString()) (\(String(describing: title))\n\(messages)"
+        return "\(id.data.hexEncodedString())"// (\(String(describing: title))\n\(messages)"
     }
     
+    nonisolated
     public var debugDescription: String {
         description
     }

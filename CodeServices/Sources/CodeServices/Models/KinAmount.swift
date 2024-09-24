@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct KinAmount: Equatable, Hashable, Codable {
+public struct KinAmount: Equatable, Hashable, Codable, Sendable {
     
     public let kin: Kin
     public let fiat: Decimal

@@ -9,7 +9,7 @@
 import Foundation
 import Clibsodium
 
-public struct EncryptedData: Equatable, Hashable, Codable {
+public struct EncryptedData: Equatable, Hashable, Codable, Sendable {
     
     public var peerPublicKey: PublicKey
     public var nonce: Data

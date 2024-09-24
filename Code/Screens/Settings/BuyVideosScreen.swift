@@ -103,9 +103,7 @@ struct BuyVideosScreen: View {
     }
     
     private func share(_ url: URL) {
-        Task {
-            await ShareSheet.present(url: url)
-        }
+        ShareSheet.present(url: url)
     }
 }
 

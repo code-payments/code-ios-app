@@ -10,7 +10,7 @@ import Foundation
 import WebURL
 import WebURLFoundationExtras
 
-public struct Domain: Equatable, Codable, Hashable {
+public struct Domain: Equatable, Codable, Hashable, Sendable {
     
     public let relationshipHost: String
     public let urlString: String

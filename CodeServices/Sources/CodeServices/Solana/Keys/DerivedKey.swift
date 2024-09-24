@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct DerivedKey: Codable, Equatable, Hashable {
+public struct DerivedKey: Codable, Equatable, Hashable, Sendable {
     
     public var path: Derive.Path
     public var keyPair: KeyPair

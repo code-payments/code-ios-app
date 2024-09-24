@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Kin: Equatable, Hashable, Codable {
+public struct Kin: Equatable, Hashable, Codable, Sendable {
     
     public let quarks: UInt64
     

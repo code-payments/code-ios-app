@@ -49,13 +49,13 @@ class AccountContainer: ObservableObject {
                     let owner = historicalAccount.details.account.owner
                     do {
                         let infos = try await client.fetchAccountInfos(owner: owner)
-                        historicalAccount.setAccountInfo(infos)
+                        await historicalAccount.setAccountInfo(infos)
                         
                     } catch ErrorFetchAccountInfos.notFound {
-                        historicalAccount.isNotFound = true
+                        await historicalAccount.setNotFound()
                         
                     } catch ErrorFetchAccountInfos.migrationRequired {
-                        historicalAccount.isMigrationRequired = true
+                        await historicalAccount.setMigrationRequired()
                     }
                 }
             }
@@ -63,18 +63,21 @@ class AccountContainer: ObservableObject {
     }
 }
 
+@MainActor
 class HistoricalAccount: Identifiable {
     
+    nonisolated
     var id: String {
         details.account.ownerPublicKey.base58
     }
     
+    nonisolated
     let details: AccountDescription
     
     private(set) var organizer: Organizer
     
-    var isNotFound: Bool = false
-    var isMigrationRequired: Bool = false
+    private(set) var isNotFound: Bool = false
+    private(set) var isMigrationRequired: Bool = false
 
     init(details: AccountDescription) {
         self.details = details
@@ -91,5 +94,13 @@ class HistoricalAccount: Identifiable {
     
     func formattedFiat(rate: Rate) -> String {
         organizer.availableBalance.formattedFiat(rate: rate, showOfKin: false)
+    }
+    
+    func setNotFound() {
+        isNotFound = true
+    }
+    
+    func setMigrationRequired() {
+        isMigrationRequired = true
     }
 }

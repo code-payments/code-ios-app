@@ -10,7 +10,7 @@ import Foundation
 import CodeAPI
 
 extension Chat {
-    public struct Pointer: Equatable, Hashable {
+    public struct Pointer: Equatable, Hashable, Sendable {
         
         public let kind: Kind
         public let memberID: MemberID
@@ -25,7 +25,7 @@ extension Chat {
 }
 
 extension Chat.Pointer {
-    public enum Kind: Int {
+    public enum Kind: Int, Sendable {
         case unknown
         case sent
         case delivered

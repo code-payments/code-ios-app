@@ -9,7 +9,7 @@
 import Foundation
 import ed25519
 
-public struct KeyPair: Equatable, Codable, Hashable {
+public struct KeyPair: Equatable, Codable, Hashable, Sendable {
     
     public let publicKey: PublicKey
     public let privateKey: PrivateKey

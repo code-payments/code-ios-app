@@ -7,6 +7,7 @@
 
 import UIKit
 
+@MainActor
 class NotificationController: ObservableObject {
     
     @Published private(set) var didBecomeActive:   Int = 0
@@ -27,32 +28,22 @@ class NotificationController: ObservableObject {
     }
     
     @objc private func didBecomeActiveNotification() {
-        DispatchQueue.main.async {
-            self.didBecomeActive += 1
-        }
+        self.didBecomeActive += 1
     }
     
     @objc private func willResignActiveNotification() {
-        DispatchQueue.main.async {
-            self.willResignActive += 1
-        }
+        self.willResignActive += 1
     }
     
     @objc private func userDidTakeScreenshotNotification() {
-        DispatchQueue.main.async {
-            self.didTakeScreenshot += 1
-        }
+        self.didTakeScreenshot += 1
     }
     
     @objc private func pushReceivedNotification() {
-        DispatchQueue.main.async {
-            self.pushReceived += 1
-        }
+        self.pushReceived += 1
     }
     
     @objc private func messageReceivedNotification() {
-        DispatchQueue.main.async {
-            self.messageReceived += 1
-        }
+        self.messageReceived += 1
     }
 }

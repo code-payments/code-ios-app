@@ -9,7 +9,8 @@ import AVKit
 import CodeUI
 import CodeServices
 import CodeScanner
-import Accelerate
+
+@preconcurrency import Accelerate
 
 class CodeExtractor: CameraSessionExtractor {
     

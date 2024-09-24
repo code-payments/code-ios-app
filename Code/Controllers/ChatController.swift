@@ -191,7 +191,6 @@ class ChatController: ObservableObject {
     
     // MARK: - Fetching -
     
-    @CronActor
     private func sendMessage(in chatID: ChatID, from memberID: MemberID, content: Chat.Content) async throws -> Chat.Message {
         try await client.sendMessage(
             chatID: chatID,
@@ -201,17 +200,15 @@ class ChatController: ObservableObject {
         )
     }
     
-    @CronActor
     private func fetchAllChatsAndMessages() async throws -> [Chat] {
         let chats = try await client.fetchChats(owner: owner)
         trace(.success, components: "Chats: \(chats.count)")
         return try await fetchAllMessages(chats: chats)
     }
     
-    @CronActor
     private func fetchDeltaChatsAndMessages() async throws -> [Chat] {
         let chats = await updating(
-            existing: await self.chats,
+            existing: chats,
             with: try await client.fetchChats(owner: owner)
         )
         
@@ -219,7 +216,6 @@ class ChatController: ObservableObject {
         return try await fetchLatestMessagesOnly(chats: chats)
     }
     
-    @CronActor
     private func updating(existing existingChats: [Chat], with newChats: [Chat]) async -> [Chat] {
         let index = existingChats.elementsKeyed(by: \.id)
         var updatedChats = newChats
@@ -229,8 +225,8 @@ class ChatController: ObservableObject {
             // object instance and update it's properties.
             // There could be existing binding to this
             // observable object that we don't want to break.
-            if let existingChat = await index[updatedChat.id] {
-                await update(chat: existingChat, from: updatedChat)
+            if let existingChat = index[updatedChat.id] {
+                update(chat: existingChat, from: updatedChat)
                 updatedChats[i] = existingChat
             } else {
                 // Do nothing, this is a new chat
@@ -244,7 +240,6 @@ class ChatController: ObservableObject {
         chat.update(from: newChat)
     }
     
-    @CronActor
     private func fetchAllMessages(chats: [Chat]) async throws -> [Chat] {
         var chatContainer: [Chat] = []
         
@@ -257,15 +252,14 @@ class ChatController: ObservableObject {
             }
             
             for await (chat, messages) in group {
-                await chat.setMessages(messages)
+                chat.setMessages(messages)
                 chatContainer.append(chat)
             }
         }
         
-        return await chatContainer.sortedByMessageOrder()
+        return chatContainer.sortedByMessageOrder()
     }
     
-    @CronActor
     private func fetchAllMessages(chat: Chat) async -> [Chat.Message] {
         var container: [Chat.Message] = []
         
@@ -294,11 +288,10 @@ class ChatController: ObservableObject {
             pages += 1
         }
         
-        trace(.success, components: "Chat ID: \(await chat.id)", "Messages: \(container.count)", "Pages: \(pages)")
+        trace(.success, components: "Chat ID: \(chat.id)", "Messages: \(container.count)", "Pages: \(pages)")
         return container
     }
     
-    @CronActor
     private func fetchLatestMessagesOnly(chats: [Chat]) async throws -> [Chat] {
         var chatContainer: [Chat] = []
         
@@ -311,20 +304,19 @@ class ChatController: ObservableObject {
             }
             
             for await (chat, messages) in group {
-                await chat.insertMessages(messages)
+                chat.insertMessages(messages)
                 chatContainer.append(chat)
             }
         }
         
-        return await chatContainer.sortedByMessageOrder()
+        return chatContainer.sortedByMessageOrder()
     }
     
-    @CronActor
     private func fetchLatestMessagesOnly(chat: Chat) async -> [Chat.Message] {
         var container: [Chat.Message] = []
         
         var pages = 1
-        var lastID = await chat.latestMessage()?.id
+        var lastID = chat.latestMessage()?.id
         while true {
             let messages = try? await fetchAndDecryptMessages(
                 chat: chat,
@@ -348,13 +340,12 @@ class ChatController: ObservableObject {
             pages += 1
         }
         
-        trace(.success, components: "Chat ID: \(await chat.id)", "Messages: \(container.count)", "Pages: \(pages)")
+        trace(.success, components: "Chat ID: \(chat.id)", "Messages: \(container.count)", "Pages: \(pages)")
         return container
     }
     
-    @CronActor
     private func fetchAndDecryptMessages(chat: Chat, direction: MessageDirection, pageSize: Int) async throws -> [Chat.Message] {
-        guard let selfMember = await chat.selfMember else {
+        guard let selfMember = chat.selfMember else {
             return []
         }
         

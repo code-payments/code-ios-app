@@ -10,7 +10,7 @@ import Foundation
 import CodeAPI
 
 extension Chat {
-    public struct Member: Equatable, Identifiable, Hashable {
+    public struct Member: Equatable, Identifiable, Hashable, Sendable {
         
         /// Globally unique ID for this chat member
         public let id: MemberID
@@ -55,7 +55,7 @@ extension Chat {
 }
 
 extension Chat.Member {
-    public enum Identity: Equatable, Hashable {
+    public enum Identity: Equatable, Hashable, Sendable {
         
         case unknown(String)
         case twitter(String, URL?)

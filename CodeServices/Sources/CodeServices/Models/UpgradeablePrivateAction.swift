@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-public struct UpgradeablePrivateAction: Equatable {
+public struct UpgradeablePrivateAction: Equatable, Sendable {
     
     public var id: Int
     public var transactionBlob: Data

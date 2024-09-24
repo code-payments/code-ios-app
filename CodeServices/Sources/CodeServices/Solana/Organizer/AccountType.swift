@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-public enum AccountType: Equatable, Codable, Hashable {
+public enum AccountType: Equatable, Codable, Hashable, Sendable {
     
     case primary
     case incoming

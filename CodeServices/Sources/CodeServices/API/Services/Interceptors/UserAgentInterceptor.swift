@@ -11,7 +11,7 @@ import GRPC
 import NIO
 import NIOHPACK
 
-class UserAgentInterceptor<Request, Response>: ClientInterceptor<Request, Response> {
+class UserAgentInterceptor<Request, Response>: ClientInterceptor<Request, Response>, @unchecked Sendable {
     override func send(_ part: GRPCClientRequestPart<Request>, promise: EventLoopPromise<Void>?, context: ClientInterceptorContext<Request, Response>) {
         var modifiedPart = part
         switch modifiedPart {

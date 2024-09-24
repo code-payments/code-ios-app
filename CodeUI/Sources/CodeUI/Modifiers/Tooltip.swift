@@ -99,7 +99,7 @@ public struct Tooltip: ViewModifier {
 }
 
 extension Tooltip {
-    public struct Properties {
+    public struct Properties: Sendable {
         
         public var arrowSize: CGSize
         public var cornerRadius: CGFloat

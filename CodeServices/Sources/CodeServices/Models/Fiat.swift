@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Fiat: Equatable, Hashable, Codable {
+public struct Fiat: Equatable, Hashable, Codable, Sendable {
     
     public let currency: CurrencyCode
     public let amount: Decimal
@@ -40,7 +40,7 @@ extension Fiat {
     public static let zero = Fiat(currency: .usd, amount: Decimal(0))
 }
 
-public enum GenericAmount: Equatable, Hashable {
+public enum GenericAmount: Equatable, Hashable, Sendable {
     
     case exact(KinAmount)
     case partial(Fiat)

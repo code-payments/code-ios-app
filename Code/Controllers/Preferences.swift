@@ -42,6 +42,7 @@ class Preferences: ObservableObject {
     }
 }
 
+@MainActor
 extension UserDefaults {
     
     @Defaults(.cameraAutoStartDisabled)

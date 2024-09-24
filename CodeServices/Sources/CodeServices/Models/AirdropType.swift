@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-public enum AirdropType: Int, Codable, Equatable {
+public enum AirdropType: Int, Codable, Equatable, Sendable {
     case unknown
     case giveFirstKin
     case getFirstKin

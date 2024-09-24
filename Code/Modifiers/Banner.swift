@@ -9,7 +9,8 @@
 import SwiftUI
 import CodeUI
 
-public struct Banner {
+@MainActor
+public struct Banner: Sendable {
     
     public var actionStyle: ActionStyle {
         switch _actionStyle {
@@ -73,7 +74,7 @@ public struct Banner {
 // MARK: - Style -
 
 extension Banner {
-    public enum Style: Hashable {
+    public enum Style: Hashable, Sendable {
         case success(Icon)
         case notification
         case warning
@@ -140,7 +141,7 @@ extension Banner.Style {
 }
 
 extension Banner {
-    public enum Icon: Equatable, Hashable {
+    public enum Icon: Equatable, Hashable, Sendable {
         
         case checkmark(Color)
         
@@ -163,6 +164,8 @@ extension Banner {
 // MARK: - Action -
 
 extension Banner {
+    
+    @MainActor
     public struct Action {
         
         public var title: String
@@ -222,7 +225,7 @@ extension Banner.Action {
 // MARK: - ActionStyle -
 
 extension Banner {
-    public enum ActionStyle {
+    public enum ActionStyle: Sendable {
         case inline
         case stacked
     }
@@ -231,7 +234,7 @@ extension Banner {
 // MARK: - Position -
 
 extension Banner {
-    public enum Position {
+    public enum Position: Sendable {
         case top
         case bottom
     }

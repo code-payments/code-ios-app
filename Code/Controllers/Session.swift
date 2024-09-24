@@ -11,6 +11,7 @@ import CodeUI
 import CodeServices
 import SwiftUI
 
+@MainActor
 protocol SessionDelegate: AnyObject {
     func didDetectUnlockedAccount()
 }

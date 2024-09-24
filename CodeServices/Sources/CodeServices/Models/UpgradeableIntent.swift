@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-public struct UpgradeableIntent: Equatable {
+public struct UpgradeableIntent: Equatable, Sendable {
     
     public var id: PublicKey
     public var actions: [UpgradeablePrivateAction]

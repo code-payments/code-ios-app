@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct KeyAccount: Hashable, Equatable {
+public struct KeyAccount: Hashable, Equatable, Sendable {
     
     public let mnemonic: MnemonicPhrase
     public let derivedKey: DerivedKey

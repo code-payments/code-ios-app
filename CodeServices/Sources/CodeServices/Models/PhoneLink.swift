@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct PhoneLink {
+public struct PhoneLink: Sendable {
     
     public let phone: Phone
     public let isLinked: Bool

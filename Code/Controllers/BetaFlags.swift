@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 
+@MainActor
 class BetaFlags: ObservableObject {
     
     static let shared = BetaFlags()

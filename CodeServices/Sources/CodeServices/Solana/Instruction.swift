@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Instruction: Equatable {
+public struct Instruction: Equatable, Sendable {
     
     public var program: PublicKey
     public var accounts: [AccountMeta]

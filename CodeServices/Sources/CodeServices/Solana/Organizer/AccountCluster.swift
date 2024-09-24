@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct AccountCluster: Equatable, Codable, Hashable {
+public struct AccountCluster: Equatable, Codable, Hashable, Sendable {
     
     public let index: Int
     public let authority: DerivedKey
@@ -51,7 +51,7 @@ extension AccountCluster {
         case usdc
     }
     
-    public enum Derivation: Equatable, Codable, Hashable {
+    public enum Derivation: Equatable, Codable, Hashable, Sendable {
         case timelock(TimelockDerivedAccounts)
         case usdc(AssociatedTokenAccount)
     }

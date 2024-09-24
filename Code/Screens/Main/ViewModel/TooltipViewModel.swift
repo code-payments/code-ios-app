@@ -41,6 +41,7 @@ class TooltipViewModel: ObservableObject {
     }
 }
 
+@MainActor
 extension UserDefaults {
     
     @Defaults(.tooltipLogo)

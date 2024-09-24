@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct ID: Codable, Equatable, Hashable {
+public struct ID: Codable, Equatable, Hashable, Sendable {
     
     public let data: Data
     

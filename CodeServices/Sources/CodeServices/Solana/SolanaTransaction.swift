@@ -32,7 +32,7 @@ import Foundation
         - Byte: Byte
         - Structs: Fields are serialized in order as declared. No metadata about structs are serialized.
 */
-public struct SolanaTransaction: Equatable {
+public struct SolanaTransaction: Equatable, Sendable {
     
     public var message: Message
     public var signatures: [Signature]

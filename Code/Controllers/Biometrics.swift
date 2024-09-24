@@ -85,6 +85,8 @@ extension Biometrics {
 // MARK: - Context -
 
 extension Biometrics {
+    
+    @MainActor
     class Context {
             
         let policy: LAPolicy
@@ -121,13 +123,15 @@ extension Biometrics {
         }
         
         func verify(reason: Reason) async -> Bool {
-            do {
-                try await context.evaluatePolicy(policy, localizedReason: reason.description)
-                return true
-            } catch {
-                trace(.failure, components: "Biometrics failed authentication: \(error)")
-                return false
-            }
+            await Task { [context] in
+                do {
+                    try await context.evaluatePolicy(policy, localizedReason: reason.description)
+                    return true
+                } catch {
+                    trace(.failure, components: "Biometrics failed authentication: \(error)")
+                    return false
+                }
+            }.value
         }
     }
 }

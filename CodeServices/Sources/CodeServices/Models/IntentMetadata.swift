@@ -8,7 +8,7 @@
 
 import Foundation
 
-public enum IntentMetadata: Equatable {
+public enum IntentMetadata: Equatable, Sendable {
     case openAccounts
     case sendPrivatePayment(PaymentMetadata)
     case sendPublicPayment(PaymentMetadata)
@@ -18,7 +18,7 @@ public enum IntentMetadata: Equatable {
     case migrateToPrivacy2022
 }
 
-public struct PaymentMetadata: Equatable {
+public struct PaymentMetadata: Equatable, Sendable {
     
     public let amount: KinAmount
     

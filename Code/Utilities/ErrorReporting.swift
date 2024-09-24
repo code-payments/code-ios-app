@@ -122,7 +122,7 @@ enum ErrorReporting {
     }
 }
 
-class Fault: NSError {}
+class Fault: NSError, @unchecked Sendable {}
 
 enum Breadcrumb: String {
     case permissionScreen = "Permission Screen"

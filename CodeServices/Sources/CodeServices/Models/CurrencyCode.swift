@@ -8,7 +8,7 @@
 
 import Foundation
 
-public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable {
+public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Sendable {
     
     // Crypto
     

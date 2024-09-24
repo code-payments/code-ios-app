@@ -363,8 +363,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-extension Client: ObservableObject {}
-
 extension UIApplication {
     static var shouldPauseInterfaceReset: Bool = false
 }

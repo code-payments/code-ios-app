@@ -8,6 +8,7 @@
 import Foundation
 import Network
 
+@MainActor
 public class Reachability: ObservableObject {
     
     @Published private(set) var status: Status = .offline
@@ -18,8 +19,8 @@ public class Reachability: ObservableObject {
     
     public init() {
         monitor.pathUpdateHandler = { [weak self] path in
-            DispatchQueue.main.async {
-                self?.update(path: path)
+            Task {
+                await self?.update(path: path)
             }
         }
         

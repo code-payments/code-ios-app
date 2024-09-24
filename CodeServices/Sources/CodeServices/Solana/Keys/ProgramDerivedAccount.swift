@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct TimelockDerivedAccounts: Codable, Hashable, Equatable {
+public struct TimelockDerivedAccounts: Codable, Hashable, Equatable, Sendable {
     
     public static let lockoutInDays: Byte = 21
     public static let dataVersion: Byte = 3
@@ -83,7 +83,7 @@ public struct SplitterCommitmentAccounts: Codable, Hashable, Equatable {
     }
 }
 
-public struct AssociatedTokenAccount: Codable, Hashable, Equatable {
+public struct AssociatedTokenAccount: Codable, Hashable, Equatable, Sendable {
  
     public let owner: PublicKey
     public let ata: ProgramDerivedAccount
@@ -142,7 +142,7 @@ public struct SplitterTranscript: Codable, Hashable, Equatable, CustomStringConv
     }
 }
 
-public struct ProgramDerivedAccount: Codable, Hashable, Equatable  {
+public struct ProgramDerivedAccount: Codable, Hashable, Equatable, Sendable  {
     
     public let publicKey: PublicKey
     public let bump: Byte

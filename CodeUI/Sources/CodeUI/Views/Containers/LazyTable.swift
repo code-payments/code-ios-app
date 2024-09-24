@@ -114,7 +114,7 @@ private extension LazyTable {
 // MARK: - ScrollBox -
 
 extension EdgeInsets {
-    public static var scrollBox: EdgeInsets = .init(top: 10, leading: 0, bottom: 10, trailing: 0)
+    public static let scrollBox: EdgeInsets = .init(top: 10, leading: 0, bottom: 10, trailing: 0)
 }
 
 // MARK: - Previews -

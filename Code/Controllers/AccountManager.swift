@@ -131,7 +131,7 @@ private extension Keychain {
 
 // MARK: - Container -
 
-struct AccountDescription: Codable, Hashable, Equatable {
+struct AccountDescription: Codable, Hashable, Equatable, Sendable {
     
     let account: KeyAccount
     let creationDate: Date
@@ -143,7 +143,7 @@ struct AccountDescription: Codable, Hashable, Equatable {
     
     fileprivate init(account: KeyAccount, creationDate: Date, deletionDate: Date? = nil) {
         self.account = account
-        self.deviceName = UIDevice.current.name
+        self.deviceName = "iPhone"
         self.creationDate = creationDate
         self.deletionDate = deletionDate
         self.lastSeen = .now()
