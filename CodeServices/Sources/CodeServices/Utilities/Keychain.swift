@@ -9,7 +9,6 @@ import Foundation
 import Security
 import LocalAuthentication
 
-@MainActor
 public class Keychain {
     
     // MARK: - Init -
