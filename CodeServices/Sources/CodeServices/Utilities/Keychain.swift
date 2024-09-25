@@ -10,7 +10,7 @@ import Security
 import LocalAuthentication
 
 @MainActor
-class Keychain {
+public class Keychain {
     
     // MARK: - Init -
     
