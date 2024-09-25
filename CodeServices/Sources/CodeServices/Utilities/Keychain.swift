@@ -9,86 +9,97 @@ import Foundation
 import Security
 import LocalAuthentication
 
-class Keychain {
-    
-    private let context = LAContext()
+@MainActor
+public class Keychain {
     
     // MARK: - Init -
     
-    init() {}
+    public init() {}
     
     // MARK: - Setters -
     
     @discardableResult
-    func set(_ string: String, for key: String, useBiometrics: Bool = false) -> Bool {
-        set(Data(string.utf8), for: key, useBiometrics: useBiometrics)
+    public func set(_ string: String, for key: String) -> Bool {
+        set(Data(string.utf8), for: key)
     }
     
     @discardableResult
-    func set(_ data: Data, for key: String, useSynchronization: Bool = false, useBiometrics: Bool = false) -> Bool {
-        var query = Query(
+    public func set(_ data: Data, for key: String, useSynchronization: Bool = false) -> Bool {
+        let query = Query(
+            .service("Code (\(key))"),
             .account(key),
             .class(.genericPassword),
             .value(data),
-            .isSynchronizable(useSynchronization ? .true : .false)
+            .isSynchronizable(useSynchronization ? .true : .false),
+            .accessGroup(.sharedCodeGroup)
         )
-        
-        if useBiometrics {
-            query.insert(.accessControl(.whenPasscodeSetThisDeviceOnly, .userPresence))
-        } else {
-            query.insert(.accessible(.whenUnlocked))
-        }
         
         // Keychain will reject any insert queries for
         // duplicate items. We have to delete before
         // inserting any potential duplicates.
-        delete(for: key)
-
-        let status = SecItemAdd(query.dictionary, nil)
-        if status != errSecSuccess {
-            if let error = SecCopyErrorMessageString(status, nil) {
-                print("[Keychain] Failed to save \(key): (\(status)) \(error as String)")
-            }
-        }
+        delete(key)
         
-        return status == errSecSuccess
+        return addItem(query: query)
     }
     
     // MARK: - Getters -
     
-    func string(for key: String) -> String? {
+    public func string(for key: String) -> String? {
         if let data = data(for: key) {
             return String(data: data, encoding: .utf8)
         }
         return nil
     }
     
-    func data(for key: String) -> Data? {
-        let query = Query(
+    public func data(for key: String, migrateIfNeeded: Bool = true) -> Data? {
+        let accessGroup = Attribute.accessGroup(.sharedCodeGroup)
+        
+        var query = Query(
             .account(key),
             .matchLimit(.one),
             .class(.genericPassword),
             .isSynchronizable(.any),
-            .shouldReturnData(true)
+            .shouldReturnData(true),
+            accessGroup
         )
         
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query.dictionary, &result)
-        if status == errSecSuccess {
-            return result as? Data
-        } else if status != errSecItemNotFound {
-            if let error = SecCopyErrorMessageString(status, nil) {
-                print("[Keychain] Fetch error: \(error as String)")
+        let accessGroupResult = copyMatching(query: query)
+        
+        // 1. Keychain found a match within the provided
+        // access group, this is the ideal path
+        if let accessGroupResult {
+            return accessGroupResult
+        }
+        
+        // 2. If we're here that means the keychain was
+        // not able to find a match but that could be
+        // because the items aren't stored under the
+        // same access group. If migration, we'll query
+        // the data without an access group and re-save
+        // it under this same access group.
+        query.remove(accessGroup)
+        let ungroupResult = copyMatching(query: query)
+        
+        if let ungroupResult {
+            trace(.warning, components: "Non-access group keychain item found: \(key)")
+            
+            if migrateIfNeeded {
+                let isSuccessful = set(ungroupResult, for: key)
+                if !isSuccessful {
+                    trace(.failure, components: "Failed to migrate keychain item to access group: \(key)")
+                } else {
+                    trace(.success, components: "Keychain item migrated to access group: \(key)")
+                }
             }
         }
-
-        return nil
+        
+        return ungroupResult
     }
     
     // MARK: - Delete -
     
     @discardableResult
-    func delete(for key: String) -> Bool {
+    public func delete(_ key: String) -> Bool {
         let query = Query(
             .account(key),
             .class(.genericPassword),
@@ -96,6 +107,34 @@ class Keychain {
         )
         
         return SecItemDelete(query.dictionary) == noErr
+    }
+    
+    // MARK: - Security -
+    
+    private func copyMatching(query: Query) -> Data? {
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query.dictionary, &result)
+        if status == errSecSuccess {
+            print("[Keychain] Accessed: \(query.account ?? "nil"), accessGroup: \(query.accessGroup ?? "nil")")
+            return result as? Data
+        } else if status != errSecItemNotFound {
+            if let error = SecCopyErrorMessageString(status, nil) {
+                print("[Keychain] Fetch error: \(error as String)")
+            }
+        }
+        
+        return nil
+    }
+    
+    private func addItem(query: Query) -> Bool {
+        let status = SecItemAdd(query.dictionary, nil)
+        if status != errSecSuccess {
+            if let error = SecCopyErrorMessageString(status, nil) {
+                print("[Keychain] Failed to save \(query.account ?? "nil"): (\(status)) \(error as String)")
+            }
+        }
+        
+        return status == errSecSuccess
     }
 }
 
@@ -110,12 +149,36 @@ extension Keychain {
             Set(attributes).query as CFDictionary
         }
         
+        var account: String? {
+            for attribute in attributes {
+                if case .account(let account) = attribute {
+                    return account
+                }
+            }
+            return nil
+        }
+        
+        var accessGroup: String? {
+            for attribute in attributes {
+                if case .accessGroup(let group) = attribute {
+                    return group
+                }
+            }
+            return nil
+        }
+        
         init(_ attributes: Attribute...) {
             self.attributes = attributes
         }
         
         mutating func insert(_ attributes: Attribute...) {
             self.attributes.append(contentsOf: attributes)
+        }
+        
+        mutating func remove(_ attribute: Attribute) {
+            if let index = attributes.firstIndex(of: attribute) {
+                attributes.remove(at: index)
+            }
         }
     }
 }
@@ -126,8 +189,10 @@ extension Keychain {
     enum Attribute: Hashable {
         
         case `class`(Class)
+        case service(String)
         case account(String)
         case accessible(Accessible)
+        case accessGroup(String)
         case accessControl(Accessible, SecAccessControlCreateFlags)
         case matchLimit(MatchLimit)
         case shouldReturnReferences(Bool)
@@ -144,6 +209,7 @@ extension Keychain {
         private var _key: CFString {
             switch self {
             case .class:                          return kSecClass
+            case .service:                        return kSecAttrService
             case .account:                        return kSecAttrAccount
             case .matchLimit:                     return kSecMatchLimit
             case .shouldReturnReferences:         return kSecReturnPersistentRef
@@ -153,6 +219,7 @@ extension Keychain {
             case .isSynchronizable:               return kSecAttrSynchronizable
             case .value:                          return kSecValueData
             case .accessible:                     return kSecAttrAccessible
+            case .accessGroup:                    return kSecAttrAccessGroup
             case .accessControl:                  return kSecAttrAccessControl
             }
         }
@@ -160,6 +227,7 @@ extension Keychain {
         var value: Any? {
             switch self {
             case .class(let value):                          return value.rawValue
+            case .service(let value):                        return value
             case .account(let value):                        return value
             case .matchLimit(let value):                     return value.rawValue
             case .shouldReturnReferences(let value):         return value.cfBool
@@ -169,6 +237,7 @@ extension Keychain {
             case .isSynchronizable(let value):               return value.rawValue
             case .value(let value):                          return value
             case .accessible(let value):                     return value.rawValue
+            case .accessGroup(let value):                    return value
             case .accessControl(let accessible, let flags):
                 return SecAccessControlCreateWithFlags(nil, accessible.rawValue, flags, nil)!
             }
@@ -280,4 +349,8 @@ private extension Bool {
             return kCFBooleanFalse
         }
     }
+}
+
+private extension String {
+    static let sharedCodeGroup = "83VHY3GSWL.com.kin.code.keychain.shared"
 }

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CodeServices
 
 enum SecureKey: String {
     case restricted = "com.code.account.restricted"
@@ -28,7 +29,7 @@ struct SecureData {
             if let newValue = newValue {
                 Keychain.secure.set(newValue, for: key.rawValue)
             } else {
-                Keychain.secure.delete(for: key.rawValue)
+                Keychain.secure.delete(key.rawValue)
             }
         }
     }
@@ -51,7 +52,7 @@ struct SecureString {
             if let newValue = newValue {
                 Keychain.secure.set(newValue, for: key.rawValue)
             } else {
-                Keychain.secure.delete(for: key.rawValue)
+                Keychain.secure.delete(key.rawValue)
             }
         }
     }
@@ -74,7 +75,7 @@ struct SecureCodable<T> where T: Codable {
             if let newValue = encode(newValue) {
                 Keychain.secure.set(newValue, for: key.rawValue, useSynchronization: sync)
             } else {
-                Keychain.secure.delete(for: key.rawValue)
+                Keychain.secure.delete(key.rawValue)
             }
         }
     }
