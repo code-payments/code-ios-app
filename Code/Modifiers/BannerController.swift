@@ -34,7 +34,7 @@ public class BannerController: ObservableObject {
     // MARK: - Init -
     
     public init() {
-        self.window = PassthroughWindow(frame: UIScreen.main.bounds)
+        self.window = UIWindow(frame: UIScreen.main.bounds)
         
         let container = BannerContainer()
             .environmentObject(self)
@@ -46,6 +46,7 @@ public class BannerController: ObservableObject {
         window.backgroundColor = .clear
         window.windowLevel = UIWindow.Level(UIWindow.Level.normal.rawValue + 1)
         window.isHidden = false
+        window.isUserInteractionEnabled = false
         
         toggle(presenting: false)
     }
@@ -108,9 +109,11 @@ public class BannerController: ObservableObject {
         }
         
         banner = consumableBanner
+        window.isUserInteractionEnabled = true
     }
     
     private func dismissAndConsume() async throws {
+        window.isUserInteractionEnabled = false
         banner = nil
         
         // Should be longer than the animation
@@ -134,23 +137,6 @@ public class BannerController: ObservableObject {
     
     private func toggle(presenting: Bool) {
         isPresenting = presenting
-    }
-}
-
-// MARK: - PassthroughWindow -
-
-private class PassthroughWindow: UIWindow {
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        guard let view = super.hitTest(point, with: event) else {
-            return nil
-        }
-        
-        // If the view is the underlying root view, ignore it
-        guard view != rootViewController?.view else {
-            return nil
-        }
-        
-        return view
     }
 }
 
