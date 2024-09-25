@@ -98,7 +98,7 @@ struct SettingsScreen: View {
                         ScrollView(showsIndicators: false) {
                             list()
                         }
-                        .introspect(.scrollView, on: .iOS(.v15, .v16, .v17)) {
+                        .introspect(.scrollView, on: .iOS(.v16, .v17, .v18)) {
                             $0.alwaysBounceVertical = false
                         }
                     }
@@ -127,7 +127,7 @@ struct SettingsScreen: View {
                 ScrollView(showsIndicators: false) {
                     appSettingsList()
                 }
-                .introspect(.scrollView, on: .iOS(.v15, .v16, .v17)) {
+                .introspect(.scrollView, on: .iOS(.v16, .v17, .v18)) {
                     $0.alwaysBounceVertical = false
                 }
             }
@@ -182,7 +182,7 @@ struct SettingsScreen: View {
                 ScrollView(showsIndicators: false) {
                     accountList()
                 }
-                .introspect(.scrollView, on: .iOS(.v15, .v16, .v17)) {
+                .introspect(.scrollView, on: .iOS(.v16, .v17, .v18)) {
                     $0.alwaysBounceVertical = false
                 }
             }
