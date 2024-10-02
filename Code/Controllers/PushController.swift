@@ -223,9 +223,3 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         }
     }
 }
-
-extension NSNotification.Name {
-    static let pushNotificationReceived = Notification.Name("com.code.pushNotificationReceived")
-    static let messageNotificationReceived = Notification.Name("com.code.messageNotificationReceived")
-    static let twitterNotificationReceived = Notification.Name("com.code.twitterNotificationReceived")
-}

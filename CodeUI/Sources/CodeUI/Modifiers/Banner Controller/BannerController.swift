@@ -143,5 +143,5 @@ public class BannerController: ObservableObject {
 // MARK: - Mock -
 
 extension BannerController {
-    static let mock = BannerController()
+    public static let mock = BannerController()
 }

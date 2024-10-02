@@ -8,6 +8,7 @@
 import SwiftUI
 import CodeServices
 import CodeUI
+import UserNotifications
 
 @MainActor
 class TipController: ObservableObject {
@@ -18,7 +19,7 @@ class TipController: ObservableObject {
     
     @Published private(set) var twitterUser: TwitterUser?
     
-    private(set) var inflightUser: (String, Code.Payload)?
+    private(set) var inflightUser: String?
     
     private(set) var userMetadata: TwitterUser?
     
@@ -83,7 +84,7 @@ class TipController: ObservableObject {
     
     func shouldPromptForPushPermissions() async -> Bool {
         if wasPromptedPush != true {
-            let status = await PushController.getAuthorizationStatus()
+            let status = UNAuthorizationStatus.notDetermined//await PushController.getAuthorizationStatus()
             if status != .authorized {
                 return true
             }
@@ -163,8 +164,8 @@ class TipController: ObservableObject {
     
     // MARK: - Actions -
     
-    func fetchUser(username: String, payload: Code.Payload) async throws {
-        inflightUser = (username, payload)
+    func fetchUser(username: String) async throws {
+        inflightUser = username
         
         let metadata = try await fetch(username: username)
         userMetadata = metadata

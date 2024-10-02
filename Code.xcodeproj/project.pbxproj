@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXAggregateTarget section */
@@ -133,9 +133,24 @@
 		9A8DB72727D5130200E2E883 /* CodeServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A8DB72627D5130200E2E883 /* CodeServices */; };
 		9A8E68702B867EBC00914C23 /* MessageList+Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */; };
 		9A8E861627A44EB300213934 /* RestrictedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8E861527A44EB300213934 /* RestrictedScreen.swift */; };
+		9A91F1402CAB300D0018CE65 /* Biometrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A91F13F2CAB300D0018CE65 /* Biometrics.swift */; };
+		9A91F1412CAB30BD0018CE65 /* String+Padding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5126246EFD003F8B19 /* String+Padding.swift */; };
+		9A91F1422CAB30BD0018CE65 /* NotificationModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEABBF22B76CF0A00667DA4 /* NotificationModifier.swift */; };
+		9A91F1432CAB30BD0018CE65 /* Chat+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA47D3F2B76AA9600F1B9B7 /* Chat+Extensions.swift */; };
+		9A91F1442CAB30BD0018CE65 /* Kin+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF73B5727DA7F9800C038FB /* Kin+Formatting.swift */; };
+		9A91F1452CAB30BD0018CE65 /* String+Localized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6D6D342AE1AD55003D9569 /* String+Localized.swift */; };
+		9A91F1462CAB30C60018CE65 /* Localized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AED11ED25910F020088D902 /* Localized.swift */; };
+		9A91F1472CAB30C60018CE65 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = 9AEF190B260A74C400EB2410 /* Localizable.stringsdict */; };
+		9A91F1482CAB30CC0018CE65 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9A7C408328DDE0C7007DA414 /* Localizable.strings */; };
+		9A91F15A2CAB33CE0018CE65 /* URL+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390852746A39700234899 /* URL+Links.swift */; };
+		9A91F15B2CAB33D70018CE65 /* URL+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390852746A39700234899 /* URL+Links.swift */; };
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
 		9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */; };
 		9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */; };
+		9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D32CA33187006BDE08 /* CodeAPI */; };
+		9A9970D62CA33187006BDE08 /* CodeServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D52CA33187006BDE08 /* CodeServices */; };
+		9A9970D82CA33187006BDE08 /* CodeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D72CA33187006BDE08 /* CodeUI */; };
+		9A9970DA2CA331A5006BDE08 /* GRPC in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D92CA331A5006BDE08 /* GRPC */; };
 		9A9A273C27D00F76005EBBC6 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9A273B27D00F76005EBBC6 /* AccountManager.swift */; };
 		9A9A273F27D28AEE005EBBC6 /* AccountSelectionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9A273E27D28AEE005EBBC6 /* AccountSelectionScreen.swift */; };
 		9A9C16C92AAF971D00B1A964 /* DeepLinkRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */; };
@@ -166,7 +181,6 @@
 		9AB7C58525E440A40007B3D5 /* Exchange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C58425E440A40007B3D5 /* Exchange.swift */; };
 		9AB7C59825E59F700007B3D5 /* String+Decimal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C59725E59F6F0007B3D5 /* String+Decimal.swift */; };
 		9AB7C5C725E7F8730007B3D5 /* BillState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C5C625E7F8730007B3D5 /* BillState.swift */; };
-		9AC08A9B28CD0983006BF6F3 /* Biometrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC08A9A28CD0983006BF6F3 /* Biometrics.swift */; };
 		9AC784B22BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9ACC074F28342BF1001F0081 /* Guards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC074E28342BF1001F0081 /* Guards.swift */; };
@@ -185,8 +199,6 @@
 		9AE0834728EC973B00350407 /* ConfirmDeleteScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834628EC973B00350407 /* ConfirmDeleteScreen.swift */; };
 		9AE45EB529E9905100EE2F60 /* DeepLinkController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE45EB429E9905100EE2F60 /* DeepLinkController.swift */; };
 		9AE45EB829E998C600EE2F60 /* DeepLinkControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE45EB729E998C600EE2F60 /* DeepLinkControllerTests.swift */; };
-		9AE6FDED27E50BDF00FDBD41 /* Banner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE6FDEB27E50BDE00FDBD41 /* Banner.swift */; };
-		9AE6FDEE27E50BDF00FDBD41 /* BannerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE6FDEC27E50BDF00FDBD41 /* BannerController.swift */; };
 		9AE8F56228CA6513009C251F /* CurrencySelectionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE8F56128CA6513009C251F /* CurrencySelectionViewModel.swift */; };
 		9AEABBEF2B76CD4100667DA4 /* CodeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AEABBEE2B76CD4100667DA4 /* CodeUI */; };
 		9AEABBF02B76CD8B00667DA4 /* CodeUI in Resources */ = {isa = PBXBuildFile; fileRef = 9AED115B258BE2FA0088D902 /* CodeUI */; };
@@ -227,6 +239,20 @@
 			proxyType = 1;
 			remoteGlobalIDString = 9A6BFF0C2B75667600E04EB7;
 			remoteInfo = CodePushExtension;
+		};
+		9A9970B32CA33147006BDE08 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9A9970A22CA33145006BDE08;
+			remoteInfo = Flipchat;
+		};
+		9A9970BD2CA33147006BDE08 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9A9970A22CA33145006BDE08;
+			remoteInfo = Flipchat;
 		};
 		9AA0D5DB27F4C45C00306111 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -424,9 +450,13 @@
 		9A8DB72427D50D8200E2E883 /* Grinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Grinder.swift; sourceTree = "<group>"; };
 		9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MessageList+Tests.swift"; sourceTree = "<group>"; };
 		9A8E861527A44EB300213934 /* RestrictedScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RestrictedScreen.swift; sourceTree = "<group>"; };
+		9A91F13F2CAB300D0018CE65 /* Biometrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Biometrics.swift; sourceTree = "<group>"; };
 		9A9469BA27A090E10028F27E /* MessageController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageController.swift; sourceTree = "<group>"; };
 		9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationScreen.swift; sourceTree = "<group>"; };
 		9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationContainer.swift; sourceTree = "<group>"; };
+		9A9970A32CA33145006BDE08 /* Flipchat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flipchat.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A9970B22CA33147006BDE08 /* FlipchatTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipchatTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A9970BC2CA33147006BDE08 /* FlipchatUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipchatUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A9A273B27D00F76005EBBC6 /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountManager.swift; sourceTree = "<group>"; };
 		9A9A273E27D28AEE005EBBC6 /* AccountSelectionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSelectionScreen.swift; sourceTree = "<group>"; };
 		9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkRequest.swift; sourceTree = "<group>"; };
@@ -450,7 +480,6 @@
 		9AB7C58425E440A40007B3D5 /* Exchange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exchange.swift; sourceTree = "<group>"; };
 		9AB7C59725E59F6F0007B3D5 /* String+Decimal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Decimal.swift"; sourceTree = "<group>"; };
 		9AB7C5C625E7F8730007B3D5 /* BillState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillState.swift; sourceTree = "<group>"; };
-		9AC08A9A28CD0983006BF6F3 /* Biometrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Biometrics.swift; sourceTree = "<group>"; };
 		9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9ACC074E28342BF1001F0081 /* Guards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Guards.swift; sourceTree = "<group>"; };
 		9ACFA003261DFDA6007F97B4 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
@@ -467,8 +496,6 @@
 		9AE0834628EC973B00350407 /* ConfirmDeleteScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmDeleteScreen.swift; sourceTree = "<group>"; };
 		9AE45EB429E9905100EE2F60 /* DeepLinkController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkController.swift; sourceTree = "<group>"; };
 		9AE45EB729E998C600EE2F60 /* DeepLinkControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkControllerTests.swift; sourceTree = "<group>"; };
-		9AE6FDEB27E50BDE00FDBD41 /* Banner.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Banner.swift; sourceTree = "<group>"; };
-		9AE6FDEC27E50BDF00FDBD41 /* BannerController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BannerController.swift; sourceTree = "<group>"; };
 		9AE8F56128CA6513009C251F /* CurrencySelectionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencySelectionViewModel.swift; sourceTree = "<group>"; };
 		9AEA3A4125CD82A600392734 /* CodeServices */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CodeServices; sourceTree = "<group>"; };
 		9AEABBF22B76CF0A00667DA4 /* NotificationModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModifier.swift; sourceTree = "<group>"; };
@@ -498,6 +525,12 @@
 		9AFF973925DFFF140094174A /* ContainerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
+		9A9970B52CA33147006BDE08 /* FlipchatTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatTests; sourceTree = "<group>"; };
+		9A9970BF2CA33147006BDE08 /* FlipchatUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatUITests; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		9A6BFF0A2B75667600E04EB7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -514,6 +547,31 @@
 			files = (
 				9A8DB72727D5130200E2E883 /* CodeServices in Frameworks */,
 				9AF73B5E27DE682D00C038FB /* CodeUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970A02CA33145006BDE08 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A9970DA2CA331A5006BDE08 /* GRPC in Frameworks */,
+				9A9970D82CA33187006BDE08 /* CodeUI in Frameworks */,
+				9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */,
+				9A9970D62CA33187006BDE08 /* CodeServices in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970AF2CA33147006BDE08 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970B92CA33147006BDE08 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -556,10 +614,9 @@
 		9A093D5625D46F3A000E7DD9 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
-				9A093D5725D46F45000E7DD9 /* Data+Bytes.swift */,
 				9AB7C59725E59F6F0007B3D5 /* String+Decimal.swift */,
-				9AA390852746A39700234899 /* URL+Links.swift */,
 				9AEF1911260A7BCF00EB2410 /* UIApplication+Root.swift */,
+				9A093D5725D46F45000E7DD9 /* Data+Bytes.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -607,11 +664,11 @@
 				9A88672027345419005F1113 /* SessionAuthenticator.swift */,
 				9AE45EB429E9905100EE2F60 /* DeepLinkController.swift */,
 				9A103F8125B9BF180026EA62 /* Session.swift */,
+				9A91F13F2CAB300D0018CE65 /* Biometrics.swift */,
 				9A9DD68F2BBDB9F300CAD548 /* TipController.swift */,
 				9A1CE1DC2C91F32200B596CC /* TwitterUserController.swift */,
 				9A301D1529B92E94006BA3F6 /* FlowController.swift */,
 				9AB7C58425E440A40007B3D5 /* Exchange.swift */,
-				9AC08A9A28CD0983006BF6F3 /* Biometrics.swift */,
 				9A40E54A260CB485009DEF2C /* BetaFlags.swift */,
 				9A8B26602C1A32BB009FB349 /* Preferences.swift */,
 				9A70501C2600F5CC0036A056 /* ContentController.swift */,
@@ -657,9 +714,6 @@
 		9A2A3A8925C32EFD007A8C50 /* Extraction */ = {
 			isa = PBXGroup;
 			children = (
-				9A093D1825D1BFD2000E7DD9 /* Code.swift */,
-				9A093D1725D1BFD2000E7DD9 /* Code.Payload.swift */,
-				9A093D3125D1C8C8000E7DD9 /* Code.Payload+Encoding.swift */,
 				9A718BCE25C054B800DB5F70 /* CodeExtractor.swift */,
 				9A2A3A8A25C32F0D007A8C50 /* RedundancyContainer.swift */,
 			);
@@ -818,6 +872,7 @@
 				9A6D6D342AE1AD55003D9569 /* String+Localized.swift */,
 				9A1EBC5126246EFD003F8B19 /* String+Padding.swift */,
 				9AF73B5727DA7F9800C038FB /* Kin+Formatting.swift */,
+				9AA390852746A39700234899 /* URL+Links.swift */,
 				9AEABBF22B76CF0A00667DA4 /* NotificationModifier.swift */,
 				9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */,
 			);
@@ -912,15 +967,6 @@
 			path = Controllers;
 			sourceTree = "<group>";
 		};
-		9AE6FDE927E50BCF00FDBD41 /* Modifiers */ = {
-			isa = PBXGroup;
-			children = (
-				9AE6FDEB27E50BDE00FDBD41 /* Banner.swift */,
-				9AE6FDEC27E50BDF00FDBD41 /* BannerController.swift */,
-			);
-			path = Modifiers;
-			sourceTree = "<group>";
-		};
 		9AE8F56028CA6507009C251F /* ViewModel */ = {
 			isa = PBXGroup;
 			children = (
@@ -942,6 +988,9 @@
 				9AED111F258BE1320088D902 /* CodeUITests */,
 				9A8DB71427D50D4800E2E883 /* CodeGrind */,
 				9A6BFF0E2B75667700E04EB7 /* CodePushExtension */,
+				9A9970A42CA33145006BDE08 /* Flipchat */,
+				9A9970B52CA33147006BDE08 /* FlipchatTests */,
+				9A9970BF2CA33147006BDE08 /* FlipchatUITests */,
 				9AED1101258BE1310088D902 /* Products */,
 				9A1654C42678FB60000A135E /* Frameworks */,
 			);
@@ -955,6 +1004,9 @@
 				9AED111C258BE1320088D902 /* CodeUITests.xctest */,
 				9A8DB71327D50D4800E2E883 /* CodeGrind.app */,
 				9A6BFF0D2B75667600E04EB7 /* CodePushExtension.appex */,
+				9A9970A32CA33145006BDE08 /* Flipchat.app */,
+				9A9970B22CA33147006BDE08 /* FlipchatTests.xctest */,
+				9A9970BC2CA33147006BDE08 /* FlipchatUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -973,7 +1025,6 @@
 				9A093D5625D46F3A000E7DD9 /* Extensions */,
 				9A2A3A8925C32EFD007A8C50 /* Extraction */,
 				9AFF974525E007B80094174A /* Models */,
-				9AE6FDE927E50BCF00FDBD41 /* Modifiers */,
 				9A103F8025B9BF060026EA62 /* Controllers */,
 				9A44507D2A79677F0072FE38 /* Modals */,
 				9AEFE84225B1F398001FCB19 /* Screens */,
@@ -1077,6 +1128,9 @@
 				9AB7C5C625E7F8730007B3D5 /* BillState.swift */,
 				9A084D7126165CDC00F3C9B9 /* Stopwatch.swift */,
 				9A9C16C82AAF971D00B1A964 /* DeepLinkRequest.swift */,
+				9A093D1825D1BFD2000E7DD9 /* Code.swift */,
+				9A093D1725D1BFD2000E7DD9 /* Code.Payload.swift */,
+				9A093D3125D1C8C8000E7DD9 /* Code.Payload+Encoding.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1125,6 +1179,79 @@
 			productName = CodeGrind;
 			productReference = 9A8DB71327D50D4800E2E883 /* CodeGrind.app */;
 			productType = "com.apple.product-type.application";
+		};
+		9A9970A22CA33145006BDE08 /* Flipchat */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A9970C42CA33147006BDE08 /* Build configuration list for PBXNativeTarget "Flipchat" */;
+			buildPhases = (
+				9A91F1492CAB30F20018CE65 /* Generate Localized strings */,
+				9A99709F2CA33145006BDE08 /* Sources */,
+				9A9970A02CA33145006BDE08 /* Frameworks */,
+				9A9970A12CA33145006BDE08 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				9A9970A42CA33145006BDE08 /* Flipchat */,
+			);
+			name = Flipchat;
+			packageProductDependencies = (
+				9A9970D32CA33187006BDE08 /* CodeAPI */,
+				9A9970D52CA33187006BDE08 /* CodeServices */,
+				9A9970D72CA33187006BDE08 /* CodeUI */,
+				9A9970D92CA331A5006BDE08 /* GRPC */,
+			);
+			productName = Flipchat;
+			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9A9970B12CA33147006BDE08 /* FlipchatTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A9970C92CA33147006BDE08 /* Build configuration list for PBXNativeTarget "FlipchatTests" */;
+			buildPhases = (
+				9A9970AE2CA33147006BDE08 /* Sources */,
+				9A9970AF2CA33147006BDE08 /* Frameworks */,
+				9A9970B02CA33147006BDE08 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9A9970B42CA33147006BDE08 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9A9970B52CA33147006BDE08 /* FlipchatTests */,
+			);
+			name = FlipchatTests;
+			packageProductDependencies = (
+			);
+			productName = FlipchatTests;
+			productReference = 9A9970B22CA33147006BDE08 /* FlipchatTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9A9970BB2CA33147006BDE08 /* FlipchatUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A9970CE2CA33147006BDE08 /* Build configuration list for PBXNativeTarget "FlipchatUITests" */;
+			buildPhases = (
+				9A9970B82CA33147006BDE08 /* Sources */,
+				9A9970B92CA33147006BDE08 /* Frameworks */,
+				9A9970BA2CA33147006BDE08 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9A9970BE2CA33147006BDE08 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9A9970BF2CA33147006BDE08 /* FlipchatUITests */,
+			);
+			name = FlipchatUITests;
+			packageProductDependencies = (
+			);
+			productName = FlipchatUITests;
+			productReference = 9A9970BC2CA33147006BDE08 /* FlipchatUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		9AED10FF258BE1310088D902 /* Code */ = {
 			isa = PBXNativeTarget;
@@ -1205,7 +1332,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastSwiftUpdateCheck = 1520;
+				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
 					9A6BFF0C2B75667600E04EB7 = {
@@ -1216,6 +1343,17 @@
 					};
 					9A8DB71227D50D4800E2E883 = {
 						CreatedOnToolsVersion = 13.2.1;
+					};
+					9A9970A22CA33145006BDE08 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					9A9970B12CA33147006BDE08 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 9A9970A22CA33145006BDE08;
+					};
+					9A9970BB2CA33147006BDE08 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 9A9970A22CA33145006BDE08;
 					};
 					9AEB5FD225CDD4B8004B3680 = {
 						CreatedOnToolsVersion = 12.4;
@@ -1303,6 +1441,9 @@
 				9A7C3F4228DCEF65007DA414 /* CodeLokalise */,
 				9A8DB71227D50D4800E2E883 /* CodeGrind */,
 				9A6BFF0C2B75667600E04EB7 /* CodePushExtension */,
+				9A9970A22CA33145006BDE08 /* Flipchat */,
+				9A9970B12CA33147006BDE08 /* FlipchatTests */,
+				9A9970BB2CA33147006BDE08 /* FlipchatUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -1341,6 +1482,29 @@
 			files = (
 				9A8DB71D27D50D4A00E2E883 /* Preview Assets.xcassets in Resources */,
 				9A8DB71A27D50D4A00E2E883 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970A12CA33145006BDE08 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A91F1482CAB30CC0018CE65 /* Localizable.strings in Resources */,
+				9A91F1472CAB30C60018CE65 /* Localizable.stringsdict in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970B02CA33147006BDE08 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970BA2CA33147006BDE08 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1414,6 +1578,25 @@
 			shellPath = /bin/sh;
 			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$SOURCE_ROOT/Code/Supporting Files/GoogleService-Info.plist\"\n";
 		};
+		9A91F1492CAB30F20018CE65 /* Generate Localized strings */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Localized strings";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "$SOURCE_ROOT/Scripts/genstrings \"$SOURCE_ROOT/Shared/Localization/en.lproj\"\n";
+		};
 		9AEB5FDB25CDD4CB004B3680 /* Generate Code Services */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1460,6 +1643,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9AA47D432B76AB2F00F1B9B7 /* String+Localized.swift in Sources */,
+				9A91F15B2CAB33D70018CE65 /* URL+Links.swift in Sources */,
 				9AA47D472B76AB6F00F1B9B7 /* Kin+Formatting.swift in Sources */,
 				9AA47D442B76AB5200F1B9B7 /* Localized.swift in Sources */,
 				9A6BFF102B75667700E04EB7 /* NotificationService.swift in Sources */,
@@ -1479,6 +1663,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9A99709F2CA33145006BDE08 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A91F1412CAB30BD0018CE65 /* String+Padding.swift in Sources */,
+				9A91F1422CAB30BD0018CE65 /* NotificationModifier.swift in Sources */,
+				9A91F1432CAB30BD0018CE65 /* Chat+Extensions.swift in Sources */,
+				9A91F1442CAB30BD0018CE65 /* Kin+Formatting.swift in Sources */,
+				9A91F1452CAB30BD0018CE65 /* String+Localized.swift in Sources */,
+				9A91F1462CAB30C60018CE65 /* Localized.swift in Sources */,
+				9A91F15A2CAB33CE0018CE65 /* URL+Links.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970AE2CA33147006BDE08 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A9970B82CA33147006BDE08 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9AED10FC258BE1310088D902 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1491,7 +1703,6 @@
 				9A18C739289D763B00B39AF6 /* WithdrawSummaryScreen.swift in Sources */,
 				9A476D4C2978892600C5B5CE /* ErrorReporting.swift in Sources */,
 				9AA9799E2C75210F00395552 /* ChatsScreen.swift in Sources */,
-				9AC08A9B28CD0983006BF6F3 /* Biometrics.swift in Sources */,
 				9A093DA425DD724E000E7DD9 /* ReceiveTransaction.swift in Sources */,
 				9A5E35E726261E190066E4C8 /* AccessKeyScreen.swift in Sources */,
 				9A2A3A8B25C32F0D007A8C50 /* RedundancyContainer.swift in Sources */,
@@ -1568,6 +1779,7 @@
 				9AA390842746964100234899 /* Route.swift in Sources */,
 				9A7FF89B269C71B10090B457 /* BillCanvas.swift in Sources */,
 				9A40E551260CB796009DEF2C /* BetaFlagsScreen.swift in Sources */,
+				9A91F1402CAB300D0018CE65 /* Biometrics.swift in Sources */,
 				9AE0834728EC973B00350407 /* ConfirmDeleteScreen.swift in Sources */,
 				9A9E2B7327B4496D00C56D6A /* MigrationScreen.swift in Sources */,
 				9A7050112600EEE90036A056 /* Defaults.swift in Sources */,
@@ -1576,7 +1788,6 @@
 				9A6740D62C3472A600F9F7BD /* FiatField.swift in Sources */,
 				9AEFE84425B1F3BF001FCB19 /* IntroScreen.swift in Sources */,
 				9A093D3225D1C8C8000E7DD9 /* Code.Payload+Encoding.swift in Sources */,
-				9AE6FDEE27E50BDF00FDBD41 /* BannerController.swift in Sources */,
 				9AA1B5152B7BE9AD000DB4B5 /* BuyKinScreen.swift in Sources */,
 				9A0F08392BBC7B7900C65489 /* EnterTipScreen.swift in Sources */,
 				9A4283BC2A02B5B100792BFD /* ShareCashItem.swift in Sources */,
@@ -1597,7 +1808,6 @@
 				9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */,
 				9AD0A44E261B961B008CFD69 /* WithdrawAmountScreen.swift in Sources */,
 				9A680BCE28A2BFB700B4D96B /* VerifyPhoneViewModel.swift in Sources */,
-				9AE6FDED27E50BDF00FDBD41 /* Banner.swift in Sources */,
 				9A4F3D07298D99930089C0FB /* BucketScreen.swift in Sources */,
 				9A0F08322BBC753E00C65489 /* ModalCashReceived.swift in Sources */,
 				9A6740CA2C34718600F9F7BD /* MessageTitle.swift in Sources */,
@@ -1651,6 +1861,16 @@
 			isa = PBXTargetDependency;
 			target = 9A6BFF0C2B75667600E04EB7 /* CodePushExtension */;
 			targetProxy = 9A6BFF122B75667700E04EB7 /* PBXContainerItemProxy */;
+		};
+		9A9970B42CA33147006BDE08 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9A9970A22CA33145006BDE08 /* Flipchat */;
+			targetProxy = 9A9970B32CA33147006BDE08 /* PBXContainerItemProxy */;
+		};
+		9A9970BE2CA33147006BDE08 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9A9970A22CA33145006BDE08 /* Flipchat */;
+			targetProxy = 9A9970BD2CA33147006BDE08 /* PBXContainerItemProxy */;
 		};
 		9AA0D5DC27F4C45C00306111 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2319,6 +2539,362 @@
 			};
 			name = Release;
 		};
+		9A9970C52CA33147006BDE08 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Development;
+		};
+		9A9970C62CA33147006BDE08 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9A9970C72CA33147006BDE08 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9A9970C82CA33147006BDE08 /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release Development";
+		};
+		9A9970CA2CA33147006BDE08 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipchat.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipchat";
+			};
+			name = Development;
+		};
+		9A9970CB2CA33147006BDE08 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipchat.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipchat";
+			};
+			name = Debug;
+		};
+		9A9970CC2CA33147006BDE08 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipchat.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipchat";
+			};
+			name = Release;
+		};
+		9A9970CD2CA33147006BDE08 /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipchat.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipchat";
+			};
+			name = "Release Development";
+		};
+		9A9970CF2CA33147006BDE08 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipchat;
+			};
+			name = Development;
+		};
+		9A9970D02CA33147006BDE08 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipchat;
+			};
+			name = Debug;
+		};
+		9A9970D12CA33147006BDE08 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipchat;
+			};
+			name = Release;
+		};
+		9A9970D22CA33147006BDE08 /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipchatUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipchat;
+			};
+			name = "Release Development";
+		};
 		9AEB5FD425CDD4B8004B3680 /* Development */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2652,6 +3228,39 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		9A9970C42CA33147006BDE08 /* Build configuration list for PBXNativeTarget "Flipchat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A9970C52CA33147006BDE08 /* Development */,
+				9A9970C62CA33147006BDE08 /* Debug */,
+				9A9970C72CA33147006BDE08 /* Release */,
+				9A9970C82CA33147006BDE08 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9A9970C92CA33147006BDE08 /* Build configuration list for PBXNativeTarget "FlipchatTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A9970CA2CA33147006BDE08 /* Development */,
+				9A9970CB2CA33147006BDE08 /* Debug */,
+				9A9970CC2CA33147006BDE08 /* Release */,
+				9A9970CD2CA33147006BDE08 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9A9970CE2CA33147006BDE08 /* Build configuration list for PBXNativeTarget "FlipchatUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A9970CF2CA33147006BDE08 /* Development */,
+				9A9970D02CA33147006BDE08 /* Debug */,
+				9A9970D12CA33147006BDE08 /* Release */,
+				9A9970D22CA33147006BDE08 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		9AEB5FD325CDD4B8004B3680 /* Build configuration list for PBXAggregateTarget "CodeServiceGen" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -2790,6 +3399,23 @@
 		9A8DB72627D5130200E2E883 /* CodeServices */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeServices;
+		};
+		9A9970D32CA33187006BDE08 /* CodeAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CodeAPI;
+		};
+		9A9970D52CA33187006BDE08 /* CodeServices */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CodeServices;
+		};
+		9A9970D72CA33187006BDE08 /* CodeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CodeUI;
+		};
+		9A9970D92CA331A5006BDE08 /* GRPC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1654D526790419000A135E /* XCRemoteSwiftPackageReference "grpc-swift" */;
+			productName = GRPC;
 		};
 		9AA47D3C2B76A8C900F1B9B7 /* CodeAPI */ = {
 			isa = XCSwiftPackageProductDependency;

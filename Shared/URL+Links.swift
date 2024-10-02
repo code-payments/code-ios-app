@@ -61,7 +61,7 @@ extension URL {
         URL(string: "https://www.youtube.com/watch?v=cyb9Da_mV9I")!
     }
     
-    fileprivate static var settings: URL {
+    static var settings: URL {
         URL(string: UIApplication.openSettingsURLString)!
     }
     
@@ -87,21 +87,6 @@ extension URL {
         return URL(string: "https://getcode.com/d?ref=\(ref.string)")!
     }
 }
-
-extension URL {
-    
-    @MainActor
-    static func openSettings() {
-        URL.settings.openWithApplication()
-    }
-    
-    @MainActor
-    func openWithApplication() {
-        if UIApplication.shared.canOpenURL(self) {
-            UIApplication.shared.open(self, options: [:], completionHandler: nil)
-        }
-    }
-}
     
 // MARK: - TestFlight -
     
@@ -112,5 +97,22 @@ extension URL {
     
     static var testFlightAppURL: URL {
         URL(string: "https://beta.itunes.apple.com/v1/app/1562384846")!
+    }
+}
+
+extension URL {
+    
+    @available(iOSApplicationExtension, unavailable)
+    @MainActor
+    static func openSettings() {
+        URL.settings.openWithApplication()
+    }
+    
+    @available(iOSApplicationExtension, unavailable)
+    @MainActor
+    func openWithApplication() {
+        if UIApplication.shared.canOpenURL(self) {
+            UIApplication.shared.open(self, options: [:], completionHandler: nil)
+        }
     }
 }
