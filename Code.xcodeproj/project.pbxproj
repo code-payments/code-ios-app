@@ -51,7 +51,6 @@
 		9A0F08362BBC765B00C65489 /* ModalPaymentConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0F08352BBC765B00C65489 /* ModalPaymentConfirmation.swift */; };
 		9A0F08392BBC7B7900C65489 /* EnterTipScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0F08382BBC7B7900C65489 /* EnterTipScreen.swift */; };
 		9A103F8225B9BF180026EA62 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A103F8125B9BF180026EA62 /* Session.swift */; };
-		9A1535F62BB2005B0086EEF5 /* InfoPlist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1535F52BB2005B0086EEF5 /* InfoPlist.swift */; };
 		9A1654D726790419000A135E /* GRPC in Frameworks */ = {isa = PBXBuildFile; productRef = 9A1654D626790419000A135E /* GRPC */; };
 		9A17FFC72B911D4C00FFC09F /* RequestKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */; };
 		9A18C735289C099000B39AF6 /* WithdrawViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18C734289C099000B39AF6 /* WithdrawViewModel.swift */; };
@@ -334,7 +333,6 @@
 		9A0F08352BBC765B00C65489 /* ModalPaymentConfirmation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ModalPaymentConfirmation.swift; sourceTree = "<group>"; };
 		9A0F08382BBC7B7900C65489 /* EnterTipScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterTipScreen.swift; sourceTree = "<group>"; };
 		9A103F8125B9BF180026EA62 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
-		9A1535F52BB2005B0086EEF5 /* InfoPlist.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InfoPlist.swift; sourceTree = "<group>"; };
 		9A16229B284503EE00B138D3 /* CodeAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeAPI; sourceTree = "<group>"; };
 		9A17FFC62B911D4C00FFC09F /* RequestKinScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RequestKinScreen.swift; sourceTree = "<group>"; };
 		9A18C734289C099000B39AF6 /* WithdrawViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawViewModel.swift; sourceTree = "<group>"; };
@@ -801,7 +799,6 @@
 				9A646985275FE634008B1498 /* Analytics.swift */,
 				9A476D4B2978892600C5B5CE /* ErrorReporting.swift */,
 				9A64698D275FF9CD008B1498 /* Events.swift */,
-				9A1535F52BB2005B0086EEF5 /* InfoPlist.swift */,
 				9A6541B82788A00B00F3173C /* PhotoLibrary.swift */,
 			);
 			path = Utilities;
@@ -1741,7 +1738,6 @@
 				9A9DD6902BBDB9F300CAD548 /* TipController.swift in Sources */,
 				9A6D6D332AE1A81E003D9569 /* ChatScreen.swift in Sources */,
 				9A27FD472C0F487E00221457 /* DownloadScreen.swift in Sources */,
-				9A1535F62BB2005B0086EEF5 /* InfoPlist.swift in Sources */,
 				9A6740DA2C3472EF00F9F7BD /* MessageText.swift in Sources */,
 				9A093DAB25DDAD0C000E7DD9 /* SendTransaction.swift in Sources */,
 				9A6541B92788A00B00F3173C /* PhotoLibrary.swift in Sources */,
@@ -2570,7 +2566,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.flipchat;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -2609,7 +2605,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.flipchat;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -2644,7 +2640,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.flipchat;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
@@ -2679,7 +2675,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipchat;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.flipchat;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;

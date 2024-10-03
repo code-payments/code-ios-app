@@ -214,11 +214,9 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Session -
     
-    private func createSessionContainer(keyAccount: KeyAccount, user: User, client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) -> SessionContainer {
+    private func createSessionContainer(keyAccount: KeyAccount, user: User, client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) -> Session {
         
         let organizer = Organizer(mnemonic: keyAccount.mnemonic)
-        
-        let chatController = ChatController(client: client, organizer: organizer)
         
         let session = Session(
             organizer: organizer,
@@ -226,16 +224,12 @@ final class SessionAuthenticator: ObservableObject {
             client: client,
             exchange: exchange,
             bannerController: bannerController,
-            betaFlags: betaFlags,
-            chatController: chatController
+            betaFlags: betaFlags
         )
         
         session.delegate = self
         
-        return SessionContainer(
-            session: session,
-            chatController: chatController
-        )
+        return session
     }
     
     // MARK: - Login -
@@ -317,21 +311,21 @@ final class SessionAuthenticator: ObservableObject {
     }
     
     func deleteAndLogout() {
-        if case .loggedIn(let container) = state {
-            accountManager.delete(ownerPublicKey: container.session.organizer.ownerKeyPair.publicKey)
+        if case .loggedIn(let session) = state {
+            accountManager.delete(ownerPublicKey: session.organizer.ownerKeyPair.publicKey)
             logout()
         }
     }
     
     func logout() {
-        if case .loggedIn(let container) = state {
-            container.session.prepareForLogout()
+        if case .loggedIn(let session) = state {
+            session.prepareForLogout()
         }
         
         accountManager.resetForLogout()
         
-        if case .loggedIn(let container) = state {
-            container.session.prepareForLogout()
+        if case .loggedIn(let session) = state {
+            session.prepareForLogout()
         }
         
         state = .loggedOut
@@ -381,15 +375,8 @@ extension SessionAuthenticator {
         case loggedOut
         case migrating
         case pending
-        case loggedIn(SessionContainer)
+        case loggedIn(Session)
     }
-}
-
-// MARK: - SessionContainer -
-
-struct SessionContainer {
-    let session: Session
-    let chatController: ChatController
 }
 
 // MARK: - InitializedAccount -
@@ -414,14 +401,5 @@ extension SessionAuthenticator {
         bannerController: .mock,
         betaFlags: .mock,
         biometrics: .mock
-    )
-}
-
-extension SessionContainer {
-    
-    @MainActor
-    static let mock = SessionContainer(
-        session: .mock,
-        chatController: .mock
     )
 }

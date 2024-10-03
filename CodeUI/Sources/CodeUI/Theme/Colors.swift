@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import CodeServices
 
 extension Color {
     public static var mainAccent: Color                { return colorForKey(.mainAccent) }
@@ -88,9 +89,17 @@ extension Color {
         case chartLine
     }
     
+    private static var isFlipchat: Bool = {
+        let bundleID = try? InfoPlist.bundleIdentifier(bundle: nil)
+        if bundleID == "com.code.flipchat" {
+            return true
+        } else {
+            return false
+        }
+    }()
+    
     private static func colorForKey(_ key: ColorKey) -> Color {
-        let environment = ProcessInfo.processInfo.environment
-        if environment["APP_FLIPCHAT"] == "1" {
+        if isFlipchat {
             return colorForFlipchat(key: key)
         } else {
             return colorForCode(key: key)
@@ -127,9 +136,9 @@ extension Color {
 
     private static func colorForFlipchat(key: ColorKey) -> Color {
         switch key {
-        case .mainAccent:                return Color(r: 255, g: 255, b: 255)
-        case .textMain:                  return Color(r: 255, g: 255, b: 255)
-        case .textSecondary:             return Color(r: 115, g: 121, b: 160)
+        case .mainAccent:                return Color(r: 255, g: 255, b: 255) // Done
+        case .textMain:                  return Color(r: 255, g: 255, b: 255) // Done
+        case .textSecondary:             return Color(r: 159, g: 151, b: 196) // Done
         case .textAction:                return Color(r: 15,  g: 12,  b: 31)
         case .textGoogle:                return Color(r: 47,  g: 22,  b: 175)
         case .textError:                 return Color(r: 255, g: 131, b: 131)
@@ -140,7 +149,7 @@ extension Color {
         case .bannerInfo:                return Color(r: 86,  g: 92,  b: 134)
         case .bannerWarning:             return Color(r: 241, g: 171, b: 31)
         case .button:                    return Color(r: 28,  g: 24,  b: 52)
-        case .backgroundMain:            return Color(r: 15,  g: 12,  b: 31)
+        case .backgroundMain:            return Color(r: 68,  g: 48,  b: 145) // Done
         case .backgroundAction:          return Color(r: 255, g: 255, b: 255)
         case .backgroundRow:             return Color(r: 17,  g: 20,  b: 42)
         case .rowSeparator:              return Color(r: 255, g: 255, b: 255, o: 0.08)

@@ -32,6 +32,7 @@ class Session: ObservableObject {
     
     let twitterUserController: TwitterUserController
     let tipController: TipController
+    let chatController: ChatController
     
     let organizer: Organizer
     
@@ -41,7 +42,6 @@ class Session: ObservableObject {
     private let exchange: Exchange
     private let bannerController: BannerController
     private let betaFlags: BetaFlags
-    private let chatController: ChatController
 
     private let flowController: FlowController
     private let giftCardVault: GiftCardVault
@@ -68,17 +68,18 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(organizer: Organizer, user: User, client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags, chatController: ChatController) {
+    init(organizer: Organizer, user: User, client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) {
         self.organizer = organizer
         self.user = user
         self.client = client
         self.exchange = exchange
         self.bannerController = bannerController
         self.betaFlags = betaFlags
-        self.chatController = chatController
         
         self.twitterUserController = TwitterUserController(owner: organizer.ownerKeyPair, client: client)
         self.tipController = TipController(organizer: organizer, client: client, bannerController: bannerController)
+        self.chatController = ChatController(client: client, organizer: organizer)
+        
         self.flowController = FlowController(client: client, organizer: organizer)
         self.giftCardVault = GiftCardVault()
         
@@ -515,8 +516,7 @@ extension Session {
         client: .mock,
         exchange: .mock,
         bannerController: .mock,
-        betaFlags: .mock,
-        chatController: .mock
+        betaFlags: .mock
     )
 }
 

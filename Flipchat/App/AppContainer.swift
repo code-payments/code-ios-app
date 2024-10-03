@@ -21,6 +21,7 @@ class AppContainer: ObservableObject {
     let betaFlags = BetaFlags.shared
     let bannerController = BannerController()
     let biometrics = Biometrics()
+    let notificationController = NotificationController()
     
     let exchange: Exchange
     let sessionAuthenticator: SessionAuthenticator
@@ -46,6 +47,7 @@ class AppContainer: ObservableObject {
             .environmentObject(betaFlags)
             .environmentObject(bannerController)
             .environmentObject(biometrics)
+            .environmentObject(notificationController)
 
             .environmentObject(exchange)
             .environmentObject(sessionAuthenticator)

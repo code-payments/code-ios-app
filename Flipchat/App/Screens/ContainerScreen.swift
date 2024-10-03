@@ -22,7 +22,7 @@ struct ContainerScreen: View {
     
     var body: some View {
         switch sessionAuthenticator.state {
-        case .loggedIn(let sessionContainer):
+        case .loggedIn(let session):
             
             switch sessionAuthenticator.biometricState {
             case .disabled, .verified:
@@ -31,8 +31,12 @@ struct ContainerScreen: View {
                         .transition(.crossFade)
                     
                 } else {
-                    ContentView()
-                        .transition(.crossFade)
+                    ChatsScreen(
+                        session: session,
+                        exchange: container.exchange,
+                        bannerController: container.bannerController
+                    )
+                    .transition(.crossFade)
                 }
                 
             case .notVerified:

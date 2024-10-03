@@ -27,13 +27,17 @@ struct IntroScreen: View {
     
     var body: some View {
         NavigationView {
-            Background(color: Color(r: 68, g: 48, b: 145)) {
+            Background(color: .backgroundMain) {
                 VStack {
                     VStack(spacing: 10) {
                         Spacer()
                         
-                        CodeBrand(size: .large)
-                            .padding(.trailing, 10) // For visual center
+                        VStack(spacing: 20) {
+                            Image(with: .brandLarge)
+                            Text("Flipchat")
+                                .font(.appDisplayMedium)
+                                .foregroundStyle(Color.textMain)
+                        }
                         
                         Spacer()
                         

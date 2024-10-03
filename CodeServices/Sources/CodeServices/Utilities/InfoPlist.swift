@@ -7,15 +7,15 @@
 
 import Foundation
 
-enum InfoPlist {
+public enum InfoPlist {
     
-    enum Value {
+    public enum Value {
         
         case string(String)
         case dictionary([String: Any])
         case array([Any])
         
-        func string() throws -> String {
+        public func string() throws -> String {
             guard case .string(let value) = self else {
                 throw InfoPlist.Error.invalidType
             }
@@ -23,7 +23,7 @@ enum InfoPlist {
             return value
         }
         
-        func dictionary() throws -> [String: Any] {
+        public func dictionary() throws -> [String: Any] {
             guard case .dictionary(let value) = self else {
                 throw InfoPlist.Error.invalidType
             }
@@ -31,7 +31,7 @@ enum InfoPlist {
             return value
         }
         
-        func array() throws -> [Any] {
+        public func array() throws -> [Any] {
             guard case .array(let value) = self else {
                 throw InfoPlist.Error.invalidType
             }
@@ -54,7 +54,7 @@ enum InfoPlist {
             }
         }
         
-        func value(for key: String, bundle: Bundle? = nil) throws -> Value {
+        public func value(for key: String, bundle: Bundle? = nil) throws -> Value {
             switch self {
             case .array, .string:
                 throw Error.invalidType
@@ -69,7 +69,11 @@ enum InfoPlist {
         }
     }
     
-    static func value(for key: String, bundle: Bundle? = nil) throws -> Value {
+    public static func bundleIdentifier(bundle: Bundle? = nil) throws -> String? {
+        try value(for: "CFBundleIdentifier", bundle: bundle).string()
+    }
+    
+    public static func value(for key: String, bundle: Bundle? = nil) throws -> Value {
         let bundle = bundle ?? Bundle.main
         let plist = bundle.infoDictionary
         
@@ -86,7 +90,7 @@ enum InfoPlist {
 }
 
 extension InfoPlist {
-    enum Error: Swift.Error {
+    public enum Error: Swift.Error {
         case plistNotFound
         case valueNotFound
         case invalidType
