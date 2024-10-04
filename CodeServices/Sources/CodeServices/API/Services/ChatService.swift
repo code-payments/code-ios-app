@@ -14,7 +14,7 @@ import SwiftProtobuf
 
 class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
-    func openChatStream(chatID: ChatID, memberID: MemberID, owner: KeyPair, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
+    func openChatStream(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
         trace(.open, components: "Chat \(chatID.description)", "Opening stream.")
         
         let streamReference = ChatMessageStreamReference()
@@ -29,7 +29,6 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
             
             self?.openChatStream(
                 chatID: chatID,
-                memberID: memberID,
                 owner: owner,
                 assigningTo: streamReference,
                 completion: completion
@@ -38,7 +37,6 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
         openChatStream(
             chatID: chatID,
-            memberID: memberID,
             owner: owner,
             assigningTo: streamReference,
             completion: completion
@@ -47,7 +45,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         return streamReference
     }
     
-    private func openChatStream(chatID: ChatID, memberID: MemberID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) {
+    private func openChatStream(chatID: ChatID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) {
         let queue = self.queue
         
         reference.cancel()
@@ -102,7 +100,6 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
                 trace(.note, components: "Chat \(chatID.description)", "Reconnecting keepalive stream...")
                 self.openChatStream(
                     chatID: chatID,
-                    memberID: memberID,
                     owner: owner,
                     assigningTo: streamReference,
                     completion: completion
@@ -115,7 +112,6 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         let request = Code_Chat_V2_StreamChatEventsRequest.with {
             $0.openStream = .with {
                 $0.chatID    = .with { $0.value = chatID.data }
-                $0.memberID  = .with { $0.value = memberID.data }
                 $0.owner     = owner.publicKey.codeAccountID
                 $0.signature = $0.sign(with: owner)
             }
@@ -125,25 +121,15 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
     }
     
-    func startChat(owner: KeyPair, ownerUsername: String, intentID: PublicKey, destination: PublicKey, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
+    func startChat(owner: KeyPair, intentID: PublicKey, destination: PublicKey, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Chat_V2_StartChatRequest.with {
             $0.owner = owner.publicKey.codeAccountID
-            $0.self_p = .with {
-                $0.platform = .twitter
-                $0.username = ownerUsername
-            }
-            
             $0.twoWayChat = .with {
                 $0.intentID  = intentID.codeIntentID
                 $0.otherUser = destination.codeAccountID
-                $0.identity  = .with {
-                    $0.platform = .twitter
-                    $0.username = ownerUsername
-                }
             }
-            
             $0.signature = $0.sign(with: owner)
         }
         
@@ -167,12 +153,11 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         }
     }
     
-    func sendMessage(chatID: ChatID, memberID: MemberID, owner: KeyPair, content: Chat.Content, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
+    func sendMessage(chatID: ChatID, owner: KeyPair, content: Chat.Content, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Chat_V2_SendMessageRequest.with {
             $0.chatID    = .with { $0.value = chatID.data }
-            $0.memberID  = .with { $0.value = memberID.data }
             $0.content   = [content.codeContent]
             $0.owner     = owner.publicKey.codeAccountID
             $0.signature = $0.sign(with: owner)
@@ -182,37 +167,6 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
         call.handle(on: queue) { response in
             let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                DispatchQueue.main.async {
-                    let message = Chat.Message(response.message)
-                    trace(.success, components: "Owner: \(owner.publicKey.base58)", "Message: \(message.id.data.hexEncodedString())")
-                    completion(.success(message))
-                }
-            } else {
-                trace(.success, components: "Error: \(error)")
-                completion(.failure(error))
-            }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
-        }
-    }
-    
-    func revealIdentity(chatID: ChatID, memberID: MemberID, twitterUsername: String, owner: KeyPair, completion: @escaping (Result<Chat.Message, ErrorRevealIdentity>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
-        
-        let request = Code_Chat_V2_RevealIdentityRequest.with {
-            $0.chatID    = .with { $0.value = chatID.data }
-            $0.memberID  = .with { $0.value = memberID.data }
-            $0.identity  = .with { $0.platform = .twitter; $0.username = twitterUsername }
-            $0.owner     = owner.publicKey.codeAccountID
-            $0.signature = $0.sign(with: owner)
-        }
-        
-        let call = service.revealIdentity(request)
-        
-        call.handle(on: queue) { response in
-            let error = ErrorRevealIdentity(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 DispatchQueue.main.async {
                     let message = Chat.Message(response.message)
@@ -262,7 +216,6 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
         let request = Code_Chat_V2_GetMessagesRequest.with {
             $0.chatID   = .with { $0.value = chatID.data }
-            $0.memberID = .with { $0.value = memberID.data }
             $0.owner    = owner.publicKey.codeAccountID
             $0.pageSize = UInt32(pageSize)
             
@@ -287,7 +240,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
         call.handle(on: queue) { response in
             let error = ErrorFetchMessages(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok || error == .notFound {
+            if error == .ok {
                 let messages = response.messages.map { Chat.Message($0) }
 //                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Messages: \(messages.count)")
                 completion(.success(messages))
@@ -358,33 +311,6 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
             completion(.failure(.unknown))
         }
     }
-    
-    func setSubscriptionState(chatID: ChatID, subscribed: Bool, owner: KeyPair, completion: @escaping (Result<Void, ErrorSetSubscriptionState>) -> Void) {
-        trace(.send, components: "Chat ID: \(chatID.data.hexEncodedString())")
-        
-        let request = Code_Chat_V2_SetSubscriptionStateRequest.with {
-            $0.chatID = .with { $0.value = chatID.data }
-            $0.isSubscribed = subscribed
-            $0.owner = owner.publicKey.codeAccountID
-            $0.signature = $0.sign(with: owner)
-        }
-        
-        let call = service.setSubscriptionState(request)
-        
-        call.handle(on: queue) { response in
-            let error = ErrorSetSubscriptionState(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                trace(.success, components: "Chat ID: \(chatID.data.hexEncodedString())", "Subscribed: \(subscribed)")
-                completion(.success(()))
-            } else {
-                trace(.success, components: "Error: \(error)")
-                completion(.failure(error))
-            }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
-        }
-    }
 }
 
 // MARK: - Types -
@@ -404,25 +330,31 @@ public enum ErrorOpenChatStream: Int, Error {
 
 public enum ErrorStartChat: Int, Error {
     case ok
+    
+    /// DENIED indicates the caller is not allowed to start/join the chat
     case denied
+    
+    /// INVALID_PRAMETER indicates one of the parameters is invalid
     case invalidParameter
+    
+    /// PENDING indicates that the payment (for chat) intent is pending confirmation
+    /// before the service will permit the creation of the chat. This can happen in
+    /// cases where the block chain is particularly slow (beyond our RPC timeouts)
+    case pending
+    
+    /// MISSING_IDENTITY indicates that there is no identity for the user (creator)
+    case missingIdentity
+    
+    /// USER_NOT_FOUND indicates that (one of) the target user's was not found
+    case userNotFound
+    
     case unknown = -1
 }
 
 public enum ErrorSendMessage: Int, Error {
     case ok
     case denied
-    case chatNotFound
-    case invalidChatType
     case invalidContentType
-    case unknown = -1
-}
-
-public enum ErrorRevealIdentity: Int, Error {
-    case ok
-    case denied
-    case chatNotFound
-    case differentIdentityRevealed
     case unknown = -1
 }
 
@@ -434,7 +366,7 @@ public enum ErrorFetchChats: Int, Error {
 
 public enum ErrorFetchMessages: Int, Error {
     case ok
-    case notFound
+    case denied
     case unknown = -1
 }
 
@@ -452,13 +384,6 @@ public enum ErrorSetMuteState: Int, Error {
     case unknown = -1
 }
 
-public enum ErrorSetSubscriptionState: Int, Error {
-    case ok
-    case chatNotFound
-    case cantUnsubscribe
-    case unknown = -1
-}
-
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Chat_V2_ChatClientInterceptorFactoryProtocol {
@@ -467,10 +392,6 @@ extension InterceptorFactory: Code_Chat_V2_ChatClientInterceptorFactoryProtocol 
     }
     
     func makeStartChatInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_StartChatRequest, CodeAPI.Code_Chat_V2_StartChatResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeRevealIdentityInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_RevealIdentityRequest, CodeAPI.Code_Chat_V2_RevealIdentityResponse>] {
         makeInterceptors()
     }
     
@@ -483,10 +404,6 @@ extension InterceptorFactory: Code_Chat_V2_ChatClientInterceptorFactoryProtocol 
     }
     
     func makeSetMuteStateInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_SetMuteStateRequest, CodeAPI.Code_Chat_V2_SetMuteStateResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSetSubscriptionStateInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Chat_V2_SetSubscriptionStateRequest, CodeAPI.Code_Chat_V2_SetSubscriptionStateResponse>] {
         makeInterceptors()
     }
     

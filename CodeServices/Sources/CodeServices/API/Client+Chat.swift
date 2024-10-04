@@ -13,8 +13,8 @@ public typealias ChatMessageStreamReference = BidirectionalStreamReference<Code_
 
 extension Client {
     
-    public func openChatStream(chatID: ChatID, memberID: MemberID, owner: KeyPair, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
-        chatService.openChatStream(chatID: chatID, memberID: memberID, owner: owner, completion: completion)
+    public func openChatStream(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
+        chatService.openChatStream(chatID: chatID, owner: owner, completion: completion)
     }
     
     public func fetchChats(owner: KeyPair) async throws -> [Chat] {
@@ -23,21 +23,15 @@ extension Client {
         }
     }
     
-    public func startChat(owner: KeyPair, ownerUsername: String, intentID: PublicKey, destination: PublicKey) async throws -> Chat {
+    public func startChat(owner: KeyPair, intentID: PublicKey, destination: PublicKey) async throws -> Chat {
         try await withCheckedThrowingContinuation { c in
-            chatService.startChat(owner: owner, ownerUsername: ownerUsername, intentID: intentID, destination: destination) { c.resume(with: $0) }
+            chatService.startChat(owner: owner, intentID: intentID, destination: destination) { c.resume(with: $0) }
         }
     }
     
-    public func sendMessage(chatID: ChatID, memberID: MemberID, owner: KeyPair, content: Chat.Content) async throws -> Chat.Message {
+    public func sendMessage(chatID: ChatID, owner: KeyPair, content: Chat.Content) async throws -> Chat.Message {
         try await withCheckedThrowingContinuation { c in
-            chatService.sendMessage(chatID: chatID, memberID: memberID, owner: owner, content: content) { c.resume(with: $0) }
-        }
-    }
-    
-    public func revealIdentity(chatID: ChatID, memberID: MemberID, twitterUsername: String, owner: KeyPair) async throws -> Chat.Message {
-        try await withCheckedThrowingContinuation { c in
-            chatService.revealIdentity(chatID: chatID, memberID: memberID, twitterUsername: twitterUsername, owner: owner) { c.resume(with: $0) }
+            chatService.sendMessage(chatID: chatID, owner: owner, content: content) { c.resume(with: $0) }
         }
     }
     
@@ -56,12 +50,6 @@ extension Client {
     public func setMuteState(chatID: ChatID, muted: Bool, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
             chatService.setMuteState(chatID: chatID, muted: muted, owner: owner) { c.resume(with: $0) }
-        }
-    }
-    
-    public func setSubscriptionState(chatID: ChatID, subscribed: Bool, owner: KeyPair) async throws {
-        try await withCheckedThrowingContinuation { c in
-            chatService.setSubscriptionState(chatID: chatID, subscribed: subscribed, owner: owner) { c.resume(with: $0) }
         }
     }
 }

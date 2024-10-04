@@ -55,23 +55,6 @@ extension Chat.Content {
             
         case .text(let text):
             return text
-            
-        case .thankYou:
-            // TODO: Identify who's thanking who
-            return "Thank you"
-            
-        case .identityRevealed:
-            return "Identity Revealed"
-            
-        case .identity(let direction, let identity):
-            let name = identity.name ?? "anonymous"
-            
-            switch direction {
-            case .fromSelf:
-                return "You revealed your identity as \(name)"
-            case .fromOther:
-                return "\(name) revealed their identity"
-            }
         }
     }
 }

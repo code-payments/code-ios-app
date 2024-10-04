@@ -49,16 +49,16 @@ class ChatController: ObservableObject {
     
     // MARK: - Stream -
     
-    func openChatStream(chatID: ChatID, memberID: MemberID, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
-        client.openChatStream(chatID: chatID, memberID: memberID, owner: owner, completion: completion)
+    func openChatStream(chatID: ChatID, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
+        client.openChatStream(chatID: chatID, owner: owner, completion: completion)
     }
     
     // MARK: - Messages -
     
-    func send(content: Chat.Content, in chat: Chat, from member: Chat.Member) async throws -> Chat.Message {
-        try await sendMessage(
-            in: chat.id,
-            from: member.id,
+    func sendMessage(content: Chat.Content, in chatID: ChatID) async throws -> Chat.Message {
+        try await client.sendMessage(
+            chatID: chatID,
+            owner: owner,
             content: content
         )
     }
@@ -92,21 +92,6 @@ class ChatController: ObservableObject {
     
     private func computeUnreadCount() {
         unreadCount = computeUnreadCount(for: chats)
-    }
-    
-    // MARK: - Identity -
-    
-    func revealSelfIdentity(chat: Chat, username: String) async throws -> Chat.Message {
-        guard let selfMemeber = chat.selfMember else {
-            throw Error.selfMemberNotFound
-        }
-        
-        return try await client.revealIdentity(
-            chatID: chat.id,
-            memberID: selfMemeber.id,
-            twitterUsername: username,
-            owner: owner
-        )
     }
     
     // MARK: - Pointers -
@@ -161,18 +146,6 @@ class ChatController: ObservableObject {
         )
     }
     
-    func setSubscribed(_ subscribed: Bool, for chat: Chat) async throws {
-        chat.setSubscribed(subscribed)
-        
-        computeUnreadCount()
-        
-        try await client.setSubscriptionState(
-            chatID: chat.id,
-            subscribed: subscribed,
-            owner: owner
-        )
-    }
-    
     func chat(for chatID: ID) -> Chat? {
         chats.first { $0.id == chatID }
     }
@@ -183,22 +156,13 @@ class ChatController: ObservableObject {
     
     private func computeUnreadCount(for chats: [Chat]) -> Int {
         chats.reduce(into: 0) { result, chat in
-            if !chat.isMuted && chat.isSubscribed { // Ignore muted chats and unsubscribed chats
+            if !chat.isMuted { // Ignore muted chats and unsubscribed chats
                 result = result + chat.unreadCount
             }
         }
     }
     
     // MARK: - Fetching -
-    
-    private func sendMessage(in chatID: ChatID, from memberID: MemberID, content: Chat.Content) async throws -> Chat.Message {
-        try await client.sendMessage(
-            chatID: chatID,
-            memberID: memberID,
-            owner: owner,
-            content: content
-        )
-    }
     
     private func fetchAllChatsAndMessages() async throws -> [Chat] {
         let chats = try await client.fetchChats(owner: owner)
@@ -381,12 +345,6 @@ class ChatController: ObservableObject {
     
     func appDidBecomeActive() {
         fetchChats()
-    }
-}
-
-extension ChatController {
-    enum Error: Swift.Error {
-        case selfMemberNotFound
     }
 }
 

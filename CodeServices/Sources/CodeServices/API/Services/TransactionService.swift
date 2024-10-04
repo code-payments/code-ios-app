@@ -462,7 +462,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 }
                 
             case .failure(let error):
-                trace(.failure, components: "Stream closed: \(error)")
+                trace(.failure, components: "GRPC Error - stream closed: \(error)")
                 completion(.failure(.grpcError(error)))
             }
             

@@ -69,7 +69,7 @@ extension Chat {
                 cursor: cursor,
                 contents: contents.map { content in
                     switch content {
-                    case .localized, .kin, .text, .thankYou, .identityRevealed, .identity:
+                    case .localized, .kin, .text:
                         return content // Passthrough
                         
                     case .sodiumBox(let encryptedData):
@@ -95,7 +95,7 @@ extension Chat {
                         continue
                     }
                     
-                case .text, .localized, .sodiumBox, .thankYou, .identityRevealed, .identity:
+                case .text, .localized, .sodiumBox:
                     continue
                 }
             }
@@ -116,7 +116,7 @@ extension Chat.Message {
 // MARK: - Proto -
 
 extension Chat.Message {
-    public init(_ proto: Code_Chat_V2_ChatMessage) {
+    public init(_ proto: Code_Chat_V2_Message) {
         self.init(
             id: .init(data: proto.messageID.value),
             senderID: !proto.senderID.value.isEmpty ? .init(data: proto.senderID.value) : nil,

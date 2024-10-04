@@ -844,10 +844,6 @@ class Session: ObservableObject {
         let rendezvous = PublicKey.generate()!
         
         do {
-            guard let selfUser = tipController.twitterUser else {
-                throw ChatError.twitterUnauthenticated
-            }
-            
             try await flowController.transfer(
                 amount: amount,
                 fee: 0,
@@ -861,7 +857,6 @@ class Session: ObservableObject {
             
             let chat = try await client.startChat(
                 owner: organizer.ownerKeyPair,
-                ownerUsername: selfUser.username,
                 intentID: rendezvous, // In this case, rendezvous must be the transfer intent ID
                 destination: destination
             )
@@ -1625,10 +1620,6 @@ extension Session {
         case exchangeForCurrencyNotFound
         case messageForRendezvousNotFound
         case rendezvousFailedValidation
-    }
-    
-    enum ChatError: Swift.Error {
-        case twitterUnauthenticated
     }
 }
 

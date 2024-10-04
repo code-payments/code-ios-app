@@ -147,9 +147,6 @@ public struct MessageList: View {
                                     location: .forIndex(index, count: message.contents.count)
                                 )
                                 
-                            case .thankYou, .identityRevealed, .identity:
-                                MessageAction(text: content.localizedText)
-                                
 //                            case .tip(let direction, let amount):
 //                                
 //                                if let rate = rate(for: amount.currency) {
@@ -278,8 +275,6 @@ private extension GeometryProxy {
         switch content {
         case .localized, .kin, .sodiumBox, .text:
             return size.width * 0.70
-        case .thankYou, .identityRevealed, .identity:
-            return size.width
         }
     }
 }
@@ -339,121 +334,6 @@ extension View {
                 bl: Metrics.chatMessageRadiusLarge * m,
                 br: location.bottomRightRadius * m,
                 tr: location.topRightRadius * m
-            )
-        }
-    }
-}
-
-// MARK: - Previews -
-
-struct MessageList_Previews: PreviewProvider {
-    static var previews: some View {
-        Background(color: .backgroundMain) {
-            MessageList(
-                chat: Chat(
-                    id: .mock,
-                    cursor: .mock,
-                    kind: .notification,
-                    title: "Test",
-                    canMute: true,
-                    canUnsubscribe: true,
-                    members: [],
-                    messages: [
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: nil,
-//                            contents: [
-//                                .tip(.received, .exact(
-//                                    KinAmount(
-//                                        fiat: 100.00,
-//                                        rate: Rate(
-//                                            fx: 0.000016,
-//                                            currency: .usd
-//                                        )
-//                                    )
-//                                ))
-//                            ]
-//                        ),
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: nil,
-//                            contents: [
-//                                .thankYou(.sent),
-//                            ]
-//                        ),
-//                        
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: nil,
-//                            contents: [
-//                                .localized("Hi")
-//                            ]
-//                        ),
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: false,
-//                            contents: [
-//                                .localized("Hello"),
-//                            ]
-//                        ),
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: false,
-//                            contents: [
-//                                .localized("I'm sending you some Kin to pay you back for lunch earlier."),
-//                                .kin(
-//                                    .partial(Fiat(
-//                                        currency: .cny,
-//                                        amount: 35.75
-//                                    )), .sent
-//                                ),
-//                            ]
-//                        ),
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: nil,
-//                            contents: [
-//                                .localized("Oh, thanks! I think you sent me too much, I'll send some back."),
-//                            ]
-//                        ),
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: nil,
-//                            contents: [
-//                                .kin(
-//                                    .partial(Fiat(
-//                                        currency: .cad,
-//                                        amount: 1.00
-//                                    )), .tipReceived
-//                                ),
-//                            ]
-//                        ),
-//                        
-//                        Chat.Message(
-//                            id: .random,
-//                            date: .now,
-//                            isReceived: nil,
-//                            contents: [
-//                                .sodiumBox(
-//                                    EncryptedData(
-//                                        peerPublicKey: .mock,
-//                                        nonce: .init(),
-//                                        encryptedData: .init()
-//                                    )
-//                                )
-//                            ]
-//                        ),                
-                    ]
-                ),
-                exchange: .mock,
-                state: .constant(.init())
             )
         }
     }

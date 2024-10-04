@@ -96,7 +96,7 @@ message ChatId {
     // Sufficient space is left for a consistent hash value, though other types
     // of values may be used.
     bytes value = 1 [(validate.rules).bytes = {
-        min_len: 32
+        min_len: 16
         max_len: 32
     }];
 }

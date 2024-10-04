@@ -17,6 +17,28 @@ public typealias MessageID = ID
 @MainActor
 public class Chat: ObservableObject {
     
+    /// Unique chat identifier
+    nonisolated
+    public let id: ChatID
+    
+    /// The type of chat
+    @Published public private(set) var kind: Kind
+    
+    /// The chat title, which will be localized by server when applicable
+    @Published public private(set) var title: String
+    
+    /// Whether or not the chat is muted
+    @Published public private(set) var isMuted: Bool
+
+    /// Whether or not the chat is mutable
+    @Published public private(set) var muteable: Bool
+    
+    /// Cursor value for this chat for reference in subsequent GetChatsRequest
+    @Published public private(set) var cursor: Cursor
+    
+    /// Number of (estimated) unread message
+    @Published public private(set) var unreadCount: Int
+    
     /// The members in this chat
     ///
     /// For NOTIFICATION chats, this list has exactly 1 item
@@ -29,25 +51,6 @@ public class Chat: ObservableObject {
     
     /// The messages in this chat
     @Published public private(set) var messages: [Message]
-    
-    /// Unique chat identifier
-    nonisolated
-    public let id: ChatID
-    
-    /// Cursor value for this chat for reference in subsequent GetChatsRequest
-    public private(set) var cursor: Cursor
-    
-    /// The type of chat
-    public private(set) var kind: Kind
-    
-    /// The chat title, which will be localized by server when applicable
-    public private(set) var title: String
-    
-    /// Can the user mute this chat?
-    public private(set) var canMute: Bool
-    
-    /// Can the user unsubscribe from this chat?
-    public private(set) var canUnsubscribe: Bool
     
     /// A member of the `members` array that is `self`
     public var selfMember: Member? {
@@ -91,18 +94,6 @@ public class Chat: ObservableObject {
         return recipient?.pointers ?? []
     }
     
-    public var unreadCount: Int {
-        selfMember?.numUnread ?? 0
-    }
-    
-    public var isMuted: Bool {
-        selfMember?.isMuted ?? false
-    }
-    
-    public var isSubscribed: Bool {
-        selfMember?.isSubscribed ?? false
-    }
-    
     public var oldestMessage: Message? {
         messages.first
     }
@@ -113,13 +104,14 @@ public class Chat: ObservableObject {
     
     // MARK: - Init -
     
-    public init(id: ID, cursor: ID, kind: Kind, title: String, canMute: Bool, canUnsubscribe: Bool, members: [Member], messages: [Message]) {
+    public init(id: ChatID, kind: Kind, title: String, isMuted: Bool, muteable: Bool, cursor: Cursor, unreadCount: Int, members: [Member], messages: [Message]) {
         self.id = id
-        self.cursor = cursor
         self.kind = kind
         self.title = title
-        self.canMute = canMute
-        self.canUnsubscribe = canUnsubscribe
+        self.isMuted = isMuted
+        self.muteable = muteable
+        self.cursor = cursor
+        self.unreadCount = unreadCount
         self.members = members
         self.messages = messages
     }
@@ -127,21 +119,11 @@ public class Chat: ObservableObject {
     // MARK: - State -
     
     public func resetUnreadCount() {
-        updatingSelf { member in
-            member.numUnread = 0
-        }
+        unreadCount = 0
     }
     
     public func setMuted(_ muted: Bool) {
-        updatingSelf { member in
-            member.isMuted = muted
-        }
-    }
-    
-    public func setSubscribed(_ subscribed: Bool) {
-        updatingSelf { member in
-            member.isSubscribed = subscribed
-        }
+        isMuted = muted
     }
     
     private func updatingSelf(block: (inout Member) -> Void) {
@@ -210,18 +192,7 @@ public class Chat: ObservableObject {
     }
     
     private func setSortedMessages(_ messages: [Message]) {
-        self.messages = messages.map {
-            var mappedMessage = $0
-            mappedMessage.contents = $0.contents.map {
-                if case .identityRevealed(let memberID, let identity) = $0 {
-                    let direction: Chat.Content.Direction = memberID == selfMember?.id ? .fromSelf : .fromOther
-                    return .identity(direction, identity)
-                } else {
-                    return $0
-                }
-            }
-            return mappedMessage
-        }
+        self.messages = messages
     }
     
     public func latestMessage() -> Message? {
@@ -241,8 +212,6 @@ public class Chat: ObservableObject {
         cursor = chat.cursor
         title = chat.title
         kind = chat.kind
-        canMute = chat.canMute
-        canUnsubscribe = chat.canUnsubscribe
         members = chat.members
         messages = chat.messages
         
@@ -265,7 +234,6 @@ extension Chat: Hashable, Equatable {
 extension Chat {
     public enum Kind: Int {
         case unknown
-        case notification
         case twoWay
     }
 }
@@ -286,25 +254,19 @@ extension Chat {
         case tipSent     // = 11
     }
 }
-            
-extension Chat {
-    public enum MessageDirection {
-        case sent
-        case received
-    }
-}
 
 // MARK: - Proto -
 
 extension Chat {
-    convenience init(_ proto: Code_Chat_V2_ChatMetadata) {
+    convenience init(_ proto: Code_Chat_V2_Metadata) {
         self.init(
             id: .init(data: proto.chatID.value),
-            cursor: .init(data: proto.cursor.value),
             kind: Kind(rawValue: proto.type.rawValue) ?? .unknown,
             title: proto.title,
-            canMute: proto.canMute,
-            canUnsubscribe: proto.canUnsubscribe,
+            isMuted: proto.isMuted,
+            muteable: proto.muteable,
+            cursor: .init(data: proto.cursor.value),
+            unreadCount: Int(proto.numUnread),
             members: proto.members.map { .init($0) },
             messages: []
         )

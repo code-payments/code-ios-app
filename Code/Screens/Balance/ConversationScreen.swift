@@ -61,11 +61,7 @@ struct ConversationScreen: View {
     // MARK: - Streams -
     
     private func startStream() {
-        guard let selfMember = chat.selfMember else {
-            return
-        }
-        
-        stream = chatController.openChatStream(chatID: chat.id, memberID: selfMember.id) { result in
+        stream = chatController.openChatStream(chatID: chat.id) { result in
             switch result {
             case .success(let events):
                 streamUpdate(events: events)
@@ -235,16 +231,8 @@ struct ConversationScreen: View {
     // MARK: - Actions -
     
     private func sendMessage(text: String) {
-        guard let selfMember = chat.selfMember else {
-            return
-        }
-        
         Task {
-            try await chatController.send(
-                content: .text(text),
-                in: chat,
-                from: selfMember
-            )
+            try await chatController.send(content: .text(text), in: chat)
         }
         
         input = ""
@@ -265,7 +253,7 @@ struct ConversationScreen: View {
                 chat.setPointer(pointer)
                 trace(.receive, components: "Pointer \(pointer.kind) pointer to: \(pointer.messageID.data.hexEncodedString())")
                 
-            case .isTyping(let isTyping, let memberID):
+            case .isTyping:
                 break
             }
         }

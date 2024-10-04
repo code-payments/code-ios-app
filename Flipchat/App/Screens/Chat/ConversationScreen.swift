@@ -61,11 +61,7 @@ struct ConversationScreen: View {
     // MARK: - Streams -
     
     private func startStream() {
-        guard let selfMember = chat.selfMember else {
-            return
-        }
-        
-        stream = chatController.openChatStream(chatID: chat.id, memberID: selfMember.id) { result in
+        stream = chatController.openChatStream(chatID: chat.id) { result in
             switch result {
             case .success(let events):
                 streamUpdate(events: events)
@@ -240,11 +236,7 @@ struct ConversationScreen: View {
         }
         
         Task {
-            try await chatController.send(
-                content: .text(text),
-                in: chat,
-                from: selfMember
-            )
+            try await chatController.sendMessage(content: .text(text), in: chat.id)
         }
         
         input = ""

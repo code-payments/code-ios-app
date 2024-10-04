@@ -46,20 +46,10 @@ public protocol Code_Chat_V2_ChatClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Chat_V2_AdvancePointerRequest, Code_Chat_V2_AdvancePointerResponse>
 
-  func revealIdentity(
-    _ request: Code_Chat_V2_RevealIdentityRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Code_Chat_V2_RevealIdentityRequest, Code_Chat_V2_RevealIdentityResponse>
-
   func setMuteState(
     _ request: Code_Chat_V2_SetMuteStateRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Chat_V2_SetMuteStateRequest, Code_Chat_V2_SetMuteStateResponse>
-
-  func setSubscriptionState(
-    _ request: Code_Chat_V2_SetSubscriptionStateRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>
 
   func notifyIsTyping(
     _ request: Code_Chat_V2_NotifyIsTypingRequest,
@@ -178,7 +168,7 @@ extension Code_Chat_V2_ChatClientProtocol {
     )
   }
 
-  /// SendMessage sends a message to a chat
+  /// SendMessage sends a message to a chat.
   ///
   /// - Parameters:
   ///   - request: Request to send to SendMessage.
@@ -196,7 +186,7 @@ extension Code_Chat_V2_ChatClientProtocol {
     )
   }
 
-  /// AdvancePointer advances a pointer in message history for a chat member
+  /// AdvancePointer advances a pointer in message history for a chat member.
   ///
   /// - Parameters:
   ///   - request: Request to send to AdvancePointer.
@@ -214,26 +204,7 @@ extension Code_Chat_V2_ChatClientProtocol {
     )
   }
 
-  /// RevealIdentity reveals a chat member's identity if it is anonymous. A chat
-  /// message will be inserted on success.
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to RevealIdentity.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func revealIdentity(
-    _ request: Code_Chat_V2_RevealIdentityRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Chat_V2_RevealIdentityRequest, Code_Chat_V2_RevealIdentityResponse> {
-    return self.makeUnaryCall(
-      path: Code_Chat_V2_ChatClientMetadata.Methods.revealIdentity.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeRevealIdentityInterceptors() ?? []
-    )
-  }
-
-  /// SetMuteState configures a chat member's mute state
+  /// SetMuteState configures a chat member's mute state.
   ///
   /// - Parameters:
   ///   - request: Request to send to SetMuteState.
@@ -248,24 +219,6 @@ extension Code_Chat_V2_ChatClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
-    )
-  }
-
-  /// SetSubscriptionState configures a chat member's susbscription state
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to SetSubscriptionState.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func setSubscriptionState(
-    _ request: Code_Chat_V2_SetSubscriptionStateRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse> {
-    return self.makeUnaryCall(
-      path: Code_Chat_V2_ChatClientMetadata.Methods.setSubscriptionState.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
 
@@ -381,20 +334,10 @@ public protocol Code_Chat_V2_ChatAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Chat_V2_AdvancePointerRequest, Code_Chat_V2_AdvancePointerResponse>
 
-  func makeRevealIdentityCall(
-    _ request: Code_Chat_V2_RevealIdentityRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Chat_V2_RevealIdentityRequest, Code_Chat_V2_RevealIdentityResponse>
-
   func makeSetMuteStateCall(
     _ request: Code_Chat_V2_SetMuteStateRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Chat_V2_SetMuteStateRequest, Code_Chat_V2_SetMuteStateResponse>
-
-  func makeSetSubscriptionStateCall(
-    _ request: Code_Chat_V2_SetSubscriptionStateRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>
 
   func makeNotifyIsTypingCall(
     _ request: Code_Chat_V2_NotifyIsTypingRequest,
@@ -482,18 +425,6 @@ extension Code_Chat_V2_ChatAsyncClientProtocol {
     )
   }
 
-  public func makeRevealIdentityCall(
-    _ request: Code_Chat_V2_RevealIdentityRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Chat_V2_RevealIdentityRequest, Code_Chat_V2_RevealIdentityResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Code_Chat_V2_ChatClientMetadata.Methods.revealIdentity.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeRevealIdentityInterceptors() ?? []
-    )
-  }
-
   public func makeSetMuteStateCall(
     _ request: Code_Chat_V2_SetMuteStateRequest,
     callOptions: CallOptions? = nil
@@ -503,18 +434,6 @@ extension Code_Chat_V2_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
-    )
-  }
-
-  public func makeSetSubscriptionStateCall(
-    _ request: Code_Chat_V2_SetSubscriptionStateRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Code_Chat_V2_ChatClientMetadata.Methods.setSubscriptionState.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
 
@@ -617,18 +536,6 @@ extension Code_Chat_V2_ChatAsyncClientProtocol {
     )
   }
 
-  public func revealIdentity(
-    _ request: Code_Chat_V2_RevealIdentityRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Code_Chat_V2_RevealIdentityResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Code_Chat_V2_ChatClientMetadata.Methods.revealIdentity.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeRevealIdentityInterceptors() ?? []
-    )
-  }
-
   public func setMuteState(
     _ request: Code_Chat_V2_SetMuteStateRequest,
     callOptions: CallOptions? = nil
@@ -638,18 +545,6 @@ extension Code_Chat_V2_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
-    )
-  }
-
-  public func setSubscriptionState(
-    _ request: Code_Chat_V2_SetSubscriptionStateRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Code_Chat_V2_SetSubscriptionStateResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Code_Chat_V2_ChatClientMetadata.Methods.setSubscriptionState.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? []
     )
   }
 
@@ -703,14 +598,8 @@ public protocol Code_Chat_V2_ChatClientInterceptorFactoryProtocol: Sendable {
   /// - Returns: Interceptors to use when invoking 'advancePointer'.
   func makeAdvancePointerInterceptors() -> [ClientInterceptor<Code_Chat_V2_AdvancePointerRequest, Code_Chat_V2_AdvancePointerResponse>]
 
-  /// - Returns: Interceptors to use when invoking 'revealIdentity'.
-  func makeRevealIdentityInterceptors() -> [ClientInterceptor<Code_Chat_V2_RevealIdentityRequest, Code_Chat_V2_RevealIdentityResponse>]
-
   /// - Returns: Interceptors to use when invoking 'setMuteState'.
   func makeSetMuteStateInterceptors() -> [ClientInterceptor<Code_Chat_V2_SetMuteStateRequest, Code_Chat_V2_SetMuteStateResponse>]
-
-  /// - Returns: Interceptors to use when invoking 'setSubscriptionState'.
-  func makeSetSubscriptionStateInterceptors() -> [ClientInterceptor<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>]
 
   /// - Returns: Interceptors to use when invoking 'notifyIsTyping'.
   func makeNotifyIsTypingInterceptors() -> [ClientInterceptor<Code_Chat_V2_NotifyIsTypingRequest, Code_Chat_V2_NotifyIsTypingResponse>]
@@ -727,9 +616,7 @@ public enum Code_Chat_V2_ChatClientMetadata {
       Code_Chat_V2_ChatClientMetadata.Methods.startChat,
       Code_Chat_V2_ChatClientMetadata.Methods.sendMessage,
       Code_Chat_V2_ChatClientMetadata.Methods.advancePointer,
-      Code_Chat_V2_ChatClientMetadata.Methods.revealIdentity,
       Code_Chat_V2_ChatClientMetadata.Methods.setMuteState,
-      Code_Chat_V2_ChatClientMetadata.Methods.setSubscriptionState,
       Code_Chat_V2_ChatClientMetadata.Methods.notifyIsTyping,
     ]
   )
@@ -771,21 +658,9 @@ public enum Code_Chat_V2_ChatClientMetadata {
       type: GRPCCallType.unary
     )
 
-    public static let revealIdentity = GRPCMethodDescriptor(
-      name: "RevealIdentity",
-      path: "/code.chat.v2.Chat/RevealIdentity",
-      type: GRPCCallType.unary
-    )
-
     public static let setMuteState = GRPCMethodDescriptor(
       name: "SetMuteState",
       path: "/code.chat.v2.Chat/SetMuteState",
-      type: GRPCCallType.unary
-    )
-
-    public static let setSubscriptionState = GRPCMethodDescriptor(
-      name: "SetSubscriptionState",
-      path: "/code.chat.v2.Chat/SetSubscriptionState",
       type: GRPCCallType.unary
     )
 
@@ -844,21 +719,14 @@ public protocol Code_Chat_V2_ChatProvider: CallHandlerProvider {
   /// chats whenever applicable within the context of message routing.
   func startChat(request: Code_Chat_V2_StartChatRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_StartChatResponse>
 
-  /// SendMessage sends a message to a chat
+  /// SendMessage sends a message to a chat.
   func sendMessage(request: Code_Chat_V2_SendMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_SendMessageResponse>
 
-  /// AdvancePointer advances a pointer in message history for a chat member
+  /// AdvancePointer advances a pointer in message history for a chat member.
   func advancePointer(request: Code_Chat_V2_AdvancePointerRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_AdvancePointerResponse>
 
-  /// RevealIdentity reveals a chat member's identity if it is anonymous. A chat
-  /// message will be inserted on success.
-  func revealIdentity(request: Code_Chat_V2_RevealIdentityRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_RevealIdentityResponse>
-
-  /// SetMuteState configures a chat member's mute state
+  /// SetMuteState configures a chat member's mute state.
   func setMuteState(request: Code_Chat_V2_SetMuteStateRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_SetMuteStateResponse>
-
-  /// SetSubscriptionState configures a chat member's susbscription state
-  func setSubscriptionState(request: Code_Chat_V2_SetSubscriptionStateRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Chat_V2_SetSubscriptionStateResponse>
 
   /// NotifyIsTypingRequest notifies a chat that the sending member is typing.
   ///
@@ -932,15 +800,6 @@ extension Code_Chat_V2_ChatProvider {
         userFunction: self.advancePointer(request:context:)
       )
 
-    case "RevealIdentity":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Chat_V2_RevealIdentityRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Chat_V2_RevealIdentityResponse>(),
-        interceptors: self.interceptors?.makeRevealIdentityInterceptors() ?? [],
-        userFunction: self.revealIdentity(request:context:)
-      )
-
     case "SetMuteState":
       return UnaryServerHandler(
         context: context,
@@ -948,15 +807,6 @@ extension Code_Chat_V2_ChatProvider {
         responseSerializer: ProtobufSerializer<Code_Chat_V2_SetMuteStateResponse>(),
         interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? [],
         userFunction: self.setMuteState(request:context:)
-      )
-
-    case "SetSubscriptionState":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Chat_V2_SetSubscriptionStateRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Chat_V2_SetSubscriptionStateResponse>(),
-        interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? [],
-        userFunction: self.setSubscriptionState(request:context:)
       )
 
     case "NotifyIsTyping":
@@ -1036,36 +886,23 @@ public protocol Code_Chat_V2_ChatAsyncProvider: CallHandlerProvider, Sendable {
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Chat_V2_StartChatResponse
 
-  /// SendMessage sends a message to a chat
+  /// SendMessage sends a message to a chat.
   func sendMessage(
     request: Code_Chat_V2_SendMessageRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Chat_V2_SendMessageResponse
 
-  /// AdvancePointer advances a pointer in message history for a chat member
+  /// AdvancePointer advances a pointer in message history for a chat member.
   func advancePointer(
     request: Code_Chat_V2_AdvancePointerRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Chat_V2_AdvancePointerResponse
 
-  /// RevealIdentity reveals a chat member's identity if it is anonymous. A chat
-  /// message will be inserted on success.
-  func revealIdentity(
-    request: Code_Chat_V2_RevealIdentityRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Chat_V2_RevealIdentityResponse
-
-  /// SetMuteState configures a chat member's mute state
+  /// SetMuteState configures a chat member's mute state.
   func setMuteState(
     request: Code_Chat_V2_SetMuteStateRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Chat_V2_SetMuteStateResponse
-
-  /// SetSubscriptionState configures a chat member's susbscription state
-  func setSubscriptionState(
-    request: Code_Chat_V2_SetSubscriptionStateRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Chat_V2_SetSubscriptionStateResponse
 
   /// NotifyIsTypingRequest notifies a chat that the sending member is typing.
   ///
@@ -1149,15 +986,6 @@ extension Code_Chat_V2_ChatAsyncProvider {
         wrapping: { try await self.advancePointer(request: $0, context: $1) }
       )
 
-    case "RevealIdentity":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Chat_V2_RevealIdentityRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Chat_V2_RevealIdentityResponse>(),
-        interceptors: self.interceptors?.makeRevealIdentityInterceptors() ?? [],
-        wrapping: { try await self.revealIdentity(request: $0, context: $1) }
-      )
-
     case "SetMuteState":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1165,15 +993,6 @@ extension Code_Chat_V2_ChatAsyncProvider {
         responseSerializer: ProtobufSerializer<Code_Chat_V2_SetMuteStateResponse>(),
         interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? [],
         wrapping: { try await self.setMuteState(request: $0, context: $1) }
-      )
-
-    case "SetSubscriptionState":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Chat_V2_SetSubscriptionStateRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Chat_V2_SetSubscriptionStateResponse>(),
-        interceptors: self.interceptors?.makeSetSubscriptionStateInterceptors() ?? [],
-        wrapping: { try await self.setSubscriptionState(request: $0, context: $1) }
       )
 
     case "NotifyIsTyping":
@@ -1217,17 +1036,9 @@ public protocol Code_Chat_V2_ChatServerInterceptorFactoryProtocol: Sendable {
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeAdvancePointerInterceptors() -> [ServerInterceptor<Code_Chat_V2_AdvancePointerRequest, Code_Chat_V2_AdvancePointerResponse>]
 
-  /// - Returns: Interceptors to use when handling 'revealIdentity'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeRevealIdentityInterceptors() -> [ServerInterceptor<Code_Chat_V2_RevealIdentityRequest, Code_Chat_V2_RevealIdentityResponse>]
-
   /// - Returns: Interceptors to use when handling 'setMuteState'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetMuteStateInterceptors() -> [ServerInterceptor<Code_Chat_V2_SetMuteStateRequest, Code_Chat_V2_SetMuteStateResponse>]
-
-  /// - Returns: Interceptors to use when handling 'setSubscriptionState'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeSetSubscriptionStateInterceptors() -> [ServerInterceptor<Code_Chat_V2_SetSubscriptionStateRequest, Code_Chat_V2_SetSubscriptionStateResponse>]
 
   /// - Returns: Interceptors to use when handling 'notifyIsTyping'.
   ///   Defaults to calling `self.makeInterceptors()`.
@@ -1245,9 +1056,7 @@ public enum Code_Chat_V2_ChatServerMetadata {
       Code_Chat_V2_ChatServerMetadata.Methods.startChat,
       Code_Chat_V2_ChatServerMetadata.Methods.sendMessage,
       Code_Chat_V2_ChatServerMetadata.Methods.advancePointer,
-      Code_Chat_V2_ChatServerMetadata.Methods.revealIdentity,
       Code_Chat_V2_ChatServerMetadata.Methods.setMuteState,
-      Code_Chat_V2_ChatServerMetadata.Methods.setSubscriptionState,
       Code_Chat_V2_ChatServerMetadata.Methods.notifyIsTyping,
     ]
   )
@@ -1289,21 +1098,9 @@ public enum Code_Chat_V2_ChatServerMetadata {
       type: GRPCCallType.unary
     )
 
-    public static let revealIdentity = GRPCMethodDescriptor(
-      name: "RevealIdentity",
-      path: "/code.chat.v2.Chat/RevealIdentity",
-      type: GRPCCallType.unary
-    )
-
     public static let setMuteState = GRPCMethodDescriptor(
       name: "SetMuteState",
       path: "/code.chat.v2.Chat/SetMuteState",
-      type: GRPCCallType.unary
-    )
-
-    public static let setSubscriptionState = GRPCMethodDescriptor(
-      name: "SetSubscriptionState",
-      path: "/code.chat.v2.Chat/SetSubscriptionState",
       type: GRPCCallType.unary
     )
 

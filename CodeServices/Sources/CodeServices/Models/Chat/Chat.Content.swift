@@ -15,9 +15,6 @@ extension Chat {
         case localized(String)
         case kin(GenericAmount, Verb, Reference)
         case sodiumBox(EncryptedData)
-        case thankYou(PublicKey) // IntentID
-        case identityRevealed(MemberID, Chat.Member.Identity)
-        case identity(Direction, Chat.Member.Identity)
     }
 }
 
@@ -41,22 +38,7 @@ extension Chat.Content {
                 }
             }
             
-        case .thankYou(let publicKey):
-            return .with {
-                $0.thankYou = .with {
-                    $0.tipIntent = publicKey.codeIntentID
-                }
-            }
-            
-        case .identityRevealed(let memberID, let identity):
-            return .with {
-                $0.identityRevealed = .with {
-                    $0.memberID = .with { $0.value = memberID.data }
-                    $0.identity = identity.codeIdentity
-                }
-            }
-            
-        case .localized, .kin, .sodiumBox, .identity:
+        case .localized, .kin, .sodiumBox:
             fatalError("Content unsupported")
         }
     }
@@ -157,38 +139,6 @@ extension Chat.Content {
             )
             
             self = .sodiumBox(data)
-            
-        case .identityRevealed(let content):
-            
-            let memberID = MemberID(data: content.memberID.value)
-            let identity = Chat.Member.Identity(content.identity)
-            
-            self = .identityRevealed(memberID, identity)
-        
-        case .thankYou(let content):
-            guard let intentID = PublicKey(content.tipIntent.value) else {
-                return nil
-            }
-            
-            self = .thankYou(intentID)
-        }
-    }
-}
-
-extension Chat.Member.Identity {
-    var codeIdentity: Code_Chat_V2_ChatMemberIdentity {
-        switch self {
-        case .unknown(let username):
-            return .with {
-                $0.platform = .unknownPlatform
-                $0.username = username
-            }
-            
-        case .twitter(let username, _):
-            return .with {
-                $0.platform = .twitter
-                $0.username = username
-            }
         }
     }
 }
