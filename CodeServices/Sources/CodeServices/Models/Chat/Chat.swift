@@ -25,7 +25,7 @@ public class Chat: ObservableObject {
     @Published public private(set) var kind: Kind
     
     /// The chat title, which will be localized by server when applicable
-    @Published public private(set) var title: String
+    //@Published public private(set) var title: String
     
     /// Whether or not the chat is muted
     @Published public private(set) var isMuted: Bool
@@ -74,7 +74,7 @@ public class Chat: ObservableObject {
     /// The title for the chat that defaults to identifying the 'other'
     /// member if their identity is available, otherwise `title`
     public var displayName: String {
-        otherMember?.identity.name ?? title
+        otherMember?.identity.name ?? "Unknown"
     }
     
     public var canRevealSelfIdentity: Bool {
@@ -104,10 +104,10 @@ public class Chat: ObservableObject {
     
     // MARK: - Init -
     
-    public init(id: ChatID, kind: Kind, title: String, isMuted: Bool, muteable: Bool, cursor: Cursor, unreadCount: Int, members: [Member], messages: [Message]) {
+    public init(id: ChatID, kind: Kind, isMuted: Bool, muteable: Bool, cursor: Cursor, unreadCount: Int, members: [Member], messages: [Message]) {
         self.id = id
         self.kind = kind
-        self.title = title
+        //self.title = title
         self.isMuted = isMuted
         self.muteable = muteable
         self.cursor = cursor
@@ -210,7 +210,6 @@ public class Chat: ObservableObject {
         }
         
         cursor = chat.cursor
-        title = chat.title
         kind = chat.kind
         members = chat.members
         messages = chat.messages
@@ -262,7 +261,6 @@ extension Chat {
         self.init(
             id: .init(data: proto.chatID.value),
             kind: Kind(rawValue: proto.type.rawValue) ?? .unknown,
-            title: proto.title,
             isMuted: proto.isMuted,
             muteable: proto.muteable,
             cursor: .init(data: proto.cursor.value),

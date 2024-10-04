@@ -114,7 +114,7 @@ struct ChatsScreen: View {
                     
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 10) {
-                            Text(chat.title)
+                            Text(chat.displayName)
                                 .foregroundColor(.textMain)
                                 .font(.appTextMedium)
                                 .lineLimit(1)

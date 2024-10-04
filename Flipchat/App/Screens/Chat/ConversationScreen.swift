@@ -211,7 +211,7 @@ struct ConversationScreen: View {
                 Spacer()
             }
         } else {
-            Text(chat.title)
+            Text(chat.displayName)
                 .font(.appTitle)
                 .foregroundColor(.textMain)
         }

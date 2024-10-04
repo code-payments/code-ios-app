@@ -27,7 +27,7 @@ struct ConversationContainer: View {
             return twitterUser.displayName
             
         case .established(let chat):
-            return chat.title
+            return chat.displayName
         }
     }
     

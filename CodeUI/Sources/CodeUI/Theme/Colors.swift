@@ -149,12 +149,12 @@ extension Color {
         case .bannerInfo:                return Color(r: 86,  g: 92,  b: 134)
         case .bannerWarning:             return Color(r: 241, g: 171, b: 31)
         case .button:                    return Color(r: 28,  g: 24,  b: 52)
-        case .backgroundMain:            return Color(r: 68,  g: 48,  b: 145) // Done
+        case .backgroundMain:            return Color(r: 54,  g: 39,  b: 116) // Done
         case .backgroundAction:          return Color(r: 255, g: 255, b: 255)
         case .backgroundRow:             return Color(r: 17,  g: 20,  b: 42)
         case .rowSeparator:              return Color(r: 255, g: 255, b: 255, o: 0.08)
-        case .backgroundMessageReceived: return Color(r: 31,  g: 26,  b: 52)
-        case .backgroundMessageSent:     return Color(r: 68,  g: 48,  b: 145)
+        case .backgroundMessageReceived: return Color(r: 44,  g: 33,  b: 88)  // Done
+        case .backgroundMessageSent:     return Color(r: 68,  g: 48,  b: 145) // Done
         case .checkmarkBackground:       return Color(r: 115, g: 121, b: 160)
         case .cameraOverlay:             return Color(r: 0,   g: 0,   b: 0,   o: 0.4)
         case .receiptGray:               return Color(r: 69,  g: 70,  b: 78)
