@@ -7,7 +7,6 @@
 //
 
 import SwiftUI
-import CodeUI
 
 @MainActor
 public struct Banner: Sendable {

@@ -485,7 +485,7 @@ private extension UITouch {
     }
 }
 
-extension CGPoint: Hashable, Identifiable {
+extension CGPoint: @retroactive Hashable, @retroactive Identifiable {
     
     public var id: String {
         "\(Int(x)):\(Int(y))"

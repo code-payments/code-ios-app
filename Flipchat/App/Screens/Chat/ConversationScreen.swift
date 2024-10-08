@@ -226,10 +226,6 @@ struct ConversationScreen: View {
     // MARK: - Actions -
     
     private func sendMessage(text: String) {
-        guard let selfMember = chat.selfMember else {
-            return
-        }
-        
         Task {
             try await chatController.sendMessage(content: .text(text), in: chat.id)
         }

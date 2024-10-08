@@ -37,7 +37,6 @@ struct ValueAnnotation: View {
             .foregroundColor(.textAction)
             .cornerRadius(999)
             .offset(y: offsetY())
-            .animation(.springFaster)
     }
     
     private func offsetY() -> CGFloat {

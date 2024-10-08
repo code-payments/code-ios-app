@@ -264,7 +264,7 @@ extension Array where Element == Chat.Message {
     }
 }
 
-extension Chat.Content: Identifiable {
+extension Chat.Content: @retroactive Identifiable {
     public var id: String {
         localizedText
     }
