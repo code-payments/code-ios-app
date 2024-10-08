@@ -97,7 +97,7 @@ extension Color {
     
     private static var isFlipchat: Bool = {
         let bundleID = try? InfoPlist.bundleIdentifier(bundle: nil)
-        if bundleID == "com.code.flipchat" {
+        if bundleID == "com.kin.code.oct24" {
             return true
         } else {
             return false
