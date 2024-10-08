@@ -18,11 +18,13 @@ extension Color {
     public static var textError: Color                 { return colorForKey(.textError) }
     public static var textSuccess: Color               { return colorForKey(.textSuccess) }
     public static var textWarning: Color               { return colorForKey(.textWarning) }
+    public static var textActionDisabled: Color        { return colorForKey(.textActionDisabled) }
     public static var bannerDark: Color                { return colorForKey(.bannerDark) }
     public static var bannerError: Color               { return colorForKey(.bannerError) }
     public static var bannerInfo: Color                { return colorForKey(.bannerInfo) }
     public static var bannerWarning: Color             { return colorForKey(.bannerWarning) }
-    public static var button: Color                    { return colorForKey(.button) }
+    public static var action: Color                    { return colorForKey(.action) }
+    public static var actionDisabled: Color            { return colorForKey(.actionDisabled) }
     public static var backgroundMain: Color            { return colorForKey(.backgroundMain) }
     public static var backgroundAction: Color          { return colorForKey(.backgroundAction) }
     public static var backgroundRow: Color             { return colorForKey(.backgroundRow) }
@@ -44,11 +46,13 @@ extension UIColor {
     public static var textError: UIColor                 { UIColor(.textError) }
     public static var textSuccess: UIColor               { UIColor(.textSuccess) }
     public static var textWarning: UIColor               { UIColor(.textWarning) }
+    public static var textActionDisabled: UIColor        { UIColor(.textActionDisabled) }
     public static var bannerDark: UIColor                { UIColor(.bannerDark) }
     public static var bannerError: UIColor               { UIColor(.bannerError) }
     public static var bannerInfo: UIColor                { UIColor(.bannerInfo) }
     public static var bannerWarning: UIColor             { UIColor(.bannerWarning) }
-    public static var button: UIColor                    { UIColor(.button) }
+    public static var action: UIColor                    { UIColor(.action) }
+    public static var actionDisabled: UIColor            { UIColor(.actionDisabled) }
     public static var backgroundMain: UIColor            { UIColor(.backgroundMain) }
     public static var backgroundAction: UIColor          { UIColor(.backgroundAction) }
     public static var backgroundRow: UIColor             { UIColor(.backgroundRow) }
@@ -72,11 +76,13 @@ extension Color {
         case textError
         case textSuccess
         case textWarning
+        case textActionDisabled
         case bannerDark
         case bannerError
         case bannerInfo
         case bannerWarning
-        case button
+        case action
+        case actionDisabled
         case backgroundMain
         case backgroundAction
         case backgroundRow
@@ -116,11 +122,13 @@ extension Color {
         case .textError:                 return Color(r: 255, g: 131, b: 131)
         case .textSuccess:               return Color(r: 73,  g: 213, b: 23)
         case .textWarning:               return Color(r: 255, g: 243, b: 131)
+        case .textActionDisabled:        return Color(r: 48,  g: 45,  b: 63)
         case .bannerDark:                return Color(r: 15,  g: 12,  b: 31)
         case .bannerError:               return Color(r: 188, g: 52,  b: 52)
         case .bannerInfo:                return Color(r: 86,  g: 92,  b: 134)
         case .bannerWarning:             return Color(r: 241, g: 171, b: 31)
-        case .button:                    return Color(r: 28,  g: 24,  b: 52)
+        case .action:                    return Color(r: 255, g: 255, b: 255)
+        case .actionDisabled:            return Color(r: 27,  g: 25,  b: 41)
         case .backgroundMain:            return Color(r: 15,  g: 12,  b: 31)
         case .backgroundAction:          return Color(r: 255, g: 255, b: 255)
         case .backgroundRow:             return Color(r: 17,  g: 20,  b: 42)
@@ -139,16 +147,18 @@ extension Color {
         case .mainAccent:                return Color(r: 255, g: 255, b: 255) // Done
         case .textMain:                  return Color(r: 255, g: 255, b: 255) // Done
         case .textSecondary:             return Color(r: 159, g: 151, b: 196) // Done
-        case .textAction:                return Color(r: 15,  g: 12,  b: 31)
+        case .textAction:                return Color(r: 54,  g: 39,  b: 116) // Done
         case .textGoogle:                return Color(r: 47,  g: 22,  b: 175)
         case .textError:                 return Color(r: 255, g: 131, b: 131)
         case .textSuccess:               return Color(r: 73,  g: 213, b: 23)
         case .textWarning:               return Color(r: 255, g: 243, b: 131)
+        case .textActionDisabled:        return Color(r: 255, g: 255, b: 255, o: 0.2) // Done
         case .bannerDark:                return Color(r: 15,  g: 12,  b: 31)
         case .bannerError:               return Color(r: 188, g: 52,  b: 52)
         case .bannerInfo:                return Color(r: 86,  g: 92,  b: 134)
         case .bannerWarning:             return Color(r: 241, g: 171, b: 31)
-        case .button:                    return Color(r: 28,  g: 24,  b: 52)
+        case .action:                    return Color(r: 255, g: 255, b: 255) // Done
+        case .actionDisabled:            return Color(r: 43,  g: 31,  b: 90)  // Done
         case .backgroundMain:            return Color(r: 54,  g: 39,  b: 116) // Done
         case .backgroundAction:          return Color(r: 255, g: 255, b: 255)
         case .backgroundRow:             return Color(r: 17,  g: 20,  b: 42)

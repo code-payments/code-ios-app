@@ -78,7 +78,7 @@ struct ConversationContainer: View {
         }
         .navigationBarHidden(false)
         .toolbar {
-            ToolbarItem(placement: .principal) {
+            ToolbarItem(placement: .topBarLeading) {
                 title()
             }
         }

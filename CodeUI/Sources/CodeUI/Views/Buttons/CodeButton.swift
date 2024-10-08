@@ -165,10 +165,10 @@ private extension CodeButton {
             case .filled, .filledThin:
                 if isDisabled {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                        .fill(Color(r: 27, g: 25, b: 41))
+                        .fill(Color.actionDisabled)
                 } else {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
-                        .fill(Color.textMain)
+                        .fill(Color.action)
                 }
                 
             case .subtle:
@@ -187,7 +187,7 @@ private extension CodeButton {
                 
             case .filled, .filledThin:
                 if isDisabled {
-                    return Color(r: 48, g: 45, b: 63)
+                    return .textActionDisabled
                 } else {
                     return .textAction
                 }

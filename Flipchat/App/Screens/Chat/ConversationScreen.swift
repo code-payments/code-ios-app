@@ -187,11 +187,6 @@ struct ConversationScreen: View {
         .onDisappear(perform: didDisappear)
         .interactiveDismissDisabled()
         .navigationBarHidden(false)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                title()
-            }
-        }
     }
     
     @ViewBuilder private func title() -> some View {

@@ -11,11 +11,9 @@ import CodeUI
 @main
 struct FlipchatApp: App {
     
-    @StateObject private var container = AppContainer()
+    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     
-    init() {
-        FontBook.registerApplicationFonts()
-    }
+    @StateObject private var container = AppContainer()
     
     var body: some Scene {
         WindowGroup {
