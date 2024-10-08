@@ -523,8 +523,18 @@
 		9AFF973925DFFF140094174A /* ContainerScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9A91F2A22CB5C17A0018CE65 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9A9970A22CA33145006BDE08 /* Flipchat */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
+		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9A91F2A22CB5C17A0018CE65 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
 		9A9970B52CA33147006BDE08 /* FlipchatTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatTests; sourceTree = "<group>"; };
 		9A9970BF2CA33147006BDE08 /* FlipchatUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -2554,6 +2564,10 @@
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Flipchat/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -2593,6 +2607,10 @@
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Flipchat/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -2628,6 +2646,10 @@
 				ENABLE_PREVIEWS = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Flipchat/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -2663,6 +2685,10 @@
 				ENABLE_PREVIEWS = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Flipchat/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
