@@ -71,6 +71,12 @@ extension URL {
 }
 
 extension URL {
+    static func codeScheme(path: String = "") -> URL {
+        URL(string: "codewallet://\(path)")!
+    }
+}
+
+extension URL {
     enum DownloadCodeRef {
         case iosQR
         case iosLink
@@ -110,8 +116,14 @@ extension URL {
     
     @available(iOSApplicationExtension, unavailable)
     @MainActor
+    func canOpen() -> Bool {
+        UIApplication.shared.canOpenURL(self)
+    }
+    
+    @available(iOSApplicationExtension, unavailable)
+    @MainActor
     func openWithApplication() {
-        if UIApplication.shared.canOpenURL(self) {
+        if canOpen() {
             UIApplication.shared.open(self, options: [:], completionHandler: nil)
         }
     }

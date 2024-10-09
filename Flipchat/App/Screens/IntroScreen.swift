@@ -47,10 +47,12 @@ struct IntroScreen: View {
                                 style: .filled,
                                 title: Localized.Action.createAccount
                             ) {
+                                openCode()
                                 // Create account flow
                             }
                             
                             CodeButton(style: .subtle, title: Localized.Action.logIn) {
+                                openCode()
                                 // Login flow
                             }
                         }
@@ -103,6 +105,15 @@ struct IntroScreen: View {
             .navigationBarHidden(true)
         }
         .navigationViewStyle(.stack)
+    }
+    
+    private func openCode() {
+        let scheme = URL.codeScheme()
+        if scheme.canOpen() {
+            scheme.openWithApplication()
+        } else {
+            URL.downloadCode.openWithApplication()
+        }
     }
 }
 
