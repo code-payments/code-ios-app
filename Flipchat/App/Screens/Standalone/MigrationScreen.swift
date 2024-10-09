@@ -28,7 +28,6 @@ struct MigrationScreen: View {
             }
         }
         .onAppear {
-            Analytics.open(screen: .migration)
             ErrorReporting.breadcrumb(.migrationScreen)
         }
     }

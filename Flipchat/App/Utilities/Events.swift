@@ -12,13 +12,6 @@ import CodeServices
 
 extension Analytics {
     
-    /// Limit the number of events we send to Mixpanel, this is a no-op for the short term.
-    static func open(screen: Screen) {
-//        track(.open, properties: [
-//            .screen: screen.rawValue,
-//        ])
-    }
-    
     static func unintentialLogout() {
         track(.unintentionalLogout)
     }
@@ -26,13 +19,6 @@ extension Analytics {
     static func userMigrationFailed() {
         track(.userMigrationFailed)
     }
-    
-//    static func photoScanned(success: Bool, timeToScan: Stopwatch.Milliseconds) {
-//        track(.photoScanned, properties: [
-//            .result: success,
-//            .time: timeToScan,
-//        ])
-//    }
 }
 
 // MARK: - Account -
@@ -69,79 +55,6 @@ extension Analytics {
     }
 }
 
-// MARK: - Bill -
-
-//extension Analytics {
-//    static func billTimeoutReached(kin: Kin, currency: CurrencyCode, animation: PresentationState.Style) {
-//        track(.bill, properties: [
-//            .state: String.timedOut,
-//            .amount: kin.analyticsValue,
-//            .currency: currency.rawValue,
-//            .animation: animation.description,
-//        ])
-//    }
-//    
-//    static func billShown(kin: Kin, currency: CurrencyCode, animation: PresentationState.Style) {
-//        track(.bill, properties: [
-//            .state: String.shown,
-//            .amount: kin.analyticsValue,
-//            .currency: currency.rawValue,
-//            .animation: animation.description,
-//        ])
-//    }
-//    
-//    static func billHidden(kin: Kin, currency: CurrencyCode, animation: PresentationState.Style) {
-//        track(.bill, properties: [
-//            .state: String.hidden,
-//            .amount: kin.analyticsValue,
-//            .currency: currency.rawValue,
-//            .animation: animation.description,
-//        ])
-//    }
-//}
-
-// MARK: - Request -
-
-extension Analytics {
-    static func requestShown(amount: KinAmount) {
-        track(.request, properties: [
-            .state: String.shown,
-            .amount: amount.kin.analyticsValue,
-            .fiat: amount.fiat.analyticsValue,
-            .currency: amount.rate.currency.rawValue,
-        ])
-    }
-    
-    static func requestHidden(amount: KinAmount) {
-        track(.request, properties: [
-            .state: String.hidden,
-            .amount: amount.kin.analyticsValue,
-            .fiat: amount.fiat.analyticsValue,
-            .currency: amount.rate.currency.rawValue,
-        ])
-    }
-}
-
-// MARK: - Login -
-
-extension Analytics {
-    static func loginCardShown(domain: Domain) {
-        track(.loginCard, properties: [
-            .state: String.shown,
-            .domain: domain.relationshipHost,
-        ])
-    }
-}
-
-extension PresentationState.Style {
-    var description: String {
-        switch self {
-        case .pop:   return String.pop
-        case .slide: return String.slide
-        }
-    }
-}
-
 // MARK: - Tips -
 
 extension Analytics {
@@ -162,14 +75,6 @@ extension Analytics {
     
     static func messageCodeOnX() {
         track(.actionMessageCodeOnX)
-    }
-}
-
-// MARK: - Swap -
-
-extension Analytics {
-    static func backgroundSwapInitiated() {
-        track(.backgroundSwap)
     }
 }
 

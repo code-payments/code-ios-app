@@ -56,7 +56,6 @@ struct RestrictedScreen: View {
             .padding(20)
         }
         .onAppear {
-            Analytics.open(screen: .restricted)
             ErrorReporting.breadcrumb(.restrictedScreen)
         }
     }

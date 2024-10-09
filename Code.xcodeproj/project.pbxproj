@@ -143,6 +143,8 @@
 		9A91F1482CAB30CC0018CE65 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9A7C408328DDE0C7007DA414 /* Localizable.strings */; };
 		9A91F15A2CAB33CE0018CE65 /* URL+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390852746A39700234899 /* URL+Links.swift */; };
 		9A91F15B2CAB33D70018CE65 /* URL+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390852746A39700234899 /* URL+Links.swift */; };
+		9A91F3AC2CB6FC2E0018CE65 /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */; };
+		9A91F3AE2CB6FC2E0018CE65 /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */; };
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
 		9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */; };
 		9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */; };
@@ -562,7 +564,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9A91F3AE2CB6FC2E0018CE65 /* Bugsnag in Frameworks */,
 				9A9970DA2CA331A5006BDE08 /* GRPC in Frameworks */,
+				9A91F3AC2CB6FC2E0018CE65 /* Mixpanel in Frameworks */,
 				9A9970D82CA33187006BDE08 /* CodeUI in Frameworks */,
 				9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */,
 				9A9970D62CA33187006BDE08 /* CodeServices in Frameworks */,
@@ -1209,6 +1213,8 @@
 				9A9970D52CA33187006BDE08 /* CodeServices */,
 				9A9970D72CA33187006BDE08 /* CodeUI */,
 				9A9970D92CA331A5006BDE08 /* GRPC */,
+				9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */,
+				9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -3421,6 +3427,16 @@
 		9A8DB72627D5130200E2E883 /* CodeServices */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeServices;
+		};
+		9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
+			productName = Mixpanel;
+		};
+		9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */;
+			productName = Bugsnag;
 		};
 		9A9970D32CA33187006BDE08 /* CodeAPI */ = {
 			isa = XCSwiftPackageProductDependency;

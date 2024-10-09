@@ -6,21 +6,21 @@
 //
 
 import Foundation
-//import Bugsnag
+import Bugsnag
 import CodeServices
 
 enum ErrorReporting {
     
     static func initialize() {
-//        Bugsnag.start()
+        Bugsnag.start()
     }
     
     static func breadcrumb(_ breadcrumb: Breadcrumb) {
-//        Bugsnag.leaveBreadcrumb(
-//            breadcrumb.rawValue,
-//            metadata: nil,
-//            type: .navigation
-//        )
+        Bugsnag.leaveBreadcrumb(
+            breadcrumb.rawValue,
+            metadata: nil,
+            type: .navigation
+        )
     }
     
     enum BreadcrumbType {
@@ -28,13 +28,13 @@ enum ErrorReporting {
         case process
         case request
         
-//        var value: BSGBreadcrumbType {
-//            switch self {
-//            case .user:    return .user
-//            case .process: return .process
-//            case .request: return .request
-//            }
-//        }
+        var value: BSGBreadcrumbType {
+            switch self {
+            case .user:    return .user
+            case .process: return .process
+            case .request: return .request
+            }
+        }
     }
     
     static func breadcrumb(name: String, metadata: [String: Any] = [:], amount: KinAmount? = nil, kin: Kin? = nil, type: BreadcrumbType) {
@@ -52,11 +52,11 @@ enum ErrorReporting {
             container["kin"] = kin.description
         }
         
-//        Bugsnag.leaveBreadcrumb(
-//            name,
-//            metadata: container,
-//            type: type.value
-//        )
+        Bugsnag.leaveBreadcrumb(
+            name,
+            metadata: container,
+            type: type.value
+        )
     }
     
     static func capturePayment(error: Swift.Error, rendezvous: PublicKey, tray: Tray, amount: KinAmount, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
@@ -103,60 +103,28 @@ enum ErrorReporting {
             userInfo: userInfo
         )
         
-//        Bugsnag.notifyError(customError) { event in
-//            if !event.errors.isEmpty {
-//                event.errors[0].errorClass = "\(error)"
-//                event.errors[0].errorMessage = reason ?? ""
-//            }
-//            
-//            // Skip the line numbers to maintain grouping
-//            // even when files and line numbers change.
-//            var hash = "\(fileName):\(function)"
-//            if let id {
-//                hash = "\(hash):\(id)"
-//            }
-//            event.groupingHash = hash
-//            
-//            return true
-//        }
+        Bugsnag.notifyError(customError) { event in
+            if !event.errors.isEmpty {
+                event.errors[0].errorClass = "\(error)"
+                event.errors[0].errorMessage = reason ?? ""
+            }
+            
+            // Skip the line numbers to maintain grouping
+            // even when files and line numbers change.
+            var hash = "\(fileName):\(function)"
+            if let id {
+                hash = "\(hash):\(id)"
+            }
+            event.groupingHash = hash
+            
+            return true
+        }
     }
 }
 
 class Fault: NSError, @unchecked Sendable {}
 
 enum Breadcrumb: String {
-    case permissionScreen = "Permission Screen"
-    case verifyPhoneScreen = "Verify Phone Screen"
-    case inviteCodeScreen = "Invite Code Screen"
-    case confirmPhoneScreen = "Confirm Phone Screen"
-    case regionSelectionScreen = "Region Selection Screen"
-    case loginScreen = "Login Screen"
     case migrationScreen = "Migration Screen"
-    case accountSelectionScreen = "Account Selection Screen"
-    case contactsScreen = "Contacts Screen"
-    case giveKinScreen = "Give Kin Screen"
-    case requestKinScreen = "Request Kin Screen"
-    case balanceScreen = "Balance Screen"
-    case bucketScreen = "Bucket Screen"
-    case currencyScreen = "Currency Screen"
-    case faqScreen = "FAQ Screen"
-    case settingsScreen = "Settings Screen"
-    case depositScreen = "Deposit Screen"
-    case withdrawAmountScreen = "Withdraw Amount Screen"
-    case withdrawAddressScreen = "Withdraw Address Screen"
-    case withdrawSummaryScreen = "Withdraw Summary Screen"
-    case backupScreen = "Backup Screen"
     case restrictedScreen = "Restricted Screen"
-    case linkPhoneScreen = "Link Phone Screen"
-    case deleteAccountScreen = "Delete Account Screen"
-    case confirmDeleteScreen = "Confirm Delete Screen"
-    case forceUpgradeScreen = "Force Upgrade Screen"
-    case debugScreen = "Debug Screen"
-    case getKinScreen = "Get Kin Screen"
-    case getFriendStartedScreen = "Get Friend Started Screen"
-    case remoteSendShareSheet = "Remote Send Share Sheet"
-    case getFriendOnCodeShareSheet = "Get Friend on Code Share Sheet"
-    case buyVideoScreen = "Buy Video Screen"
-    case buyMoreKinScreen = "Buy More Kin Screen"
-    case enterTipScreen = "Enter Tip Screen"
 }

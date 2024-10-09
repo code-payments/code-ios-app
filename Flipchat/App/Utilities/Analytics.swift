@@ -7,11 +7,11 @@
 
 import Foundation
 import CodeServices
-//import Mixpanel
+import Mixpanel
+import Bugsnag
 //import Firebase
-//import Bugsnag
 
-typealias AnalyticsValue = Any//MixpanelType
+typealias AnalyticsValue = MixpanelType
 
 enum Analytics {
     
@@ -21,7 +21,7 @@ enum Analytics {
         
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {
-//            Mixpanel.initialize(token: apiKey, trackAutomaticEvents: true)
+            Mixpanel.initialize(token: apiKey, trackAutomaticEvents: true)
             trace(.success, components: "Initializing Mixpanel...")
         } else {
             trace(.failure, components: "Failed to initialize Mixpanel. No API key found in Info.plist")
@@ -54,7 +54,7 @@ enum Analytics {
     }
     
     private static func track(_ name: String, properties: [String: AnalyticsValue]? = nil) {
-//        mixpanel.track(event: name, properties: properties)
+        mixpanel.track(event: name, properties: properties)
     }
 }
 
@@ -83,7 +83,7 @@ extension Analytics {
 // MARK: - Private -
 
 private extension Analytics {
-//    static var mixpanel: MixpanelInstance {
-//        Mixpanel.mainInstance()
-//    }
+    static var mixpanel: MixpanelInstance {
+        Mixpanel.mainInstance()
+    }
 }
