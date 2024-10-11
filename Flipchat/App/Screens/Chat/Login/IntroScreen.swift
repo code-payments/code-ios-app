@@ -49,8 +49,15 @@ struct IntroScreen: View {
                                 style: .filled,
                                 title: Localized.Action.createAccount
                             ) {
-                                openCode()
-                                // Create account flow
+                                bannerController.show(
+                                    style: .error,
+                                    title: "Not Supported",
+                                    description: "Account creation is not yet supported. Please use an existing account and Login below.",
+                                    position: .top,
+                                    actions: [
+                                        .cancel(title: Localized.Action.ok),
+                                    ]
+                                )
                             }
                             
                             CodeButton(style: .subtle, title: Localized.Action.logIn) {

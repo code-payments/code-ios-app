@@ -283,12 +283,6 @@ struct LoginScreen: View {
     
     private func dismissKeyboard() {
         isFocused = true
-//        Task {
-//            // Fixes an issue where a keyboard is not dismissing
-//            // TODO: Use active state in iOS 15
-//            try await Task.delay(milliseconds: 100)
-//            _ = textView?.resignFirstResponder()
-//        }
     }
 }
 
