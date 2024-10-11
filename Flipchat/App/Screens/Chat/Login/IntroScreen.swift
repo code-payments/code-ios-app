@@ -19,6 +19,8 @@ struct IntroScreen: View {
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
     
+    @State private var path: [Path] = []
+    
     // MARK: - Init -
     
     init() {}
@@ -26,7 +28,7 @@ struct IntroScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationView {
+        NavigationStack(path: $path) {
             Background(color: .backgroundMain) {
                 VStack {
                     VStack(spacing: 10) {
@@ -52,8 +54,7 @@ struct IntroScreen: View {
                             }
                             
                             CodeButton(style: .subtle, title: Localized.Action.logIn) {
-                                openCode()
-                                // Login flow
+                                loginAction()
                             }
                         }
                     }
@@ -103,8 +104,20 @@ struct IntroScreen: View {
             .ignoresSafeArea(.keyboard)
             .navigationBarTitle("")
             .navigationBarHidden(true)
+            .navigationDestination(for: Path.self) { path in
+                switch path {
+                case .login:
+                    return LoginScreen()
+                }
+            }
         }
         .navigationViewStyle(.stack)
+    }
+    
+    // MARK: - Actions -
+    
+    private func loginAction() {
+        path.append(.login)
     }
     
     private func openCode() {
@@ -114,6 +127,12 @@ struct IntroScreen: View {
         } else {
             URL.downloadCode.openWithApplication()
         }
+    }
+}
+
+extension IntroScreen {
+    enum Path {
+        case login
     }
 }
 

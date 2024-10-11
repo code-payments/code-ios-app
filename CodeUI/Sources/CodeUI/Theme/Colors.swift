@@ -160,8 +160,8 @@ extension Color {
         case .action:                    return Color(r: 255, g: 255, b: 255) // Done
         case .actionDisabled:            return Color(r: 43,  g: 31,  b: 90)  // Done
         case .backgroundMain:            return Color(r: 54,  g: 39,  b: 116) // Done
-        case .backgroundAction:          return Color(r: 255, g: 255, b: 255)
-        case .backgroundRow:             return Color(r: 17,  g: 20,  b: 42)
+        case .backgroundAction:          return Color(r: 255, g: 255, b: 255) // Done
+        case .backgroundRow:             return Color(r: 44,  g: 33,  b: 88)  // Done
         case .rowSeparator:              return Color(r: 255, g: 255, b: 255, o: 0.08)
         case .backgroundMessageReceived: return Color(r: 44,  g: 33,  b: 88)  // Done
         case .backgroundMessageSent:     return Color(r: 68,  g: 48,  b: 145) // Done

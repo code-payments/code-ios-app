@@ -127,4 +127,5 @@ class Fault: NSError, @unchecked Sendable {}
 enum Breadcrumb: String {
     case migrationScreen = "Migration Screen"
     case restrictedScreen = "Restricted Screen"
+    case accountSelectionScreen = "Account Selection Screen"
 }
