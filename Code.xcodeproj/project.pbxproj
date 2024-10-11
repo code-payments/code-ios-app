@@ -2561,6 +2561,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 100;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
@@ -2604,6 +2605,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 100;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
@@ -2647,6 +2649,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 100;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
@@ -2686,6 +2689,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipchat/Supporting Files/Flipchat.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 100;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"Flipchat/Preview Content\"";
 				DEVELOPMENT_TEAM = 83VHY3GSWL;
 				ENABLE_PREVIEWS = YES;
