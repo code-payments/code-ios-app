@@ -29,7 +29,7 @@ extension Chat.Content {
 
 extension Chat.Content {
     
-    var codeContent: Code_Chat_V2_Content {
+    public var codeContent: Code_Chat_V2_Content {
         switch self {
         case .text(let string):
             return .with {

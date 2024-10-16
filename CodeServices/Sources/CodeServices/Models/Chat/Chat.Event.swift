@@ -18,7 +18,7 @@ extension Chat {
 }
 
 extension Chat.Event {
-    init?(_ proto: Code_Chat_V2_ChatStreamEvent) {
+    public init?(_ proto: Code_Chat_V2_ChatStreamEvent) {
         guard let type = proto.type else {
             return nil
         }

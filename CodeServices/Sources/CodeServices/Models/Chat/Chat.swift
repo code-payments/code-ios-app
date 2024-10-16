@@ -257,7 +257,7 @@ extension Chat {
 // MARK: - Proto -
 
 extension Chat {
-    convenience init(_ proto: Code_Chat_V2_Metadata) {
+    public convenience init(_ proto: Code_Chat_V2_Metadata) {
         self.init(
             id: .init(data: proto.chatID.value),
             kind: Kind(rawValue: proto.type.rawValue) ?? .unknown,

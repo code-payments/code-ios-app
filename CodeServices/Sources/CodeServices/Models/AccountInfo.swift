@@ -1,11 +1,13 @@
 //
-//  File.swift
-//  
+//  AccountInfo.swift
+//  CodeServices
 //
-//  Created by Dima Bart on 2022-08-03.
+//  Created by Dima Bart.
+//  Copyright © 2021 Code Inc. All rights reserved.
 //
 
 import Foundation
+import CodeAPI
 
 public struct AccountInfo: Equatable, Sendable {
     
@@ -204,6 +206,130 @@ extension AccountInfo {
             }
             
             self.domain = domain
+        }
+    }
+}
+
+// MARK: - GRPC -
+
+extension AccountInfo {
+    public init?(_ info: Code_Account_V1_TokenAccountInfo) {
+        guard
+            let accountType = AccountType(info.accountType, relationship: info.relationship),
+            let address = PublicKey(info.address.value),
+            let balanceSource = BalanceSource(info.balanceSource),
+            let managementState = ManagementState(info.managementState),
+            let blockchainState = BlockchainState(info.blockchainState),
+            let claimState = ClaimState(info.claimState)
+        else {
+            return nil
+        }
+        
+        let owner = PublicKey(info.owner.value)
+        let authority = PublicKey(info.authority.value)
+        
+        let originalKinAmount: KinAmount?
+        
+        if let originalCurrency = CurrencyCode(currencyCode: info.originalExchangeData.currency) {
+            originalKinAmount = KinAmount(
+                kin: Kin(quarks: info.originalExchangeData.quarks),
+                rate: Rate(
+                    fx: Decimal(info.originalExchangeData.exchangeRate),
+                    currency: originalCurrency
+                )
+            )
+        } else {
+            originalKinAmount = nil
+        }
+        
+        let relationship = Relationship(domain: info.relationship.domain.value)
+        
+        self.init(
+            index: Int(info.index),
+            accountType: accountType,
+            address: address,
+            owner: owner,
+            authority: authority,
+            balanceSource: balanceSource,
+            balance: Kin(quarks: info.balance),
+            managementState: managementState,
+            blockchainState: blockchainState,
+            claimState: claimState,
+            mustRotate: info.mustRotate,
+            originalKinAmount: originalKinAmount,
+            relationship: relationship
+        )
+    }
+}
+
+extension AccountInfo.BalanceSource {
+    public init?(_ source: Code_Account_V1_TokenAccountInfo.BalanceSource) {
+        switch source {
+        case .unknown:
+            self = .unknown
+        case .blockchain:
+            self = .blockchain
+        case .cache:
+            self = .cache
+        case .UNRECOGNIZED:
+            return nil
+        }
+    }
+}
+
+extension AccountInfo.ManagementState {
+    public init?(_ state: Code_Account_V1_TokenAccountInfo.ManagementState) {
+        switch state {
+        case .unknown:
+            self = .unknown
+        case .none:
+            self = .none
+        case .locking:
+            self = .locking
+        case .locked:
+            self = .locked
+        case .unlocking:
+            self = .unlocking
+        case .unlocked:
+            self = .unlocked
+        case .closing:
+            self = .closing
+        case .closed:
+            self = .closed
+        case .UNRECOGNIZED:
+            return nil
+        }
+    }
+}
+
+extension AccountInfo.BlockchainState {
+    public init?(_ state: Code_Account_V1_TokenAccountInfo.BlockchainState) {
+        switch state {
+        case .unknown:
+            self = .unknown
+        case .doesNotExist:
+            self = .doesntExist
+        case .exists:
+            self = .exists
+        case .UNRECOGNIZED:
+            return nil
+        }
+    }
+}
+
+extension AccountInfo.ClaimState {
+    public init?(_ state: Code_Account_V1_TokenAccountInfo.ClaimState) {
+        switch state {
+        case .unknown:
+            self = .unknown
+        case .notClaimed:
+            self = .notClaimed
+        case .claimed:
+            self = .claimed
+        case .expired:
+            self = .expired
+        case .UNRECOGNIZED:
+            return nil
         }
     }
 }

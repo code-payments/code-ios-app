@@ -8,6 +8,7 @@
 import UIKit
 import CodeServices
 import CodeUI
+import FlipchatServices
 
 class AppDelegate: NSObject, UIApplicationDelegate {
 
@@ -21,6 +22,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         setupFonts()
         setupAppearance()
+        
+        let client = FlipchatClient(network: .mainNet)
         
         return true
     }

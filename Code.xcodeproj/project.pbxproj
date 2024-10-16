@@ -157,6 +157,7 @@
 		9A91F3AC2CB6FC2E0018CE65 /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */; };
 		9A91F3AE2CB6FC2E0018CE65 /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */; };
 		9A91F4C92CC0146A0018CE65 /* FlipchatAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F4C82CC0146A0018CE65 /* FlipchatAPI */; };
+		9A91F4D32CC03B930018CE65 /* FlipchatServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F4D22CC03B930018CE65 /* FlipchatServices */; };
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
 		9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */; };
 		9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */; };
@@ -464,6 +465,7 @@
 		9A8E861527A44EB300213934 /* RestrictedScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RestrictedScreen.swift; sourceTree = "<group>"; };
 		9A91F13F2CAB300D0018CE65 /* Biometrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Biometrics.swift; sourceTree = "<group>"; };
 		9A91F4C72CC0142C0018CE65 /* FlipchatAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipchatAPI; sourceTree = "<group>"; };
+		9A91F4D12CC01FA60018CE65 /* FlipchatServices */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipchatServices; sourceTree = "<group>"; };
 		9A9469BA27A090E10028F27E /* MessageController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageController.swift; sourceTree = "<group>"; };
 		9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationScreen.swift; sourceTree = "<group>"; };
 		9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationContainer.swift; sourceTree = "<group>"; };
@@ -584,6 +586,7 @@
 				9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */,
 				9A91F4C92CC0146A0018CE65 /* FlipchatAPI in Frameworks */,
 				9A9970D62CA33187006BDE08 /* CodeServices in Frameworks */,
+				9A91F4D32CC03B930018CE65 /* FlipchatServices in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1097,6 +1100,7 @@
 				9AEA3A4125CD82A600392734 /* CodeServices */,
 				9AED115B258BE2FA0088D902 /* CodeUI */,
 				9A91F4C72CC0142C0018CE65 /* FlipchatAPI */,
+				9A91F4D12CC01FA60018CE65 /* FlipchatServices */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1231,6 +1235,7 @@
 				9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */,
 				9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */,
 				9A91F4C82CC0146A0018CE65 /* FlipchatAPI */,
+				9A91F4D22CC03B930018CE65 /* FlipchatServices */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -3524,6 +3529,10 @@
 		9A91F4C82CC0146A0018CE65 /* FlipchatAPI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipchatAPI;
+		};
+		9A91F4D22CC03B930018CE65 /* FlipchatServices */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlipchatServices;
 		};
 		9A9970D32CA33187006BDE08 /* CodeAPI */ = {
 			isa = XCSwiftPackageProductDependency;
