@@ -18,6 +18,17 @@
 			name = CodeLokalise;
 			productName = CodeLokalise;
 		};
+		9A91F4CA2CC014E20018CE65 /* FlipchatServiceGen */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 9A91F4CC2CC014E20018CE65 /* Build configuration list for PBXAggregateTarget "FlipchatServiceGen" */;
+			buildPhases = (
+				9A91F4CB2CC014E20018CE65 /* Generate Flipchat Services */,
+			);
+			dependencies = (
+			);
+			name = FlipchatServiceGen;
+			productName = CodeServiceGen;
+		};
 		9AEB5FD225CDD4B8004B3680 /* CodeServiceGen */ = {
 			isa = PBXAggregateTarget;
 			buildConfigurationList = 9AEB5FD325CDD4B8004B3680 /* Build configuration list for PBXAggregateTarget "CodeServiceGen" */;
@@ -145,6 +156,7 @@
 		9A91F15B2CAB33D70018CE65 /* URL+Links.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA390852746A39700234899 /* URL+Links.swift */; };
 		9A91F3AC2CB6FC2E0018CE65 /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */; };
 		9A91F3AE2CB6FC2E0018CE65 /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */; };
+		9A91F4C92CC0146A0018CE65 /* FlipchatAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F4C82CC0146A0018CE65 /* FlipchatAPI */; };
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
 		9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */; };
 		9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */; };
@@ -451,6 +463,7 @@
 		9A8E686F2B867EBC00914C23 /* MessageList+Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MessageList+Tests.swift"; sourceTree = "<group>"; };
 		9A8E861527A44EB300213934 /* RestrictedScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RestrictedScreen.swift; sourceTree = "<group>"; };
 		9A91F13F2CAB300D0018CE65 /* Biometrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Biometrics.swift; sourceTree = "<group>"; };
+		9A91F4C72CC0142C0018CE65 /* FlipchatAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipchatAPI; sourceTree = "<group>"; };
 		9A9469BA27A090E10028F27E /* MessageController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageController.swift; sourceTree = "<group>"; };
 		9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationScreen.swift; sourceTree = "<group>"; };
 		9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationContainer.swift; sourceTree = "<group>"; };
@@ -569,6 +582,7 @@
 				9A91F3AC2CB6FC2E0018CE65 /* Mixpanel in Frameworks */,
 				9A9970D82CA33187006BDE08 /* CodeUI in Frameworks */,
 				9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */,
+				9A91F4C92CC0146A0018CE65 /* FlipchatAPI in Frameworks */,
 				9A9970D62CA33187006BDE08 /* CodeServices in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1082,6 +1096,7 @@
 				9A16229B284503EE00B138D3 /* CodeAPI */,
 				9AEA3A4125CD82A600392734 /* CodeServices */,
 				9AED115B258BE2FA0088D902 /* CodeUI */,
+				9A91F4C72CC0142C0018CE65 /* FlipchatAPI */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1215,6 +1230,7 @@
 				9A9970D92CA331A5006BDE08 /* GRPC */,
 				9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */,
 				9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */,
+				9A91F4C82CC0146A0018CE65 /* FlipchatAPI */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -1457,6 +1473,7 @@
 				9A9970A22CA33145006BDE08 /* Flipchat */,
 				9A9970B12CA33147006BDE08 /* FlipchatTests */,
 				9A9970BB2CA33147006BDE08 /* FlipchatUITests */,
+				9A91F4CA2CC014E20018CE65 /* FlipchatServiceGen */,
 			);
 		};
 /* End PBXProject section */
@@ -1610,6 +1627,25 @@
 			shellPath = /bin/sh;
 			shellScript = "$SOURCE_ROOT/Scripts/genstrings \"$SOURCE_ROOT/Shared/Localization/en.lproj\"\n";
 		};
+		9A91F4CB2CC014E20018CE65 /* Generate Flipchat Services */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Flipchat Services";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./run -a flipchat # -s 1 # skips pull, only runs generation\n";
+		};
 		9AEB5FDB25CDD4CB004B3680 /* Generate Code Services */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1627,7 +1663,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./run # -s 1 # skips pull, only runs generation\n";
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./run -a code # -s 1 # skips pull, only runs generation\n";
 		};
 		9AED11F32591115E0088D902 /* Generate Localized strings */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2551,6 +2587,38 @@
 			};
 			name = Release;
 		};
+		9A91F4CD2CC014E20018CE65 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Development;
+		};
+		9A91F4CE2CC014E20018CE65 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		9A91F4CF2CC014E20018CE65 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		9A91F4D02CC014E20018CE65 /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = "Release Development";
+		};
 		9A9970C52CA33147006BDE08 /* Development */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -3260,6 +3328,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		9A91F4CC2CC014E20018CE65 /* Build configuration list for PBXAggregateTarget "FlipchatServiceGen" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A91F4CD2CC014E20018CE65 /* Development */,
+				9A91F4CE2CC014E20018CE65 /* Debug */,
+				9A91F4CF2CC014E20018CE65 /* Release */,
+				9A91F4D02CC014E20018CE65 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		9A9970C42CA33147006BDE08 /* Build configuration list for PBXNativeTarget "Flipchat" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -3441,6 +3520,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */;
 			productName = Bugsnag;
+		};
+		9A91F4C82CC0146A0018CE65 /* FlipchatAPI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlipchatAPI;
 		};
 		9A9970D32CA33187006BDE08 /* CodeAPI */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -1,24 +1,41 @@
 #!/usr/bin/env bash
 
-PROTOS_ROOT_DIR="../CodeAPI/Sources/CodeAPI"
-PROTOS_DIR="../CodeAPI/Sources/CodeAPI/proto"
-DEPS_DIR="../CodeAPI/Sources/CodeAPI/proto_deps"
-GENERATED_DIR="../CodeAPI/Sources/CodeAPI/Generated"
+APP=""
 
-SKIP_PULL=0
-
-while getopts s: flag
+while getopts s:a: flag
 do
     case "${flag}" in
         s) SKIP_PULL=1;;
+        a) APP=${OPTARG};;
     esac
 done
 
+# Set directories based on app
+if [[ "$APP" == "flipchat" ]]; then
+    PROTOS_ROOT_DIR="../FlipchatAPI/Sources/FlipchatAPI"
+    PROTOS_DIR="../FlipchatAPI/Sources/FlipchatAPI/proto"
+    DEPS_DIR="../FlipchatAPI/Sources/FlipchatAPI/proto_deps"
+    GENERATED_DIR="../FlipchatAPI/Sources/FlipchatAPI/Generated"
+    PULL_REPO="code-payments/flipchat-protobuf-api"
+    PULL_BRANCH="main"
+elif [[ "$APP" == "code" ]]; then
+    PROTOS_ROOT_DIR="../CodeAPI/Sources/CodeAPI"
+    PROTOS_DIR="../CodeAPI/Sources/CodeAPI/proto"
+    DEPS_DIR="../CodeAPI/Sources/CodeAPI/proto_deps"
+    GENERATED_DIR="../CodeAPI/Sources/CodeAPI/Generated"
+    PULL_REPO="code-payments/code-protobuf-api"
+    PULL_BRANCH="main"
+else
+    echo "error: Unknown app type '$APP'. Use 'code' or 'flipchat'."
+    exit 1
+fi
+
+# Skip pull logic if needed
 if [[ SKIP_PULL -eq 0 ]];
 then
     # Pull protos
     rm -rf $PROTOS_DIR
-    ./pull_protos $PROTOS_ROOT_DIR
+    ./pull_protos  $PULL_REPO  $PULL_BRANCH  $PROTOS_ROOT_DIR
 
     # Copy over proto dependencies
     cp -a "$DEPS_DIR/." $PROTOS_DIR
