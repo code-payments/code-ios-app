@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package flipchat.account.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/account/v1;acountpb";
+option java_package = "com.codeinc.flipchat.gen.account.v1";
+option objc_class_prefix = "FCPBAccountV1";
+
+import "common/v1/model.proto";
+import "validate/validate.proto";
+
+service Account {
+	// Register registers a new user, bound to the provided PublicKey.
+	// If the PublicKey is already in use, the previous user account is returned.
+	rpc Register(RegisterRequest) returns (RegisterResponse);
+
+	// AuthorizePublicKey authorizes an additional PublicKey to an account.
+	rpc AuthorizePublicKey(AuthorizePublicKeyRequest) returns (AuthorizePublicKeyResponse);
+
+	// RevokePublicKey revokes a public key from an account.
+	//
+	// There must be at least one public key per account. For now, any authorized public key
+	// may revoke another public key, but this may change in the future.
+	rpc RevokePublicKey(RevokePublicKeyRequest) returns (RevokePublicKeyResponse);
+}
+
+message RegisterRequest {
+	// PublicKey the public key that is authorized to perform actions on the
+	// registered users behalf.
+	common.v1.PublicKey public_key = 1 [(validate.rules).message.required = true];
+
+	// Signature of this message (without the signature), using the provided keypaid.
+	common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+	// DisplayName of the new user.
+	//
+	// If the user already exists, this is not used.
+	string display_name = 3 [(validate.rules).string = {
+		min_len: 1
+		max_len: 64
+	}];
+}
+message RegisterResponse {
+	Result result = 1;
+	enum Result {
+		OK                   = 0;
+		INVALID_SIGNATURE    = 1;
+		INVALID_DISPLAY_NAME = 2;
+	}
+
+	// Error reason contains the reason for the error, if the
+	// result > 1. This allows for server to impose moderation restrictions
+	// on user provided fields.
+	string error_reason = 2;
+
+	// The UserId associated with the account.
+	common.v1.UserId user_id = 3;
+}
+
+message AuthorizePublicKeyRequest {
+	// UserId to bound the new public key to.
+	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+	// PublicKey of the account to be added.
+	common.v1.PublicKey public_key = 2 [(validate.rules).message.required = true];
+
+	// Signature of this message, not including auth or signature, using the
+	// new public key.
+	common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+
+	common.v1.Auth auth = 4 [(validate.rules).message.required = true];
+}
+message AuthorizePublicKeyResponse {
+	Result result = 1;
+	enum Result {
+		OK     = 0;
+		DENIED = 1;
+	}
+}
+
+message RevokePublicKeyRequest {
+	// UserId to remove the public key from.
+	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+	// PublicKey to remove.
+	common.v1.PublicKey public_key = 2 [(validate.rules).message.required = true];
+
+	common.v1.Auth auth = 4 [(validate.rules).message.required = true];
+}
+message RevokePublicKeyResponse {
+	Result result = 1;
+	enum Result {
+		OK           = 0;
+		DENIED       = 1;
+		LAST_PUB_KEY = 2;
+	}
+}

@@ -20,8 +20,9 @@ public class FlipchatClient: ObservableObject {
     
     public let queue: DispatchQueue
     
-//    internal let identityService: IdentityService
+    internal let accountService: AccountService
     internal let chatService: ChatService
+    internal let messagingService: MessagingService
     
     // MARK: - Init -
     
@@ -33,8 +34,9 @@ public class FlipchatClient: ObservableObject {
             port: network.port
         )
         
-//        self.identityService = IdentityService(channel: channel, queue: queue)
-        self.chatService     = ChatService(channel: channel, queue: queue)
+        self.accountService   = AccountService(channel: channel, queue: queue)
+        self.chatService      = ChatService(channel: channel, queue: queue)
+        self.messagingService = MessagingService(channel: channel, queue: queue)
     }
     
     deinit {
@@ -50,4 +52,12 @@ public enum ClientError: Error {
 
 public enum ErrorGeneric: Error {
     case unknown
+}
+
+// MARK: - Mock -
+
+extension FlipchatClient {
+    public static var mock: FlipchatClient {
+        FlipchatClient(network: .mainNet)
+    }
 }

@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package flipchat.messaging.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/messaging/v1;messagingpb";
+option java_package = "com.codeinc.flipchat.gen.messaging.v1";
+option objc_class_prefix = "FCPBMessagingV1";
+
+import "common/v1/model.proto";
+import "messaging/v1/model.proto";
+import "validate/validate.proto";
+
+service Messaging {
+    // StreamMessages streams all messages/message states for the requested chat.
+    //
+    // By default, streams will resume messages from the last acknowledged delivery
+    // pointer of the caller. This can be overridden by setting 'last_message',
+    // 'latest_only'.
+    rpc StreamMessages(stream StreamMessagesRequest) returns (stream StreamMessagesResponse);
+
+    // GetMessages gets the set of messages for a chat member using a paged API
+    rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+
+    // SendMessage sends a message to a chat.
+    rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+
+    // AdvancePointer advances a pointer in message history for a chat member.
+    rpc AdvancePointer(AdvancePointerRequest) returns (AdvancePointerResponse);
+
+    // NotifyIsTypingRequest notifies a chat that the sending member is typing.
+    //
+    // These requests are transient, and may be dropped at any point.
+    rpc NotifyIsTyping(NotifyIsTypingRequest) returns (NotifyIsTypingResponse);
+}
+
+message StreamMessagesRequest {
+    oneof type {
+        option (validate.required) = true;
+
+        Params params = 1;
+        common.v1.ClientPong pong = 2;
+    }
+
+    message Params {
+        common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+        // Callers may optionally specify a resume mode other than last delivery pointer.
+        oneof resume {
+            // Server will return all messages newer than this message id.
+            MessageId last_known_message_id = 2;
+
+            // Server will not load any previous messages.
+            bool latest_only = 3;
+        }
+
+		common.v1.Auth auth = 4;
+    }
+}
+
+message StreamMessagesResponse {
+    oneof type {
+        option (validate.required) = true;
+
+        common.v1.ServerPing ping = 1;
+        StreamError error = 2;
+        MessageBatch messages = 3;
+    }
+
+    message StreamError {
+        Code code = 1;
+        enum Code {
+            DENIED = 0;
+        }
+    }
+
+    message MessageBatch {
+        repeated Message messages = 1 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 1024 // Arbitrary
+        }];
+    }
+}
+
+
+message GetMessagesRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    uint32 page_size = 2 [(validate.rules).uint32.lte = 100];
+    Cursor cursor = 3;
+    Direction direction = 4;
+    enum Direction {
+        ASC  = 0;
+        DESC = 1;
+    }
+
+	common.v1.Auth auth = 5;
+}
+
+message GetMessagesResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+
+    repeated Message messages = 2 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 100
+    }];
+}
+
+message SendMessageRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    // Allowed content types that can be sent by client:
+    //  - TextContent
+    //  - ThankYouContent
+    repeated Content content = 2 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1
+    }];
+
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+
+message SendMessageResponse {
+    Result result = 1;
+    enum Result {
+        OK                   = 0;
+        DENIED               = 1;
+        INVALID_CONTENT_TYPE = 2;
+    }
+
+    // The chat message that was sent if the RPC was succesful, which includes
+    // server-side metadata like the generated message ID and official timestamp
+    Message message = 2;
+}
+
+message AdvancePointerRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    Pointer pointer = 2 [(validate.rules).message.required = true];
+
+	common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+
+message AdvancePointerResponse {
+    Result result = 1;
+    enum Result {
+        OK                = 0;
+        DENIED            = 1;
+        MESSAGE_NOT_FOUND = 2;
+    }
+}
+
+message NotifyIsTypingRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    bool is_typing = 2;
+
+	common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+
+message NotifyIsTypingResponse {
+    Result result = 1;
+    enum Result {
+        OK             = 0;
+        DENIED         = 1;
+    }
+}
+

@@ -1,0 +1,128 @@
+syntax = "proto3";
+
+package flipchat.messaging.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/messaging/v1;messagingpb";
+option java_package = "com.codeinc.flipchat.gen.messaging.v1";
+option objc_class_prefix = "FCPBMessagingV1";
+
+import "common/v1/model.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+message MessageId {
+    // A lexicographically sortable ID that can be used to sort source of
+    // chat history.
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// A message in a chat
+message Message {
+    // Globally unique ID for this message
+    MessageId message_id = 1 [(validate.rules).message.required = true];
+
+    // The chat member that sent the message. For NOTIFICATION chats, this field
+    // is omitted since the chat has exactly 1 member.
+    common.v1.UserId sender_id = 2;
+
+    // Ordered message content. A message may have more than one piece of content.
+    repeated Content content = 3 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 2
+    }];
+
+    // Timestamp this message was generated at. This value is also encoded in
+    // any time-based UUID message IDs.
+    google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];
+
+    // Cursor value for this message for reference in a paged GetMessagesRequest
+    Cursor cursor = 5;
+}
+
+// Pointer in a chat indicating a user's message history state in a chat.
+message Pointer {
+    // The type of pointer indicates which user's message history state can be
+    // inferred from the pointer value. It is also possible to infer cross-pointer
+    // state. For example, if a chat member has a READ pointer for a message with
+    // ID N, then the DELIVERED pointer must be at least N.
+    Type type = 1 [(validate.rules).enum = {
+        not_in: [0]
+    }];
+    enum Type {
+        UNKNOWN   = 0;
+        SENT      = 1; // Always inferred by OK result in SendMessageResponse or message presence in a chat
+        DELIVERED = 2;
+        READ      = 3;
+    }
+
+    // Everything at or before this message ID is considered to have the state
+    // inferred by the type of pointer.
+    MessageId value = 2 [(validate.rules).message.required = true];
+}
+
+message IsTyping {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    // is_typing indicates whether or not the user is typing.
+    // If false, the user has explicitly stopped typing.
+    bool is_typing = 2;
+}
+
+message Cursor {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 8
+        max_len: 32
+    }];
+}
+
+// Content for a chat message
+message Content {
+    oneof type {
+        option (validate.required) = true;
+
+        TextContent             text              = 1;
+        LocalizedContent        localized         = 2;
+        //ExchangeDataContent     exchange_data     = 3;
+        NaclBoxEncryptedContent nacl_box          = 4;
+    }
+}
+
+// Raw text content
+message TextContent {
+    string text = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 1024
+    }];
+}
+
+// Text content that is either a localization key that should be translated on
+// client, or a server-side translated piece of text.
+message LocalizedContent {
+    string key_or_text = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 1024
+    }];
+}
+
+// Encrypted piece of content using NaCl box encryption
+message NaclBoxEncryptedContent {
+    // The sender's public key that is used to derive the shared private key for
+    // decryption for message content.
+    common.v1.PublicKey peer_public_key = 1 [(validate.rules).message.required = true];
+
+    // Globally random nonce that is unique to this encrypted piece of content
+    bytes nonce = 2 [(validate.rules).bytes = {
+        min_len: 24
+        max_len: 24
+    }];
+
+    // The encrypted piece of message content
+    bytes encrypted_payload = 3 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 1024
+    }];
+}
+

@@ -1,0 +1,364 @@
+syntax = "proto3";
+
+package flipchat.chat.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/chat/v1;chatpb";
+option java_package = "com.codeinc.flipchat.gen.chat.v1";
+option objc_class_prefix = "FCPBChatV1";
+
+import "common/v1/model.proto";
+import "messaging/v1/model.proto";
+import "validate/validate.proto";
+
+service Chat {
+    // StreamChatEvents streams all chat events for the requesting user.
+    //
+    // Chat events will include any update to a chat, including:
+    //   1. Metadata changes.
+    //   2. Membership changes.
+    //   3. Latest messages.
+    //
+    // The server will optionally filter out some events depending on load
+    // and chat type. For example, Broadcast chats will not receive latest
+    // messages.
+    //
+    // Clients should use GetMessages to backfill in any historical messages
+    // for a chat. It should be sufficient to rely on ChatEvents for some types
+    // of chats, but using StreamMessages provides a guarentee of message events
+    // for all chats.
+    rpc StreamChatEvents(stream StreamChatEventsRequest) returns (stream StreamChatEventsResponse);
+
+    // GetChats gets the set of chats for an owner account using a paged API.
+    // This RPC is aware of all identities tied to the owner account.
+    rpc GetChats(GetChatsRequest) returns (GetChatsResponse);
+
+    // GetChat returns the metadata for a specific chat.
+    rpc GetChat(GetChatRequest) returns (GetChatResponse);
+
+    // StartChat starts a chat. The RPC call is idempotent and will use existing
+    // chats whenever applicable within the context of message routing.
+    rpc StartChat(StartChatRequest) returns (StartChatResponse);
+
+    // JoinChat joins a given chat.
+    rpc JoinChat(JoinChatRequest) returns (JoinChatResponse);
+
+    // LeaveChat leaves a given chat.
+    rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
+
+    // SetMuteState configures a chat member's mute state.
+    rpc SetMuteState(SetMuteStateRequest) returns (SetMuteStateResponse);
+}
+
+message StreamChatEventsRequest {
+    oneof type {
+        option (validate.required) = true;
+
+        Params params = 1;
+        common.v1.ClientPong pong = 2;
+    }
+
+    message Params {
+        common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+        common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+    }
+}
+message StreamChatEventsResponse {
+    oneof type {
+        option (validate.required) = true;
+
+        common.v1.ServerPing ping = 1;
+        StreamError error = 2;
+        EventBatch events = 3;
+    }
+
+    message StreamError {
+        Code code = 1;
+        enum Code {
+            DENIED = 0;
+        }
+    }
+
+    message EventBatch {
+        repeated ChatUpdate updates = 1 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 1024 // Arbitrary
+        }];
+    }
+
+    // ChatUpdate contains a set of updates for a given chat id.
+    //
+    // Only the relevant fields will be set on update. On initial
+    // stream open, all fields will be set, however.
+    message ChatUpdate {
+        common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+        // metadata contains the latest (full) metadata of the chat.
+        Metadata metadata = 2;
+
+        // Message contains the last known message of the chat.
+        messaging.v1.Message last_message = 3;
+
+        // Pointer contians the last known relevant pointer of the chat.
+        // where 'relevant' means "relevant to UI updates". For example,
+        // when a user has read the latest message.
+        PointerUpdate pointer = 4;
+        message PointerUpdate {
+            common.v1.UserId member = 1 [(validate.rules).message.required = true];
+            messaging.v1.Pointer pointer = 2 [(validate.rules).message.required = true];
+        }
+
+        // IsTyping indicates whether or not someone is typing in the group.
+        messaging.v1.IsTyping is_typing = 5;
+    }
+}
+
+message GetChatsRequest {
+    common.v1.UserId account = 1 [(validate.rules).message.required = true];
+
+    uint32 page_size = 2 [(validate.rules).uint32.lte = 100];
+
+    Cursor cursor = 3;
+
+    Direction direction = 4;
+    enum Direction {
+        ASC  = 0;
+        DESC = 1;
+    }
+
+    common.v1.Auth auth = 5 [(validate.rules).message.required = true];
+}
+message GetChatsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+
+    repeated Metadata chats = 2 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 100
+    }];
+}
+
+message GetChatRequest {
+    oneof identifier {
+        option (validate.required) = true;
+
+        common.v1.ChatId chat_id = 1;
+        uint64 room_number = 2;
+    }
+
+    // Auth is an optional field that authenticates the call, which
+    // can be used to fill out extra information in the Metadata.
+    common.v1.Auth auth = 10;
+}
+message GetChatResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        NOT_FOUND = 1;
+    }
+
+    // Metadata is the chat metadata, if result == OK.
+    //
+    // The contents of the metadata may change whether or not the
+    // call was authenticated.
+    Metadata metadata = 2;
+}
+
+message StartChatRequest {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+
+    oneof parameters {
+        option (validate.required) = true;
+
+        StartTwoWayChatParameters two_way_chat = 3;
+        StartGroupChatParameters group_chat = 4;
+    }
+
+    // StartTwoWayChatParameters contains the parameters required to start
+    // or recover a two way chat between the caller and the specified 'other_user'.
+    //
+    // The 'other_user' is currently the 'tip_address', normally retrieved from
+    // user.Identity.GetTwitterUser(username).
+    message StartTwoWayChatParameters {
+        // The account id of the user the caller wishes to chat with.
+        common.v1.UserId other_user_id = 1 [(validate.rules).message.required = true];
+
+        // The intent_id of the payment that initiated the chat/friendship.
+        //
+        // This field is optional. It is used as an optimization when the server has not
+        // yet observed the establishment of a friendship. In this case, the server will
+        // use the provided intent_id to verify the friendship.
+        //
+        // This is most likely to occur when initiating a chat with a user for the first
+        // time.
+
+        // common.v1.IntentId intent_id = 2;
+    }
+
+    message StartGroupChatParameters {
+        // A set of users (not including self) to initially set in the group chat.
+        repeated common.v1.UserId users = 1 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 32 // Arbitrary
+        }];
+
+        // Optional title to set for the group.
+        string title = 2;
+
+        // TODO: Initial cost/price of chat(?)
+    }
+}
+message StartChatResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+
+        // DENIED indicates the caller is not allowed to start/join the chat.
+        DENIED = 1;
+
+        // USER_NOT_FOUND indicates that (one of) the target user's was not found.
+        USER_NOT_FOUND = 2;
+    }
+
+    // The chat to use if the RPC was successful.
+    Metadata chat = 2;
+}
+
+message JoinChatRequest {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    oneof identifier {
+        option (validate.required) = true;
+
+        common.v1.ChatId chat_id = 2;
+        uint64 room_id = 3;
+    }
+
+    // TODO: Payment information (if required)
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+message JoinChatResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        DENIED = 1;
+    }
+}
+
+message LeaveChatRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+    common.v1.UserId user_id = 2 [(validate.rules).message.required = true];
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+message LeaveChatResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+}
+
+message SetMuteStateRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    bool is_muted = 2;
+
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+message SetMuteStateResponse {
+    Result result = 1;
+    enum Result {
+        OK             = 0;
+        DENIED         = 1;
+        CANT_MUTE      = 2;
+    }
+}
+
+message Metadata {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    // The type of chat
+    ChatType type = 2 [(validate.rules).enum = {
+        not_in: [0] // UNKNOWN_CHAT_TYPE
+    }];
+    enum ChatType {
+        UNKNOWN = 0;
+        TWO_WAY = 1;
+        GROUP   = 2;
+    }
+
+    // Cursor value for this chat for reference in subsequent GetChatsRequest
+    Cursor cursor = 3;
+
+    // The chat title, which is _only_ set by server if an explicit title
+    // was set. Otherwise, clients should fill in an appropriate chat title.
+    string title = 4 [(validate.rules).string = {
+        min_len: 0
+        max_len: 1024
+    }];
+
+    // If non-zero, the room number associated with the chat.
+    uint64 room_number = 5;
+
+    // The members in this chat.
+    repeated Member members = 6 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 2
+    }];
+
+    // Whether or not the chat is muted (from the perspective of the caller).
+    bool is_muted = 7;
+
+    // Whether or not the chat is mutable (from the persective of the caller).
+    bool muteable = 8;
+
+    // Number of (estimated) unread message (from the perspective of the caller).
+    uint32 num_unread = 9;
+}
+
+message Member {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    // The chat member's identity/profile information.
+    MemberIdentity identity = 2;
+
+    // Chat message state for this member.
+    //
+    // If set, the list may contain DELIVERED and READ pointers. SENT pointers
+    // are only shared between the sender and server, to indicate persistence.
+    //
+    // The server may wish to omit all pointers in various types of group chats
+    // or as relief valves.
+    repeated messaging.v1.Pointer pointers = 3 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 2
+    }];
+
+    // If the member is the caller (where applicable), will be set to true.
+    bool is_self = 4;
+}
+
+message MemberIdentity {
+    // If present, the display name of the user.
+    string display_name = 1 [(validate.rules).string = {
+        max_len: 255 // Arbitrary limit
+    }];
+
+    // If present, the URL of the users profile pic.
+    string profile_pic_url = 2 [(validate.rules).string = {
+        max_len: 255 // Arbitrary limit
+    }];
+}
+
+// Opaque cursor used across paged APIs. Underlying bytes may change as paging
+// strategies evolve. Expected length value will vary based on the RPC being
+// executed.
+message Cursor {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 8
+        max_len: 32
+    }];
+}
+

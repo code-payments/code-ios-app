@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package flipchat.user.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/user/v1;userpb";
+option java_package = "com.codeinc.flipchat.gen.user.v1";
+option objc_class_prefix = "FCPBUserV1";
+
+import "common/v1/model.proto";
+import "validate/validate.proto";
+
+service Profile {
+	rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+}
+
+message GetUserProfileRequest {
+	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+}
+message GetUserProfileResponse {
+	enum Result {
+		OK        = 0;
+		NOT_FOUND = 1;
+	}
+
+	// DisplayName is the display name of the user (if found).
+	string display_name = 1 [(validate.rules).string = {
+		min_len: 0
+		max_len: 64
+	}];
+}

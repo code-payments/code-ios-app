@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package flipchat.common.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/common/v1;commonpb";
+option java_package = "com.codeinc.flipchat.gen.common.v1";
+option objc_class_prefix = "FPBCommonV1";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+// Auth provides an authentication information for RPCs/messages.
+//
+// Currently, only a single form is supported, but it may be useful in
+// the future to rely on session tokens instead.
+message Auth {
+    oneof kind {
+        option (validate.required) = true;
+
+        // KeyPair uses pub key cryptography to verify.
+        KeyPair key_pair = 1;
+    }
+
+    // KeyPair uses a keypair to verify a message.
+    //
+    // The signature should be of the encapsulating proto message,
+    // _without_ the Auth section being set.
+    message KeyPair {
+        PublicKey pub_key = 1 [(validate.rules).message.required = true];
+        Signature signature = 2 [(validate.rules).message.required = true];
+    }
+}
+
+message UserId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 32
+    }];
+}
+
+message ChatId {
+    // Sufficient space is left for a consistent hash value, though other types
+    // of values may be used.
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 32
+    }];
+}
+
+
+// AppInstallId is a unque ID tied to a client app installation. It does not
+// identify a device. Value should remain private and not be shared across
+// installs.
+message AppInstallId {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256 // todo: What's a reasonable size
+    }];
+}
+
+// Locale is a user locale consisting of a combination of language, script and region
+message Locale {
+    string value = 1 [(validate.rules).string.pattern = "^[A-Za-z]{2,4}([_-][A-Za-z]{4})?([_-]([A-Za-z]{2}|[0-9]{3}))?$"];
+}
+
+message PublicKey {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+message Signature {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 64
+        max_len: 64
+    }];
+}
+
+message ServerPing {
+    // Timestamp the ping was sent on the stream, for client to get a sense
+    // of potential network latency
+    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+
+    // The delay server will apply before sending the next ping
+    google.protobuf.Duration ping_delay = 2 [(validate.rules).duration.required = true];
+}
+
+message ClientPong {
+    // Timestamp the Pong was sent on the stream, for server to get a sense
+    // of potential network latency
+    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+}

@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package flipchat.push.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/push/v1;pushpb";
+option java_package = "com.codeinc.flipchat.gen.push.v1";
+option objc_class_prefix = "FPBPushV1";
+
+import "common/v1/model.proto";
+import "validate/validate.proto";
+
+service Push {
+    // AddToken adds a push token associated with a user/device.
+    rpc AddToken(AddTokenRequest) returns (AddTokenResponse);
+
+    // DeleteToken removes a push token from a user/device.
+    rpc DeleteToken(DeleteTokenResponse) returns (DeleteTokenResponse);
+}
+
+enum TokenType {
+    UNKNOWN = 0;
+    // FCM registration token for an Android device
+    FCM_ANDROID = 1;
+    // FCM registration token or an iOS device
+    FCM_APNS = 2;
+}
+
+message AddTokenRequest {
+    common.v1.UserId user_id = 1;
+
+    string push_token = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096
+    }];
+
+    TokenType token_type = 3 [(validate.rules).enum = {in: [1,2]}];
+
+    common.v1.AppInstallId app_install = 4;
+
+    common.v1.Auth auth = 5;
+}
+
+message AddTokenResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        INVALID_PUSH_TOKEN = 1;
+    }
+}
+
+message DeleteTokenRequest {
+    common.v1.UserId user_id = 1;
+
+    string push_token = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096
+    }];
+
+    TokenType token_type = 3 [(validate.rules).enum = {in: [1,2]}];
+
+    common.v1.AppInstallId app_install = 4;
+
+    common.v1.Auth auth = 5 [(validate.rules).message.required = true];
+}
+
+message DeleteTokenResponse {
+}

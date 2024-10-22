@@ -17,9 +17,9 @@ extension Network {
     var host: String {
         switch self {
         case .mainNet:
-            return "api.codeinfra.net"
+            return "api.flipchat.codeinfra.net"
         case .testNet:
-            return "api.codeinfra.dev"
+            return "api.flipchat.codeinfra.net"
         }
     }
 

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package flipchat.badge.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/badge/v1;badgepb";
+option java_package = "com.codeinc.flipchat.gen.badge.v1";
+option objc_class_prefix = "FPBBadgeV1";
+
+import "common/v1/model.proto";
+import "validate/validate.proto";
+
+service Badge {
+    // ResetBadgeCount resets an owner account's app icon badge count back to zero
+    rpc ResetBadgeCount(ResetBadgeCountRequest) returns (ResetBadgeCountResponse);
+}
+
+message ResetBadgeCountRequest {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message ResetBadgeCountResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+}
