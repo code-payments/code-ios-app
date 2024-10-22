@@ -129,6 +129,6 @@ struct ConversationContainer: View {
 extension ConversationContainer {
     enum State {
         case unpaid(TwitterUser)
-        case paid(Chat, ChatController)
+        case paid(ChatLegacy, ChatController)
     }
 }

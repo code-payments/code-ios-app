@@ -1,5 +1,5 @@
 //
-//  Chat+Extensions.swift
+//  ChatLegacy+Extensions.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-02-09.
@@ -8,7 +8,7 @@
 import Foundation
 import CodeServices
 
-extension Chat {
+extension ChatLegacy {
     
     public var previewMessage: String {
         guard let contents = newestMessage?.contents else {
@@ -31,7 +31,7 @@ extension Chat {
     }
 }
 
-extension Chat.Content {
+extension ChatLegacy.Content {
     public var localizedText: String {
         switch self {
         case .localized(let key):
@@ -59,7 +59,7 @@ extension Chat.Content {
     }
 }
 
-extension Chat.Verb {
+extension ChatLegacy.Verb {
     public var localizedText: String {
         switch self {
         case .unknown:

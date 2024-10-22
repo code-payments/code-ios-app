@@ -11,8 +11,8 @@ import CodeServices
 
 public struct MessagePayment: View {
     
-    public let state: Chat.Message.State
-    public let verb: Chat.Verb
+    public let state: ChatLegacy.Message.State
+    public let verb: ChatLegacy.Verb
     public let amount: KinAmount
     public let isReceived: Bool
     public let date: Date
@@ -23,7 +23,7 @@ public struct MessagePayment: View {
     
     @State private var isThanked: Bool = false
         
-    public init(state: Chat.Message.State, verb: Chat.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation, action: @escaping VoidAction) {
+    public init(state: ChatLegacy.Message.State, verb: ChatLegacy.Verb, amount: KinAmount, isReceived: Bool, date: Date, location: MessageSemanticLocation, action: @escaping VoidAction) {
         self.state = state
         self.verb = verb
         self.amount = amount

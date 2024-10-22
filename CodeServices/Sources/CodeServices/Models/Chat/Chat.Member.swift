@@ -1,5 +1,5 @@
 //
-//  Chat.Member.swift
+//  ChatLegacy.Member.swift
 //  CodeServices
 //
 //  Created by Dima Bart.
@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-extension Chat {
+extension ChatLegacy {
     public struct Member: Equatable, Identifiable, Hashable, Sendable {
         
         /// Globally unique ID for this chat member
@@ -36,7 +36,7 @@ extension Chat {
     }
 }
 
-extension Chat.Member {
+extension ChatLegacy.Member {
     public enum Identity: Equatable, Hashable, Sendable {
         
         case unknown(String)
@@ -81,7 +81,7 @@ extension Chat.Member {
 
 // MARK: - Proto -
 
-extension Chat.Member {
+extension ChatLegacy.Member {
     init(_ proto: Code_Chat_V2_Member) {
         self.init(
             id: .init(data: proto.memberID.value),
@@ -92,7 +92,7 @@ extension Chat.Member {
     }
 }
 
-extension Chat.Member.Identity {
+extension ChatLegacy.Member.Identity {
     init(_ proto: Code_Chat_V2_MemberIdentity) {
         switch proto.platform {
         case .unknownPlatform:

@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-extension Chat {
+extension ChatLegacy {
     public enum Event {
         case message(Message)
         case pointer(Pointer)
@@ -17,7 +17,7 @@ extension Chat {
     }
 }
 
-extension Chat.Event {
+extension ChatLegacy.Event {
     public init?(_ proto: Code_Chat_V2_ChatStreamEvent) {
         guard let type = proto.type else {
             return nil

@@ -48,7 +48,7 @@ class DirectMessageViewModel: ObservableObject {
         navigationPath = [.enterUsername]
     }
     
-    func selectChat(_ chat: Chat) {
+    func selectChat(_ chat: ChatLegacy) {
         friendshipState = .established(chat)
         navigationPath.append(.chat)
     }
@@ -144,7 +144,7 @@ extension DirectMessageViewModel {
     enum FriendshipState {
         case none
         case pending(TwitterUser)
-        case established(Chat)
+        case established(ChatLegacy)
     }
 }
 

@@ -11,7 +11,7 @@ import CodeServices
 
 struct ConversationScreen: View {
 
-    @ObservedObject var chat: Chat
+    @ObservedObject var chat: ChatLegacy
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
@@ -38,7 +38,7 @@ struct ConversationScreen: View {
     
     // MARK: - Init -
     
-    init(chat: Chat, chatController: ChatController) {
+    init(chat: ChatLegacy, chatController: ChatController) {
         self.chat = chat
         self.chatController = chatController
     }
@@ -238,7 +238,7 @@ struct ConversationScreen: View {
         input = ""
     }
     
-    private func streamUpdate(events: [Chat.Event]) {
+    private func streamUpdate(events: [ChatLegacy.Event]) {
         for event in events {
             switch event {
             case .message(let message):

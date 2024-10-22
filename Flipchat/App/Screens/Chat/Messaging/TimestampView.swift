@@ -11,11 +11,11 @@ import CodeServices
 
 struct TimestampView: View {
     
-    let state: Chat.Message.State
+    let state: ChatLegacy.Message.State
     let date: Date
     let isReceived: Bool
     
-    init(state: Chat.Message.State, date: Date, isReceived: Bool) {
+    init(state: ChatLegacy.Message.State, date: Date, isReceived: Bool) {
         self.state = state
         self.date = date
         self.isReceived = isReceived
@@ -33,7 +33,7 @@ struct TimestampView: View {
     }
 }
 
-private extension Chat.Message.State {
+private extension ChatLegacy.Message.State {
     var asset: Asset {
         switch self {
         case .sent:

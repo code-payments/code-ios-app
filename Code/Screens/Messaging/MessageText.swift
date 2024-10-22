@@ -11,13 +11,13 @@ import CodeServices
 
 public struct MessageText: View {
     
-    public let state: Chat.Message.State
+    public let state: ChatLegacy.Message.State
     public let text: String
     public let date: Date
     public let isReceived: Bool
     public let location: MessageSemanticLocation
         
-    public init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, location: MessageSemanticLocation) {
+    public init(state: ChatLegacy.Message.State, text: String, date: Date, isReceived: Bool, location: MessageSemanticLocation) {
         self.state = state
         self.text = text
         self.date = date

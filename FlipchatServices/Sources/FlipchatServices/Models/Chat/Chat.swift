@@ -1,5 +1,5 @@
 //
-//  Chat.swift
+//  ChatLegacy.swift
 //  CodeServices
 //
 //  Created by Dima Bart.

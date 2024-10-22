@@ -1,5 +1,5 @@
 //
-//  Chat.Message.swift
+//  ChatLegacy.Message.swift
 //  CodeServices
 //
 //  Created by Dima Bart.
@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-extension Chat {
+extension ChatLegacy {
     public struct Message: Equatable, Identifiable, Hashable, Sendable {
         
         /// Globally unique ID for this message
@@ -105,7 +105,7 @@ extension Chat {
     }
 }
 
-extension Chat.Message {
+extension ChatLegacy.Message {
     public enum State {
         case sent
         case delivered
@@ -115,21 +115,21 @@ extension Chat.Message {
 
 // MARK: - Proto -
 
-extension Chat.Message {
+extension ChatLegacy.Message {
     public init(_ proto: Code_Chat_V2_Message) {
         self.init(
             id: .init(data: proto.messageID.value),
             senderID: !proto.senderID.value.isEmpty ? .init(data: proto.senderID.value) : nil,
             date: proto.ts.date,
             cursor: .init(data: proto.cursor.value),
-            contents: proto.content.compactMap { Chat.Content($0) }
+            contents: proto.content.compactMap { ChatLegacy.Content($0) }
         )
     }
 }
 
 // MARK: - Sorting -
 
-extension Array where Element == Chat.Message {
+extension Array where Element == ChatLegacy.Message {
     func sortedByDateDesc() -> [Element] {
         sorted { lhs, rhs in
             lhs.date < rhs.date // Desc

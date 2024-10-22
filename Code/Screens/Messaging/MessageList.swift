@@ -10,7 +10,7 @@ import CodeServices
 import CodeUI
 
 public protocol MessageListDelegate: AnyObject {
-    func didInteract(chat: Chat, message: Chat.Message, reference: Chat.Reference)
+    func didInteract(chat: ChatLegacy, message: ChatLegacy.Message, reference: ChatLegacy.Reference)
 }
 
 public struct MessageList: View {
@@ -19,7 +19,7 @@ public struct MessageList: View {
     
     private let scrollViewBottomID = "com.code.scrollView.bottomID"
     
-    private let chat: Chat
+    private let chat: ChatLegacy
     private let messages: [MessageGroup]
     private let exchange: Exchange
     
@@ -28,7 +28,7 @@ public struct MessageList: View {
     // MARK: - Init -
     
     @MainActor
-    init(chat: Chat, exchange: Exchange, state: Binding<State>, delegate: MessageListDelegate? = nil) {
+    init(chat: ChatLegacy, exchange: Exchange, state: Binding<State>, delegate: MessageListDelegate? = nil) {
         self.chat = chat
         self.messages = chat.messages.groupByDay()
         self.exchange = exchange
@@ -196,7 +196,7 @@ public struct MessageList: View {
         exchange.rate(for: currency)
     }
     
-    private func action(for message: Chat.Message, reference: Chat.Reference) {
+    private func action(for message: ChatLegacy.Message, reference: ChatLegacy.Reference) {
         delegate?.didInteract(chat: chat, message: message, reference: reference)
     }
 }
@@ -219,14 +219,14 @@ struct MessageGroup: Identifiable {
     }
     
     var date: Date
-    var messages: [Chat.Message]
+    var messages: [ChatLegacy.Message]
     
-    init(date: Date, messages: [Chat.Message]) {
+    init(date: Date, messages: [ChatLegacy.Message]) {
         self.date = date
         self.messages = messages
     }
     
-    func contentID(forMessage message: Chat.Message, contentIndex: Int) -> String {
+    func contentID(forMessage message: ChatLegacy.Message, contentIndex: Int) -> String {
         let lastContent = message.contents[contentIndex]
         return "\(message.id.data.hexEncodedString()):\(lastContent.id)"
     }
@@ -238,11 +238,11 @@ struct MessageGroup: Identifiable {
     }
 }
 
-extension Array where Element == Chat.Message {
+extension Array where Element == ChatLegacy.Message {
     func groupByDay() -> [MessageGroup] {
         
         let calendar = Calendar.current
-        var container: [Date: [Chat.Message]] = [:]
+        var container: [Date: [ChatLegacy.Message]] = [:]
 
         forEach { message in
             let components = calendar.dateComponents([.year, .month, .day], from: message.date)
@@ -264,14 +264,14 @@ extension Array where Element == Chat.Message {
     }
 }
 
-extension Chat.Content: @retroactive Identifiable {
+extension ChatLegacy.Content: @retroactive Identifiable {
     public var id: String {
         localizedText
     }
 }
 
 private extension GeometryProxy {
-    func messageWidth(for content: Chat.Content) -> CGFloat {
+    func messageWidth(for content: ChatLegacy.Content) -> CGFloat {
         switch content {
         case .localized, .kin, .sodiumBox, .text:
             return size.width * 0.70

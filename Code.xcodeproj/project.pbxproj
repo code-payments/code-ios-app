@@ -118,7 +118,6 @@
 		9A6BFF102B75667700E04EB7 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6BFF0F2B75667700E04EB7 /* NotificationService.swift */; };
 		9A6BFF142B75667700E04EB7 /* CodePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9A6BFF0D2B75667600E04EB7 /* CodePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9A6BFF1C2B76991A00E04EB7 /* CodeServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A6BFF1B2B76991A00E04EB7 /* CodeServices */; };
-		9A6D6D332AE1A81E003D9569 /* ChatScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */; };
 		9A6D6D352AE1AD55003D9569 /* String+Localized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6D6D342AE1AD55003D9569 /* String+Localized.swift */; };
 		9A704FFA2600E7EA0036A056 /* FAQScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A704FF82600E7EA0036A056 /* FAQScreen.swift */; };
 		9A7050112600EEE90036A056 /* Defaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7050102600EEE90036A056 /* Defaults.swift */; };
@@ -401,7 +400,6 @@
 		9A6BFF0D2B75667600E04EB7 /* CodePushExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CodePushExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A6BFF0F2B75667700E04EB7 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		9A6BFF112B75667700E04EB7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatScreen.swift; sourceTree = "<group>"; };
 		9A6D6D342AE1AD55003D9569 /* String+Localized.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Localized.swift"; sourceTree = "<group>"; };
 		9A704FF82600E7EA0036A056 /* FAQScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FAQScreen.swift; sourceTree = "<group>"; };
 		9A7050102600EEE90036A056 /* Defaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Defaults.swift; sourceTree = "<group>"; };
@@ -665,7 +663,6 @@
 				9A2B16C42B73FF86008DB36D /* DepositUSDCScreen.swift */,
 				9AD5D72E25F13A18007388AE /* BalanceScreen.swift */,
 				9AA9799D2C75210F00395552 /* ChatsScreen.swift */,
-				9A6D6D322AE1A81E003D9569 /* ChatScreen.swift */,
 				9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */,
 				9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */,
 				9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */,
@@ -1793,7 +1790,6 @@
 				9A301D1629B92E94006BA3F6 /* FlowController.swift in Sources */,
 				9ACFA3102A4B48280057A5DF /* AccountContainer.swift in Sources */,
 				9A9DD6902BBDB9F300CAD548 /* TipController.swift in Sources */,
-				9A6D6D332AE1A81E003D9569 /* ChatScreen.swift in Sources */,
 				9A27FD472C0F487E00221457 /* DownloadScreen.swift in Sources */,
 				9A6740DA2C3472EF00F9F7BD /* MessageText.swift in Sources */,
 				9A093DAB25DDAD0C000E7DD9 /* SendTransaction.swift in Sources */,

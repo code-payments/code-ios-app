@@ -840,7 +840,7 @@ class Session: ObservableObject {
     
     // MARK: - Chat -
     
-    func payAndStartChat(amount: KinAmount, destination: PublicKey, chatID: ChatID) async throws -> Chat {
+    func payAndStartChat(amount: KinAmount, destination: PublicKey, chatID: ChatID) async throws -> ChatLegacy {
         let rendezvous = PublicKey.generate()!
         
         do {

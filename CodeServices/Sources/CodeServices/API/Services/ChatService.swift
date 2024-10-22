@@ -14,7 +14,7 @@ import SwiftProtobuf
 
 class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         
-    func openChatStream(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
+    func openChatStream(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[ChatLegacy.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
         trace(.open, components: "Chat \(chatID.description)", "Opening stream.")
         
         let streamReference = ChatMessageStreamReference()
@@ -45,7 +45,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         return streamReference
     }
     
-    private func openChatStream(chatID: ChatID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) {
+    private func openChatStream(chatID: ChatID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[ChatLegacy.Event], ErrorOpenChatStream>) -> Void) {
         let queue = self.queue
         
         reference.cancel()
@@ -59,7 +59,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
             switch result {
             case .events(let eventBatch):
                 
-                let events = eventBatch.events.compactMap { Chat.Event($0) }
+                let events = eventBatch.events.compactMap { ChatLegacy.Event($0) }
                 queue.async {
 //                    trace(.receive, components: "Chat \(chatID.description)", "Received \(events.count) events.")
                     completion(.success(events))
@@ -121,7 +121,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
     }
     
-    func startChat(owner: KeyPair, intentID: PublicKey, destination: PublicKey, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
+    func startChat(owner: KeyPair, intentID: PublicKey, destination: PublicKey, completion: @escaping (Result<ChatLegacy, ErrorStartChat>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Chat_V2_StartChatRequest.with {
@@ -139,7 +139,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
             let error = ErrorStartChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 DispatchQueue.main.async {
-                    let chat = Chat(response.chat)
+                    let chat = ChatLegacy(response.chat)
                     trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chat.id.data.hexEncodedString())")
                     completion(.success(chat))
                 }
@@ -153,7 +153,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         }
     }
     
-    func sendMessage(chatID: ChatID, owner: KeyPair, content: Chat.Content, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
+    func sendMessage(chatID: ChatID, owner: KeyPair, content: ChatLegacy.Content, completion: @escaping (Result<ChatLegacy.Message, ErrorSendMessage>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Chat_V2_SendMessageRequest.with {
@@ -169,7 +169,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
             let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 DispatchQueue.main.async {
-                    let message = Chat.Message(response.message)
+                    let message = ChatLegacy.Message(response.message)
                     trace(.success, components: "Owner: \(owner.publicKey.base58)", "Message: \(message.id.data.hexEncodedString())")
                     completion(.success(message))
                 }
@@ -183,7 +183,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         }
     }
     
-    func fetchChats(owner: KeyPair, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
+    func fetchChats(owner: KeyPair, completion: @escaping (Result<[ChatLegacy], ErrorFetchChats>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Chat_V2_GetChatsRequest.with {
@@ -198,7 +198,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
             if error == .ok || error == .notFound {
 //                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chats: \(chats.count)")
                 DispatchQueue.main.async {
-                    let chats = response.chats.map { Chat($0) }
+                    let chats = response.chats.map { ChatLegacy($0) }
                     completion(.success(chats))
                 }
             } else {
@@ -211,7 +211,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         }
     }
     
-    func fetchMessages(chatID: ChatID, memberID: MemberID, owner: KeyPair, direction: MessageDirection, pageSize: Int, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
+    func fetchMessages(chatID: ChatID, memberID: MemberID, owner: KeyPair, direction: MessageDirection, pageSize: Int, completion: @escaping (Result<[ChatLegacy.Message], ErrorFetchMessages>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())", "Page size: \(pageSize)")
         
         let request = Code_Chat_V2_GetMessagesRequest.with {
@@ -241,7 +241,7 @@ class ChatService: CodeService<Code_Chat_V2_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchMessages(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                let messages = response.messages.map { Chat.Message($0) }
+                let messages = response.messages.map { ChatLegacy.Message($0) }
 //                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Messages: \(messages.count)")
                 completion(.success(messages))
             } else {

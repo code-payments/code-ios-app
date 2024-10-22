@@ -58,7 +58,7 @@ class MessageListTests: XCTestCase {
         ]
         
         let messages = dates.map {
-            Chat.Message(
+            ChatLegacy.Message(
                 id: .random,
                 senderID: nil,
                 date: $0,

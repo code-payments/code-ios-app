@@ -30,7 +30,7 @@ struct BalanceScreen: View {
     
 //    @StateObject private var viewModel: ChatViewModel
     
-    private var chats: [Chat] {
+    private var chats: [ChatLegacy] {
         chatController.chats
 //        [
 //            Chat(
@@ -268,7 +268,7 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder
-    private func navigationLabel(for chat: Chat) -> some View {
+    private func navigationLabel(for chat: ChatLegacy) -> some View {
         let isUnread = !chat.isMuted && chat.unreadCount > 0
         
         HStack(spacing: 15) {

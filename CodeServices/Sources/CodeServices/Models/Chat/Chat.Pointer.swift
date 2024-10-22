@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-extension Chat {
+extension ChatLegacy {
     public struct Pointer: Equatable, Hashable, Sendable {
         
         public let kind: Kind
@@ -24,7 +24,7 @@ extension Chat {
     }
 }
 
-extension Chat.Pointer {
+extension ChatLegacy.Pointer {
     public enum Kind: Int, Sendable {
         case unknown
         case sent
@@ -35,7 +35,7 @@ extension Chat.Pointer {
 
 // MARK: - Proto -
 
-extension Chat.Pointer {
+extension ChatLegacy.Pointer {
     init(_ proto: Code_Chat_V2_Pointer) {
         self = .init(
             kind: .init(rawValue: proto.type.rawValue) ?? .unknown,

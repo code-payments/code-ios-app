@@ -1,5 +1,5 @@
 //
-//  Chat.Content.swift
+//  ChatLegacy.Content.swift
 //  CodeServices
 //
 //  Created by Dima Bart.
@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-extension Chat {
+extension ChatLegacy {
     public enum Content: Equatable, Hashable, Sendable {
         case text(String)
         case localized(String)
@@ -18,7 +18,7 @@ extension Chat {
     }
 }
 
-extension Chat.Content {
+extension ChatLegacy.Content {
     public enum Direction: Sendable {
         case fromSelf
         case fromOther
@@ -27,7 +27,7 @@ extension Chat.Content {
 
 // MARK: - Proto -
 
-extension Chat.Content {
+extension ChatLegacy.Content {
     
     public var codeContent: Code_Chat_V2_Content {
         switch self {
@@ -57,11 +57,11 @@ extension Chat.Content {
             
         case .exchangeData(let exchange):
             
-            guard let reference = Chat.Reference(exchange.reference) else {
+            guard let reference = ChatLegacy.Reference(exchange.reference) else {
                 return nil
             }
             
-            let verb: Chat.Verb
+            let verb: ChatLegacy.Verb
             
             switch exchange.verb {
             case .unknown:

@@ -1,5 +1,5 @@
 //
-//  Chat.swift
+//  ChatLegacy.swift
 //  CodeServices
 //
 //  Created by Dima Bart.
@@ -15,7 +15,7 @@ public typealias MemberID = ID
 public typealias MessageID = ID
 
 @MainActor
-public class Chat: ObservableObject {
+public class ChatLegacy: ObservableObject {
     
     /// Unique chat identifier
     nonisolated
@@ -204,7 +204,7 @@ public class Chat: ObservableObject {
     }
     
     @discardableResult
-    public func update(from chat: Chat) -> Bool {
+    public func update(from chat: ChatLegacy) -> Bool {
         guard chat.id == id else {
             return false
         }
@@ -218,9 +218,9 @@ public class Chat: ObservableObject {
     }
 }
 
-extension Chat: Hashable, Equatable {
+extension ChatLegacy: Hashable, Equatable {
     nonisolated
-    public static func == (lhs: Chat, rhs: Chat) -> Bool {
+    public static func == (lhs: ChatLegacy, rhs: ChatLegacy) -> Bool {
         lhs.id == rhs.id
     }
     
@@ -230,14 +230,14 @@ extension Chat: Hashable, Equatable {
     }
 }
 
-extension Chat {
+extension ChatLegacy {
     public enum Kind: Int {
         case unknown
         case twoWay
     }
 }
 
-extension Chat {
+extension ChatLegacy {
     public enum Verb: Equatable, Hashable, Sendable {
         case unknown     // = 0
         case gave        // = 1
@@ -256,7 +256,7 @@ extension Chat {
 
 // MARK: - Proto -
 
-extension Chat {
+extension ChatLegacy {
     public convenience init(_ proto: Code_Chat_V2_Metadata) {
         self.init(
             id: .init(data: proto.chatID.value),
@@ -273,7 +273,7 @@ extension Chat {
 
 // MARK: - Description -
 
-extension Chat: CustomDebugStringConvertible, CustomStringConvertible {
+extension ChatLegacy: CustomDebugStringConvertible, CustomStringConvertible {
     
     nonisolated
     public var description: String {

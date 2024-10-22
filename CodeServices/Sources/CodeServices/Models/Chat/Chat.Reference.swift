@@ -1,5 +1,5 @@
 //
-//  Chat.Reference.swift
+//  ChatLegacy.Reference.swift
 //  CodeServices
 //
 //  Created by Dima Bart.
@@ -9,7 +9,7 @@
 import Foundation
 import CodeAPI
 
-extension Chat {
+extension ChatLegacy {
     /// An ID that can be referenced to the source of the exchange of Kin
     public enum Reference: Equatable, Hashable, Sendable {
         case intent(PublicKey)
@@ -19,7 +19,7 @@ extension Chat {
 
 // MARK: - Proto -
 
-extension Chat.Reference {
+extension ChatLegacy.Reference {
     init?(_ proto: Code_Chat_V2_ExchangeDataContent.OneOf_Reference?) {
         guard let proto else {
             return nil
@@ -43,6 +43,6 @@ extension Chat.Reference {
     }
 }
 
-extension Chat.Reference {
-    public static let mock: Chat.Reference = .intent(.mock)
+extension ChatLegacy.Reference {
+    public static let mock: ChatLegacy.Reference = .intent(.mock)
 }

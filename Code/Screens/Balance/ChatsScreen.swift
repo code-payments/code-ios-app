@@ -21,7 +21,7 @@ struct ChatsScreen: View {
     @ObservedObject private var chatController: ChatController
     @ObservedObject private var bannerController: BannerController
     
-    private var chats: [Chat] {
+    private var chats: [ChatLegacy] {
         chatController.chats
     }
     
@@ -169,7 +169,7 @@ struct ChatsScreen: View {
         }
     }
     
-    private func avatarValue(for chat: Chat) -> AvatarView.Value {
+    private func avatarValue(for chat: ChatLegacy) -> AvatarView.Value {
         if let url = chat.otherMemberAvatarURL {
             return .url(url)
         } else {

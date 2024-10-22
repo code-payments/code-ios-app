@@ -47,7 +47,7 @@ class NotificationModifier {
     
     // MARK: - Decoding -
     
-    private func extractChatContent(from userInfo: [AnyHashable : Any]) -> (String, Chat.Content)? {
+    private func extractChatContent(from userInfo: [AnyHashable : Any]) -> (String, ChatLegacy.Content)? {
         guard
             let chatTitle = userInfo["chat_title"] as? String,
             let messageContent = userInfo["message_content"] as? String
@@ -61,7 +61,7 @@ class NotificationModifier {
         
         guard
             let rawContent = try? Code_Chat_V2_Content(serializedData: messageData),
-            let content = Chat.Content(rawContent)
+            let content = ChatLegacy.Content(rawContent)
         else {
             return nil
         }
