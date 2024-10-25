@@ -23,6 +23,7 @@ class ChatViewModel: ObservableObject {
     @Published private(set) var isShowingPayForFriendship: Bool = false
     
     private let session: Session
+    private let sessionAuthenticator: SessionAuthenticator
     private let client: FlipchatClient
     private let exchange: Exchange
     private let chatController: ChatController
@@ -30,8 +31,9 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(session: Session, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
+    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
         self.session = session
+        self.sessionAuthenticator = sessionAuthenticator
         self.client = client
         self.exchange = exchange
         self.chatController = session.chatController
@@ -40,12 +42,25 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Actions -
     
+    func logout() {
+        sessionAuthenticator.logout()
+    }
+    
     func fetchAllChats() {
         chatController.fetchChats()
     }
     
     func startNewChat() {
-        navigationPath = [.enterUsername]
+        Task {
+            let chat = try await client.startGroupChat(owner: session.organizer.ownerKeyPair)
+            friendshipState = .contributor(chat)
+            navigationPath.append(.chat)
+            chatController.fetchChats()
+        }
+    }
+    
+    func joinExistingChat() {
+        navigationPath = [.enterRoomNumber]
     }
     
     func selectChat(_ chat: Chat) {
@@ -160,13 +175,14 @@ extension ChatViewModel {
 }
 
 enum DirectMessagePath: Hashable {
-    case enterUsername
+    case enterRoomNumber
     case chat
 }
 
 extension ChatViewModel {
     static let mock: ChatViewModel = .init(
         session: .mock,
+        sessionAuthenticator: .mock,
         client: .mock,
         exchange: .mock,
         bannerController: .mock

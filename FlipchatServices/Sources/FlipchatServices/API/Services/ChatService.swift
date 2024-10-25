@@ -123,10 +123,10 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
 //        trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
 //    }
     
-    func startGroupChat(with userID: UserID, owner: KeyPair, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
-        trace(.send, components: "User ID: \(userID.description)")
+    func startGroupChat(with userID: UserID?, owner: KeyPair, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
+        let groupUsers = [userID].compactMap { $0 }
         
-        let groupUsers = [userID]
+        trace(.send, components: "Users: \(groupUsers.map { "\($0.description)" }.joined(separator: ", "))")
         
         let request = Flipchat_Chat_V1_StartChatRequest.with {
             $0.groupChat = .with {

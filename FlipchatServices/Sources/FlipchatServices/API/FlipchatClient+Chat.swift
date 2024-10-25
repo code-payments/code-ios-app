@@ -14,7 +14,7 @@ import CodeServices
 
 extension FlipchatClient {
     
-    public func startGroupChat(with userID: UserID, owner: KeyPair) async throws -> Chat {
+    public func startGroupChat(with userID: UserID? = nil, owner: KeyPair) async throws -> Chat {
         try await withCheckedThrowingContinuation { c in
             chatService.startGroupChat(with: userID, owner: owner) { c.resume(with: $0) }
         }

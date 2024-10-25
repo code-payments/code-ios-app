@@ -32,18 +32,6 @@ class OnboardingViewModel: ObservableObject {
         self.sessionAuthenticator = sessionAuthenticator
     }
     
-    // MARK: - Account -
-    
-    private func registerAccount(name: String) async throws {
-        guard isEnteredNameValid else {
-            throw GenericError(message: "Invalid name")
-        }
-        
-        sessionAuthenticator.completeLogin(
-            with: try await sessionAuthenticator.initializeNewAccount(name: name)
-        )
-    }
-    
     // MARK: - Actions -
     
     func startLogin() {
@@ -56,8 +44,26 @@ class OnboardingViewModel: ObservableObject {
     
     func registerEnteredName() {
         Task {
-            accountCreationState = .loading
-            try await registerAccount(name: enteredName)
+            do {
+                guard isEnteredNameValid else {
+                    throw GenericError(message: "Invalid name")
+                }
+                
+                accountCreationState = .loading
+                let initializedAccount = try await sessionAuthenticator.initializeNewAccount(name: enteredName)
+                
+                try await Task.delay(milliseconds: 500)
+                accountCreationState = .success
+                
+                try await Task.delay(milliseconds: 500)
+                sessionAuthenticator.completeLogin(with: initializedAccount)
+                
+                try await Task.delay(milliseconds: 500)
+                accountCreationState = .normal
+                
+            } catch {
+                accountCreationState = .normal
+            }
         }
     }
 }

@@ -90,8 +90,6 @@ final class SessionAuthenticator: ObservableObject {
     private func initializeState(count: Int = 0, migration: @escaping (MnemonicPhrase) -> Void, didAuthenticate: @escaping (KeyAccount, UserID) -> Void) {
         trace(.warning)
         
-        let all = accountManager.fetchHistorical()
-        
         // The most important Keychain item is the key account
         // because it's the only thing we can't derive. If the
         // the user is missing we'll transition into a 'migration'

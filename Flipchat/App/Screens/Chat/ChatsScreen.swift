@@ -15,6 +15,7 @@ struct ChatsScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
+    @ObservedObject private var sessionAuthenticator: SessionAuthenticator
     @ObservedObject private var exchange: Exchange
     @ObservedObject private var chatController: ChatController
     @ObservedObject private var bannerController: BannerController
@@ -27,14 +28,16 @@ struct ChatsScreen: View {
     
     // MARK: - Init -
     
-    init(session: Session, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
+    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
         self.session = session
+        self.sessionAuthenticator = sessionAuthenticator
         self.exchange = exchange
         self.chatController = session.chatController
         self.bannerController = bannerController
         self._viewModel = StateObject(
             wrappedValue: ChatViewModel(
                 session: session,
+                sessionAuthenticator: sessionAuthenticator,
                 client: client,
                 exchange: exchange,
                 bannerController: bannerController
@@ -69,7 +72,13 @@ struct ChatsScreen: View {
                         )
                     }
                     
-                    CodeButton(style: .filled, title: "Start a New Chat") {
+                    CodeButton(style: .filled, title: "Join a Chat") {
+                        viewModel.joinExistingChat()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    
+                    CodeButton(style: .filled, title: "Create a New Room") {
                         viewModel.startNewChat()
                     }
                     .padding(.horizontal, 20)
@@ -87,11 +96,29 @@ struct ChatsScreen: View {
                 .navigationBarHidden(false)
                 .navigationBarTitle(Text(Localized.Action.chat))
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            viewModel.logout()
+//                            bannerController.show(
+//                                style: .warning,
+//                                title: "Log out?",
+//                                description: "Are you sure you want to logout?",
+//                                actions: [
+//                                    .cancel(title: Localized.Action.ok),
+//                                ]
+//                            )
+                        } label: {
+                            Image(systemName: "door.right.hand.open")
+                                .padding(5)
+                        }
+                    }
+                }
             }
             .navigationDestination(for: DirectMessagePath.self) { path in
                 switch path {
-                case .enterUsername:
-                    EnterUsernameScreen(viewModel: viewModel)
+                case .enterRoomNumber:
+                    EnterRoomNumberScreen(viewModel: viewModel)
                 case .chat:
                     ConversationContainer(
                         chatController: chatController,
@@ -175,6 +202,7 @@ struct ChatsScreen: View {
 #Preview {
     ChatsScreen(
         session: .mock,
+        sessionAuthenticator: .mock,
         client: .mock,
         exchange: .mock,
         bannerController: .mock

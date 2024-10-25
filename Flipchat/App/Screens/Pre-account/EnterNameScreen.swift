@@ -77,5 +77,5 @@ struct EnterNameScreen: View {
 }
 
 #Preview {
-    EnterUsernameScreen(viewModel: .mock)
+    EnterRoomNumberScreen(viewModel: .mock)
 }

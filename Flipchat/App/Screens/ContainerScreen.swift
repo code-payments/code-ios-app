@@ -33,6 +33,7 @@ struct ContainerScreen: View {
                 } else {
                     ChatsScreen(
                         session: session,
+                        sessionAuthenticator: sessionAuthenticator,
                         client: container.flipClient,
                         exchange: container.exchange,
                         bannerController: container.bannerController
