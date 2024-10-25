@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package flipchat.profile.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/profile/v1;profilepb";
+option java_package = "com.codeinc.flipchat.gen.profile.v1";
+option objc_class_prefix = "FCPBProfileV1";
+
+import "common/v1/flipchat.proto";
+import "profile/v1/model.proto";
+import "validate/validate.proto";
+
+service Profile {
+	rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+
+	rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
+}
+
+message GetProfileRequest {
+	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+}
+message GetProfileResponse {
+	Result result = 1;
+	enum Result {
+		OK        = 0;
+		NOT_FOUND = 1;
+	}
+
+	// UserProfile, if found.
+	//
+	// Some fields may or may not be set, depending on the scope of request
+	// in the future.
+	UserProfile user_profile = 2;
+}
+
+message SetDisplayNameRequest {
+	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+	// DisplayName is the new name to set.
+	string display_name = 2 [(validate.rules).string = {
+		min_len: 1
+		max_len: 64
+	}];
+
+	common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+
+message SetDisplayNameResponse {
+	Result result = 1;
+	enum Result {
+		OK                   = 0;
+		INVALID_DISPLAY_NAME = 1;
+	}
+}

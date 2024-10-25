@@ -148,18 +148,12 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         }
     }
 
-    func fetchMessages(chatID: ChatID, owner: KeyPair, direction: PageDirection, pageSize: Int, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
-        trace(.send, components: "Chat ID: \(chatID)", "Page size: \(pageSize)")
+    func fetchMessages(chatID: ChatID, owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID)", "Query: \(query.description)")
         
         let request = Flipchat_Messaging_V1_GetMessagesRequest.with {
-            $0.chatID    = .with { $0.value = chatID.data }
-            $0.pageSize  = UInt32(pageSize)
-            $0.direction = direction.protoMessageDirection
-            
-            if let cursor = direction.protoMessageCursor {
-                $0.cursor = cursor
-            }
-            
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.queryOptions = query.protoQueryOptions
             $0.auth = owner.protoAuth
         }
         

@@ -5,11 +5,11 @@
 //  Created by Dima Bart on 2021-01-21.
 //
 
-import Foundation
+import SwiftUI
 import Combine
 import CodeUI
 import CodeServices
-import SwiftUI
+import FlipchatServices
 
 @MainActor
 protocol SessionDelegate: AnyObject {
@@ -23,34 +23,24 @@ class Session: ObservableObject {
     
     @Published private(set) var hasBalance: Bool = false
     @Published private(set) var currentBalance: Kin = 0
-//    @Published private(set) var billState: BillState = .default()
     @Published private(set) var presentationState: PresentationState = .hidden(.slide)
-    
-//    @Published private(set) var phoneLink: PhoneLink?
     
     weak var delegate: SessionDelegate?
     
-    let twitterUserController: TwitterUserController
-    let tipController: TipController
     let chatController: ChatController
     
     let organizer: Organizer
     
-    private(set) var user: User
-    
+    private let userID: UserID
     private let client: Client
     private let exchange: Exchange
     private let bannerController: BannerController
     private let betaFlags: BetaFlags
 
     private let flowController: FlowController
-    private let giftCardVault: GiftCardVault
     
     private var scannedRendezvous: Set<PublicKey> = []
     private var cancellables: Set<AnyCancellable> = []
-    
-//    private var receiveTransaction: ReceiveTransaction?
-//    private var sendTransaction: SendTransaction?
     
     private let timeoutInterval: TimeInterval = 50.0
     private var timeoutCancelItem: DispatchWorkItem?
@@ -68,37 +58,30 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(organizer: Organizer, user: User, client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) {
+    init(userID: UserID, organizer: Organizer, client: Client, flipClient: FlipchatClient, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) {
+        self.userID = userID
         self.organizer = organizer
-        self.user = user
         self.client = client
         self.exchange = exchange
         self.bannerController = bannerController
         self.betaFlags = betaFlags
         
-        self.twitterUserController = TwitterUserController(owner: organizer.ownerKeyPair, client: client)
-        self.tipController = TipController(organizer: organizer, client: client, bannerController: bannerController)
-        self.chatController = ChatController(client: client, organizer: organizer)
+        self.chatController = ChatController(
+            userID: userID,
+            client: flipClient,
+            organizer: organizer
+        )
         
-        self.flowController = FlowController(client: client, organizer: organizer)
-        self.giftCardVault = GiftCardVault()
-        
-        self.tipController.delegate = self
+        self.flowController = FlowController(
+            client: client,
+            organizer: organizer
+        )
         
         registerPoller()
         
         poll()
         
         chatController.fetchChats()
-        
-        Task {
-//            try? await updatePhoneLinkStatus()
-            try? await updateUserInfo()
-//            try? await updateUserPreferences()
-            
-            // Must be after user info
-//            try await receiveFirstKinIfAvailable()
-        }
     }
     
     deinit {
@@ -106,30 +89,7 @@ class Session: ObservableObject {
     }
     
     func prepareForLogout() {
-        tipController.prepareForLogout()
-    }
-    
-    // MARK: - User -
-    
-    func updateUserInfo() async throws {
-        guard let phone = user.phone else {
-            return
-        }
         
-        let user = try await client.fetchUser(
-            phone: phone,
-            owner: organizer.ownerKeyPair
-        )
-        
-        self.user = user
-    }
-    
-    private func updateUserPreferences() async throws {
-        try await client.updatePreferences(
-            user: user,
-            locale: .current,
-            owner: organizer.ownerKeyPair
-        )
     }
     
     // MARK: - Poller -
@@ -146,44 +106,6 @@ class Session: ObservableObject {
         }
         
         updateBalance()
-        fetchPrivacyUpgrades()
-    }
-    
-    // MARK: - Privacy Upgrade -
-    
-    private func fetchPrivacyUpgrades() {
-        let client = self.client
-        let mnemonic = organizer.mnemonic
-        Task {
-            let upgradeableIntents = try await client.fetchUpgradeableIntents(owner: organizer.ownerKeyPair)
-            await withThrowingTaskGroup(of: Void.self) { group in
-                for upgradeableIntent in upgradeableIntents {
-                    group.addTask {
-                        do {
-                            try await client.upgradePrivacy(
-                                mnemonic: mnemonic,
-                                upgradeableIntent: upgradeableIntent
-                            )
-                            
-                            Analytics.upgradePrivacy(
-                                successful: true,
-                                intentID: upgradeableIntent.id,
-                                actionCount: upgradeableIntent.actions.count,
-                                error: nil
-                            )
-                            
-                        } catch {
-                            Analytics.upgradePrivacy(
-                                successful: false,
-                                intentID: upgradeableIntent.id,
-                                actionCount: upgradeableIntent.actions.count,
-                                error: error
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
     
     // MARK: - Balance -
@@ -220,75 +142,17 @@ class Session: ObservableObject {
         try await fetchBalance()
     }
     
-    // MARK: - Phone Link  -
-    
-    func unlinkAccount(from phone: Phone) async throws {
-        try await client.unlinkAccount(phone: phone, owner: organizer.ownerKeyPair)
-    }
-    
-//    func updatePhoneLinkStatus() async throws {
-//        phoneLink = try await client.fetchAssociatedPhoneNumber(owner: organizer.ownerKeyPair)
-//    }
-    
     // MARK: - Push -
     
-    private func promptForPushPermissionsIfNeeded() {
-        Task {
-            if await tipController.shouldPromptForPushPermissions() {
-                try await Task.delay(milliseconds: 500)
-                isShowingPushPrompt = true
-                tipController.setPushPrompted()
-            }
-        }
-    }
-    
-    // MARK: - ChatLegacy -
-    
-    func payAndStartChat(amount: KinAmount, destination: PublicKey, chatID: ChatID) async throws -> ChatLegacy {
-        let rendezvous = PublicKey.generate()!
-        
-        do {
-            try await flowController.transfer(
-                amount: amount,
-                fee: 0,
-                additionalFees: [],
-                rendezvous: rendezvous,
-                destination: destination,
-                withdrawal: true,
-                tipAccount: nil,
-                chatID: chatID
-            )
-            
-            let chat = try await client.startChat(
-                owner: organizer.ownerKeyPair,
-                intentID: rendezvous, // In this case, rendezvous must be the transfer intent ID
-                destination: destination
-            )
-            
-            return chat
-//            Analytics.transferForTip(
-//                amount: amount,
-//                successful: true,
-//                error: nil
-//            )
-            
-        } catch {
-//            Analytics.transferForTip(
-//                amount: amount,
-//                successful: false,
-//                error: error
-//            )
-            
-            ErrorReporting.capturePayment(
-                error: error,
-                rendezvous: rendezvous,
-                tray: organizer.tray,
-                amount: amount
-            )
-            
-            throw error
-        }
-    }
+//    private func promptForPushPermissionsIfNeeded() {
+//        Task {
+//            if await tipController.shouldPromptForPushPermissions() {
+//                try await Task.delay(milliseconds: 500)
+//                isShowingPushPrompt = true
+//                tipController.setPushPrompted()
+//            }
+//        }
+//    }
     
     // MARK: - Send -
     
@@ -314,99 +178,11 @@ class Session: ObservableObject {
     
     // MARK: - Errors -
     
-    private func showNoCodeFoundError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.noCodeFound,
-            description: Localized.Error.Description.noCodeFound,
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
     private func showPaymentRequestError() {
         bannerController.show(
             style: .error,
             title: "Payment Failed",
             description: "This payment request could not be paid at this time. Please try again later.",
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showSendError() {
-        bannerController.show(
-            style: .error,
-            title: "Transaction Failed",
-            description: "This transaction could not be sent at this time. Please try again later.",
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showDeniedError() {
-        bannerController.show(
-            style: .error,
-            title: "Transaction Denied",
-            description: "This transaction could not be sent. The maximum transaction limit has been reached.",
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showConnectivityError(completion: @escaping VoidAction) {
-        bannerController.show(
-            style: .error,
-            title: "No Internet Connection",
-            description: "Please check your internet connection or try again later.",
-            actions: [
-                .standard(title: Localized.Action.ok, action: completion),
-            ]
-        )
-    }
-    
-    private func showGiftCardClaimedError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.alreadyCollectedBySomeone,
-            description: Localized.Error.Description.alreadyCollectedBySomeone,
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showGiftCardExpiredError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.linkExpired,
-            description: Localized.Error.Description.linkExpired,
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showGiftCardCollectionFailedError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.failedToCollect,
-            description: Localized.Error.Description.failedToCollect,
-            actions: [
-                .cancel(title: Localized.Action.ok)
-            ]
-        )
-    }
-    
-    private func showCashExpiredError() {
-        bannerController.show(
-            style: .error,
-            title: Localized.Error.Title.cashExpired,
-            description: Localized.Error.Description.cashExpired,
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
@@ -426,35 +202,6 @@ class Session: ObservableObject {
                 .subtle(title: Localized.Action.cancelSend, action: cancel),
             ]
         )
-    }
-    
-    // MARK: - Withdrawals -
-    
-    func fetchDestinationMetadata(destination: PublicKey) async -> DestinationMetadata {
-        await client.fetchDestinationMetadata(destination: destination)
-    }
-    
-    func withdrawExternally(amount: KinAmount, to destination: PublicKey) async throws {
-        try await flowController.withdrawExternally(amount: amount, to: destination)
-        updateBalance()
-    }
-}
-
-extension Session: TipControllerDelegate {
-    func willShowTipCard(for user: TwitterUser) {
-//        presentMyTipCard(user: user)
-    }
-}
-
-// MARK: - Errors -
-
-extension Session {
-    enum PaymentError: Swift.Error {
-        case noExchangeData
-        case invalidPayloadForRequest
-        case exchangeForCurrencyNotFound
-        case messageForRendezvousNotFound
-        case rendezvousFailedValidation
     }
 }
 
@@ -502,9 +249,10 @@ extension GiftCardAccount {
 
 extension Session {
     static let mock = Session(
+        userID: .mock,
         organizer: .mock,
-        user: .mock,
         client: .mock,
+        flipClient: .mock,
         exchange: .mock,
         bannerController: .mock,
         betaFlags: .mock

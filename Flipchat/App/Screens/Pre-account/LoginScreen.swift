@@ -161,28 +161,15 @@ struct LoginScreen: View {
         let owner = mnemonic.solanaKeyPair()
         
         buttonState = .loading
-        
-        // First step is to check whether or not this account
-        // requires phone number verification. If `notFound`
-        // then we know that there was never a phone number
-        // that verified this account.
         do {
-            _ = try await client.fetchAssociatedPhoneNumber(owner: owner)
+            let initializedAccount = try await sessionAuthenticator.initialize(
+                using: mnemonic,
+                name: nil
+            )
             
-            // There are 3 scenarios here:
-            // 1. PhoneLink is non-nil, phone is linked
-            //    This is a recent account, login normally
-            //
-            // 2. PhoneLink is non-nil, phone is not linked
-            //    Account previously verified, can login
-            //
-            // 3. PhoneLink is nil
-            //    This account was never verified with a phone
-            //    number and requires verification before login
-            
-            let initializedAccount = try await sessionAuthenticator.initialize(using: mnemonic)
             try await Task.delay(seconds: 1)
             buttonState = .success
+            
             try await Task.delay(seconds: 1)
             sessionAuthenticator.completeLogin(with: initializedAccount)
             
@@ -190,16 +177,9 @@ struct LoginScreen: View {
                 ownerPublicKey: owner.publicKey,
                 autoCompleteCount: autoCompleteCount,
                 inputChangeCount: inputChangeCount
-            ) 
-        }
-        
-        catch ErrorFetchUser.unlockedTimelock, ErrorFetchAssociatedPhone.unlockedTimelock {
-            try await Task.delay(milliseconds: 500)
-            buttonState = .normal
-            showUnlockedTimelockError()
-        }
-        
-        catch { // ErrorFetchAssociatedPhone.notFound
+            )
+            
+        } catch {
             try await Task.delay(milliseconds: 500)
             buttonState = .normal
             showError()

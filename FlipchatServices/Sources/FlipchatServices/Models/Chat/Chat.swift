@@ -31,9 +31,6 @@ public class Chat: ObservableObject {
     /// Whether or not the chat is mutable
     @Published public private(set) var muteable: Bool
     
-    /// Cursor value for this chat for reference in subsequent GetChatsRequest
-    @Published public private(set) var cursor: Cursor
-    
     /// Number of (estimated) unread message
     @Published public private(set) var unreadCount: Int
     
@@ -94,14 +91,13 @@ public class Chat: ObservableObject {
     
     // MARK: - Init -
     
-    public init(id: ChatID, roomNumber: UInt64, kind: Kind, isMuted: Bool, muteable: Bool, cursor: Cursor, unreadCount: Int, members: [Member], messages: [Message]) {
+    public init(id: ChatID, roomNumber: UInt64, kind: Kind, isMuted: Bool, muteable: Bool, unreadCount: Int, members: [Member], messages: [Message]) {
         self.id = id
         self.roomNumber = roomNumber
         self.kind = kind
         //self.title = title
         self.isMuted = isMuted
         self.muteable = muteable
-        self.cursor = cursor
         self.unreadCount = unreadCount
         self.members = members
         self.messages = messages
@@ -143,6 +139,13 @@ public class Chat: ObservableObject {
 //    }
     
     // MARK: - Messages -
+    
+    public func isMessageFromSelf(_ message: Message) -> Bool {
+        // For notification messages the sender
+        // isn't self but we want it to appear
+        // on the 'self' side
+        message.senderID == selfMember?.id
+    }
     
     @discardableResult
     public func insertMessages(_ messages: [Message]) -> Int {
@@ -193,7 +196,6 @@ public class Chat: ObservableObject {
             return false
         }
         
-        cursor = chat.cursor
         kind = chat.kind
         members = chat.members
         messages = chat.messages
@@ -249,7 +251,6 @@ extension Chat {
             kind: Kind(rawValue: proto.type.rawValue) ?? .unknown,
             isMuted: proto.isMuted,
             muteable: proto.muteable,
-            cursor: .init(data: proto.cursor.value),
             unreadCount: Int(proto.numUnread),
             members: proto.members.map { .init($0) },
             messages: []

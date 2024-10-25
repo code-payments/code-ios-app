@@ -7,7 +7,7 @@
 
 import SwiftUI
 import CodeUI
-import CodeServices
+import FlipchatServices
 
 @MainActor
 class ChatViewModel: ObservableObject {
@@ -18,24 +18,24 @@ class ChatViewModel: ObservableObject {
     
     @Published var beginChatState: ButtonState = .normal
     
-    @Published var enteredUsername: String = ""
+    @Published var enteredRoomNumber: String = ""
     
     @Published private(set) var isShowingPayForFriendship: Bool = false
     
     private let session: Session
+    private let client: FlipchatClient
     private let exchange: Exchange
     private let chatController: ChatController
     private let bannerController: BannerController
-    private let twitterController: TwitterUserController
     
     // MARK: - Init -
     
-    init(session: Session, exchange: Exchange, bannerController: BannerController) {
+    init(session: Session, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
         self.session = session
+        self.client = client
         self.exchange = exchange
         self.chatController = session.chatController
         self.bannerController = bannerController
-        self.twitterController = session.twitterUserController
     }
     
     // MARK: - Actions -
@@ -48,33 +48,37 @@ class ChatViewModel: ObservableObject {
         navigationPath = [.enterUsername]
     }
     
-    func selectChat(_ chat: ChatLegacy) {
-        friendshipState = .established(chat)
+    func selectChat(_ chat: Chat) {
+        friendshipState = .contributor(chat)
         navigationPath.append(.chat)
     }
     
-    func attemptChatWithEnteredUsername() {
-        let username = enteredUsername
+    func attemptEnterGroupChat() {
+        guard let roomNumber = RoomNumber(enteredRoomNumber) else {
+            // TODO: Use number parser instead
+            return
+        }
+        
         Task {
             beginChatState = .loading
             do {
-                let user = try await twitterController.fetchUser(username: username)
+                let chat = try await client.fetchChat(
+                    for: roomNumber,
+                    owner: session.organizer.ownerKeyPair
+                )
+                
                 try await Task.delay(milliseconds: 500)
                 beginChatState = .success
                 try await Task.delay(milliseconds: 500)
                 
-                if user.isFriend {
-                    // 1. Look up chat from local list
-                    // 2. If not found, `startChat` and add to the local list
-                    // 3. Navigation to the chat
-                } else {
-                    friendshipState = .pending(user)
-                    navigationPath.append(.chat)
-                }
+                friendshipState = .reader(chat)
+                navigationPath.append(.chat)
+                
+                // Reset
                 
                 try await Task.delay(milliseconds: 500)
                 beginChatState  = .normal
-                enteredUsername = ""
+                enteredRoomNumber = ""
                 
             } catch {
                 showNotFoundError()
@@ -93,37 +97,37 @@ class ChatViewModel: ObservableObject {
         isShowingPayForFriendship = false
     }
     
-    func completePaymentForFriendship(with user: TwitterUser) async throws {
-        guard let rate = exchange.rate(for: user.costOfFriendship.currency) else {
-            throw Error.exchateRateNotFound
-        }
-        
-        guard let friendChatID = user.friendChatID else {
-            throw Error.friendChatIDNotFound
-        }
-        
-        // Convert cost of friendship from a fiat
-        // value to Kin using the latest fx rates
-        let amount = KinAmount(
-            fiat: user.costOfFriendship.amount,
-            rate: rate
-        )
-        
-        let destination = user.tipAddress
-        
-        let chat = try await session.payAndStartChat(
-            amount: amount,
-            destination: destination,
-            chatID: friendChatID
-        )
-        
-        friendshipState = .established(chat)
-    }
+//    func completePaymentForFriendship(with user: TwitterUser) async throws {
+//        guard let rate = exchange.rate(for: user.costOfFriendship.currency) else {
+//            throw Error.exchateRateNotFound
+//        }
+//        
+//        guard let friendChatID = user.friendChatID else {
+//            throw Error.friendChatIDNotFound
+//        }
+//        
+//        // Convert cost of friendship from a fiat
+//        // value to Kin using the latest fx rates
+//        let amount = KinAmount(
+//            fiat: user.costOfFriendship.amount,
+//            rate: rate
+//        )
+//        
+//        let destination = user.tipAddress
+//        
+//        let chat = try await session.payAndStartChat(
+//            amount: amount,
+//            destination: destination,
+//            chatID: friendChatID
+//        )
+//        
+//        friendshipState = .established(chat)
+//    }
     
     // MARK: - Validation -
     
     func isEnteredUsernameValid() -> Bool {
-        enteredUsername.count >= 4
+        enteredRoomNumber.count >= 4
     }
     
     // MARK: - Errors -
@@ -143,8 +147,8 @@ class ChatViewModel: ObservableObject {
 extension ChatViewModel {
     enum FriendshipState {
         case none
-        case pending(TwitterUser)
-        case established(ChatLegacy)
+        case reader(Chat)
+        case contributor(Chat)
     }
 }
 
@@ -163,6 +167,7 @@ enum DirectMessagePath: Hashable {
 extension ChatViewModel {
     static let mock: ChatViewModel = .init(
         session: .mock,
+        client: .mock,
         exchange: .mock,
         bannerController: .mock
     )

@@ -6,11 +6,12 @@
 //
 
 import SwiftUI
+import FlipchatServices
 import CodeServices
 import CodeUI
 
 public protocol MessageListDelegate: AnyObject {
-    func didInteract(chat: ChatLegacy, message: ChatLegacy.Message, reference: ChatLegacy.Reference)
+    func didInteract(chat: Chat, message: Chat.Message)
 }
 
 public struct MessageList: View {
@@ -19,7 +20,7 @@ public struct MessageList: View {
     
     private let scrollViewBottomID = "com.code.scrollView.bottomID"
     
-    private let chat: ChatLegacy
+    private let chat: Chat
     private let messages: [MessageGroup]
     private let exchange: Exchange
     
@@ -28,7 +29,7 @@ public struct MessageList: View {
     // MARK: - Init -
     
     @MainActor
-    init(chat: ChatLegacy, exchange: Exchange, state: Binding<State>, delegate: MessageListDelegate? = nil) {
+    init(chat: Chat, exchange: Exchange, state: Binding<State>, delegate: MessageListDelegate? = nil) {
         self.chat = chat
         self.messages = chat.messages.groupByDay()
         self.exchange = exchange
@@ -109,36 +110,36 @@ public struct MessageList: View {
                                     location: .forIndex(index, count: message.contents.count)
                                 )
                                 
-                            case .kin(let amount, let verb, let reference):
-                                if let rate = rate(for: amount.currency) {
-                                    let amount = amount.amountUsing(rate: rate)
-                                    
-                                    MessagePayment(
-                                        state: message.state(for: chat.recipientPointers),
-                                        verb: verb,
-                                        amount: amount,
-                                        isReceived: isReceived,
-                                        date: message.date,
-                                        location: .forIndex(index, count: message.contents.count),
-                                        action: {
-                                            action(for: message, reference: reference)
-                                        }
-                                    )
-                                } else {
-                                    // If a rate for this currency isn't found, we can't
-                                    // represent the value so we fallback to a Kin amount
-                                    MessagePayment(
-                                        state: message.state(for: chat.recipientPointers),
-                                        verb: .unknown,
-                                        amount: KinAmount(kin: 0, rate: .oneToOne),
-                                        isReceived: isReceived,
-                                        date: message.date,
-                                        location: .forIndex(index, count: message.contents.count),
-                                        action: {
-                                            action(for: message, reference: reference)
-                                        }
-                                    )
-                                }
+//                            case .kin(let amount, let verb):
+//                                if let rate = rate(for: amount.currency) {
+//                                    let amount = amount.amountUsing(rate: rate)
+//                                    
+//                                    MessagePayment(
+//                                        state: message.state(for: chat.recipientPointers),
+//                                        verb: verb,
+//                                        amount: amount,
+//                                        isReceived: isReceived,
+//                                        date: message.date,
+//                                        location: .forIndex(index, count: message.contents.count),
+//                                        action: {
+//                                            action(for: message)
+//                                        }
+//                                    )
+//                                } else {
+//                                    // If a rate for this currency isn't found, we can't
+//                                    // represent the value so we fallback to a Kin amount
+//                                    MessagePayment(
+//                                        state: message.state(for: chat.recipientPointers),
+//                                        verb: .unknown,
+//                                        amount: KinAmount(kin: 0, rate: .oneToOne),
+//                                        isReceived: isReceived,
+//                                        date: message.date,
+//                                        location: .forIndex(index, count: message.contents.count),
+//                                        action: {
+//                                            action(for: message, reference: reference)
+//                                        }
+//                                    )
+//                                }
                                 
                             case .sodiumBox:
                                 MessageEncrypted(
@@ -160,8 +161,8 @@ public struct MessageList: View {
         exchange.rate(for: currency)
     }
     
-    private func action(for message: ChatLegacy.Message, reference: ChatLegacy.Reference) {
-        delegate?.didInteract(chat: chat, message: message, reference: reference)
+    private func action(for message: Chat.Message) {
+        delegate?.didInteract(chat: chat, message: message)
     }
 }
 
@@ -183,14 +184,14 @@ struct MessageGroup: Identifiable {
     }
     
     var date: Date
-    var messages: [ChatLegacy.Message]
+    var messages: [Chat.Message]
     
-    init(date: Date, messages: [ChatLegacy.Message]) {
+    init(date: Date, messages: [Chat.Message]) {
         self.date = date
         self.messages = messages
     }
     
-    func contentID(forMessage message: ChatLegacy.Message, contentIndex: Int) -> String {
+    func contentID(forMessage message: Chat.Message, contentIndex: Int) -> String {
         let lastContent = message.contents[contentIndex]
         return "\(message.id.data.hexEncodedString()):\(lastContent.id)"
     }
@@ -202,11 +203,11 @@ struct MessageGroup: Identifiable {
     }
 }
 
-extension Array where Element == ChatLegacy.Message {
+extension Array where Element == Chat.Message {
     func groupByDay() -> [MessageGroup] {
         
         let calendar = Calendar.current
-        var container: [Date: [ChatLegacy.Message]] = [:]
+        var container: [Date: [Chat.Message]] = [:]
 
         forEach { message in
             let components = calendar.dateComponents([.year, .month, .day], from: message.date)
@@ -228,16 +229,10 @@ extension Array where Element == ChatLegacy.Message {
     }
 }
 
-extension ChatLegacy.Content: Identifiable {
-    public var id: String {
-        localizedText
-    }
-}
-
 private extension GeometryProxy {
-    func messageWidth(for content: ChatLegacy.Content) -> CGFloat {
+    func messageWidth(for content: Chat.Content) -> CGFloat {
         switch content {
-        case .localized, .kin, .sodiumBox, .text:
+        case .localized, .sodiumBox, .text:
             return size.width * 0.70
         }
     }

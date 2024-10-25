@@ -1,5 +1,5 @@
 //
-//  EnterUsernameScreen.swift
+//  EnterNameScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-04-05.
@@ -9,18 +9,18 @@ import SwiftUI
 import CodeUI
 import CodeServices
 
-struct EnterUsernameScreen: View {
+struct EnterNameScreen: View {
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var bannerController: BannerController
     
-    @State private var isShowingChat: Bool = false
+    @ObservedObject private var viewModel: OnboardingViewModel
     
-    @ObservedObject private var viewModel: ChatViewModel
+    @FocusState private var isFocused: Bool
     
     // MARK: - Init -
     
-    init(viewModel: ChatViewModel) {
+    init(viewModel: OnboardingViewModel) {
         self.viewModel = viewModel
     }
     
@@ -31,12 +31,13 @@ struct EnterUsernameScreen: View {
             VStack(alignment: .leading, spacing: 40) {
                 Spacer()
                 
-                TextField("X Username", text: $viewModel.enteredRoomNumber)
+                TextField("Your Name", text: $viewModel.enteredName)
+                    .focused($isFocused)
                     .font(.appDisplayMedium)
                     .frame(maxWidth: .infinity)
                     .truncationMode(.middle)
                     .lineLimit(1)
-                    .textInputAutocapitalization(.never)
+                    .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .minimumScaleFactor(0.5)
                     .multilineTextAlignment(.center)
@@ -45,19 +46,33 @@ struct EnterUsernameScreen: View {
                 Spacer()
                 
                 CodeButton(
-                    state: viewModel.beginChatState,
+                    state: viewModel.accountCreationState,
                     style: .filled,
                     title: Localized.Action.next,
-                    disabled: !viewModel.isEnteredUsernameValid()
+                    disabled: !viewModel.isEnteredNameValid
                 ) {
-                    viewModel.attemptEnterGroupChat()
+                    hideKeyboard()
+                    viewModel.registerEnteredName()
                 }
             }
             .foregroundColor(.textMain)
             .frame(maxHeight: .infinity)
             .padding(20)
         }
-        .navigationBarTitle(Text("What's Their Username?"), displayMode: .inline)
+        .navigationBarTitle(Text(""), displayMode: .inline)
+        .onAppear(perform: onAppear)
+    }
+    
+    private func onAppear() {
+        showKeyboard()
+    }
+    
+    private func showKeyboard() {
+        isFocused = true
+    }
+    
+    private func hideKeyboard() {
+        isFocused = false
     }
 }
 

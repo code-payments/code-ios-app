@@ -7,15 +7,15 @@
 
 import SwiftUI
 import CodeUI
-import CodeServices
+import FlipchatServices
 
 struct TimestampView: View {
     
-    let state: ChatLegacy.Message.State
+    let state: Chat.Message.State
     let date: Date
     let isReceived: Bool
     
-    init(state: ChatLegacy.Message.State, date: Date, isReceived: Bool) {
+    init(state: Chat.Message.State, date: Date, isReceived: Bool) {
         self.state = state
         self.date = date
         self.isReceived = isReceived
@@ -33,7 +33,7 @@ struct TimestampView: View {
     }
 }
 
-private extension ChatLegacy.Message.State {
+private extension Chat.Message.State {
     var asset: Asset {
         switch self {
         case .sent:

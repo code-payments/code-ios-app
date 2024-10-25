@@ -7,6 +7,7 @@
 
 import Foundation
 import CodeServices
+import FlipchatServices
 import Mixpanel
 import Bugsnag
 //import Firebase
@@ -61,21 +62,18 @@ enum Analytics {
 // MARK: - Identity -
 
 extension Analytics {
-    static func setIdentity(_ user: User) {
+    static func setIdentity(_ userID: UserID) {
         // Ensure that this runs after `initialize` has been called
         // on all the tracking platforms
         DispatchQueue.main.async {
-            let userID = user.id.uuid?.uuidString ?? user.id.data.hexEncodedString()
+            let userID = userID.data.hexEncodedString()
             
             // Bugsnag
-//            Bugsnag.setUser(userID, withEmail: user.phone?.e164, andName: nil)
+            Bugsnag.setUser(userID, withEmail: userID, andName: nil)
             
             // Mixpanel
-//            mixpanel.identify(distinctId: userID)
-//            
-//            if let phone = user.phone?.e164 {
-//                mixpanel.people.set(property: "$email", to: phone)
-//            }
+            mixpanel.identify(distinctId: userID)
+            mixpanel.people.set(property: "$email", to: "userID:\(userID)")
         }
     }
 }

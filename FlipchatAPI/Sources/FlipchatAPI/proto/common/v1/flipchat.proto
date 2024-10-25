@@ -92,3 +92,36 @@ message ClientPong {
     // of potential network latency
     google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
 }
+
+message PagingToken {
+    // Value contains a value of an identifier of the collection in common.
+    //
+    // For example, GetChats uses the ChatId.Value, where GetMessages uses MessageId.Value
+    // as the contents. It does _not_ contain the serialized ChatId or MessageId.
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 128
+    }];
+}
+
+message QueryOptions {
+    // PageSize limits the maximum page size of a response.
+    //
+    // Server may choose to return less items. If empty, server
+    // may select an arbitrary page size.
+    int64 page_size = 1;
+
+    // Offset specifies an offset into a collection being queries.
+    int64 offset = 2;
+
+    // PagingToken is token that can be extracted from the identifier of a collection.
+    PagingToken paging_token = 3;
+
+    // Order is the order of elements, if applicable.
+    Order order = 4;
+
+    enum Order {
+        ASC = 0;
+        DESC = 1;
+    }
+}

@@ -6,7 +6,7 @@ option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go
 option java_package = "com.codeinc.flipchat.gen.messaging.v1";
 option objc_class_prefix = "FCPBMessagingV1";
 
-import "common/v1/model.proto";
+import "common/v1/flipchat.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -37,9 +37,6 @@ message Message {
     // Timestamp this message was generated at. This value is also encoded in
     // any time-based UUID message IDs.
     google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];
-
-    // Cursor value for this message for reference in a paged GetMessagesRequest
-    Cursor cursor = 5;
 }
 
 // Pointer in a chat indicating a user's message history state in a chat.
@@ -69,13 +66,6 @@ message IsTyping {
     // is_typing indicates whether or not the user is typing.
     // If false, the user has explicitly stopped typing.
     bool is_typing = 2;
-}
-
-message Cursor {
-    bytes value = 1 [(validate.rules).bytes = {
-        min_len: 8
-        max_len: 32
-    }];
 }
 
 // Content for a chat message

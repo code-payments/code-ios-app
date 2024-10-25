@@ -158,17 +158,12 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchChats(for userID: UserID, owner: KeyPair, direction: PageDirection, pageSize: Int, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
-        trace(.send, components: "User ID: \(userID.description)")
+    func fetchChats(for userID: UserID, owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
+        trace(.send, components: "User ID: \(userID.description)", "Query: \(query.description)")
         
         let request = Flipchat_Chat_V1_GetChatsRequest.with {
             $0.account = .with { $0.value = userID.data }
-            $0.direction = direction.protoChatDirection
-            
-            if let cursor = direction.protoChatCursor {
-                $0.cursor = cursor
-            }
-            
+            $0.queryOptions = query.protoQueryOptions
             $0.auth = owner.protoAuth
         }
         
@@ -220,58 +215,6 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
 // MARK: - Types -
 
 public typealias RoomNumber = UInt64
-
-public enum PageDirection {
-    
-    case ascending(from: ID?)
-    case descending(upTo: ID?)
-    
-    var protoChatDirection: Flipchat_Chat_V1_GetChatsRequest.Direction {
-        switch self {
-        case .ascending:  return .asc
-        case .descending: return .desc
-        }
-    }
-    
-    var protoMessageDirection: Flipchat_Messaging_V1_GetMessagesRequest.Direction {
-        switch self {
-        case .ascending:  return .asc
-        case .descending: return .desc
-        }
-    }
-    
-    var protoChatCursor: Flipchat_Chat_V1_Cursor? {
-        switch self {
-        case .ascending(let id):
-            if let id {
-                return .with { $0.value = id.data }
-            }
-            
-        case .descending(let id):
-            if let id {
-                return .with { $0.value = id.data }
-            }
-        }
-        
-        return nil
-    }
-    
-    var protoMessageCursor: Flipchat_Messaging_V1_Cursor? {
-        switch self {
-        case .ascending(let id):
-            if let id {
-                return .with { $0.value = id.data }
-            }
-            
-        case .descending(let id):
-            if let id {
-                return .with { $0.value = id.data }
-            }
-        }
-        
-        return nil
-    }
-}
 
 //// MARK: - Errors -
 

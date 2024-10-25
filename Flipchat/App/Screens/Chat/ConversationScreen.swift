@@ -8,10 +8,11 @@
 import SwiftUI
 import CodeUI
 import CodeServices
+import FlipchatServices
 
 struct ConversationScreen: View {
 
-    @ObservedObject var chat: ChatLegacy
+    @ObservedObject var chat: Chat
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
@@ -20,7 +21,7 @@ struct ConversationScreen: View {
     
     @State private var input: String = ""
     
-    @State private var stream: ChatMessageStreamReference?
+    @State private var stream: StreamMessagesReference?
     
     @State private var messageListState = MessageList.State()
     
@@ -38,7 +39,7 @@ struct ConversationScreen: View {
     
     // MARK: - Init -
     
-    init(chat: ChatLegacy, chatController: ChatController) {
+    init(chat: Chat, chatController: ChatController) {
         self.chat = chat
         self.chatController = chatController
     }
@@ -61,22 +62,21 @@ struct ConversationScreen: View {
     // MARK: - Streams -
     
     private func startStream() {
-        stream = chatController.openChatStream(chatID: chat.id) { result in
+        stream = chatController.streamMessages(chatID: chat.id) { result in
             switch result {
-            case .success(let events):
-                streamUpdate(events: events)
-                
+            case .success(let messages):
+                streamMessages(messages: messages)
+
             case .failure(let error):
                 destroyStream()
                 switch error {
                 case .unknown:
                     break
-                case .chatNotFound:
-                    break
                 case .denied:
                     break
                 }
-                // TODO: Show error
+                
+                showError(error: error)
             }
         }
     }
@@ -90,46 +90,11 @@ struct ConversationScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-//                if chat.canRevealSelfIdentity {
-//                    RevealIdentityBanner(
-//                        text: Localized.Subtitle.revealIdentityDescription,
-//                        underlined: Localized.Action.tapToReveal
-//                    ) {
-//                        guard viewModel.canRevealIdentity() else {
-//                            viewModel.revealSelfIdentity(chat: chat)
-//                            return
-//                        }
-//                        
-//                        isEditorFocused = false
-//                        
-//                        Task {
-//                            // Wait for the keyboard to close
-//                            try await Task.delay(milliseconds: 300)
-//                            
-//                            bannerController.show(
-//                                style: .notification,
-//                                title: "Reveal your identity?",
-//                                description: "\(chat.displayName) will be able to see that you are \(viewModel.twitterUser?.username ?? "_")",
-//                                position: .bottom,
-//                                isDismissable: true,
-//                                actions: [
-//                                    .prominent(title: Localized.Action.yes) {
-//                                        viewModel.revealSelfIdentity(chat: chat)
-//                                    },
-//                                    .subtle(title: Localized.Action.cancel, action: {}),
-//                                ]
-//                            )
-//                        }
-//                    }
-//                    .transition(.move(edge: .top))
-//                }
-                
                 MessageList(
                     chat: chat,
                     exchange: exchange,
                     state: $messageListState
                 )
-                .transition(.scale)
                 
                 if chat.kind == .twoWay {
                     HStack(alignment: .bottom) {
@@ -167,21 +132,6 @@ struct ConversationScreen: View {
                     }
                 }
             }
-            .animation(.easeInOut, value: chat.canRevealSelfIdentity)
-//            .sheet(isPresented: $viewModel.isShowingConnectTwitter) {
-//                NavigationView {
-//                    ConnectTwitterScreen(
-//                        reason: .identity,
-//                        tipController: viewModel.tipController,
-//                        isPresented: $viewModel.isShowingConnectTwitter
-//                    )
-//                    .toolbar {
-//                        ToolbarItem(placement: .navigationBarTrailing) {
-//                            ToolbarCloseButton(binding: $viewModel.isShowingConnectTwitter)
-//                        }
-//                    }
-//                }
-//            }
         }
         .onAppear(perform: didAppear)
         .onDisappear(perform: didDisappear)
@@ -233,28 +183,25 @@ struct ConversationScreen: View {
         input = ""
     }
     
-    private func streamUpdate(events: [ChatLegacy.Event]) {
-        for event in events {
-            switch event {
-            case .message(let message):
-                trace(.receive, components: "Message: \(message.id.data.hexEncodedString())", "Text: \(message.contents.map { $0.localizedText }.joined(separator: " | "))")
-                let newCount = chat.insertMessages([message])
-                if newCount > 0 {
-                    scrollToBottom()
-                    advanceReadPointer()
-                }
-                
-            case .pointer(let pointer):
-                chat.setPointer(pointer)
-                trace(.receive, components: "Pointer \(pointer.kind) pointer to: \(pointer.messageID.data.hexEncodedString())")
-                
-            case .isTyping://(let isTyping, let memberID):
-                break
-            }
-        }
+    private func streamMessages(messages: [Chat.Message]) {
+        chat.insertMessages(messages)
     }
     
     private func scrollToBottom() {
         messageListState.scrollToBottom = true
+    }
+    
+    // MARK: - Errors -
+    
+    private func showError(error: Error) {
+        bannerController.show(
+            style: .error,
+            title: "Stream Failed",
+            description: "Failed to establish a messages stream: \(error.localizedDescription)",
+            position: .top,
+            actions: [
+                .cancel(title: Localized.Action.ok),
+            ]
+        )
     }
 }

@@ -20,9 +20,9 @@ extension FlipchatClient {
         }
     }
     
-    public func fetchChats(for userID: UserID, owner: KeyPair, direction: PageDirection, pageSize: Int) async throws -> [Chat] {
+    public func fetchChats(for userID: UserID, owner: KeyPair, query: PageQuery = .init()) async throws -> [Chat] {
         try await withCheckedThrowingContinuation { c in
-            chatService.fetchChats(for: userID, owner: owner, direction: direction, pageSize: pageSize) { c.resume(with: $0) }
+            chatService.fetchChats(for: userID, owner: owner, query: query) { c.resume(with: $0) }
         }
     }
     

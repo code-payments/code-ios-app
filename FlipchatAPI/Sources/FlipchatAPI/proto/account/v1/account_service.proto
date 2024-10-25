@@ -6,13 +6,18 @@ option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go
 option java_package = "com.codeinc.flipchat.gen.account.v1";
 option objc_class_prefix = "FCPBAccountV1";
 
-import "common/v1/model.proto";
+import "common/v1/flipchat.proto";
+import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 service Account {
 	// Register registers a new user, bound to the provided PublicKey.
 	// If the PublicKey is already in use, the previous user account is returned.
 	rpc Register(RegisterRequest) returns (RegisterResponse);
+
+	// Login retrieves the UserId (and in the future, potentially other information)
+	// required for 'recovering' an account.
+	rpc Login(LoginRequest) returns (LoginResponse);
 
 	// AuthorizePublicKey authorizes an additional PublicKey to an account.
 	rpc AuthorizePublicKey(AuthorizePublicKeyRequest) returns (AuthorizePublicKeyResponse);
@@ -55,6 +60,27 @@ message RegisterResponse {
 
 	// The UserId associated with the account.
 	common.v1.UserId user_id = 3;
+}
+
+message LoginRequest {
+	// Timestamp is the timestamp the request was generated.
+	//
+	// The server may reject the request if the timestamp is too far off
+	// the current (server) time. This is to prevent replay attacks.
+	google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+
+	common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+message LoginResponse {
+	Result result = 1;
+	enum Result {
+		OK                = 0;
+		INVALID_TIMESTAMP = 1;
+		DENIED            = 2;
+	}
+
+	// UserId is the user associated with the PubKey/Auth.
+	common.v1.UserId user_id = 2;
 }
 
 message AuthorizePublicKeyRequest {

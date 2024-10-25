@@ -23,29 +23,13 @@ struct ConversationContainer: View {
         case .none:
             return "Anonymous"
             
-        case .pending(let twitterUser):
-            return twitterUser.displayName
-            
-        case .established(let chat):
+        case .reader(let chat), .contributor(let chat):
             return chat.displayName
         }
     }
     
     var avatarValue: AvatarView.Value {
-        switch viewModel.friendshipState {
-        case .none:
-            return .placeholder
-            
-        case .pending(let twitterUser):
-            return .url(twitterUser.avatarURL)
-            
-        case .established(let chat):
-            if let avatarURL = chat.otherMemberAvatarURL {
-                return .url(avatarURL)
-            } else {
-                return .placeholder
-            }
-        }
+        return .placeholder
     }
     
     private let chatController: ChatController
@@ -58,19 +42,19 @@ struct ConversationContainer: View {
     var body: some View {
         Background(color: .backgroundMain) {
             switch viewModel.friendshipState {
-            case .none, .pending:
+            case .none, .reader:
                 VStack {
                     Spacer()
                     
-                    if case .pending(let user) = viewModel.friendshipState {
-                        CodeButton(style: .filledThin, title: "Send \(user.costOfFriendship.formatted(showOfKin: false)) to Start Chatting") {
+                    if case .reader = viewModel.friendshipState {
+                        CodeButton(style: .filledThin, title: "Send $ to Start Chatting") {
                             viewModel.establishFriendshipAction()
                         }
                     }
                 }
                 .padding(20)
                 
-            case .established(let chat):
+            case .contributor(let chat):
                 ConversationScreen(chat: chat, chatController: chatController)
             }
             
@@ -102,33 +86,19 @@ struct ConversationContainer: View {
     }
     
     @ViewBuilder private func paymentModal() -> some View {
-        if viewModel.isShowingPayForFriendship, case .pending(let twitterUser) = viewModel.friendshipState {
-            ModalTipConfirmation(
-                username: twitterUser.username,
-                amount: twitterUser.costOfFriendship.formatted(showOfKin: true),
-                currency: twitterUser.costOfFriendship.currency,
-                avatar: .url(twitterUser.avatarURL),
-                user: twitterUser,
-                primaryAction: Localized.Action.swipeToSend,
-                secondaryAction: Localized.Action.cancel,
-                paymentAction: {
-                    try await viewModel.completePaymentForFriendship(with: twitterUser)
+        if viewModel.isShowingPayForFriendship, case .reader(let chat) = viewModel.friendshipState {
+            ModalPaymentConfirmation(
+                amount: "$1.00",
+                currency: .usd,
+                primaryAction: "Swipe to Pay",
+                secondaryAction: "Cancel") {
                     
-                }, dismissAction: {
-                    viewModel.cancelEstablishFrienship()
+                } dismissAction: {
                     
-                }, cancelAction: {
-                    viewModel.cancelEstablishFrienship()
+                } cancelAction: {
+                    
                 }
-            )
-            .zIndex(5)
+                .zIndex(5)
         }
-    }
-}
-
-extension ConversationContainer {
-    enum State {
-        case unpaid(TwitterUser)
-        case paid(ChatLegacy, ChatController)
     }
 }

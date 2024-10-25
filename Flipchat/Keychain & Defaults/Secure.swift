@@ -9,13 +9,22 @@ import Foundation
 import CodeServices
 
 enum SecureKey: String {
-    case restricted = "com.code.account.restricted"
-    case keyAccount = "com.code.account.key"
-    case historicalAccounts = "com.code.account.list"
-    case giftCardAccounts = "com.code.giftCard.list"
-    case currentUser = "com.code.user.current"
-    case rates = "com.code.exchange.rates"
-    case debugOptions = "com.code.debug.options"
+    
+    case userCurrent    = "com.flipchat.user.current"
+
+    case accountCurrent = "com.flipchat.account.current"
+    case accountList    = "com.flipchat.account.list"
+    case betaEnabled    = "com.flipchat.beta.enabled"
+    
+    // Code keys
+    
+    case codeRestricted         = "com.code.account.restricted"
+    case codeKeyAccount         = "com.code.account.key"
+    case codeHistoricalAccounts = "com.code.account.list"
+    case codeGiftCardAccounts   = "com.code.giftCard.list"
+    case codeCurrentUser        = "com.code.user.current"
+    case codeRates              = "com.code.exchange.rates"
+    case codeDebugOptions       = "com.code.debug.options"
 }
 
 @MainActor

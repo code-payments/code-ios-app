@@ -6,7 +6,7 @@ option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go
 option java_package = "com.codeinc.flipchat.gen.push.v1";
 option objc_class_prefix = "FPBPushV1";
 
-import "common/v1/model.proto";
+import "common/v1/flipchat.proto";
 import "validate/validate.proto";
 
 service Push {
@@ -14,7 +14,7 @@ service Push {
     rpc AddToken(AddTokenRequest) returns (AddTokenResponse);
 
     // DeleteToken removes a push token from a user/device.
-    rpc DeleteToken(DeleteTokenResponse) returns (DeleteTokenResponse);
+    rpc DeleteToken(DeleteTokenRequest) returns (DeleteTokenResponse);
 }
 
 enum TokenType {

@@ -290,18 +290,14 @@ public struct Flipchat_Messaging_V1_GetMessagesRequest {
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
-  public var pageSize: UInt32 = 0
-
-  public var cursor: Flipchat_Messaging_V1_Cursor {
-    get {return _cursor ?? Flipchat_Messaging_V1_Cursor()}
-    set {_cursor = newValue}
+  public var queryOptions: Flipchat_Common_V1_QueryOptions {
+    get {return _queryOptions ?? Flipchat_Common_V1_QueryOptions()}
+    set {_queryOptions = newValue}
   }
-  /// Returns true if `cursor` has been explicitly set.
-  public var hasCursor: Bool {return self._cursor != nil}
-  /// Clears the value of `cursor`. Subsequent reads from it will return its default value.
-  public mutating func clearCursor() {self._cursor = nil}
-
-  public var direction: Flipchat_Messaging_V1_GetMessagesRequest.Direction = .asc
+  /// Returns true if `queryOptions` has been explicitly set.
+  public var hasQueryOptions: Bool {return self._queryOptions != nil}
+  /// Clears the value of `queryOptions`. Subsequent reads from it will return its default value.
+  public mutating func clearQueryOptions() {self._queryOptions = nil}
 
   public var auth: Flipchat_Common_V1_Auth {
     get {return _auth ?? Flipchat_Common_V1_Auth()}
@@ -314,52 +310,12 @@ public struct Flipchat_Messaging_V1_GetMessagesRequest {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum Direction: SwiftProtobuf.Enum {
-    public typealias RawValue = Int
-    case asc // = 0
-    case desc // = 1
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .asc
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .asc
-      case 1: self = .desc
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .asc: return 0
-      case .desc: return 1
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-  }
-
   public init() {}
 
   fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
-  fileprivate var _cursor: Flipchat_Messaging_V1_Cursor? = nil
+  fileprivate var _queryOptions: Flipchat_Common_V1_QueryOptions? = nil
   fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
 }
-
-#if swift(>=4.2)
-
-extension Flipchat_Messaging_V1_GetMessagesRequest.Direction: CaseIterable {
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Flipchat_Messaging_V1_GetMessagesRequest.Direction] = [
-    .asc,
-    .desc,
-  ]
-}
-
-#endif  // swift(>=4.2)
 
 public struct Flipchat_Messaging_V1_GetMessagesResponse {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -713,7 +669,6 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError: @unchecked S
 extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError.Code: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesRequest: @unchecked Sendable {}
-extension Flipchat_Messaging_V1_GetMessagesRequest.Direction: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesResponse: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesResponse.Result: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_SendMessageRequest: @unchecked Sendable {}
@@ -1040,9 +995,7 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
   public static let protoMessageName: String = _protobuf_package + ".GetMessagesRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "chat_id"),
-    2: .standard(proto: "page_size"),
-    3: .same(proto: "cursor"),
-    4: .same(proto: "direction"),
+    2: .standard(proto: "query_options"),
     5: .same(proto: "auth"),
   ]
 
@@ -1053,9 +1006,7 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
-      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.pageSize) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._cursor) }()
-      case 4: try { try decoder.decodeSingularEnumField(value: &self.direction) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._queryOptions) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
@@ -1070,15 +1021,9 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
     try { if let v = self._chatID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    if self.pageSize != 0 {
-      try visitor.visitSingularUInt32Field(value: self.pageSize, fieldNumber: 2)
-    }
-    try { if let v = self._cursor {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    try { if let v = self._queryOptions {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    if self.direction != .asc {
-      try visitor.visitSingularEnumField(value: self.direction, fieldNumber: 4)
-    }
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
@@ -1087,20 +1032,11 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
 
   public static func ==(lhs: Flipchat_Messaging_V1_GetMessagesRequest, rhs: Flipchat_Messaging_V1_GetMessagesRequest) -> Bool {
     if lhs._chatID != rhs._chatID {return false}
-    if lhs.pageSize != rhs.pageSize {return false}
-    if lhs._cursor != rhs._cursor {return false}
-    if lhs.direction != rhs.direction {return false}
+    if lhs._queryOptions != rhs._queryOptions {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
-}
-
-extension Flipchat_Messaging_V1_GetMessagesRequest.Direction: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    0: .same(proto: "ASC"),
-    1: .same(proto: "DESC"),
-  ]
 }
 
 extension Flipchat_Messaging_V1_GetMessagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

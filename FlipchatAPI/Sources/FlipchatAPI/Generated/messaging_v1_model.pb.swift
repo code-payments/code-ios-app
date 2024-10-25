@@ -75,16 +75,6 @@ public struct Flipchat_Messaging_V1_Message {
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
-  /// Cursor value for this message for reference in a paged GetMessagesRequest
-  public var cursor: Flipchat_Messaging_V1_Cursor {
-    get {return _cursor ?? Flipchat_Messaging_V1_Cursor()}
-    set {_cursor = newValue}
-  }
-  /// Returns true if `cursor` has been explicitly set.
-  public var hasCursor: Bool {return self._cursor != nil}
-  /// Clears the value of `cursor`. Subsequent reads from it will return its default value.
-  public mutating func clearCursor() {self._cursor = nil}
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -92,7 +82,6 @@ public struct Flipchat_Messaging_V1_Message {
   fileprivate var _messageID: Flipchat_Messaging_V1_MessageId? = nil
   fileprivate var _senderID: Flipchat_Common_V1_UserId? = nil
   fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-  fileprivate var _cursor: Flipchat_Messaging_V1_Cursor? = nil
 }
 
 /// Pointer in a chat indicating a user's message history state in a chat.
@@ -198,18 +187,6 @@ public struct Flipchat_Messaging_V1_IsTyping {
   public init() {}
 
   fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
-}
-
-public struct Flipchat_Messaging_V1_Cursor {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var value: Data = Data()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
 }
 
 /// Content for a chat message
@@ -343,7 +320,6 @@ extension Flipchat_Messaging_V1_Message: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Pointer: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Pointer.TypeEnum: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_IsTyping: @unchecked Sendable {}
-extension Flipchat_Messaging_V1_Cursor: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content.OneOf_Type: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_TextContent: @unchecked Sendable {}
@@ -394,7 +370,6 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     2: .standard(proto: "sender_id"),
     3: .same(proto: "content"),
     4: .same(proto: "ts"),
-    5: .same(proto: "cursor"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -407,7 +382,6 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
       case 2: try { try decoder.decodeSingularMessageField(value: &self._senderID) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.content) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._cursor) }()
       default: break
       }
     }
@@ -430,9 +404,6 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     try { if let v = self._ts {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
-    try { if let v = self._cursor {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -441,7 +412,6 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._senderID != rhs._senderID {return false}
     if lhs.content != rhs.content {return false}
     if lhs._ts != rhs._ts {return false}
-    if lhs._cursor != rhs._cursor {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -535,38 +505,6 @@ extension Flipchat_Messaging_V1_IsTyping: SwiftProtobuf.Message, SwiftProtobuf._
   public static func ==(lhs: Flipchat_Messaging_V1_IsTyping, rhs: Flipchat_Messaging_V1_IsTyping) -> Bool {
     if lhs._userID != rhs._userID {return false}
     if lhs.isTyping != rhs.isTyping {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Messaging_V1_Cursor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Cursor"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "value"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.value.isEmpty {
-      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Messaging_V1_Cursor, rhs: Flipchat_Messaging_V1_Cursor) -> Bool {
-    if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

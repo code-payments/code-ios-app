@@ -6,7 +6,7 @@ option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go
 option java_package = "com.codeinc.flipchat.gen.messaging.v1";
 option objc_class_prefix = "FCPBMessagingV1";
 
-import "common/v1/model.proto";
+import "common/v1/flipchat.proto";
 import "messaging/v1/model.proto";
 import "validate/validate.proto";
 
@@ -85,15 +85,9 @@ message StreamMessagesResponse {
 message GetMessagesRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
-    uint32 page_size = 2 [(validate.rules).uint32.lte = 100];
-    Cursor cursor = 3;
-    Direction direction = 4;
-    enum Direction {
-        ASC  = 0;
-        DESC = 1;
-    }
+    common.v1.QueryOptions query_options = 2;
 
-	common.v1.Auth auth = 5;
+    common.v1.Auth auth = 5;
 }
 
 message GetMessagesResponse {

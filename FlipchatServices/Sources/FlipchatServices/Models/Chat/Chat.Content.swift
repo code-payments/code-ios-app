@@ -18,6 +18,19 @@ extension Chat {
     }
 }
 
+extension Chat.Content: Identifiable {
+    public var id: String {
+        switch self {
+        case .text(let value):
+            return "text:\(value)"
+        case .localized(let value):
+            return "localized:\(value)"
+        case .sodiumBox(let data):
+            return "nacl:\(data.nonce.hexEncodedString())"
+        }
+    }
+}
+
 // MARK: - Proto -
 
 extension Chat.Content {

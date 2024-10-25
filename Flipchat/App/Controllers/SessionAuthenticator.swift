@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 import CodeServices
+import FlipchatServices
 import CodeUI
 
 @MainActor
@@ -40,6 +41,7 @@ final class SessionAuthenticator: ObservableObject {
         }
     }
     
+    private let flipClient: FlipchatClient
     private let client: Client
     private let exchange: Exchange
     private let bannerController: BannerController
@@ -50,13 +52,14 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Init -
     
-    init(client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags, biometrics: Biometrics) {
-        self.client = client
-        self.exchange = exchange
-        self.bannerController = bannerController
-        self.betaFlags = betaFlags
-        self.biometrics = biometrics
-        self.accountManager = AccountManager()
+    init(container: AppContainer) {
+        self.flipClient       = container.flipClient
+        self.client           = container.client
+        self.exchange         = container.exchange
+        self.bannerController = container.bannerController
+        self.betaFlags        = container.betaFlags
+        self.biometrics       = container.biometrics
+        self.accountManager   = AccountManager()
         
         // Update launch state.
         // This is a fresh install.
@@ -70,32 +73,34 @@ final class SessionAuthenticator: ObservableObject {
         initializeState { mnemonic in // Migration
             Task {
                 do {
-                    self.completeLogin(with: try await self.initialize(using: mnemonic))
+                    self.completeLogin(with: try await self.initialize(using: mnemonic, name: nil))
                 } catch {
                     Analytics.userMigrationFailed()
                     self.state = .loggedOut
                 }
             }
             
-        } didAuthenticate: { keyAccount, user in
-            self.completeLogin(with: InitializedAccount(keyAccount: keyAccount, user: user))
+        } didAuthenticate: { keyAccount, userID in
+            self.completeLogin(with: InitializedAccount(keyAccount: keyAccount, userID: userID))
         }
         
         updateBiometricsState()
     }
     
-    private func initializeState(count: Int = 0, migration: @escaping (MnemonicPhrase) -> Void, didAuthenticate: @escaping (KeyAccount, User) -> Void) {
+    private func initializeState(count: Int = 0, migration: @escaping (MnemonicPhrase) -> Void, didAuthenticate: @escaping (KeyAccount, UserID) -> Void) {
         trace(.warning)
+        
+        let all = accountManager.fetchHistorical()
         
         // The most important Keychain item is the key account
         // because it's the only thing we can't derive. If the
         // the user is missing we'll transition into a 'migration'
         // and fetch the latest user data from the server.
-        let (keyAccount, user) = accountManager.fetchCurrent()
+        let (keyAccount, userID) = accountManager.fetchCurrent()
         
         if let keyAccount = keyAccount {
-            if let user = user {
-                didAuthenticate(keyAccount, user)
+            if let userID = userID {
+                didAuthenticate(keyAccount, userID)
                 
                 if count > 0 {
                     trace(.failure, components: "Logged in after \(count) retries")
@@ -214,14 +219,13 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Session -
     
-    private func createSessionContainer(keyAccount: KeyAccount, user: User, client: Client, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) -> Session {
-        
+    private func createSessionContainer(keyAccount: KeyAccount, userID: UserID) -> Session {
         let organizer = Organizer(mnemonic: keyAccount.mnemonic)
-        
         let session = Session(
+            userID: userID,
             organizer: organizer,
-            user: user,
             client: client,
+            flipClient: flipClient,
             exchange: exchange,
             bannerController: bannerController,
             betaFlags: betaFlags
@@ -234,7 +238,14 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Login -
     
-    func initialize(using mnemonic: MnemonicPhrase) async throws -> InitializedAccount {
+    func initializeNewAccount(name: String) async throws -> InitializedAccount {
+        try await initialize(
+            using: .generate(.words12),
+            name: name
+        )
+    }
+    
+    func initialize(using mnemonic: MnemonicPhrase, name: String?) async throws -> InitializedAccount {
         inProgress = true
         defer {
             inProgress = false
@@ -251,37 +262,18 @@ final class SessionAuthenticator: ObservableObject {
         )
         
         do {
-            let phoneLink = try await client.fetchAssociatedPhoneNumber(owner: owner)
-            let user      = try await client.fetchUser(phone: phoneLink.phone, owner: owner)
-            
-            // Check if this is an existing account that will only
-            // need login or a brand new account that requires
-            // creation before it can be used
-            do {
-                let accounts = try await client.fetchAccountInfos(owner: owner)
-                
-                // If primary vault exists, it's an existing user
-                guard accounts[organizer.primaryVault] != nil else {
-                    throw Error.primaryAccountNotFound
-                }
-                
-            } catch ErrorFetchAccountInfos.notFound {
-                try await client.createAccounts(with: organizer)
-                
-            } catch ErrorFetchAccountInfos.migrationRequired {
-                // Do nothing, account will be migrated on subsequent balance fetch after login
-            }
+            let userID = try await flipClient.register(name: name, owner: owner)
             
             accountManager.set(
                 account: keyAccount,
-                user: user
+                userID: userID
             )
             
             trace(.note, components: "Owner: \(organizer.ownerKeyPair.publicKey)")
             
             return InitializedAccount(
                 keyAccount: keyAccount,
-                user: user
+                userID: userID
             )
             
         } catch {
@@ -297,17 +289,13 @@ final class SessionAuthenticator: ObservableObject {
         
         let container = createSessionContainer(
             keyAccount: initializedAccount.keyAccount,
-            user: initializedAccount.user,
-            client: client,
-            exchange: exchange,
-            bannerController: bannerController,
-            betaFlags: betaFlags
+            userID: initializedAccount.userID
         )
         
         state = .loggedIn(container)
         UserDefaults.wasLoggedIn = true
         
-        Analytics.setIdentity(initializedAccount.user)
+        Analytics.setIdentity(initializedAccount.userID)
     }
     
     func deleteAndLogout() {
@@ -384,22 +372,16 @@ extension SessionAuthenticator {
 struct InitializedAccount {
     
     let keyAccount: KeyAccount
-    let user: User
+    let userID: UserID
     
-    fileprivate init(keyAccount: KeyAccount, user: User) {
+    fileprivate init(keyAccount: KeyAccount, userID: UserID) {
         self.keyAccount = keyAccount
-        self.user = user
+        self.userID = userID
     }
 }
 
 // MARK: - Mock -
 
 extension SessionAuthenticator {
-    static let mock: SessionAuthenticator = SessionAuthenticator(
-        client: .mock,
-        exchange: .mock,
-        bannerController: .mock,
-        betaFlags: .mock,
-        biometrics: .mock
-    )
+    static let mock: SessionAuthenticator = SessionAuthenticator(container: .mock)
 }

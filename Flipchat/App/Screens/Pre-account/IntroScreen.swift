@@ -13,22 +13,28 @@ struct IntroScreen: View {
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var bannerController: BannerController
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     @EnvironmentObject private var cameraAuthorizer: CameraAuthorizer
     
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
     
-    @State private var path: [Path] = []
+    @StateObject private var viewModel: OnboardingViewModel
+    
+    private let sessionAuthenticator: SessionAuthenticator
     
     // MARK: - Init -
     
-    init() {}
+    init(sessionAuthenticator: SessionAuthenticator) {
+        self.sessionAuthenticator = sessionAuthenticator
+        self._viewModel = StateObject(
+            wrappedValue: OnboardingViewModel(sessionAuthenticator: sessionAuthenticator)
+        )
+    }
     
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $viewModel.navigationPath) {
             Background(color: .backgroundMain) {
                 VStack {
                     VStack(spacing: 10) {
@@ -47,22 +53,15 @@ struct IntroScreen: View {
                             CodeButton(
                                 isLoading: sessionAuthenticator.inProgress,
                                 style: .filled,
-                                title: Localized.Action.createAccount
-                            ) {
-                                bannerController.show(
-                                    style: .error,
-                                    title: "Not Supported",
-                                    description: "Account creation is not yet supported. Please use an existing account and Login below.",
-                                    position: .top,
-                                    actions: [
-                                        .cancel(title: Localized.Action.ok),
-                                    ]
-                                )
-                            }
+                                title: Localized.Action.createAccount,
+                                action: viewModel.startCreateAccount
+                            )
                             
-                            CodeButton(style: .subtle, title: Localized.Action.logIn) {
-                                loginAction()
-                            }
+                            CodeButton(
+                                style: .subtle,
+                                title: Localized.Action.logIn,
+                                action: viewModel.startLogin
+                            )
                         }
                     }
                     .padding(20.0)
@@ -111,10 +110,14 @@ struct IntroScreen: View {
             .ignoresSafeArea(.keyboard)
             .navigationBarTitle("")
             .navigationBarHidden(true)
-            .navigationDestination(for: Path.self) { path in
+            .navigationDestination(for: OnboardingViewModel.NavPath.self) { path in
                 switch path {
+                case .enterName:
+                    EnterNameScreen(viewModel: viewModel)
                 case .login:
-                    return LoginScreen()
+                    LoginScreen()
+                case .permissionPush:
+                    EmptyView()
                 }
             }
         }
@@ -122,10 +125,6 @@ struct IntroScreen: View {
     }
     
     // MARK: - Actions -
-    
-    private func loginAction() {
-        path.append(.login)
-    }
     
     private func openCode() {
         let scheme = URL.codeScheme()
@@ -137,17 +136,11 @@ struct IntroScreen: View {
     }
 }
 
-extension IntroScreen {
-    enum Path {
-        case login
-    }
-}
-
 // MARK: - Previews -
 
 #Preview {
     Group {
-        IntroScreen()
+        IntroScreen(sessionAuthenticator: .mock)
     }
     .environmentObjectsForSession()
 }

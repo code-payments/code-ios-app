@@ -22,9 +22,9 @@ public protocol Flipchat_Push_V1_PushClientProtocol: GRPCClient {
   ) -> UnaryCall<Flipchat_Push_V1_AddTokenRequest, Flipchat_Push_V1_AddTokenResponse>
 
   func deleteToken(
-    _ request: Flipchat_Push_V1_DeleteTokenResponse,
+    _ request: Flipchat_Push_V1_DeleteTokenRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Flipchat_Push_V1_DeleteTokenResponse, Flipchat_Push_V1_DeleteTokenResponse>
+  ) -> UnaryCall<Flipchat_Push_V1_DeleteTokenRequest, Flipchat_Push_V1_DeleteTokenResponse>
 }
 
 extension Flipchat_Push_V1_PushClientProtocol {
@@ -57,9 +57,9 @@ extension Flipchat_Push_V1_PushClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func deleteToken(
-    _ request: Flipchat_Push_V1_DeleteTokenResponse,
+    _ request: Flipchat_Push_V1_DeleteTokenRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Flipchat_Push_V1_DeleteTokenResponse, Flipchat_Push_V1_DeleteTokenResponse> {
+  ) -> UnaryCall<Flipchat_Push_V1_DeleteTokenRequest, Flipchat_Push_V1_DeleteTokenResponse> {
     return self.makeUnaryCall(
       path: Flipchat_Push_V1_PushClientMetadata.Methods.deleteToken.path,
       request: request,
@@ -137,9 +137,9 @@ public protocol Flipchat_Push_V1_PushAsyncClientProtocol: GRPCClient {
   ) -> GRPCAsyncUnaryCall<Flipchat_Push_V1_AddTokenRequest, Flipchat_Push_V1_AddTokenResponse>
 
   func makeDeleteTokenCall(
-    _ request: Flipchat_Push_V1_DeleteTokenResponse,
+    _ request: Flipchat_Push_V1_DeleteTokenRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Flipchat_Push_V1_DeleteTokenResponse, Flipchat_Push_V1_DeleteTokenResponse>
+  ) -> GRPCAsyncUnaryCall<Flipchat_Push_V1_DeleteTokenRequest, Flipchat_Push_V1_DeleteTokenResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -165,9 +165,9 @@ extension Flipchat_Push_V1_PushAsyncClientProtocol {
   }
 
   public func makeDeleteTokenCall(
-    _ request: Flipchat_Push_V1_DeleteTokenResponse,
+    _ request: Flipchat_Push_V1_DeleteTokenRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Flipchat_Push_V1_DeleteTokenResponse, Flipchat_Push_V1_DeleteTokenResponse> {
+  ) -> GRPCAsyncUnaryCall<Flipchat_Push_V1_DeleteTokenRequest, Flipchat_Push_V1_DeleteTokenResponse> {
     return self.makeAsyncUnaryCall(
       path: Flipchat_Push_V1_PushClientMetadata.Methods.deleteToken.path,
       request: request,
@@ -192,7 +192,7 @@ extension Flipchat_Push_V1_PushAsyncClientProtocol {
   }
 
   public func deleteToken(
-    _ request: Flipchat_Push_V1_DeleteTokenResponse,
+    _ request: Flipchat_Push_V1_DeleteTokenRequest,
     callOptions: CallOptions? = nil
   ) async throws -> Flipchat_Push_V1_DeleteTokenResponse {
     return try await self.performAsyncUnaryCall(
@@ -227,7 +227,7 @@ public protocol Flipchat_Push_V1_PushClientInterceptorFactoryProtocol: Sendable 
   func makeAddTokenInterceptors() -> [ClientInterceptor<Flipchat_Push_V1_AddTokenRequest, Flipchat_Push_V1_AddTokenResponse>]
 
   /// - Returns: Interceptors to use when invoking 'deleteToken'.
-  func makeDeleteTokenInterceptors() -> [ClientInterceptor<Flipchat_Push_V1_DeleteTokenResponse, Flipchat_Push_V1_DeleteTokenResponse>]
+  func makeDeleteTokenInterceptors() -> [ClientInterceptor<Flipchat_Push_V1_DeleteTokenRequest, Flipchat_Push_V1_DeleteTokenResponse>]
 }
 
 public enum Flipchat_Push_V1_PushClientMetadata {
@@ -263,7 +263,7 @@ public protocol Flipchat_Push_V1_PushProvider: CallHandlerProvider {
   func addToken(request: Flipchat_Push_V1_AddTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Push_V1_AddTokenResponse>
 
   /// DeleteToken removes a push token from a user/device.
-  func deleteToken(request: Flipchat_Push_V1_DeleteTokenResponse, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Push_V1_DeleteTokenResponse>
+  func deleteToken(request: Flipchat_Push_V1_DeleteTokenRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Push_V1_DeleteTokenResponse>
 }
 
 extension Flipchat_Push_V1_PushProvider {
@@ -290,7 +290,7 @@ extension Flipchat_Push_V1_PushProvider {
     case "DeleteToken":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Push_V1_DeleteTokenResponse>(),
+        requestDeserializer: ProtobufDeserializer<Flipchat_Push_V1_DeleteTokenRequest>(),
         responseSerializer: ProtobufSerializer<Flipchat_Push_V1_DeleteTokenResponse>(),
         interceptors: self.interceptors?.makeDeleteTokenInterceptors() ?? [],
         userFunction: self.deleteToken(request:context:)
@@ -316,7 +316,7 @@ public protocol Flipchat_Push_V1_PushAsyncProvider: CallHandlerProvider, Sendabl
 
   /// DeleteToken removes a push token from a user/device.
   func deleteToken(
-    request: Flipchat_Push_V1_DeleteTokenResponse,
+    request: Flipchat_Push_V1_DeleteTokenRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Push_V1_DeleteTokenResponse
 }
@@ -352,7 +352,7 @@ extension Flipchat_Push_V1_PushAsyncProvider {
     case "DeleteToken":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Push_V1_DeleteTokenResponse>(),
+        requestDeserializer: ProtobufDeserializer<Flipchat_Push_V1_DeleteTokenRequest>(),
         responseSerializer: ProtobufSerializer<Flipchat_Push_V1_DeleteTokenResponse>(),
         interceptors: self.interceptors?.makeDeleteTokenInterceptors() ?? [],
         wrapping: { try await self.deleteToken(request: $0, context: $1) }
@@ -372,7 +372,7 @@ public protocol Flipchat_Push_V1_PushServerInterceptorFactoryProtocol: Sendable 
 
   /// - Returns: Interceptors to use when handling 'deleteToken'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeDeleteTokenInterceptors() -> [ServerInterceptor<Flipchat_Push_V1_DeleteTokenResponse, Flipchat_Push_V1_DeleteTokenResponse>]
+  func makeDeleteTokenInterceptors() -> [ServerInterceptor<Flipchat_Push_V1_DeleteTokenRequest, Flipchat_Push_V1_DeleteTokenResponse>]
 }
 
 public enum Flipchat_Push_V1_PushServerMetadata {

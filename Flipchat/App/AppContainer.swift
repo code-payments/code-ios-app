@@ -7,6 +7,7 @@
 
 import SwiftUI
 import CodeServices
+import FlipchatServices
 import CodeUI
 
 @MainActor
@@ -18,31 +19,28 @@ class AppContainer: ObservableObject {
         queue: .main
     )
     
+    let flipClient = FlipchatClient(network: .mainNet, queue: .main)
+    
     let betaFlags = BetaFlags.shared
     let bannerController = BannerController()
     let biometrics = Biometrics()
     let notificationController = NotificationController()
     
     let exchange: Exchange
-    let sessionAuthenticator: SessionAuthenticator
+    
+    lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)
     
     // MARK: - Init -
     
     init() {
         self.exchange = Exchange(client: client)
-        self.sessionAuthenticator = SessionAuthenticator(
-            client: client,
-            exchange: exchange,
-            bannerController: bannerController,
-            betaFlags: betaFlags,
-            biometrics: biometrics
-        )
     }
     
     func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
             .environmentObject(self)
             .environmentObject(client)
+            .environmentObject(flipClient)
         
             .environmentObject(betaFlags)
             .environmentObject(bannerController)

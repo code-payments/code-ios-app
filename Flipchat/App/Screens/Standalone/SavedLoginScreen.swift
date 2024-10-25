@@ -153,7 +153,10 @@ struct SavedLoginScreen: View {
     private func login(account: HistoricalAccount) {
         Task {
             buttonState = .loading
-            let initializedAccount = try await sessionAuthenticator.initialize(using: account.details.account.mnemonic)
+            let initializedAccount = try await sessionAuthenticator.initialize(
+                using: account.details.account.mnemonic,
+                name: nil // Existing accounts don't need a name
+            )
             try await Task.delay(seconds: 1)
             buttonState = .success
             try await Task.delay(seconds: 1)

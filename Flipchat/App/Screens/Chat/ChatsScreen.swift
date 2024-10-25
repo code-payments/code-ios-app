@@ -7,7 +7,7 @@
 
 import SwiftUI
 import CodeUI
-import CodeServices
+import FlipchatServices
 
 struct ChatsScreen: View {
     
@@ -19,7 +19,7 @@ struct ChatsScreen: View {
     @ObservedObject private var chatController: ChatController
     @ObservedObject private var bannerController: BannerController
     
-    private var chats: [ChatLegacy] {
+    private var chats: [Chat] {
         chatController.chats
     }
     
@@ -27,7 +27,7 @@ struct ChatsScreen: View {
     
     // MARK: - Init -
     
-    init(session: Session, exchange: Exchange, bannerController: BannerController) {
+    init(session: Session, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
         self.session = session
         self.exchange = exchange
         self.chatController = session.chatController
@@ -35,6 +35,7 @@ struct ChatsScreen: View {
         self._viewModel = StateObject(
             wrappedValue: ChatViewModel(
                 session: session,
+                client: client,
                 exchange: exchange,
                 bannerController: bannerController
             )
@@ -160,7 +161,7 @@ struct ChatsScreen: View {
         }
     }
     
-    private func avatarValue(for chat: ChatLegacy) -> AvatarView.Value {
+    private func avatarValue(for chat: Chat) -> AvatarView.Value {
         if let url = chat.otherMemberAvatarURL {
             return .url(url)
         } else {
@@ -174,6 +175,7 @@ struct ChatsScreen: View {
 #Preview {
     ChatsScreen(
         session: .mock,
+        client: .mock,
         exchange: .mock,
         bannerController: .mock
     )

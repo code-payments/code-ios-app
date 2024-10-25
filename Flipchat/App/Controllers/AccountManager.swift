@@ -7,6 +7,7 @@
 
 import UIKit
 import CodeServices
+import FlipchatServices
 
 @MainActor
 class AccountManager {
@@ -24,12 +25,12 @@ class AccountManager {
         }
     }
     
-    private var currentUser: User? {
+    private var currentUserID: UserID? {
         get {
-            Keychain.user
+            Keychain.userID
         }
         set {
-            Keychain.user = newValue
+            Keychain.userID = newValue
         }
     }
     
@@ -47,13 +48,13 @@ class AccountManager {
         }
     }
     
-    func fetchCurrent() -> (account: KeyAccount?, user: User?) {
-        (currentAccount, currentUser)
+    func fetchCurrent() -> (account: KeyAccount?, userID: UserID?) {
+        (currentAccount, currentUserID)
     }
     
-    func set(account: KeyAccount, user: User) {
+    func set(account: KeyAccount, userID: UserID) {
         currentAccount = account
-        currentUser = user
+        currentUserID = userID
         
         upsert(account: account)
     }
@@ -97,7 +98,7 @@ class AccountManager {
     
     func resetForLogout() {
         currentAccount = nil
-        currentUser = nil
+        currentUserID = nil
     }
     
     func nuke() {
@@ -119,13 +120,13 @@ class AccountManager {
 // MARK: - Keychain -
 
 private extension Keychain {
-    @SecureCodable(.keyAccount)
+    @SecureCodable(.accountCurrent)
     static var keyAccount: KeyAccount?
     
-    @SecureCodable(.currentUser)
-    static var user: User?
+    @SecureCodable(.userCurrent)
+    static var userID: UserID?
     
-    @SecureCodable(.historicalAccounts, sync: true)
+    @SecureCodable(.accountList, sync: true)
     static var historicalAccounts: [String: AccountDescription]?
 }
 

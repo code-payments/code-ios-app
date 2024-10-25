@@ -23,8 +23,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         setupFonts()
         setupAppearance()
         
-        let client = FlipchatClient(network: .mainNet)
-        
         return true
     }
     

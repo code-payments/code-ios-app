@@ -24,9 +24,9 @@ extension FlipchatClient {
         }
     }
     
-    public func fetchMessages(chatID: ChatID, owner: KeyPair, direction: PageDirection, pageSize: Int) async throws -> [Chat.Message] {
+    public func fetchMessages(chatID: ChatID, owner: KeyPair, query: PageQuery = .init()) async throws -> [Chat.Message] {
         try await withCheckedThrowingContinuation { c in
-            messagingService.fetchMessages(chatID: chatID, owner: owner, direction: direction, pageSize: pageSize) { c.resume(with: $0) }
+            messagingService.fetchMessages(chatID: chatID, owner: owner, query: query) { c.resume(with: $0) }
         }
     }
     

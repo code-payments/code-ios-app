@@ -24,9 +24,6 @@ extension Chat {
         /// any time-based UUID message IDs.
         public let date: Date
         
-        /// Cursor value for this message for reference in a paged GetMessagesRequest
-        public let cursor: Cursor
-        
         /// Ordered message content. A message may have more than one piece of content.
         public var contents: [Content]
         
@@ -40,11 +37,10 @@ extension Chat {
             } != nil
         }
         
-        public init(id: MessageID, senderID: UserID?, date: Date, cursor: Cursor, contents: [Content]) {
+        public init(id: MessageID, senderID: UserID?, date: Date, contents: [Content]) {
             self.id = id
             self.senderID = senderID
             self.date = date
-            self.cursor = cursor
             self.contents = contents
         }
         
@@ -67,7 +63,6 @@ extension Chat {
                 id: id,
                 senderID: senderID,
                 date: date,
-                cursor: cursor,
                 contents: contents.map { content in
                     switch content {
                     case .localized, .text:
@@ -103,7 +98,6 @@ extension Chat.Message {
             id: .init(data: proto.messageID.value),
             senderID: !proto.senderID.value.isEmpty ? .init(data: proto.senderID.value) : nil,
             date: proto.ts.date,
-            cursor: .init(data: proto.cursor.value),
             contents: proto.content.compactMap { Chat.Content($0) }
         )
     }

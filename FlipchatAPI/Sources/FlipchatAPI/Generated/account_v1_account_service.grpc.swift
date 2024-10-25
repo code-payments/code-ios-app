@@ -21,6 +21,11 @@ public protocol Flipchat_Account_V1_AccountClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Account_V1_RegisterRequest, Flipchat_Account_V1_RegisterResponse>
 
+  func login(
+    _ request: Flipchat_Account_V1_LoginRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Account_V1_LoginRequest, Flipchat_Account_V1_LoginResponse>
+
   func authorizePublicKey(
     _ request: Flipchat_Account_V1_AuthorizePublicKeyRequest,
     callOptions: CallOptions?
@@ -53,6 +58,25 @@ extension Flipchat_Account_V1_AccountClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
+    )
+  }
+
+  /// Login retrieves the UserId (and in the future, potentially other information)
+  /// required for 'recovering' an account.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to Login.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func login(
+    _ request: Flipchat_Account_V1_LoginRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Account_V1_LoginRequest, Flipchat_Account_V1_LoginResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.login.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLoginInterceptors() ?? []
     )
   }
 
@@ -163,6 +187,11 @@ public protocol Flipchat_Account_V1_AccountAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_RegisterRequest, Flipchat_Account_V1_RegisterResponse>
 
+  func makeLoginCall(
+    _ request: Flipchat_Account_V1_LoginRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_LoginRequest, Flipchat_Account_V1_LoginResponse>
+
   func makeAuthorizePublicKeyCall(
     _ request: Flipchat_Account_V1_AuthorizePublicKeyRequest,
     callOptions: CallOptions?
@@ -193,6 +222,18 @@ extension Flipchat_Account_V1_AccountAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
+    )
+  }
+
+  public func makeLoginCall(
+    _ request: Flipchat_Account_V1_LoginRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_LoginRequest, Flipchat_Account_V1_LoginResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.login.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLoginInterceptors() ?? []
     )
   }
 
@@ -232,6 +273,18 @@ extension Flipchat_Account_V1_AccountAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRegisterInterceptors() ?? []
+    )
+  }
+
+  public func login(
+    _ request: Flipchat_Account_V1_LoginRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Account_V1_LoginResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.login.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLoginInterceptors() ?? []
     )
   }
 
@@ -282,6 +335,9 @@ public protocol Flipchat_Account_V1_AccountClientInterceptorFactoryProtocol: Sen
   /// - Returns: Interceptors to use when invoking 'register'.
   func makeRegisterInterceptors() -> [ClientInterceptor<Flipchat_Account_V1_RegisterRequest, Flipchat_Account_V1_RegisterResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'login'.
+  func makeLoginInterceptors() -> [ClientInterceptor<Flipchat_Account_V1_LoginRequest, Flipchat_Account_V1_LoginResponse>]
+
   /// - Returns: Interceptors to use when invoking 'authorizePublicKey'.
   func makeAuthorizePublicKeyInterceptors() -> [ClientInterceptor<Flipchat_Account_V1_AuthorizePublicKeyRequest, Flipchat_Account_V1_AuthorizePublicKeyResponse>]
 
@@ -295,6 +351,7 @@ public enum Flipchat_Account_V1_AccountClientMetadata {
     fullName: "flipchat.account.v1.Account",
     methods: [
       Flipchat_Account_V1_AccountClientMetadata.Methods.register,
+      Flipchat_Account_V1_AccountClientMetadata.Methods.login,
       Flipchat_Account_V1_AccountClientMetadata.Methods.authorizePublicKey,
       Flipchat_Account_V1_AccountClientMetadata.Methods.revokePublicKey,
     ]
@@ -304,6 +361,12 @@ public enum Flipchat_Account_V1_AccountClientMetadata {
     public static let register = GRPCMethodDescriptor(
       name: "Register",
       path: "/flipchat.account.v1.Account/Register",
+      type: GRPCCallType.unary
+    )
+
+    public static let login = GRPCMethodDescriptor(
+      name: "Login",
+      path: "/flipchat.account.v1.Account/Login",
       type: GRPCCallType.unary
     )
 
@@ -328,6 +391,10 @@ public protocol Flipchat_Account_V1_AccountProvider: CallHandlerProvider {
   /// Register registers a new user, bound to the provided PublicKey.
   /// If the PublicKey is already in use, the previous user account is returned.
   func register(request: Flipchat_Account_V1_RegisterRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Account_V1_RegisterResponse>
+
+  /// Login retrieves the UserId (and in the future, potentially other information)
+  /// required for 'recovering' an account.
+  func login(request: Flipchat_Account_V1_LoginRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Account_V1_LoginResponse>
 
   /// AuthorizePublicKey authorizes an additional PublicKey to an account.
   func authorizePublicKey(request: Flipchat_Account_V1_AuthorizePublicKeyRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Account_V1_AuthorizePublicKeyResponse>
@@ -358,6 +425,15 @@ extension Flipchat_Account_V1_AccountProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Account_V1_RegisterResponse>(),
         interceptors: self.interceptors?.makeRegisterInterceptors() ?? [],
         userFunction: self.register(request:context:)
+      )
+
+    case "Login":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Account_V1_LoginRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Account_V1_LoginResponse>(),
+        interceptors: self.interceptors?.makeLoginInterceptors() ?? [],
+        userFunction: self.login(request:context:)
       )
 
     case "AuthorizePublicKey":
@@ -396,6 +472,13 @@ public protocol Flipchat_Account_V1_AccountAsyncProvider: CallHandlerProvider, S
     request: Flipchat_Account_V1_RegisterRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Account_V1_RegisterResponse
+
+  /// Login retrieves the UserId (and in the future, potentially other information)
+  /// required for 'recovering' an account.
+  func login(
+    request: Flipchat_Account_V1_LoginRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Account_V1_LoginResponse
 
   /// AuthorizePublicKey authorizes an additional PublicKey to an account.
   func authorizePublicKey(
@@ -441,6 +524,15 @@ extension Flipchat_Account_V1_AccountAsyncProvider {
         wrapping: { try await self.register(request: $0, context: $1) }
       )
 
+    case "Login":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Account_V1_LoginRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Account_V1_LoginResponse>(),
+        interceptors: self.interceptors?.makeLoginInterceptors() ?? [],
+        wrapping: { try await self.login(request: $0, context: $1) }
+      )
+
     case "AuthorizePublicKey":
       return GRPCAsyncServerHandler(
         context: context,
@@ -471,6 +563,10 @@ public protocol Flipchat_Account_V1_AccountServerInterceptorFactoryProtocol: Sen
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeRegisterInterceptors() -> [ServerInterceptor<Flipchat_Account_V1_RegisterRequest, Flipchat_Account_V1_RegisterResponse>]
 
+  /// - Returns: Interceptors to use when handling 'login'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeLoginInterceptors() -> [ServerInterceptor<Flipchat_Account_V1_LoginRequest, Flipchat_Account_V1_LoginResponse>]
+
   /// - Returns: Interceptors to use when handling 'authorizePublicKey'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeAuthorizePublicKeyInterceptors() -> [ServerInterceptor<Flipchat_Account_V1_AuthorizePublicKeyRequest, Flipchat_Account_V1_AuthorizePublicKeyResponse>]
@@ -486,6 +582,7 @@ public enum Flipchat_Account_V1_AccountServerMetadata {
     fullName: "flipchat.account.v1.Account",
     methods: [
       Flipchat_Account_V1_AccountServerMetadata.Methods.register,
+      Flipchat_Account_V1_AccountServerMetadata.Methods.login,
       Flipchat_Account_V1_AccountServerMetadata.Methods.authorizePublicKey,
       Flipchat_Account_V1_AccountServerMetadata.Methods.revokePublicKey,
     ]
@@ -495,6 +592,12 @@ public enum Flipchat_Account_V1_AccountServerMetadata {
     public static let register = GRPCMethodDescriptor(
       name: "Register",
       path: "/flipchat.account.v1.Account/Register",
+      type: GRPCCallType.unary
+    )
+
+    public static let login = GRPCMethodDescriptor(
+      name: "Login",
+      path: "/flipchat.account.v1.Account/Login",
       type: GRPCCallType.unary
     )
 

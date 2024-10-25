@@ -7,6 +7,7 @@
 
 import Foundation
 import CodeServices
+import FlipchatServices
 
 @MainActor
 class ChatController: ObservableObject {
@@ -15,25 +16,27 @@ class ChatController: ObservableObject {
     
     @Published private(set) var hasFetchedChats: Bool = false
     
-    @Published private(set) var chats: [ChatLegacy] = []
+    @Published private(set) var chats: [Chat] = []
     
     @Published private(set) var unreadCount: Int = 0
     
-    private let client: Client
+    private let userID: UserID
+    private let client: FlipchatClient
     private let organizer: Organizer
     
     private let pageSize: Int = 100
     
     private var fetchInflight: Bool = false
     
-    private var latestPointers: [ChatID: MessageID] = [:]
+    private var latestPointers: [FlipchatServices.ChatID: FlipchatServices.MessageID] = [:]
     
     // MARK: - Init -
     
-    init(client: Client, organizer: Organizer) {
-        self.client = client
+    init(userID: UserID, client: FlipchatClient, organizer: Organizer) {
+        self.userID    = userID
+        self.client    = client
         self.organizer = organizer
-        self.owner = organizer.ownerKeyPair
+        self.owner     = organizer.ownerKeyPair
         
         NotificationCenter.default.addObserver(forName: .messageNotificationReceived, object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
@@ -49,13 +52,13 @@ class ChatController: ObservableObject {
     
     // MARK: - Stream -
     
-    func openChatStream(chatID: ChatID, completion: @escaping (Result<[ChatLegacy.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
-        client.openChatStream(chatID: chatID, owner: owner, completion: completion)
+    func streamMessages(chatID: FlipchatServices.ChatID, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+        client.streamMessages(chatID: chatID, owner: owner, completion: completion)
     }
     
     // MARK: - Messages -
     
-    func sendMessage(content: ChatLegacy.Content, in chatID: ChatID) async throws -> ChatLegacy.Message {
+    func sendMessage(content: Chat.Content, in chatID: FlipchatServices.ChatID) async throws -> Chat.Message {
         try await client.sendMessage(
             chatID: chatID,
             owner: owner,
@@ -96,11 +99,11 @@ class ChatController: ObservableObject {
     
     // MARK: - Pointers -
     
-    private func setReadPointer(to message: ChatLegacy.Message, chat: ChatLegacy) {
+    private func setReadPointer(to message: Chat.Message, chat: Chat) {
         latestPointers[chat.id] = message.id
     }
     
-    private func shouldAdvanceReadPointer(for message: ChatLegacy.Message, chat: ChatLegacy) -> Bool {
+    private func shouldAdvanceReadPointer(for message: Chat.Message, chat: Chat) -> Bool {
         if let latestMessageID = latestPointers[chat.id] {
             return message.id > latestMessageID
         }
@@ -109,11 +112,7 @@ class ChatController: ObservableObject {
     
     // MARK: - Chats -
     
-    func advanceReadPointer(for chat: ChatLegacy) async throws {
-        guard let selfMember = chat.selfMember else {
-            return
-        }
-        
+    func advanceReadPointer(for chat: Chat) async throws {
         if let newestMessage = chat.newestMessage {
             guard shouldAdvanceReadPointer(for: newestMessage, chat: chat) else {
                 return
@@ -122,7 +121,6 @@ class ChatController: ObservableObject {
             try await client.advancePointer(
                 chatID: chat.id,
                 to: newestMessage.id,
-                memberID: selfMember.id,
                 owner: owner
             )
             
@@ -134,27 +132,15 @@ class ChatController: ObservableObject {
         }
     }
     
-    func setMuted(_ muted: Bool, for chat: ChatLegacy) async throws {
-        chat.setMuted(muted)
-        
-        computeUnreadCount()
-        
-        try await client.setMuteState(
-            chatID: chat.id,
-            muted: muted,
-            owner: owner
-        )
-    }
-    
-    func chat(for chatID: ID) -> ChatLegacy? {
+    func chat(for chatID: FlipchatServices.ChatID) -> Chat? {
         chats.first { $0.id == chatID }
     }
     
-    private func setMessages(messages: [ChatLegacy.Message], for chatID: ID) {
+    private func setMessages(messages: [Chat.Message], for chatID: FlipchatServices.ChatID) {
         chat(for: chatID)?.setMessages(messages)
     }
     
-    private func computeUnreadCount(for chats: [ChatLegacy]) -> Int {
+    private func computeUnreadCount(for chats: [Chat]) -> Int {
         chats.reduce(into: 0) { result, chat in
             if !chat.isMuted { // Ignore muted chats and unsubscribed chats
                 result = result + chat.unreadCount
@@ -164,23 +150,24 @@ class ChatController: ObservableObject {
     
     // MARK: - Fetching -
     
-    private func fetchAllChatsAndMessages() async throws -> [ChatLegacy] {
-        let chats = try await client.fetchChats(owner: owner)
+    private func fetchAllChatsAndMessages() async throws -> [Chat] {
+        let chats = try await client.fetchChats(for: userID, owner: owner)
+        
         trace(.success, components: "Chats: \(chats.count)")
         return try await fetchAllMessages(chats: chats)
     }
     
-    private func fetchDeltaChatsAndMessages() async throws -> [ChatLegacy] {
+    private func fetchDeltaChatsAndMessages() async throws -> [Chat] {
         let chats = await updating(
             existing: chats,
-            with: try await client.fetchChats(owner: owner)
+            with: try await client.fetchChats(for: userID, owner: owner)
         )
         
         trace(.success, components: "Chats: \(chats.count)")
         return try await fetchLatestMessagesOnly(chats: chats)
     }
     
-    private func updating(existing existingChats: [ChatLegacy], with newChats: [ChatLegacy]) async -> [ChatLegacy] {
+    private func updating(existing existingChats: [Chat], with newChats: [Chat]) async -> [Chat] {
         let index = existingChats.elementsKeyed(by: \.id)
         var updatedChats = newChats
         for (i, updatedChat) in updatedChats.enumerated() {
@@ -200,14 +187,14 @@ class ChatController: ObservableObject {
         return updatedChats
     }
     
-    private func update(chat: ChatLegacy, from newChat: ChatLegacy) {
+    private func update(chat: Chat, from newChat: Chat) {
         chat.update(from: newChat)
     }
     
-    private func fetchAllMessages(chats: [ChatLegacy]) async throws -> [ChatLegacy] {
-        var chatContainer: [ChatLegacy] = []
+    private func fetchAllMessages(chats: [Chat]) async throws -> [Chat] {
+        var chatContainer: [Chat] = []
         
-        await withTaskGroup(of: (ChatLegacy, [ChatLegacy.Message]).self) { group in
+        await withTaskGroup(of: (Chat, [Chat.Message]).self) { group in
             chats.forEach { chat in
                 group.addTask {
                     let messages = await self.fetchAllMessages(chat: chat)
@@ -224,16 +211,18 @@ class ChatController: ObservableObject {
         return chatContainer.sortedByMessageOrder()
     }
     
-    private func fetchAllMessages(chat: ChatLegacy) async -> [ChatLegacy.Message] {
-        var container: [ChatLegacy.Message] = []
+    private func fetchAllMessages(chat: Chat) async -> [Chat.Message] {
+        var container: [Chat.Message] = []
         
         var pages = 1
-        var currentID: ID? = nil
+        var currentToken: FlipchatServices.ID? = nil
         while true {
             let messages = try? await fetchAndDecryptMessages(
                 chat: chat,
-                direction: .descending(upTo: currentID),
-                pageSize: pageSize
+                query: .init(
+                    order: .asc,
+                    pagingToken: currentToken
+                )
             )
             
             guard let messages else {
@@ -248,7 +237,7 @@ class ChatController: ObservableObject {
                 break
             }
             
-            currentID = messages.last!.id
+            currentToken = messages.last!.id
             pages += 1
         }
         
@@ -256,18 +245,18 @@ class ChatController: ObservableObject {
         return container
     }
     
-    private func fetchLatestMessagesOnly(chats: [ChatLegacy]) async throws -> [ChatLegacy] {
-        var chatContainer: [ChatLegacy] = []
+    private func fetchLatestMessagesOnly(chats: [Chat]) async throws -> [Chat] {
+        var chatContainer: [Chat] = []
         
-        await withTaskGroup(of: (ChatLegacy, [ChatLegacy.Message]).self) { group in
+        try await withThrowingTaskGroup(of: (Chat, [Chat.Message]).self) { group in
             chats.forEach { chat in
                 group.addTask {
-                    let messages = await self.fetchLatestMessagesOnly(chat: chat)
+                    let messages = try await self.fetchLatestMessagesOnly(chat: chat)
                     return (chat, messages)
                 }
             }
             
-            for await (chat, messages) in group {
+            for try await (chat, messages) in group {
                 chat.insertMessages(messages)
                 chatContainer.append(chat)
             }
@@ -276,19 +265,21 @@ class ChatController: ObservableObject {
         return chatContainer.sortedByMessageOrder()
     }
     
-    private func fetchLatestMessagesOnly(chat: ChatLegacy) async -> [ChatLegacy.Message] {
-        var container: [ChatLegacy.Message] = []
+    private func fetchLatestMessagesOnly(chat: Chat) async throws -> [Chat.Message] {
+        var container: [Chat.Message] = []
         
         var pages = 1
         var lastID = chat.latestMessage()?.id
         while true {
-            let messages = try? await fetchAndDecryptMessages(
+            let messages = try await fetchAndDecryptMessages(
                 chat: chat,
-                direction: .ascending(from: lastID), // If nil, form the beginning
-                pageSize: pageSize
+                query: .init(
+                    order: .desc,
+                    pagingToken: lastID // If nil, form the beginning
+                )
             )
             
-            guard let messages else {
+            guard !messages.isEmpty else {
                 break
             }
             
@@ -308,17 +299,11 @@ class ChatController: ObservableObject {
         return container
     }
     
-    private func fetchAndDecryptMessages(chat: ChatLegacy, direction: MessageDirection, pageSize: Int) async throws -> [ChatLegacy.Message] {
-        guard let selfMember = chat.selfMember else {
-            return []
-        }
-        
+    private func fetchAndDecryptMessages(chat: Chat, query: PageQuery) async throws -> [Chat.Message] {
         let messages = try await self.client.fetchMessages(
             chatID: chat.id,
-            memberID: selfMember.id,
             owner: self.owner,
-            direction: direction,
-            pageSize: pageSize
+            query: query
         )
         
         // TODO: Handle encryption
@@ -348,7 +333,7 @@ class ChatController: ObservableObject {
     }
 }
 
-private extension Array where Element == ChatLegacy {
+private extension Array where Element == Chat {
     
     @MainActor
     func sortedByMessageOrder() -> [Element] {
@@ -373,6 +358,7 @@ private extension Array where Element == ChatLegacy {
 
 extension ChatController {
     static let mock = ChatController(
+        userID: .mock,
         client: .mock,
         organizer: .mock2
     )

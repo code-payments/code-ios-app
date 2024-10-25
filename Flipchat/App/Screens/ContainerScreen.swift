@@ -33,6 +33,7 @@ struct ContainerScreen: View {
                 } else {
                     ChatsScreen(
                         session: session,
+                        client: container.flipClient,
                         exchange: container.exchange,
                         bannerController: container.bannerController
                     )
@@ -55,7 +56,7 @@ struct ContainerScreen: View {
             .transition(.crossFade)
             
         case .loggedOut:
-            IntroScreen()
+            IntroScreen(sessionAuthenticator: sessionAuthenticator)
                 .transition(.crossFade)
         }
     }

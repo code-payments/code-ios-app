@@ -57,6 +57,10 @@ public enum ErrorRegister: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Account_V1_AccountClientInterceptorFactoryProtocol {
+    func makeLoginInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Account_V1_LoginRequest, FlipchatAPI.Flipchat_Account_V1_LoginResponse>] {
+        makeInterceptors()
+    }
+    
     func makeRegisterInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Account_V1_RegisterRequest, FlipchatAPI.Flipchat_Account_V1_RegisterResponse>] {
         makeInterceptors()
     }

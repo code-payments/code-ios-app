@@ -19,7 +19,7 @@ class BetaFlags: ObservableObject {
     
     @Defaults(.betaFlags) private var storedOptions: Set<Option>?
     
-    @SecureString(.debugOptions) private var storedAccessGranted: String?
+    @SecureString(.betaEnabled) private var storedAccessGranted: String?
     
     // MARK: - Init -
     

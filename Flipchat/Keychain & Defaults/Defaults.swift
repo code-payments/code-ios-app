@@ -9,35 +9,36 @@ import Foundation
 
 enum DefaultsKey: String {
     
-    case entryCurrency      = "com.code.currency.inputCurrency"
-    case localCurrency      = "com.code.currency.localCurrency"
-    case recentCurrencies   = "com.code.currency.recentCurrencies"
-    case localCurrencyAdded = "com.code.currency.localCurrencyAdded"
+    case rates             = "com.flipchat.currency.rates"
+    case currencyEntry     = "com.flipchat.currency.entry"
+    case currencyLocal     = "com.flipchat.currency.local"
     
-    case launchCount = "com.code.launchCount"
+    case launchCount       = "com.flipchat.state.launchCount"
+    case wasLoggedIn       = "com.flipchat.state.wasLoggedIn"
+    case betaFlags         = "com.flipchat.state.betaFlags"
+    case biometricsEnabled = "com.flipchat.state.biometricsEnabled"
     
-    case betaFlags = "com.code.debug.preferences"
-    
-    case twitterUser    = "com.code.social.twitterUser"
-    case hasSeenTipCard = "com.code.social.hasSeenTipCard"
-    
-    case wasLoggedIn     = "com.code.state.wasLoggedIn"
-    case wasPromptedPush = "com.code.state.wasPromptedForPush"
-    
-    case tooltipLogo = "com.code.tooltip.logo"
-    
-    // Settings
-    
-    case biometricsEnabled = "com.code.biometrics.enabled"
-    
-    case cameraAutoStartDisabled = "com.code.camera.autoStartDisabled"
-    case cameraEnabledState      = "com.code.camera.cameraEnabledState"
-    
-    // Legacy
-    
-    case faqs = "com.code.faqs"
-    case inviteCount = "com.code.inviteCount"
-    case lastSeenInviteCount = "com.code.lastSeenInviteCount"
+//    case recentCurrencies   = "com.code.currency.recentCurrencies"
+//    case localCurrencyAdded = "com.code.currency.localCurrencyAdded"
+//
+//
+//    case twitterUser    = "com.code.social.twitterUser"
+//    case hasSeenTipCard = "com.code.social.hasSeenTipCard"
+//
+//    case wasPromptedPush = "com.code.state.wasPromptedForPush"
+//    
+//    case tooltipLogo = "com.code.tooltip.logo"
+//    
+//    // Settings
+//    
+//    case cameraAutoStartDisabled = "com.code.camera.autoStartDisabled"
+//    case cameraEnabledState      = "com.code.camera.cameraEnabledState"
+//    
+//    // Legacy
+//    
+//    case faqs = "com.code.faqs"
+//    case inviteCount = "com.code.inviteCount"
+//    case lastSeenInviteCount = "com.code.lastSeenInviteCount"
 }
 
 @propertyWrapper

@@ -132,6 +132,109 @@ extension Flipchat_Account_V1_RegisterResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Account_V1_LoginRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Timestamp is the timestamp the request was generated.
+  ///
+  /// The server may reject the request if the timestamp is too far off
+  /// the current (server) time. This is to prevent replay attacks.
+  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_timestamp = newValue}
+  }
+  /// Returns true if `timestamp` has been explicitly set.
+  public var hasTimestamp: Bool {return self._timestamp != nil}
+  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
+  public mutating func clearTimestamp() {self._timestamp = nil}
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Account_V1_LoginResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Account_V1_LoginResponse.Result = .ok
+
+  /// UserId is the user associated with the PubKey/Auth.
+  public var userID: Flipchat_Common_V1_UserId {
+    get {return _userID ?? Flipchat_Common_V1_UserId()}
+    set {_userID = newValue}
+  }
+  /// Returns true if `userID` has been explicitly set.
+  public var hasUserID: Bool {return self._userID != nil}
+  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
+  public mutating func clearUserID() {self._userID = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case invalidTimestamp // = 1
+    case denied // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .invalidTimestamp
+      case 2: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .invalidTimestamp: return 1
+      case .denied: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+
+  fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Account_V1_LoginResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Account_V1_LoginResponse.Result] = [
+    .ok,
+    .invalidTimestamp,
+    .denied,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Flipchat_Account_V1_AuthorizePublicKeyRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -342,6 +445,9 @@ extension Flipchat_Account_V1_RevokePublicKeyResponse.Result: CaseIterable {
 extension Flipchat_Account_V1_RegisterRequest: @unchecked Sendable {}
 extension Flipchat_Account_V1_RegisterResponse: @unchecked Sendable {}
 extension Flipchat_Account_V1_RegisterResponse.Result: @unchecked Sendable {}
+extension Flipchat_Account_V1_LoginRequest: @unchecked Sendable {}
+extension Flipchat_Account_V1_LoginResponse: @unchecked Sendable {}
+extension Flipchat_Account_V1_LoginResponse.Result: @unchecked Sendable {}
 extension Flipchat_Account_V1_AuthorizePublicKeyRequest: @unchecked Sendable {}
 extension Flipchat_Account_V1_AuthorizePublicKeyResponse: @unchecked Sendable {}
 extension Flipchat_Account_V1_AuthorizePublicKeyResponse.Result: @unchecked Sendable {}
@@ -455,6 +561,98 @@ extension Flipchat_Account_V1_RegisterResponse.Result: SwiftProtobuf._ProtoNameP
     0: .same(proto: "OK"),
     1: .same(proto: "INVALID_SIGNATURE"),
     2: .same(proto: "INVALID_DISPLAY_NAME"),
+  ]
+}
+
+extension Flipchat_Account_V1_LoginRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LoginRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "timestamp"),
+    2: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._timestamp {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Account_V1_LoginRequest, rhs: Flipchat_Account_V1_LoginRequest) -> Bool {
+    if lhs._timestamp != rhs._timestamp {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Account_V1_LoginResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LoginResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .standard(proto: "user_id"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try { if let v = self._userID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Account_V1_LoginResponse, rhs: Flipchat_Account_V1_LoginResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs._userID != rhs._userID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Account_V1_LoginResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "INVALID_TIMESTAMP"),
+    2: .same(proto: "DENIED"),
   ]
 }
 

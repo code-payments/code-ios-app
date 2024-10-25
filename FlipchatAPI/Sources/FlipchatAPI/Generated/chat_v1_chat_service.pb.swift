@@ -340,18 +340,14 @@ public struct Flipchat_Chat_V1_GetChatsRequest {
   /// Clears the value of `account`. Subsequent reads from it will return its default value.
   public mutating func clearAccount() {self._account = nil}
 
-  public var pageSize: UInt32 = 0
-
-  public var cursor: Flipchat_Chat_V1_Cursor {
-    get {return _cursor ?? Flipchat_Chat_V1_Cursor()}
-    set {_cursor = newValue}
+  public var queryOptions: Flipchat_Common_V1_QueryOptions {
+    get {return _queryOptions ?? Flipchat_Common_V1_QueryOptions()}
+    set {_queryOptions = newValue}
   }
-  /// Returns true if `cursor` has been explicitly set.
-  public var hasCursor: Bool {return self._cursor != nil}
-  /// Clears the value of `cursor`. Subsequent reads from it will return its default value.
-  public mutating func clearCursor() {self._cursor = nil}
-
-  public var direction: Flipchat_Chat_V1_GetChatsRequest.Direction = .asc
+  /// Returns true if `queryOptions` has been explicitly set.
+  public var hasQueryOptions: Bool {return self._queryOptions != nil}
+  /// Clears the value of `queryOptions`. Subsequent reads from it will return its default value.
+  public mutating func clearQueryOptions() {self._queryOptions = nil}
 
   public var auth: Flipchat_Common_V1_Auth {
     get {return _auth ?? Flipchat_Common_V1_Auth()}
@@ -364,52 +360,12 @@ public struct Flipchat_Chat_V1_GetChatsRequest {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  public enum Direction: SwiftProtobuf.Enum {
-    public typealias RawValue = Int
-    case asc // = 0
-    case desc // = 1
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .asc
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .asc
-      case 1: self = .desc
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .asc: return 0
-      case .desc: return 1
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-  }
-
   public init() {}
 
   fileprivate var _account: Flipchat_Common_V1_UserId? = nil
-  fileprivate var _cursor: Flipchat_Chat_V1_Cursor? = nil
+  fileprivate var _queryOptions: Flipchat_Common_V1_QueryOptions? = nil
   fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
 }
-
-#if swift(>=4.2)
-
-extension Flipchat_Chat_V1_GetChatsRequest.Direction: CaseIterable {
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Flipchat_Chat_V1_GetChatsRequest.Direction] = [
-    .asc,
-    .desc,
-  ]
-}
-
-#endif  // swift(>=4.2)
 
 public struct Flipchat_Chat_V1_GetChatsResponse {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -1101,16 +1057,6 @@ public struct Flipchat_Chat_V1_Metadata {
   /// The type of chat
   public var type: Flipchat_Chat_V1_Metadata.ChatType = .unknown
 
-  /// Cursor value for this chat for reference in subsequent GetChatsRequest
-  public var cursor: Flipchat_Chat_V1_Cursor {
-    get {return _cursor ?? Flipchat_Chat_V1_Cursor()}
-    set {_cursor = newValue}
-  }
-  /// Returns true if `cursor` has been explicitly set.
-  public var hasCursor: Bool {return self._cursor != nil}
-  /// Clears the value of `cursor`. Subsequent reads from it will return its default value.
-  public mutating func clearCursor() {self._cursor = nil}
-
   /// The chat title, which is _only_ set by server if an explicit title
   /// was set. Otherwise, clients should fill in an appropriate chat title.
   public var title: String = String()
@@ -1166,7 +1112,6 @@ public struct Flipchat_Chat_V1_Metadata {
   public init() {}
 
   fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
-  fileprivate var _cursor: Flipchat_Chat_V1_Cursor? = nil
 }
 
 #if swift(>=4.2)
@@ -1242,21 +1187,6 @@ public struct Flipchat_Chat_V1_MemberIdentity {
   public init() {}
 }
 
-/// Opaque cursor used across paged APIs. Underlying bytes may change as paging
-/// strategies evolve. Expected length value will vary based on the RPC being
-/// executed.
-public struct Flipchat_Chat_V1_Cursor {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var value: Data = Data()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipchat_Chat_V1_StreamChatEventsRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_StreamChatEventsRequest.OneOf_Type: @unchecked Sendable {}
@@ -1269,7 +1199,6 @@ extension Flipchat_Chat_V1_StreamChatEventsResponse.EventBatch: @unchecked Senda
 extension Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate: @unchecked Sendable {}
 extension Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate: @unchecked Sendable {}
 extension Flipchat_Chat_V1_GetChatsRequest: @unchecked Sendable {}
-extension Flipchat_Chat_V1_GetChatsRequest.Direction: @unchecked Sendable {}
 extension Flipchat_Chat_V1_GetChatsResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_GetChatsResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_GetChatRequest: @unchecked Sendable {}
@@ -1296,7 +1225,6 @@ extension Flipchat_Chat_V1_Metadata: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Metadata.ChatType: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Member: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MemberIdentity: @unchecked Sendable {}
-extension Flipchat_Chat_V1_Cursor: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -1727,9 +1655,7 @@ extension Flipchat_Chat_V1_GetChatsRequest: SwiftProtobuf.Message, SwiftProtobuf
   public static let protoMessageName: String = _protobuf_package + ".GetChatsRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "account"),
-    2: .standard(proto: "page_size"),
-    3: .same(proto: "cursor"),
-    4: .same(proto: "direction"),
+    2: .standard(proto: "query_options"),
     5: .same(proto: "auth"),
   ]
 
@@ -1740,9 +1666,7 @@ extension Flipchat_Chat_V1_GetChatsRequest: SwiftProtobuf.Message, SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._account) }()
-      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.pageSize) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._cursor) }()
-      case 4: try { try decoder.decodeSingularEnumField(value: &self.direction) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._queryOptions) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
@@ -1757,15 +1681,9 @@ extension Flipchat_Chat_V1_GetChatsRequest: SwiftProtobuf.Message, SwiftProtobuf
     try { if let v = self._account {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    if self.pageSize != 0 {
-      try visitor.visitSingularUInt32Field(value: self.pageSize, fieldNumber: 2)
-    }
-    try { if let v = self._cursor {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    try { if let v = self._queryOptions {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    if self.direction != .asc {
-      try visitor.visitSingularEnumField(value: self.direction, fieldNumber: 4)
-    }
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
@@ -1774,20 +1692,11 @@ extension Flipchat_Chat_V1_GetChatsRequest: SwiftProtobuf.Message, SwiftProtobuf
 
   public static func ==(lhs: Flipchat_Chat_V1_GetChatsRequest, rhs: Flipchat_Chat_V1_GetChatsRequest) -> Bool {
     if lhs._account != rhs._account {return false}
-    if lhs.pageSize != rhs.pageSize {return false}
-    if lhs._cursor != rhs._cursor {return false}
-    if lhs.direction != rhs.direction {return false}
+    if lhs._queryOptions != rhs._queryOptions {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
-}
-
-extension Flipchat_Chat_V1_GetChatsRequest.Direction: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    0: .same(proto: "ASC"),
-    1: .same(proto: "DESC"),
-  ]
 }
 
 extension Flipchat_Chat_V1_GetChatsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -2455,13 +2364,12 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "chat_id"),
     2: .same(proto: "type"),
-    3: .same(proto: "cursor"),
-    4: .same(proto: "title"),
-    5: .standard(proto: "room_number"),
-    6: .same(proto: "members"),
-    7: .standard(proto: "is_muted"),
-    8: .same(proto: "muteable"),
-    9: .standard(proto: "num_unread"),
+    3: .same(proto: "title"),
+    4: .standard(proto: "room_number"),
+    5: .same(proto: "members"),
+    6: .standard(proto: "is_muted"),
+    7: .same(proto: "muteable"),
+    8: .standard(proto: "num_unread"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2472,13 +2380,12 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
       case 2: try { try decoder.decodeSingularEnumField(value: &self.type) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._cursor) }()
-      case 4: try { try decoder.decodeSingularStringField(value: &self.title) }()
-      case 5: try { try decoder.decodeSingularUInt64Field(value: &self.roomNumber) }()
-      case 6: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
-      case 7: try { try decoder.decodeSingularBoolField(value: &self.isMuted) }()
-      case 8: try { try decoder.decodeSingularBoolField(value: &self.muteable) }()
-      case 9: try { try decoder.decodeSingularUInt32Field(value: &self.numUnread) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.title) }()
+      case 4: try { try decoder.decodeSingularUInt64Field(value: &self.roomNumber) }()
+      case 5: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.isMuted) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.muteable) }()
+      case 8: try { try decoder.decodeSingularUInt32Field(value: &self.numUnread) }()
       default: break
       }
     }
@@ -2495,26 +2402,23 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if self.type != .unknown {
       try visitor.visitSingularEnumField(value: self.type, fieldNumber: 2)
     }
-    try { if let v = self._cursor {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
     if !self.title.isEmpty {
-      try visitor.visitSingularStringField(value: self.title, fieldNumber: 4)
+      try visitor.visitSingularStringField(value: self.title, fieldNumber: 3)
     }
     if self.roomNumber != 0 {
-      try visitor.visitSingularUInt64Field(value: self.roomNumber, fieldNumber: 5)
+      try visitor.visitSingularUInt64Field(value: self.roomNumber, fieldNumber: 4)
     }
     if !self.members.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 6)
+      try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 5)
     }
     if self.isMuted != false {
-      try visitor.visitSingularBoolField(value: self.isMuted, fieldNumber: 7)
+      try visitor.visitSingularBoolField(value: self.isMuted, fieldNumber: 6)
     }
     if self.muteable != false {
-      try visitor.visitSingularBoolField(value: self.muteable, fieldNumber: 8)
+      try visitor.visitSingularBoolField(value: self.muteable, fieldNumber: 7)
     }
     if self.numUnread != 0 {
-      try visitor.visitSingularUInt32Field(value: self.numUnread, fieldNumber: 9)
+      try visitor.visitSingularUInt32Field(value: self.numUnread, fieldNumber: 8)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -2522,7 +2426,6 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
   public static func ==(lhs: Flipchat_Chat_V1_Metadata, rhs: Flipchat_Chat_V1_Metadata) -> Bool {
     if lhs._chatID != rhs._chatID {return false}
     if lhs.type != rhs.type {return false}
-    if lhs._cursor != rhs._cursor {return false}
     if lhs.title != rhs.title {return false}
     if lhs.roomNumber != rhs.roomNumber {return false}
     if lhs.members != rhs.members {return false}
@@ -2629,38 +2532,6 @@ extension Flipchat_Chat_V1_MemberIdentity: SwiftProtobuf.Message, SwiftProtobuf.
   public static func ==(lhs: Flipchat_Chat_V1_MemberIdentity, rhs: Flipchat_Chat_V1_MemberIdentity) -> Bool {
     if lhs.displayName != rhs.displayName {return false}
     if lhs.profilePicURL != rhs.profilePicURL {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_Cursor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Cursor"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "value"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.value.isEmpty {
-      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_Cursor, rhs: Flipchat_Chat_V1_Cursor) -> Bool {
-    if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

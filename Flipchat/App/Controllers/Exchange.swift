@@ -19,10 +19,9 @@ class Exchange: ObservableObject {
     
     private let client: Client
     
-    @SecureCodable(.rates) private var storedRates: RatesBox?
-    
-    @Defaults(.entryCurrency) private var entryCurrency: CurrencyCode?
-    @Defaults(.localCurrency) private var localCurrency: CurrencyCode?
+    @Defaults(.rates)         private var storedRates: RatesBox?
+    @Defaults(.currencyEntry) private var entryCurrency: CurrencyCode?
+    @Defaults(.currencyLocal) private var localCurrency: CurrencyCode?
     
     private var poller: Poller!
     
