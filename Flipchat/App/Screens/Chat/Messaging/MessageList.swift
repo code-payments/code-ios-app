@@ -85,7 +85,7 @@ public struct MessageList: View {
             MessageTitle(text: group.date.formattedRelatively())
             
             ForEach(group.messages) { message in
-                let isReceived = !chat.isMessageFromSelf(message)
+                let isReceived = chat.isMessageReceived(message.senderID)
                 
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
@@ -94,7 +94,7 @@ public struct MessageList: View {
                             switch content {
                             case .text(let content):
                                 MessageText(
-                                    state: message.state(for: chat.recipientPointers),
+                                    state: .delivered,
                                     text: content,
                                     date: message.date,
                                     isReceived: isReceived,
@@ -103,7 +103,7 @@ public struct MessageList: View {
                                 
                             case .localized(let key):
                                 MessageText(
-                                    state: message.state(for: chat.recipientPointers),
+                                    state: .delivered,
                                     text: key.localizedStringByKey,
                                     date: message.date,
                                     isReceived: isReceived,

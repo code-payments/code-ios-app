@@ -52,7 +52,7 @@ class ChatViewModel: ObservableObject {
     
     func startNewChat() {
         Task {
-            let chat = try await client.startGroupChat(owner: session.organizer.ownerKeyPair)
+            let chat = try await chatController.startGroupChat()
             friendshipState = .contributor(chat)
             navigationPath.append(.chat)
             chatController.fetchChats()
@@ -77,10 +77,7 @@ class ChatViewModel: ObservableObject {
         Task {
             beginChatState = .loading
             do {
-                let chat = try await client.fetchChat(
-                    for: roomNumber,
-                    owner: session.organizer.ownerKeyPair
-                )
+                let chat = try await chatController.joinGroupChat(roomNumber: roomNumber)
                 
                 try await Task.delay(milliseconds: 500)
                 beginChatState = .success
@@ -141,8 +138,8 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Validation -
     
-    func isEnteredUsernameValid() -> Bool {
-        enteredRoomNumber.count >= 4
+    func isEnteredRoomNumberValid() -> Bool {
+        enteredRoomNumber.count >= 1
     }
     
     // MARK: - Errors -

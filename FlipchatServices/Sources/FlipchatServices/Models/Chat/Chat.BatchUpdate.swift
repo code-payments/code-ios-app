@@ -20,7 +20,7 @@ extension Chat {
     public struct BatchUpdate {
         
         var chatID: ChatID
-        var chat: Chat?
+        var chatMetadata: Chat.Metadata?
         var lastMessage: Chat.Message?
         var pointerUpdate: PointerUpdate?
         var typingUpdate: TypingUpdate?
@@ -39,7 +39,6 @@ extension Chat {
 
 extension Chat.BatchUpdate {
     
-    @MainActor // TODO: Use ChatMetadata instead of Chat
     public init?(_ proto: Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate) {
         guard proto.hasChatID else {
             return nil
@@ -47,7 +46,7 @@ extension Chat.BatchUpdate {
         
         self.init(
             chatID: ChatID(data: proto.chatID.value),
-            chat: proto.hasMetadata ? Chat(proto.metadata) : nil,
+            chatMetadata: proto.hasMetadata ? Chat.Metadata(proto.metadata) : nil,
             lastMessage: proto.hasLastMessage ? Chat.Message(proto.lastMessage) : nil,
             pointerUpdate: proto.hasPointer ? PointerUpdate(proto.pointer) : nil,
             typingUpdate: proto.hasIsTyping ? TypingUpdate(proto.isTyping) : nil

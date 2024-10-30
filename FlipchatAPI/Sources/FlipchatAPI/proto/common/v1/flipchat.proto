@@ -111,15 +111,11 @@ message QueryOptions {
     // may select an arbitrary page size.
     int64 page_size = 1;
 
-    // Offset specifies an offset into a collection being queries.
-    int64 offset = 2;
-
     // PagingToken is token that can be extracted from the identifier of a collection.
-    PagingToken paging_token = 3;
+    PagingToken paging_token = 2;
 
     // Order is the order of elements, if applicable.
-    Order order = 4;
-
+    Order order = 3;
     enum Order {
         ASC = 0;
         DESC = 1;

@@ -66,7 +66,32 @@ class ChatController: ObservableObject {
         )
     }
     
-    // MARK: - Chats -
+    // MARK: - Group Chat -
+    
+    func startGroupChat() async throws -> Chat {
+        let metadata = try await client.startGroupChat(with: [userID], owner: organizer.ownerKeyPair)
+        
+        return Chat(
+            selfUserID: userID,
+            metadata: metadata,
+            messages: []
+        )
+    }
+    
+    func joinGroupChat(roomNumber: RoomNumber) async throws -> Chat {
+        let metadata = try await client.joinGroupChat(
+            roomNumber: roomNumber,
+            owner: organizer.ownerKeyPair
+        )
+        
+        return Chat(
+            selfUserID: userID,
+            metadata: metadata,
+            messages: []
+        )
+    }
+    
+    // MARK: - Fetch -
     
     func fetchChats() {
         Task {
@@ -151,53 +176,57 @@ class ChatController: ObservableObject {
     // MARK: - Fetching -
     
     private func fetchAllChatsAndMessages() async throws -> [Chat] {
-        let chats = try await client.fetchChats(for: userID, owner: owner)
+        let chatsMetadata = try await client.fetchChats(owner: owner)
+        
+        let chats = chatsMetadata.map { Chat(selfUserID: userID, metadata: $0) }
         
         trace(.success, components: "Chats: \(chats.count)")
-        return try await fetchAllMessages(chats: chats)
+        return try await fetchAllMessages(for: chats)
     }
     
     private func fetchDeltaChatsAndMessages() async throws -> [Chat] {
         let chats = await updating(
             existing: chats,
-            with: try await client.fetchChats(for: userID, owner: owner)
+            with: try await client.fetchChats(owner: owner)
         )
         
         trace(.success, components: "Chats: \(chats.count)")
         return try await fetchLatestMessagesOnly(chats: chats)
     }
     
-    private func updating(existing existingChats: [Chat], with newChats: [Chat]) async -> [Chat] {
+    private func updating(existing existingChats: [Chat], with newChatsMetadata: [Chat.Metadata]) async -> [Chat] {
         let index = existingChats.elementsKeyed(by: \.id)
-        var updatedChats = newChats
-        for (i, updatedChat) in updatedChats.enumerated() {
+        
+        var newChats = newChatsMetadata.map { Chat(selfUserID: userID, metadata: $0) }
+        
+        for (i, newChat) in newChats.enumerated() {
             
             // If this chat exists, we'll reuse the same
             // object instance and update it's properties.
             // There could be existing binding to this
             // observable object that we don't want to break.
-            if let existingChat = index[updatedChat.id] {
-                update(chat: existingChat, from: updatedChat)
-                updatedChats[i] = existingChat
+            if let existingChat = index[newChat.id] {
+                existingChat.update(from: newChat.metadata)
+                newChats[i] = existingChat
             } else {
                 // Do nothing, this is a new chat
             }
         }
         
-        return updatedChats
+        return newChats
     }
     
-    private func update(chat: Chat, from newChat: Chat) {
+    private func update(chat: Chat, from newChat: Chat.Metadata) {
         chat.update(from: newChat)
     }
     
-    private func fetchAllMessages(chats: [Chat]) async throws -> [Chat] {
+    private func fetchAllMessages(for chats: [Chat]) async throws -> [Chat] {
         var chatContainer: [Chat] = []
         
         await withTaskGroup(of: (Chat, [Chat.Message]).self) { group in
             chats.forEach { chat in
                 group.addTask {
-                    let messages = await self.fetchAllMessages(chat: chat)
+                    let messages = await self.fetchAllMessages(for: chat)
                     return (chat, messages)
                 }
             }
@@ -211,14 +240,14 @@ class ChatController: ObservableObject {
         return chatContainer.sortedByMessageOrder()
     }
     
-    private func fetchAllMessages(chat: Chat) async -> [Chat.Message] {
+    private func fetchAllMessages(for chat: Chat) async -> [Chat.Message] {
         var container: [Chat.Message] = []
         
         var pages = 1
         var currentToken: FlipchatServices.ID? = nil
         while true {
             let messages = try? await fetchAndDecryptMessages(
-                chat: chat,
+                chatID: chat.id,
                 query: .init(
                     order: .asc,
                     pagingToken: currentToken
@@ -272,7 +301,7 @@ class ChatController: ObservableObject {
         var lastID = chat.latestMessage()?.id
         while true {
             let messages = try await fetchAndDecryptMessages(
-                chat: chat,
+                chatID: chat.id,
                 query: .init(
                     order: .desc,
                     pagingToken: lastID // If nil, form the beginning
@@ -299,9 +328,9 @@ class ChatController: ObservableObject {
         return container
     }
     
-    private func fetchAndDecryptMessages(chat: Chat, query: PageQuery) async throws -> [Chat.Message] {
+    private func fetchAndDecryptMessages(chatID: FlipchatServices.ChatID, query: PageQuery) async throws -> [Chat.Message] {
         let messages = try await self.client.fetchMessages(
-            chatID: chat.id,
+            chatID: chatID,
             owner: self.owner,
             query: query
         )

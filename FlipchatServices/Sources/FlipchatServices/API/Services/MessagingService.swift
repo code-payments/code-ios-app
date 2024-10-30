@@ -113,7 +113,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
             $0.params = .with {
                 $0.chatID    = .with { $0.value = chatID.data }
                 $0.resume    = .latestOnly(true)
-                $0.auth      = owner.protoAuth
+                $0.auth      = owner.authFor(message: $0)
             }
         }
         
@@ -127,7 +127,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         let request = Flipchat_Messaging_V1_SendMessageRequest.with {
             $0.chatID  = .with { $0.value = chatID.data }
             $0.content = [content.protoContent]
-            $0.auth    = owner.protoAuth
+            $0.auth    = owner.authFor(message: $0)
         }
         
         let call = service.sendMessage(request)
@@ -154,7 +154,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         let request = Flipchat_Messaging_V1_GetMessagesRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
             $0.queryOptions = query.protoQueryOptions
-            $0.auth = owner.protoAuth
+            $0.auth = owner.authFor(message: $0)
         }
         
         let call = service.getMessages(request)
@@ -184,7 +184,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 $0.type  = .read
                 $0.value = .with { $0.value = messageID.data }
             }
-            $0.auth = owner.protoAuth
+            $0.auth = owner.authFor(message: $0)
         }
         
         let call = service.advancePointer(request)

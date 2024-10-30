@@ -189,11 +189,7 @@ struct ChatsScreen: View {
     }
     
     private func avatarValue(for chat: Chat) -> AvatarView.Value {
-        if let url = chat.otherMemberAvatarURL {
-            return .url(url)
-        } else {
-            return .placeholder
-        }
+        .placeholder
     }
 }
 

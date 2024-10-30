@@ -12,27 +12,8 @@ import FlipchatAPI
 @MainActor
 public class Chat: ObservableObject {
     
-    /// Unique chat identifier
-    nonisolated
-    public let id: ChatID
-    
-    /// If non-zero, the room number associated with the chat
-    public let roomNumber: UInt64
-    
-    /// The type of chat
-    @Published public private(set) var kind: Kind
-    
-    /// The chat title, which will be localized by server when applicable
-    //@Published public private(set) var title: String
-    
-    /// Whether or not the chat is muted
-    @Published public private(set) var isMuted: Bool
-
-    /// Whether or not the chat is mutable
-    @Published public private(set) var muteable: Bool
-    
-    /// Number of (estimated) unread message
-    @Published public private(set) var unreadCount: Int
+    /// Metadata for this chat: id, kind, roomNumber, etc
+    @Published public private(set) var metadata: Metadata
     
     /// The members in this chat
     ///
@@ -42,44 +23,70 @@ public class Chat: ObservableObject {
     /// If we support group chats, then we'll likely return the first page
     /// or a prioritized list. The remaining members would be fetched via
     /// a new RPC.
-    @Published public private(set) var members: [Member]
+//    @Published public private(set) var members: [Member]
     
     /// The messages in this chat
     @Published public private(set) var messages: [Message]
+        
+    public let selfUserID: UserID
+    
+    public var id: ChatID {
+        metadata.id
+    }
+    
+    public var kind: Chat.Kind {
+        metadata.kind
+    }
+    
+    public var roomNumber: RoomNumber {
+        metadata.roomNumber
+    }
+    
+    public var isMuted: Bool {
+        metadata.isMuted
+    }
+    
+    public var isMutable: Bool {
+        metadata.isMutable
+    }
+    
+    public var unreadCount: Int {
+        metadata.unreadCount
+    }
     
     /// A member of the `members` array that is `self`
-    public var selfMember: Member? {
-        members.first { $0.isSelf }
-    }
-    
-    /// In a two-way chat, the member that isn't `self`
-    public var otherMember: Member? {
-        guard members.count == 2 else {
-            return nil
-        }
-        
-        return members.first { !$0.isSelf }
-    }
+//    public var selfMember: Member? {
+//        members.first { $0.isSelf }
+//    }
+//    
+//    /// In a two-way chat, the member that isn't `self`
+//    public var otherMember: Member? {
+//        guard members.count == 2 else {
+//            return nil
+//        }
+//        
+//        return members.first { !$0.isSelf }
+//    }
     
     /// In a two-way chat, the other member's avatar URL
-    public var otherMemberAvatarURL: URL? {
-        otherMember?.identity.avatarURL
-    }
+//    public var otherMemberAvatarURL: URL? {
+//        otherMember?.identity.avatarURL
+//    }
     
     /// The title for the chat that defaults to identifying the 'other'
     /// member if their identity is available, otherwise `title`
     public var displayName: String {
-        otherMember?.identity.displayName ?? "Unknown"
+        "Room #\(roomNumber)"
     }
     
-    public var recipientPointers: [Pointer] {
-        guard members.count == 2 else {
-            return []
-        }
-        
-        let recipient = members.first { !$0.isSelf }
-        return recipient?.pointers ?? []
-    }
+//    public var recipientPointers: [Pointer] {
+//        guard members.count == 2 else {
+//            return []
+//        }
+//        
+//        let recipient = members.first { !$0.isSelf }
+//        return recipient?.pointers ?? []
+//    }
     
     public var oldestMessage: Message? {
         messages.first
@@ -91,33 +98,27 @@ public class Chat: ObservableObject {
     
     // MARK: - Init -
     
-    public init(id: ChatID, roomNumber: UInt64, kind: Kind, isMuted: Bool, muteable: Bool, unreadCount: Int, members: [Member], messages: [Message]) {
-        self.id = id
-        self.roomNumber = roomNumber
-        self.kind = kind
-        //self.title = title
-        self.isMuted = isMuted
-        self.muteable = muteable
-        self.unreadCount = unreadCount
-        self.members = members
+    public init(selfUserID: UserID, metadata: Metadata, messages: [Message] = []) {
+        self.selfUserID = selfUserID
+        self.metadata = metadata
         self.messages = messages
     }
     
     // MARK: - State -
     
     public func resetUnreadCount() {
-        unreadCount = 0
+        metadata.unreadCount = 0
     }
     
     public func setMuted(_ muted: Bool) {
-        isMuted = muted
+        metadata.isMuted = muted
     }
     
-    private func updatingSelf(block: (inout Member) -> Void) {
-        if let index = members.firstIndex(where: { $0.isSelf }) {
-            block(&members[index])
-        }
-    }
+//    private func updatingSelf(block: (inout Member) -> Void) {
+//        if let index = members.firstIndex(where: { $0.isSelf }) {
+//            block(&members[index])
+//        }
+//    }
     
     // MARK: - Pointers -
     
@@ -140,11 +141,8 @@ public class Chat: ObservableObject {
     
     // MARK: - Messages -
     
-    public func isMessageFromSelf(_ message: Message) -> Bool {
-        // For notification messages the sender
-        // isn't self but we want it to appear
-        // on the 'self' side
-        message.senderID == selfMember?.id
+    public func isMessageReceived(_ userID: UserID?) -> Bool {
+        userID != selfUserID
     }
     
     @discardableResult
@@ -191,38 +189,49 @@ public class Chat: ObservableObject {
     }
     
     @discardableResult
-    public func update(from chat: Chat) -> Bool {
-        guard chat.id == id else {
+    public func update(from metadata: Metadata) -> Bool {
+        guard metadata.id == id else {
             return false
         }
         
-        kind = chat.kind
-        members = chat.members
-        messages = chat.messages
+        self.metadata = metadata
         
         return true
     }
-}
-
-extension Chat: Hashable, Equatable {
-    nonisolated
-    public static func == (lhs: Chat, rhs: Chat) -> Bool {
-        lhs.id == rhs.id
-    }
     
-    nonisolated
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
+//    @discardableResult
+//    public func update(from chat: Chat) -> Bool {
+//        guard chat.id == id else {
+//            return false
+//        }
+//        
+//        kind = chat.kind
+//        members = chat.members
+//        messages = chat.messages
+//        
+//        return true
+//    }
 }
 
-extension Chat {
-    public enum Kind: Int {
-        case unknown
-        case twoWay
-        case group
-    }
-}
+//extension Chat: Hashable, Equatable {
+//    nonisolated
+//    public static func == (lhs: Chat, rhs: Chat) -> Bool {
+//        lhs.metadata.id == rhs.metadata.id
+//    }
+//    
+//    nonisolated
+//    public func hash(into hasher: inout Hasher) {
+//        hasher.combine(id)
+//    }
+//}
+
+//extension Chat {
+//    public enum Kind: Int {
+//        case unknown
+//        case twoWay
+//        case group
+//    }
+//}
 
 extension Chat {
     public enum Verb: Equatable, Hashable, Sendable {
@@ -243,36 +252,36 @@ extension Chat {
 
 // MARK: - Proto -
 
-extension Chat {
-    public convenience init(_ proto: Flipchat_Chat_V1_Metadata) {
-        self.init(
-            id: .init(data: proto.chatID.value),
-            roomNumber: proto.roomNumber,
-            kind: Kind(rawValue: proto.type.rawValue) ?? .unknown,
-            isMuted: proto.isMuted,
-            muteable: proto.muteable,
-            unreadCount: Int(proto.numUnread),
-            members: proto.members.map { .init($0) },
-            messages: []
-        )
-    }
-}
+//extension Chat {
+//    public convenience init(_ proto: Flipchat_Chat_V1_Metadata) {
+//        self.init(
+//            id: .init(data: proto.chatID.value),
+//            roomNumber: proto.roomNumber,
+//            kind: Kind(rawValue: proto.type.rawValue) ?? .unknown,
+//            isMuted: proto.isMuted,
+//            muteable: proto.muteable,
+//            unreadCount: Int(proto.numUnread),
+//            members: proto.members.map { .init($0) },
+//            messages: []
+//        )
+//    }
+//}
 
 // MARK: - Description -
 
-extension Chat: CustomDebugStringConvertible, CustomStringConvertible {
-    
-    nonisolated
-    public var description: String {
-//        let messages = messages.map { message in
-//            "\(message.date) \(message.id.data.hexEncodedString())"
-//        }.joined(separator: "\n")
-        
-        return "\(id.data.hexEncodedString())"// (\(String(describing: title))\n\(messages)"
-    }
-    
-    nonisolated
-    public var debugDescription: String {
-        description
-    }
-}
+//extension Chat: CustomDebugStringConvertible, CustomStringConvertible {
+//    
+//    nonisolated
+//    public var description: String {
+////        let messages = messages.map { message in
+////            "\(message.date) \(message.id.data.hexEncodedString())"
+////        }.joined(separator: "\n")
+//        
+//        return "\(id.data.hexEncodedString())"// (\(String(describing: title))\n\(messages)"
+//    }
+//    
+//    nonisolated
+//    public var debugDescription: String {
+//        description
+//    }
+//}

@@ -30,11 +30,7 @@ struct ConversationScreen: View {
     private let chatController: ChatController
     
     private var avatarValue: AvatarView.Value {
-        if let url = chat.otherMemberAvatarURL {
-            return .url(url)
-        } else {
-            return .placeholder
-        }
+        .placeholder
     }
     
     // MARK: - Init -
@@ -96,7 +92,7 @@ struct ConversationScreen: View {
                     state: $messageListState
                 )
                 
-                if chat.kind == .twoWay {
+                if chat.kind == .twoWay || chat.kind == .group {
                     HStack(alignment: .bottom) {
                         conversationTextView()
                             .focused($isEditorFocused)

@@ -52,7 +52,7 @@ struct EnterRoomNumberScreen: View {
                     state: viewModel.beginChatState,
                     style: .filled,
                     title: Localized.Action.next,
-                    disabled: !viewModel.isEnteredUsernameValid()
+                    disabled: !viewModel.isEnteredRoomNumberValid()
                 ) {
                     hideKeyboard()
                     viewModel.attemptEnterGroupChat()

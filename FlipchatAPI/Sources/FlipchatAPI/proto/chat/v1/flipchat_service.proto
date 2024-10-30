@@ -58,8 +58,7 @@ message StreamChatEventsRequest {
     }
 
     message Params {
-        common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
-        common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+        common.v1.Auth auth = 1 [(validate.rules).message.required = true];
     }
 }
 message StreamChatEventsResponse {
@@ -95,29 +94,48 @@ message StreamChatEventsResponse {
         // metadata contains the latest (full) metadata of the chat.
         Metadata metadata = 2;
 
-        // Message contains the last known message of the chat.
-        messaging.v1.Message last_message = 3;
+        // MemberUpdate contains an update to the membership set.
+        MemberUpdate member_update = 3;
 
-        // Pointer contians the last known relevant pointer of the chat.
+        // Message contains the last known message of the chat.
+        messaging.v1.Message last_message = 4;
+
         // where 'relevant' means "relevant to UI updates". For example,
         // when a user has read the latest message.
-        PointerUpdate pointer = 4;
+        PointerUpdate pointer = 5;
         message PointerUpdate {
             common.v1.UserId member = 1 [(validate.rules).message.required = true];
             messaging.v1.Pointer pointer = 2 [(validate.rules).message.required = true];
         }
 
         // IsTyping indicates whether or not someone is typing in the group.
-        messaging.v1.IsTyping is_typing = 5;
+        messaging.v1.IsTyping is_typing = 6;
+
+    }
+
+    message MemberUpdate {
+        oneof kind {
+            option (validate.required) = true;
+
+            Refresh refresh = 1;
+
+            // May want to add Joined and Removed events.
+            // However, these may make more sense as a message, rather than
+            // an out of band event.
+        }
+
+        message Refresh {
+            repeated Member members = 1 [(validate.rules).repeated = {
+                min_items: 1
+            }];
+        }
     }
 }
 
 message GetChatsRequest {
-    common.v1.UserId account = 1 [(validate.rules).message.required = true];
+    common.v1.QueryOptions query_options = 1;
 
-    common.v1.QueryOptions query_options = 2;
-
-    common.v1.Auth auth = 5 [(validate.rules).message.required = true];
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
 }
 message GetChatsResponse {
     Result result = 1;
@@ -155,17 +173,17 @@ message GetChatResponse {
     // The contents of the metadata may change whether or not the
     // call was authenticated.
     Metadata metadata = 2;
+
+    // Members contains the chat members, if result == OK.
+    repeated Member members = 3;
 }
 
 message StartChatRequest {
-    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
-    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
-
     oneof parameters {
         option (validate.required) = true;
 
-        StartTwoWayChatParameters two_way_chat = 3;
-        StartGroupChatParameters group_chat = 4;
+        StartTwoWayChatParameters two_way_chat = 1;
+        StartGroupChatParameters group_chat = 2;
     }
 
     // StartTwoWayChatParameters contains the parameters required to start
@@ -192,7 +210,7 @@ message StartChatRequest {
     message StartGroupChatParameters {
         // A set of users (not including self) to initially set in the group chat.
         repeated common.v1.UserId users = 1 [(validate.rules).repeated = {
-            min_items: 1
+            min_items: 0
             max_items: 32 // Arbitrary
         }];
 
@@ -201,6 +219,8 @@ message StartChatRequest {
 
         // TODO: Initial cost/price of chat(?)
     }
+
+    common.v1.Auth auth = 10 [(validate.rules).message.required = true];
 }
 message StartChatResponse {
     Result result = 1;
@@ -219,13 +239,11 @@ message StartChatResponse {
 }
 
 message JoinChatRequest {
-    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
-
     oneof identifier {
         option (validate.required) = true;
 
-        common.v1.ChatId chat_id = 2;
-        uint64 room_id = 3;
+        common.v1.ChatId chat_id = 1;
+        uint64 room_id = 2;
     }
 
     // TODO: Payment information (if required)
@@ -238,12 +256,17 @@ message JoinChatResponse {
         OK = 0;
         DENIED = 1;
     }
+
+    // The chat metadata, if join was successful.
+    Metadata metadata = 2;
+
+    // The members of the chat, if join was successful.
+    repeated Member members = 3;
 }
 
 message LeaveChatRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
-    common.v1.UserId user_id = 2 [(validate.rules).message.required = true];
-    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
 }
 message LeaveChatResponse {
     Result result = 1;
@@ -291,26 +314,23 @@ message Metadata {
     // If non-zero, the room number associated with the chat.
     uint64 room_number = 4;
 
-    // The members in this chat.
-    repeated Member members = 5 [(validate.rules).repeated = {
-        min_items: 1
-        max_items: 2
-    }];
-
     // Whether or not the chat is muted (from the perspective of the caller).
-    bool is_muted = 6;
+    bool is_muted = 5;
 
     // Whether or not the chat is mutable (from the persective of the caller).
-    bool muteable = 7;
+    bool muteable = 6;
 
     // Number of (estimated) unread message (from the perspective of the caller).
-    uint32 num_unread = 8;
+    uint32 num_unread = 7;
 }
 
 message Member {
     common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
 
     // The chat member's identity/profile information.
+    //
+    // It is a light weight version of the users full profile, which
+    // can be retrieved from the Profile service.
     MemberIdentity identity = 2;
 
     // Chat message state for this member.

@@ -123,21 +123,19 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
 //        trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
 //    }
     
-    func startGroupChat(with userID: UserID?, owner: KeyPair, completion: @escaping (Result<Chat, ErrorStartChat>) -> Void) {
-        let groupUsers = [userID].compactMap { $0 }
-        
-        trace(.send, components: "Users: \(groupUsers.map { "\($0.description)" }.joined(separator: ", "))")
+    func startGroupChat(with users: [UserID], owner: KeyPair, completion: @escaping (Result<Chat.Metadata, ErrorStartChat>) -> Void) {
+        trace(.send, components: "Users: \(users.map { "\($0.description)" }.joined(separator: ", "))")
         
         let request = Flipchat_Chat_V1_StartChatRequest.with {
             $0.groupChat = .with {
-                $0.users = groupUsers.map { userID in
+                $0.users = users.map { userID in
                     .with {
                         $0.value = userID.data
                     }
                 }
             }
             
-            $0.auth = owner.protoAuth
+            $0.auth = owner.authFor(message: $0)
         }
         
         let call = service.startChat(request)
@@ -145,9 +143,9 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorStartChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                let chat = Chat(response.chat)
-                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chat.id.description)")
-                completion(.success(chat))
+                let chatMetadata = Chat.Metadata(response.chat)
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chatMetadata.id.description)")
+                completion(.success(chatMetadata))
             } else {
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
@@ -158,13 +156,38 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchChats(for userID: UserID, owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat], ErrorFetchChats>) -> Void) {
-        trace(.send, components: "User ID: \(userID.description)", "Query: \(query.description)")
+    func joinGroupChat(roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<Chat.Metadata, ErrorJoinChat>) -> Void) {
+        trace(.send, components: "Room #: \(roomNumber)")
+        
+        let request = Flipchat_Chat_V1_JoinChatRequest.with {
+            $0.roomID = roomNumber
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.joinChat(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorJoinChat(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                let chatMetadata = Chat.Metadata(response.metadata)
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chatMetadata.id.description)")
+                completion(.success(chatMetadata))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func fetchChats(owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat.Metadata], ErrorFetchChats>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Query: \(query.description)")
         
         let request = Flipchat_Chat_V1_GetChatsRequest.with {
-            $0.account = .with { $0.value = userID.data }
             $0.queryOptions = query.protoQueryOptions
-            $0.auth = owner.protoAuth
+            $0.auth = owner.authFor(message: $0)
         }
         
         let call = service.getChats(request)
@@ -172,8 +195,8 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchChats(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success, components: "User ID: \(userID)", "Chats: \(response.chats.count)")
-                let chats = response.chats.map { Chat($0) }
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chats: \(response.chats.count)")
+                let chats = response.chats.map { Chat.Metadata($0) }
                 completion(.success(chats))
             } else {
                 trace(.success, components: "Error: \(error)")
@@ -185,12 +208,12 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchChat(for roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<Chat, ErrorFetchChat>) -> Void) {
+    func fetchChat(for roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<Chat.Metadata, ErrorFetchChat>) -> Void) {
         trace(.send, components: "Room: #\(roomNumber)")
         
         let request = Flipchat_Chat_V1_GetChatRequest.with {
             $0.roomNumber = roomNumber
-            $0.auth = owner.protoAuth
+            $0.auth = owner.authFor(message: $0)
         }
         
         let call = service.getChat(request)
@@ -199,7 +222,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
             let error = ErrorFetchChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 trace(.success, components: "Room: #\(roomNumber)")
-                let chat = Chat(response.metadata)
+                let chat = Chat.Metadata(response.metadata)
                 completion(.success(chat))
             } else {
                 trace(.success, components: "Error: \(error)")
@@ -227,6 +250,12 @@ public enum ErrorStartChat: Int, Error {
     /// USER_NOT_FOUND indicates that (one of) the target user's was not found
     case userNotFound
     
+    case unknown = -1
+}
+
+public enum ErrorJoinChat: Int, Error {
+    case ok
+    case denied
     case unknown = -1
 }
 

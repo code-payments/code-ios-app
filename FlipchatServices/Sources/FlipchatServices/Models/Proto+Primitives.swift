@@ -14,11 +14,11 @@ import SwiftProtobuf
 // MARK: - Serialize -
 
 extension KeyPair {
-    public var protoAuth: Flipchat_Common_V1_Auth {
+    public func authFor(message: SwiftProtobuf.Message) -> Flipchat_Common_V1_Auth {
         .with {
             $0.keyPair = .with {
                 $0.pubKey = self.publicKey.protoPubKey
-                $0.signature = $0.sign(with: self)
+                $0.signature = message.sign(with: self)
             }
         }
     }

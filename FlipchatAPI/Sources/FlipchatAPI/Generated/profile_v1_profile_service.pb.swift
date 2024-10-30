@@ -113,15 +113,6 @@ public struct Flipchat_Profile_V1_SetDisplayNameRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: Flipchat_Common_V1_UserId {
-    get {return _userID ?? Flipchat_Common_V1_UserId()}
-    set {_userID = newValue}
-  }
-  /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
-  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
-  public mutating func clearUserID() {self._userID = nil}
-
   /// DisplayName is the new name to set.
   public var displayName: String = String()
 
@@ -138,7 +129,6 @@ public struct Flipchat_Profile_V1_SetDisplayNameRequest {
 
   public init() {}
 
-  fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
   fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
 }
 
@@ -295,9 +285,8 @@ extension Flipchat_Profile_V1_GetProfileResponse.Result: SwiftProtobuf._ProtoNam
 extension Flipchat_Profile_V1_SetDisplayNameRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetDisplayNameRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "user_id"),
-    2: .standard(proto: "display_name"),
-    3: .same(proto: "auth"),
+    1: .standard(proto: "display_name"),
+    10: .same(proto: "auth"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -306,9 +295,8 @@ extension Flipchat_Profile_V1_SetDisplayNameRequest: SwiftProtobuf.Message, Swif
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
-      case 2: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 1: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
     }
@@ -319,20 +307,16 @@ extension Flipchat_Profile_V1_SetDisplayNameRequest: SwiftProtobuf.Message, Swif
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._userID {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
     if !self.displayName.isEmpty {
-      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 2)
+      try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 1)
     }
     try { if let v = self._auth {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Profile_V1_SetDisplayNameRequest, rhs: Flipchat_Profile_V1_SetDisplayNameRequest) -> Bool {
-    if lhs._userID != rhs._userID {return false}
     if lhs.displayName != rhs.displayName {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}

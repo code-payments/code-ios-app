@@ -42,7 +42,7 @@ class Exchange: ObservableObject {
         
         loadCachedRatesIfNeeded()
         
-        registerPoller()
+//        registerPoller() // TODO: Disabled for now
         
         Task {
             try await fetchRatesIfNeeded()

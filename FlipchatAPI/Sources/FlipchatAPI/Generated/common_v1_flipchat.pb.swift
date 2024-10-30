@@ -261,9 +261,6 @@ public struct Flipchat_Common_V1_QueryOptions {
   /// may select an arbitrary page size.
   public var pageSize: Int64 = 0
 
-  /// Offset specifies an offset into a collection being queries.
-  public var offset: Int64 = 0
-
   /// PagingToken is token that can be extracted from the identifier of a collection.
   public var pagingToken: Flipchat_Common_V1_PagingToken {
     get {return _pagingToken ?? Flipchat_Common_V1_PagingToken()}
@@ -741,9 +738,8 @@ extension Flipchat_Common_V1_QueryOptions: SwiftProtobuf.Message, SwiftProtobuf.
   public static let protoMessageName: String = _protobuf_package + ".QueryOptions"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "page_size"),
-    2: .same(proto: "offset"),
-    3: .standard(proto: "paging_token"),
-    4: .same(proto: "order"),
+    2: .standard(proto: "paging_token"),
+    3: .same(proto: "order"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -753,9 +749,8 @@ extension Flipchat_Common_V1_QueryOptions: SwiftProtobuf.Message, SwiftProtobuf.
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularInt64Field(value: &self.pageSize) }()
-      case 2: try { try decoder.decodeSingularInt64Field(value: &self.offset) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._pagingToken) }()
-      case 4: try { try decoder.decodeSingularEnumField(value: &self.order) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._pagingToken) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.order) }()
       default: break
       }
     }
@@ -769,21 +764,17 @@ extension Flipchat_Common_V1_QueryOptions: SwiftProtobuf.Message, SwiftProtobuf.
     if self.pageSize != 0 {
       try visitor.visitSingularInt64Field(value: self.pageSize, fieldNumber: 1)
     }
-    if self.offset != 0 {
-      try visitor.visitSingularInt64Field(value: self.offset, fieldNumber: 2)
-    }
     try { if let v = self._pagingToken {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
     if self.order != .asc {
-      try visitor.visitSingularEnumField(value: self.order, fieldNumber: 4)
+      try visitor.visitSingularEnumField(value: self.order, fieldNumber: 3)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Common_V1_QueryOptions, rhs: Flipchat_Common_V1_QueryOptions) -> Bool {
     if lhs.pageSize != rhs.pageSize {return false}
-    if lhs.offset != rhs.offset {return false}
     if lhs._pagingToken != rhs._pagingToken {return false}
     if lhs.order != rhs.order {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}

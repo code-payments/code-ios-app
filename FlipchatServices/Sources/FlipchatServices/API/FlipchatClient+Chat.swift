@@ -14,19 +14,25 @@ import CodeServices
 
 extension FlipchatClient {
     
-    public func startGroupChat(with userID: UserID? = nil, owner: KeyPair) async throws -> Chat {
+    public func startGroupChat(with users: [UserID], owner: KeyPair) async throws -> Chat.Metadata {
         try await withCheckedThrowingContinuation { c in
-            chatService.startGroupChat(with: userID, owner: owner) { c.resume(with: $0) }
+            chatService.startGroupChat(with: users, owner: owner) { c.resume(with: $0) }
         }
     }
     
-    public func fetchChats(for userID: UserID, owner: KeyPair, query: PageQuery = .init()) async throws -> [Chat] {
+    public func joinGroupChat(roomNumber: RoomNumber, owner: KeyPair) async throws -> Chat.Metadata {
         try await withCheckedThrowingContinuation { c in
-            chatService.fetchChats(for: userID, owner: owner, query: query) { c.resume(with: $0) }
+            chatService.joinGroupChat(roomNumber: roomNumber, owner: owner) { c.resume(with: $0) }
         }
     }
     
-    public func fetchChat(for roomNumber: RoomNumber, owner: KeyPair) async throws -> Chat {
+    public func fetchChats(owner: KeyPair, query: PageQuery = .init()) async throws -> [Chat.Metadata] {
+        try await withCheckedThrowingContinuation { c in
+            chatService.fetchChats(owner: owner, query: query) { c.resume(with: $0) }
+        }
+    }
+    
+    public func fetchChat(for roomNumber: RoomNumber, owner: KeyPair) async throws -> Chat.Metadata {
         try await withCheckedThrowingContinuation { c in
             chatService.fetchChat(for: roomNumber, owner: owner) { c.resume(with: $0) }
         }
