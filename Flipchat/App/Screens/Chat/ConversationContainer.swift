@@ -12,7 +12,7 @@ import CodeServices
 struct ConversationContainer: View {
     
     @EnvironmentObject private var exchange: Exchange
-    @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var banners: Banners
     @EnvironmentObject private var notificationController: NotificationController
     @EnvironmentObject private var betaFlags: BetaFlags
     

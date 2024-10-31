@@ -22,7 +22,7 @@ class AppContainer: ObservableObject {
     let flipClient = FlipchatClient(network: .mainNet, queue: .main)
     
     let betaFlags = BetaFlags.shared
-    let bannerController = BannerController()
+    let banners = Banners()
     let biometrics = Biometrics()
     let notificationController = NotificationController()
     
@@ -43,7 +43,7 @@ class AppContainer: ObservableObject {
             .environmentObject(flipClient)
         
             .environmentObject(betaFlags)
-            .environmentObject(bannerController)
+            .environmentObject(banners)
             .environmentObject(biometrics)
             .environmentObject(notificationController)
 

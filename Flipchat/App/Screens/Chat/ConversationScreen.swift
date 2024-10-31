@@ -17,7 +17,7 @@ struct ConversationScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var betaFlags: BetaFlags
-    @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var banners: Banners
     
     @State private var input: String = ""
     
@@ -193,7 +193,7 @@ struct ConversationScreen: View {
     // MARK: - Errors -
     
     private func showError(error: Error) {
-        bannerController.show(
+        banners.show(
             style: .error,
             title: "Stream Failed",
             description: "Failed to establish a messages stream: \(error.localizedDescription)",

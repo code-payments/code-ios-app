@@ -15,7 +15,7 @@ struct LoginScreen: View {
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     @EnvironmentObject private var betaFlags: BetaFlags
-    @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var banners: Banners
     
     @State private var buttonState: ButtonState = .normal
     @State private var inputText: String = ""
@@ -189,7 +189,7 @@ struct LoginScreen: View {
     // MARK: - Errors -
     
     private func showError() {
-        bannerController.show(
+        banners.show(
             style: .error,
             title: Localized.Prompt.Title.notCodeAccount,
             description: Localized.Prompt.Description.notCodeAccount,
@@ -201,7 +201,7 @@ struct LoginScreen: View {
     }
     
     private func showUnlockedTimelockError() {
-        bannerController.show(
+        banners.show(
             style: .error,
             title: Localized.Error.Title.timelockUnlocked,
             description: Localized.Error.Description.timelockUnlocked,

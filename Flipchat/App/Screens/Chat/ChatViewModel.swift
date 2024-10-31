@@ -27,17 +27,17 @@ class ChatViewModel: ObservableObject {
     private let client: FlipchatClient
     private let exchange: Exchange
     private let chatController: ChatController
-    private let bannerController: BannerController
+    private let banners: Banners
     
     // MARK: - Init -
     
-    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
+    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, banners: Banners) {
         self.session = session
         self.sessionAuthenticator = sessionAuthenticator
         self.client = client
         self.exchange = exchange
         self.chatController = session.chatController
-        self.bannerController = bannerController
+        self.banners = banners
     }
     
     // MARK: - Actions -
@@ -140,7 +140,7 @@ class ChatViewModel: ObservableObject {
     // MARK: - Errors -
     
     private func showNotFoundError() {
-        bannerController.show(
+        banners.show(
             style: .error,
             title: "Username Not Found",
             description: "This X username isn't on Code yet. Please try a different username.",
@@ -177,6 +177,6 @@ extension ChatViewModel {
         sessionAuthenticator: .mock,
         client: .mock,
         exchange: .mock,
-        bannerController: .mock
+        banners: .mock
     )
 }

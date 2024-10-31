@@ -36,7 +36,7 @@ struct ContainerScreen: View {
                         sessionAuthenticator: sessionAuthenticator,
                         client: container.flipClient,
                         exchange: container.exchange,
-                        bannerController: container.bannerController
+                        banners: container.banners
                     )
                     .transition(.crossFade)
                 }

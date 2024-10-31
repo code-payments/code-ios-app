@@ -12,7 +12,7 @@ import CodeUI
 struct IntroScreen: View {
     
     @EnvironmentObject private var client: Client
-    @EnvironmentObject private var bannerController: BannerController
+    @EnvironmentObject private var banners: Banners
     @EnvironmentObject private var cameraAuthorizer: CameraAuthorizer
     
     @State private var isShowingPrivacyPolicy  = false

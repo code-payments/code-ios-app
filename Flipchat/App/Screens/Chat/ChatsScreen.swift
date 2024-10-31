@@ -18,7 +18,7 @@ struct ChatsScreen: View {
     @ObservedObject private var sessionAuthenticator: SessionAuthenticator
     @ObservedObject private var exchange: Exchange
     @ObservedObject private var chatController: ChatController
-    @ObservedObject private var bannerController: BannerController
+    @ObservedObject private var banners: Banners
     
     private var chats: [Chat] {
         chatController.chats
@@ -28,19 +28,19 @@ struct ChatsScreen: View {
     
     // MARK: - Init -
     
-    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, bannerController: BannerController) {
+    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, banners: Banners) {
         self.session = session
         self.sessionAuthenticator = sessionAuthenticator
         self.exchange = exchange
         self.chatController = session.chatController
-        self.bannerController = bannerController
+        self.banners = banners
         self._viewModel = StateObject(
             wrappedValue: ChatViewModel(
                 session: session,
                 sessionAuthenticator: sessionAuthenticator,
                 client: client,
                 exchange: exchange,
-                bannerController: bannerController
+                banners: banners
             )
         )
     }
@@ -96,7 +96,7 @@ struct ChatsScreen: View {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button {
                             viewModel.logout()
-//                            bannerController.show(
+//                            banner.show(
 //                                style: .warning,
 //                                title: "Log out?",
 //                                description: "Are you sure you want to logout?",
@@ -197,6 +197,6 @@ struct ChatsScreen: View {
         sessionAuthenticator: .mock,
         client: .mock,
         exchange: .mock,
-        bannerController: .mock
+        banners: .mock
     )
 }

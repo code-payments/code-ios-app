@@ -34,7 +34,7 @@ class Session: ObservableObject {
     private let userID: UserID
     private let client: Client
     private let exchange: Exchange
-    private let bannerController: BannerController
+    private let banners: Banners
     private let betaFlags: BetaFlags
 
     private let flowController: FlowController
@@ -58,12 +58,12 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(userID: UserID, organizer: Organizer, client: Client, flipClient: FlipchatClient, exchange: Exchange, bannerController: BannerController, betaFlags: BetaFlags) {
+    init(userID: UserID, organizer: Organizer, client: Client, flipClient: FlipchatClient, exchange: Exchange, banners: Banners, betaFlags: BetaFlags) {
         self.userID = userID
         self.organizer = organizer
         self.client = client
         self.exchange = exchange
-        self.bannerController = bannerController
+        self.banners = banners
         self.betaFlags = betaFlags
         
         self.chatController = ChatController(
@@ -179,7 +179,7 @@ class Session: ObservableObject {
     // MARK: - Errors -
     
     private func showPaymentRequestError() {
-        bannerController.show(
+        banners.show(
             style: .error,
             title: "Payment Failed",
             description: "This payment request could not be paid at this time. Please try again later.",
@@ -190,7 +190,7 @@ class Session: ObservableObject {
     }
     
     private func showRemoteSendConfirmation(confirm: @escaping VoidAction, tryAgain: @escaping VoidAction, cancel: @escaping VoidAction) -> UUID {
-        bannerController.show(
+        banners.show(
             style: .notification,
             title: Localized.Prompt.Title.didYouSendLink,
             description: Localized.Prompt.Description.didYouSendLink,
@@ -254,7 +254,7 @@ extension Session {
         client: .mock,
         flipClient: .mock,
         exchange: .mock,
-        bannerController: .mock,
+        banners: .mock,
         betaFlags: .mock
     )
 }
@@ -272,7 +272,7 @@ extension View {
             .environmentObject(SessionAuthenticator.mock)
             .environmentObject(CameraAuthorizer())
             .environmentObject(Client.mock)
-            .environmentObject(BannerController.mock)
+            .environmentObject(Banners.mock)
             .environmentObject(Exchange.mock)
             .environmentObject(BetaFlags.shared)
     }

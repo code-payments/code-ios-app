@@ -44,7 +44,7 @@ final class SessionAuthenticator: ObservableObject {
     private let flipClient: FlipchatClient
     private let client: Client
     private let exchange: Exchange
-    private let bannerController: BannerController
+    private let banners: Banners
     private let betaFlags: BetaFlags
     private let biometrics: Biometrics
     
@@ -53,13 +53,13 @@ final class SessionAuthenticator: ObservableObject {
     // MARK: - Init -
     
     init(container: AppContainer) {
-        self.flipClient       = container.flipClient
-        self.client           = container.client
-        self.exchange         = container.exchange
-        self.bannerController = container.bannerController
-        self.betaFlags        = container.betaFlags
-        self.biometrics       = container.biometrics
-        self.accountManager   = AccountManager()
+        self.flipClient     = container.flipClient
+        self.client         = container.client
+        self.exchange       = container.exchange
+        self.banners        = container.banners
+        self.betaFlags      = container.betaFlags
+        self.biometrics     = container.biometrics
+        self.accountManager = AccountManager()
         
         // Update launch state.
         // This is a fresh install.
@@ -225,7 +225,7 @@ final class SessionAuthenticator: ObservableObject {
             client: client,
             flipClient: flipClient,
             exchange: exchange,
-            bannerController: bannerController,
+            banners: banners,
             betaFlags: betaFlags
         )
         
