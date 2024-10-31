@@ -179,11 +179,11 @@ extension Banner {
         }
         
         public static func cancel(title: String, action: @escaping VoidAction = {}) -> Action {
-            .standard(title: title, action: action)
+            .subtle(title: title, action: action)
         }
         
         public static func standard(title: String, action: @escaping VoidAction) -> Action {
-            .init(title: title, style: .standard, action: action)
+            .init(title: title, style: .prominent, action: action)
         }
         
         public static func destructive(title: String, action: @escaping VoidAction) -> Action {
@@ -323,7 +323,7 @@ public struct BannerModifier: ViewModifier {
             .multilineTextAlignment(textAlignment(for: banner.position))
             .padding([.leading, .trailing], sidePadding(for: banner.position))
             .padding(.bottom, bottomPadding(for: banner.position))
-            .padding(.top, topPadding(for: banner.position))
+            .padding(.top, topPadding(for: banner.position, hasText: !(banner.title == nil && banner.description == nil)))
             
             actions(banner: banner)
         }
@@ -465,12 +465,12 @@ public struct BannerModifier: ViewModifier {
         }
     }
     
-    func topPadding(for position: Banner.Position) -> CGFloat {
+    func topPadding(for position: Banner.Position, hasText: Bool) -> CGFloat {
         switch position {
         case .top:
             return 10
         case .bottom:
-            return 25
+            return hasText ? 25 : 10
         }
     }
     

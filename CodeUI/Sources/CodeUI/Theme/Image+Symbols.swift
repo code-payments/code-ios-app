@@ -112,6 +112,8 @@ public enum Asset: String {
     case statusDelivered
     case statusRead
     
+    case plusCircle
+    
     case kado
     
     // Bill

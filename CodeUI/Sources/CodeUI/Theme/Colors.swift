@@ -24,6 +24,7 @@ extension Color {
     public static var bannerInfo: Color                { return colorForKey(.bannerInfo) }
     public static var bannerWarning: Color             { return colorForKey(.bannerWarning) }
     public static var action: Color                    { return colorForKey(.action) }
+    public static var actionSecondary: Color           { return colorForKey(.actionSecondary) }
     public static var actionDisabled: Color            { return colorForKey(.actionDisabled) }
     public static var backgroundMain: Color            { return colorForKey(.backgroundMain) }
     public static var backgroundAction: Color          { return colorForKey(.backgroundAction) }
@@ -52,6 +53,7 @@ extension UIColor {
     public static var bannerInfo: UIColor                { UIColor(.bannerInfo) }
     public static var bannerWarning: UIColor             { UIColor(.bannerWarning) }
     public static var action: UIColor                    { UIColor(.action) }
+    public static var actionSecondary: UIColor           { UIColor(.actionSecondary) }
     public static var actionDisabled: UIColor            { UIColor(.actionDisabled) }
     public static var backgroundMain: UIColor            { UIColor(.backgroundMain) }
     public static var backgroundAction: UIColor          { UIColor(.backgroundAction) }
@@ -82,6 +84,7 @@ extension Color {
         case bannerInfo
         case bannerWarning
         case action
+        case actionSecondary
         case actionDisabled
         case backgroundMain
         case backgroundAction
@@ -128,6 +131,7 @@ extension Color {
         case .bannerInfo:                return Color(r: 86,  g: 92,  b: 134)
         case .bannerWarning:             return Color(r: 241, g: 171, b: 31)
         case .action:                    return Color(r: 255, g: 255, b: 255)
+        case .actionSecondary:           return Color(r: 255, g: 255, b: 255)
         case .actionDisabled:            return Color(r: 27,  g: 25,  b: 41)
         case .backgroundMain:            return Color(r: 15,  g: 12,  b: 31)
         case .backgroundAction:          return Color(r: 255, g: 255, b: 255)
@@ -153,11 +157,12 @@ extension Color {
         case .textSuccess:               return Color(r: 119, g: 114, b: 255) // Done
         case .textWarning:               return Color(r: 255, g: 243, b: 131)
         case .textActionDisabled:        return Color(r: 255, g: 255, b: 255, o: 0.2) // Done
-        case .bannerDark:                return Color(r: 15,  g: 12,  b: 31)
+        case .bannerDark:                return Color(r: 54,  g: 39,  b: 116) // Done
         case .bannerError:               return Color(r: 188, g: 52,  b: 52)
-        case .bannerInfo:                return Color(r: 86,  g: 92,  b: 134)
+        case .bannerInfo:                return Color(r: 54,  g: 39,  b: 116) // Done
         case .bannerWarning:             return Color(r: 241, g: 171, b: 31)
         case .action:                    return Color(r: 255, g: 255, b: 255) // Done
+        case .actionSecondary:           return Color(r: 125, g: 108, b: 195) // Done
         case .actionDisabled:            return Color(r: 43,  g: 31,  b: 90)  // Done
         case .backgroundMain:            return Color(r: 54,  g: 39,  b: 116) // Done
         case .backgroundAction:          return Color(r: 255, g: 255, b: 255) // Done

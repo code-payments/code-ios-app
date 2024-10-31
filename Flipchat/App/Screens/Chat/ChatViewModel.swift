@@ -43,7 +43,32 @@ class ChatViewModel: ObservableObject {
     // MARK: - Actions -
     
     func logout() {
-        sessionAuthenticator.logout()
+        banners.show(
+            style: .error,
+            title: "Log out?",
+            description: "Are you sure you want to logout?",
+            position: .bottom,
+            actions: [
+                .destructive(title: "Log Out") { [weak self] in
+                    self?.sessionAuthenticator.logout()
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
+    }
+    
+    func startChatting() {
+        banners.show(
+            style: .notification,
+            title: nil,
+            description: nil,
+            position: .bottom,
+            actions: [
+                .standard(title: "Join a Room", action: joinExistingChat),
+                .standard(title: "Create a New Room", action: startNewChat),
+                .cancel(title: "Cancel"),
+            ]
+        )
     }
     
     func startNewChat() {

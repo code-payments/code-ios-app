@@ -64,21 +64,15 @@ struct ChatsScreen: View {
                             contentPadding: .scrollBox,
                             content: {
                                 chatsView()
+                                
+                                CodeButton(style: .filled, title: "Join a Chat") {
+                                    viewModel.startChatting()
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 10)
                             }
                         )
                     }
-                    
-                    CodeButton(style: .filled, title: "Join a Chat") {
-                        viewModel.joinExistingChat()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    
-                    CodeButton(style: .filled, title: "Create a New Room") {
-                        viewModel.startNewChat()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
                 }
                 .onAppear {
                     didAppear()
@@ -96,16 +90,16 @@ struct ChatsScreen: View {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button {
                             viewModel.logout()
-//                            banner.show(
-//                                style: .warning,
-//                                title: "Log out?",
-//                                description: "Are you sure you want to logout?",
-//                                actions: [
-//                                    .cancel(title: Localized.Action.ok),
-//                                ]
-//                            )
                         } label: {
                             Image(systemName: "door.right.hand.open")
+                                .padding(5)
+                        }
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            viewModel.startChatting()
+                        } label: {
+                            Image.asset(.plusCircle)
                                 .padding(5)
                         }
                     }

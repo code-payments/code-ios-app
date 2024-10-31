@@ -1,5 +1,5 @@
 //
-//  banner.swift
+//  Banners.swift
 //  Flipchat
 //
 //  Created by Dima Bart.
@@ -35,12 +35,6 @@ public class Banners: ObservableObject {
     
     public init() {
         let windowScene = UIApplication.shared.connectedScenes
-        
-//                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else {
-//            print("No active window scene found.")
-//            return
-//        }
-        
         self.window = UIWindow(windowScene: windowScene.first as! UIWindowScene)
         
         let container = BannerContainer()
