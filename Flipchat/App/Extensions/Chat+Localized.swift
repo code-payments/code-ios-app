@@ -7,29 +7,6 @@
 
 import FlipchatServices
 
-extension Chat {
-    
-    public var previewMessage: String {
-        guard let contents = newestMessage?.contents else {
-            return "No content"
-        }
-        
-        var filtered = contents.filter {
-            if case .localized = $0 {
-                true
-            } else {
-                false
-            }
-        }
-            
-        if filtered.isEmpty {
-            filtered = contents
-        }
-        
-        return filtered.map { $0.localizedText }.joined(separator: " ").trimmingCharacters(in: .whitespaces)
-    }
-}
-
 extension Chat.Content {
     public var localizedText: String {
         switch self {

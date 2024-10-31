@@ -16,112 +16,104 @@ import SwiftProtobuf
 @MainActor
 class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         
-//    func openChatStream(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) -> ChatMessageStreamReference {
-//        trace(.open, components: "Chat \(chatID.description)", "Opening stream.")
-//        
-//        let streamReference = ChatMessageStreamReference()
-//        streamReference.retain()
-//        
-//        streamReference.timeoutHandler = { [weak self, weak streamReference] in
-//            guard let streamReference else {
-//                return
-//            }
-//            
-//            trace(.warning, components: "Chat \(chatID.description)", "Stream timed out")
-//            
-//            self?.openChatStream(
-//                chatID: chatID,
-//                owner: owner,
-//                assigningTo: streamReference,
-//                completion: completion
-//            )
-//        }
-//        
-//        openChatStream(
-//            chatID: chatID,
-//            owner: owner,
-//            assigningTo: streamReference,
-//            completion: completion
-//        )
-//        
-//        return streamReference
-//    }
-//    
-//    private func openChatStream(chatID: ChatID, owner: KeyPair, assigningTo reference: ChatMessageStreamReference, completion: @escaping (Result<[Chat.Event], ErrorOpenChatStream>) -> Void) {
-//        let queue = self.queue
-//        
-//        reference.cancel()
-//        reference.stream = service.streamChatEvents { [weak reference] response in
-//            
-//            guard let result = response.type else {
-//                trace(.failure, components: "Chat \(chatID.description)]", "Server sent empty message. This is unexpected.")
-//                return
-//            }
-//            
-//            switch result {
-//            case .events(let eventBatch):
-//                
-//                let events = eventBatch.events.compactMap { Chat.Event($0) }
-//                queue.async {
-////                    trace(.receive, components: "Chat \(chatID.description)", "Received \(events.count) events.")
-//                    completion(.success(events))
-//                }
-//                
-//            case .ping(let ping):
-//                guard let stream = reference?.stream else {
-//                    break
-//                }
-//                
-//                let request = Code_Chat_V2_StreamChatEventsRequest.with {
-//                    $0.type = .pong(.with {
-//                        $0.timestamp = Google_Protobuf_Timestamp(date: .now())
-//                    })
-//                }
-//                
-//                reference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
-//                
-//                _ = stream.sendMessage(request)
-////                trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
-//                
-//                // TODO: Handle message sent
-//                
-//                break
-//                
-//            case .error(let streamError):
-//                let error = ErrorOpenChatStream(rawValue: streamError.code.rawValue) ?? .unknown
-//                completion(.failure(error))
-//            }
-//        }
-//        
-//        reference.stream?.status.whenCompleteBlocking(onto: queue) { [weak self, weak reference] result in
-//            guard let self = self, let streamReference = reference else { return }
-//            
-//            if case .success(let status) = result, status.code == .unavailable {
-//                // Reconnect only if the stream was closed as a result of
-//                // server actions and not cancelled by the client, etc.
-//                trace(.note, components: "Chat \(chatID.description)", "Reconnecting keepalive stream...")
-//                self.openChatStream(
-//                    chatID: chatID,
-//                    owner: owner,
-//                    assigningTo: streamReference,
-//                    completion: completion
-//                )
-//            } else {
-//                trace(.warning, components: "Chat \(chatID.description)", "Closing stream.")
-//            }
-//        }
-//        
-//        let request = Code_Chat_V2_StreamChatEventsRequest.with {
-//            $0.openStream = .with {
-//                $0.chatID    = .with { $0.value = chatID.data }
-//                $0.owner     = owner.publicKey.codeAccountID
-//                $0.signature = $0.sign(with: owner)
-//            }
-//        }
-//        
-//        _ = reference.stream?.sendMessage(request)
-//        trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
-//    }
+    func streamChatEvents(owner: KeyPair, completion: @escaping (Result<[Chat.BatchUpdate], ErrorStreamChatEvents>) -> Void) -> StreamChatsReference {
+        trace(.open, components: "Owner \(owner.publicKey.base58)", "Opening chat stream.")
+        
+        let streamReference = StreamChatsReference()
+        streamReference.retain()
+        
+        streamReference.timeoutHandler = { [weak self, weak streamReference] in
+            guard let streamReference else {
+                return
+            }
+            
+            trace(.warning, components: "Owner \(owner.publicKey.base58)", "Stream (chat) timed out")
+            
+            self?.streamChatEvents(
+                owner: owner,
+                assigningTo: streamReference,
+                completion: completion
+            )
+        }
+        
+        streamChatEvents(
+            owner: owner,
+            assigningTo: streamReference,
+            completion: completion
+        )
+        
+        return streamReference
+    }
+    
+    private func streamChatEvents(owner: KeyPair, assigningTo reference: StreamChatsReference, completion: @escaping (Result<[Chat.BatchUpdate], ErrorStreamChatEvents>) -> Void) {
+        let queue = self.queue
+        
+        reference.cancel()
+        reference.stream = service.streamChatEvents { [weak reference] response in
+            
+            guard let result = response.type else {
+                trace(.failure, components: "Server sent empty message. This is unexpected.")
+                return
+            }
+            
+            switch result {
+            case .events(let eventBatch):
+                let updates = eventBatch.updates.compactMap { Chat.BatchUpdate($0) }
+                queue.async {
+                    trace(.receive, components: "Owner \(owner.publicKey.base58)", "Received \(updates.count) events.")
+                    completion(.success(updates))
+                }
+                
+            case .ping(let ping):
+                guard let stream = reference?.stream else {
+                    break
+                }
+                
+                let request = Flipchat_Chat_V1_StreamChatEventsRequest.with {
+                    $0.pong = .with {
+                        $0.timestamp = Google_Protobuf_Timestamp(date: .now())
+                    }
+                }
+                
+                reference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
+                
+                _ = stream.sendMessage(request)
+//                trace(.receive, components: "Pong", "Owner \(owner.publicKey.base58)", "Server timestamp: \(ping.timestamp.date)")
+                
+            case .error(let streamError):
+                let error = ErrorStreamChatEvents(rawValue: streamError.code.rawValue) ?? .unknown
+                completion(.failure(error))
+            }
+        }
+        
+        reference.stream?.status.whenCompleteBlocking(onto: queue) { [weak self, weak reference] result in
+            guard let self = self, let streamReference = reference else { return }
+            
+            if case .success(let status) = result, status.code == .unavailable {
+                Task {
+                    // Reconnect only if the stream was closed as a result of
+                    // server actions and not cancelled by the client, etc.
+                    trace(.note, components: "Owner \(owner.publicKey.base58)", "Reconnecting keepalive stream...")
+                    await self.streamChatEvents(
+                        owner: owner,
+                        assigningTo: streamReference,
+                        completion: completion
+                    )
+                }
+            } else {
+                trace(.warning, components: "Owner \(owner.publicKey.base58)", "Closing stream.")
+            }
+        }
+        
+        let request = Flipchat_Chat_V1_StreamChatEventsRequest.with {
+            $0.params = .with {
+                $0.auth = owner.authFor(message: $0)
+            }
+        }
+        
+        _ = reference.stream?.sendMessage(request)
+        trace(.success, components: "Owner \(owner.publicKey.base58)", "Initiating a connection...")
+    }
     
     func startGroupChat(with users: [UserID], owner: KeyPair, completion: @escaping (Result<Chat.Metadata, ErrorStartChat>) -> Void) {
         trace(.send, components: "Users: \(users.map { "\($0.description)" }.joined(separator: ", "))")
@@ -240,6 +232,12 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
 public typealias RoomNumber = UInt64
 
 //// MARK: - Errors -
+
+public enum ErrorStreamChatEvents: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+}
 
 public enum ErrorStartChat: Int, Error {
     case ok

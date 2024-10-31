@@ -12,9 +12,19 @@ import CodeServices
 
 extension Chat {
     public enum Content: Equatable, Hashable, Sendable {
+        
         case text(String)
         case localized(String)
         case sodiumBox(EncryptedData)
+        
+        var text: String? {
+            switch self {
+            case .text(let value), .localized(let value):
+                return value
+            case .sodiumBox:
+                return nil
+            }
+        }
     }
 }
 

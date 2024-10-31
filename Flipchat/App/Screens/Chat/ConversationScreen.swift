@@ -58,6 +58,8 @@ struct ConversationScreen: View {
     // MARK: - Streams -
     
     private func startStream() {
+        destroyStream()
+        
         stream = chatController.streamMessages(chatID: chat.id) { result in
             switch result {
             case .success(let messages):
@@ -180,6 +182,7 @@ struct ConversationScreen: View {
     }
     
     private func streamMessages(messages: [Chat.Message]) {
+        print("Inserting \(messages.count) messages.")
         chat.insertMessages(messages)
     }
     

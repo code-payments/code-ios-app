@@ -46,15 +46,11 @@ struct ChatsScreen: View {
     }
     
     private func didAppear() {
-        fetchAllMessages()
+        
     }
     
     private func didDisappear() {
         
-    }
-    
-    private func fetchAllMessages() {
-        chatController.fetchChats()
     }
     
     // MARK: - Body -

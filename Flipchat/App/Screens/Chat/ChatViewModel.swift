@@ -46,16 +46,11 @@ class ChatViewModel: ObservableObject {
         sessionAuthenticator.logout()
     }
     
-    func fetchAllChats() {
-        chatController.fetchChats()
-    }
-    
     func startNewChat() {
         Task {
             let chat = try await chatController.startGroupChat()
             friendshipState = .contributor(chat)
             navigationPath.append(.chat)
-            chatController.fetchChats()
         }
     }
     
@@ -83,7 +78,7 @@ class ChatViewModel: ObservableObject {
                 beginChatState = .success
                 try await Task.delay(milliseconds: 500)
                 
-                friendshipState = .reader(chat)
+                friendshipState = .contributor(chat) // TODO: Should be .reader()
                 navigationPath.append(.chat)
                 
                 // Reset

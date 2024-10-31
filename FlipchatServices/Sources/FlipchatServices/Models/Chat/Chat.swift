@@ -25,6 +25,8 @@ public class Chat: ObservableObject {
     /// a new RPC.
 //    @Published public private(set) var members: [Member]
     
+    @Published public private(set) var lastMessage: Message?
+    
     /// The messages in this chat
     @Published public private(set) var messages: [Message]
         
@@ -79,6 +81,19 @@ public class Chat: ObservableObject {
         "Room #\(roomNumber)"
     }
     
+    public var previewMessage: String {
+        let previewMessage = lastMessage ?? newestMessage
+        
+        guard let previewMessage else {
+            return "No content"
+        }
+        
+        return previewMessage.contents
+            .compactMap { $0.text }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+    }
+    
 //    public var recipientPointers: [Pointer] {
 //        guard members.count == 2 else {
 //            return []
@@ -112,6 +127,10 @@ public class Chat: ObservableObject {
     
     public func setMuted(_ muted: Bool) {
         metadata.isMuted = muted
+    }
+    
+    public func setLastMessage(_ message: Message) {
+        lastMessage = message
     }
     
 //    private func updatingSelf(block: (inout Member) -> Void) {
@@ -198,90 +217,4 @@ public class Chat: ObservableObject {
         
         return true
     }
-    
-//    @discardableResult
-//    public func update(from chat: Chat) -> Bool {
-//        guard chat.id == id else {
-//            return false
-//        }
-//        
-//        kind = chat.kind
-//        members = chat.members
-//        messages = chat.messages
-//        
-//        return true
-//    }
 }
-
-//extension Chat: Hashable, Equatable {
-//    nonisolated
-//    public static func == (lhs: Chat, rhs: Chat) -> Bool {
-//        lhs.metadata.id == rhs.metadata.id
-//    }
-//    
-//    nonisolated
-//    public func hash(into hasher: inout Hasher) {
-//        hasher.combine(id)
-//    }
-//}
-
-//extension Chat {
-//    public enum Kind: Int {
-//        case unknown
-//        case twoWay
-//        case group
-//    }
-//}
-
-extension Chat {
-    public enum Verb: Equatable, Hashable, Sendable {
-        case unknown     // = 0
-        case gave        // = 1
-        case received    // = 2
-        case withdrew    // = 3
-        case deposited   // = 4
-        case sent        // = 5
-        case returned    // = 6
-        case spent       // = 7
-        case paid        // = 8
-        case purchased   // = 9
-        case tipReceived // = 10
-        case tipSent     // = 11
-    }
-}
-
-// MARK: - Proto -
-
-//extension Chat {
-//    public convenience init(_ proto: Flipchat_Chat_V1_Metadata) {
-//        self.init(
-//            id: .init(data: proto.chatID.value),
-//            roomNumber: proto.roomNumber,
-//            kind: Kind(rawValue: proto.type.rawValue) ?? .unknown,
-//            isMuted: proto.isMuted,
-//            muteable: proto.muteable,
-//            unreadCount: Int(proto.numUnread),
-//            members: proto.members.map { .init($0) },
-//            messages: []
-//        )
-//    }
-//}
-
-// MARK: - Description -
-
-//extension Chat: CustomDebugStringConvertible, CustomStringConvertible {
-//    
-//    nonisolated
-//    public var description: String {
-////        let messages = messages.map { message in
-////            "\(message.date) \(message.id.data.hexEncodedString())"
-////        }.joined(separator: "\n")
-//        
-//        return "\(id.data.hexEncodedString())"// (\(String(describing: title))\n\(messages)"
-//    }
-//    
-//    nonisolated
-//    public var debugDescription: String {
-//        description
-//    }
-//}

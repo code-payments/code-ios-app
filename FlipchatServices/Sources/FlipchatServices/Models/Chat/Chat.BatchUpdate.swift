@@ -11,19 +11,14 @@ import CodeServices
 import FlipchatAPI
 
 extension Chat {
-//    public enum Event {
-//        case message(Message)
-//        case pointer(Pointer)
-//        case isTyping(Bool, MemberID)
-//    }
-    
     public struct BatchUpdate {
         
-        var chatID: ChatID
-        var chatMetadata: Chat.Metadata?
-        var lastMessage: Chat.Message?
-        var pointerUpdate: PointerUpdate?
-        var typingUpdate: TypingUpdate?
+        public var chatID: ChatID
+        public var chatMetadata: Chat.Metadata?
+        public var lastMessage: Chat.Message?
+        public var memberUpdate: [Chat.Member]?
+        public var pointerUpdate: PointerUpdate?
+        public var typingUpdate: TypingUpdate?
         
         public struct TypingUpdate {
             var userID: UserID
@@ -48,6 +43,7 @@ extension Chat.BatchUpdate {
             chatID: ChatID(data: proto.chatID.value),
             chatMetadata: proto.hasMetadata ? Chat.Metadata(proto.metadata) : nil,
             lastMessage: proto.hasLastMessage ? Chat.Message(proto.lastMessage) : nil,
+            memberUpdate: proto.memberUpdate.refresh.members.map { Chat.Member($0) },
             pointerUpdate: proto.hasPointer ? PointerUpdate(proto.pointer) : nil,
             typingUpdate: proto.hasIsTyping ? TypingUpdate(proto.isTyping) : nil
         )

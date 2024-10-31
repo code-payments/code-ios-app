@@ -30,6 +30,8 @@ class ChatController: ObservableObject {
     
     private var latestPointers: [FlipchatServices.ChatID: FlipchatServices.MessageID] = [:]
     
+    private var chatStream: StreamChatsReference?
+    
     // MARK: - Init -
     
     init(userID: UserID, client: FlipchatClient, organizer: Organizer) {
@@ -38,19 +40,101 @@ class ChatController: ObservableObject {
         self.organizer = organizer
         self.owner     = organizer.ownerKeyPair
         
-        NotificationCenter.default.addObserver(forName: .messageNotificationReceived, object: nil, queue: .main) { [weak self] _ in
-            guard let self = self else { return }
-            Task {
-                await self.pushNotificationReceived()
-            }
-        }
+//        NotificationCenter.default.addObserver(forName: .messageNotificationReceived, object: nil, queue: .main) { [weak self] _ in
+//            guard let self = self else { return }
+//            Task {
+//                await self.pushNotificationReceived()
+//            }
+//        }
+        
+        streamChatEvents()
     }
     
     deinit {
         trace(.warning, components: "Deallocating ChatController")
     }
     
-    // MARK: - Stream -
+    // MARK: - Chat Stream -
+    
+    private func streamChatEvents() {
+        destroyChatStream()
+        
+        chatStream = client.streamChatEvents(owner: owner) { [weak self] result in
+            switch result {
+            case .success(let events):
+                events.forEach {
+                    self?.handleEvent($0)
+                }
+                
+            case .failure:
+                self?.reconnectChatStream(after: 250)
+            }
+        }
+    }
+    
+    private func reconnectChatStream(after milliseconds: Int) {
+        Task {
+            try await Task.delay(milliseconds: milliseconds)
+            streamChatEvents()
+        }
+    }
+    
+    private func destroyChatStream() {
+        chatStream?.destroy()
+    }
+    
+    // MARK: - Events -
+    
+    private func handleEvent(_ event: Chat.BatchUpdate) {
+        let chat = chats.first { $0.id == event.chatID }
+        
+        guard let chat else {
+            trace(.warning, components: "Received update for a chat that isn't in the list. ID: \(event.chatID.description)")
+            return
+        }
+        
+        if let metadata = event.chatMetadata {
+            update(chat: chat, withMetadata: metadata)
+        }
+        
+        if let lastMessage = event.lastMessage {
+            update(chat: chat, withLastMessage: lastMessage)
+        }
+        
+        if let members = event.memberUpdate {
+            update(chat: chat, withMembers: members)
+        }
+        
+        if let pointer = event.pointerUpdate {
+            update(chat: chat, withPointerUpdate: pointer)
+        }
+        
+        if let typing = event.typingUpdate {
+            update(chat: chat, withTypingUpdate: typing)
+        }
+    }
+    
+    private func update(chat: Chat, withMetadata metadata: Chat.Metadata) {
+        chat.update(from: metadata)
+    }
+    
+    private func update(chat: Chat, withLastMessage message: Chat.Message) {
+        chat.setLastMessage(message)
+    }
+    
+    private func update(chat: Chat, withMembers members: [Chat.Member]) {
+        // TODO: Update
+    }
+    
+    private func update(chat: Chat, withPointerUpdate: Chat.BatchUpdate.PointerUpdate) {
+        // TODO: Update
+    }
+    
+    private func update(chat: Chat, withTypingUpdate: Chat.BatchUpdate.TypingUpdate) {
+        // TODO: Update
+    }
+    
+    // MARK: - Message Stream -
     
     func streamMessages(chatID: FlipchatServices.ChatID, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
         client.streamMessages(chatID: chatID, owner: owner, completion: completion)
@@ -353,13 +437,13 @@ class ChatController: ObservableObject {
     
     // MARK: - Notifications -
     
-    func pushNotificationReceived() {
-        fetchChats()
-    }
-    
-    func appDidBecomeActive() {
-        fetchChats()
-    }
+//    func pushNotificationReceived() {
+//        fetchChats()
+//    }
+//    
+//    func appDidBecomeActive() {
+//        fetchChats()
+//    }
 }
 
 private extension Array where Element == Chat {

@@ -10,9 +10,13 @@ import Foundation
 import FlipchatAPI
 import CodeServices
 
-//public typealias StreamMessagesReference = BidirectionalStreamReference<Flipchat_Messaging_V1_StreamMessagesRequest, Flipchat_Messaging_V1_StreamMessagesResponse>
+public typealias StreamChatsReference = BidirectionalStreamReference<Flipchat_Chat_V1_StreamChatEventsRequest, Flipchat_Chat_V1_StreamChatEventsResponse>
 
 extension FlipchatClient {
+    
+    public func streamChatEvents(owner: KeyPair, completion: @escaping (Result<[Chat.BatchUpdate], ErrorStreamChatEvents>) -> Void) -> StreamChatsReference {
+        chatService.streamChatEvents(owner: owner, completion: completion)
+    }
     
     public func startGroupChat(with users: [UserID], owner: KeyPair) async throws -> Chat.Metadata {
         try await withCheckedThrowingContinuation { c in

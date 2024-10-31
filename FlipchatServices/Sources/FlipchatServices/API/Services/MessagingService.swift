@@ -17,7 +17,7 @@ import SwiftProtobuf
 class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient> {
         
     func streamMessages(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
-        trace(.open, components: "Chat \(chatID.description)", "Opening stream.")
+        trace(.open, components: "Chat \(chatID.description)", "Opening message stream.")
         
         let streamReference = StreamMessagesReference()
         streamReference.retain()
@@ -27,7 +27,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 return
             }
             
-            trace(.warning, components: "Chat \(chatID.description)", "Stream timed out")
+            trace(.warning, components: "Chat \(chatID.description)", "Stream (message) timed out")
             
             self?.streamMessages(
                 chatID: chatID,
@@ -81,7 +81,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 reference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
                 
                 _ = stream.sendMessage(request)
-                trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
+//                trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
                 
             case .error(let streamError):
                 let error = ErrorStreamMessages(rawValue: streamError.code.rawValue) ?? .unknown
