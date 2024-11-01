@@ -20,6 +20,8 @@ class ChatViewModel: ObservableObject {
     
     @Published var enteredRoomNumber: String = ""
     
+    @Published var isShowingEnterRoomNumber: Bool = false
+    
     @Published private(set) var isShowingPayForFriendship: Bool = false
     
     private let session: Session
@@ -80,7 +82,8 @@ class ChatViewModel: ObservableObject {
     }
     
     func joinExistingChat() {
-        navigationPath = [.enterRoomNumber]
+//        navigationPath = [.enterRoomNumber]
+        isShowingEnterRoomNumber = true
     }
     
     func selectChat(_ chat: Chat) {
@@ -104,6 +107,11 @@ class ChatViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 
                 friendshipState = .contributor(chat) // TODO: Should be .reader()
+                
+                // Dismiss modal, push chat
+                
+                isShowingEnterRoomNumber = false
+                try await Task.delay(milliseconds: 100)
                 navigationPath.append(.chat)
                 
                 // Reset

@@ -13,40 +13,74 @@ public struct AmountField: View {
     
     @Binding public var content: String
     
-    public let defaultValue: String
-    public let flagStyle: Flag.Style
+    public let defaultValue: DefaultValue
     public let formatter: NumberFormatter
     public let suffix: String?
     public let showChevron: Bool
     
-    private let spacing: CGFloat = 15
     private let insertionOffset: CGFloat = 30
     
     private var hasValue: Bool {
         content.count > 0
     }
     
+    let prefix: Prefix
+    
     // MARK: - Init -
     
     public init(content: Binding<String>, defaultValue: String, flagStyle: Flag.Style, formatter: NumberFormatter, suffix: String? = nil, showChevron: Bool = true) {
+        self.init(
+            content: content,
+            defaultValue: .number(defaultValue),
+            prefix: .flagStyle(flagStyle),
+            formatter: formatter,
+            suffix: (suffix == nil) ? nil : " \(suffix!)",
+            showChevron: showChevron
+        )
+    }
+    
+    public init(content: Binding<String>, defaultValue: DefaultValue, prefix: String, formatter: NumberFormatter, suffix: String? = nil) {
+        self.init(
+            content: content,
+            defaultValue: defaultValue,
+            prefix: .prefix(prefix),
+            formatter: formatter,
+            suffix: (suffix == nil) ? nil : " \(suffix!)",
+            showChevron: false
+        )
+    }
+    
+    init(content: Binding<String>, defaultValue: DefaultValue, prefix: Prefix, formatter: NumberFormatter, suffix: String?, showChevron: Bool) {
         self._content = content
         self.defaultValue = defaultValue
-        self.flagStyle = flagStyle
+        self.prefix = prefix
         self.formatter = formatter
         self.suffix = (suffix == nil) ? nil : " \(suffix!)"
         self.showChevron = showChevron
     }
     
     public var body: some View {
-        HStack(spacing: spacing) {
+        HStack(spacing: prefix.spacing) {
             HStack(spacing: 5) {
-                Flag(style: flagStyle)
-                    .transition(
-                        AnyTransition
-                            .opacity
-                            .combined(with: .move(edge: .leading))
-                            .animation(.easeOutFastest)
-                    )
+                Group {
+                    switch prefix {
+                    case .flagStyle(let style):
+                        Flag(style: style)
+                        
+                    case .prefix(let string):
+                        Text(string)
+                        
+                    case .none:
+                        EmptyView()
+                    }
+                }
+                .transition(
+                    AnyTransition
+                        .opacity
+                        .combined(with: .move(edge: .leading))
+                        .animation(.easeOutFastest)
+                )
+                
                 if showChevron {
                     Image.system(.chevronDown)
                         .font(.default(size: 12, weight: .bold))
@@ -100,8 +134,18 @@ public struct AmountField: View {
             }
             
         } else {
-            let integers = formatter.string(byConvertingString: defaultValue)!
-            integers.forEach {
+            var characterString = ""
+            
+            switch defaultValue {
+            case .none:
+                break
+            case .number(let numberString):
+                characterString = formatter.string(byConvertingString: numberString)!
+            case .string(let string):
+                characterString = string
+            }
+            
+            characterString.forEach {
                 characters.append(
                     Char(
                         direction: .forward,
@@ -208,6 +252,16 @@ public struct AmountField: View {
     }
 }
 
+// MARK: - Default Value -
+
+extension AmountField {
+    public enum DefaultValue {
+        case none
+        case number(String) // Attempts to parse number
+        case string(String) // Maps every character 1:1
+    }
+}
+
 // MARK: - Char -
 
 private extension AmountField {
@@ -262,6 +316,25 @@ private extension AmountField.Char {
     enum IndexingDirection: String {
         case forward  = "f"
         case backward = "b"
+    }
+}
+
+extension AmountField {
+    enum Prefix {
+        case none
+        case flagStyle(Flag.Style)
+        case prefix(String)
+        
+        var spacing: CGFloat {
+            switch self {
+            case .flagStyle:
+                return 15
+            case .prefix:
+                return 0
+            case .none:
+                return 0
+            }
+        }
     }
 }
 

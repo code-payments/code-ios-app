@@ -116,6 +116,9 @@ struct ChatsScreen: View {
                     )
                 }
             }
+            .sheet(isPresented: $viewModel.isShowingEnterRoomNumber) {
+                EnterRoomNumberScreen(viewModel: viewModel)
+            }
         }
     }
     

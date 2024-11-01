@@ -14,11 +14,7 @@ struct EnterRoomNumberScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var banners: Banners
     
-    @State private var isShowingChat: Bool = false
-    
     @ObservedObject private var viewModel: ChatViewModel
-    
-    @FocusState private var isFocused: Bool
     
     // MARK: - Init -
     
@@ -29,53 +25,33 @@ struct EnterRoomNumberScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack(alignment: .leading, spacing: 40) {
-                Spacer()
-                
-                TextField("Room Number", text: $viewModel.enteredRoomNumber)
-                    .focused($isFocused)
-                    .font(.appDisplayMedium)
-                    .frame(maxWidth: .infinity)
-                    .truncationMode(.middle)
-                    .lineLimit(1)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.numberPad)
-                    .minimumScaleFactor(0.5)
-                    .multilineTextAlignment(.center)
-                    .padding([.leading, .trailing], 0)
-                
-                Spacer()
-                
-                CodeButton(
-                    state: viewModel.beginChatState,
-                    style: .filled,
-                    title: Localized.Action.next,
-                    disabled: !viewModel.isEnteredRoomNumberValid()
-                ) {
-                    hideKeyboard()
-                    viewModel.attemptEnterGroupChat()
+        NavigationStack {
+            Background(color: .backgroundMain) {
+                EnterAmountView(
+                    enteredAmount: $viewModel.enteredRoomNumber,
+                    actionState: $viewModel.beginChatState,
+                    subtext: "Enter Room Number",
+                    formatter: .roomNumber,
+                    actionEnabled: { _ in
+                        viewModel.isEnteredRoomNumberValid()
+                    },
+                    action: viewModel.attemptEnterGroupChat
+                )
+                .onAppear(perform: onAppear)
+                .foregroundColor(.textMain)
+                .padding(20)
+                .navigationBarTitle(Text("Enter Room Number"), displayMode: .inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        ToolbarCloseButton(binding: $viewModel.isShowingEnterRoomNumber)
+                    }
                 }
             }
-            .onAppear(perform: onAppear)
-            .foregroundColor(.textMain)
-            .frame(maxHeight: .infinity)
-            .padding(20)
         }
-        .navigationBarTitle(Text("Enter Room Number"), displayMode: .inline)
     }
     
     private func onAppear() {
-        showKeyboard()
-    }
-    
-    private func showKeyboard() {
-        isFocused = true
-    }
-    
-    private func hideKeyboard() {
-        isFocused = false
+        
     }
 }
 
