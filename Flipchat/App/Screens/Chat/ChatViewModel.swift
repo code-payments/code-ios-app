@@ -16,9 +16,13 @@ class ChatViewModel: ObservableObject {
     
     @Published var navigationPath: [DirectMessagePath] = []
     
+    @Published var joinRoomPath: [JoinRoomPath] = []
+    
     @Published var beginChatState: ButtonState = .normal
     
     @Published var enteredRoomNumber: String = ""
+    
+    @Published var enteredRoomPreview: Chat?
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
@@ -73,6 +77,11 @@ class ChatViewModel: ObservableObject {
         )
     }
     
+    func joinExistingChat() {
+        isShowingEnterRoomNumber = true
+        joinRoomPath = []
+    }
+    
     func startNewChat() {
         Task {
             let chat = try await chatController.startGroupChat()
@@ -81,49 +90,49 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func joinExistingChat() {
-//        navigationPath = [.enterRoomNumber]
-        isShowingEnterRoomNumber = true
-    }
-    
     func selectChat(_ chat: Chat) {
         friendshipState = .contributor(chat)
         navigationPath.append(.chat)
     }
     
-    func attemptEnterGroupChat() {
+    func previewGroupChat() {
         guard let roomNumber = RoomNumber(enteredRoomNumber) else {
             // TODO: Use number parser instead
             return
         }
         
-        Task {
-            beginChatState = .loading
-            do {
-                let chat = try await chatController.joinGroupChat(roomNumber: roomNumber)
-                
-                try await Task.delay(milliseconds: 500)
-                beginChatState = .success
-                try await Task.delay(milliseconds: 500)
-                
-                friendshipState = .contributor(chat) // TODO: Should be .reader()
-                
-                // Dismiss modal, push chat
-                
-                isShowingEnterRoomNumber = false
-                try await Task.delay(milliseconds: 100)
-                navigationPath.append(.chat)
-                
-                // Reset
-                
-                try await Task.delay(milliseconds: 500)
-                beginChatState  = .normal
-                enteredRoomNumber = ""
-                
-            } catch {
-                showNotFoundError()
-                beginChatState  = .normal
-            }
+        withButtonState { [chatController] in
+            try await chatController.fetchGroupChat(roomNumber: roomNumber)
+            
+        } success: { chat in
+            self.enteredRoomPreview = chat
+            self.joinRoomPath.append(.previewRoom)
+            
+        } error: { _ in
+            self.showFailedToLoadRoomError()
+        }
+    }
+    
+    func attemptEnterGroupChat() {
+        guard let chat = enteredRoomPreview else {
+            // TODO: Use number parser instead
+            return
+        }
+        
+        withButtonState { [chatController] in
+            try await chatController.joinGroupChat(roomNumber: chat.roomNumber)
+            
+        } success: { chat in
+            self.friendshipState = .contributor(chat) // TODO: Should be .reader()
+            
+            // Dismiss modal, push chat
+            
+            self.isShowingEnterRoomNumber = false
+            try await Task.delay(milliseconds: 100)
+            self.navigationPath.append(.chat)
+            
+        } error: { _ in
+            self.showNotFoundError()
         }
     }
     
@@ -172,6 +181,17 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Errors -
     
+    private func showFailedToLoadRoomError() {
+        banners.show(
+            style: .error,
+            title: "Failed to Load Room",
+            description: "An error occured while retrieving room metadata.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
     private func showNotFoundError() {
         banners.show(
             style: .error,
@@ -181,6 +201,35 @@ class ChatViewModel: ObservableObject {
                 .cancel(title: Localized.Action.ok)
             ]
         )
+    }
+}
+
+// MARK: - Button State -
+
+extension ChatViewModel {
+    private func withButtonState<T>(closure: @escaping () async throws -> T, success: @escaping (T) async throws -> Void, error: @escaping (Swift.Error) -> Void) where T: Sendable {
+        Task {
+            beginChatState = .loading
+            do {
+                let result = try await closure()
+                
+                try await Task.delay(milliseconds: 500)
+                beginChatState = .success
+                try await Task.delay(milliseconds: 500)
+                
+                try await success(result)
+                
+                // Reset
+                
+                try await Task.delay(milliseconds: 100)
+                beginChatState  = .normal
+                enteredRoomNumber = ""
+                
+            } catch let caughtError {
+                error(caughtError)
+                beginChatState  = .normal
+            }
+        }
     }
 }
 
@@ -202,6 +251,10 @@ extension ChatViewModel {
 enum DirectMessagePath: Hashable {
     case enterRoomNumber
     case chat
+}
+
+enum JoinRoomPath: Hashable {
+    case previewRoom
 }
 
 extension ChatViewModel {

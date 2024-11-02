@@ -7,11 +7,9 @@
 
 import SwiftUI
 import CodeUI
-import CodeServices
 
 struct EnterRoomNumberScreen: View {
     
-    @EnvironmentObject private var client: Client
     @EnvironmentObject private var banners: Banners
     
     @ObservedObject private var viewModel: ChatViewModel
@@ -25,7 +23,7 @@ struct EnterRoomNumberScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $viewModel.joinRoomPath) {
             Background(color: .backgroundMain) {
                 EnterAmountView(
                     enteredAmount: $viewModel.enteredRoomNumber,
@@ -35,7 +33,7 @@ struct EnterRoomNumberScreen: View {
                     actionEnabled: { _ in
                         viewModel.isEnteredRoomNumberValid()
                     },
-                    action: viewModel.attemptEnterGroupChat
+                    action: viewModel.previewGroupChat
                 )
                 .onAppear(perform: onAppear)
                 .foregroundColor(.textMain)
@@ -45,6 +43,12 @@ struct EnterRoomNumberScreen: View {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         ToolbarCloseButton(binding: $viewModel.isShowingEnterRoomNumber)
                     }
+                }
+            }
+            .navigationDestination(for: JoinRoomPath.self) { path in
+                switch path {
+                case .previewRoom:
+                    EnterRoomConfirmationScreen(viewModel: viewModel)
                 }
             }
         }

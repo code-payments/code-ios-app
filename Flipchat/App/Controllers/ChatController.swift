@@ -153,7 +153,24 @@ class ChatController: ObservableObject {
     // MARK: - Group Chat -
     
     func startGroupChat() async throws -> Chat {
-        let metadata = try await client.startGroupChat(with: [userID], owner: organizer.ownerKeyPair)
+        let metadata = try await client.startGroupChat(with: [userID], owner: owner)
+        
+        let chat = Chat(
+            selfUserID: userID,
+            metadata: metadata,
+            messages: []
+        )
+        
+        insertChats([chat])
+        
+        return chat
+    }
+    
+    func fetchGroupChat(roomNumber: RoomNumber) async throws -> Chat {
+        let metadata = try await client.fetchChat(
+            for: roomNumber,
+            owner: owner
+        )
         
         return Chat(
             selfUserID: userID,
@@ -165,14 +182,20 @@ class ChatController: ObservableObject {
     func joinGroupChat(roomNumber: RoomNumber) async throws -> Chat {
         let metadata = try await client.joinGroupChat(
             roomNumber: roomNumber,
-            owner: organizer.ownerKeyPair
+            owner: owner
         )
         
-        return Chat(
+        // TODO: Fetch chat messages
+        
+        let chat = Chat(
             selfUserID: userID,
             metadata: metadata,
             messages: []
         )
+        
+        insertChats([chat])
+        
+        return chat
     }
     
     // MARK: - Fetch -
@@ -200,6 +223,12 @@ class ChatController: ObservableObject {
         
         computeUnreadCount()
         fetchInflight = false
+    }
+    
+    private func insertChats(_ chats: [Chat]) {
+        var updatedChats = self.chats
+        updatedChats.append(contentsOf: chats)
+        self.chats = updatedChats.sortedByMessageOrder()
     }
     
     private func computeUnreadCount() {
@@ -451,17 +480,21 @@ private extension Array where Element == Chat {
     @MainActor
     func sortedByMessageOrder() -> [Element] {
         sorted { lhs, rhs in
-            let leftDate  = lhs.messages.last?.date
-            let rightDate = rhs.messages.last?.date
+            let leftDate  = (lhs.messages.last ?? lhs.lastMessage)?.date
+            let rightDate = (rhs.messages.last ?? rhs.lastMessage)?.date
             
-            if let leftDate, let rightDate {
-                return leftDate > rightDate
-            } else if leftDate != nil {
+            switch (leftDate, rightDate) {
+            case let (left?, right?):
+                if left == right {
+                    return lhs.roomNumber > rhs.roomNumber
+                }
+                return left > right
+            case (.some, .none):
                 return true
-            } else if rightDate != nil {
+            case (.none, .some):
                 return false
-            } else {
-                return false
+            case (nil, nil):
+                return lhs.roomNumber > rhs.roomNumber
             }
         }
     }

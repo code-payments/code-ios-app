@@ -109,6 +109,7 @@ struct ChatsScreen: View {
                 switch path {
                 case .enterRoomNumber:
                     EnterRoomNumberScreen(viewModel: viewModel)
+                    
                 case .chat:
                     ConversationContainer(
                         chatController: chatController,

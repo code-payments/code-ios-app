@@ -7,7 +7,6 @@
 
 import SwiftUI
 import FlipchatServices
-import CodeServices
 import CodeUI
 
 public protocol MessageListDelegate: AnyObject {
@@ -154,11 +153,6 @@ public struct MessageList: View {
                 }
             }
         }
-    }
-    
-    @MainActor
-    private func rate(for currency: CurrencyCode) -> Rate? {
-        exchange.rate(for: currency)
     }
     
     private func action(for message: Chat.Message) {

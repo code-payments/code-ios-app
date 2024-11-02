@@ -7,14 +7,12 @@
 
 import SwiftUI
 import CodeUI
-import CodeServices
 import FlipchatServices
 
 struct ConversationScreen: View {
 
     @ObservedObject var chat: Chat
     
-    @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
     @EnvironmentObject private var betaFlags: BetaFlags
     @EnvironmentObject private var banners: Banners

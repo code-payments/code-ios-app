@@ -231,6 +231,12 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
 
 public typealias RoomNumber = UInt64
 
+extension RoomNumber {
+    public var roomString: String {
+        "#\(self)"
+    }
+}
+
 //// MARK: - Errors -
 
 public enum ErrorStreamChatEvents: Int, Error {

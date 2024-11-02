@@ -105,14 +105,14 @@ public enum Asset: String {
     case done
     case bell
     
-    // Messaging
+    // Flipchat
     
     case paperplane
     case statusSent
     case statusDelivered
     case statusRead
-    
     case plusCircle
+    case roomCard
     
     case kado
     
