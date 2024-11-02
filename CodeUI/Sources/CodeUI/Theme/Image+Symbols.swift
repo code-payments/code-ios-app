@@ -113,6 +113,7 @@ public enum Asset: String {
     case statusRead
     case plusCircle
     case roomCard
+    case bubble
     
     case kado
     

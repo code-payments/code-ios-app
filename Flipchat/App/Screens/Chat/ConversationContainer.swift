@@ -10,11 +10,6 @@ import CodeUI
 
 struct ConversationContainer: View {
     
-    @EnvironmentObject private var exchange: Exchange
-    @EnvironmentObject private var banners: Banners
-    @EnvironmentObject private var notificationController: NotificationController
-    @EnvironmentObject private var betaFlags: BetaFlags
-    
     @ObservedObject private var viewModel: ChatViewModel
     
     var displayName: String {
@@ -27,16 +22,16 @@ struct ConversationContainer: View {
         }
     }
     
-    var avatarValue: AvatarView.Value {
-        return .placeholder
-    }
-    
     private let chatController: ChatController
+    
+    // MARK: - Init -
     
     init(chatController: ChatController, viewModel: ChatViewModel) {
         self.chatController = chatController
         self.viewModel = viewModel
     }
+    
+    // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
@@ -69,7 +64,7 @@ struct ConversationContainer: View {
     
     @ViewBuilder private func title() -> some View {
         HStack(spacing: 10) {
-            AvatarView(value: avatarValue, diameter: 30)
+            avatarView()
             
             VStack(alignment: .leading, spacing: 0) {
                 Text(displayName)
@@ -81,6 +76,16 @@ struct ConversationContainer: View {
             }
             
             Spacer()
+        }
+    }
+    
+    @ViewBuilder private func avatarView() -> some View {
+        switch viewModel.friendshipState {
+        case .none:
+            AvatarView(value: .placeholder, diameter: 30)
+            
+        case .reader(let chat), .contributor(let chat):
+            GradientAvatarView(data: chat.id.data, diameter: 30)
         }
     }
     

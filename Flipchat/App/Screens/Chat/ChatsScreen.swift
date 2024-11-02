@@ -11,7 +11,6 @@ import FlipchatServices
 
 struct ChatsScreen: View {
     
-    @EnvironmentObject private var notificationController: NotificationController
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
@@ -80,9 +79,6 @@ struct ChatsScreen: View {
                 .onDisappear {
                     didDisappear()
                 }
-                .onChange(of: notificationController.messageReceived) {
-                    didAppear()
-                }
                 .navigationBarHidden(false)
                 .navigationBarTitle(Text(Localized.Action.chat))
                 .navigationBarTitleDisplayMode(.inline)
@@ -132,7 +128,7 @@ struct ChatsScreen: View {
                 let isUnread = !chat.isMuted && chat.unreadCount > 0
                 
                 HStack(spacing: 15) {
-                    AvatarView(value: avatarValue(for: chat), diameter: 50)
+                    GradientAvatarView(data: chat.id.data, diameter: 50)
                     
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 10) {
