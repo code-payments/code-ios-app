@@ -73,7 +73,7 @@ public enum Symbol: String {
 
 // MARK: - Asset -
 
-public enum Asset: String {
+public enum Asset: String, Sendable {
     case close
     case history
     case wallet
@@ -114,6 +114,7 @@ public enum Asset: String {
     case plusCircle
     case roomCard
     case bubble
+    case kinHex
     
     case kado
     

@@ -27,8 +27,6 @@ class Session: ObservableObject {
     
     weak var delegate: SessionDelegate?
     
-    let chatController: ChatController
-    
     let organizer: Organizer
     
     private let userID: UserID
@@ -66,12 +64,6 @@ class Session: ObservableObject {
         self.banners = banners
         self.betaFlags = betaFlags
         
-        self.chatController = ChatController(
-            userID: userID,
-            client: flipClient,
-            organizer: organizer
-        )
-        
         self.flowController = FlowController(
             client: client,
             organizer: organizer
@@ -80,8 +72,6 @@ class Session: ObservableObject {
 //        registerPoller()
         
         poll()
-        
-        chatController.fetchChats()
     }
     
     deinit {

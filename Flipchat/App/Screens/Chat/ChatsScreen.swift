@@ -14,34 +14,19 @@ struct ChatsScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
-    @ObservedObject private var sessionAuthenticator: SessionAuthenticator
-    @ObservedObject private var exchange: Exchange
     @ObservedObject private var chatController: ChatController
-    @ObservedObject private var banners: Banners
+    @ObservedObject private var viewModel: ChatViewModel
     
     private var chats: [Chat] {
         chatController.chats
     }
     
-    @StateObject private var viewModel: ChatViewModel
-    
     // MARK: - Init -
     
-    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, banners: Banners) {
+    init(session: Session, chatController: ChatController, viewModel: ChatViewModel) {
         self.session = session
-        self.sessionAuthenticator = sessionAuthenticator
-        self.exchange = exchange
-        self.chatController = session.chatController
-        self.banners = banners
-        self._viewModel = StateObject(
-            wrappedValue: ChatViewModel(
-                session: session,
-                sessionAuthenticator: sessionAuthenticator,
-                client: client,
-                exchange: exchange,
-                banners: banners
-            )
-        )
+        self.chatController = chatController
+        self.viewModel = viewModel
     }
     
     private func didAppear() {
@@ -55,67 +40,53 @@ struct ChatsScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack(path: $viewModel.navigationPath) {
-            Background(color: .backgroundMain) {
-                VStack(spacing: 0) {
-                    ScrollBox(color: .backgroundMain) {
-                        LazyTable(
-                            contentPadding: .scrollBox,
-                            content: {
-                                chatsView()
-                                
-                                CodeButton(style: .filled, title: "Join a Chat") {
-                                    viewModel.startChatting()
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
+        Background(color: .backgroundMain) {
+            VStack(spacing: 0) {
+                ScrollBox(color: .backgroundMain) {
+                    LazyTable(
+                        contentPadding: .scrollBox,
+                        content: {
+                            chatsView()
+                            
+                            CodeButton(style: .filled, title: "Join a Chat") {
+                                viewModel.startChatting()
                             }
-                        )
-                    }
-                }
-                .onAppear {
-                    didAppear()
-                }
-                .onDisappear {
-                    didDisappear()
-                }
-                .navigationBarHidden(false)
-                .navigationBarTitle(Text(Localized.Action.chat))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            viewModel.logout()
-                        } label: {
-                            Image(systemName: "door.right.hand.open")
-                                .padding(5)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
                         }
-                    }
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            viewModel.startChatting()
-                        } label: {
-                            Image.asset(.plusCircle)
-                                .padding(5)
-                        }
-                    }
-                }
-            }
-            .navigationDestination(for: DirectMessagePath.self) { path in
-                switch path {
-                case .enterRoomNumber:
-                    EnterRoomNumberScreen(viewModel: viewModel)
-                    
-                case .chat:
-                    ConversationContainer(
-                        chatController: chatController,
-                        viewModel: viewModel
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.isShowingEnterRoomNumber) {
-                EnterRoomNumberScreen(viewModel: viewModel)
+            .onAppear {
+                didAppear()
             }
+            .onDisappear {
+                didDisappear()
+            }
+            .navigationBarHidden(false)
+            .navigationBarTitle(Text(Localized.Action.chat))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        viewModel.logout()
+                    } label: {
+                        Image(systemName: "door.right.hand.open")
+                            .padding(5)
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        viewModel.startChatting()
+                    } label: {
+                        Image.asset(.plusCircle)
+                            .padding(5)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.isShowingEnterRoomNumber) {
+            EnterRoomNumberScreen(viewModel: viewModel)
         }
     }
     
@@ -188,9 +159,7 @@ struct ChatsScreen: View {
 #Preview {
     ChatsScreen(
         session: .mock,
-        sessionAuthenticator: .mock,
-        client: .mock,
-        exchange: .mock,
-        banners: .mock
+        chatController: .mock,
+        viewModel: .mock
     )
 }

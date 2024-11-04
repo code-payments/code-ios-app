@@ -161,7 +161,7 @@ class ChatController: ObservableObject {
             messages: []
         )
         
-        insertChats([chat])
+        insert(chats: [chat])
         
         return chat
     }
@@ -193,7 +193,7 @@ class ChatController: ObservableObject {
             messages: []
         )
         
-        insertChats([chat])
+        insert(chats: [chat])
         
         return chat
     }
@@ -225,10 +225,10 @@ class ChatController: ObservableObject {
         fetchInflight = false
     }
     
-    private func insertChats(_ chats: [Chat]) {
-        var updatedChats = self.chats
-        updatedChats.append(contentsOf: chats)
-        self.chats = updatedChats.sortedByMessageOrder()
+    private func insert(chats newChats: [Chat]) {
+        var updatedChats = chats
+        updatedChats.append(contentsOf: newChats)
+        chats = updatedChats.sortedByMessageOrder()
     }
     
     private func computeUnreadCount() {

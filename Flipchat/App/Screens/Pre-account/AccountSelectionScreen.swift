@@ -133,8 +133,8 @@ struct AccountSelectionScreen: View {
     
     private func isSelected(for description: AccountDescription) -> Bool {
         switch sessionAuthenticator.state {
-        case .loggedIn(let session):
-            return session.organizer.ownerKeyPair.publicKey == description.account.ownerPublicKey
+        case .loggedIn(let state):
+            return state.session.organizer.ownerKeyPair.publicKey == description.account.ownerPublicKey
             
         case .loggedOut, .migrating, .pending:
             return false

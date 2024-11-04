@@ -14,8 +14,6 @@ class ChatViewModel: ObservableObject {
     
     @Published var friendshipState: FriendshipState = .none
     
-    @Published var navigationPath: [DirectMessagePath] = []
-    
     @Published var joinRoomPath: [JoinRoomPath] = []
     
     @Published var beginChatState: ButtonState = .normal
@@ -28,22 +26,21 @@ class ChatViewModel: ObservableObject {
     
     @Published private(set) var isShowingPayForFriendship: Bool = false
     
-    private let session: Session
-    private let sessionAuthenticator: SessionAuthenticator
+    private let chatController: ChatController
     private let client: FlipchatClient
     private let exchange: Exchange
-    private let chatController: ChatController
     private let banners: Banners
+    
+    private weak var containerViewModel: ContainerViewModel?
     
     // MARK: - Init -
     
-    init(session: Session, sessionAuthenticator: SessionAuthenticator, client: FlipchatClient, exchange: Exchange, banners: Banners) {
-        self.session = session
-        self.sessionAuthenticator = sessionAuthenticator
+    init(chatController: ChatController, client: FlipchatClient, exchange: Exchange, banners: Banners, containerViewModel: ContainerViewModel) {
+        self.chatController = chatController
         self.client = client
         self.exchange = exchange
-        self.chatController = session.chatController
         self.banners = banners
+        self.containerViewModel = containerViewModel
     }
     
     // MARK: - Actions -
@@ -56,7 +53,7 @@ class ChatViewModel: ObservableObject {
             position: .bottom,
             actions: [
                 .destructive(title: "Log Out") { [weak self] in
-                    self?.sessionAuthenticator.logout()
+                    self?.containerViewModel?.logout()
                 },
                 .cancel(title: "Cancel"),
             ]
@@ -80,20 +77,28 @@ class ChatViewModel: ObservableObject {
     func joinExistingChat() {
         isShowingEnterRoomNumber = true
         joinRoomPath = []
+        
+        resetEnteredRoomNumber()
     }
     
     func startNewChat() {
         Task {
             let chat = try await chatController.startGroupChat()
             friendshipState = .contributor(chat)
-            navigationPath.append(.chat)
+            containerViewModel?.pushChat()
         }
     }
     
     func selectChat(_ chat: Chat) {
         friendshipState = .contributor(chat)
-        navigationPath.append(.chat)
+        containerViewModel?.pushChat()
     }
+    
+    private func resetEnteredRoomNumber() {
+        enteredRoomNumber = ""
+    }
+    
+    // MARK: - Chat -
     
     func previewGroupChat() {
         guard let roomNumber = RoomNumber(enteredRoomNumber) else {
@@ -129,7 +134,7 @@ class ChatViewModel: ObservableObject {
             
             self.isShowingEnterRoomNumber = false
             try await Task.delay(milliseconds: 100)
-            self.navigationPath.append(.chat)
+            self.containerViewModel?.pushChat()
             
         } error: { _ in
             self.showNotFoundError()
@@ -223,7 +228,7 @@ extension ChatViewModel {
                 
                 try await Task.delay(milliseconds: 100)
                 beginChatState  = .normal
-                enteredRoomNumber = ""
+                resetEnteredRoomNumber()
                 
             } catch let caughtError {
                 error(caughtError)
@@ -248,21 +253,16 @@ extension ChatViewModel {
     }
 }
 
-enum DirectMessagePath: Hashable {
-    case enterRoomNumber
-    case chat
-}
-
 enum JoinRoomPath: Hashable {
     case previewRoom
 }
 
 extension ChatViewModel {
     static let mock: ChatViewModel = .init(
-        session: .mock,
-        sessionAuthenticator: .mock,
+        chatController: .mock,
         client: .mock,
         exchange: .mock,
-        banners: .mock
+        banners: .mock,
+        containerViewModel: .mock
     )
 }

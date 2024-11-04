@@ -19,7 +19,6 @@ struct EnterRoomConfirmationScreen: View {
         viewModel.enteredRoomPreview
     }
     
-    
     // MARK: - Init -
     
     init(viewModel: ChatViewModel) {

@@ -41,6 +41,8 @@ final class SessionAuthenticator: ObservableObject {
         }
     }
     
+    private(set) lazy var containerViewModel = ContainerViewModel(sessionAuthenticator: self)
+    
     private let flipClient: FlipchatClient
     private let client: Client
     private let exchange: Exchange
@@ -217,7 +219,7 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Session -
     
-    private func createSessionContainer(keyAccount: KeyAccount, userID: UserID) -> Session {
+    private func createSessionContainer(keyAccount: KeyAccount, userID: UserID) -> AuthenticatedState {
         let organizer = Organizer(mnemonic: keyAccount.mnemonic)
         let session = Session(
             userID: userID,
@@ -229,9 +231,28 @@ final class SessionAuthenticator: ObservableObject {
             betaFlags: betaFlags
         )
         
+        let chatController = ChatController(
+            userID: userID,
+            client: flipClient,
+            organizer: organizer
+        )
+        
+        let chatViewModel = ChatViewModel(
+            chatController: chatController,
+            client: flipClient,
+            exchange: exchange,
+            banners: banners,
+            containerViewModel: containerViewModel
+        )
+        
         session.delegate = self
         
-        return session
+        return AuthenticatedState(
+            session: session,
+            chatController: chatController,
+            chatViewModel: chatViewModel,
+            containerViewModel: containerViewModel
+        )
     }
     
     // MARK: - Login -
@@ -297,21 +318,21 @@ final class SessionAuthenticator: ObservableObject {
     }
     
     func deleteAndLogout() {
-        if case .loggedIn(let session) = state {
-            accountManager.delete(ownerPublicKey: session.organizer.ownerKeyPair.publicKey)
+        if case .loggedIn(let state) = state {
+            accountManager.delete(ownerPublicKey: state.session.organizer.ownerKeyPair.publicKey)
             logout()
         }
     }
     
     func logout() {
-        if case .loggedIn(let session) = state {
-            session.prepareForLogout()
+        if case .loggedIn(let state) = state {
+            state.session.prepareForLogout()
         }
         
         accountManager.resetForLogout()
         
-        if case .loggedIn(let session) = state {
-            session.prepareForLogout()
+        if case .loggedIn(let state) = state {
+            state.session.prepareForLogout()
         }
         
         state = .loggedOut
@@ -361,8 +382,15 @@ extension SessionAuthenticator {
         case loggedOut
         case migrating
         case pending
-        case loggedIn(Session)
+        case loggedIn(AuthenticatedState)
     }
+}
+
+struct AuthenticatedState {
+    let session: Session
+    let chatController: ChatController
+    let chatViewModel: ChatViewModel
+    let containerViewModel: ContainerViewModel
 }
 
 // MARK: - InitializedAccount -
