@@ -57,7 +57,7 @@ struct EnterRoomConfirmationScreen: View {
                             .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background {
-                                Image.asset(.roomCard).resizable()
+                                DeterministicGradient(data: previewRoom.id.data)
                             }
                         }
                         .padding(20)

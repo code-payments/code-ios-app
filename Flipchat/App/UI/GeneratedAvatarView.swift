@@ -11,15 +11,55 @@ import CommonCrypto
 import SwiftUI
 import CodeServices
 
+public struct DeterministicGradient: View {
+    
+    public let data: Data
+    public let hash: Data
+    public let start: UnitPoint
+    public let end: UnitPoint
+    
+    public init(data: Data, start: UnitPoint = .top, end: UnitPoint = .bottom) {
+        self.data  = data
+        self.hash  = SHA512.digest(data)
+        self.start = start
+        self.end   = end
+    }
+    
+    public var body: some View {
+        let (color1, color2, color3) = Color.deterministicallyGenerate(from: hash.bytes)
+        LinearGradient(
+            gradient: Gradient(stops: [
+                .init(color: color1, location: 0.14),
+                .init(color: color2, location: 0.38),
+                .init(color: color3, location: 0.67),
+            ]),
+            startPoint: start,
+            endPoint: end
+        )
+        .overlay {
+            GeometryReader { geometry in
+                RadialGradient(
+                    colors: [Color.white.opacity(0.25), .clear],
+                    center: .topLeading,
+                    startRadius: 0,
+                    endRadius: geometry.size.height
+                )
+            }
+        }
+    }
+}
+
 public struct GradientAvatarView: View {
     
     public let data: Data
+    public let hash: Data
     public let diameter: CGFloat
     
     // MARK: - Init -
     
     public init(data: Data, diameter: CGFloat) {
         self.data = data
+        self.hash = SHA512.digest(data)
         self.diameter = diameter
     }
     
@@ -40,16 +80,16 @@ public struct GradientAvatarView: View {
     // MARK: - Body -
     
     public var body: some View {
-        let (color1, color2) = generateColors(from: data)
-        
-        Canvas { context, size in
-            let circlePath = Path(ellipseIn: CGRect(origin: .zero, size: size))
-            context.fill(circlePath, with: .linearGradient(
-                Gradient(colors: [color1, color2]),
-                startPoint: CGPoint(x: 0, y: 0),
-                endPoint: CGPoint(x: diameter, y: diameter)
-            ))
-        }
+        let (color1, color2, color3) = Color.deterministicallyGenerate(from: hash.bytes)
+        LinearGradient(
+            gradient: Gradient(stops: [
+                .init(color: color1, location: 0.14),
+                .init(color: color2, location: 0.38),
+                .init(color: color3, location: 0.67),
+            ]),
+            startPoint: .topTrailing,
+            endPoint: .bottomLeading
+        )
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
         .overlay {
@@ -73,117 +113,123 @@ public struct GradientAvatarView: View {
         }
         .drawingGroup()
     }
-    
-    private func generateColors(from data: Data) -> (Color, Color) {
-        let halfIndex = data.count / 2
-        let firstHalf = data.prefix(halfIndex)
-        let secondHalf = data.suffix(from: halfIndex)
+}
+
+private extension Color {
+    static func deterministicallyGenerate(from bytes: [UInt8]) -> (Color, Color, Color) {
         
-        return (colorHash(from: firstHalf), colorHash(from: secondHalf))
-    }
-    
-    private func colorHash(from data: Data, saturation: Double = 1.0, brightness: Double = 1.0) -> Color {
-        var hash = 0
-        for byte in data {
-            hash = Int(byte) + ((hash << 5) - hash)
-        }
+        let hue = CGFloat(bytes.prefix(3).reduce(0) { $0 + Int($1) } % 360) / 360.0
+        let saturation: CGFloat = 0.75
+        let baseBrightness: CGFloat = 0.85
+        let brightnessVariation: CGFloat = CGFloat(bytes[3] % 10) / 100.0
+        let hueShift: CGFloat = 20 / 360.0
         
-        let hue = Double((hash & 0xFFFFFF) % 360) / 360.0 // Generate hue from 0 to 1
-        return Color(hue: hue, saturation: saturation, brightness: brightness)
+        let startColor = Color(
+            hue: hue,
+            saturation: saturation.clamped(to: 0...1),
+            brightness: (baseBrightness - brightnessVariation).clamped(to: 0...1)
+        )
+        
+        let middleColor = Color(
+            hue: (hue + hueShift).truncatingRemainder(dividingBy: 1),
+            saturation: (saturation * 0.95).clamped(to: 0...1),
+            brightness: baseBrightness.clamped(to: 0...1)
+        )
+        
+        let endColor = Color(
+            hue: (hue + hueShift * 2).truncatingRemainder(dividingBy: 1),
+            saturation: (saturation * 0.9).clamped(to: 0...1),
+            brightness: (baseBrightness + brightnessVariation).clamped(to: 0...1)
+        ).ensureReadableWithWhite()
+        
+        return (startColor, middleColor, endColor)
     }
 }
 
-//public struct GradientAvatarView: View {
-//    
-//    public let data: Data
-//    public let diameter: CGFloat
-//    
-//    public init(data: Data, diameter: CGFloat) {
-//        self.data = data
-//        self.diameter = diameter
-//    }
-//    
-//    public init(text: String, diameter: CGFloat) {
-//        self.init(
-//            data: Data(text.utf8),
-//            diameter: diameter
-//        )
-//    }
-//    
-//    public init(uuid: UUID, diameter: CGFloat) {
-//        self.init(
-//            text: uuid.uuidString,
-//            diameter: diameter
-//        )
-//    }
-//    
-//    public var body: some View {
-//        Image(
-//            uiImage: .generateAvatar(
-//                data: data,
-//                size: CGSize(width: diameter, height: diameter)
-//            )
-//        )
-//        .mask(Circle())
-//    }
-//}
-//
-//extension UIImage {
-//    
-//    private static func colorHash(from data: Data, saturation: CGFloat = 1.0, brightness: CGFloat = 1.0) -> UIColor {
-//        var hash = 0
-//        for byte in data {
-//            hash = Int(byte) + ((hash << 5) - hash)
-//        }
-//        
-//        let hue = CGFloat((hash & 0xFFFFFF) % 360) / 360.0
-//        return UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1.0)
-//    }
-//    
-//    private static func generateColors(from data: Data) -> (UIColor, UIColor) {
-//        let halfIndex = data.count / 2
-//        let firstHalf = data.prefix(halfIndex)
-//        let secondHalf = data.suffix(from: halfIndex)
-//        
-//        let color1 = colorHash(from: firstHalf)
-//        let color2 = colorHash(from: secondHalf)
-//        
-//        return (color1, color2)
-//    }
-//    
-//    static func generateAvatar(data: Data, size: CGSize) -> UIImage {
-//
-//        // Generate colors based on hashed data
-//        let (color1, color2) = generateColors(from: data)
-//        
-//        let bounds = CGRect(origin: .zero, size: size)
-//        
-//        let renderer = UIGraphicsImageRenderer(bounds: bounds)
-//        let image = renderer.image { c in
-//            let context = c.cgContext
-//            
-//            // Create a linear gradient using the two generated colors
-//            let cgColors = [color1.cgColor, color2.cgColor] as CFArray
-//            guard let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: nil) else { return }
-//            
-//            // Draw the gradient diagonally from top-left to bottom-right
-//            context.drawLinearGradient(
-//                gradient,
-//                start: CGPoint(x: bounds.minX, y: bounds.minY),
-//                end: CGPoint(x: bounds.maxX, y: bounds.maxY),
-//                options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
-//            )
-//            
-//            // Apply a circular mask to create a rounded avatar
-//            let circlePath = UIBezierPath(ovalIn: bounds)
-//            context.addPath(circlePath.cgPath)
-//            context.clip()
-//            context.drawPath(using: .fill)
-//        }
-//        
-//        return image
-//    }
-//}
+private extension Color {
+    
+    /// Calculates the luminance of a color using its RGB components
+    private func relativeLuminance() -> CGFloat {
+        guard let components = self.rgbComponents else {
+            return 0
+        }
+        
+        func adjust(_ value: CGFloat) -> CGFloat {
+            return value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        
+        let r = adjust(components.r)
+        let g = adjust(components.g)
+        let b = adjust(components.b)
+        
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    
+    /// Calculates the contrast ratio with white color
+    func contrastRatioWithWhite() -> CGFloat {
+        let whiteLuminance: CGFloat = 1.0
+        let colorLuminance = self.relativeLuminance()
+        
+        if whiteLuminance > colorLuminance {
+            return (whiteLuminance + 0.05) / (colorLuminance + 0.05)
+        } else {
+            return (colorLuminance + 0.05) / (whiteLuminance + 0.05)
+        }
+    }
+
+    /// Adjusts color to meet contrast requirements for readability with white
+    func ensureReadableWithWhite() -> Color {
+        var adjustedColor = self
+        var attempts = 0
+        // WCAG AA requires contrast ratio of 4.5:1 for normal text
+        while adjustedColor.contrastRatioWithWhite() < 4.5 && attempts < 10 {
+            // Darken the color by reducing its brightness in HSB
+            if let components = adjustedColor.hsbaComponents {
+                adjustedColor = Color(
+                    hue: components.h,
+                    saturation: components.s,
+                    brightness: (components.b * 0.9).clamped(to: 0...1)
+                )
+            }
+            attempts += 1
+        }
+        return adjustedColor
+    }
+
+    /// Extracts RGB components from a Color
+    var rgbComponents: (r: CGFloat, g: CGFloat, b: CGFloat)? {
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        
+        guard UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a) else {
+            return nil
+        }
+        
+        return (r, g, b)
+    }
+
+    /// Extracts HSBA components from a Color
+    var hsbaComponents: (h: CGFloat, s: CGFloat, b: CGFloat, a: CGFloat)? {
+        var h: CGFloat = 0
+        var s: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        
+        guard UIColor(self).getHue(&h, saturation: &s, brightness: &b, alpha: &a) else {
+            return nil
+        }
+        
+        return (h, s, b, a)
+    }
+}
+
+private extension Comparable {
+    func clamped(to limits: ClosedRange<Self>) -> Self {
+        return min(max(self, limits.lowerBound), limits.upperBound)
+    }
+}
 
 #Preview {
     GradientAvatarView(

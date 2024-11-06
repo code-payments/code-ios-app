@@ -112,7 +112,6 @@ public enum Asset: String, Sendable {
     case statusDelivered
     case statusRead
     case plusCircle
-    case roomCard
     case bubble
     case kinHex
     
