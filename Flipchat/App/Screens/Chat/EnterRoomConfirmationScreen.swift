@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import CodeUI
 import FlipchatServices
 
@@ -15,14 +16,20 @@ struct EnterRoomConfirmationScreen: View {
     
     @ObservedObject private var viewModel: ChatViewModel
     
-    private var previewRoom: Chat? {
-        viewModel.enteredRoomPreview
+    @Query private var chats: [pChat]
+    
+    private var chat: pChat {
+        chats[0]
     }
+    
+    private let chatID: ChatID
     
     // MARK: - Init -
     
-    init(viewModel: ChatViewModel) {
+    init(chatID: ChatID, viewModel: ChatViewModel) {
+        self.chatID = chatID
         self.viewModel = viewModel
+        _chats = Query(filter: #Predicate { $0.id == chatID.data })
     }
     
     // MARK: - Body -
@@ -31,46 +38,45 @@ struct EnterRoomConfirmationScreen: View {
         Background(color: .backgroundMain) {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
-                    if let previewRoom {
-                        AspectRatioCard {
-                            VStack {
-                                Spacer()
-                                Image(with: .brandLarge)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxHeight: 50)
-                                Spacer()
-                                Text("Room \(previewRoom.roomNumber.roomString)")
-                                    .font(.appDisplaySmall)
-                                
-                                Spacer()
-                                VStack(spacing: 4) {
-                                    Text("Hosted by Ivy")
-                                    Text("24 people inside")
-                                    Text("ID: \(previewRoom.id.data.hexEncodedString().prefix(16))")
-//                                    Text("Cover Charge: ⬢ 1,000 Kin")
-                                }
-                                .opacity(0.8)
-                                .font(.appTextSmall)
-                                Spacer()
+                    AspectRatioCard {
+                        VStack {
+                            Spacer()
+                            Image(with: .brandLarge)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 50)
+                            Spacer()
+                            Text("Room \(chat.roomNumber.roomString)")
+                                .font(.appDisplaySmall)
+                            
+                            Spacer()
+                            VStack(spacing: 4) {
+                                Text("Hosted by Ivy")
+                                Text("24 people inside")
+                                Text("ID: \(chat.id.hexEncodedString().prefix(16))")
+                                //                                    Text("Cover Charge: ⬢ 1,000 Kin")
                             }
-                            .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background {
-                                DeterministicGradient(data: previewRoom.id.data)
-                            }
+                            .opacity(0.8)
+                            .font(.appTextSmall)
+                            Spacer()
                         }
-                        .padding(20)
+                        .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background {
+                            DeterministicGradient(data: chat.id)
+                        }
                     }
+                    .padding(20)
                     
                     Spacer()
                     
                     CodeButton(
                         state: viewModel.beginChatState,
                         style: .filled,
-                        title: "Join Room \(previewRoom?.roomNumber.roomString ?? "")",
-                        action: viewModel.attemptEnterGroupChat
-                    )
+                        title: "Join Room \(chat.roomNumber.roomString)"
+                    ) {
+                        viewModel.attemptEnterGroupChat(roomNumber: chat.roomNumber)
+                    }
                 }
                 .padding(20)
             }
@@ -153,8 +159,15 @@ private struct AspectRatioCard<Content>: View where Content: View {
     }
 }
 
-#Preview {
-    EnterRoomConfirmationScreen(viewModel: .mock)
+private extension EnterRoomConfirmationScreen {
+    static func chatQuery(chatID: ChatID) -> FetchDescriptor<pChat> {
+        var q = FetchDescriptor<pChat>()
+        q.fetchLimit = 1
+        q.predicate = #Predicate { $0.id == chatID.data }
+        return q
+    }
 }
 
-
+#Preview {
+    EnterRoomConfirmationScreen(chatID: .mock, viewModel: .mock)
+}

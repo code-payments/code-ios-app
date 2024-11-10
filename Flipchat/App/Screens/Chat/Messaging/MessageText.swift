@@ -49,8 +49,8 @@ public struct MessageText: View {
                     
                     TimestampView(state: state, date: date, isReceived: isReceived)
                 }
-                .padding([.horizontal], 10)
-                .padding([.vertical], 8)
+                .padding([.horizontal], 11)
+                .padding([.vertical], 11)
             }
         }
         .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)

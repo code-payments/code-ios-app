@@ -18,6 +18,7 @@ struct FlipchatApp: App {
     var body: some Scene {
         WindowGroup {
             ContainerScreen(sessionAuthenticator: container.sessionAuthenticator)
+                .modelContainer(ChatStore.container)
                 .injectingEnvironment(from: container)
         }
     }

@@ -83,7 +83,7 @@ extension Chat {
 }
 
 extension Chat.Message {
-    public enum State {
+    public enum State: Int, Codable {
         case sent
         case delivered
         case read

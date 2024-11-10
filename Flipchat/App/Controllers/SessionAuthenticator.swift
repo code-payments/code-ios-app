@@ -327,6 +327,7 @@ final class SessionAuthenticator: ObservableObject {
     func logout() {
         if case .loggedIn(let state) = state {
             state.session.prepareForLogout()
+            state.chatController.prepareForLogout()
         }
         
         accountManager.resetForLogout()

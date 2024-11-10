@@ -92,11 +92,12 @@ struct ContainerScreen: View {
             }
             .navigationDestination(for: ContainerPath.self) { path in
                 switch path {
-                case .chat:
+                case .chat(let chatID):
                     if let authenticatedState {
-                        ConversationContainer(
-                            chatController: authenticatedState.chatController,
-                            viewModel: authenticatedState.chatViewModel
+                        ConversationScreen(
+                            userID: authenticatedState.session.userID,
+                            chatID: chatID,
+                            chatController: authenticatedState.chatController
                         )
                     }
                 }

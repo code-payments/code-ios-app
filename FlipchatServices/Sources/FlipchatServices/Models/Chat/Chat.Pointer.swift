@@ -24,7 +24,7 @@ extension Chat {
 }
 
 extension Chat.Pointer {
-    public enum Kind: Int, Sendable {
+    public enum Kind: Int, Sendable, Codable {
         case unknown
         case sent
         case delivered

@@ -17,12 +17,12 @@ extension Chat {
         case localized(String)
         case sodiumBox(EncryptedData)
         
-        var text: String? {
+        public var text: String? {
             switch self {
             case .text(let value), .localized(let value):
                 return value
             case .sodiumBox:
-                return nil
+                return "[Encrypted]"
             }
         }
     }

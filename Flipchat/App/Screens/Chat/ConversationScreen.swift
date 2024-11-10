@@ -6,15 +6,12 @@
 //
 
 import SwiftUI
+import SwiftData
 import CodeUI
 import FlipchatServices
 
 struct ConversationScreen: View {
-
-    @ObservedObject var chat: Chat
     
-    @EnvironmentObject private var exchange: Exchange
-    @EnvironmentObject private var betaFlags: BetaFlags
     @EnvironmentObject private var banners: Banners
     
     @State private var input: String = ""
@@ -25,32 +22,34 @@ struct ConversationScreen: View {
     
     @FocusState private var isEditorFocused: Bool
     
+    private let userID: UserID
+    private let chatID: ChatID
     private let chatController: ChatController
     
-    private var avatarValue: AvatarView.Value {
-        .placeholder
+    @Query private var chats: [pChat]
+    
+    private var chat: pChat {
+        chats[0]
     }
     
     // MARK: - Init -
     
-    init(chat: Chat, chatController: ChatController) {
-        self.chat = chat
+    init(userID: UserID, chatID: ChatID, chatController: ChatController) {
+        self.userID = userID
+        self.chatID = chatID
         self.chatController = chatController
+        
+        _chats = Query(filter: #Predicate<pChat> {
+            $0.id == chatID.data
+        })
     }
     
     private func didAppear() {
         startStream()
-        advanceReadPointer()
     }
     
     private func didDisappear() {
         destroyStream()
-    }
-    
-    private func advanceReadPointer() {
-        Task {
-            try await chatController.advanceReadPointer(for: chat)
-        }
     }
     
     // MARK: - Streams -
@@ -58,7 +57,7 @@ struct ConversationScreen: View {
     private func startStream() {
         destroyStream()
         
-        stream = chatController.streamMessages(chatID: chat.id) { result in
+        stream = chatController.streamMessages(chatID: chatID) { result in
             switch result {
             case .success(let messages):
                 streamMessages(messages: messages)
@@ -87,74 +86,75 @@ struct ConversationScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 MessageList(
-                    chat: chat,
-                    exchange: exchange,
-                    state: $messageListState
+                    state: $messageListState,
+                    userID: userID,
+                    messages: chat.messagesByDate
                 )
                 
-                if chat.kind == .twoWay || chat.kind == .group {
-                    HStack(alignment: .bottom) {
-                        conversationTextView()
-                            .focused($isEditorFocused)
-                            .font(.appTextMessage)
-                            .foregroundColor(.backgroundMain)
-                            .tint(.backgroundMain)
-                            .multilineTextAlignment(.leading)
-                            .frame(minHeight: 35, maxHeight: 95, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 5)
-                            .background(.white)
-                            .cornerRadius(20)
-                        
-                        Button {
-                            sendMessage(text: input)
-                        } label: {
-                            Image.asset(.paperplane)
-                                .resizable()
-                                .frame(width: 36, height: 36, alignment: .center)
-                                .padding(2)
-                        }
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.top, 5)
-                    .padding(.bottom, 8)
-                    .onChange(of: isEditorFocused) { _, focused in
-                        if focused {
-                            Task {
-                                try await Task.delay(milliseconds: 50)
-                                scrollToBottom()
-                            }
-                        }
-                    }
-                }
+                inputView()
             }
         }
         .onAppear(perform: didAppear)
         .onDisappear(perform: didDisappear)
         .interactiveDismissDisabled()
         .navigationBarHidden(false)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                title()
+            }
+        }
+    }
+    
+    @ViewBuilder private func inputView() -> some View {
+        HStack(alignment: .bottom) {
+            conversationTextView()
+                .focused($isEditorFocused)
+                .font(.appTextMessage)
+                .foregroundColor(.backgroundMain)
+                .tint(.backgroundMain)
+                .multilineTextAlignment(.leading)
+                .frame(minHeight: 35, maxHeight: 95, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 5)
+                .background(.white)
+                .cornerRadius(20)
+            
+            Button {
+                sendMessage(text: input)
+            } label: {
+                Image.asset(.paperplane)
+                    .resizable()
+                    .frame(width: 36, height: 36, alignment: .center)
+                    .padding(2)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 5)
+        .padding(.bottom, 8)
+        .onChange(of: isEditorFocused) { _, focused in
+            if focused {
+                Task {
+                    try await Task.delay(milliseconds: 150)
+                    scrollToBottom()
+                }
+            }
+        }
     }
     
     @ViewBuilder private func title() -> some View {
-        if chat.kind == .twoWay {
-            HStack(spacing: 10) {
-                AvatarView(value: avatarValue, diameter: 30)
-                
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(chat.displayName)
-                        .font(.appTextMedium)
-                        .foregroundColor(.textMain)
-                    Text("Last seen recently")
-                        .font(.appTextHeading)
-                        .foregroundColor(.textSecondary)
-                }
-                
-                Spacer()
+        HStack(spacing: 10) {
+            GradientAvatarView(data: chatID.data, diameter: 30)
+            
+            VStack(alignment: .leading, spacing: 0) {
+                Text(chat.formattedRoomNumber)
+                    .font(.appTextMedium)
+                    .foregroundColor(.textMain)
+                Text("Last seen recently")
+                    .font(.appTextHeading)
+                    .foregroundColor(.textSecondary)
             }
-        } else {
-            Text(chat.displayName)
-                .font(.appTitle)
-                .foregroundColor(.textMain)
+            
+            Spacer()
         }
     }
     
@@ -173,19 +173,22 @@ struct ConversationScreen: View {
     
     private func sendMessage(text: String) {
         Task {
-            try await chatController.sendMessage(content: .text(text), in: chat.id)
+            try await chatController.sendMessage(text: text, for: ID(data: chat.id))
         }
         
         input = ""
+        
+        scrollToBottom()
     }
     
     private func streamMessages(messages: [Chat.Message]) {
-        print("Inserting \(messages.count) messages.")
-        chat.insertMessages(messages)
+        try? chatController.receiveMessages(messages: messages, for: ID(data: chat.id))
+        
+        scrollToBottom()
     }
     
     private func scrollToBottom() {
-        messageListState.scrollToBottom = true
+        messageListState.scrollToBottom()
     }
     
     // MARK: - Errors -

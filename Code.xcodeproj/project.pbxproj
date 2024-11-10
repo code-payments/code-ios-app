@@ -115,6 +115,7 @@
 		9A680BCE28A2BFB700B4D96B /* VerifyPhoneViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A680BCD28A2BFB700B4D96B /* VerifyPhoneViewModel.swift */; };
 		9A680BD028A414AB00B4D96B /* IntroViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A680BCF28A414AB00B4D96B /* IntroViewModel.swift */; };
 		9A69801525F7E7A0002B9D13 /* CurrencySelectionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A69801425F7E7A0002B9D13 /* CurrencySelectionScreen.swift */; };
+		9A6AB53D2CDFE0A60038DBB8 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = 9A6AB53C2CDFE0A60038DBB8 /* SwiftUIIntrospect */; };
 		9A6BFF102B75667700E04EB7 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6BFF0F2B75667700E04EB7 /* NotificationService.swift */; };
 		9A6BFF142B75667700E04EB7 /* CodePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9A6BFF0D2B75667600E04EB7 /* CodePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9A6BFF1C2B76991A00E04EB7 /* CodeServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A6BFF1B2B76991A00E04EB7 /* CodeServices */; };
@@ -577,6 +578,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9A6AB53D2CDFE0A60038DBB8 /* SwiftUIIntrospect in Frameworks */,
 				9A91F3AE2CB6FC2E0018CE65 /* Bugsnag in Frameworks */,
 				9A9970DA2CA331A5006BDE08 /* GRPC in Frameworks */,
 				9A91F3AC2CB6FC2E0018CE65 /* Mixpanel in Frameworks */,
@@ -1233,6 +1235,7 @@
 				9A91F3AD2CB6FC2E0018CE65 /* Bugsnag */,
 				9A91F4C82CC0146A0018CE65 /* FlipchatAPI */,
 				9A91F4D22CC03B930018CE65 /* FlipchatServices */,
+				9A6AB53C2CDFE0A60038DBB8 /* SwiftUIIntrospect */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -3503,6 +3506,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */;
 			productName = Bugsnag;
+		};
+		9A6AB53C2CDFE0A60038DBB8 /* SwiftUIIntrospect */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A4279CF281190E500726D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */;
+			productName = SwiftUIIntrospect;
 		};
 		9A6BFF1B2B76991A00E04EB7 /* CodeServices */ = {
 			isa = XCSwiftPackageProductDependency;

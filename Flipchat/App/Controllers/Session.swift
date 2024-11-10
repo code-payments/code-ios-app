@@ -27,9 +27,9 @@ class Session: ObservableObject {
     
     weak var delegate: SessionDelegate?
     
+    let userID: UserID
     let organizer: Organizer
     
-    private let userID: UserID
     private let client: Client
     private let exchange: Exchange
     private let banners: Banners

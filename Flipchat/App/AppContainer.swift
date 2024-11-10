@@ -22,13 +22,14 @@ class AppContainer: ObservableObject {
     let flipClient = FlipchatClient(network: .mainNet, queue: .main)
     
     let betaFlags = BetaFlags.shared
-    let banners = Banners()
     let biometrics = Biometrics()
     let notificationController = NotificationController()
     
     let exchange: Exchange
     
     lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)
+    
+    lazy private(set) var banners = Banners()
     
     // MARK: - Init -
     

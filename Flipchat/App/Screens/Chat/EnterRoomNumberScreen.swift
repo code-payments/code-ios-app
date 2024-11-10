@@ -33,7 +33,7 @@ struct EnterRoomNumberScreen: View {
                     actionEnabled: { _ in
                         viewModel.isEnteredRoomNumberValid()
                     },
-                    action: viewModel.previewGroupChat
+                    action: viewModel.previewChat
                 )
                 .onAppear(perform: onAppear)
                 .foregroundColor(.textMain)
@@ -47,8 +47,11 @@ struct EnterRoomNumberScreen: View {
             }
             .navigationDestination(for: JoinRoomPath.self) { path in
                 switch path {
-                case .previewRoom:
-                    EnterRoomConfirmationScreen(viewModel: viewModel)
+                case .previewRoom(let chatID):
+                    EnterRoomConfirmationScreen(
+                        chatID: chatID,
+                        viewModel: viewModel
+                    )
                 }
             }
         }

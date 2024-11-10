@@ -12,15 +12,11 @@ import FlipchatServices
 @MainActor
 class ChatViewModel: ObservableObject {
     
-    @Published var friendshipState: FriendshipState = .none
-    
     @Published var joinRoomPath: [JoinRoomPath] = []
     
     @Published var beginChatState: ButtonState = .normal
     
     @Published var enteredRoomNumber: String = ""
-    
-    @Published var enteredRoomPreview: Chat?
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
@@ -83,15 +79,13 @@ class ChatViewModel: ObservableObject {
     
     func startNewChat() {
         Task {
-            let chat = try await chatController.startGroupChat()
-            friendshipState = .contributor(chat)
-            containerViewModel?.pushChat()
+            let chatID = try await chatController.startGroupChat()
+            containerViewModel?.pushChat(chatID: chatID)
         }
     }
     
-    func selectChat(_ chat: Chat) {
-        friendshipState = .contributor(chat)
-        containerViewModel?.pushChat()
+    func selectChat(chat: pChat) {
+        containerViewModel?.pushChat(chatID: ID(data: chat.id))
     }
     
     private func resetEnteredRoomNumber() {
@@ -100,41 +94,34 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Chat -
     
-    func previewGroupChat() {
+    func previewChat() {
         guard let roomNumber = RoomNumber(enteredRoomNumber) else {
             // TODO: Use number parser instead
             return
         }
         
         withButtonState { [chatController] in
-            try await chatController.fetchGroupChat(roomNumber: roomNumber)
+            try await chatController.fetchGroupChat(
+                roomNumber: roomNumber,
+                hide: true // This is a preview, we don't want to add it to the list yet
+            )
             
-        } success: { chat in
-            self.enteredRoomPreview = chat
-            self.joinRoomPath.append(.previewRoom)
+        } success: { chatID in
+            self.joinRoomPath.append(.previewRoom(chatID))
             
         } error: { _ in
             self.showFailedToLoadRoomError()
         }
     }
     
-    func attemptEnterGroupChat() {
-        guard let chat = enteredRoomPreview else {
-            // TODO: Use number parser instead
-            return
-        }
-        
+    func attemptEnterGroupChat(roomNumber: RoomNumber) {
         withButtonState { [chatController] in
-            try await chatController.joinGroupChat(roomNumber: chat.roomNumber)
+            try await chatController.joinGroupChat(roomNumber: roomNumber)
             
-        } success: { chat in
-            self.friendshipState = .contributor(chat) // TODO: Should be .reader()
-            
-            // Dismiss modal, push chat
-            
+        } success: { chatID in
             self.isShowingEnterRoomNumber = false
             try await Task.delay(milliseconds: 100)
-            self.containerViewModel?.pushChat()
+            self.containerViewModel?.pushChat(chatID: chatID)
             
         } error: { _ in
             self.showNotFoundError()
@@ -239,14 +226,6 @@ extension ChatViewModel {
 }
 
 extension ChatViewModel {
-    enum FriendshipState {
-        case none
-        case reader(Chat)
-        case contributor(Chat)
-    }
-}
-
-extension ChatViewModel {
     enum Error: Swift.Error {
         case exchateRateNotFound
         case friendChatIDNotFound
@@ -254,7 +233,7 @@ extension ChatViewModel {
 }
 
 enum JoinRoomPath: Hashable {
-    case previewRoom
+    case previewRoom(ChatID)
 }
 
 extension ChatViewModel {

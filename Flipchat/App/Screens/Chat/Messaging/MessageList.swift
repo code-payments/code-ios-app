@@ -9,69 +9,77 @@ import SwiftUI
 import FlipchatServices
 import CodeUI
 
-public protocol MessageListDelegate: AnyObject {
-    func didInteract(chat: Chat, message: Chat.Message)
-}
-
 public struct MessageList: View {
     
-    public weak var delegate: MessageListDelegate?
-    
-    private let scrollViewBottomID = "com.code.scrollView.bottomID"
-    
-    private let chat: Chat
-    private let messages: [MessageGroup]
-    private let exchange: Exchange
+    private let userID: UserID
+
+    private var messages: [MessageGroup]
     
     @Binding private var state: State
     
     // MARK: - Init -
     
     @MainActor
-    init(chat: Chat, exchange: Exchange, state: Binding<State>, delegate: MessageListDelegate? = nil) {
-        self.chat = chat
-        self.messages = chat.messages.groupByDay()
-        self.exchange = exchange
-        self._state = state
-        self.delegate = delegate
+    init(state: Binding<State>, userID: UserID, messages: [pMessage]) {
+        _state = state
+        self.userID = userID
+        self.messages = messages.groupByDay()
     }
     
     // MARK: - Actions -
     
+    private func scrollToBottom(with proxy: ScrollViewProxy, animated: Bool) {
+        scrollTo(
+            id: scrollViewBottomID,
+            proxy: proxy,
+            animated: animated
+        )
+    }
+    
+    private func scrollTo(id: String, proxy: ScrollViewProxy, animated: Bool) {
+        if animated {
+            withAnimation(.easeOutFastest) {
+                proxy.scrollTo(id, anchor: .center)
+            }
+        } else {
+            proxy.scrollTo(id, anchor: .center)
+        }
+    }
+    
     // MARK: - Body -
     
     public var body: some View {
-        ScrollBox(color: .backgroundMain, ignoreEdges: [.bottom]) {
+        ScrollBox(color: .backgroundMain, ignoreEdges: []) {
             GeometryReader { g in
                 ScrollViewReader { scrollProxy in
-                    ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 20) {
-                            
-                            ForEach(messages) { group in
-                                messageGroup(group: group, geometry: g)
-                            }
+                    List {
+                        ForEach(messages) { group in
+                            messageGroup(group: group, geometry: g)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.top, 15)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .onAppear {
-                            scrollProxy.scrollTo(scrollViewBottomID, anchor: nil)
-                        }
+//                        .scaleEffect(x: 1, y: -1, anchor: .center)
+                        .padding(.bottom, 5)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.backgroundMain)
+                        .scrollContentBackground(.hidden)
                         
-                        Rectangle()
-                            .fill(.clear)
-                            .frame(height: 1)
-                            .frame(maxWidth: .infinity)
+                        // This invisible view creates a 44pt row
+                        // at the very bottom of the list so we
+                        // have to offset* the content with a -44 pad
+                        Color.clear
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.backgroundMain)
                             .id(scrollViewBottomID)
+                            .frame(height: 1)
                     }
-                    .onChange(of: state.scrollToBottom) { _, shouldScroll in
-                        guard shouldScroll else { return }
-                        
-                        withAnimation {
-                            scrollProxy.scrollTo(scrollViewBottomID, anchor: nil)
-                        }
-                        
-                        state.scrollToBottom = false
+                    .padding(.bottom, -44) // <- offset*
+                    .clipped()
+                    .listStyle(.plain)
+//                    .scaleEffect(x: 1, y: -1, anchor: .center)
+                    .onChange(of: state.scrollToBottomIndex) { _, _ in
+                        scrollToBottom(with: scrollProxy, animated: true)
+                    }
+                    .onAppear {
+                        scrollToBottom(with: scrollProxy, animated: false)
                     }
                 }
             }
@@ -84,89 +92,38 @@ public struct MessageList: View {
             MessageTitle(text: group.date.formattedRelatively())
             
             ForEach(group.messages) { message in
-                let isReceived = chat.isMessageReceived(message.senderID)
+                let isReceived = message.senderID != userID.data
                 
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
                                                 
-                        MessageRow(width: geometry.messageWidth(for: content), isReceived: isReceived) {
-                            switch content {
-                            case .text(let content):
-                                MessageText(
-                                    state: .delivered,
-                                    text: content,
-                                    date: message.date,
-                                    isReceived: isReceived,
-                                    location: .forIndex(index, count: message.contents.count)
-                                )
-                                
-                            case .localized(let key):
-                                MessageText(
-                                    state: .delivered,
-                                    text: key.localizedStringByKey,
-                                    date: message.date,
-                                    isReceived: isReceived,
-                                    location: .forIndex(index, count: message.contents.count)
-                                )
-                                
-//                            case .kin(let amount, let verb):
-//                                if let rate = rate(for: amount.currency) {
-//                                    let amount = amount.amountUsing(rate: rate)
-//                                    
-//                                    MessagePayment(
-//                                        state: message.state(for: chat.recipientPointers),
-//                                        verb: verb,
-//                                        amount: amount,
-//                                        isReceived: isReceived,
-//                                        date: message.date,
-//                                        location: .forIndex(index, count: message.contents.count),
-//                                        action: {
-//                                            action(for: message)
-//                                        }
-//                                    )
-//                                } else {
-//                                    // If a rate for this currency isn't found, we can't
-//                                    // represent the value so we fallback to a Kin amount
-//                                    MessagePayment(
-//                                        state: message.state(for: chat.recipientPointers),
-//                                        verb: .unknown,
-//                                        amount: KinAmount(kin: 0, rate: .oneToOne),
-//                                        isReceived: isReceived,
-//                                        date: message.date,
-//                                        location: .forIndex(index, count: message.contents.count),
-//                                        action: {
-//                                            action(for: message, reference: reference)
-//                                        }
-//                                    )
-//                                }
-                                
-                            case .sodiumBox:
-                                MessageEncrypted(
-                                    date: message.date,
-                                    isReceived: isReceived,
-                                    location: .forIndex(index, count: message.contents.count)
-                                )
-                            }
+                        MessageRow(width: geometry.messageWidth(), isReceived: isReceived) {
+                            MessageText(
+                                state: message.state.state,
+                                text: content,
+                                date: message.date,
+                                isReceived: isReceived,
+                                location: .forIndex(index, count: message.contents.count)
+                            )
                         }
-                        .id(group.contentID(forMessage: message, contentIndex: index))
                     }
                 }
             }
         }
     }
     
-    private func action(for message: Chat.Message) {
-        delegate?.didInteract(chat: chat, message: message)
-    }
+    private let scrollViewBottomID = "com.code.scrollView.bottomID"
 }
 
 extension MessageList {
     public struct State {
         
-        var scrollToBottom: Bool
+        var scrollToBottomIndex: Int = 0
         
-        init(scrollToBottom: Bool = false) {
-            self.scrollToBottom = scrollToBottom
+        init() {}
+        
+        mutating func scrollToBottom() {
+            scrollToBottomIndex += 1
         }
     }
 }
@@ -178,30 +135,19 @@ struct MessageGroup: Identifiable {
     }
     
     var date: Date
-    var messages: [Chat.Message]
+    var messages: [pMessage]
     
-    init(date: Date, messages: [Chat.Message]) {
+    init(date: Date, messages: [pMessage]) {
         self.date = date
         self.messages = messages
     }
-    
-    func contentID(forMessage message: Chat.Message, contentIndex: Int) -> String {
-        let lastContent = message.contents[contentIndex]
-        return "\(message.id.data.hexEncodedString()):\(lastContent.id)"
-    }
-    
-    func lastMessageContentID() -> String {
-        let messageIndex = messages.count - 1
-        let message = messages[messageIndex]
-        return contentID(forMessage: message, contentIndex: message.contents.count - 1)
-    }
 }
 
-extension Array where Element == Chat.Message {
+extension Array where Element == pMessage {
     func groupByDay() -> [MessageGroup] {
         
         let calendar = Calendar.current
-        var container: [Date: [Chat.Message]] = [:]
+        var container: [Date: [pMessage]] = [:]
 
         forEach { message in
             let components = calendar.dateComponents([.year, .month, .day], from: message.date)
@@ -224,11 +170,8 @@ extension Array where Element == Chat.Message {
 }
 
 private extension GeometryProxy {
-    func messageWidth(for content: Chat.Content) -> CGFloat {
-        switch content {
-        case .localized, .sodiumBox, .text:
-            return size.width * 0.70
-        }
+    func messageWidth() -> CGFloat {
+        size.width * 0.70
     }
 }
 
@@ -290,4 +233,19 @@ extension View {
             )
         }
     }
+}
+
+import SwiftData
+
+#Preview {
+    let config = ModelConfiguration(isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: pChat.self, pMessage.self, pMember.self, pPointer.self, configurations: config)
+    
+    NavigationStack {
+        Background(color: .backgroundMain) {
+            MessageList(state: .constant(.init()), userID: .mock, messages: [])
+        }
+        .navigationTitle("Chat")
+    }
+    .modelContainer(container)
 }

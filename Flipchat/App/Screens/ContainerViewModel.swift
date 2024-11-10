@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FlipchatServices
 
 @MainActor
 class ContainerViewModel: ObservableObject {
@@ -22,8 +23,8 @@ class ContainerViewModel: ObservableObject {
     
     // MARK: - Chat -
     
-    func pushChat() {
-        navigationPath = [.chat]
+    func pushChat(chatID: ChatID) {
+        navigationPath = [.chat(chatID)]
     }
     
     func popChat() {
@@ -38,7 +39,7 @@ class ContainerViewModel: ObservableObject {
 }
 
 enum ContainerPath: Hashable {
-    case chat
+    case chat(ChatID)
 }
 
 extension ContainerViewModel {

@@ -101,6 +101,7 @@ struct ChatsScreen: View {
                 case .enterUsername:
                     EnterUsernameScreen(viewModel: viewModel)
                 case .chat:
+                    ConversationScreen(chat: <#T##ChatLegacy#>, chatController: <#T##ChatController#>)
                     ConversationContainer(
                         chatController: chatController,
                         viewModel: viewModel

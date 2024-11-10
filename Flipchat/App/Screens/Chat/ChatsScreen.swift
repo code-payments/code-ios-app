@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import CodeUI
 import FlipchatServices
 
@@ -17,8 +18,17 @@ struct ChatsScreen: View {
     @ObservedObject private var chatController: ChatController
     @ObservedObject private var viewModel: ChatViewModel
     
-    private var chats: [Chat] {
-        chatController.chats
+    @Query(
+        filter: #Predicate<pChat> { $0.isHidden == false },
+        sort: \pChat.id, order: .reverse
+    )
+    private var unsortedRooms: [pChat]
+    
+    private var sortedRooms: [pChat] {
+        unsortedRooms.sorted { lhs, rhs in
+            lhs.newestMessage?.date.timeIntervalSince1970 ?? 0 >
+            rhs.newestMessage?.date.timeIntervalSince1970 ?? 0
+        }
     }
     
     // MARK: - Init -
@@ -43,18 +53,23 @@ struct ChatsScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 ScrollBox(color: .backgroundMain) {
-                    LazyTable(
-                        contentPadding: .scrollBox,
-                        content: {
-                            chatsView()
-                            
+                    List {
+                        Section {
+                            ForEach(sortedRooms) { room in
+                                row(for: room)
+                            }
+                        } footer: {
                             CodeButton(style: .filled, title: "Join a Chat") {
                                 viewModel.startChatting()
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 10)
+                            .listRowSeparator(.hidden)
+                            .padding(.top, 20)
                         }
-                    )
+                        .listRowSeparatorTint(.rowSeparator)
+                        .listRowBackground(Color.backgroundMain)
+                        .scrollContentBackground(.hidden)
+                    }
+                    .listStyle(.plain)
                 }
             }
             .onAppear {
@@ -64,7 +79,7 @@ struct ChatsScreen: View {
                 didDisappear()
             }
             .navigationBarHidden(false)
-            .navigationBarTitle(Text(Localized.Action.chat))
+            .navigationBarTitle(Text("Chats"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -90,61 +105,54 @@ struct ChatsScreen: View {
         }
     }
     
-    @ViewBuilder private func chatsView() -> some View {
-        ForEach(chats, id: \.id) { chat in
-            Button {
-                viewModel.selectChat(chat)
+    @ViewBuilder private func row(for chat: pChat) -> some View {
+        Button {
+            viewModel.selectChat(chat: chat)
+            
+        } label: {
+            HStack(spacing: 15) {
+                GradientAvatarView(data: chat.id, diameter: 50)
                 
-            } label: {
-                let isUnread = !chat.isMuted && chat.unreadCount > 0
-                
-                HStack(spacing: 15) {
-                    GradientAvatarView(data: chat.id.data, diameter: 50)
-                    
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 10) {
-                            Text(chat.displayName)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 10) {
+                            Text(chat.formattedRoomNumber)
                                 .foregroundColor(.textMain)
                                 .font(.appTextMedium)
                                 .lineLimit(1)
-                            
-                            Spacer()
-                            
-                            if let newestMessage = chat.newestMessage {
-                                Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
-                                    .foregroundColor(isUnread ? .textSuccess : .textSecondary)
-                                    .font(.appTextSmall)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .frame(height: 23) // Ensures the same height with and without Bubble
                         
-                        HStack(alignment: .top, spacing: 5) {
-                            Text(chat.previewMessage)
+                        Spacer()
+                        
+                        if let newestMessage = chat.newestMessage {
+                            Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
+                                .foregroundColor(chat.isUnread ? .textSuccess : .textSecondary)
+                                .font(.appTextSmall)
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(height: 23) // Ensures the same height with and without Bubble
+                    
+                    HStack(alignment: .top, spacing: 5) {
+                        Text(chat.newestMessagePreview)
+                            .foregroundColor(.textSecondary)
+                            .font(.appTextMedium)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                        
+                        Spacer()
+                        
+                        if chat.isMuted {
+                            Image.system(.speakerSlash)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20, alignment: .trailing)
                                 .foregroundColor(.textSecondary)
-                                .font(.appTextMedium)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-                            
-                            Spacer()
-                            
-                            if chat.isMuted {
-                                Image.system(.speakerSlash)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 20, height: 20, alignment: .trailing)
-                                    .foregroundColor(.textSecondary)
-                            }
-                            
-                            if isUnread {
-                                Bubble(size: .large, count: chat.unreadCount)
-                            }
+                        }
+                        
+                        if chat.isUnread {
+                            Bubble(size: .large, count: chat.unreadCount)
                         }
                     }
                 }
-                .padding([.trailing, .top, .bottom], 20)
-                .vSeparator(color: .rowSeparator)
-                .padding(.leading, 20)
             }
         }
     }
