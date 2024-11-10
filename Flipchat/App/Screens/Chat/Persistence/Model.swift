@@ -21,6 +21,8 @@ public class pChat: ObservableObject {
     
     public var roomNumber: RoomNumber
     
+    public var ownerUserID: Data
+    
     public var isHidden: Bool
     
     public var isMuted: Bool
@@ -37,11 +39,12 @@ public class pChat: ObservableObject {
     @Relationship(deleteRule: .cascade)
     public var members: [pMember] = []
     
-    init(id: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
+    init(id: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
         self.id = id
         self.kind = kind
         self.title = title
         self.roomNumber = roomNumber
+        self.ownerUserID = ownerUserID
         self.isHidden = isHidden
         self.isMuted = isMuted
         self.isMutable = isMutable
@@ -54,6 +57,7 @@ public class pChat: ObservableObject {
             kind: .unknown,
             title: "",
             roomNumber: 0,
+            ownerUserID: Data(),
             isHidden: false,
             isMuted: false,
             isMutable: false,
@@ -65,6 +69,7 @@ public class pChat: ObservableObject {
         self.id          = metadata.id.data
         self.kind        = pChatKind(kind: metadata.kind)
         self.roomNumber  = metadata.roomNumber
+        self.ownerUserID = metadata.ownerUser.data
         self.title       = metadata.title
         self.isMuted     = metadata.isMuted
         self.isMutable   = metadata.isMutable

@@ -20,6 +20,9 @@ extension Chat {
         /// is themselves.
         public let isSelf: Bool
         
+        /// Is this chat member the host of the chat
+        public let isHost: Bool
+        
         /// The chat member's identity if it has been revealed.
         public var identity: Identity
         
@@ -28,9 +31,10 @@ extension Chat {
         /// on server.
         public var pointers: [Pointer]
         
-        public init(id: ID, isSelf: Bool, identity: Identity, pointers: [Pointer]) {
+        public init(id: ID, isSelf: Bool, isHost: Bool, identity: Identity, pointers: [Pointer]) {
             self.id = id
             self.isSelf = isSelf
+            self.isHost = isHost
             self.identity = identity
             self.pointers = pointers
         }
@@ -57,6 +61,7 @@ extension Chat.Member {
         self.init(
             id: .init(data: proto.userID.value),
             isSelf: proto.isSelf,
+            isHost: proto.isHost,
             identity: .init(proto.identity),
             pointers: proto.pointers.map { .init($0) }
         )

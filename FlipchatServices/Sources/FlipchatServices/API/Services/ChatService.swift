@@ -108,6 +108,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         let request = Flipchat_Chat_V1_StreamChatEventsRequest.with {
             $0.params = .with {
                 $0.auth = owner.authFor(message: $0)
+                $0.ts = .init(date: .now)
             }
         }
         

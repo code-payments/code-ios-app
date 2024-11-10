@@ -83,11 +83,25 @@ public struct Flipchat_Chat_V1_StreamChatEventsRequest {
     /// Clears the value of `auth`. Subsequent reads from it will return its default value.
     public mutating func clearAuth() {self._auth = nil}
 
+    /// ts contains the time for stream open.
+    ///
+    /// It is used primarily as a nonce for auth. Server may reject
+    /// timestamps that are too far in the future or past.
+    public var ts: SwiftProtobuf.Google_Protobuf_Timestamp {
+      get {return _ts ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+      set {_ts = newValue}
+    }
+    /// Returns true if `ts` has been explicitly set.
+    public var hasTs: Bool {return self._ts != nil}
+    /// Clears the value of `ts`. Subsequent reads from it will return its default value.
+    public mutating func clearTs() {self._ts = nil}
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public init() {}
 
     fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+    fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
   }
 
   public init() {}
@@ -1100,6 +1114,19 @@ public struct Flipchat_Chat_V1_Metadata {
   /// Number of (estimated) unread message (from the perspective of the caller).
   public var numUnread: UInt32 = 0
 
+  /// Owner is the owner/creator of the chat.
+  ///
+  /// This is a super priviledge role, in which there can only be one.
+  /// This role is displayed as a 'host' currently.
+  public var owner: Flipchat_Common_V1_UserId {
+    get {return _owner ?? Flipchat_Common_V1_UserId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {return self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum ChatType: SwiftProtobuf.Enum {
@@ -1136,6 +1163,7 @@ public struct Flipchat_Chat_V1_Metadata {
   public init() {}
 
   fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _owner: Flipchat_Common_V1_UserId? = nil
 }
 
 #if swift(>=4.2)
@@ -1189,6 +1217,9 @@ public struct Flipchat_Chat_V1_Member {
 
   /// If the member is the caller (where applicable), will be set to true.
   public var isSelf: Bool = false
+
+  /// NOTE: We may switch to 'roles' in the future.
+  public var isHost: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1335,6 +1366,7 @@ extension Flipchat_Chat_V1_StreamChatEventsRequest.Params: SwiftProtobuf.Message
   public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsRequest.protoMessageName + ".Params"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "auth"),
+    2: .same(proto: "ts"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1344,6 +1376,7 @@ extension Flipchat_Chat_V1_StreamChatEventsRequest.Params: SwiftProtobuf.Message
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
       default: break
       }
     }
@@ -1357,11 +1390,15 @@ extension Flipchat_Chat_V1_StreamChatEventsRequest.Params: SwiftProtobuf.Message
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    try { if let v = self._ts {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsRequest.Params, rhs: Flipchat_Chat_V1_StreamChatEventsRequest.Params) -> Bool {
     if lhs._auth != rhs._auth {return false}
+    if lhs._ts != rhs._ts {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2479,6 +2516,7 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     5: .standard(proto: "is_muted"),
     6: .same(proto: "muteable"),
     7: .standard(proto: "num_unread"),
+    8: .same(proto: "owner"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2494,6 +2532,7 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 5: try { try decoder.decodeSingularBoolField(value: &self.isMuted) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.muteable) }()
       case 7: try { try decoder.decodeSingularUInt32Field(value: &self.numUnread) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
       default: break
       }
     }
@@ -2525,6 +2564,9 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if self.numUnread != 0 {
       try visitor.visitSingularUInt32Field(value: self.numUnread, fieldNumber: 7)
     }
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2536,6 +2578,7 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs.isMuted != rhs.isMuted {return false}
     if lhs.muteable != rhs.muteable {return false}
     if lhs.numUnread != rhs.numUnread {return false}
+    if lhs._owner != rhs._owner {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2556,6 +2599,7 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
     2: .same(proto: "identity"),
     3: .same(proto: "pointers"),
     4: .standard(proto: "is_self"),
+    5: .standard(proto: "is_host"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2568,6 +2612,7 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
       case 2: try { try decoder.decodeSingularMessageField(value: &self._identity) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.pointers) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.isSelf) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.isHost) }()
       default: break
       }
     }
@@ -2590,6 +2635,9 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
     if self.isSelf != false {
       try visitor.visitSingularBoolField(value: self.isSelf, fieldNumber: 4)
     }
+    if self.isHost != false {
+      try visitor.visitSingularBoolField(value: self.isHost, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -2598,6 +2646,7 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
     if lhs._identity != rhs._identity {return false}
     if lhs.pointers != rhs.pointers {return false}
     if lhs.isSelf != rhs.isSelf {return false}
+    if lhs.isHost != rhs.isHost {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
