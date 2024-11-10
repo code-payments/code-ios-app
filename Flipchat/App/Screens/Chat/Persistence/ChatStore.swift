@@ -125,11 +125,18 @@ class ChatStore: ObservableObject {
     // MARK: - Receive -
     
     func receive(messages: [Chat.Message], for chatID: FlipchatServices.ChatID) throws {
+        let filteredMessages = messages.filter {
+            // Filter out any messages sent by self
+            // because those are handled directly in
+            // the call to `sendMessage(text:for:)`
+            !($0.senderID == userID)
+        }
+        
         guard let chat = try fetchSingle(for: pChat.self, id: chatID.data) else {
             throw Error.failedToFetchChat
         }
         
-        try upsert(messages: messages, in: chat)
+        try upsert(messages: filteredMessages, in: chat)
     }
     
     // MARK: - Actions -
@@ -174,7 +181,7 @@ class ChatStore: ObservableObject {
     }
     
     func fetchChat(roomNumber: RoomNumber, hide: Bool) async throws -> FlipchatServices.ChatID {
-        let metadata = try await client.fetchChat(
+        let (metadata, members) = try await client.fetchChat(
             for: roomNumber,
             owner: owner
         )
@@ -258,11 +265,8 @@ class ChatStore: ObservableObject {
     
     private func upsert(chat: Chat.Metadata) throws -> pChat {
         let c = try fetchOrCreateChat(for: chat.id)
-        
-        c.title       = chat.title
-        c.isMuted     = chat.isMuted
-        c.isMutable   = chat.isMutable
-        c.unreadCount = chat.unreadCount
+
+        c.update(from: chat)
         
         try context.save()
         

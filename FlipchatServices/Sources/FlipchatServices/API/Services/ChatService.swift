@@ -201,7 +201,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchChat(for roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<Chat.Metadata, ErrorFetchChat>) -> Void) {
+    func fetchChat(for roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorFetchChat>) -> Void) {
         trace(.send, components: "Room: #\(roomNumber)")
         
         let request = Flipchat_Chat_V1_GetChatRequest.with {
@@ -216,7 +216,8 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
             if error == .ok {
                 trace(.success, components: "Room: #\(roomNumber)")
                 let chat = Chat.Metadata(response.metadata)
-                completion(.success(chat))
+                let members = response.members.map { Chat.Member($0) }
+                completion(.success((chat, members)))
             } else {
                 trace(.success, components: "Error: \(error)")
                 completion(.failure(error))

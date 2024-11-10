@@ -65,17 +65,17 @@ class ChatController: ObservableObject {
     private func streamChatEvents() {
         destroyChatStream()
         
-//        chatStream = client.streamChatEvents(owner: owner) { [weak self] result in
-//            switch result {
-//            case .success(let events):
-//                events.forEach {
-//                    self?.handleEvent($0)
-//                }
-//                
-//            case .failure:
-//                self?.reconnectChatStream(after: 250)
-//            }
-//        }
+        chatStream = client.streamChatEvents(owner: owner) { [weak self] result in
+            switch result {
+            case .success(let events):
+                events.forEach {
+                    self?.handleEvent($0)
+                }
+                
+            case .failure:
+                self?.reconnectChatStream(after: 250)
+            }
+        }
     }
     
     private func reconnectChatStream(after milliseconds: Int) {
@@ -122,12 +122,12 @@ class ChatController: ObservableObject {
     
     private func update(chat: Chat, withMetadata metadata: Chat.Metadata) {
         trace(.success, components: "Metadata: \(metadata)")
-        chat.update(from: metadata)
+//        chat.update(from: metadata)
     }
     
     private func update(chat: Chat, withLastMessage message: Chat.Message) {
         trace(.success, components: "Last Message: \(message)")
-        chat.setLastMessage(message)
+//        chat.setLastMessage(message)
     }
     
     private func update(chat: Chat, withMembers members: [Chat.Member]) {
