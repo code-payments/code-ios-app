@@ -9,26 +9,9 @@
 import Foundation
 import FlipchatAPI
 
-@MainActor
-public class Chat: ObservableObject {
+public struct Chat {
     
-    /// Metadata for this chat: id, kind, roomNumber, etc
-    @Published public private(set) var metadata: Metadata
-    
-    /// The members in this chat
-    ///
-    /// For NOTIFICATION chats, this list has exactly 1 item
-    /// For TWO_WAY chats, this list has exactly 2 items
-    ///
-    /// If we support group chats, then we'll likely return the first page
-    /// or a prioritized list. The remaining members would be fetched via
-    /// a new RPC.
-//    @Published public private(set) var members: [Member]
-    
-    @Published public private(set) var lastMessage: Message?
-    
-    /// The messages in this chat
-    @Published public private(set) var messages: [Message]
+    public private(set) var metadata: Metadata
         
     public let selfUserID: UserID
     
@@ -56,165 +39,10 @@ public class Chat: ObservableObject {
         metadata.unreadCount
     }
     
-    /// A member of the `members` array that is `self`
-//    public var selfMember: Member? {
-//        members.first { $0.isSelf }
-//    }
-//    
-//    /// In a two-way chat, the member that isn't `self`
-//    public var otherMember: Member? {
-//        guard members.count == 2 else {
-//            return nil
-//        }
-//        
-//        return members.first { !$0.isSelf }
-//    }
-    
-    /// In a two-way chat, the other member's avatar URL
-//    public var otherMemberAvatarURL: URL? {
-//        otherMember?.identity.avatarURL
-//    }
-    
-    /// The title for the chat that defaults to identifying the 'other'
-    /// member if their identity is available, otherwise `title`
-    public var displayName: String {
-        "Room #\(roomNumber)"
-    }
-    
-    public var previewMessage: String {
-        let previewMessage = lastMessage ?? newestMessage
-        
-        guard let previewMessage else {
-            return "No content"
-        }
-        
-        return previewMessage.contents
-            .compactMap { $0.text }
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
-    }
-    
-//    public var recipientPointers: [Pointer] {
-//        guard members.count == 2 else {
-//            return []
-//        }
-//        
-//        let recipient = members.first { !$0.isSelf }
-//        return recipient?.pointers ?? []
-//    }
-    
-    public var oldestMessage: Message? {
-        messages.first
-    }
-    
-    public var newestMessage: Message? {
-        messages.last
-    }
-    
     // MARK: - Init -
     
-    public init(selfUserID: UserID, metadata: Metadata, messages: [Message] = []) {
+    public init(selfUserID: UserID, metadata: Metadata) {
         self.selfUserID = selfUserID
         self.metadata = metadata
-        self.messages = messages
-    }
-    
-    // MARK: - State -
-    
-    public func resetUnreadCount() {
-        metadata.unreadCount = 0
-    }
-    
-    public func setMuted(_ muted: Bool) {
-        metadata.isMuted = muted
-    }
-    
-    public func setLastMessage(_ message: Message) {
-        lastMessage = message
-    }
-    
-//    private func updatingSelf(block: (inout Member) -> Void) {
-//        if let index = members.firstIndex(where: { $0.isSelf }) {
-//            block(&members[index])
-//        }
-//    }
-    
-    // MARK: - Pointers -
-    
-//    public func setPointer(_ pointer: Pointer) {
-//        guard let memberIndex = members.firstIndex(where: { $0.id == pointer.memberID }) else {
-//            return
-//        }
-//        
-//        var memberToUpdate = members[memberIndex]
-//        
-//        guard let index = memberToUpdate.pointers.firstIndex(where: { $0.kind == pointer.kind }) else {
-//            return
-//        }
-//        
-//        memberToUpdate.pointers[index] = pointer
-//        members[memberIndex] = memberToUpdate
-//        
-//        objectWillChange.send()
-//    }
-    
-    // MARK: - Messages -
-    
-    public func isMessageReceived(_ userID: UserID?) -> Bool {
-        userID != selfUserID
-    }
-    
-    @discardableResult
-    public func insertMessages(_ messages: [Message]) -> Int {
-        var newMessages = messages.elementsKeyed(by: \.id)
-        
-        // Iterate over existing messages and replace with
-        // any new messages and then removing them from 'new'.
-        // We'll append the rest of the 'new' messages and
-        // sort the whole array.
-        
-        var updatedMessages: [Message] = []
-        updatedMessages.reserveCapacity(messages.count)
-        
-        for existingMessage in self.messages {
-            let id = existingMessage.id
-            if let newMessage = newMessages[id] {
-                newMessages.removeValue(forKey: id)
-                updatedMessages.append(newMessage)
-            } else {
-                updatedMessages.append(existingMessage)
-            }
-        }
-        
-        setSortedMessages((self.messages + newMessages.values).sortedByDateDesc())
-        
-        return newMessages.count
-    }
-    
-    public func setMessages(_ messages: [Message]) {
-        setSortedMessages(messages.sortedByDateDesc())
-    }
-    
-    private func setSortedMessages(_ messages: [Message]) {
-        self.messages = messages
-    }
-    
-    public func latestMessage() -> Message? {
-        messages.last // Order is ascending
-    }
-    
-    public func popLast() -> Message? {
-        messages.popLast()
-    }
-    
-    @discardableResult
-    public func update(from metadata: Metadata) -> Bool {
-        guard metadata.id == id else {
-            return false
-        }
-        
-        self.metadata = metadata
-        
-        return true
     }
 }

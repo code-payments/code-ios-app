@@ -85,7 +85,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func selectChat(chat: pChat) {
-        containerViewModel?.pushChat(chatID: ID(data: chat.id))
+        containerViewModel?.pushChat(chatID: ID(data: chat.serverID))
     }
     
     private func resetEnteredRoomNumber() {

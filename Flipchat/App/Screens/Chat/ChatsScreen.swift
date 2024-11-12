@@ -20,7 +20,7 @@ struct ChatsScreen: View {
     
     @Query(
         filter: #Predicate<pChat> { $0.isHidden == false },
-        sort: \pChat.id, order: .reverse
+        sort: \pChat.serverID, order: .reverse
     )
     private var unsortedRooms: [pChat]
     
@@ -111,7 +111,7 @@ struct ChatsScreen: View {
             
         } label: {
             HStack(spacing: 15) {
-                GradientAvatarView(data: chat.id, diameter: 50)
+                GradientAvatarView(data: chat.serverID, diameter: 50)
                 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 10) {

@@ -71,11 +71,6 @@ final class SessionAuthenticator: ObservableObject {
         
         UserDefaults.launchCount = (UserDefaults.launchCount ?? 0) + 1
         trace(.note, components: "Launch count: \(UserDefaults.launchCount!)")
-
-        // TODO: Remove below
-        accountManager.resetForLogout()
-        UserDefaults.wasLoggedIn = false
-        // !!! Remove above
         
         initializeState { mnemonic in // Migration
             Task {

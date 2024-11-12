@@ -29,7 +29,7 @@ struct EnterRoomConfirmationScreen: View {
     init(chatID: ChatID, viewModel: ChatViewModel) {
         self.chatID = chatID
         self.viewModel = viewModel
-        _chats = Query(filter: #Predicate { $0.id == chatID.data })
+        _chats = Query(filter: #Predicate { $0.serverID == chatID.data })
     }
     
     // MARK: - Body -
@@ -51,9 +51,9 @@ struct EnterRoomConfirmationScreen: View {
                             
                             Spacer()
                             VStack(spacing: 4) {
-                                Text("Hosted by Ivy")
-                                Text("24 people inside")
-                                Text("ID: \(chat.id.hexEncodedString().prefix(16))")
+                                Text("Hosted by anonymous")
+                                Text("\(chat.members.count) people inside")
+                                Text("ID: \(chat.serverID.hexEncodedString().prefix(16))")
                                 //                                    Text("Cover Charge: ⬢ 1,000 Kin")
                             }
                             .opacity(0.8)
@@ -63,7 +63,7 @@ struct EnterRoomConfirmationScreen: View {
                         .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background {
-                            DeterministicGradient(data: chat.id)
+                            DeterministicGradient(data: chat.serverID)
                         }
                     }
                     .padding(20)
@@ -156,15 +156,6 @@ private struct AspectRatioCard<Content>: View where Content: View {
         let x = (geometry.size.width  - size.width)  * 0.5 + size.width  * 0.5
         
         return .init(x: x, y: y)
-    }
-}
-
-private extension EnterRoomConfirmationScreen {
-    static func chatQuery(chatID: ChatID) -> FetchDescriptor<pChat> {
-        var q = FetchDescriptor<pChat>()
-        q.fetchLimit = 1
-        q.predicate = #Predicate { $0.id == chatID.data }
-        return q
     }
 }
 

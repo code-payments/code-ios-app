@@ -9,11 +9,15 @@ import SwiftUI
 import SwiftData
 import FlipchatServices
 
+protocol ServerIdentifiable {
+    var serverID: Data { get }
+}
+
 @Model
-public class pChat: ObservableObject {
+public class pChat: ServerIdentifiable, ObservableObject {
     
     @Attribute(.unique)
-    public var id: Data
+    public var serverID: Data
     
     public var kind: pChatKind
     
@@ -39,8 +43,8 @@ public class pChat: ObservableObject {
     @Relationship(deleteRule: .cascade)
     public var members: [pMember] = []
     
-    init(id: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
-        self.id = id
+    init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
+        self.serverID = serverID
         self.kind = kind
         self.title = title
         self.roomNumber = roomNumber
@@ -51,9 +55,9 @@ public class pChat: ObservableObject {
         self.unreadCount = unreadCount
     }
     
-    static func new(id: Data) -> pChat {
+    static func new(serverID: Data) -> pChat {
         pChat(
-            id: id,
+            serverID: serverID,
             kind: .unknown,
             title: "",
             roomNumber: 0,
@@ -66,7 +70,7 @@ public class pChat: ObservableObject {
     }
     
     func update(from metadata: Chat.Metadata) {
-        self.id          = metadata.id.data
+        self.serverID    = metadata.id.data
         self.kind        = pChatKind(kind: metadata.kind)
         self.roomNumber  = metadata.roomNumber
         self.ownerUserID = metadata.ownerUser.data
@@ -143,10 +147,10 @@ extension pChat {
 // MARK: - Message -
 
 @Model
-public class pMessage {
+public class pMessage: ServerIdentifiable {
     
     @Attribute(.unique)
-    public var id: Data
+    public var serverID: Data
     
     public var date: Date
     
@@ -169,8 +173,8 @@ public class pMessage {
     @Relationship(deleteRule: .nullify)
     public var pointers: [pPointer] = []
     
-    init(id: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [String]) {
-        self.id = id
+    init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [String]) {
+        self.serverID = serverID
         self.date = date
         self.state = state
         self.senderID = senderID
@@ -178,9 +182,9 @@ public class pMessage {
         self.contents = contents
     }
     
-    static func new(id: Data?, senderID: Data, date: Date = .now, text: String? = nil) -> pMessage {
+    static func new(serverID: Data?, senderID: Data, date: Date = .now, text: String? = nil) -> pMessage {
         pMessage(
-            id: id ?? .tempID,
+            serverID: serverID ?? .tempID,
             date: date,
             state: .sent,
             senderID: senderID,
@@ -190,7 +194,7 @@ public class pMessage {
     }
     
     func update(from message: Chat.Message) {
-        self.id = message.id.data
+        self.serverID = message.id.data
         self.date = message.date
         self.state = .delivered
         self.isDeleted = false
@@ -202,7 +206,7 @@ public class pMessage {
 extension pMessage {
     convenience init(message: Chat.Message) {
         self.init(
-            id: message.id.data,
+            serverID: message.id.data,
             date: message.date,
             state: .delivered,
             senderID: message.senderID?.data,
@@ -236,10 +240,10 @@ public enum pMessageState: Int, Codable {
 // MARK: - Member -
 
 @Model
-public class pMember {
+public class pMember: ServerIdentifiable {
     
     @Attribute(.unique)
-    public var id: Data
+    public var serverID: Data
     
     public var displayName: String
     
@@ -256,22 +260,22 @@ public class pMember {
     @Relationship(deleteRule: .cascade)
     public var pointers: [pPointer] = []
     
-    init(id: Data, displayName: String, avatarURL: URL?) {
-        self.id = id
+    init(serverID: Data, displayName: String, avatarURL: URL?) {
+        self.serverID = serverID
         self.displayName = displayName
         self.avatarURL = avatarURL
     }
     
-    static func new(id: Data) -> pMember {
+    static func new(serverID: Data) -> pMember {
         pMember(
-            id: id,
+            serverID: serverID,
             displayName: "",
             avatarURL: nil
         )
     }
     
     func update(from member: Chat.Member) {
-        self.id = member.id.data
+        self.serverID = member.id.data
         self.displayName = member.identity.displayName ?? "Anonymous"
         self.avatarURL = nil
     }

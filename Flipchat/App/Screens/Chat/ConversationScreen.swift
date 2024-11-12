@@ -40,7 +40,7 @@ struct ConversationScreen: View {
         self.chatController = chatController
         
         _chats = Query(filter: #Predicate<pChat> {
-            $0.id == chatID.data
+            $0.serverID == chatID.data
         })
     }
     
@@ -58,7 +58,7 @@ struct ConversationScreen: View {
         destroyStream()
         
         var messageID: MessageID?
-        if let lastMessage = chat.messages.last?.id {
+        if let lastMessage = chat.messages.last?.serverID {
             messageID = MessageID(data: lastMessage)
         }
         
@@ -178,7 +178,7 @@ struct ConversationScreen: View {
     
     private func sendMessage(text: String) {
         Task {
-            try await chatController.sendMessage(text: text, for: ID(data: chat.id))
+            try await chatController.sendMessage(text: text, for: ID(data: chat.serverID))
         }
         
         input = ""
@@ -187,7 +187,7 @@ struct ConversationScreen: View {
     }
     
     private func streamMessages(messages: [Chat.Message]) {
-        try? chatController.receiveMessages(messages: messages, for: ID(data: chat.id))
+        try? chatController.receiveMessages(messages: messages, for: ID(data: chat.serverID))
         
         scrollToBottom()
     }

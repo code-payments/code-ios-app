@@ -247,7 +247,7 @@ import SwiftData
         Background(color: .backgroundMain) {
             MessageList(state: .constant(.init()), userID: .mock, messages: [
                 .init(
-                    id: Data([1]),
+                    serverID: Data([1]),
                     date: .now,
                     state: .delivered,
                     senderID: nil,
@@ -255,7 +255,7 @@ import SwiftData
                     contents: ["Hey how's it going"]
                 ),
                 .init(
-                    id: Data([1]),
+                    serverID: Data([1]),
                     date: .now,
                     state: .delivered,
                     senderID: nil,

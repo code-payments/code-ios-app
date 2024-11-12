@@ -68,28 +68,28 @@ struct ContainerScreen: View {
     
     @ViewBuilder private func homeView(state: AuthenticatedState) -> some View {
         NavigationStack(path: $viewModel.navigationPath) {
-//            TabBarView(selection: $tabSelection) {
+            TabBarView(selection: $tabSelection) {
                 ChatsScreen(
                     session: state.session,
                     chatController: state.chatController,
                     viewModel: state.chatViewModel
                 )
-//                .tabBarItem(
-//                    title: "Chats",
-//                    asset: .bubble,
-//                    selection: tabSelection
-//                )
-//                
-//                BalanceScreen(
-//                    session: state.session,
-//                    container: container
-//                )
-//                .tabBarItem(
-//                    title: "Kin",
-//                    asset: .kinHex,
-//                    selection: tabSelection
-//                )
-//            }
+                .tabBarItem(
+                    title: "Chats",
+                    asset: .bubble,
+                    selection: tabSelection
+                )
+                
+                BalanceScreen(
+                    session: state.session,
+                    container: container
+                )
+                .tabBarItem(
+                    title: "Kin",
+                    asset: .kinHex,
+                    selection: tabSelection
+                )
+            }
             .navigationDestination(for: ContainerPath.self) { path in
                 switch path {
                 case .chat(let chatID):
