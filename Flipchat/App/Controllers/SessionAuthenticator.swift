@@ -71,6 +71,11 @@ final class SessionAuthenticator: ObservableObject {
         
         UserDefaults.launchCount = (UserDefaults.launchCount ?? 0) + 1
         trace(.note, components: "Launch count: \(UserDefaults.launchCount!)")
+
+        // TODO: Remove below
+        accountManager.resetForLogout()
+        UserDefaults.wasLoggedIn = false
+        // !!! Remove above
         
         initializeState { mnemonic in // Migration
             Task {
@@ -123,9 +128,9 @@ final class SessionAuthenticator: ObservableObject {
             
         } else {
             
-            if !accountManager.fetchHistorical().isEmpty {
-                state = .pending
-            } else {
+//            if !accountManager.fetchHistorical().isEmpty {
+//                state = .pending
+//            } else {
                 state = .loggedOut
                 
                 // Only attempt to recover if there was an
@@ -160,7 +165,7 @@ final class SessionAuthenticator: ObservableObject {
                         Analytics.unintentialLogout()
                     }
                 }
-            }
+//            }
         }
     }
     
