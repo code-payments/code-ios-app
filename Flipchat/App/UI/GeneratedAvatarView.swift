@@ -10,6 +10,52 @@ import Foundation
 import CommonCrypto
 import SwiftUI
 import CodeServices
+import CodeUI
+
+public struct DeterministicAvatar: View {
+    
+    private let foregroundColor = Color(r: 255, g: 255, b: 255).opacity(0.9)
+    private let backgroundColor = Color(r: 201, g: 214, b: 222)
+    
+    private let data: Data
+    private let diameter: CGFloat
+    
+    public init(data: Data, diameter: CGFloat) {
+        self.data = SHA512.digest(SHA512.digest(data))
+        self.diameter = diameter
+    }
+    
+    public var body: some View {
+        VStack(spacing: diameter * 0.075) {
+            
+            UnevenRoundedCorners(
+                tl: diameter * 0.25,
+                bl: diameter * 0.1875,
+                br: diameter * 0.1875,
+                tr: diameter * 0.25
+            )
+            .fill(foregroundColor)
+            .frame(width: diameter * 0.3125, height: diameter * 0.35)
+            .padding(.top, diameter * 0.25)
+            
+            Circle()
+                .fill(foregroundColor)
+                .frame(width: diameter * 0.625, height: diameter * 0.625)
+        }
+        .frame(width: diameter, height: diameter, alignment: .top)
+        .background(
+            GradientAvatarView(
+                data: data,
+                diameter: diameter,
+                showIcon: false
+            )
+        )
+        .mask {
+            Circle()
+        }
+        .drawingGroup()
+    }
+}
 
 public struct DeterministicGradient: View {
     
@@ -54,26 +100,30 @@ public struct GradientAvatarView: View {
     public let data: Data
     public let hash: Data
     public let diameter: CGFloat
+    public let showIcon: Bool
     
     // MARK: - Init -
     
-    public init(data: Data, diameter: CGFloat) {
+    public init(data: Data, diameter: CGFloat, showIcon: Bool = true) {
         self.data = data
         self.hash = SHA512.digest(data)
         self.diameter = diameter
+        self.showIcon = showIcon
     }
     
-    public init(text: String, diameter: CGFloat) {
+    public init(text: String, diameter: CGFloat, showIcon: Bool = true) {
         self.init(
             data: Data(text.utf8),
-            diameter: diameter
+            diameter: diameter,
+            showIcon: showIcon
         )
     }
     
-    public init(uuid: UUID, diameter: CGFloat) {
+    public init(uuid: UUID, diameter: CGFloat, showIcon: Bool = true) {
         self.init(
             text: uuid.uuidString,
-            diameter: diameter
+            diameter: diameter,
+            showIcon: showIcon
         )
     }
     
@@ -93,22 +143,24 @@ public struct GradientAvatarView: View {
         .frame(width: diameter, height: diameter)
         .clipShape(Circle())
         .overlay {
-            GeometryReader { geometry in
-                let size = CGSize(
-                    width: geometry.size.width * 0.4,
-                    height: geometry.size.height * 0.4
-                )
-                
-                Image.asset(.bubble)
-                    .resizable()
-                    .frame(
-                        width: size.width,
-                        height: size.height
+            if showIcon {
+                GeometryReader { geometry in
+                    let size = CGSize(
+                        width: geometry.size.width * 0.4,
+                        height: geometry.size.height * 0.4
                     )
-                    .position(
-                        x: (geometry.size.width  - size.width)  * 0.5 + size.width  * 0.5,
-                        y: (geometry.size.height - size.height) * 0.5 + size.height * 0.5
-                    )
+                    
+                    Image.asset(.bubble)
+                        .resizable()
+                        .frame(
+                            width: size.width,
+                            height: size.height
+                        )
+                        .position(
+                            x: (geometry.size.width  - size.width)  * 0.5 + size.width  * 0.5,
+                            y: (geometry.size.height - size.height) * 0.5 + size.height * 0.5
+                        )
+                }
             }
         }
         .drawingGroup()

@@ -78,7 +78,6 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
                 reference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
                 
                 _ = stream.sendMessage(request)
-//                trace(.receive, components: "Pong", "Owner \(owner.publicKey.base58)", "Server timestamp: \(ping.timestamp.date)")
                 
             case .error(let streamError):
                 let error = ErrorStreamChatEvents(rawValue: streamError.code.rawValue) ?? .unknown
@@ -107,8 +106,8 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         
         let request = Flipchat_Chat_V1_StreamChatEventsRequest.with {
             $0.params = .with {
-                $0.auth = owner.authFor(message: $0)
                 $0.ts = .init(date: .now)
+                $0.auth = owner.authFor(message: $0)
             }
         }
         
@@ -149,7 +148,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func joinGroupChat(roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<Chat.Metadata, ErrorJoinChat>) -> Void) {
+    func joinGroupChat(roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorJoinChat>) -> Void) {
         trace(.send, components: "Room #: \(roomNumber)")
         
         let request = Flipchat_Chat_V1_JoinChatRequest.with {
@@ -162,9 +161,10 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorJoinChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                let chatMetadata = Chat.Metadata(response.metadata)
-                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chatMetadata.id.description)")
-                completion(.success(chatMetadata))
+                let chat = Chat.Metadata(response.metadata)
+                let members = response.members.map { Chat.Member($0) }
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chat.id.description)")
+                completion(.success((chat, members)))
             } else {
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
@@ -201,11 +201,11 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchChat(for roomNumber: RoomNumber, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorFetchChat>) -> Void) {
-        trace(.send, components: "Room: #\(roomNumber)")
+    func fetchChat(for identifier: ChatIdentifier, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorFetchChat>) -> Void) {
+        trace(.send, components: "ID: \(identifier)")
         
         let request = Flipchat_Chat_V1_GetChatRequest.with {
-            $0.roomNumber = roomNumber
+            $0.identifier = identifier.protoIdentifier
             $0.auth = owner.authFor(message: $0)
         }
         
@@ -214,7 +214,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                trace(.success, components: "Room: #\(roomNumber)")
+                trace(.success, components: "ID: \(identifier)")
                 let chat = Chat.Metadata(response.metadata)
                 let members = response.members.map { Chat.Member($0) }
                 completion(.success((chat, members)))
@@ -230,6 +230,22 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
 }
 
 // MARK: - Types -
+
+public enum ChatIdentifier {
+    
+    case chatID(ChatID)
+    case roomNumber(RoomNumber)
+    
+    var protoIdentifier: Flipchat_Chat_V1_GetChatRequest.OneOf_Identifier {
+        switch self {
+        case .chatID(let chatID):
+            return .chatID(.with { $0.value = chatID.data })
+            
+        case .roomNumber(let roomNumber):
+            return .roomNumber(roomNumber)
+        }
+    }
+}
 
 public typealias RoomNumber = UInt64
 

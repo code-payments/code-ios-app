@@ -187,8 +187,8 @@ class ChatViewModel: ObservableObject {
     private func showNotFoundError() {
         banners.show(
             style: .error,
-            title: "Username Not Found",
-            description: "This X username isn't on Code yet. Please try a different username.",
+            title: "Room Not Found",
+            description: "This room doesn't appear to exist.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

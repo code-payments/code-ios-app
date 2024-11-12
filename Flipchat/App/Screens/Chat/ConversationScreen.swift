@@ -57,7 +57,12 @@ struct ConversationScreen: View {
     private func startStream() {
         destroyStream()
         
-        stream = chatController.streamMessages(chatID: chatID) { result in
+        var messageID: MessageID?
+        if let lastMessage = chat.messages.last?.id {
+            messageID = MessageID(data: lastMessage)
+        }
+        
+        stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { result in
             switch result {
             case .success(let messages):
                 streamMessages(messages: messages)

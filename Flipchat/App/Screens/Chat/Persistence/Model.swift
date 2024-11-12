@@ -75,6 +75,19 @@ public class pChat: ObservableObject {
         self.isMutable   = metadata.isMutable
         self.unreadCount = metadata.unreadCount
     }
+    
+    func insert(members: [pMember]) {
+        var combined: Set<pMember> = []
+        
+        var m = self.members
+        m.append(contentsOf: members)
+        m.forEach { member in
+            combined.remove(member)
+            combined.insert(member)
+        }
+        
+        self.members = combined.sorted { $0.displayName.lexicographicallyPrecedes($1.displayName) }
+    }
 }
 
 public enum pChatKind: Int, Codable {
@@ -148,6 +161,9 @@ public class pMessage {
     // Relationships
     
     @Relationship(deleteRule: .nullify)
+    public var sender: pMember?
+    
+    @Relationship(deleteRule: .nullify)
     public var chat: pChat?
     
     @Relationship(deleteRule: .nullify)
@@ -196,6 +212,12 @@ extension pMessage {
     }
 }
 
+extension pMessage {
+    var userDisplayName: String {
+        sender?.displayName ?? "Anonymous"
+    }
+}
+
 public enum pMessageState: Int, Codable {
     
     case sent
@@ -219,22 +241,39 @@ public class pMember {
     @Attribute(.unique)
     public var id: Data
     
-    public var displayName: String?
+    public var displayName: String
     
     public var avatarURL: URL?
     
     // Relationships
     
     @Relationship(deleteRule: .nullify)
-    public var chat: pChat?
+    public var messages: [pMessage] = []
+    
+    @Relationship(deleteRule: .nullify)
+    public var chats: [pChat] = []
     
     @Relationship(deleteRule: .cascade)
     public var pointers: [pPointer] = []
     
-    init(id: Data, displayName: String?, avatarURL: URL?) {
+    init(id: Data, displayName: String, avatarURL: URL?) {
         self.id = id
         self.displayName = displayName
         self.avatarURL = avatarURL
+    }
+    
+    static func new(id: Data) -> pMember {
+        pMember(
+            id: id,
+            displayName: "",
+            avatarURL: nil
+        )
+    }
+    
+    func update(from member: Chat.Member) {
+        self.id = member.id.data
+        self.displayName = member.identity.displayName ?? "Anonymous"
+        self.avatarURL = nil
     }
 }
 

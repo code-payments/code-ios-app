@@ -16,8 +16,8 @@ import SwiftProtobuf
 @MainActor
 class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient> {
         
-    func streamMessages(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
-        trace(.open, components: "Chat \(chatID.description)", "Opening message stream.")
+    func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+        trace(.open, components: "Chat \(chatID.description)", "Message ID: \(messageID?.description ?? "nil")", "Opening message stream.")
         
         let streamReference = StreamMessagesReference()
         streamReference.retain()
@@ -31,6 +31,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
             
             self?.streamMessages(
                 chatID: chatID,
+                from: messageID,
                 owner: owner,
                 assigningTo: streamReference,
                 completion: completion
@@ -39,6 +40,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         
         streamMessages(
             chatID: chatID,
+            from: messageID,
             owner: owner,
             assigningTo: streamReference,
             completion: completion
@@ -47,7 +49,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         return streamReference
     }
     
-    private func streamMessages(chatID: ChatID, owner: KeyPair, assigningTo reference: StreamMessagesReference, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) {
+    private func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, assigningTo reference: StreamMessagesReference, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) {
         let queue = self.queue
         
         reference.cancel()
@@ -99,6 +101,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                     trace(.note, components: "Chat \(chatID.description)", "Reconnecting keepalive stream...")
                     await self.streamMessages(
                         chatID: chatID,
+                        from: messageID,
                         owner: owner,
                         assigningTo: streamReference,
                         completion: completion
@@ -112,7 +115,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         let request = Flipchat_Messaging_V1_StreamMessagesRequest.with {
             $0.params = .with {
                 $0.chatID    = .with { $0.value = chatID.data }
-                $0.resume    = .latestOnly(true)
+                $0.resume    = messageID == nil ? .latestOnly(true) : .lastKnownMessageID(.with({ $0.value = messageID!.data }))
                 $0.auth      = owner.authFor(message: $0)
             }
         }

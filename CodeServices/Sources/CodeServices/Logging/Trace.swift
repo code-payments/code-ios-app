@@ -18,6 +18,7 @@ public enum TraceStyle: String {
     case cache   = "💰"
     case warning = "⚠️"
     case failure = "❌"
+    case write   = "💿"
 }
 
 public func trace(_ style: TraceStyle, components: String..., function: String = #function) {

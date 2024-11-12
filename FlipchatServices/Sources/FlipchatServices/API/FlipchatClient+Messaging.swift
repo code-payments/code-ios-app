@@ -14,8 +14,8 @@ public typealias StreamMessagesReference = BidirectionalStreamReference<Flipchat
 
 extension FlipchatClient {
     
-    public func streamMessages(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
-        messagingService.streamMessages(chatID: chatID, owner: owner, completion: completion)
+    public func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+        messagingService.streamMessages(chatID: chatID, from: messageID, owner: owner, completion: completion)
     }
     
     public func sendMessage(chatID: ChatID, owner: KeyPair, content: Chat.Content) async throws -> Chat.Message {

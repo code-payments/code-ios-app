@@ -122,7 +122,64 @@ class ChatStore: ObservableObject {
         }
     }
     
-    // MARK: - Receive -
+    // MARK: - Stream Updates -
+    
+    func receive(updates: [Chat.BatchUpdate]) throws {
+        try updates.forEach {
+            try handleEvent($0)
+        }
+    }
+    
+    private func handleEvent(_ batchUpdate: Chat.BatchUpdate) throws {
+        if let metadata = batchUpdate.chatMetadata {
+            try update(chatID: batchUpdate.chatID, withMetadata: metadata)
+        }
+        
+        if let members = batchUpdate.memberUpdate {
+            try update(chatID: batchUpdate.chatID, withMembers: members)
+        }
+        
+        if let pointer = batchUpdate.pointerUpdate {
+            try update(chatID: batchUpdate.chatID, withPointerUpdate: pointer)
+        }
+        
+        if let typing = batchUpdate.typingUpdate {
+            try update(chatID: batchUpdate.chatID, withTypingUpdate: typing)
+        }
+    }
+    
+    private func update(chatID: FlipchatServices.ChatID, withMetadata metadata: Chat.Metadata) throws {
+        trace(.success, components: "Metadata: \(metadata)")
+        
+        try upsert(chat: metadata)
+    }
+    
+    private func update(chatID: FlipchatServices.ChatID, withMembers members: [Chat.Member]) throws {
+        trace(.success, components: "Members: \(members)")
+        
+        guard let chat = try fetchSingle(for: pChat.self, id: chatID.data) else {
+            return
+        }
+        
+        try upsert(members: members, in: chat)
+    }
+    
+    private func update(chatID: FlipchatServices.ChatID, withPointerUpdate update: Chat.BatchUpdate.PointerUpdate) throws {
+        trace(.success, components: "Pointer: \(update)")
+    }
+    
+    private func update(chatID: FlipchatServices.ChatID, withTypingUpdate update: Chat.BatchUpdate.TypingUpdate) throws {
+        trace(.success, components: "Typing: \(update)")
+    }
+    
+    func streamMessages(chatID: FlipchatServices.ChatID, messageID: FlipchatServices.MessageID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+        client.streamMessages(
+            chatID: chatID,
+            from: messageID,
+            owner: owner,
+            completion: completion
+        )
+    }
     
     func receive(messages: [Chat.Message], for chatID: FlipchatServices.ChatID) throws {
         let filteredMessages = messages.filter {
@@ -180,33 +237,47 @@ class ChatStore: ObservableObject {
         return metadata.id
     }
     
-    func fetchChat(roomNumber: RoomNumber, hide: Bool) async throws -> FlipchatServices.ChatID {
-        let (metadata, members) = try await client.fetchChat(
-            for: roomNumber,
+    func fetchChat(identifier: ChatIdentifier, hide: Bool) async throws -> FlipchatServices.ChatID {
+        let (metadata, _) = try await client.fetchChat(
+            for: identifier,
             owner: owner
         )
         
-        let chat = try fetchOrCreateChat(for: metadata.id)
-        chat.update(from: metadata)
-        
-        chat.isHidden = hide
+        try upsert(chat: metadata) {
+            $0.isHidden = hide
+        }
         
         return metadata.id
     }
     
     func joinChat(roomNumber: RoomNumber) async throws -> FlipchatServices.ChatID {
-        let metadata = try await client.joinGroupChat(
+        let (metadata, members) = try await client.joinGroupChat(
             roomNumber: roomNumber,
             owner: owner
         )
         
-        let chat = try fetchOrCreateChat(for: metadata.id)
-        chat.update(from: metadata)
+        // 1. Insert chat
+        let chat = try upsert(chat: metadata) {
+            
+            // If this room was previously fetched
+            // but not joined, it might exist in a
+            // hidden state
+            $0.isHidden = false
+        }
         
-        // If this room was previously fetched
-        // but not joined, it might exist in a
-        // hidden state
-        chat.isHidden = false
+        // 2. Insert chat members
+        let localMembers = try upsert(members: members, in: chat)
+        let index = localMembers.elementsKeyed(by: \.id)
+        
+        // 3. Insert messages
+        try await syncMessages(for: chat) { message in
+            if
+                let senderID = message.senderID,
+                let sender = index[senderID]
+            {
+                message.sender = sender
+            }
+        }
         
         return metadata.id
     }
@@ -243,18 +314,21 @@ class ChatStore: ObservableObject {
             )
             
             for chat in chats {
-                do {
-                    let pChat = try upsert(chat: chat)
-                    // Don't wait for messages
-                    Task {
-                        try await syncMessages(for: pChat)
-                    }
-                    
-                } catch {
-                    // Don't stop upserting if there's
-                    // an error, just skip and continue
-                    trace(.failure, components: "Failed to upsert chat: \(chat.id.data.hexEncodedString())")
+                Task {
+                    try await syncChat(chatID: chat.id)
                 }
+//                do {
+//                    let pChat = try upsert(chat: chat)
+//                    // Don't wait for messages
+//                    Task {
+//                        try await syncMessages(for: pChat)
+//                    }
+//                    
+//                } catch {
+//                    // Don't stop upserting if there's
+//                    // an error, just skip and continue
+//                    trace(.failure, components: "Failed to upsert chat: \(chat.id.data.hexEncodedString())")
+//                }
                 
                 cursor = chat.id
             }
@@ -263,10 +337,46 @@ class ChatStore: ObservableObject {
         }
     }
     
-    private func upsert(chat: Chat.Metadata) throws -> pChat {
+    private func syncChat(chatID: FlipchatServices.ChatID) async throws {
+        let (metadata, members) = try await client.fetchChat(
+            for: .chatID(chatID),
+            owner: owner
+        )
+        
+        // 1. Insert chat
+        let chat = try upsert(chat: metadata) {
+            
+            // If this room was previously fetched
+            // but not joined, it might exist in a
+            // hidden state
+            $0.isHidden = false
+        }
+        
+        // 2. Insert chat members
+        let localMember = try upsert(members: members, in: chat)
+        
+        let index = localMember.elementsKeyed(by: \.id)
+        
+        // 3. Insert messages
+        try await syncMessages(for: chat) { message in
+            if
+                let senderID = message.senderID,
+                let sender = index[senderID]
+            {
+                message.sender = sender
+            }
+        }
+    }
+    
+    @discardableResult
+    private func upsert(chat: Chat.Metadata, modify: (pChat) -> Void = { _ in }) throws -> pChat {
+        trace(.write, components: "Chat ID: \(chat.id.description)")
+        
         let c = try fetchOrCreateChat(for: chat.id)
 
         c.update(from: chat)
+        
+        modify(c)
         
         try context.save()
         
@@ -292,12 +402,8 @@ class ChatStore: ObservableObject {
     
     // MARK: - Messages -
     
-    private func syncMessages(for chat: pChat) async throws {
+    private func syncMessages(for chat: pChat, modify: (pMessage) -> Void = { _ in }) async throws {
         var cursor: FlipchatServices.ChatID? = nil
-        
-        if let lastMessage = try fetchLatestMessage(for: chat.id) {
-            cursor = ID(data: lastMessage.id)
-        }
         
         let pageSize = 100
         
@@ -313,10 +419,11 @@ class ChatStore: ObservableObject {
                 )
             )
             
-            // TODO: Batch insert
+            // TODO: Insert Self member into message
+            
             if !messages.isEmpty {
                 do {
-                    try upsert(messages: messages, in: chat)
+                    try upsert(messages: messages, in: chat, modify: modify)
                 } catch {
                     // Don't stop upserting if there's
                     // an error, just skip and continue
@@ -330,11 +437,19 @@ class ChatStore: ObservableObject {
         }
     }
     
-    private func upsert(messages: [Chat.Message], in chat: pChat) throws {
+    private func upsert(messages: [Chat.Message], in chat: pChat, modify: (pMessage) -> Void = { _ in }) throws {
         try messages.forEach {
-            let m = try fetchOrCreateMessage(for: $0.id, in: chat)
-            m.update(from: $0)
-            m.chat = chat
+            trace(.write, components: "Message ID: \($0.id.description)")
+            
+            let message = try fetchOrCreateMessage(for: $0.id, in: chat)
+            message.update(from: $0)
+            
+            if let senderID = $0.senderID {
+                let member = try fetchOrCreateMember(for: senderID, in: chat)
+                message.sender = member
+            }
+            
+            modify(message)
         }
         
         try context.save()
@@ -342,6 +457,7 @@ class ChatStore: ObservableObject {
     
     private func fetchOrCreateMessage(for messageID: FlipchatServices.MessageID, in chat: pChat) throws -> pMessage {
         if let existingMessage = try fetchSingle(for: pMessage.self, id: messageID.data) {
+            existingMessage.chat = chat
             return existingMessage
         } else {
             return createMessage(in: chat, id: messageID.data)
@@ -362,6 +478,44 @@ class ChatStore: ObservableObject {
         context.insert(newMessage)
         
         return newMessage
+    }
+    
+    // MARK: - Members -
+    
+    @discardableResult
+    private func upsert(members: [Chat.Member], in chat: pChat) throws -> [pMember] {
+        var container: [pMember] = []
+        
+        for member in members {
+            trace(.write, components: "Member ID: \(member.id.description)")
+            
+            let m = try fetchOrCreateMember(for: member.id, in: chat)
+            m.update(from: member)
+            
+            container.append(m)
+        }
+        
+        chat.insert(members: container)
+        
+        try context.save()
+        return container
+    }
+    
+    private func fetchOrCreateMember(for userID: UserID, in chat: pChat) throws -> pMember {
+        if let existingMember = try fetchSingle(for: pMember.self, id: userID.data) {
+            return existingMember
+        } else {
+            return createMember(in: chat, id: userID.data)
+        }
+    }
+    
+    @discardableResult
+    private func createMember(in chat: pChat, id: Data) -> pMember {
+        let newMember = pMember.new(id: id)
+        
+        context.insert(newMember)
+        
+        return newMember
     }
 }
 

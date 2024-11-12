@@ -24,7 +24,7 @@ extension FlipchatClient {
         }
     }
     
-    public func joinGroupChat(roomNumber: RoomNumber, owner: KeyPair) async throws -> Chat.Metadata {
+    public func joinGroupChat(roomNumber: RoomNumber, owner: KeyPair) async throws -> (Chat.Metadata, [Chat.Member]) {
         try await withCheckedThrowingContinuation { c in
             chatService.joinGroupChat(roomNumber: roomNumber, owner: owner) { c.resume(with: $0) }
         }
@@ -36,9 +36,9 @@ extension FlipchatClient {
         }
     }
     
-    public func fetchChat(for roomNumber: RoomNumber, owner: KeyPair) async throws -> (Chat.Metadata, [Chat.Member]) {
+    public func fetchChat(for identifier: ChatIdentifier, owner: KeyPair) async throws -> (Chat.Metadata, [Chat.Member]) {
         try await withCheckedThrowingContinuation { c in
-            chatService.fetchChat(for: roomNumber, owner: owner) { c.resume(with: $0) }
+            chatService.fetchChat(for: identifier, owner: owner) { c.resume(with: $0) }
         }
     }
 }

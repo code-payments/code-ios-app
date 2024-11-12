@@ -96,10 +96,12 @@ public struct MessageList: View {
                 
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
-                                                
+                        
                         MessageRow(width: geometry.messageWidth(), isReceived: isReceived) {
                             MessageText(
                                 state: message.state.state,
+                                name: message.userDisplayName,
+                                avatarData: message.senderID ?? Data([0, 0, 0, 0]),
                                 text: content,
                                 date: message.date,
                                 isReceived: isReceived,
@@ -243,7 +245,24 @@ import SwiftData
     
     NavigationStack {
         Background(color: .backgroundMain) {
-            MessageList(state: .constant(.init()), userID: .mock, messages: [])
+            MessageList(state: .constant(.init()), userID: .mock, messages: [
+                .init(
+                    id: Data([1]),
+                    date: .now,
+                    state: .delivered,
+                    senderID: nil,
+                    isDeleted: false,
+                    contents: ["Hey how's it going"]
+                ),
+                .init(
+                    id: Data([1]),
+                    date: .now,
+                    state: .delivered,
+                    senderID: nil,
+                    isDeleted: false,
+                    contents: ["Hey how's it going"]
+                ),
+            ])
         }
         .navigationTitle("Chat")
     }
