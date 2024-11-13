@@ -492,6 +492,7 @@
 		9A9DF7C8275155BE0031E219 /* UpgradeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpgradeScreen.swift; sourceTree = "<group>"; };
 		9A9E2B7227B4496D00C56D6A /* MigrationScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationScreen.swift; sourceTree = "<group>"; };
 		9A9F26982A169CC000FA47DF /* GetKinScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetKinScreen.swift; sourceTree = "<group>"; };
+		9AA197072CE51ABB00FE1703 /* CodeCurves */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = CodeCurves; sourceTree = "<group>"; };
 		9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BuyKinScreen.swift; sourceTree = "<group>"; };
 		9AA3907A274416E300234899 /* Code.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Code.entitlements; sourceTree = "<group>"; };
 		9AA39081274450B700234899 /* BackupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupScreen.swift; sourceTree = "<group>"; };
@@ -1113,6 +1114,7 @@
 				9A91F4C72CC0142C0018CE65 /* FlipchatAPI */,
 				9A91F4D12CC01FA60018CE65 /* FlipchatServices */,
 				9A2554432CE50D8E003B207D /* FlipchatPaymentsAPI */,
+				9AA197072CE51ABB00FE1703 /* CodeCurves */,
 			);
 			name = Packages;
 			sourceTree = "<group>";

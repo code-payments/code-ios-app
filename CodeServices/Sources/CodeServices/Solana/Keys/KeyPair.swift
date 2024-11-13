@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import ed25519
+import CodeCurves
 
 public struct KeyPair: Equatable, Codable, Hashable, Sendable {
     

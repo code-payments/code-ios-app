@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import ed25519
+import CodeCurves
 
 /// Encodes and decodes base58 bytes and strings
 ///

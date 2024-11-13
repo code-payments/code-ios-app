@@ -12,10 +12,11 @@ let package = Package(
     products: [
         .library(
             name: "CodeServices",
-            targets: ["CodeServices", "ed25519"]
+            targets: ["CodeServices"]
         ),
     ],
     dependencies: [
+        .package(path: "../CodeCurves"),
         .package(path: "../CodeAPI"),
         .package(url: "https://github.com/marmelroy/PhoneNumberKit", from: "3.7.4"),
         .package(url: "https://github.com/karwa/swift-url", from: "0.4.2"),
@@ -25,7 +26,7 @@ let package = Package(
         .target(
             name: "CodeServices",
             dependencies: [
-                "ed25519",
+                .product(name: "CodeCurves", package: "CodeCurves"),
                 .product(name: "CodeAPI", package: "CodeAPI"),
                 .product(name: "PhoneNumberKit", package: "PhoneNumberKit"),
                 .product(name: "WebURL", package: "swift-url"),
@@ -33,10 +34,6 @@ let package = Package(
                 .product(name: "Clibsodium", package: "swift-sodium"),
                 .product(name: "Sodium", package: "swift-sodium"),
             ]
-        ),
-        .target(
-            name: "ed25519",
-            dependencies: []
         ),
         .testTarget(
             name: "CodeServicesTests",
