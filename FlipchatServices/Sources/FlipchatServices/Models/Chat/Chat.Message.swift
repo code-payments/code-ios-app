@@ -1,6 +1,6 @@
 //
 //  Chat.Message.swift
-//  CodeServices
+//  FlipchatServices
 //
 //  Created by Dima Bart.
 //  Copyright © 2021 Code Inc. All rights reserved.
@@ -8,7 +8,6 @@
 
 import Foundation
 import FlipchatAPI
-import CodeServices
 
 extension Chat {
     public struct Message: Equatable, Identifiable, Hashable, Sendable {

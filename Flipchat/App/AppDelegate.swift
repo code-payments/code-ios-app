@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import CodeServices
 import CodeUI
 import FlipchatServices
 

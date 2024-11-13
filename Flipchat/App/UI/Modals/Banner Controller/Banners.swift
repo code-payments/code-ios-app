@@ -8,7 +8,7 @@
 
 import UIKit
 import SwiftUI
-import CodeServices
+import FlipchatServices
 
 struct BannerContainer: View {
     

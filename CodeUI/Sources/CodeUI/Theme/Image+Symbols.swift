@@ -22,11 +22,11 @@ extension Image {
         Image(name.rawValue, bundle: Bundle.module)
     }
     
-    static func regionFlag(_ region: Region) -> Image  {
+    public static func regionFlag(_ region: Region) -> Image  {
         Image(region.rawValue, bundle: Bundle.module)
     }
     
-    static func cryptoFlag(_ currency: CurrencyCode) -> Image  {
+    public static func cryptoFlag(_ currency: CurrencyCode) -> Image  {
         Image(currency.rawValue.uppercased(), bundle: Bundle.module)
     }
 }

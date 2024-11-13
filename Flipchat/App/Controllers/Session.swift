@@ -8,7 +8,6 @@
 import SwiftUI
 import Combine
 import CodeUI
-import CodeServices
 import FlipchatServices
 
 @MainActor
@@ -229,11 +228,11 @@ extension Session {
 
 // MARK: - Gift Card -
 
-extension GiftCardAccount {
-    var url: URL {
-        URL.send(with: mnemonic)
-    }
-}
+//extension GiftCardAccount {
+//    var url: URL {
+//        URL.send(with: mnemonic)
+//    }
+//}
 
 // MARK: - Mock -
 

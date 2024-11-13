@@ -6,8 +6,8 @@
 //
 
 import SwiftUI
-import CodeServices
 import CodeUI
+import FlipchatServices
 
 struct RestrictedScreen: View {
     

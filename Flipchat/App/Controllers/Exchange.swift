@@ -7,7 +7,7 @@
 
 import Foundation
 import CodeUI
-import CodeServices
+import FlipchatServices
 
 @MainActor
 class Exchange: ObservableObject {

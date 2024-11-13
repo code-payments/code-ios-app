@@ -8,7 +8,6 @@
 
 import Foundation
 import FlipchatAPI
-import CodeServices
 
 public typealias StreamChatsReference = BidirectionalStreamReference<Flipchat_Chat_V1_StreamChatEventsRequest, Flipchat_Chat_V1_StreamChatEventsResponse>
 

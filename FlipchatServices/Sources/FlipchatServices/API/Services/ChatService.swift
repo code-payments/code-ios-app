@@ -8,7 +8,6 @@
 
 import Foundation
 import FlipchatAPI
-import CodeServices
 import Combine
 import GRPC
 import SwiftProtobuf
@@ -71,7 +70,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
                 
                 let request = Flipchat_Chat_V1_StreamChatEventsRequest.with {
                     $0.pong = .with {
-                        $0.timestamp = Google_Protobuf_Timestamp(date: .now())
+                        $0.timestamp = Google_Protobuf_Timestamp(date: .now)
                     }
                 }
                 

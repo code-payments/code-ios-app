@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import CodeServices
 import GRPC
 
 extension UnaryCall {

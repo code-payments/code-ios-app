@@ -1,13 +1,12 @@
 //
 //  StreamEvent.swift
-//  CodeServices
+//  FlipchatServices
 //
 //  Created by Dima Bart.
 //  Copyright © 2021 Code Inc. All rights reserved.
 //
 
 import Foundation
-import CodeServices
 import FlipchatAPI
 
 extension Chat {

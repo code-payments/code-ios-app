@@ -7,8 +7,8 @@
 //
 
 import SwiftUI
-import CodeServices
 import CodeUI
+import FlipchatServices
 
 /// Modal to confirm and execute a payment request card
 public struct ModalPaymentConfirmation: View {

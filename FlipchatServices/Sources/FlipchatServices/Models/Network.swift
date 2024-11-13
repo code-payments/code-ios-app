@@ -17,7 +17,16 @@ extension Network {
     var host: String {
         switch self {
         case .mainNet:
+            return "chat.api.flipchat-infra.xyz"
+        case .testNet:
             return "api.flipchat.codeinfra.net"
+        }
+    }
+    
+    var paymentsHost: String {
+        switch self {
+        case .mainNet:
+            return "payments.api.flipchat-infra.xyz"
         case .testNet:
             return "api.flipchat.codeinfra.net"
         }

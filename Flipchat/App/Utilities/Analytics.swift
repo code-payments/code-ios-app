@@ -6,10 +6,9 @@
 //
 
 import Foundation
-import CodeServices
-import FlipchatServices
 import Mixpanel
 import Bugsnag
+import FlipchatServices
 //import Firebase
 
 typealias AnalyticsValue = MixpanelType
@@ -66,7 +65,7 @@ extension Analytics {
         // Ensure that this runs after `initialize` has been called
         // on all the tracking platforms
         DispatchQueue.main.async {
-            let userID = userID.data.hexEncodedString()
+            let userID = userID.data.hexString()
             
             // Bugsnag
             Bugsnag.setUser(userID, withEmail: userID, andName: nil)

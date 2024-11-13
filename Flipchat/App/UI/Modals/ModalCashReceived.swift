@@ -7,8 +7,8 @@
 //
 
 import SwiftUI
-import CodeServices
 import CodeUI
+import FlipchatServices
 
 /// Modal that displays received amount of Kin at local fiat rates
 public struct ModalCashReceived: View {

@@ -1,6 +1,6 @@
 //
 //  EncryptedData.swift
-//  CodeServices
+//  FlipchatServices
 //
 //  Created by Dima Bart.
 //  Copyright © 2021 Code Inc. All rights reserved.
@@ -8,7 +8,6 @@
 
 import Foundation
 import Clibsodium
-import CodeServices
 
 public struct EncryptedData: Equatable, Hashable, Codable, Sendable {
     

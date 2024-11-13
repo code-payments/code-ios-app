@@ -7,7 +7,6 @@
 
 import Foundation
 import SwiftData
-import CodeServices
 import FlipchatServices
 
 @MainActor
@@ -170,13 +169,13 @@ class ChatStore: ObservableObject {
         }
     }
     
-    private func update(chatID: FlipchatServices.ChatID, withMetadata metadata: Chat.Metadata) throws {
+    private func update(chatID: ChatID, withMetadata metadata: Chat.Metadata) throws {
         trace(.success, components: "Metadata: \(metadata)")
         
         try upsert(chat: metadata)
     }
     
-    private func update(chatID: FlipchatServices.ChatID, withMembers members: [Chat.Member]) throws {
+    private func update(chatID: ChatID, withMembers members: [Chat.Member]) throws {
         trace(.success, components: "Members: \(members)")
         
         guard let chat = try fetchSingleChat(serverID: chatID.data) else {
@@ -186,15 +185,15 @@ class ChatStore: ObservableObject {
         try upsert(members: members, in: chat)
     }
     
-    private func update(chatID: FlipchatServices.ChatID, withPointerUpdate update: Chat.BatchUpdate.PointerUpdate) throws {
+    private func update(chatID: ChatID, withPointerUpdate update: Chat.BatchUpdate.PointerUpdate) throws {
         trace(.success, components: "Pointer: \(update)")
     }
     
-    private func update(chatID: FlipchatServices.ChatID, withTypingUpdate update: Chat.BatchUpdate.TypingUpdate) throws {
+    private func update(chatID: ChatID, withTypingUpdate update: Chat.BatchUpdate.TypingUpdate) throws {
         trace(.success, components: "Typing: \(update)")
     }
     
-    func streamMessages(chatID: FlipchatServices.ChatID, messageID: FlipchatServices.MessageID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+    func streamMessages(chatID: ChatID, messageID: MessageID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
         client.streamMessages(
             chatID: chatID,
             from: messageID,
@@ -203,7 +202,7 @@ class ChatStore: ObservableObject {
         )
     }
     
-    func receive(messages: [Chat.Message], for chatID: FlipchatServices.ChatID) throws {
+    func receive(messages: [Chat.Message], for chatID: ChatID) throws {
         let filteredMessages = messages.filter {
             // Filter out any messages sent by self
             // because those are handled directly in
@@ -220,7 +219,7 @@ class ChatStore: ObservableObject {
     
     // MARK: - Actions -
     
-    func sendMessage(text: String, for chatID: FlipchatServices.ChatID) async throws {
+    func sendMessage(text: String, for chatID: ChatID) async throws {
         guard let chat = try fetchSingleChat(serverID: chatID.data) else {
             throw Error.failedToFetchChat
         }
@@ -247,7 +246,7 @@ class ChatStore: ObservableObject {
         try context.save()
     }
     
-    func startGroupChat() async throws -> FlipchatServices.ChatID {
+    func startGroupChat() async throws -> ChatID {
         let metadata = try await client.startGroupChat(
             with: [userID],
             owner: owner
@@ -259,7 +258,7 @@ class ChatStore: ObservableObject {
         return metadata.id
     }
     
-    func fetchChat(identifier: ChatIdentifier, hide: Bool) async throws -> FlipchatServices.ChatID {
+    func fetchChat(identifier: ChatIdentifier, hide: Bool) async throws -> ChatID {
         let (metadata, members) = try await client.fetchChat(
             for: identifier,
             owner: owner
@@ -274,7 +273,7 @@ class ChatStore: ObservableObject {
         return metadata.id
     }
     
-    func joinChat(roomNumber: RoomNumber) async throws -> FlipchatServices.ChatID {
+    func joinChat(roomNumber: RoomNumber) async throws -> ChatID {
         let (metadata, members) = try await client.joinGroupChat(
             roomNumber: roomNumber,
             owner: owner
@@ -320,9 +319,9 @@ class ChatStore: ObservableObject {
     
     // MARK: - Chats -
     
-    private func syncChats(descendingFrom id: FlipchatServices.ChatID? = nil) async throws {
-        trace(.send, components: "Starting from: \(id?.data.hexEncodedString() ?? "nil")")
-        var cursor: FlipchatServices.ChatID? = id
+    private func syncChats(descendingFrom id: ChatID? = nil) async throws {
+        trace(.send, components: "Starting from: \(id?.data.hexString() ?? "nil")")
+        var cursor: ChatID? = id
         
         let pageSize = 100
         
@@ -361,7 +360,7 @@ class ChatStore: ObservableObject {
         }
     }
     
-    private func syncChat(chatID: FlipchatServices.ChatID) async throws {
+    private func syncChat(chatID: ChatID) async throws {
         let (metadata, members) = try await client.fetchChat(
             for: .chatID(chatID),
             owner: owner
@@ -407,7 +406,7 @@ class ChatStore: ObservableObject {
         return c
     }
     
-    private func fetchOrCreateChat(for chatID: FlipchatServices.ChatID) throws -> pChat {
+    private func fetchOrCreateChat(for chatID: ChatID) throws -> pChat {
         if let existingChat = try fetchSingleChat(serverID: chatID.data) {
             return existingChat
         } else {
@@ -427,7 +426,7 @@ class ChatStore: ObservableObject {
     // MARK: - Messages -
     
     private func syncMessages(for chat: pChat, modify: (pMessage) -> Void = { _ in }) async throws {
-        var cursor: FlipchatServices.ChatID? = nil
+        var cursor: ChatID? = nil
         
         let pageSize = 100
         
@@ -479,7 +478,7 @@ class ChatStore: ObservableObject {
         try context.save()
     }
     
-    private func fetchOrCreateMessage(for messageID: FlipchatServices.MessageID, in chat: pChat) throws -> pMessage {
+    private func fetchOrCreateMessage(for messageID: MessageID, in chat: pChat) throws -> pMessage {
         if let existingMessage = try fetchSingleMessage(serverID: messageID.data) {
             existingMessage.chat = chat
             return existingMessage

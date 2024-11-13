@@ -53,7 +53,7 @@ struct EnterRoomConfirmationScreen: View {
                             VStack(spacing: 4) {
                                 Text("Hosted by anonymous")
                                 Text("\(chat.members.count) people inside")
-                                Text("ID: \(chat.serverID.hexEncodedString().prefix(16))")
+                                Text("ID: \(chat.serverID.hexString().prefix(16))")
                                 //                                    Text("Cover Charge: ⬢ 1,000 Kin")
                             }
                             .opacity(0.8)

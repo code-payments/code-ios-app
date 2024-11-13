@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import CodeServices
+import FlipchatServices
 
 @MainActor
 class FlowController: ObservableObject {
@@ -76,7 +76,7 @@ class FlowController: ObservableObject {
             type: .process
         )
         
-        await swapIfNeeded()
+//        await swapIfNeeded()
         
         try await receiveFromIncoming()
         
@@ -85,30 +85,30 @@ class FlowController: ObservableObject {
     
     // MARK: - Swaps -
     
-    private func swapIfNeeded() async {
-        // We need to check and see if the USDC account has a balance,
-        // if so, we'll initiate a swap to Kin. The nuance here is that
-        // the balance of the USDC account is reported as `Kin`, where the
-        // quarks represent the lamport balance of the account.
-        guard let info = organizer.info(for: .swap), info.balance.quarks > 0 else {
-            return
-        }
-        
-        let timeout: Int = 45 // seconds
-        
-        // Ensure that it's been at least `timeout` seconds since we try
-        // another swap if one is already in-flight.
-        if let existingSwap = lastSwap, existingSwap.secondsBetween(date: .now()) < timeout {
-            return
-        }
-        
-        lastSwap = .now()
-        do {
-            try await client.initiateSwap(organizer: organizer)
-        } catch {
-            ErrorReporting.captureError(error, reason: "USDC Swap Failed")
-        }
-    }
+//    private func swapIfNeeded() async {
+//        // We need to check and see if the USDC account has a balance,
+//        // if so, we'll initiate a swap to Kin. The nuance here is that
+//        // the balance of the USDC account is reported as `Kin`, where the
+//        // quarks represent the lamport balance of the account.
+//        guard let info = organizer.info(for: .swap), info.balance.quarks > 0 else {
+//            return
+//        }
+//        
+//        let timeout: Int = 45 // seconds
+//        
+//        // Ensure that it's been at least `timeout` seconds since we try
+//        // another swap if one is already in-flight.
+//        if let existingSwap = lastSwap, existingSwap.secondsBetween(date: .now()) < timeout {
+//            return
+//        }
+//        
+//        lastSwap = .now()
+//        do {
+//            try await client.initiateSwap(organizer: organizer)
+//        } catch {
+//            ErrorReporting.captureError(error, reason: "USDC Swap Failed")
+//        }
+//    }
     
     // MARK: - Transfer -
     

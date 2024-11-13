@@ -8,7 +8,6 @@
 
 import Foundation
 import FlipchatAPI
-import CodeServices
 import GRPC
 
 class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {

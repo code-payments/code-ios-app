@@ -7,7 +7,7 @@
 
 import Foundation
 import LocalAuthentication
-import CodeServices
+import FlipchatServices
 
 @MainActor
 class Biometrics: ObservableObject {

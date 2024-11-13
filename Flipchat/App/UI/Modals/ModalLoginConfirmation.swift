@@ -7,8 +7,8 @@
 //
 
 import SwiftUI
-import CodeServices
 import CodeUI
+import FlipchatServices
 
 /// Modal to confirm a login
 public struct ModalLoginConfirmation: View {

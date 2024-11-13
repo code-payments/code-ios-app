@@ -16,6 +16,7 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(path: "../CodeCurves"),
         .package(path: "../FlipchatAPI"),
         .package(path: "../CodeServices"),
         .package(path: "../FlipchatPaymentsAPI"),
@@ -24,10 +25,12 @@ let package = Package(
         .target(
             name: "FlipchatServices",
             dependencies: [
-                .product(name: "FlipchatAPI", package: "FlipchatAPI"),
+                .product(name: "CodeCurves", package: "CodeCurves"),
                 .product(name: "CodeServices", package: "CodeServices"),
+                .product(name: "FlipchatAPI", package: "FlipchatAPI"),
                 .product(name: "FlipchatPaymentsAPI", package: "FlipchatPaymentsAPI"),
             ]
+//            ,exclude: ["Payments/API/Client+Chat.swift"]
         ),
         .testTarget(
             name: "FlipchatServicesTests",

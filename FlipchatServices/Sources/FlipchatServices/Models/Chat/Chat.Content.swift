@@ -1,6 +1,6 @@
 //
 //  ChatLegacy.Content.swift
-//  CodeServices
+//  FlipchatServices
 //
 //  Created by Dima Bart.
 //  Copyright © 2021 Code Inc. All rights reserved.
@@ -8,7 +8,6 @@
 
 import Foundation
 import FlipchatAPI
-import CodeServices
 
 extension Chat {
     public enum Content: Equatable, Hashable, Sendable {
@@ -36,7 +35,7 @@ extension Chat.Content: Identifiable {
         case .localized(let value):
             return "localized:\(value)"
         case .sodiumBox(let data):
-            return "nacl:\(data.nonce.hexEncodedString())"
+            return "nacl:\(data.nonce.hexString())"
         }
     }
 }

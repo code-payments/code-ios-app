@@ -1,6 +1,6 @@
 //
 //  ChatLegacy.swift
-//  CodeServices
+//  FlipchatServices
 //
 //  Created by Dima Bart.
 //  Copyright © 2021 Code Inc. All rights reserved.

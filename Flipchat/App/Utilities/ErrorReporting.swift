@@ -7,7 +7,7 @@
 
 import Foundation
 import Bugsnag
-import CodeServices
+import FlipchatServices
 
 enum ErrorReporting {
     

@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import CodeServices
 import FlipchatServices
 
 @MainActor
@@ -22,7 +21,7 @@ class ChatController: ObservableObject {
     
     private var fetchInflight: Bool = false
     
-    private var latestPointers: [FlipchatServices.ChatID: FlipchatServices.MessageID] = [:]
+    private var latestPointers: [ChatID: MessageID] = [:]
     
     private var chatStream: StreamChatsReference?
     
@@ -83,31 +82,31 @@ class ChatController: ObservableObject {
     
     // MARK: - Message Stream -
     
-    func streamMessages(chatID: FlipchatServices.ChatID, messageID: FlipchatServices.MessageID?, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+    func streamMessages(chatID: ChatID, messageID: MessageID?, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
         client.streamMessages(chatID: chatID, from: messageID, owner: owner, completion: completion)
     }
     
     // MARK: - Messages -
     
-    func receiveMessages(messages: [Chat.Message], for chatID: FlipchatServices.ChatID) throws {
+    func receiveMessages(messages: [Chat.Message], for chatID: ChatID) throws {
         try chatStore.receive(messages: messages, for: chatID)
     }
     
-    func sendMessage(text: String, for chatID: FlipchatServices.ChatID) async throws {
+    func sendMessage(text: String, for chatID: ChatID) async throws {
         try await chatStore.sendMessage(text: text, for: chatID)
     }
     
     // MARK: - Group Chat -
     
-    func startGroupChat() async throws -> FlipchatServices.ChatID {
+    func startGroupChat() async throws -> ChatID {
         try await chatStore.startGroupChat()
     }
     
-    func fetchGroupChat(roomNumber: RoomNumber, hide: Bool) async throws -> FlipchatServices.ChatID {
+    func fetchGroupChat(roomNumber: RoomNumber, hide: Bool) async throws -> ChatID {
         try await chatStore.fetchChat(identifier: .roomNumber(roomNumber), hide: hide)
     }
     
-    func joinGroupChat(roomNumber: RoomNumber) async throws -> FlipchatServices.ChatID {
+    func joinGroupChat(roomNumber: RoomNumber) async throws -> ChatID {
         try await chatStore.joinChat(roomNumber: roomNumber)
     }
 }

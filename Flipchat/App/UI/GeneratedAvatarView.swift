@@ -9,8 +9,8 @@
 import Foundation
 import CommonCrypto
 import SwiftUI
-import CodeServices
 import CodeUI
+import FlipchatServices
 
 public struct DeterministicAvatar: View {
     

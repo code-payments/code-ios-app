@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import CodeServices
+import FlipchatServices
 
 enum SecureKey: String {
     

@@ -156,9 +156,6 @@
 		9A8E861627A44EB300213934 /* RestrictedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8E861527A44EB300213934 /* RestrictedScreen.swift */; };
 		9A91F1402CAB300D0018CE65 /* Biometrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A91F13F2CAB300D0018CE65 /* Biometrics.swift */; };
 		9A91F1412CAB30BD0018CE65 /* String+Padding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5126246EFD003F8B19 /* String+Padding.swift */; };
-		9A91F1422CAB30BD0018CE65 /* NotificationModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEABBF22B76CF0A00667DA4 /* NotificationModifier.swift */; };
-		9A91F1432CAB30BD0018CE65 /* Chat+Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA47D3F2B76AA9600F1B9B7 /* Chat+Extensions.swift */; };
-		9A91F1442CAB30BD0018CE65 /* Kin+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF73B5727DA7F9800C038FB /* Kin+Formatting.swift */; };
 		9A91F1452CAB30BD0018CE65 /* String+Localized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6D6D342AE1AD55003D9569 /* String+Localized.swift */; };
 		9A91F1462CAB30C60018CE65 /* Localized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AED11ED25910F020088D902 /* Localized.swift */; };
 		9A91F1472CAB30C60018CE65 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = 9AEF190B260A74C400EB2410 /* Localizable.stringsdict */; };
@@ -173,7 +170,6 @@
 		9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */; };
 		9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */; };
 		9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D32CA33187006BDE08 /* CodeAPI */; };
-		9A9970D62CA33187006BDE08 /* CodeServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D52CA33187006BDE08 /* CodeServices */; };
 		9A9970D82CA33187006BDE08 /* CodeUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D72CA33187006BDE08 /* CodeUI */; };
 		9A9970DA2CA331A5006BDE08 /* GRPC in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D92CA331A5006BDE08 /* GRPC */; };
 		9A9A273C27D00F76005EBBC6 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9A273B27D00F76005EBBC6 /* AccountManager.swift */; };
@@ -598,7 +594,6 @@
 				9A9970D82CA33187006BDE08 /* CodeUI in Frameworks */,
 				9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */,
 				9A91F4C92CC0146A0018CE65 /* FlipchatAPI in Frameworks */,
-				9A9970D62CA33187006BDE08 /* CodeServices in Frameworks */,
 				9A91F4D32CC03B930018CE65 /* FlipchatServices in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1108,13 +1103,13 @@
 			isa = PBXGroup;
 			children = (
 				9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */,
+				9AA197072CE51ABB00FE1703 /* CodeCurves */,
 				9A16229B284503EE00B138D3 /* CodeAPI */,
 				9AEA3A4125CD82A600392734 /* CodeServices */,
 				9AED115B258BE2FA0088D902 /* CodeUI */,
 				9A91F4C72CC0142C0018CE65 /* FlipchatAPI */,
 				9A91F4D12CC01FA60018CE65 /* FlipchatServices */,
 				9A2554432CE50D8E003B207D /* FlipchatPaymentsAPI */,
-				9AA197072CE51ABB00FE1703 /* CodeCurves */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1243,7 +1238,6 @@
 			name = Flipchat;
 			packageProductDependencies = (
 				9A9970D32CA33187006BDE08 /* CodeAPI */,
-				9A9970D52CA33187006BDE08 /* CodeServices */,
 				9A9970D72CA33187006BDE08 /* CodeUI */,
 				9A9970D92CA331A5006BDE08 /* GRPC */,
 				9A91F3AB2CB6FC2E0018CE65 /* Mixpanel */,
@@ -1757,9 +1751,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				9A91F1412CAB30BD0018CE65 /* String+Padding.swift in Sources */,
-				9A91F1422CAB30BD0018CE65 /* NotificationModifier.swift in Sources */,
-				9A91F1432CAB30BD0018CE65 /* Chat+Extensions.swift in Sources */,
-				9A91F1442CAB30BD0018CE65 /* Kin+Formatting.swift in Sources */,
 				9A91F1452CAB30BD0018CE65 /* String+Localized.swift in Sources */,
 				9A91F1462CAB30C60018CE65 /* Localized.swift in Sources */,
 				9A91F15A2CAB33CE0018CE65 /* URL+Links.swift in Sources */,
@@ -3619,10 +3610,6 @@
 		9A9970D32CA33187006BDE08 /* CodeAPI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeAPI;
-		};
-		9A9970D52CA33187006BDE08 /* CodeServices */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = CodeServices;
 		};
 		9A9970D72CA33187006BDE08 /* CodeUI */ = {
 			isa = XCSwiftPackageProductDependency;

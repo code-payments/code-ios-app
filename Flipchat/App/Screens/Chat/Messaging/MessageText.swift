@@ -7,7 +7,6 @@
 
 import SwiftUI
 import CodeUI
-import CodeServices
 import FlipchatServices
 
 public struct MessageText: View {
