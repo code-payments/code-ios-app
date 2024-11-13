@@ -18,6 +18,15 @@ if [[ "$APP" == "flipchat" ]]; then
     GENERATED_DIR="../FlipchatAPI/Sources/FlipchatAPI/Generated"
     PULL_REPO="code-payments/flipchat-protobuf-api"
     PULL_BRANCH="main"
+
+elif [[ "$APP" == "flipchatPayments" ]]; then
+    PROTOS_ROOT_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI"
+    PROTOS_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/proto"
+    DEPS_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/proto_deps"
+    GENERATED_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/Generated"
+    PULL_REPO="code-payments/code-protobuf-api"
+    PULL_BRANCH="fc"
+    
 elif [[ "$APP" == "code" ]]; then
     PROTOS_ROOT_DIR="../CodeAPI/Sources/CodeAPI"
     PROTOS_DIR="../CodeAPI/Sources/CodeAPI/proto"
