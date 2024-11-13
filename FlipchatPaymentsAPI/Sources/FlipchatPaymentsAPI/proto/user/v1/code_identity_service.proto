@@ -1,0 +1,369 @@
+syntax = "proto3";
+
+package code.user.v1;
+
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/user/v1;user";
+option java_package = "com.codeinc.gen.user.v1";
+option objc_class_prefix = "CPBUserV1";
+
+import "common/v1/code_model.proto";
+import "phone/v1/code_phone_verification_service.proto";
+import "transaction/v2/code_transaction_service.proto";
+import "validate/validate.proto";
+
+service Identity {
+    // LinkAccount links an owner account to the user identified and authenticated
+    // by a one-time use token.
+    //
+    // Notably, this RPC has the following side effects:
+    //   * A new user is automatically created if one doesn't exist.
+    //   * Server will create a new data container for at least every unique
+    //     owner account linked to the user.
+    rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse);
+
+    // UnlinkAccount removes links from an owner account. It will NOT remove
+    // existing associations between users, owner accounts and identifying
+    // features.
+    //
+    // The following associations will remain intact to ensure owner accounts
+    // can continue to be used with a consistent login experience:
+    //   * the user continues to be associated to existing owner accounts and
+    //     identifying features
+    //
+    // Client can continue mainting their current login session. Their current
+    // user and data container will remain the same.
+    //
+    // The call is guaranteed to be idempotent. It will not fail if the link is
+    // already removed by either a previous call to this RPC or by a more recent
+    // call to LinkAccount. A failure will only occur if the link between a user
+    // and the owner accout or identifying feature never existed.
+    rpc UnlinkAccount(UnlinkAccountRequest) returns (UnlinkAccountResponse);
+
+    // GetUser gets user information given a user identifier and an owner account.
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
+
+    // UpdatePreferences updates user preferences.
+    rpc UpdatePreferences(UpdatePreferencesRequest) returns (UpdatePreferencesResponse);
+
+    // LoginToThirdPartyApp logs a user into a third party app for a given intent
+    // ID. If the original request requires payment, then SubmitIntent must be called.
+    rpc LoginToThirdPartyApp(LoginToThirdPartyAppRequest) returns (LoginToThirdPartyAppResponse);
+
+    // GetLoginForThirdPartyApp gets a login for a third party app from an existing
+    // request. This endpoint supports all paths where login is possible (login on payment,
+    // raw login, etc.).
+    rpc GetLoginForThirdPartyApp(GetLoginForThirdPartyAppRequest) returns (GetLoginForThirdPartyAppResponse);
+
+    // GetTwitterUser gets Twitter user information
+    //
+    // Note 1: This RPC will only return results for Twitter users that have
+    // accounts linked with Code.
+    //
+    // Note 2: This RPC is heavily cached, and may not reflect real-time Twitter
+    // information.
+    rpc GetTwitterUser(GetTwitterUserRequest) returns (GetTwitterUserResponse);
+}
+
+message LinkAccountRequest {
+    // The public key of the owner account that will be linked to a user.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(LinkAccountRequest) without this field set
+    // using the private key of owner_account_id. This validates that the client
+    // actually owns the account.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // A one-time use token that identifies and authenticates the user.
+    oneof token {
+        // A token received after successfully verifying a phone number via a
+        // SMS code using the phone verification service.
+        phone.v1.PhoneLinkingToken phone = 3 [(validate.rules).message.required = true];
+    }
+}
+
+message LinkAccountResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The provided token is invalid. A token may be invalid for a number of
+        // reasons including: it's already been used, has been modified by the
+        // client or has expired.
+        INVALID_TOKEN = 1;
+        // The client is rate limited (eg. by IP, user ID, etc). The client should
+        // retry at a later time.
+        RATE_LIMITED = 2;
+    }
+
+    // The user that was linked to the owner account
+    User user = 2;
+
+    // The data container where the user can store a copy of their data
+    common.v1.DataContainerId data_container_id = 3;
+
+    // Field 4 is the deprecated kin_token_account_details
+    reserved 4;
+
+    // Metadata about the user based for the instance of their view
+    oneof metadata {
+        // Metadata that corresponds to a phone-based identifying feature.
+        PhoneMetadata phone = 5 [(validate.rules).message.required = true];
+    }
+}
+
+message UnlinkAccountRequest {
+    // The public key of the owner account that will be unliked.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(UnlinkAccountRequest) without this field set
+    // using the private key of owner_account_id. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    oneof identifying_feature {
+        // The phone number associated with the owner account.
+        common.v1.PhoneNumber phone_number = 4 [(validate.rules).message.required = true];
+    }
+}
+
+message UnlinkAccountResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The client attempted to unlink an owner account or identifying feature
+        // that never had a valid association.
+        NEVER_ASSOCIATED = 1;
+    }
+}
+
+message GetUserRequest {
+    // The public key of the owner account that signed this request message.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(GetUserRequest) without this field set
+    // using the private key of owner_account_id. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The user's indentifying feature, which maps to an instance of a view.
+    oneof identifying_feature {
+        common.v1.PhoneNumber phone_number = 3 [(validate.rules).message.required = true];
+    }
+}
+
+message GetUserResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The user doesn't exist
+        NOT_FOUND = 1;
+        // The user is no longer invited
+        NOT_INVITED = 2;
+        // The user exists, but at least one of their timelock accounts is unlocked
+        UNLOCKED_TIMELOCK_ACCOUNT = 3;
+    }
+
+    // The user associated with the identifier
+    User user = 2;
+
+    // The data container where the user can store a copy of their data
+    common.v1.DataContainerId data_container_id = 3;
+
+    // Field 4 is the deprecated kin_token_account_details
+    reserved 4;
+
+    // Metadata about the user based for the instance of their view
+    oneof metadata {
+        // Metadata that corresponds to a phone-based identifying feature.
+        PhoneMetadata phone = 5 [(validate.rules).message.required = true];
+    }
+
+    // Whether client internal flags are enabled for this user
+    bool enable_internal_flags = 6;
+
+    // Set of which airdrops the user is eligible to receive
+    repeated transaction.v2.AirdropType eligible_airdrops = 7;
+
+    // Wether the buy module is enabled for this user
+    bool enable_buy_module = 8;
+}
+
+message UpdatePreferencesRequest {
+    // The public key of the owner account that signed this request message.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The data container for the copy of the contact list being added to.
+    common.v1.DataContainerId container_id = 2 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(UpdatePreferencesRequest) without this field set
+    // using the private key of owner_account_id.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+
+    // The user's locale, which is used for server-side localization of things like
+    // chat messages, pushes, etc. If no locale is set, or the provided locale isn't
+    // supported, then English is used as the default fallback.
+    //
+    // Note: This is required since it's the only preference. In the future, we'll add
+    //       optional fields, where the subset of fields provided will be the ones that
+    //       are updated.
+    common.v1.Locale locale = 4 [(validate.rules).message.required = true];
+}
+
+message UpdatePreferencesResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+
+        // The provided locale couldn't be parsed or recognized and is invalid.
+        INVALID_LOCALE = 1;
+    }
+}
+
+message LoginToThirdPartyAppRequest {
+    // The intent ID identifying the instance of the login flow.
+    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+
+    // The relationship authority account logging in.
+    common.v1.SolanaAccountId user_id = 2 [(validate.rules).message.required = true];
+
+    // Signature of this message using the user private key, which authenticates
+    // the user.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message LoginToThirdPartyAppResponse {
+    Result result = 1;
+    enum Result {
+        // This supports idempotency. The same login with the same user will result
+        // in OK.
+        OK = 0;
+        // There is no request for the provided intent ID.
+        REQUEST_NOT_FOUND = 1;
+        // The request requires a payment. Call SubmitIntent instead.
+        PAYMENT_REQUIRED = 2;
+        // The request exists, but doesn't support login.
+        LOGIN_NOT_SUPPORTED = 3;
+        // A login with a different user already exists
+        DIFFERENT_LOGIN_EXISTS = 4;
+        // The provided account is not valid for login. It must be a relationship
+        // account with the correct identifier specified in the original request.
+        INVALID_ACCOUNT = 5;
+    }
+}
+
+message GetLoginForThirdPartyAppRequest {
+    // The intent ID identifying the instance of the login flow.
+    common.v1.IntentId intent_id = 1 [(validate.rules).message.required = true];
+
+    // Owner account owned by the third party used in domain verification.
+    common.v1.SolanaAccountId verifier = 2 [(validate.rules).message.required = true];
+
+    // Signature of this message using the verifier private key, which in addition
+    // to domain verification, authenticates the third party.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message GetLoginForThirdPartyAppResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // There is no request for the provided intent ID.
+        REQUEST_NOT_FOUND = 1;
+        // The request exists, but doesn't support login.
+        LOGIN_NOT_SUPPORTED = 2;
+        // The intent supports login, but it hasn't been submitted. There is no
+        // logged in user yet.
+        NO_USER_LOGGED_IN = 3;
+    }
+
+    // The relationship authority account that logged in.
+    common.v1.SolanaAccountId user_id = 2;
+}
+
+message GetTwitterUserRequest {
+    oneof query {
+        option (validate.required) = true;
+
+        // The Twitter username to query against
+        string username = 1 [(validate.rules).string = {
+            max_len: 15
+        }];
+
+        // The tip address to query against
+        common.v1.SolanaAccountId tip_address = 2;
+    }
+}
+
+message GetTwitterUserResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The Twitter user doesn't exist or isn't linked with a Code account
+        NOT_FOUND = 1;
+    }
+
+    TwitterUser twitter_user = 2;
+}
+
+// User is the highest order of a form of identity within Code.
+//
+// Note: Users outside Code are modelled as relationship accounts
+message User {
+    // The user's ID
+    common.v1.UserId id = 1 [(validate.rules).message.required = true];
+
+    // The identifying features that are associated with the user
+    View view = 2 [(validate.rules).message.required = true];
+}
+
+// View is a well-defined set of identifying features. It is contrained to having
+// exactly one feature set at a time, for now.
+message View {
+    // The phone number associated with a user.
+    //
+    // Note: This field is mandatory as of right now, since it's the only one
+    //       supported to date.
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+}
+
+message PhoneMetadata {
+    // State that determines whether a phone number is linked to the owner
+    // account. A phone number is linked if we can treat it as an alias.
+    // This is notably different from association, which answers the question
+    // of whether the number was linked at any point in time.
+    bool is_linked = 1;
+}
+
+message TwitterUser {
+    // Public key for a token account where tips are routed
+    common.v1.SolanaAccountId tip_address = 1 [(validate.rules).message.required = true];
+
+    // The user's username on Twitter
+    string username = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 15
+    }];
+
+    // The user's friendly name on Twitter
+    string name = 3 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256
+    }];
+
+    // URL to the user's Twitter profile picture
+    string profile_pic_url = 4 [(validate.rules).string = {
+        min_len: 1
+        max_len: 2048
+    }];
+
+    // The type of Twitter verification associated with the user
+    VerifiedType verified_type = 5;
+    enum VerifiedType {
+        NONE       = 0;
+        BLUE       = 1;
+        BUSINESS   = 2;
+        GOVERNMENT = 3;
+    }
+
+    // The number of followers the user has on Twitter
+    uint32 follower_count = 6;    
+}

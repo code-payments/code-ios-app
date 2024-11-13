@@ -1,0 +1,200 @@
+syntax = "proto3";
+
+package code.common.v1;
+
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/common/v1;common";
+option java_package = "com.codeinc.gen.common.v1";
+option objc_class_prefix = "CPBCommonV1";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+// AccountType associates a type to an account, which infers how an account is used
+// within the Code ecosystem.
+enum AccountType {
+    UNKNOWN                  = 0;
+    PRIMARY                  = 1;
+    TEMPORARY_INCOMING       = 2;
+    TEMPORARY_OUTGOING       = 3;
+    BUCKET_1_KIN             = 4;
+    BUCKET_10_KIN            = 5;
+    BUCKET_100_KIN           = 6;
+    BUCKET_1_000_KIN         = 7;
+    BUCKET_10_000_KIN        = 8;
+    BUCKET_100_000_KIN       = 9;
+    BUCKET_1_000_000_KIN     = 10;
+    LEGACY_PRIMARY_2022      = 11;
+    REMOTE_SEND_GIFT_CARD    = 12;
+    RELATIONSHIP             = 13;
+    SWAP                     = 14;
+}
+
+// SolanaAccountId is a raw binary Ed25519 public key for a Solana account
+message SolanaAccountId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// InstructionAccount is an account public key used within the context of
+// an instruction.
+message InstructionAccount {
+    SolanaAccountId account = 1 [(validate.rules).message.required = true];
+
+    bool is_signer = 2;
+
+    bool is_writable = 3;
+}
+
+// Transaction is a raw binary Solana transaction
+message Transaction {
+    // Maximum size taken from: https://github.com/solana-labs/solana/blob/39b3ac6a8d29e14faa1de73d8b46d390ad41797b/sdk/src/packet.rs#L9-L13
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 1232
+    }];
+}
+
+// Blockhash is a raw binary Solana blockchash
+message Blockhash {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// Signature is a raw binary Ed25519 signature
+message Signature {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 64
+        max_len: 64
+    }];
+}
+
+// IntentId is a client-side generated ID that maps to an intent to perform actions
+// on the blockchain fulfilled by the Code sequencer.
+message IntentId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// UserId is a globally unique identifier for a user within Code
+//
+// Note: Users outside Code are modelled as relationship accounts
+message UserId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// DataContainerId is a globally unique identifier for a container where a user
+// can store a copy of their data
+message DataContainerId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// DeviceToken is an opaque token used to verify whether a device real
+message DeviceToken {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 16348 // todo: What's a reasonable size
+    }];
+}
+
+// AppInstallId is a unque ID tied to a client app installation. It does not
+// identify a device. Value should remain private and not be shared across
+// installs.
+message AppInstallId {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256 // todo: What's a reasonable size
+    }];
+}
+
+// PhoneNumber is an E.164 phone number
+message PhoneNumber {
+    // Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
+    string value = 1 [(validate.rules).string.pattern = "^\\+[1-9]\\d{1,14}$"];
+}
+
+// Domain is a hostname
+message Domain {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 253
+        hostname: true
+    }];
+}
+
+// Relationship is a set of identifiers that a user can establish a relationship
+// with.
+message Relationship {
+    oneof type {
+        common.v1.Domain domain = 1 [(validate.rules).message.required = true];
+    }
+}
+
+// Hash is a raw binary 32 byte hash value
+message Hash {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// Locale is a user locale consisting of a combination of language, script and region
+message Locale {
+    string value = 1 [(validate.rules).string.pattern = "^[A-Za-z]{2,4}([_-][A-Za-z]{4})?([_-]([A-Za-z]{2}|[0-9]{3}))?$"];
+}
+
+// UUID is a 16 byte UUID value
+message UUID {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 16
+        max_len: 16
+    }];
+}
+
+// Request is a generic wrapper for gRPC requests
+message Request {
+    string version = 1;
+    string service = 2;
+    string method = 3;
+    bytes body = 4;
+}
+
+// Response is a generic wrapper for gRPC responses
+message Response {
+    Result result = 1;
+
+    bytes body = 2;
+    string message = 3;
+
+    enum Result {
+        OK = 0;
+        ERROR = 1;
+    }
+}
+
+message ServerPing {
+    // Timestamp the ping was sent on the stream, for client to get a sense
+    // of potential network latency
+    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+
+    // The delay server will apply before sending the next ping
+    google.protobuf.Duration ping_delay = 2 [(validate.rules).duration.required = true];
+}
+
+message ClientPong {
+    // Timestamp the Pong was sent on the stream, for server to get a sense
+    // of potential network latency
+    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+}

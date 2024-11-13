@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package code.currency.v1;
+
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/currency/v1;currency";
+option java_package = "com.codeinc.gen.currency.v1";
+option objc_class_prefix = "CPBCurrencyV1";
+
+import "validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+service Currency {
+    // GetAllRates returns the exchange rates for Kin against all available currencies
+    rpc GetAllRates(GetAllRatesRequest) returns (GetAllRatesResponse);
+}
+
+message GetAllRatesRequest {
+    // If timestamp is included, the returned rate will be the most recent available
+    // exchange rate prior to the provided timestamp within the same day. Otherwise,
+    // the latest rates will be returned.
+    google.protobuf.Timestamp timestamp = 1;
+}
+
+message GetAllRatesResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+
+        // No currency data is available for the requested timestamp.
+        MISSING_DATA = 1;
+    }
+
+    // The time the exchange rates were observed
+    google.protobuf.Timestamp as_of = 2 [(validate.rules).timestamp.required = true];
+
+    // The price of 1 Kin in different currencies, keyed on 3- or 4- letter lowercase currency code.
+    map<string, double> rates = 3 [(validate.rules).map.keys.string = {
+        pattern: "^[a-z]{3,4}$"
+    }];
+}

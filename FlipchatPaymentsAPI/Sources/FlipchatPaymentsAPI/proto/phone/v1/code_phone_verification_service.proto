@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package code.phone.v1;
+
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/phone/v1;phone";
+option java_package = "com.codeinc.gen.phone.v1";
+option objc_class_prefix = "CPBPhoneV1";
+
+import "common/v1/code_model.proto";
+import "validate/validate.proto";
+
+service PhoneVerification {
+    // SendVerificationCode sends a verification code to the provided phone number
+    // over SMS. If an active verification is already taking place, the existing code
+    // will be resent.
+    rpc SendVerificationCode(SendVerificationCodeRequest) returns (SendVerificationCodeResponse);
+
+    // CheckVerificationCode validates a verification code. On success, a one-time use
+    // token to link an owner account is provided. 
+    rpc CheckVerificationCode(CheckVerificationCodeRequest) returns (CheckVerificationCodeResponse);
+
+    // GetAssociatedPhoneNumber gets the latest verified phone number linked to an owner account.
+    rpc GetAssociatedPhoneNumber(GetAssociatedPhoneNumberRequest) returns (GetAssociatedPhoneNumberResponse);
+}
+
+message SendVerificationCodeRequest {
+    // The phone number to send a verification code over SMS to.
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+
+    // Device token for antispam measures against fake devices
+    common.v1.DeviceToken device_token = 2;
+}
+
+message SendVerificationCodeResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The phone number is not invited and cannot use Code. The SMS will not
+        // be sent until the user is invited. This result is only valid during
+        // the invitation stage of the application and won't apply after general
+        // public release.
+        NOT_INVITED = 1;
+        // SMS is rate limited (eg. by IP, phone number, etc) and was not sent.
+        // These will be set generously such that real users won't actually hit
+        // the limits.
+        RATE_LIMITED = 2;
+        // The phone number is not real because it fails Twilio lookup.
+        INVALID_PHONE_NUMBER = 3;
+        // The phone number is valid, but it maps to an unsupported type of phone
+        // like a landline or eSIM.
+        UNSUPPORTED_PHONE_TYPE = 4;
+        // The country associated with the phone number is not supported (eg. it
+        // is on the sanctioned list).
+        UNSUPPORTED_COUNTRY = 5;
+        // The device is not supported (eg. it fails device attestation checks)
+        UNSUPPORTED_DEVICE = 6;
+    }
+}
+
+message CheckVerificationCodeRequest {
+    // The phone number being verified.
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+
+    // The verification code received via SMS.
+    VerificationCode code = 2 [(validate.rules).message.required = true];
+}
+
+message CheckVerificationCodeResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // The provided verification code is invalid. The user may retry
+        // enterring the code if this is received. When max attempts are
+        // received, NO_VERIFICATION will be returned.
+        INVALID_CODE = 1;
+        // There is no verification in progress for the phone number. Several
+        // reasons this can occur include a verification being expired or having
+        // reached a maximum check threshold. The client must initiate a new
+        // verification using SendVerificationCode.
+        NO_VERIFICATION = 2;
+        // The call is rate limited (eg. by IP, phone number, etc). The code is
+        // not verified.
+        RATE_LIMITED = 3;
+    }
+
+    // The token used to associate an owner account to a user using the verified
+    // phone number.
+    PhoneLinkingToken linking_token = 2;
+}
+
+message GetAssociatedPhoneNumberRequest {
+    // The public key of the owner account that is being queried for a linked
+    // phone number.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(GetAssociatedPhoneNumberRequest) without
+    // this field set using the private key of owner_account_id. This provides
+    // an authentication mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+}
+
+message GetAssociatedPhoneNumberResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // A phone number is not associated with the provided owner account.
+        NOT_FOUND = 1;
+        // The phone number exists, but is no longer invited
+        NOT_INVITED = 2;
+        // The phone number exists, but at least one timelock account is unlocked
+        UNLOCKED_TIMELOCK_ACCOUNT = 3;
+    }
+
+    // The latest phone number associated with the owner account.
+    common.v1.PhoneNumber phone_number = 2;
+
+    // State that determines whether a phone number is linked to the owner
+    // account. A phone number is linked if we can treat it as an alias.
+    // This is notably different from association, which answers the question
+    // of whether the number was linked at any point in time.
+    bool is_linked = 3;
+}
+
+message VerificationCode {
+    // A 4-10 digit numerical code.
+    string value = 2 [(validate.rules).string = {
+        pattern: "^[0-9]{4,10}$"
+    }];
+}
+
+// A one-time use token that can be provided to the Identity service to link an
+// owner account to a user with the verified phone number. The client should
+// treat this token as opaque.
+message PhoneLinkingToken {
+    // The verified phone number.
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+
+    // The code that verified the phone number.
+    VerificationCode code = 2 [(validate.rules).message.required = true];
+}

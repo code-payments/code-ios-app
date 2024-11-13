@@ -18,6 +18,7 @@ let package = Package(
     dependencies: [
         .package(path: "../FlipchatAPI"),
         .package(path: "../CodeServices"),
+        .package(path: "../FlipchatPaymentsAPI"),
     ],
     targets: [
         .target(
@@ -25,6 +26,7 @@ let package = Package(
             dependencies: [
                 .product(name: "FlipchatAPI", package: "FlipchatAPI"),
                 .product(name: "CodeServices", package: "CodeServices"),
+                .product(name: "FlipchatPaymentsAPI", package: "FlipchatPaymentsAPI"),
             ]
         ),
         .testTarget(

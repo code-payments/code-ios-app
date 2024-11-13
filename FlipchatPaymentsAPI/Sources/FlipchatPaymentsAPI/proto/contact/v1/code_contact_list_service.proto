@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package code.contact.v1;
+
+option go_package = "github.com/code-payments/code-protobuf-api/generated/go/contact/v1;contact";
+option java_package = "com.codeinc.gen.contact.v1";
+option objc_class_prefix = "CPBContactV1";
+
+import "common/v1/code_model.proto";
+import "validate/validate.proto";
+
+service ContactList {
+    // AddContacts adds a batch of contacts to a user's contact list
+    rpc AddContacts(AddContactsRequest) returns (AddContactsResponse);
+
+    // RemoveContacts removes a batch of contacts from a user's contact list
+    rpc RemoveContacts(RemoveContactsRequest) returns (RemoveContactsResponse);
+
+    // GetContacts gets a subset of contacts from a user's contact list
+    rpc GetContacts(GetContactsRequest) returns (GetContactsResponse);
+}
+
+message AddContactsRequest {
+    // The public key of the owner account that signed this request message.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(AddContactsRequest) without this field set
+    // using the private key of owner_account_id. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The data container for the copy of the contact list being added to.
+    common.v1.DataContainerId container_id = 3 [(validate.rules).message.required = true];
+
+    // The set of contacts to add to the contact list
+    repeated common.v1.PhoneNumber contacts = 4 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024
+    }];  
+}
+
+message AddContactsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+
+    // The contacts' current status keyed by phone number. This is an optimization
+    // so that clients can populate initial state without needing an extra network
+    // call.
+    map<string, ContactStatus> contact_status = 2;
+}
+
+message RemoveContactsRequest {
+    // The public key of the owner account that signed this request message.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(RemoveContactsRequest) without this field
+    // set using the private key of owner_account_id. This provides an
+    // authentication mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The data container for the copy of the contact list being removed from.
+    common.v1.DataContainerId container_id = 3 [(validate.rules).message.required = true];
+
+     // The set of contacts to remove from the contact list
+    repeated common.v1.PhoneNumber contacts = 4 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024
+    }];
+}
+
+message RemoveContactsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+}
+
+message GetContactsRequest {
+    // The public key of the owner account that signed this request message.
+    common.v1.SolanaAccountId owner_account_id = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(GetContactsRequest) without this field set
+    // using the private key of owner_account_id. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // The data container for the copy of the contact list being fetched.
+    common.v1.DataContainerId container_id = 3 [(validate.rules).message.required = true];
+
+    // The page token, which is retreived from a previous response, to get the next
+    // set of contacts. The first page is returned when not set.
+    PageToken page_token = 4;
+
+    // Filter out contacts that have an association with Code. This includes users
+    // that have both been invited and registered with the app.
+    bool include_only_in_app_contacts = 5;
+}
+
+message GetContactsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+
+    // A page of contacts
+    repeated Contact contacts = 2 [(validate.rules).repeated.max_items = 1024];
+
+    // The page token to include in a subsequent request to get the next set of
+    // contacts. This will not be set for the last response in the list of
+    // pages.
+    PageToken next_page_token = 3;
+}
+
+message Contact {
+    // The contact's phone number
+    common.v1.PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+
+    // The contact's current status
+    ContactStatus status = 2 [(validate.rules).message.required = true];
+}
+
+message ContactStatus {
+    // Flag to indicate whether a user has registered with Code and used the app
+    // at least once.
+    bool is_registered = 1;
+
+    // Flag to indicate whether a user has been invited to Code.
+    //
+    // todo: This field will be deprecated after the invite phase is complete.
+    bool is_invited = 2;
+
+    // Flag to indicate whether a user's invitation to Code has been revoked.
+    //
+    // todo: This field will be deprecated after the invite phase is complete.
+    bool is_invite_revoked = 3;
+}
+
+message PageToken {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 128
+    }];
+}
