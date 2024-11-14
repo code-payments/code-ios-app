@@ -253,7 +253,7 @@ message JoinChatRequest {
         uint64 room_id = 2;
     }
 
-    // TODO: Payment information (if required)
+    common.v1.IntentId payment_intent = 9 [(validate.rules).message.required = true];
 
     common.v1.Auth auth = 10 [(validate.rules).message.required = true];
 }
@@ -269,6 +269,17 @@ message JoinChatResponse {
 
     // The members of the chat, if join was successful.
     repeated Member members = 3;
+}
+
+message JoinChatPaymentMetadata {
+    common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+    oneof identifier {
+        option (validate.required) = true;
+
+        common.v1.ChatId chat_id = 2;
+        uint64 room_id = 3;
+    }
 }
 
 message LeaveChatRequest {

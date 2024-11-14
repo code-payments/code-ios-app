@@ -35,6 +35,11 @@ public protocol Flipchat_Account_V1_AccountClientProtocol: GRPCClient {
     _ request: Flipchat_Account_V1_RevokePublicKeyRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Account_V1_RevokePublicKeyRequest, Flipchat_Account_V1_RevokePublicKeyResponse>
+
+  func getPaymentDestination(
+    _ request: Flipchat_Account_V1_GetPaymentDestinationRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>
 }
 
 extension Flipchat_Account_V1_AccountClientProtocol {
@@ -116,6 +121,24 @@ extension Flipchat_Account_V1_AccountClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRevokePublicKeyInterceptors() ?? []
+    )
+  }
+
+  /// GetPaymentDestination gets the payment destination for a UserId
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetPaymentDestination.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getPaymentDestination(
+    _ request: Flipchat_Account_V1_GetPaymentDestinationRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.getPaymentDestination.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? []
     )
   }
 }
@@ -201,6 +224,11 @@ public protocol Flipchat_Account_V1_AccountAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Account_V1_RevokePublicKeyRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_RevokePublicKeyRequest, Flipchat_Account_V1_RevokePublicKeyResponse>
+
+  func makeGetPaymentDestinationCall(
+    _ request: Flipchat_Account_V1_GetPaymentDestinationRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -260,6 +288,18 @@ extension Flipchat_Account_V1_AccountAsyncClientProtocol {
       interceptors: self.interceptors?.makeRevokePublicKeyInterceptors() ?? []
     )
   }
+
+  public func makeGetPaymentDestinationCall(
+    _ request: Flipchat_Account_V1_GetPaymentDestinationRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.getPaymentDestination.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -311,6 +351,18 @@ extension Flipchat_Account_V1_AccountAsyncClientProtocol {
       interceptors: self.interceptors?.makeRevokePublicKeyInterceptors() ?? []
     )
   }
+
+  public func getPaymentDestination(
+    _ request: Flipchat_Account_V1_GetPaymentDestinationRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Account_V1_GetPaymentDestinationResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.getPaymentDestination.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -343,6 +395,9 @@ public protocol Flipchat_Account_V1_AccountClientInterceptorFactoryProtocol: Sen
 
   /// - Returns: Interceptors to use when invoking 'revokePublicKey'.
   func makeRevokePublicKeyInterceptors() -> [ClientInterceptor<Flipchat_Account_V1_RevokePublicKeyRequest, Flipchat_Account_V1_RevokePublicKeyResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getPaymentDestination'.
+  func makeGetPaymentDestinationInterceptors() -> [ClientInterceptor<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>]
 }
 
 public enum Flipchat_Account_V1_AccountClientMetadata {
@@ -354,6 +409,7 @@ public enum Flipchat_Account_V1_AccountClientMetadata {
       Flipchat_Account_V1_AccountClientMetadata.Methods.login,
       Flipchat_Account_V1_AccountClientMetadata.Methods.authorizePublicKey,
       Flipchat_Account_V1_AccountClientMetadata.Methods.revokePublicKey,
+      Flipchat_Account_V1_AccountClientMetadata.Methods.getPaymentDestination,
     ]
   )
 
@@ -381,6 +437,12 @@ public enum Flipchat_Account_V1_AccountClientMetadata {
       path: "/flipchat.account.v1.Account/RevokePublicKey",
       type: GRPCCallType.unary
     )
+
+    public static let getPaymentDestination = GRPCMethodDescriptor(
+      name: "GetPaymentDestination",
+      path: "/flipchat.account.v1.Account/GetPaymentDestination",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -404,6 +466,9 @@ public protocol Flipchat_Account_V1_AccountProvider: CallHandlerProvider {
   /// There must be at least one public key per account. For now, any authorized public key
   /// may revoke another public key, but this may change in the future.
   func revokePublicKey(request: Flipchat_Account_V1_RevokePublicKeyRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Account_V1_RevokePublicKeyResponse>
+
+  /// GetPaymentDestination gets the payment destination for a UserId
+  func getPaymentDestination(request: Flipchat_Account_V1_GetPaymentDestinationRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Account_V1_GetPaymentDestinationResponse>
 }
 
 extension Flipchat_Account_V1_AccountProvider {
@@ -454,6 +519,15 @@ extension Flipchat_Account_V1_AccountProvider {
         userFunction: self.revokePublicKey(request:context:)
       )
 
+    case "GetPaymentDestination":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Account_V1_GetPaymentDestinationRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Account_V1_GetPaymentDestinationResponse>(),
+        interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? [],
+        userFunction: self.getPaymentDestination(request:context:)
+      )
+
     default:
       return nil
     }
@@ -494,6 +568,12 @@ public protocol Flipchat_Account_V1_AccountAsyncProvider: CallHandlerProvider, S
     request: Flipchat_Account_V1_RevokePublicKeyRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Account_V1_RevokePublicKeyResponse
+
+  /// GetPaymentDestination gets the payment destination for a UserId
+  func getPaymentDestination(
+    request: Flipchat_Account_V1_GetPaymentDestinationRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Account_V1_GetPaymentDestinationResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -551,6 +631,15 @@ extension Flipchat_Account_V1_AccountAsyncProvider {
         wrapping: { try await self.revokePublicKey(request: $0, context: $1) }
       )
 
+    case "GetPaymentDestination":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Account_V1_GetPaymentDestinationRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Account_V1_GetPaymentDestinationResponse>(),
+        interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? [],
+        wrapping: { try await self.getPaymentDestination(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -574,6 +663,10 @@ public protocol Flipchat_Account_V1_AccountServerInterceptorFactoryProtocol: Sen
   /// - Returns: Interceptors to use when handling 'revokePublicKey'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeRevokePublicKeyInterceptors() -> [ServerInterceptor<Flipchat_Account_V1_RevokePublicKeyRequest, Flipchat_Account_V1_RevokePublicKeyResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getPaymentDestination'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetPaymentDestinationInterceptors() -> [ServerInterceptor<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>]
 }
 
 public enum Flipchat_Account_V1_AccountServerMetadata {
@@ -585,6 +678,7 @@ public enum Flipchat_Account_V1_AccountServerMetadata {
       Flipchat_Account_V1_AccountServerMetadata.Methods.login,
       Flipchat_Account_V1_AccountServerMetadata.Methods.authorizePublicKey,
       Flipchat_Account_V1_AccountServerMetadata.Methods.revokePublicKey,
+      Flipchat_Account_V1_AccountServerMetadata.Methods.getPaymentDestination,
     ]
   )
 
@@ -610,6 +704,12 @@ public enum Flipchat_Account_V1_AccountServerMetadata {
     public static let revokePublicKey = GRPCMethodDescriptor(
       name: "RevokePublicKey",
       path: "/flipchat.account.v1.Account/RevokePublicKey",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPaymentDestination = GRPCMethodDescriptor(
+      name: "GetPaymentDestination",
+      path: "/flipchat.account.v1.Account/GetPaymentDestination",
       type: GRPCCallType.unary
     )
   }

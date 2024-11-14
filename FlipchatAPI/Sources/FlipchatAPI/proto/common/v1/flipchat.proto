@@ -71,6 +71,13 @@ message PublicKey {
     }];
 }
 
+message IntentId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
 message Signature {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 64

@@ -27,6 +27,9 @@ service Account {
 	// There must be at least one public key per account. For now, any authorized public key
 	// may revoke another public key, but this may change in the future.
 	rpc RevokePublicKey(RevokePublicKeyRequest) returns (RevokePublicKeyResponse);
+
+	// GetPaymentDestination gets the payment destination for a UserId
+	rpc GetPaymentDestination(GetPaymentDestinationRequest) returns (GetPaymentDestinationResponse);
 }
 
 message RegisterRequest {
@@ -120,4 +123,19 @@ message RevokePublicKeyResponse {
 		DENIED       = 1;
 		LAST_PUB_KEY = 2;
 	}
+}
+
+message GetPaymentDestinationRequest {
+	// UserId to get the payment destination from.
+	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+}
+message GetPaymentDestinationResponse {
+	Result result = 1;
+	enum Result {
+		OK        = 0;
+		NOT_FOUND = 1;
+	}
+
+	// Payment destination for the UserId.
+	common.v1.PublicKey payment_destination = 2;
 }
