@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 struct ActionFeePayment: ActionType {
     
@@ -30,41 +30,8 @@ struct ActionFeePayment: ActionType {
         self.amount = amount
     }
     
-    func transactions() throws -> [SolanaTransaction] {
-        guard let configs = serverParameter?.configs else {
-            throw Error.missingConfigurations
-        }
-        
-        
-        
-        guard let timelock = cluster.timelock else {
-            throw Error.invalidTimelockAccounts
-        }
-        
-        let destination: PublicKey
-        
-        switch kind {
-        case .code:
-            guard case .feePayment(let d) = serverParameter?.parameter, let feeDestination = d else {
-                throw Error.missingFeeParameter
-            }
-            
-            destination = feeDestination
-            
-        case .thirdParty(let publicKey):
-            destination = publicKey
-        }
-        
-        return configs.map { config in
-            TransactionBuilder.transfer(
-                timelockDerivedAccounts: timelock,
-                destination: destination,
-                amount: amount,
-                nonce: config.nonce,
-                recentBlockhash: config.blockhash,
-                kreIndex: KRE.index
-            )
-        }
+    func compactMessages() throws -> [CompactMessage] {
+        []
     }
 }
 

@@ -14,7 +14,7 @@ extension PublicKey {
 
     public static let subsidizer    = PublicKey(base58: "codeHy87wGD5oMRLG75qKqsSi1vWE3oxNyYmXo5F9YR")!
     
-    public static let timeAuthority = PublicKey(base58: "codeHy87wGD5oMRLG75qKqsSi1vWE3oxNyYmXo5F9YR")!
+    public static let timeAuthority = PublicKey(base58: "f1ipC31qd2u88MjNYp1T4Cc7rnWfM9ivYpTV1Z8FHnD")!
 }
 
 public enum Mint {

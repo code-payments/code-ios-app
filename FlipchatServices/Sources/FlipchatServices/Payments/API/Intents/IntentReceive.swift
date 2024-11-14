@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 class IntentReceive: IntentType {
     
@@ -64,10 +64,10 @@ class IntentReceive: IntentType {
         
         let rotation: [ActionType] = [
             
-            ActionCloseEmptyAccount(
-                type: .incoming,
-                cluster: oldIncoming.cluster
-            ),
+//            ActionCloseEmptyAccount(
+//                type: .incoming,
+//                cluster: oldIncoming.cluster
+//            ),
             
             ActionOpenAccount(
                 owner: organizer.tray.owner.cluster.authority.keyPair.publicKey,
@@ -75,11 +75,11 @@ class IntentReceive: IntentType {
                 accountCluster: newIncoming.cluster
             ),
             
-            ActionWithdraw(
-                kind: .closeDormantAccount(.incoming),
-                cluster: newIncoming.cluster,
-                destination: organizer.tray.owner.cluster.vaultPublicKey
-            )
+//            ActionWithdraw(
+//                kind: .closeDormantAccount(.incoming),
+//                cluster: newIncoming.cluster,
+//                destination: organizer.tray.owner.cluster.vaultPublicKey
+//            )
         ]
         
         let endSlotBalance = currentTray.slotsBalance

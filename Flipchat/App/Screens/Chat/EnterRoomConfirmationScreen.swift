@@ -16,6 +16,8 @@ struct EnterRoomConfirmationScreen: View {
     
     @ObservedObject private var viewModel: ChatViewModel
     
+    @State private var showingPaymentConfirmation: Bool = false
+    
     @Query private var chats: [pChat]
     
     private var chat: pChat {
@@ -75,13 +77,31 @@ struct EnterRoomConfirmationScreen: View {
                         style: .filled,
                         title: "Join Room \(chat.roomNumber.roomString)"
                     ) {
-                        viewModel.attemptEnterGroupChat(roomNumber: chat.roomNumber)
+                        showingPaymentConfirmation = true
                     }
                 }
                 .padding(20)
             }
             .foregroundColor(.textMain)
             .navigationBarTitle(Text("Enter Room Number"), displayMode: .inline)
+            .sheet(isPresented: $showingPaymentConfirmation) {
+                PartialSheet {
+                    ModalPaymentConfirmation(
+                        amount: KinAmount(kin: 200, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
+                        currency: .kin,
+                        primaryAction: "Swipe to Pay",
+                        secondaryAction: "Cancel",
+                        paymentAction: {
+                            viewModel.attemptEnterGroupChat(
+                                chatID: ChatID(data: chat.serverID),
+                                hostID: UserID(data: chat.ownerUserID)
+                            )
+                        },
+                        dismissAction: { showingPaymentConfirmation = false },
+                        cancelAction: { showingPaymentConfirmation = false }
+                    )
+                }
+            }
         }
     }
     

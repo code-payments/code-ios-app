@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 struct ServerParameter {
     
@@ -186,7 +186,7 @@ extension ServerParameter.Parameter {
             let optionalDestination = PublicKey(param.codeDestination.value)
             self = .feePayment(optionalDestination)
             
-        case .openAccount, .closeEmptyAccount, .closeDormantAccount, .noPrivacyTransfer, .noPrivacyWithdraw, .none:
+        case .openAccount, .noPrivacyTransfer, .noPrivacyWithdraw, .none:
             return nil
         }
     }

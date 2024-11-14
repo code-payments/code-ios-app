@@ -42,6 +42,36 @@ class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func fetchPaymentDestination(userID: UserID, completion: @escaping (Result<PublicKey, ErrorFetchPaymentDestination>) -> Void) {
+        trace(.send, components: "User ID: \(userID.description)")
+        
+        let request = Flipchat_Account_V1_GetPaymentDestinationRequest.with {
+            $0.userID = .with { $0.value = userID.data }
+        }
+        
+        let call = service.getPaymentDestination(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorFetchPaymentDestination(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                guard let destination = PublicKey(response.paymentDestination.value) else {
+                    completion(.failure(.failedToParsePublicKey))
+                    return
+                }
+                
+                trace(.success, components: "Destination: \(destination.base58)")
+                completion(.success(destination))
+                
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -53,9 +83,20 @@ public enum ErrorRegister: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorFetchPaymentDestination: Int, Error {
+    case ok
+    case notFound
+    case unknown = -1
+    case failedToParsePublicKey = -2
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Account_V1_AccountClientInterceptorFactoryProtocol {
+    func makeGetPaymentDestinationInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Account_V1_GetPaymentDestinationRequest, FlipchatAPI.Flipchat_Account_V1_GetPaymentDestinationResponse>] {
+        makeInterceptors()
+    }
+    
     func makeLoginInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Account_V1_LoginRequest, FlipchatAPI.Flipchat_Account_V1_LoginResponse>] {
         makeInterceptors()
     }

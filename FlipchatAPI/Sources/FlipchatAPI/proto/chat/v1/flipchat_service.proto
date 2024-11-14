@@ -272,14 +272,11 @@ message JoinChatResponse {
 }
 
 message JoinChatPaymentMetadata {
+    // The user joining the chat
     common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
 
-    oneof identifier {
-        option (validate.required) = true;
-
-        common.v1.ChatId chat_id = 2;
-        uint64 room_id = 3;
-    }
+    // The chat that the user is joining
+    common.v1.ChatId chat_id = 2 [(validate.rules).message.required = true];
 }
 
 message LeaveChatRequest {

@@ -7,7 +7,8 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
+import SwiftProtobuf
 
 class IntentPublicTransfer: IntentType {
     
@@ -16,16 +17,18 @@ class IntentPublicTransfer: IntentType {
     let sourceCluster: AccountCluster
     let destination: PublicKey
     let amount: KinAmount
+    let extendedMetadata: Google_Protobuf_Any?
     
     let resultTray: Tray
     
     var actionGroup: ActionGroup
     
-    init(organizer: Organizer, source: AccountType, destination: Destination, amount: KinAmount) throws {
+    init(organizer: Organizer, source: AccountType, destination: Destination, amount: KinAmount, extendedMetadata: Google_Protobuf_Any? = nil) throws {
         self.id = PublicKey.generate()!
         self.organizer = organizer
         self.sourceCluster = organizer.tray.cluster(for: source)
         self.amount = amount
+        self.extendedMetadata = extendedMetadata
         
         switch destination {
         case .local(let accountType):
@@ -84,7 +87,7 @@ extension IntentPublicTransfer {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.sendPublicPayment = .with {
-                $0.source = sourceCluster.vaultPublicKey.codeAccountID
+                $0.source =  sourceCluster.vaultPublicKey.codeAccountID
                 $0.destination  = destination.codeAccountID
                 $0.isWithdrawal = true
                 $0.exchangeData = .with {
@@ -92,6 +95,12 @@ extension IntentPublicTransfer {
                     $0.currency = amount.rate.currency.rawValue
                     $0.exchangeRate = amount.rate.fx.doubleValue
                     $0.nativeAmount = amount.fiat.doubleValue
+                }
+                
+                if let extendedMetadata {
+                    $0.extendedMetadata = .with {
+                        $0.value = extendedMetadata
+                    }
                 }
             }
         }

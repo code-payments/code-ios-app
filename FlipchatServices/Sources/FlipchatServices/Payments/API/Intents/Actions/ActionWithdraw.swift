@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 struct ActionWithdraw: ActionType {
     
@@ -30,25 +30,12 @@ struct ActionWithdraw: ActionType {
         self.destination = destination
     }
     
-    func transactions() throws -> [SolanaTransaction] {
-        guard let configs = serverParameter?.configs else {
+    func compactMessages() throws -> [CompactMessage] {
+        guard let serverParameter = serverParameter else {
             throw Error.missingConfigurations
         }
         
-        guard let timelock = cluster.timelock else {
-            throw Error.invalidTimelockAccounts
-        }
-        
-        return configs.map { config in
-            TransactionBuilder.closeDormantAccount(
-                authority: cluster.authority.keyPair.publicKey,
-                timelockDerivedAccounts: timelock,
-                destination: destination,
-                nonce: config.nonce,
-                recentBlockhash: config.blockhash,
-                kreIndex: KRE.index
-            )
-        }
+        return []
     }
 }
 
@@ -63,7 +50,6 @@ extension ActionWithdraw {
 
 extension ActionWithdraw {
     enum Kind: Equatable {
-        case closeDormantAccount(AccountType)
         case noPrivacyWithdraw(Kin)
     }
 }
@@ -75,14 +61,6 @@ extension ActionWithdraw {
         .with {
             $0.id = UInt32(id)
             switch kind {
-            case .closeDormantAccount(let type):
-                $0.closeDormantAccount = .with {
-                    $0.accountType = type.accountType
-                    $0.authority = cluster.authority.keyPair.publicKey.codeAccountID
-                    $0.token = cluster.vaultPublicKey.codeAccountID
-                    $0.destination = destination.codeAccountID
-                }
-                
             case .noPrivacyWithdraw(let amount):
                 $0.noPrivacyWithdraw = .with {
                     $0.authority = cluster.authority.keyPair.publicKey.codeAccountID

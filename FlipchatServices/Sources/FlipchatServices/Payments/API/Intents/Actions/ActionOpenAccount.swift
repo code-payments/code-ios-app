@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 struct ActionOpenAccount: ActionType {
     
@@ -28,7 +28,7 @@ struct ActionOpenAccount: ActionType {
         self.accountCluster = accountCluster
     }
     
-    func transactions() -> [SolanaTransaction] {
+    func compactMessages() throws -> [CompactMessage] {
         []
     }
 }

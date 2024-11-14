@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 struct ActionTransfer: ActionType {
     
@@ -34,42 +34,22 @@ struct ActionTransfer: ActionType {
         self.destination = destination
     }
     
-    func transactions() throws -> [SolanaTransaction] {
+    func compactMessages() throws -> [CompactMessage] {
         guard let serverParameter = serverParameter else {
             throw Error.missingServerParameter
         }
         
-        guard let timelock = source.timelock else {
-            throw Error.invalidSource
-        }
-        
-        let resolvedDestination: PublicKey
-        
-        if case .tempPrivacy(let tempPrivacyParameter) = serverParameter.parameter {
-            let splitterAccounts = SplitterCommitmentAccounts(
-                source: source,
-                destination: destination,
-                amount: amount,
-                treasury: tempPrivacyParameter.treasury,
-                recentRoot: tempPrivacyParameter.recentRoot,
-                intentID: intentID,
-                actionID: id
-            )
-            
-            resolvedDestination = splitterAccounts.vault.publicKey
-        } else {
-            resolvedDestination = destination
-        }
-        
         return serverParameter.configs.map { config in
-            TransactionBuilder.transfer(
-                timelockDerivedAccounts: timelock,
-                destination: resolvedDestination,
-                amount: amount,
-                nonce: config.nonce,
-                recentBlockhash: config.blockhash,
-                kreIndex: KRE.index
-            )
+            var message = CompactMessage()
+
+            message.append(utf8: "transfer")
+            message.append(publicKey: source.vaultPublicKey)
+            message.append(publicKey: destination)
+            message.append(kin: amount)
+            message.append(publicKey: config.nonce)
+            message.append(publicKey: config.blockhash)
+            
+            return message
         }
     }
 }

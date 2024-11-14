@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 public struct UpgradeablePrivateAction: Equatable, Sendable {
     

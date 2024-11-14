@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 import Combine
 import GRPC
 
@@ -52,7 +52,7 @@ public enum ErrorAddToken: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Push_V1_PushClientInterceptorFactoryProtocol {
-    func makeRemoveTokenInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Push_V1_RemoveTokenRequest, CodeAPI.Code_Push_V1_RemoveTokenResponse>] {
+    func makeRemoveTokenInterceptors() -> [GRPC.ClientInterceptor<Code_Push_V1_RemoveTokenRequest, Code_Push_V1_RemoveTokenResponse>] {
         makeInterceptors()
     }
     

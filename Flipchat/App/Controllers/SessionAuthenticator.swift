@@ -233,6 +233,7 @@ final class SessionAuthenticator: ObservableObject {
         let chatController = ChatController(
             userID: userID,
             client: flipClient,
+            paymentClient: client,
             organizer: organizer
         )
         
@@ -280,7 +281,15 @@ final class SessionAuthenticator: ObservableObject {
         )
         
         do {
+            // 1. Open all required VM accounts
+            try await client.createAccounts(with: organizer)
+            
+            // 2. Register flipchat user, sign with owner
+            // used for accounts created above
             let userID = try await flipClient.register(name: name, owner: owner)
+            
+            // 3. Airdrop initial balance
+            _ = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
             
             accountManager.set(
                 account: keyAccount,

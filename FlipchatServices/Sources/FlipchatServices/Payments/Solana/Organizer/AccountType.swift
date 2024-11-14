@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 public enum AccountType: Equatable, Codable, Hashable, Sendable {
     

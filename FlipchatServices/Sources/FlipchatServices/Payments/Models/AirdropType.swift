@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 public enum AirdropType: Int, Codable, Equatable, Sendable {
     case unknown

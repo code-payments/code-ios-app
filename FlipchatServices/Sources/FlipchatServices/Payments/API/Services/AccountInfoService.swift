@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 import Combine
 import GRPC
 
@@ -167,15 +167,15 @@ public enum ErrorLinkAccounts: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Account_V1_AccountClientInterceptorFactoryProtocol {
-    func makeIsCodeAccountInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Account_V1_IsCodeAccountRequest, CodeAPI.Code_Account_V1_IsCodeAccountResponse>] {
+    func makeIsCodeAccountInterceptors() -> [GRPC.ClientInterceptor<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse>] {
         makeInterceptors()
     }
     
-    func makeGetTokenAccountInfosInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Account_V1_GetTokenAccountInfosRequest, CodeAPI.Code_Account_V1_GetTokenAccountInfosResponse>] {
+    func makeGetTokenAccountInfosInterceptors() -> [GRPC.ClientInterceptor<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>] {
         makeInterceptors()
     }
     
-    func makeLinkAdditionalAccountsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Account_V1_LinkAdditionalAccountsRequest, CodeAPI.Code_Account_V1_LinkAdditionalAccountsResponse>] {
+    func makeLinkAdditionalAccountsInterceptors() -> [GRPC.ClientInterceptor<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse>] {
         makeInterceptors()
     }
 }

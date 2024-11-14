@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 import SwiftProtobuf
 
 // MARK: - Serialize -
@@ -99,9 +99,6 @@ extension IntentMetadata {
             
         case .upgradePrivacy:
             self = .upgradePrivacy
-            
-        case .migrateToPrivacy2022:
-            self = .migrateToPrivacy2022
             
         case .sendPrivatePayment(let meta):
             guard let metadata = Self.paymentMetadata(for: meta.exchangeData) else {

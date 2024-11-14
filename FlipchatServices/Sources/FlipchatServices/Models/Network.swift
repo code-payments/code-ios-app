@@ -19,7 +19,7 @@ extension Network {
         case .mainNet:
             return "chat.api.flipchat-infra.xyz"
         case .testNet:
-            return "api.flipchat.codeinfra.net"
+            return "chat.api.flipchat-infra.xyz"
         }
     }
     
@@ -28,7 +28,7 @@ extension Network {
         case .mainNet:
             return "payments.api.flipchat-infra.xyz"
         case .testNet:
-            return "api.flipchat.codeinfra.net"
+            return "payments.api.flipchat-infra.xyz"
         }
     }
 

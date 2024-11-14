@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 protocol ActionType {
     
@@ -17,10 +17,10 @@ protocol ActionType {
     
     static var configCountRequirement: Int { get }
         
-    func transactions() throws -> [SolanaTransaction]
+    func compactMessages() throws -> [CompactMessage]
     func signatures() throws -> [Signature]
     
-    func action() -> Code_Transaction_V2_Action
+    func action() -> Code_Transaction_V2_Action    
 }
 
 enum ActionTypeError: Error {
@@ -37,9 +37,7 @@ extension ActionType {
             throw ActionTypeError.missingSigner
         }
         
-        return try transactions().map { transaction in
-            transaction.signature(using: signer)
-        }
+        return try compactMessages().map { $0.signature(owner: signer) }
     }
 }
 

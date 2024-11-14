@@ -32,9 +32,11 @@ public struct AmountText: View {
                         .font(.default(size: 12, weight: .bold))
                 }
             }
+            
             Text(content)
                 .lineLimit(1)
                 .minimumScaleFactor(0.3)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

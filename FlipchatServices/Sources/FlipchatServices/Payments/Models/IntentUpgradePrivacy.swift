@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 class IntentUpgradePrivacy: IntentType {
     
@@ -20,7 +20,7 @@ class IntentUpgradePrivacy: IntentType {
         
         self.actionGroup = ActionGroup()
         
-        let actions = try upgradeableIntent.actions.map { upgradeableAction in
+        let actions = upgradeableIntent.actions.map { upgradeableAction in
             
             let actionAmount = upgradeableAction.originalAmount
             let originalDestination = upgradeableAction.originalDestination
@@ -37,18 +37,18 @@ class IntentUpgradePrivacy: IntentType {
             
             // Validate the server isn't mallicious and is providing
             // the original details of the transaction
-            try validate(
-                transactionData: upgradeableAction.transactionBlob,
-                clientSignature: upgradeableAction.clientSignature,
-                intentID: upgradeableIntent.id,
-                actionID: upgradeableAction.id,
-                amount: actionAmount,
-                source: sourceCluster,
-                destination: originalDestination,
-                originalNonce: originalNonce,
-                treasury: treasury,
-                recentRoot: recentRoot
-            )
+//            try validate(
+//                transactionData: upgradeableAction.transactionBlob,
+//                clientSignature: upgradeableAction.clientSignature,
+//                intentID: upgradeableIntent.id,
+//                actionID: upgradeableAction.id,
+//                amount: actionAmount,
+//                source: sourceCluster,
+//                destination: originalDestination,
+//                originalNonce: originalNonce,
+//                treasury: treasury,
+//                recentRoot: recentRoot
+//            )
             
             
             // We have to derive the original commitment accounts because
@@ -79,49 +79,49 @@ class IntentUpgradePrivacy: IntentType {
         self.actionGroup = ActionGroup(actions: actions)
     }
     
-    private func validate(transactionData: Data, clientSignature: Signature, intentID: PublicKey, actionID: Int, amount: Kin, source: AccountCluster, destination: PublicKey, originalNonce: PublicKey, treasury: PublicKey, recentRoot: Hash) throws {
-        
-        guard let transaction = SolanaTransaction(data: transactionData) else {
-            throw Error.failedToParseTransaction
-        }
-        
-        var originalTransfer = ActionTransfer(
-            kind: .tempPrivacyTransfer, // Isn't used here
-            intentID: intentID,
-            amount: amount,
-            source: source,
-            destination: destination
-        )
-        
-        originalTransfer.id = actionID
-        originalTransfer.serverParameter = ServerParameter(
-            actionID: actionID,
-            parameter: .tempPrivacy(.init(
-                treasury: treasury,
-                recentRoot: recentRoot
-            )),
-            configs: [
-                .init(
-                    nonce: originalNonce,
-                    blockhash: transaction.recentBlockhash
-                )
-            ]
-        )
-        
-        let originalTransaction = try originalTransfer.transactions()[0]
-        
-        guard originalTransaction.encode() == transactionData else {
-            throw Error.transactionMismatch
-        }
-        
-        // (Optional) Reach into transaction and make sure the source is the same
-        
-        let signature = originalTransaction.signature(using: source.authority.keyPair)
-        
-        guard signature == clientSignature else {
-            throw Error.signatureMismatch
-        }
-    }
+//    private func validate(transactionData: Data, clientSignature: Signature, intentID: PublicKey, actionID: Int, amount: Kin, source: AccountCluster, destination: PublicKey, originalNonce: PublicKey, treasury: PublicKey, recentRoot: Hash) throws {
+//        
+//        guard let transaction = SolanaTransaction(data: transactionData) else {
+//            throw Error.failedToParseTransaction
+//        }
+//        
+//        var originalTransfer = ActionTransfer(
+//            kind: .tempPrivacyTransfer, // Isn't used here
+//            intentID: intentID,
+//            amount: amount,
+//            source: source,
+//            destination: destination
+//        )
+//        
+//        originalTransfer.id = actionID
+//        originalTransfer.serverParameter = ServerParameter(
+//            actionID: actionID,
+//            parameter: .tempPrivacy(.init(
+//                treasury: treasury,
+//                recentRoot: recentRoot
+//            )),
+//            configs: [
+//                .init(
+//                    nonce: originalNonce,
+//                    blockhash: transaction.recentBlockhash
+//                )
+//            ]
+//        )
+//        
+//        let originalTransaction = try originalTransfer.transactions()[0]
+//        
+//        guard originalTransaction.encode() == transactionData else {
+//            throw Error.transactionMismatch
+//        }
+//        
+//        // (Optional) Reach into transaction and make sure the source is the same
+//        
+//        let signature = originalTransaction.signature(using: source.authority.keyPair)
+//        
+//        guard signature == clientSignature else {
+//            throw Error.signatureMismatch
+//        }
+//    }
 }
 
 // MARK: - Errors -

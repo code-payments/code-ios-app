@@ -15,6 +15,7 @@ class ChatController: ObservableObject {
     
     private let userID: UserID
     private let client: FlipchatClient
+    private let paymentClient: Client
     private let organizer: Organizer
     
     private let pageSize: Int = 100
@@ -29,9 +30,10 @@ class ChatController: ObservableObject {
     
     // MARK: - Init -
     
-    init(userID: UserID, client: FlipchatClient, organizer: Organizer) {
+    init(userID: UserID, client: FlipchatClient, paymentClient: Client, organizer: Organizer) {
         self.userID    = userID
         self.client    = client
+        self.paymentClient = paymentClient
         self.organizer = organizer
         self.owner     = organizer.ownerKeyPair
         self.chatStore = ChatStore(
@@ -45,11 +47,8 @@ class ChatController: ObservableObject {
         streamChatEvents()
     }
     
-    deinit {
-        trace(.warning, components: "Deallocating ChatController")
-    }
-    
     func prepareForLogout() {
+        destroyChatStream()
         try? chatStore.nuke()
     }
     
@@ -106,8 +105,23 @@ class ChatController: ObservableObject {
         try await chatStore.fetchChat(identifier: .roomNumber(roomNumber), hide: hide)
     }
     
-    func joinGroupChat(roomNumber: RoomNumber) async throws -> ChatID {
-        try await chatStore.joinChat(roomNumber: roomNumber)
+    func joinGroupChat(chatID: ChatID, hostID: UserID) async throws -> ChatID {
+        let destination = try await client.fetchPaymentDestination(userID: hostID)
+        
+        let intentID = try await paymentClient.payForRoom(
+            userID: userID,
+            chatID: chatID,
+            amount: .init(kin: 200, rate: .oneToOne),
+            organizer: organizer,
+            destination: destination
+        )
+        
+        let chatID = try await chatStore.joinChat(
+            chatID: chatID,
+            intentID: intentID
+        )
+        
+        return chatID
     }
 }
 
@@ -117,6 +131,7 @@ extension ChatController {
     static let mock = ChatController(
         userID: .mock,
         client: .mock,
+        paymentClient: .mock,
         organizer: .mock2
     )
 }

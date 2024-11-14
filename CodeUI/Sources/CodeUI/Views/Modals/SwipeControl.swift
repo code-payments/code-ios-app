@@ -208,9 +208,11 @@ public enum Style {
     
     case blue
     case black
+    case purple
     
-    private static let railColorBlue: Color  = Color(r: 17,  g: 20,  b: 42)
-    private static let railColorBlack: Color = Color(r: 32,  g: 29,  b: 29)
+    private static let railColorBlue: Color   = Color(r: 17,  g: 20,  b: 42)
+    private static let railColorBlack: Color  = Color(r: 32,  g: 29,  b: 29)
+    private static let railColorPurple: Color = Color(r: 36,  g: 26,  b: 75)
     
     var railColor: Color {
         switch self {
@@ -218,6 +220,8 @@ public enum Style {
             return Self.railColorBlue
         case .black:
             return Self.railColorBlack
+        case .purple:
+            return Self.railColorPurple
         }
     }
 }

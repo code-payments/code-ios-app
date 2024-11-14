@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 import Combine
 import GRPC
 
@@ -93,11 +93,11 @@ public enum ErrorFetchInstallationAccounts: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Device_V1_DeviceClientInterceptorFactoryProtocol {
-    func makeRegisterLoggedInAccountsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Device_V1_RegisterLoggedInAccountsRequest, CodeAPI.Code_Device_V1_RegisterLoggedInAccountsResponse>] {
+    func makeRegisterLoggedInAccountsInterceptors() -> [GRPC.ClientInterceptor<Code_Device_V1_RegisterLoggedInAccountsRequest, Code_Device_V1_RegisterLoggedInAccountsResponse>] {
         makeInterceptors()
     }
     
-    func makeGetLoggedInAccountsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Device_V1_GetLoggedInAccountsRequest, CodeAPI.Code_Device_V1_GetLoggedInAccountsResponse>] {
+    func makeGetLoggedInAccountsInterceptors() -> [GRPC.ClientInterceptor<Code_Device_V1_GetLoggedInAccountsRequest, Code_Device_V1_GetLoggedInAccountsResponse>] {
         makeInterceptors()
     }
 }

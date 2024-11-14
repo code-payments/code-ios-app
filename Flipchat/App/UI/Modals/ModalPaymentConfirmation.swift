@@ -36,57 +36,59 @@ public struct ModalPaymentConfirmation: View {
     // MARK: - Body -
     
     public var body: some View {
-        SheetView(edge: .bottom, backgroundColor: .backgroundMain) {
-            VStack(spacing: 10) {
-                
-                AmountText(
-                    flagStyle: currency.flagStyle,
-                    content: amount
+        VStack(spacing: 10) {
+            
+            AmountText(
+                flagStyle: currency.flagStyle,
+                content: amount
+            )
+            .font(.appDisplayMedium)
+            .padding(.top, 20)
+            
+            VStack {
+                SwipeControl(
+                    style: .purple,
+                    text: primaryAction,
+                    action: {
+                        try await paymentAction()
+                    },
+                    completion: {
+                        try await Task.delay(seconds: 1) // Checkmark delay
+                        dismissAction()
+                    }
                 )
-                .font(.appDisplayMedium)
                 
-                VStack {
-                    SwipeControl(
-                        style: .blue,
-                        text: primaryAction,
-                        action: {
-                            try await paymentAction()
-                        },
-                        completion: {
-                            try await Task.delay(seconds: 1) // Checkmark delay
-                            dismissAction()
-                        }
-                    )
-                    
-                    CodeButton(
-                        style: .subtle,
-                        title: secondaryAction,
-                        action: {
-                            cancelAction()
-                        }
-                    )
-                    .padding(.bottom, -20)
-                }
-                .padding(.top, 10)
+                CodeButton(
+                    style: .subtle,
+                    title: secondaryAction,
+                    action: {
+                        cancelAction()
+                    }
+                )
+                .padding(.bottom, -20)
             }
-            .padding(20)
-            .padding(.top, 5)
-            .foregroundColor(.textMain)
-            .font(.appTextMedium)
+            .padding(.top, 25)
         }
+        .padding(20)
+        .foregroundColor(.textMain)
+        .font(.appTextMedium)
+        .background(Color.backgroundMain)
     }
 }
 
 #Preview {
-    Background(color: .white) {
-        ModalPaymentConfirmation(
-            amount: "$5.00",
-            currency: .usd,
-            primaryAction: "Swipe to Pay",
-            secondaryAction: "Cancel",
-            paymentAction: { try await Task.delay(seconds: 1) },
-            dismissAction: {},
-            cancelAction: {}
-        )
+    Background(color: .backgroundMain) {}
+    .sheet(isPresented: .constant(true)) {
+        PartialSheet {
+            ModalPaymentConfirmation(
+                amount: "200",
+                currency: .kin,
+                primaryAction: "Swipe to Pay",
+                secondaryAction: "Cancel",
+                paymentAction: { try await Task.delay(seconds: 1) },
+                dismissAction: {},
+                cancelAction: {}
+            )
+        }
     }
 }

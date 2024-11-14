@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 protocol IntentType: AnyObject {
     
@@ -120,8 +120,8 @@ extension ActionGroup: CustomStringConvertible, CustomDebugStringConvertible {
                 
             } else if let withdraw = action as? ActionWithdraw {
                 switch withdraw.kind {
-                case .closeDormantAccount:
-                    return "Close Dormant -> \(withdraw.cluster.vaultPublicKey.base58) sending to \(withdraw.destination.base58) (closeDormantAccount)"
+//                case .closeDormantAccount:
+//                    return "Close Dormant -> \(withdraw.cluster.vaultPublicKey.base58) sending to \(withdraw.destination.base58) (closeDormantAccount)"
                     
                 case .noPrivacyWithdraw(let amount):
                     return "\(amount) -> \(withdraw.destination.base58) (noPrivacyWithdraw)"
@@ -129,9 +129,6 @@ extension ActionGroup: CustomStringConvertible, CustomDebugStringConvertible {
                 
             } else if let action = action as? ActionOpenAccount {
                 return "Open -> \(action.accountCluster.vaultPublicKey.base58) (openAccount)"
-                
-            } else if let closeEmptyAccount = action as? ActionCloseEmptyAccount {
-                return "Close Empty -> \(closeEmptyAccount.cluster.vaultPublicKey.base58) (closeEmptyAccount)"
                 
             } else {
                 return "Unknown action"

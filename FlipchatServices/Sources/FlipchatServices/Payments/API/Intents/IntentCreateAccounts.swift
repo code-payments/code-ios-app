@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 class IntentCreateAccounts: IntentType {
     
@@ -21,25 +21,13 @@ class IntentCreateAccounts: IntentType {
         self.id = KeyPair.generate()!.publicKey
         self.organizer = organizer
         self.actionGroup = ActionGroup(actions: organizer.allAccounts().flatMap { type, cluster in
-            var actions: [ActionType] = [
+            [
                 ActionOpenAccount(
                     owner: organizer.tray.owner.cluster.authority.keyPair.publicKey,
                     type: type,
                     accountCluster: cluster
                 )
             ]
-            
-            if type != .primary {
-                actions.append(
-                    ActionWithdraw(
-                        kind: .closeDormantAccount(type),
-                        cluster: cluster,
-                        destination: organizer.tray.owner.cluster.vaultPublicKey
-                    )
-                )
-            }
-            
-            return actions
         })
     }
 }

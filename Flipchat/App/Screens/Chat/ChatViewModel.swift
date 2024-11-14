@@ -114,9 +114,9 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func attemptEnterGroupChat(roomNumber: RoomNumber) {
+    func attemptEnterGroupChat(chatID: ChatID, hostID: UserID) {
         withButtonState { [chatController] in
-            try await chatController.joinGroupChat(roomNumber: roomNumber)
+            try await chatController.joinGroupChat(chatID: chatID, hostID: hostID)
             
         } success: { chatID in
             self.isShowingEnterRoomNumber = false

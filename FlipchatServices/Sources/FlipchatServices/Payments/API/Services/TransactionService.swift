@@ -7,9 +7,11 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatAPI
+import FlipchatPaymentsAPI
 import Combine
 import GRPC
+import SwiftProtobuf
 import NIO
 import DeviceCheck
 
@@ -159,6 +161,42 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                     trace(.success)
                     completion(.success(intent))
                     
+                case .failure(let error):
+                    trace(.failure, components: "Error: \(error)")
+                    completion(.failure(error))
+                }
+            }
+            
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
+    /// Same as withdraw(...) with added metadata / extendedMetadata
+    func payForRoom(userID: UserID, chatID: ChatID, amount: KinAmount, organizer: Organizer, destination: PublicKey, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
+        trace(.send)
+        
+        do {
+            let paymentMetadata = Flipchat_Chat_V1_JoinChatPaymentMetadata.with {
+                $0.chatID = .with { $0.value = chatID.data }
+                $0.userID = .with { $0.value = userID.data }
+            }
+            
+            let extendedMetadata = try Google_Protobuf_Any(message: paymentMetadata, partial: false)
+            
+            let intent = try IntentPublicTransfer(
+                organizer: organizer,
+                source: .primary,
+                destination: .external(destination),
+                amount: amount,
+                extendedMetadata: extendedMetadata
+            )
+            
+            submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
+                switch result {
+                case .success(let intent):
+                    trace(.success)
+                    completion(.success(intent))
                 case .failure(let error):
                     trace(.failure, components: "Error: \(error)")
                     completion(.failure(error))
@@ -832,43 +870,39 @@ public enum ErrorDeclareFiatOnramp: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol {
-    func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, CodeAPI.Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>] {
+    func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>] {
         makeInterceptors()
     }
     
-    func makeSwapInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_SwapRequest, CodeAPI.Code_Transaction_V2_SwapResponse>] {
+    func makeSwapInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>] {
         makeInterceptors()
     }
     
-    func makeAirdropInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_AirdropRequest, CodeAPI.Code_Transaction_V2_AirdropResponse>] {
+    func makeAirdropInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>] {
         makeInterceptors()
     }
     
-    func makeCanWithdrawToAccountInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_CanWithdrawToAccountRequest, CodeAPI.Code_Transaction_V2_CanWithdrawToAccountResponse>] {
+    func makeCanWithdrawToAccountInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_CanWithdrawToAccountRequest, Code_Transaction_V2_CanWithdrawToAccountResponse>] {
         makeInterceptors()
     }
     
-    func makeGetIntentMetadataInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_GetIntentMetadataRequest, CodeAPI.Code_Transaction_V2_GetIntentMetadataResponse>] {
+    func makeGetIntentMetadataInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetIntentMetadataRequest, Code_Transaction_V2_GetIntentMetadataResponse>] {
         makeInterceptors()
     }
     
-    func makeGetPrioritizedIntentsForPrivacyUpgradeInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeRequest, CodeAPI.Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeResponse>] {
+    func makeGetPrioritizedIntentsForPrivacyUpgradeInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeRequest, Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeResponse>] {
         makeInterceptors()
     }
     
-    func makeGetLimitsInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_GetLimitsRequest, CodeAPI.Code_Transaction_V2_GetLimitsResponse>] {
+    func makeGetLimitsInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetLimitsRequest, Code_Transaction_V2_GetLimitsResponse>] {
         makeInterceptors()
     }
     
-    func makeGetPaymentHistoryInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_GetPaymentHistoryRequest, CodeAPI.Code_Transaction_V2_GetPaymentHistoryResponse>] {
+    func makeSubmitIntentInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_SubmitIntentRequest, Code_Transaction_V2_SubmitIntentResponse>] {
         makeInterceptors()
     }
     
-    func makeSubmitIntentInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_SubmitIntentRequest, CodeAPI.Code_Transaction_V2_SubmitIntentResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetPrivacyUpgradeStatusInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Transaction_V2_GetPrivacyUpgradeStatusRequest, CodeAPI.Code_Transaction_V2_GetPrivacyUpgradeStatusResponse>] {
+    func makeGetPrivacyUpgradeStatusInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetPrivacyUpgradeStatusRequest, Code_Transaction_V2_GetPrivacyUpgradeStatusResponse>] {
         makeInterceptors()
     }
 }

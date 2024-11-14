@@ -83,6 +83,26 @@ extension Client {
         }
     }
     
+    public func payForRoom(userID: UserID, chatID: ChatID, amount: KinAmount, organizer: Organizer, destination: PublicKey) async throws -> PublicKey {
+        let intent = try await withCheckedThrowingContinuation { c in
+            transactionService.payForRoom(
+                userID: userID,
+                chatID: chatID,
+                amount: amount,
+                organizer: organizer,
+                destination: destination,
+                completion: { c.resume(with: $0) }
+            )
+        }
+        
+        await MainActor.run {
+            trace(.warning, components: "Updating tray from room payment.")
+            organizer.set(tray: intent.resultTray)
+        }
+        
+        return intent.id
+    }
+    
     public func withdraw(amount: KinAmount, organizer: Organizer, destination: PublicKey) async throws {
         let intent = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(

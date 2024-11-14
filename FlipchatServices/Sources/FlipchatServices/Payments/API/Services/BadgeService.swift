@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 import Combine
 import GRPC
 
@@ -45,7 +45,7 @@ class BadgeService: CodeService<Code_Badge_V1_BadgeNIOClient> {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Badge_V1_BadgeClientInterceptorFactoryProtocol {
-    func makeResetBadgeCountInterceptors() -> [GRPC.ClientInterceptor<CodeAPI.Code_Badge_V1_ResetBadgeCountRequest, CodeAPI.Code_Badge_V1_ResetBadgeCountResponse>] {
+    func makeResetBadgeCountInterceptors() -> [GRPC.ClientInterceptor<Code_Badge_V1_ResetBadgeCountRequest, Code_Badge_V1_ResetBadgeCountResponse>] {
         makeInterceptors()
     }
 }

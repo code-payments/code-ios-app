@@ -15,7 +15,6 @@ public enum IntentMetadata: Equatable, Sendable {
     case receivePaymentsPrivately
     case receivePaymentsPublicly(PaymentMetadata)
     case upgradePrivacy
-    case migrateToPrivacy2022
 }
 
 public struct PaymentMetadata: Equatable, Sendable {

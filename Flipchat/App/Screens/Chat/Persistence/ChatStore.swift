@@ -273,9 +273,10 @@ class ChatStore: ObservableObject {
         return metadata.id
     }
     
-    func joinChat(roomNumber: RoomNumber) async throws -> ChatID {
+    func joinChat(chatID: ChatID, intentID: PublicKey) async throws -> ChatID {
         let (metadata, members) = try await client.joinGroupChat(
-            roomNumber: roomNumber,
+            chatID: chatID,
+            intentID: intentID,
             owner: owner
         )
         

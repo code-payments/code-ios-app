@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import CodeAPI
+import FlipchatPaymentsAPI
 
 public struct TwitterUser: Equatable, Hashable, Codable {
     
@@ -45,34 +45,34 @@ extension TwitterUser {
 }
 
 extension TwitterUser {
-    init(_ proto: Code_User_V1_TwitterUser) throws {
-        guard
-            let avatarURL = URL(string: proto.profilePicURL),
-            let tipAddress = PublicKey(proto.tipAddress.value)
-        else {
-            throw Error.parseFailed
-        }
-        
-        let cost: Fiat
-        
-        if proto.hasFriendshipCost, let currency = CurrencyCode(currencyCode: proto.friendshipCost.currency) {
-            cost = Fiat(currency: currency, amount: proto.friendshipCost.nativeAmount)
-        } else {
-            cost = Fiat(currency: .usd, amount: 1.00)
-        }
-        
-        self.init(
-            username: proto.username,
-            displayName: proto.name,
-            avatarURL: avatarURL,
-            followerCount: Int(proto.followerCount),
-            tipAddress:  tipAddress,
-            verificationStatus: VerificationStatus(rawValue: proto.verifiedType.rawValue) ?? .unknown,
-            costOfFriendship: cost,
-            isFriend: proto.isFriend,
-            friendChatID: proto.friendChatID.value.isEmpty ? nil : ChatID(data: proto.friendChatID.value)
-        )
-    }
+//    init(_ proto: Code_User_V1_TwitterUser) throws {
+//        guard
+//            let avatarURL = URL(string: proto.profilePicURL),
+//            let tipAddress = PublicKey(proto.tipAddress.value)
+//        else {
+//            throw Error.parseFailed
+//        }
+//        
+//        let cost: Fiat
+//        
+//        if proto.hasFriendshipCost, let currency = CurrencyCode(currencyCode: proto.friendshipCost.currency) {
+//            cost = Fiat(currency: currency, amount: proto.friendshipCost.nativeAmount)
+//        } else {
+//            cost = Fiat(currency: .usd, amount: 1.00)
+//        }
+//        
+//        self.init(
+//            username: proto.username,
+//            displayName: proto.name,
+//            avatarURL: avatarURL,
+//            followerCount: Int(proto.followerCount),
+//            tipAddress:  tipAddress,
+//            verificationStatus: VerificationStatus(rawValue: proto.verifiedType.rawValue) ?? .unknown,
+//            costOfFriendship: cost,
+//            isFriend: proto.isFriend,
+//            friendChatID: proto.friendChatID.value.isEmpty ? nil : ChatID(data: proto.friendChatID.value)
+//        )
+//    }
 }
 
 extension TwitterUser {

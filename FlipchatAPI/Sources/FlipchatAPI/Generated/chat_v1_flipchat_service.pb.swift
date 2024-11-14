@@ -928,6 +928,7 @@ public struct Flipchat_Chat_V1_JoinChatPaymentMetadata {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// The user joining the chat
   public var userID: Flipchat_Common_V1_UserId {
     get {return _userID ?? Flipchat_Common_V1_UserId()}
     set {_userID = newValue}
@@ -937,53 +938,22 @@ public struct Flipchat_Chat_V1_JoinChatPaymentMetadata {
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
-  public var identifier: Flipchat_Chat_V1_JoinChatPaymentMetadata.OneOf_Identifier? = nil
-
+  /// The chat that the user is joining
   public var chatID: Flipchat_Common_V1_ChatId {
-    get {
-      if case .chatID(let v)? = identifier {return v}
-      return Flipchat_Common_V1_ChatId()
-    }
-    set {identifier = .chatID(newValue)}
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
   }
-
-  public var roomID: UInt64 {
-    get {
-      if case .roomID(let v)? = identifier {return v}
-      return 0
-    }
-    set {identifier = .roomID(newValue)}
-  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum OneOf_Identifier: Equatable {
-    case chatID(Flipchat_Common_V1_ChatId)
-    case roomID(UInt64)
-
-  #if !swift(>=4.1)
-    public static func ==(lhs: Flipchat_Chat_V1_JoinChatPaymentMetadata.OneOf_Identifier, rhs: Flipchat_Chat_V1_JoinChatPaymentMetadata.OneOf_Identifier) -> Bool {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch (lhs, rhs) {
-      case (.chatID, .chatID): return {
-        guard case .chatID(let l) = lhs, case .chatID(let r) = rhs else { preconditionFailure() }
-        return l == r
-      }()
-      case (.roomID, .roomID): return {
-        guard case .roomID(let l) = lhs, case .roomID(let r) = rhs else { preconditionFailure() }
-        return l == r
-      }()
-      default: return false
-      }
-    }
-  #endif
-  }
 
   public init() {}
 
   fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
 }
 
 public struct Flipchat_Chat_V1_LeaveChatRequest {
@@ -1350,7 +1320,6 @@ extension Flipchat_Chat_V1_JoinChatRequest.OneOf_Identifier: @unchecked Sendable
 extension Flipchat_Chat_V1_JoinChatResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_JoinChatResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_JoinChatPaymentMetadata: @unchecked Sendable {}
-extension Flipchat_Chat_V1_JoinChatPaymentMetadata.OneOf_Identifier: @unchecked Sendable {}
 extension Flipchat_Chat_V1_LeaveChatRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_LeaveChatResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_LeaveChatResponse.Result: @unchecked Sendable {}
@@ -2424,7 +2393,6 @@ extension Flipchat_Chat_V1_JoinChatPaymentMetadata: SwiftProtobuf.Message, Swift
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "user_id"),
     2: .standard(proto: "chat_id"),
-    3: .standard(proto: "room_id"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2434,27 +2402,7 @@ extension Flipchat_Chat_V1_JoinChatPaymentMetadata: SwiftProtobuf.Message, Swift
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
-      case 2: try {
-        var v: Flipchat_Common_V1_ChatId?
-        var hadOneofValue = false
-        if let current = self.identifier {
-          hadOneofValue = true
-          if case .chatID(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.identifier = .chatID(v)
-        }
-      }()
-      case 3: try {
-        var v: UInt64?
-        try decoder.decodeSingularUInt64Field(value: &v)
-        if let v = v {
-          if self.identifier != nil {try decoder.handleConflictingOneOf()}
-          self.identifier = .roomID(v)
-        }
-      }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
       default: break
       }
     }
@@ -2468,23 +2416,15 @@ extension Flipchat_Chat_V1_JoinChatPaymentMetadata: SwiftProtobuf.Message, Swift
     try { if let v = self._userID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    switch self.identifier {
-    case .chatID?: try {
-      guard case .chatID(let v)? = self.identifier else { preconditionFailure() }
+    try { if let v = self._chatID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    }()
-    case .roomID?: try {
-      guard case .roomID(let v)? = self.identifier else { preconditionFailure() }
-      try visitor.visitSingularUInt64Field(value: v, fieldNumber: 3)
-    }()
-    case nil: break
-    }
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Chat_V1_JoinChatPaymentMetadata, rhs: Flipchat_Chat_V1_JoinChatPaymentMetadata) -> Bool {
     if lhs._userID != rhs._userID {return false}
-    if lhs.identifier != rhs.identifier {return false}
+    if lhs._chatID != rhs._chatID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
