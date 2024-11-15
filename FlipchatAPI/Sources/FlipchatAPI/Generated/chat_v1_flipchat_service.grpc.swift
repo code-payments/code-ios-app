@@ -50,6 +50,11 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_SetMuteStateRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>
+
+  func setCoverCharge(
+    _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
 }
 
 extension Flipchat_Chat_V1_ChatClientProtocol {
@@ -201,6 +206,24 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
     )
   }
+
+  /// SetCoverCharge sets a chat's cover charge
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to SetCoverCharge.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func setCoverCharge(
+    _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -298,6 +321,11 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_SetMuteStateRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>
+
+  func makeSetCoverChargeCall(
+    _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -389,6 +417,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
+    )
+  }
+
+  public func makeSetCoverChargeCall(
+    _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
     )
   }
 }
@@ -490,6 +530,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
     )
   }
+
+  public func setCoverCharge(
+    _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_SetCoverChargeResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -531,6 +583,9 @@ public protocol Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol: Sendable 
 
   /// - Returns: Interceptors to use when invoking 'setMuteState'.
   func makeSetMuteStateInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'setCoverCharge'.
+  func makeSetCoverChargeInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
 }
 
 public enum Flipchat_Chat_V1_ChatClientMetadata {
@@ -545,6 +600,7 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       Flipchat_Chat_V1_ChatClientMetadata.Methods.joinChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setMuteState,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge,
     ]
   )
 
@@ -590,6 +646,12 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       path: "/flipchat.chat.v1.Chat/SetMuteState",
       type: GRPCCallType.unary
     )
+
+    public static let setCoverCharge = GRPCMethodDescriptor(
+      name: "SetCoverCharge",
+      path: "/flipchat.chat.v1.Chat/SetCoverCharge",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -633,6 +695,9 @@ public protocol Flipchat_Chat_V1_ChatProvider: CallHandlerProvider {
 
   /// SetMuteState configures a chat member's mute state.
   func setMuteState(request: Flipchat_Chat_V1_SetMuteStateRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetMuteStateResponse>
+
+  /// SetCoverCharge sets a chat's cover charge
+  func setCoverCharge(request: Flipchat_Chat_V1_SetCoverChargeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetCoverChargeResponse>
 }
 
 extension Flipchat_Chat_V1_ChatProvider {
@@ -710,6 +775,15 @@ extension Flipchat_Chat_V1_ChatProvider {
         userFunction: self.setMuteState(request:context:)
       )
 
+    case "SetCoverCharge":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_SetCoverChargeRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_SetCoverChargeResponse>(),
+        interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? [],
+        userFunction: self.setCoverCharge(request:context:)
+      )
+
     default:
       return nil
     }
@@ -780,6 +854,12 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     request: Flipchat_Chat_V1_SetMuteStateRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_SetMuteStateResponse
+
+  /// SetCoverCharge sets a chat's cover charge
+  func setCoverCharge(
+    request: Flipchat_Chat_V1_SetCoverChargeRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_SetCoverChargeResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -864,6 +944,15 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.setMuteState(request: $0, context: $1) }
       )
 
+    case "SetCoverCharge":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_SetCoverChargeRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_SetCoverChargeResponse>(),
+        interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? [],
+        wrapping: { try await self.setCoverCharge(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -899,6 +988,10 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when handling 'setMuteState'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetMuteStateInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>]
+
+  /// - Returns: Interceptors to use when handling 'setCoverCharge'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSetCoverChargeInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
 }
 
 public enum Flipchat_Chat_V1_ChatServerMetadata {
@@ -913,6 +1006,7 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       Flipchat_Chat_V1_ChatServerMetadata.Methods.joinChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setMuteState,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.setCoverCharge,
     ]
   )
 
@@ -956,6 +1050,12 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
     public static let setMuteState = GRPCMethodDescriptor(
       name: "SetMuteState",
       path: "/flipchat.chat.v1.Chat/SetMuteState",
+      type: GRPCCallType.unary
+    )
+
+    public static let setCoverCharge = GRPCMethodDescriptor(
+      name: "SetCoverCharge",
+      path: "/flipchat.chat.v1.Chat/SetCoverCharge",
       type: GRPCCallType.unary
     )
   }

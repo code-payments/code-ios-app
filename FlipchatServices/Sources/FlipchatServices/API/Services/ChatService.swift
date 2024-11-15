@@ -324,6 +324,10 @@ public enum ErrorFetchChat: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeSetCoverChargeInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_SetCoverChargeRequest, FlipchatAPI.Flipchat_Chat_V1_SetCoverChargeResponse>] {
+        makeInterceptors()
+    }
+    
     func makeStreamChatEventsInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_StreamChatEventsRequest, FlipchatAPI.Flipchat_Chat_V1_StreamChatEventsResponse>] {
         makeInterceptors()
     }

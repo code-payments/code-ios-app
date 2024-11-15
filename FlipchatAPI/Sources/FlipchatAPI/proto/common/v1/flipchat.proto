@@ -85,6 +85,10 @@ message Signature {
     }];
 }
 
+message PaymentAmount {
+    uint64 quarks = 1 [(validate.rules).uint64.gt = 0];
+}
+
 message ServerPing {
     // Timestamp the ping was sent on the stream, for client to get a sense
     // of potential network latency

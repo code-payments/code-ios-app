@@ -189,6 +189,18 @@ public struct Flipchat_Common_V1_Signature {
   public init() {}
 }
 
+public struct Flipchat_Common_V1_PaymentAmount {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var quarks: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Flipchat_Common_V1_ServerPing {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -344,6 +356,7 @@ extension Flipchat_Common_V1_Locale: @unchecked Sendable {}
 extension Flipchat_Common_V1_PublicKey: @unchecked Sendable {}
 extension Flipchat_Common_V1_IntentId: @unchecked Sendable {}
 extension Flipchat_Common_V1_Signature: @unchecked Sendable {}
+extension Flipchat_Common_V1_PaymentAmount: @unchecked Sendable {}
 extension Flipchat_Common_V1_ServerPing: @unchecked Sendable {}
 extension Flipchat_Common_V1_ClientPong: @unchecked Sendable {}
 extension Flipchat_Common_V1_PagingToken: @unchecked Sendable {}
@@ -664,6 +677,38 @@ extension Flipchat_Common_V1_Signature: SwiftProtobuf.Message, SwiftProtobuf._Me
 
   public static func ==(lhs: Flipchat_Common_V1_Signature, rhs: Flipchat_Common_V1_Signature) -> Bool {
     if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Common_V1_PaymentAmount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PaymentAmount"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "quarks"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt64Field(value: &self.quarks) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.quarks != 0 {
+      try visitor.visitSingularUInt64Field(value: self.quarks, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Common_V1_PaymentAmount, rhs: Flipchat_Common_V1_PaymentAmount) -> Bool {
+    if lhs.quarks != rhs.quarks {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
