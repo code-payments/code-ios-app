@@ -37,6 +37,10 @@ class ContainerViewModel: ObservableObject {
         }
     }
     
+    func pushDetails(chatID: ChatID) {
+        navigationPath.append(.details(chatID))
+    }
+    
     func popChat() {
         navigationPath = []
     }
@@ -54,6 +58,7 @@ class ContainerViewModel: ObservableObject {
 
 enum ContainerPath: Hashable {
     case chat(ChatID)
+    case details(ChatID)
 }
 
 extension ContainerViewModel {

@@ -114,6 +114,7 @@ public enum Asset: String, Sendable {
     case plusCircle
     case bubble
     case kinHex
+    case more
     
     case kado
     

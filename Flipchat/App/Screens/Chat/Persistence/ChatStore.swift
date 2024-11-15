@@ -73,76 +73,6 @@ class ChatStore: ObservableObject {
         }
     }
     
-    // MARK: - Descriptors -
-    
-    private func fetchCount<T>(for type: T.Type) throws -> Int where T: PersistentModel {
-        var query = FetchDescriptor<T>()
-        query.fetchLimit = 1
-        do {
-            return try context.fetchCount(query)
-        } catch {
-            throw Error.failedToFetchCount
-        }
-    }
-    
-    private func fetchSingleChat(serverID: Data) throws -> pChat? {
-        var query = FetchDescriptor<pChat>()
-        query.predicate = #Predicate<pChat> { $0.serverID == serverID }
-        query.fetchLimit = 1
-        do {
-            return try context.fetch(query).first
-        } catch {
-            throw Error.failedToFetchSingle
-        }
-    }
-    
-    private func fetchSingleMessage(serverID: Data) throws -> pMessage? {
-        var query = FetchDescriptor<pMessage>()
-        query.predicate = #Predicate<pMessage> { $0.serverID == serverID }
-        query.fetchLimit = 1
-        do {
-            return try context.fetch(query).first
-        } catch {
-            throw Error.failedToFetchSingle
-        }
-    }
-    
-    private func fetchSingleMember(serverID: Data) throws -> pMember? {
-        var query = FetchDescriptor<pMember>()
-        query.predicate = #Predicate<pMember> { $0.serverID == serverID }
-        query.fetchLimit = 1
-        do {
-            return try context.fetch(query).first
-        } catch {
-            throw Error.failedToFetchSingle
-        }
-    }
-    
-    private func fetchLatestChat() throws -> pChat? {
-        var query = FetchDescriptor<pChat>()
-        query.fetchLimit = 1
-        query.sortBy = [.init(\.roomNumber, order: .reverse)]
-        do {
-            return try context.fetch(query).first
-        } catch {
-            throw Error.failedToFetchLatest
-        }
-    }
-    
-    // MARK: - Typed Fetch -
-    
-    private func fetchLatestMessage(for chatID: Data) throws -> pMessage? {
-        var query = FetchDescriptor<pMessage>()
-        query.predicate = #Predicate<pMessage> { $0.chat?.serverID == chatID }
-        query.fetchLimit = 1
-        query.sortBy = [.init(\.date, order: .reverse)]
-        do {
-            return try context.fetch(query).first
-        } catch {
-            throw Error.failedToFetchLatest
-        }
-    }
-    
     // MARK: - Stream Updates -
     
     func receive(updates: [Chat.BatchUpdate]) throws {
@@ -215,6 +145,7 @@ class ChatStore: ObservableObject {
         }
         
         try upsert(messages: filteredMessages, in: chat)
+        try save()
     }
     
     // MARK: - Actions -
@@ -230,7 +161,7 @@ class ChatStore: ObservableObject {
             text: text
         )
         
-        try context.save()
+        try save()
         
         let deliveredMessage = try await client.sendMessage(
             chatID: ID(data: chat.serverID),
@@ -238,12 +169,9 @@ class ChatStore: ObservableObject {
             content: .text(text)
         )
         
-        #warning("Deliberately slow down sends. Remove in prod.")
-        try await Task.delay(seconds: 1)
-        
         localMessage.update(from: deliveredMessage)
         
-        try context.save()
+        try save()
     }
     
     func startGroupChat() async throws -> ChatID {
@@ -304,6 +232,16 @@ class ChatStore: ObservableObject {
         }
         
         return metadata.id
+    }
+    
+    func leaveChat(chatID: ChatID) async throws {
+        try await client.leaveChat(chatID: chatID, owner: owner)
+        
+        if let existingChat = try fetchSingleChat(serverID: chatID.data) {
+            existingChat.isHidden = true
+        }
+        
+        try save()
     }
     
     // MARK: - Sync -
@@ -402,7 +340,7 @@ class ChatStore: ObservableObject {
         
         modify(c)
         
-        try context.save()
+        try save()
         
         return c
     }
@@ -446,13 +384,8 @@ class ChatStore: ObservableObject {
             // TODO: Insert Self member into message
             
             if !messages.isEmpty {
-                do {
-                    try upsert(messages: messages, in: chat, modify: modify)
-                } catch {
-                    // Don't stop upserting if there's
-                    // an error, just skip and continue
-                    trace(.failure, components: "Failed to upsert \(messages.count) messages.)")
-                }
+                try upsert(messages: messages, in: chat, modify: modify)
+                try save()
                 
                 cursor = messages.last!.id
             }
@@ -462,6 +395,9 @@ class ChatStore: ObservableObject {
     }
     
     private func upsert(messages: [Chat.Message], in chat: pChat, modify: (pMessage) -> Void = { _ in }) throws {
+        let senders = Set(messages.compactMap { $0.senderID?.data })
+        let membersMap = try fetchMembers(in: senders)
+        
         try messages.forEach {
             trace(.write, components: "Message ID: \($0.id.description)")
             
@@ -469,14 +405,15 @@ class ChatStore: ObservableObject {
             message.update(from: $0)
             
             if let senderID = $0.senderID {
-                let member = try fetchOrCreateMember(for: senderID, in: chat)
-                message.sender = member
+                if let member = membersMap[senderID.data] {
+                    message.sender = member
+                } else {
+                    trace(.failure, components: "Failed to assign message member relationship for ID: \(senderID.data.hexString())")
+                }
             }
             
             modify(message)
         }
-        
-        try context.save()
     }
     
     private func fetchOrCreateMessage(for messageID: MessageID, in chat: pChat) throws -> pMessage {
@@ -521,7 +458,7 @@ class ChatStore: ObservableObject {
         
         chat.insert(members: container)
         
-        try context.save()
+        try save()
         return container
     }
     
@@ -540,6 +477,96 @@ class ChatStore: ObservableObject {
         context.insert(newMember)
         
         return newMember
+    }
+    
+    // MARK: - Context -
+    
+    func save() throws {
+        try context.save()
+    }
+}
+
+// MARK: - Queries -
+
+extension ChatStore {
+    
+    private func fetchCount<T>(for type: T.Type) throws -> Int where T: PersistentModel {
+        var query = FetchDescriptor<T>()
+        query.fetchLimit = 1
+        do {
+            return try context.fetchCount(query)
+        } catch {
+            throw Error.failedToFetchCount
+        }
+    }
+    
+    private func fetchSingleChat(serverID: Data) throws -> pChat? {
+        var query = FetchDescriptor<pChat>()
+        query.predicate = #Predicate<pChat> { $0.serverID == serverID }
+        query.fetchLimit = 1
+        do {
+            return try context.fetch(query).first
+        } catch {
+            throw Error.failedToFetchSingle
+        }
+    }
+    
+    private func fetchSingleMessage(serverID: Data) throws -> pMessage? {
+        var query = FetchDescriptor<pMessage>()
+        query.predicate = #Predicate<pMessage> { $0.serverID == serverID }
+        query.fetchLimit = 1
+        do {
+            return try context.fetch(query).first
+        } catch {
+            throw Error.failedToFetchSingle
+        }
+    }
+    
+    private func fetchSingleMember(serverID: Data) throws -> pMember? {
+        var query = FetchDescriptor<pMember>()
+        query.predicate = #Predicate<pMember> { $0.serverID == serverID }
+        query.fetchLimit = 1
+        do {
+            return try context.fetch(query).first
+        } catch {
+            throw Error.failedToFetchSingle
+        }
+    }
+    
+    private func fetchMembers(in serverIDs: Set<Data>) throws -> [Data: pMember] {
+        var query = FetchDescriptor<pMember>()
+        query.predicate = #Predicate<pMember> { serverIDs.contains($0.serverID) }
+        do {
+            let members = try context.fetch(query)
+            return members.elementsKeyed(by: \.serverID)
+        } catch {
+            throw Error.failedToFetchSingle
+        }
+    }
+    
+    private func fetchLatestChat() throws -> pChat? {
+        var query = FetchDescriptor<pChat>()
+        query.fetchLimit = 1
+        query.sortBy = [.init(\.roomNumber, order: .reverse)]
+        do {
+            return try context.fetch(query).first
+        } catch {
+            throw Error.failedToFetchLatest
+        }
+    }
+    
+    // MARK: - Typed Fetch -
+    
+    private func fetchLatestMessage(for chatID: Data) throws -> pMessage? {
+        var query = FetchDescriptor<pMessage>()
+        query.predicate = #Predicate<pMessage> { $0.chat?.serverID == chatID }
+        query.fetchLimit = 1
+        query.sortBy = [.init(\.date, order: .reverse)]
+        do {
+            return try context.fetch(query).first
+        } catch {
+            throw Error.failedToFetchLatest
+        }
     }
 }
 

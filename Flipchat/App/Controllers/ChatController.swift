@@ -108,20 +108,32 @@ class ChatController: ObservableObject {
     func joinGroupChat(chatID: ChatID, hostID: UserID) async throws -> ChatID {
         let destination = try await client.fetchPaymentDestination(userID: hostID)
         
-        let intentID = try await paymentClient.payForRoom(
-            userID: userID,
-            chatID: chatID,
-            amount: .init(kin: 200, rate: .oneToOne),
-            organizer: organizer,
-            destination: destination
-        )
-        
-        let chatID = try await chatStore.joinChat(
-            chatID: chatID,
-            intentID: intentID
-        )
-        
-        return chatID
+        // Paying yourself is a no-op
+        if hostID != userID {
+            let intentID = try await paymentClient.payForRoom(
+                userID: userID,
+                chatID: chatID,
+                amount: .init(kin: 200, rate: .oneToOne),
+                organizer: organizer,
+                destination: destination
+            )
+            
+            return try await chatStore.joinChat(
+                chatID: chatID,
+                intentID: intentID
+            )
+            
+        } else {
+            // TODO: Proto update required
+            return try await chatStore.joinChat(
+                chatID: chatID,
+                intentID: .generate()!
+            )
+        }
+    }
+    
+    func leaveChat(chatID: ChatID) async throws {
+        try await chatStore.leaveChat(chatID: chatID)
     }
 }
 

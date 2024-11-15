@@ -40,7 +40,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
     @Relationship(deleteRule: .cascade)
     public var messages: [pMessage] = []
     
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .nullify)
     public var members: [pMember] = []
     
     init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
@@ -170,7 +170,7 @@ public class pMessage: ServerIdentifiable {
     @Relationship(deleteRule: .nullify)
     public var chat: pChat?
     
-    @Relationship(deleteRule: .nullify)
+    @Relationship(deleteRule: .cascade)
     public var pointers: [pPointer] = []
     
     init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [String]) {

@@ -81,9 +81,17 @@ struct ContainerScreen: View {
                             ConversationScreen(
                                 userID: authenticatedState.session.userID,
                                 chatID: chatID,
+                                containerViewModel: state.containerViewModel,
                                 chatController: authenticatedState.chatController
                             )
                         }
+                        
+                    case .details(let chatID):
+                        EnterRoomConfirmationScreen(
+                            kind: .leaveRoom,
+                            chatID: chatID,
+                            viewModel: state.chatViewModel
+                        )
                     }
                 }
                 

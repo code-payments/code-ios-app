@@ -14,13 +14,13 @@ class ChatViewModel: ObservableObject {
     
     @Published var joinRoomPath: [JoinRoomPath] = []
     
-    @Published var beginChatState: ButtonState = .normal
+    @Published var buttonState: ButtonState = .normal
     
     @Published var enteredRoomNumber: String = ""
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
-    @Published private(set) var isShowingPayForFriendship: Bool = false
+    @Published var isShowingPaymentConfirmation: Bool = false
     
     private let chatController: ChatController
     private let client: FlipchatClient
@@ -63,29 +63,49 @@ class ChatViewModel: ObservableObject {
             description: nil,
             position: .bottom,
             actions: [
-                .standard(title: "Join a Room", action: joinExistingChat),
+                .standard(title: "Join a Room", action: showEnterRoomNumber),
                 .standard(title: "Create a New Room", action: startNewChat),
                 .cancel(title: "Cancel"),
             ]
         )
     }
     
-    func joinExistingChat() {
+    func selectChat(chat: pChat) {
+        containerViewModel?.pushChat(chatID: ID(data: chat.serverID))
+    }
+    
+    func popChat() {
+        containerViewModel?.popChat()
+    }
+    
+    func attemptLeaveChat(chatID: ChatID, roomNumber: RoomNumber) {
+        banners.show(
+            style: .error,
+            title: "Leave Room \(roomNumber.roomString)?",
+            description: "Are you sure you want to leave? You'll need to pay the cover charge to get back in.",
+            position: .bottom,
+            isDismissable: true,
+            actions: [
+                .destructive(title: "Leave Room \(roomNumber.roomString)") {
+                    self.leaveChat(chatID: chatID)
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
+    }
+    
+    func showEnterRoomNumber() {
         isShowingEnterRoomNumber = true
         joinRoomPath = []
         
         resetEnteredRoomNumber()
     }
     
-    func startNewChat() {
+    private func startNewChat() {
         Task {
             let chatID = try await chatController.startGroupChat()
             containerViewModel?.pushChat(chatID: chatID)
         }
-    }
-    
-    func selectChat(chat: pChat) {
-        containerViewModel?.pushChat(chatID: ID(data: chat.serverID))
     }
     
     private func resetEnteredRoomNumber() {
@@ -114,7 +134,15 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func attemptEnterGroupChat(chatID: ChatID, hostID: UserID) {
+    func attemptJoinChat(chatID: ChatID, hostID: UserID) {
+        if chatID == hostID {
+            joinChat(chatID: chatID, hostID: hostID)
+        } else {
+            isShowingPaymentConfirmation = true
+        }
+    }
+    
+    func joinChat(chatID: ChatID, hostID: UserID) {
         withButtonState { [chatController] in
             try await chatController.joinGroupChat(chatID: chatID, hostID: hostID)
             
@@ -128,42 +156,15 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Friendships -
-    
-    func establishFriendshipAction() {
-        isShowingPayForFriendship = true
+    private func leaveChat(chatID: ChatID) {
+        withButtonState { [chatController] in
+            try await chatController.leaveChat(chatID: chatID)
+        } success: {
+            self.popChat()
+        } error: { _ in
+            self.showFailedToLeaveChatError()
+        }
     }
-    
-    func cancelEstablishFrienship() {
-        isShowingPayForFriendship = false
-    }
-    
-//    func completePaymentForFriendship(with user: TwitterUser) async throws {
-//        guard let rate = exchange.rate(for: user.costOfFriendship.currency) else {
-//            throw Error.exchateRateNotFound
-//        }
-//        
-//        guard let friendChatID = user.friendChatID else {
-//            throw Error.friendChatIDNotFound
-//        }
-//        
-//        // Convert cost of friendship from a fiat
-//        // value to Kin using the latest fx rates
-//        let amount = KinAmount(
-//            fiat: user.costOfFriendship.amount,
-//            rate: rate
-//        )
-//        
-//        let destination = user.tipAddress
-//        
-//        let chat = try await session.payAndStartChat(
-//            amount: amount,
-//            destination: destination,
-//            chatID: friendChatID
-//        )
-//        
-//        friendshipState = .established(chat)
-//    }
     
     // MARK: - Validation -
     
@@ -194,6 +195,17 @@ class ChatViewModel: ObservableObject {
             ]
         )
     }
+    
+    private func showFailedToLeaveChatError() {
+        banners.show(
+            style: .error,
+            title: "Failed to Leave Chat",
+            description: "Something wen't wrong. Please try again.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
 }
 
 // MARK: - Button State -
@@ -201,12 +213,12 @@ class ChatViewModel: ObservableObject {
 extension ChatViewModel {
     private func withButtonState<T>(closure: @escaping () async throws -> T, success: @escaping (T) async throws -> Void, error: @escaping (Swift.Error) -> Void) where T: Sendable {
         Task {
-            beginChatState = .loading
+            buttonState = .loading
             do {
                 let result = try await closure()
                 
                 try await Task.delay(milliseconds: 500)
-                beginChatState = .success
+                buttonState = .success
                 try await Task.delay(milliseconds: 500)
                 
                 try await success(result)
@@ -214,12 +226,12 @@ extension ChatViewModel {
                 // Reset
                 
                 try await Task.delay(milliseconds: 100)
-                beginChatState  = .normal
+                buttonState  = .normal
                 resetEnteredRoomNumber()
                 
             } catch let caughtError {
                 error(caughtError)
-                beginChatState  = .normal
+                buttonState  = .normal
             }
         }
     }

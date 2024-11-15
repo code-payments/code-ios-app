@@ -175,6 +175,30 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
+    func leaveChat(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorLeaveChat>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)", "Signed by: \(owner.publicKey.base58)")
+        
+        let request = Flipchat_Chat_V1_LeaveChatRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.leaveChat(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorLeaveChat(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
     func fetchChats(owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat.Metadata], ErrorFetchChats>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)", "Query: \(query.description)")
         
@@ -278,6 +302,11 @@ public enum ErrorStartChat: Int, Error {
 public enum ErrorJoinChat: Int, Error {
     case ok
     case denied
+    case unknown = -1
+}
+
+public enum ErrorLeaveChat: Int, Error {
+    case ok
     case unknown = -1
 }
 

@@ -24,11 +24,13 @@ struct EnterRoomConfirmationScreen: View {
         chats[0]
     }
     
+    private let kind: Kind
     private let chatID: ChatID
     
     // MARK: - Init -
     
-    init(chatID: ChatID, viewModel: ChatViewModel) {
+    init(kind: Kind, chatID: ChatID, viewModel: ChatViewModel) {
+        self.kind = kind
         self.chatID = chatID
         self.viewModel = viewModel
         _chats = Query(filter: #Predicate { $0.serverID == chatID.data })
@@ -73,17 +75,27 @@ struct EnterRoomConfirmationScreen: View {
                     Spacer()
                     
                     CodeButton(
-                        state: viewModel.beginChatState,
+                        state: viewModel.buttonState,
                         style: .filled,
-                        title: "Join Room \(chat.roomNumber.roomString)"
+                        title: kind.titleFor(roomNumber: chat.roomNumber)
                     ) {
-                        showingPaymentConfirmation = true
+                        switch kind {
+                        case .joinRoom:
+                            viewModel.attemptJoinChat(
+                                chatID: chatID,
+                                hostID: UserID(data: chat.ownerUserID)
+                            )
+                        case .leaveRoom:
+                            viewModel.attemptLeaveChat(
+                                chatID: chatID,
+                                roomNumber: chat.roomNumber
+                            )
+                        }
                     }
                 }
                 .padding(20)
             }
             .foregroundColor(.textMain)
-            .navigationBarTitle(Text("Enter Room Number"), displayMode: .inline)
             .sheet(isPresented: $showingPaymentConfirmation) {
                 PartialSheet {
                     ModalPaymentConfirmation(
@@ -92,7 +104,7 @@ struct EnterRoomConfirmationScreen: View {
                         primaryAction: "Swipe to Pay",
                         secondaryAction: "Cancel",
                         paymentAction: {
-                            viewModel.attemptEnterGroupChat(
+                            viewModel.joinChat(
                                 chatID: ChatID(data: chat.serverID),
                                 hostID: UserID(data: chat.ownerUserID)
                             )
@@ -130,6 +142,22 @@ struct EnterRoomConfirmationScreen: View {
     
     private func onAppear() {
         
+    }
+}
+
+extension EnterRoomConfirmationScreen {
+    enum Kind {
+        case joinRoom
+        case leaveRoom
+        
+        fileprivate func titleFor(roomNumber: RoomNumber) -> String {
+            switch self {
+            case .joinRoom:
+                return "Join Room \(roomNumber.roomString)"
+            case .leaveRoom:
+                return "Leave Room \(roomNumber.roomString)"
+            }
+        }
     }
 }
 
@@ -180,5 +208,9 @@ private struct AspectRatioCard<Content>: View where Content: View {
 }
 
 #Preview {
-    EnterRoomConfirmationScreen(chatID: .mock, viewModel: .mock)
+    EnterRoomConfirmationScreen(
+        kind: .joinRoom,
+        chatID: .mock,
+        viewModel: .mock
+    )
 }

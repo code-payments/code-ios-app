@@ -27,7 +27,7 @@ struct EnterRoomNumberScreen: View {
             Background(color: .backgroundMain) {
                 EnterAmountView(
                     enteredAmount: $viewModel.enteredRoomNumber,
-                    actionState: $viewModel.beginChatState,
+                    actionState: $viewModel.buttonState,
                     subtext: "Enter Room Number",
                     formatter: .roomNumber,
                     actionEnabled: { _ in
@@ -49,6 +49,7 @@ struct EnterRoomNumberScreen: View {
                 switch path {
                 case .previewRoom(let chatID):
                     EnterRoomConfirmationScreen(
+                        kind: .joinRoom,
                         chatID: chatID,
                         viewModel: viewModel
                     )

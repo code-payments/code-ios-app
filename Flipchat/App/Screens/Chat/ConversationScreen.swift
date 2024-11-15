@@ -24,6 +24,7 @@ struct ConversationScreen: View {
     
     private let userID: UserID
     private let chatID: ChatID
+    private let containerViewModel: ContainerViewModel
     private let chatController: ChatController
     
     @Query private var chats: [pChat]
@@ -34,9 +35,10 @@ struct ConversationScreen: View {
     
     // MARK: - Init -
     
-    init(userID: UserID, chatID: ChatID, chatController: ChatController) {
+    init(userID: UserID, chatID: ChatID, containerViewModel: ContainerViewModel, chatController: ChatController) {
         self.userID = userID
         self.chatID = chatID
+        self.containerViewModel = containerViewModel
         self.chatController = chatController
         
         _chats = Query(filter: #Predicate<pChat> {
@@ -105,7 +107,10 @@ struct ConversationScreen: View {
         .navigationBarHidden(false)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                title()
+                titleItem()
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                moreItem()
             }
         }
     }
@@ -146,7 +151,7 @@ struct ConversationScreen: View {
         }
     }
     
-    @ViewBuilder private func title() -> some View {
+    @ViewBuilder private func titleItem() -> some View {
         HStack(spacing: 10) {
             GradientAvatarView(data: chatID.data, diameter: 30)
             
@@ -160,6 +165,17 @@ struct ConversationScreen: View {
             }
             
             Spacer()
+        }
+    }
+    
+    @ViewBuilder private func moreItem() -> some View {
+        Button {
+            containerViewModel.pushDetails(chatID: chatID)
+        } label: {
+            Image.asset(.more)
+                .padding(.vertical, 10)
+                .padding(.leading, 40)
+                .padding(.trailing, 10)
         }
     }
     
