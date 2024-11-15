@@ -24,6 +24,14 @@ struct RoomDetailsScreen: View {
         chats[0]
     }
     
+    private var members: [pMember] {
+        chat.members
+    }
+    
+    private var host: pMember? {
+        members.first { chat.ownerUserID == $0.serverID }
+    }
+    
     private let kind: Kind
     private let chatID: ChatID
     
@@ -55,10 +63,12 @@ struct RoomDetailsScreen: View {
                             
                             Spacer()
                             VStack(spacing: 4) {
-                                Text("Hosted by anonymous")
-                                Text("\(chat.members.count) people inside")
+                                if let host {
+                                    Text("Hosted by \(host.displayName)")
+                                }
+                                Text("\(members.count) people inside")
                                 Text("ID: \(chat.serverID.hexString().prefix(16))")
-                                //                                    Text("Cover Charge: ⬢ 1,000 Kin")
+                                Text("Cover Charge: ⬢ 100 Kin")
                             }
                             .opacity(0.8)
                             .font(.appTextSmall)
@@ -99,7 +109,7 @@ struct RoomDetailsScreen: View {
             .sheet(isPresented: $showingPaymentConfirmation) {
                 PartialSheet {
                     ModalPaymentConfirmation(
-                        amount: KinAmount(kin: 200, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
+                        amount: KinAmount(kin: 100, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
                         currency: .kin,
                         primaryAction: "Swipe to Pay",
                         secondaryAction: "Cancel",
@@ -116,29 +126,6 @@ struct RoomDetailsScreen: View {
             }
         }
     }
-    
-//    @ViewBuilder private func card() -> some View {
-//        LinearGradient(
-//            stops: [
-//                Gradient.Stop(color: Color(red: 0.45, green: 0.02, blue: 0.72), location: 0.14), // Purple
-//                Gradient.Stop(color: Color(red: 0.24, green: 0.2,  blue: 0.77), location: 0.37), // Blue
-//                Gradient.Stop(color: Color(red: 1,    green: 0.73, blue: 0),    location: 0.55), // Yellow
-//            ],
-//            startPoint: UnitPoint(x: 0.5, y:  1.5),
-//            endPoint:   UnitPoint(x: 0.5, y: -1.2)
-//        )
-//        .overlay {
-//            EllipticalGradient(
-//                stops: [
-//                    Gradient.Stop(color: .white.opacity(0.2),  location: 0.00),
-//                    Gradient.Stop(color: .white.opacity(0.00), location: 1.5),
-//                ],
-//                center: UnitPoint(x: 0.22, y: -0.1)
-//            )
-//            .blendMode(.overlay)
-//        }
-//        .drawingGroup()
-//    }
     
     private func onAppear() {
         
