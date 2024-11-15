@@ -68,7 +68,7 @@ struct RoomDetailsScreen: View {
                                 }
                                 Text("\(members.count) people inside")
                                 Text("ID: \(chat.serverID.hexString().prefix(16))")
-                                Text("Cover Charge: ⬢ 100 Kin")
+                                Text("Cover Charge: ⬢ \(chat.coverCharge) Kin")
                             }
                             .opacity(0.8)
                             .font(.appTextSmall)

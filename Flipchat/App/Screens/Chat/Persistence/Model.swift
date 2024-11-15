@@ -27,6 +27,8 @@ public class pChat: ServerIdentifiable, ObservableObject {
     
     public var ownerUserID: Data
     
+    public var coverQuarks: UInt64
+    
     public var isHidden: Bool
     
     public var isMuted: Bool
@@ -43,12 +45,13 @@ public class pChat: ServerIdentifiable, ObservableObject {
     @Relationship(deleteRule: .nullify)
     public var members: [pMember] = []
     
-    init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
+    init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, coverQuarks: UInt64, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
         self.serverID = serverID
         self.kind = kind
         self.title = title
         self.roomNumber = roomNumber
         self.ownerUserID = ownerUserID
+        self.coverQuarks = coverQuarks
         self.isHidden = isHidden
         self.isMuted = isMuted
         self.isMutable = isMutable
@@ -62,6 +65,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
             title: "",
             roomNumber: 0,
             ownerUserID: Data(),
+            coverQuarks: 0,
             isHidden: false,
             isMuted: false,
             isMutable: false,
@@ -74,6 +78,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
         self.kind        = pChatKind(kind: metadata.kind)
         self.roomNumber  = metadata.roomNumber
         self.ownerUserID = metadata.ownerUser.data
+        self.coverQuarks = metadata.coverAmount.quarks
         self.title       = metadata.title
         self.isMuted     = metadata.isMuted
         self.isMutable   = metadata.isMutable
@@ -110,6 +115,10 @@ public enum pChatKind: Int, Codable {
 }
 
 extension pChat {
+    
+    public var coverCharge: Kin {
+        Kin(quarks: coverQuarks)
+    }
     
     public var messagesByDate: [pMessage] {
         messages.sorted { lhs, rhs in

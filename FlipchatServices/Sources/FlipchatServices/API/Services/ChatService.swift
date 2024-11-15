@@ -147,12 +147,14 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func joinGroupChat(chatID: ChatID, intentID: PublicKey, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorJoinChat>) -> Void) {
-        trace(.send, components: "Chat ID: \(chatID.description)", "Intent: \(intentID.base58)", "Signed by: \(owner.publicKey.base58)")
+    func joinGroupChat(chatID: ChatID, intentID: PublicKey?, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorJoinChat>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)", "Intent: \(intentID?.base58 ?? "nil")", "Signed by: \(owner.publicKey.base58)")
         
         let request = Flipchat_Chat_V1_JoinChatRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
-            $0.paymentIntent = .with { $0.value = intentID.data }
+            if let intentID {
+                $0.paymentIntent = .with { $0.value = intentID.data }
+            }
             $0.auth = owner.authFor(message: $0)
         }
         

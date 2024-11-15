@@ -15,17 +15,19 @@ extension Chat {
         public let kind: Kind
         public let roomNumber: RoomNumber
         public let ownerUser: UserID
+        public let coverAmount: Kin
         
         public var title: String
         public var isMuted: Bool
         public var isMutable: Bool
         public var unreadCount: Int
         
-        init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, title: String, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
+        init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
             self.id = id
             self.kind = kind
             self.roomNumber = roomNumber
             self.ownerUser = ownerUser
+            self.coverAmount = coverAmount
             self.title = title
             self.isMuted = isMuted
             self.isMutable = isMutable
@@ -68,6 +70,7 @@ extension Chat.Metadata {
             kind: .init(rawValue: proto.type.rawValue) ?? .unknown,
             roomNumber: proto.roomNumber,
             ownerUser: UserID(data: proto.owner.value),
+            coverAmount: Kin(quarks: proto.coverCharge.quarks),
             title: proto.title,
             isMuted: proto.isMuted,
             isMutable: proto.muteable,
