@@ -11,6 +11,7 @@ import CodeUI
 struct TabBarView<Content>: View where Content: View {
     
     @Binding var selection: TabBarItem
+    @Binding var isTabBarVisible: Bool
     
     @State private var tabBarItems: [TabBarItem] = []
     
@@ -18,8 +19,9 @@ struct TabBarView<Content>: View where Content: View {
     
     // MARK: - Init -
     
-    init(selection: Binding<TabBarItem>, @ViewBuilder content: @escaping () -> Content) {
+    init(selection: Binding<TabBarItem>, isTabBarVisible: Binding<Bool>, @ViewBuilder content: @escaping () -> Content) {
         self._selection = selection
+        self._isTabBarVisible = isTabBarVisible
         self.content = content
     }
     
@@ -35,11 +37,15 @@ struct TabBarView<Content>: View where Content: View {
                     )
             }
             
-            TabBarToolbar(
-                items: tabBarItems,
-                selection: $selection
-            )
+            if isTabBarVisible {
+                TabBarToolbar(
+                    items: tabBarItems,
+                    selection: $selection
+                )
+                .transition(.offset(x: 0, y: 80))
+            }
         }
+        .animation(.easeOut(duration: 0.05), value: isTabBarVisible)
         .onPreferenceChange(TabBarItemPreferenceKey.self) { items in
             self.tabBarItems = items
         }
@@ -162,7 +168,7 @@ extension View {
 #Preview {
     @Previewable @State var selection: TabBarItem = .init(title: "Chat", asset: .bubble)
     
-    TabBarView(selection: $selection) {
+    TabBarView(selection: $selection, isTabBarVisible: .constant(true)) {
         Background(color: .backgroundMain) {
             NavigationStack {
                 Color.backgroundMain

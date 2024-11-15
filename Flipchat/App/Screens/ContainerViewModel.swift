@@ -11,7 +11,13 @@ import FlipchatServices
 @MainActor
 class ContainerViewModel: ObservableObject {
     
-    @Published var navigationPath: [ContainerPath] = []
+    @Published var navigationPath: [ContainerPath] = [] {
+        didSet {
+            updateTabBarVisibility()
+        }
+    }
+    
+    @Published var isTabBarVisible: Bool = true
     
     private let sessionAuthenticator: SessionAuthenticator
     
@@ -24,11 +30,19 @@ class ContainerViewModel: ObservableObject {
     // MARK: - Chat -
     
     func pushChat(chatID: ChatID) {
-        navigationPath = [.chat(chatID)]
+        isTabBarVisible = false
+        Task {
+            try await Task.delay(milliseconds: 50)
+            navigationPath = [.chat(chatID)]
+        }
     }
     
     func popChat() {
         navigationPath = []
+    }
+    
+    private func updateTabBarVisibility() {
+        self.isTabBarVisible = navigationPath.count == 0
     }
     
     // MARK: - Logout -
