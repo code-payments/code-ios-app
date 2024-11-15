@@ -38,6 +38,7 @@ public struct FiatField: View {
         
         case small
         case large
+        case extraLarge
         
         fileprivate var spacing: CGFloat {
             switch self {
@@ -45,6 +46,8 @@ public struct FiatField: View {
                 return 10
             case .large:
                 return 12
+            case .extraLarge:
+                return 14
             }
         }
         
@@ -54,6 +57,8 @@ public struct FiatField: View {
                 return .appTextMedium
             case .large:
                 return .appDisplaySmall
+            case .extraLarge:
+                return .appDisplayMedium
             }
         }
         
@@ -63,6 +68,8 @@ public struct FiatField: View {
                 return .appTextMedium
             case .large:
                 return .appDisplaySmall
+            case .extraLarge:
+                return .appDisplayMedium
             }
         }
     }

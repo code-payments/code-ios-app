@@ -68,7 +68,7 @@ class Session: ObservableObject {
             organizer: organizer
         )
         
-//        registerPoller()
+        registerPoller()
         
         poll()
     }

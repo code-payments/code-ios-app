@@ -26,8 +26,14 @@ struct BalanceScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack {
-                Spacer()
-                Text("Balance")
+                FiatField(
+                    size: .extraLarge,
+                    amount: .init(
+                        kin: session.currentBalance,
+                        rate: .oneToOne
+                    )
+                )
+                .padding(.top, 40)
                 Spacer()
             }
         }
