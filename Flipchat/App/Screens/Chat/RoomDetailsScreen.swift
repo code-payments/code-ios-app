@@ -1,5 +1,5 @@
 //
-//  EnterRoomConfirmationScreen.swift
+//  RoomDetailsScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-04-05.
@@ -10,7 +10,7 @@ import SwiftData
 import CodeUI
 import FlipchatServices
 
-struct EnterRoomConfirmationScreen: View {
+struct RoomDetailsScreen: View {
     
     @EnvironmentObject private var banners: Banners
     
@@ -145,7 +145,7 @@ struct EnterRoomConfirmationScreen: View {
     }
 }
 
-extension EnterRoomConfirmationScreen {
+extension RoomDetailsScreen {
     enum Kind {
         case joinRoom
         case leaveRoom
@@ -208,7 +208,7 @@ private struct AspectRatioCard<Content>: View where Content: View {
 }
 
 #Preview {
-    EnterRoomConfirmationScreen(
+    RoomDetailsScreen(
         kind: .joinRoom,
         chatID: .mock,
         viewModel: .mock
