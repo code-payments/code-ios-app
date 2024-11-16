@@ -95,6 +95,7 @@ struct ConversationScreen: View {
                 MessageList(
                     state: $messageListState,
                     userID: userID,
+                    hostID: UserID(data: chat.ownerUserID),
                     messages: chat.messagesByDate
                 )
                 
@@ -138,7 +139,7 @@ struct ConversationScreen: View {
                     .padding(2)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 15)
         .padding(.top, 5)
         .padding(.bottom, 8)
         .onChange(of: isEditorFocused) { _, focused in
@@ -159,7 +160,7 @@ struct ConversationScreen: View {
                 Text(chat.formattedRoomNumber)
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
-                Text("Last seen recently")
+                Text("\(chat.members.count) people here")
                     .font(.appTextHeading)
                     .foregroundColor(.textSecondary)
             }

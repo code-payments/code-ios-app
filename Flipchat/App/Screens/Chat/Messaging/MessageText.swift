@@ -17,30 +17,62 @@ public struct MessageText: View {
     public let text: String
     public let date: Date
     public let isReceived: Bool
+    public let isHost: Bool
     public let location: MessageSemanticLocation
+    
+    private var shouldShowName: Bool {
+        location == .beginning || location == .standalone
+    }
+    
+    private var shouldShowAvatar: Bool {
+        location == .end || location == .standalone
+    }
+    
+    private var topPadding: CGFloat {
+        switch location {
+        case .beginning, .standalone:
+            return 8
+        case .middle, .end:
+            return 0
+        }
+    }
         
-    public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, location: MessageSemanticLocation) {
+    public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, location: MessageSemanticLocation) {
         self.state = state
         self.name = name
         self.avatarData = avatarData
         self.text = text
         self.date = date
         self.isReceived = isReceived
+        self.isHost = isHost
         self.location = location
     }
     
     public var body: some View {
         HStack(alignment: .bottom) {
             if isReceived {
-                DeterministicAvatar(data: avatarData, diameter: 30)
+                if shouldShowAvatar {
+                    DeterministicAvatar(data: avatarData, diameter: 40)
+                        .if(isHost) { $0
+                            .overlay {
+                                Image.asset(.crown)
+                                    .position(x: 5, y: 5)
+                            }
+                        }
+                } else {
+                    VStack {
+                        
+                    }
+                    .frame(width: 40, height: 40)
+                }
             }
             
             VStack(alignment: .leading, spacing: 2) {
-                if isReceived {
+                if shouldShowName, isReceived {
                     Text(name)
                         .font(.appTextCaption)
                         .foregroundStyle(Color.textSecondary)
-                        .padding(.leading, Metrics.chatMessageRadiusLarge)
+                        .padding(.leading, Metrics.chatMessageRadiusSmall)
                 }
                 
                 Group {
@@ -78,5 +110,6 @@ public struct MessageText: View {
                 )
             }
         }
+        .padding(.top, topPadding)
     }
 }

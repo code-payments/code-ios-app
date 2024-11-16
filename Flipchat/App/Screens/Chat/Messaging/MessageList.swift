@@ -12,17 +12,19 @@ import CodeUI
 public struct MessageList: View {
     
     private let userID: UserID
+    private let hostID: UserID
 
-    private var messages: [MessageGroup]
+    private var messages: [MessageDateGroup]
     
     @Binding private var state: State
     
     // MARK: - Init -
     
     @MainActor
-    init(state: Binding<State>, userID: UserID, messages: [pMessage]) {
+    init(state: Binding<State>, userID: UserID, hostID: UserID, messages: [pMessage]) {
         _state = state
         self.userID = userID
+        self.hostID = hostID
         self.messages = messages.groupByDay()
     }
     
@@ -54,9 +56,8 @@ public struct MessageList: View {
                 ScrollViewReader { scrollProxy in
                     List {
                         ForEach(messages) { group in
-                            messageGroup(group: group, geometry: g)
+                            messageDateGroup(group: group, geometry: g)
                         }
-//                        .scaleEffect(x: 1, y: -1, anchor: .center)
                         .padding(.bottom, 5)
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.backgroundMain)
@@ -74,7 +75,6 @@ public struct MessageList: View {
                     .padding(.bottom, -44) // <- offset*
                     .clipped()
                     .listStyle(.plain)
-//                    .scaleEffect(x: 1, y: -1, anchor: .center)
                     .onChange(of: state.scrollToBottomIndex) { _, _ in
                         scrollToBottom(with: scrollProxy, animated: true)
                     }
@@ -87,16 +87,18 @@ public struct MessageList: View {
     }
     
     @MainActor
-    @ViewBuilder private func messageGroup(group: MessageGroup, geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+    @ViewBuilder private func messageDateGroup(group: MessageDateGroup, geometry: GeometryProxy) -> some View {
+        let spacing: CGFloat = 8
+        
+        VStack(alignment: .leading, spacing: spacing) {
             MessageTitle(text: group.date.formattedRelatively())
             
-            ForEach(group.messages) { message in
+            ForEach(group.messages) { container in // MessageContainer
+                let message = container.message
                 let isReceived = message.senderID != userID.data
                 
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: spacing) {
                     ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
-                        
                         MessageRow(width: geometry.messageWidth(), isReceived: isReceived) {
                             MessageText(
                                 state: message.state.state,
@@ -105,7 +107,8 @@ public struct MessageList: View {
                                 text: content,
                                 date: message.date,
                                 isReceived: isReceived,
-                                location: .forIndex(index, count: message.contents.count)
+                                isHost: message.senderID == hostID.data,
+                                location: container.location
                             )
                         }
                     }
@@ -130,23 +133,33 @@ extension MessageList {
     }
 }
 
-struct MessageGroup: Identifiable {
+struct MessageDateGroup: Identifiable, Hashable {
     
     var id: Date {
         date
     }
     
     var date: Date
-    var messages: [pMessage]
+    var messages: [MessageContainer]
     
     init(date: Date, messages: [pMessage]) {
         self.date = date
-        self.messages = messages
+        self.messages = messages.assigningSemanticLocation()
     }
 }
 
+struct MessageContainer: Identifiable, Hashable {
+    
+    var id: Data {
+        message.serverID
+    }
+    
+    var location: MessageSemanticLocation
+    var message: pMessage
+}
+
 extension Array where Element == pMessage {
-    func groupByDay() -> [MessageGroup] {
+    func groupByDay() -> [MessageDateGroup] {
         
         let calendar = Calendar.current
         var container: [Date: [pMessage]] = [:]
@@ -164,16 +177,50 @@ extension Array where Element == pMessage {
         
         let sortedKeys = container.keys.sorted()
         let groupedMessages = sortedKeys.map {
-            MessageGroup(date: $0, messages: container[$0] ?? [])
+            MessageDateGroup(date: $0, messages: container[$0] ?? [])
         }
 
         return groupedMessages
+    }
+    
+    func assigningSemanticLocation() -> [MessageContainer] {
+        var containers: [MessageContainer] = []
+        let messages = self
+        
+        for (index, message) in messages.enumerated() {
+            let previousSender = index > 0 ? messages[index - 1].senderID : nil
+            let nextSender = index < messages.count - 1 ? messages[index + 1].senderID : nil
+            
+            let location: MessageSemanticLocation
+            
+            if message.senderID != previousSender && message.senderID != nextSender {
+                location = .standalone
+                
+            } else if message.senderID != previousSender && message.senderID == nextSender {
+                location = .beginning
+                
+            } else if message.senderID == previousSender && message.senderID == nextSender {
+                location = .middle
+                
+            } else {
+                location = .end
+            }
+            
+            containers.append(
+                MessageContainer(
+                    location: location,
+                    message: message
+                )
+            )
+        }
+        
+        return containers
     }
 }
 
 private extension GeometryProxy {
     func messageWidth() -> CGFloat {
-        size.width * 0.70
+        size.width * 0.80
     }
 }
 
@@ -245,7 +292,7 @@ import SwiftData
     
     NavigationStack {
         Background(color: .backgroundMain) {
-            MessageList(state: .constant(.init()), userID: .mock, messages: [
+            MessageList(state: .constant(.init()), userID: .mock, hostID: .mock, messages: [
                 .init(
                     serverID: Data([1]),
                     date: .now,

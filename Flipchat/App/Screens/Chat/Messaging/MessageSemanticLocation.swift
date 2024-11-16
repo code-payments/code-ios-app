@@ -30,12 +30,7 @@ public enum MessageSemanticLocation {
     }
     
     var topLeftRadius: CGFloat {
-        switch self {
-        case .standalone, .beginning:
-            Metrics.chatMessageRadiusLarge
-        case .middle, .end:
-            Metrics.chatMessageRadiusSmall
-        }
+        Metrics.chatMessageRadiusSmall
     }
     
     var bottomLeftRadius: CGFloat {
