@@ -21,4 +21,10 @@ extension FlipchatClient {
             accountService.fetchPaymentDestination(userID: userID) { c.resume(with: $0) }
         }
     }
+    
+    public func fetchUserFlags(userID: UserID, owner: KeyPair) async throws -> UserFlags {
+        try await withCheckedThrowingContinuation { c in
+            accountService.fetchUserFlags(userID: userID, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

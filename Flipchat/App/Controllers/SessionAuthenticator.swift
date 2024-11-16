@@ -238,6 +238,7 @@ final class SessionAuthenticator: ObservableObject {
         )
         
         let chatViewModel = ChatViewModel(
+            session: session,
             chatController: chatController,
             client: flipClient,
             exchange: exchange,

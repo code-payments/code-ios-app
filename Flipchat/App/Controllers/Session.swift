@@ -24,12 +24,19 @@ class Session: ObservableObject {
     @Published private(set) var currentBalance: Kin = 0
     @Published private(set) var presentationState: PresentationState = .hidden(.slide)
     
+    @Published private(set) var userFlags: UserFlags?
+    
+    var startGroupCost: Kin {
+        userFlags?.startGroupCost ?? 200 // TODO: Fixed price
+    }
+    
     weak var delegate: SessionDelegate?
     
     let userID: UserID
     let organizer: Organizer
     
     private let client: Client
+    private let flipClient: FlipchatClient
     private let exchange: Exchange
     private let banners: Banners
     private let betaFlags: BetaFlags
@@ -59,6 +66,7 @@ class Session: ObservableObject {
         self.userID = userID
         self.organizer = organizer
         self.client = client
+        self.flipClient = flipClient
         self.exchange = exchange
         self.banners = banners
         self.betaFlags = betaFlags
@@ -69,6 +77,7 @@ class Session: ObservableObject {
         )
         
         registerPoller()
+        fetchUserFlags()
         
         poll()
     }
@@ -79,6 +88,17 @@ class Session: ObservableObject {
     
     func prepareForLogout() {
         
+    }
+    
+    // MARK: - Flags -
+    
+    private func fetchUserFlags() {
+        Task {
+            userFlags = try await flipClient.fetchUserFlags(
+                userID: userID,
+                owner: organizer.ownerKeyPair
+            )
+        }
     }
     
     // MARK: - Poller -

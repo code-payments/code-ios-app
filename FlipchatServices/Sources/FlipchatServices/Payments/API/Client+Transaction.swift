@@ -83,12 +83,10 @@ extension Client {
         }
     }
     
-    public func payForRoom(userID: UserID, chatID: ChatID, amount: KinAmount, organizer: Organizer, destination: PublicKey) async throws -> PublicKey {
+    public func payForRoom(request: RoomRequest, organizer: Organizer, destination: PublicKey) async throws -> PublicKey {
         let intent = try await withCheckedThrowingContinuation { c in
             transactionService.payForRoom(
-                userID: userID,
-                chatID: chatID,
-                amount: amount,
+                request: request,
                 organizer: organizer,
                 destination: destination,
                 completion: { c.resume(with: $0) }

@@ -40,6 +40,11 @@ public protocol Flipchat_Account_V1_AccountClientProtocol: GRPCClient {
     _ request: Flipchat_Account_V1_GetPaymentDestinationRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>
+
+  func getUserFlags(
+    _ request: Flipchat_Account_V1_GetUserFlagsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Account_V1_GetUserFlagsRequest, Flipchat_Account_V1_GetUserFlagsResponse>
 }
 
 extension Flipchat_Account_V1_AccountClientProtocol {
@@ -141,6 +146,24 @@ extension Flipchat_Account_V1_AccountClientProtocol {
       interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? []
     )
   }
+
+  /// GetUserFlags gets user-specific flags
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetUserFlags.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getUserFlags(
+    _ request: Flipchat_Account_V1_GetUserFlagsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Account_V1_GetUserFlagsRequest, Flipchat_Account_V1_GetUserFlagsResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.getUserFlags.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -229,6 +252,11 @@ public protocol Flipchat_Account_V1_AccountAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Account_V1_GetPaymentDestinationRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>
+
+  func makeGetUserFlagsCall(
+    _ request: Flipchat_Account_V1_GetUserFlagsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_GetUserFlagsRequest, Flipchat_Account_V1_GetUserFlagsResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -300,6 +328,18 @@ extension Flipchat_Account_V1_AccountAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? []
     )
   }
+
+  public func makeGetUserFlagsCall(
+    _ request: Flipchat_Account_V1_GetUserFlagsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Account_V1_GetUserFlagsRequest, Flipchat_Account_V1_GetUserFlagsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.getUserFlags.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -363,6 +403,18 @@ extension Flipchat_Account_V1_AccountAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetPaymentDestinationInterceptors() ?? []
     )
   }
+
+  public func getUserFlags(
+    _ request: Flipchat_Account_V1_GetUserFlagsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Account_V1_GetUserFlagsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Account_V1_AccountClientMetadata.Methods.getUserFlags.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -398,6 +450,9 @@ public protocol Flipchat_Account_V1_AccountClientInterceptorFactoryProtocol: Sen
 
   /// - Returns: Interceptors to use when invoking 'getPaymentDestination'.
   func makeGetPaymentDestinationInterceptors() -> [ClientInterceptor<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getUserFlags'.
+  func makeGetUserFlagsInterceptors() -> [ClientInterceptor<Flipchat_Account_V1_GetUserFlagsRequest, Flipchat_Account_V1_GetUserFlagsResponse>]
 }
 
 public enum Flipchat_Account_V1_AccountClientMetadata {
@@ -410,6 +465,7 @@ public enum Flipchat_Account_V1_AccountClientMetadata {
       Flipchat_Account_V1_AccountClientMetadata.Methods.authorizePublicKey,
       Flipchat_Account_V1_AccountClientMetadata.Methods.revokePublicKey,
       Flipchat_Account_V1_AccountClientMetadata.Methods.getPaymentDestination,
+      Flipchat_Account_V1_AccountClientMetadata.Methods.getUserFlags,
     ]
   )
 
@@ -443,6 +499,12 @@ public enum Flipchat_Account_V1_AccountClientMetadata {
       path: "/flipchat.account.v1.Account/GetPaymentDestination",
       type: GRPCCallType.unary
     )
+
+    public static let getUserFlags = GRPCMethodDescriptor(
+      name: "GetUserFlags",
+      path: "/flipchat.account.v1.Account/GetUserFlags",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -469,6 +531,9 @@ public protocol Flipchat_Account_V1_AccountProvider: CallHandlerProvider {
 
   /// GetPaymentDestination gets the payment destination for a UserId
   func getPaymentDestination(request: Flipchat_Account_V1_GetPaymentDestinationRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Account_V1_GetPaymentDestinationResponse>
+
+  /// GetUserFlags gets user-specific flags
+  func getUserFlags(request: Flipchat_Account_V1_GetUserFlagsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Account_V1_GetUserFlagsResponse>
 }
 
 extension Flipchat_Account_V1_AccountProvider {
@@ -528,6 +593,15 @@ extension Flipchat_Account_V1_AccountProvider {
         userFunction: self.getPaymentDestination(request:context:)
       )
 
+    case "GetUserFlags":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Account_V1_GetUserFlagsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Account_V1_GetUserFlagsResponse>(),
+        interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? [],
+        userFunction: self.getUserFlags(request:context:)
+      )
+
     default:
       return nil
     }
@@ -574,6 +648,12 @@ public protocol Flipchat_Account_V1_AccountAsyncProvider: CallHandlerProvider, S
     request: Flipchat_Account_V1_GetPaymentDestinationRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Account_V1_GetPaymentDestinationResponse
+
+  /// GetUserFlags gets user-specific flags
+  func getUserFlags(
+    request: Flipchat_Account_V1_GetUserFlagsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Account_V1_GetUserFlagsResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -640,6 +720,15 @@ extension Flipchat_Account_V1_AccountAsyncProvider {
         wrapping: { try await self.getPaymentDestination(request: $0, context: $1) }
       )
 
+    case "GetUserFlags":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Account_V1_GetUserFlagsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Account_V1_GetUserFlagsResponse>(),
+        interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? [],
+        wrapping: { try await self.getUserFlags(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -667,6 +756,10 @@ public protocol Flipchat_Account_V1_AccountServerInterceptorFactoryProtocol: Sen
   /// - Returns: Interceptors to use when handling 'getPaymentDestination'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetPaymentDestinationInterceptors() -> [ServerInterceptor<Flipchat_Account_V1_GetPaymentDestinationRequest, Flipchat_Account_V1_GetPaymentDestinationResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getUserFlags'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetUserFlagsInterceptors() -> [ServerInterceptor<Flipchat_Account_V1_GetUserFlagsRequest, Flipchat_Account_V1_GetUserFlagsResponse>]
 }
 
 public enum Flipchat_Account_V1_AccountServerMetadata {
@@ -679,6 +772,7 @@ public enum Flipchat_Account_V1_AccountServerMetadata {
       Flipchat_Account_V1_AccountServerMetadata.Methods.authorizePublicKey,
       Flipchat_Account_V1_AccountServerMetadata.Methods.revokePublicKey,
       Flipchat_Account_V1_AccountServerMetadata.Methods.getPaymentDestination,
+      Flipchat_Account_V1_AccountServerMetadata.Methods.getUserFlags,
     ]
   )
 
@@ -710,6 +804,12 @@ public enum Flipchat_Account_V1_AccountServerMetadata {
     public static let getPaymentDestination = GRPCMethodDescriptor(
       name: "GetPaymentDestination",
       path: "/flipchat.account.v1.Account/GetPaymentDestination",
+      type: GRPCCallType.unary
+    )
+
+    public static let getUserFlags = GRPCMethodDescriptor(
+      name: "GetUserFlags",
+      path: "/flipchat.account.v1.Account/GetUserFlags",
       type: GRPCCallType.unary
     )
   }

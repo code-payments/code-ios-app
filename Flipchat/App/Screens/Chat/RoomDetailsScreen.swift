@@ -16,8 +16,6 @@ struct RoomDetailsScreen: View {
     
     @ObservedObject private var viewModel: ChatViewModel
     
-    @State private var showingPaymentConfirmation: Bool = false
-    
     @Query private var chats: [pChat]
     
     private var chat: pChat {
@@ -67,8 +65,7 @@ struct RoomDetailsScreen: View {
                                     Text("Hosted by \(host.displayName)")
                                 }
                                 Text("\(members.count) people inside")
-                                Text("ID: \(chat.serverID.hexString().prefix(16))")
-                                Text("Cover Charge: ⬢ \(chat.coverCharge) Kin")
+                                Text("Cover Charge: ⬢ \(chat.coverCharge.truncatedKinValue) Kin")
                             }
                             .opacity(0.8)
                             .font(.appTextSmall)
@@ -93,7 +90,8 @@ struct RoomDetailsScreen: View {
                         case .joinRoom:
                             viewModel.attemptJoinChat(
                                 chatID: chatID,
-                                hostID: UserID(data: chat.ownerUserID)
+                                hostID: UserID(data: chat.ownerUserID),
+                                amount: chat.coverCharge
                             )
                         case .leaveRoom:
                             viewModel.attemptLeaveChat(
@@ -106,21 +104,22 @@ struct RoomDetailsScreen: View {
                 .padding(20)
             }
             .foregroundColor(.textMain)
-            .sheet(isPresented: $showingPaymentConfirmation) {
+            .sheet(isPresented: $viewModel.isShowingJoinPayment) {
                 PartialSheet {
                     ModalPaymentConfirmation(
-                        amount: KinAmount(kin: 100, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
+                        amount: KinAmount(kin: chat.coverCharge, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
                         currency: .kin,
                         primaryAction: "Swipe to Pay",
                         secondaryAction: "Cancel",
                         paymentAction: {
                             viewModel.joinChat(
                                 chatID: ChatID(data: chat.serverID),
-                                hostID: UserID(data: chat.ownerUserID)
+                                hostID: UserID(data: chat.ownerUserID),
+                                amount: chat.coverCharge
                             )
                         },
-                        dismissAction: { showingPaymentConfirmation = false },
-                        cancelAction: { showingPaymentConfirmation = false }
+                        dismissAction: { viewModel.isShowingJoinPayment = false },
+                        cancelAction: { viewModel.isShowingJoinPayment = false }
                     )
                 }
             }

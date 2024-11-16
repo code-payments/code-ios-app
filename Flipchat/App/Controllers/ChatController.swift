@@ -97,15 +97,21 @@ class ChatController: ObservableObject {
     
     // MARK: - Group Chat -
     
-    func startGroupChat() async throws -> ChatID {
-        try await chatStore.startGroupChat()
+    func startGroupChat(amount: Kin) async throws -> ChatID {
+        let intentID = try await paymentClient.payForRoom(
+            request: .create(userID, amount),
+            organizer: organizer,
+            destination: PublicKey(base58: "HXBZNWSgAQoMMD2GPWMjxTriHHwA7dfS9qJxcnLwxGLu")! // TODO: Change
+        )
+        
+        return try await chatStore.startGroupChat(intentID: intentID)
     }
     
     func fetchGroupChat(roomNumber: RoomNumber, hide: Bool) async throws -> ChatID {
         try await chatStore.fetchChat(identifier: .roomNumber(roomNumber), hide: hide)
     }
     
-    func joinGroupChat(chatID: ChatID, hostID: UserID) async throws -> ChatID {
+    func joinGroupChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws -> ChatID {
         let destination = try await client.fetchPaymentDestination(userID: hostID)
         
         var intentID: PublicKey?
@@ -113,9 +119,7 @@ class ChatController: ObservableObject {
         // Paying yourself is a no-op
         if hostID != userID {
             intentID = try await paymentClient.payForRoom(
-                userID: userID,
-                chatID: chatID,
-                amount: .init(kin: 200, rate: .oneToOne),
+                request: .join(userID, amount, chatID),
                 organizer: organizer,
                 destination: destination
             )

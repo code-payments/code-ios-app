@@ -527,6 +527,124 @@ extension Flipchat_Account_V1_GetPaymentDestinationResponse.Result: CaseIterable
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Account_V1_GetUserFlagsRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// UserId to get user flags for.
+  public var userID: Flipchat_Common_V1_UserId {
+    get {return _userID ?? Flipchat_Common_V1_UserId()}
+    set {_userID = newValue}
+  }
+  /// Returns true if `userID` has been explicitly set.
+  public var hasUserID: Bool {return self._userID != nil}
+  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
+  public mutating func clearUserID() {self._userID = nil}
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Account_V1_GetUserFlagsResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Account_V1_GetUserFlagsResponse.Result = .ok
+
+  public var userFlags: Flipchat_Account_V1_UserFlags {
+    get {return _userFlags ?? Flipchat_Account_V1_UserFlags()}
+    set {_userFlags = newValue}
+  }
+  /// Returns true if `userFlags` has been explicitly set.
+  public var hasUserFlags: Bool {return self._userFlags != nil}
+  /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
+  public mutating func clearUserFlags() {self._userFlags = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+
+  fileprivate var _userFlags: Flipchat_Account_V1_UserFlags? = nil
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Account_V1_GetUserFlagsResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Account_V1_GetUserFlagsResponse.Result] = [
+    .ok,
+    .denied,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Flipchat_Account_V1_UserFlags {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var isStaff: Bool = false
+
+  public var startGroupCost: Flipchat_Common_V1_PaymentAmount {
+    get {return _startGroupCost ?? Flipchat_Common_V1_PaymentAmount()}
+    set {_startGroupCost = newValue}
+  }
+  /// Returns true if `startGroupCost` has been explicitly set.
+  public var hasStartGroupCost: Bool {return self._startGroupCost != nil}
+  /// Clears the value of `startGroupCost`. Subsequent reads from it will return its default value.
+  public mutating func clearStartGroupCost() {self._startGroupCost = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _startGroupCost: Flipchat_Common_V1_PaymentAmount? = nil
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipchat_Account_V1_RegisterRequest: @unchecked Sendable {}
 extension Flipchat_Account_V1_RegisterResponse: @unchecked Sendable {}
@@ -543,6 +661,10 @@ extension Flipchat_Account_V1_RevokePublicKeyResponse.Result: @unchecked Sendabl
 extension Flipchat_Account_V1_GetPaymentDestinationRequest: @unchecked Sendable {}
 extension Flipchat_Account_V1_GetPaymentDestinationResponse: @unchecked Sendable {}
 extension Flipchat_Account_V1_GetPaymentDestinationResponse.Result: @unchecked Sendable {}
+extension Flipchat_Account_V1_GetUserFlagsRequest: @unchecked Sendable {}
+extension Flipchat_Account_V1_GetUserFlagsResponse: @unchecked Sendable {}
+extension Flipchat_Account_V1_GetUserFlagsResponse.Result: @unchecked Sendable {}
+extension Flipchat_Account_V1_UserFlags: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -1009,4 +1131,137 @@ extension Flipchat_Account_V1_GetPaymentDestinationResponse.Result: SwiftProtobu
     0: .same(proto: "OK"),
     1: .same(proto: "NOT_FOUND"),
   ]
+}
+
+extension Flipchat_Account_V1_GetUserFlagsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetUserFlagsRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "user_id"),
+    2: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._userID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Account_V1_GetUserFlagsRequest, rhs: Flipchat_Account_V1_GetUserFlagsRequest) -> Bool {
+    if lhs._userID != rhs._userID {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Account_V1_GetUserFlagsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetUserFlagsResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .standard(proto: "user_flags"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userFlags) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try { if let v = self._userFlags {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Account_V1_GetUserFlagsResponse, rhs: Flipchat_Account_V1_GetUserFlagsResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs._userFlags != rhs._userFlags {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Account_V1_GetUserFlagsResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+  ]
+}
+
+extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UserFlags"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "is_staff"),
+    2: .standard(proto: "start_group_cost"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.isStaff) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._startGroupCost) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.isStaff != false {
+      try visitor.visitSingularBoolField(value: self.isStaff, fieldNumber: 1)
+    }
+    try { if let v = self._startGroupCost {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Account_V1_UserFlags, rhs: Flipchat_Account_V1_UserFlags) -> Bool {
+    if lhs.isStaff != rhs.isStaff {return false}
+    if lhs._startGroupCost != rhs._startGroupCost {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }

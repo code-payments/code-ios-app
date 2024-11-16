@@ -103,6 +103,21 @@ struct ChatsScreen: View {
         .sheet(isPresented: $viewModel.isShowingEnterRoomNumber) {
             EnterRoomNumberScreen(viewModel: viewModel)
         }
+        .sheet(isPresented: $viewModel.isShowingCreatePayment) {
+            PartialSheet {
+                ModalPaymentConfirmation(
+                    amount: KinAmount(kin: session.startGroupCost, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
+                    currency: .kin,
+                    primaryAction: "Swipe to Pay",
+                    secondaryAction: "Cancel",
+                    paymentAction: {
+                        try await viewModel.createChat()
+                    },
+                    dismissAction: { viewModel.isShowingCreatePayment = false },
+                    cancelAction: { viewModel.isShowingCreatePayment = false }
+                )
+            }
+        }
     }
     
     @ViewBuilder private func row(for chat: pChat) -> some View {

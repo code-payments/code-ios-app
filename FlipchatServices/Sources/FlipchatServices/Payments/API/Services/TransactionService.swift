@@ -173,22 +173,39 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     }
     
     /// Same as withdraw(...) with added metadata / extendedMetadata
-    func payForRoom(userID: UserID, chatID: ChatID, amount: KinAmount, organizer: Organizer, destination: PublicKey, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
+    func payForRoom(request: RoomRequest, organizer: Organizer, destination: PublicKey, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
         trace(.send)
         
         do {
-            let paymentMetadata = Flipchat_Chat_V1_JoinChatPaymentMetadata.with {
-                $0.chatID = .with { $0.value = chatID.data }
-                $0.userID = .with { $0.value = userID.data }
-            }
+            let amount: Kin
+            let extendedMetadata: Google_Protobuf_Any
             
-            let extendedMetadata = try Google_Protobuf_Any(message: paymentMetadata, partial: false)
+            switch request {
+            case .create(let userID, let kin):
+                amount = kin
+                extendedMetadata = try Google_Protobuf_Any(
+                    message: Flipchat_Chat_V1_StartGroupChatPaymentMetadata.with {
+                        $0.userID = .with { $0.value = userID.data }
+                    },
+                    partial: false
+                )
+                
+            case .join(let userID, let kin, let chatID):
+                amount = kin
+                extendedMetadata = try Google_Protobuf_Any(
+                    message: Flipchat_Chat_V1_JoinChatPaymentMetadata.with {
+                        $0.chatID = .with { $0.value = chatID.data }
+                        $0.userID = .with { $0.value = userID.data }
+                    },
+                    partial: false
+                )
+            }
             
             let intent = try IntentPublicTransfer(
                 organizer: organizer,
                 source: .primary,
                 destination: .external(destination),
-                amount: amount,
+                amount: KinAmount(kin: amount, rate: .oneToOne),
                 extendedMetadata: extendedMetadata
             )
             
@@ -715,6 +732,11 @@ public struct DestinationMetadata {
             self.resolvedDestination = AssociatedTokenAccount(owner: destination, mint: Mint.kin).ata.publicKey
         }
     }
+}
+
+public enum RoomRequest {
+    case create(UserID, Kin)
+    case join(UserID, Kin, ChatID)
 }
             
 extension DestinationMetadata {

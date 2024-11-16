@@ -174,9 +174,10 @@ class ChatStore: ObservableObject {
         try save()
     }
     
-    func startGroupChat() async throws -> ChatID {
+    func startGroupChat(intentID: PublicKey) async throws -> ChatID {
         let metadata = try await client.startGroupChat(
             with: [userID],
+            intentID: intentID,
             owner: owner
         )
         

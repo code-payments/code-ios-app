@@ -20,8 +20,11 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
-    @Published var isShowingPaymentConfirmation: Bool = false
+    @Published var isShowingJoinPayment: Bool = false
     
+    @Published var isShowingCreatePayment: Bool = false
+    
+    private let session: Session
     private let chatController: ChatController
     private let client: FlipchatClient
     private let exchange: Exchange
@@ -31,7 +34,8 @@ class ChatViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(chatController: ChatController, client: FlipchatClient, exchange: Exchange, banners: Banners, containerViewModel: ContainerViewModel) {
+    init(session: Session, chatController: ChatController, client: FlipchatClient, exchange: Exchange, banners: Banners, containerViewModel: ContainerViewModel) {
+        self.session = session
         self.chatController = chatController
         self.client = client
         self.exchange = exchange
@@ -64,7 +68,7 @@ class ChatViewModel: ObservableObject {
             position: .bottom,
             actions: [
                 .standard(title: "Join a Room", action: showEnterRoomNumber),
-                .standard(title: "Create a New Room", action: startNewChat),
+                .standard(title: "Create a New Room", action: attemptCreateChat),
                 .cancel(title: "Cancel"),
             ]
         )
@@ -101,13 +105,6 @@ class ChatViewModel: ObservableObject {
         resetEnteredRoomNumber()
     }
     
-    private func startNewChat() {
-        Task {
-            let chatID = try await chatController.startGroupChat()
-            containerViewModel?.pushChat(chatID: chatID)
-        }
-    }
-    
     private func resetEnteredRoomNumber() {
         enteredRoomNumber = ""
     }
@@ -134,17 +131,38 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func attemptJoinChat(chatID: ChatID, hostID: UserID) {
+    private func attemptCreateChat() {
+        isShowingCreatePayment = true
+    }
+    
+    func createChat() async throws {
+        guard let _ = session.userFlags else {
+            throw Error.missingUserFlags
+        }
+        
+        let chatID = try await chatController.startGroupChat(amount: session.startGroupCost)
+        containerViewModel?.pushChat(chatID: chatID)
+    }
+    
+    func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) {
         if chatID == hostID {
-            joinChat(chatID: chatID, hostID: hostID)
+            joinChat(
+                chatID: chatID,
+                hostID: hostID,
+                amount: amount
+            )
         } else {
-            isShowingPaymentConfirmation = true
+            isShowingJoinPayment = true
         }
     }
     
-    func joinChat(chatID: ChatID, hostID: UserID) {
+    func joinChat(chatID: ChatID, hostID: UserID, amount: Kin) {
         withButtonState { [chatController] in
-            try await chatController.joinGroupChat(chatID: chatID, hostID: hostID)
+            try await chatController.joinGroupChat(
+                chatID: chatID,
+                hostID: hostID,
+                amount: amount
+            )
             
         } success: { chatID in
             self.isShowingEnterRoomNumber = false
@@ -239,6 +257,7 @@ extension ChatViewModel {
 
 extension ChatViewModel {
     enum Error: Swift.Error {
+        case missingUserFlags
         case exchateRateNotFound
         case friendChatIDNotFound
     }
@@ -250,6 +269,7 @@ enum JoinRoomPath: Hashable {
 
 extension ChatViewModel {
     static let mock: ChatViewModel = .init(
+        session: .mock,
         chatController: .mock,
         client: .mock,
         exchange: .mock,
