@@ -26,18 +26,16 @@ enum TokenType {
 }
 
 message AddTokenRequest {
-    common.v1.UserId user_id = 1;
+    TokenType token_type = 1 [(validate.rules).enum = {in: [1,2]}];
 
     string push_token = 2 [(validate.rules).string = {
         min_len: 1
         max_len: 4096
     }];
 
-    TokenType token_type = 3 [(validate.rules).enum = {in: [1,2]}];
+    common.v1.AppInstallId app_install = 3;
 
-    common.v1.AppInstallId app_install = 4;
-
-    common.v1.Auth auth = 5;
+    common.v1.Auth auth = 4;
 }
 
 message AddTokenResponse {
@@ -49,18 +47,14 @@ message AddTokenResponse {
 }
 
 message DeleteTokenRequest {
-    common.v1.UserId user_id = 1;
+    TokenType token_type = 1 [(validate.rules).enum = {in: [1,2]}];
 
     string push_token = 2 [(validate.rules).string = {
         min_len: 1
         max_len: 4096
     }];
 
-    TokenType token_type = 3 [(validate.rules).enum = {in: [1,2]}];
-
-    common.v1.AppInstallId app_install = 4;
-
-    common.v1.Auth auth = 5 [(validate.rules).message.required = true];
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
 }
 
 message DeleteTokenResponse {

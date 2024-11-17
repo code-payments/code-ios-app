@@ -7,7 +7,6 @@
 
 import SwiftUI
 import FlipchatServices
-import CodeUI
 
 @MainActor
 class AppContainer: ObservableObject {
@@ -24,16 +23,20 @@ class AppContainer: ObservableObject {
     let biometrics = Biometrics()
     let notificationController = NotificationController()
     
-    let exchange: Exchange
-    
     lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)
+    
+    lazy private(set) var pushController = PushController(
+        sessionAuthenticator: sessionAuthenticator,
+        client: flipClient
+    )
     
     lazy private(set) var banners = Banners()
     
-    // MARK: - Init -
+    lazy private(set) var exchange = Exchange(client: client)
     
     init() {
-        self.exchange = Exchange(client: client)
+        // Register for remote notifications
+        pushController.register()
     }
     
     func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
@@ -50,10 +53,6 @@ class AppContainer: ObservableObject {
             .environmentObject(exchange)
             .environmentObject(sessionAuthenticator)
     }
-    
-//    static func installationID() async throws -> String {
-//        try await Installations.installations().installationID()
-//    }
 }
 
 extension View {

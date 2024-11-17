@@ -24,7 +24,6 @@ public class Client: ObservableObject {
     internal let transactionService: TransactionService
     internal let messagingService: MessagingService
     internal let currencyService: CurrencyService
-    internal let pushService: PushService
     internal let chatService: ChatService
     internal let badgeService: BadgeService
     internal let deviceService: DeviceService
@@ -44,7 +43,6 @@ public class Client: ObservableObject {
         self.transactionService = TransactionService(channel: channel, queue: queue)
         self.messagingService   = MessagingService(channel: channel, queue: queue)
         self.currencyService    = CurrencyService(channel: channel, queue: queue)
-        self.pushService        = PushService(channel: channel, queue: queue)
         self.chatService        = ChatService(channel: channel, queue: queue)
         self.badgeService       = BadgeService(channel: channel, queue: queue)
         self.deviceService      = DeviceService(channel: channel, queue: queue)

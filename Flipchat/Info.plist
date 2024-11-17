@@ -4,19 +4,25 @@
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-        <string>codewallet</string>
-    </array>
-    <key>mixpanel</key>
-    <dict>
-        <key>apiKey</key>
-        <string>$(FLIPCHAT_MIXPANEL)</string>
-    </dict>
-    <key>bugsnag</key>
-    <dict>
-        <key>apiKey</key>
-        <string>$(FLIPCHAT_BUGSNAG)</string>
-    </dict>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>codewallet</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+		<string>processing</string>
+	</array>
+	<key>bugsnag</key>
+	<dict>
+		<key>apiKey</key>
+		<string>$(FLIPCHAT_BUGSNAG)</string>
+	</dict>
+	<key>mixpanel</key>
+	<dict>
+		<key>apiKey</key>
+		<string>$(FLIPCHAT_MIXPANEL)</string>
+	</dict>
 </dict>
 </plist>

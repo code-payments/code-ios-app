@@ -9,15 +9,15 @@ import Foundation
 import Mixpanel
 import Bugsnag
 import FlipchatServices
-//import Firebase
+import Firebase
 
 typealias AnalyticsValue = MixpanelType
 
 enum Analytics {
     
     static func initialize() {
-//        FirebaseApp.app()?.isDataCollectionDefaultEnabled = true
-//        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+        FirebaseApp.app()?.isDataCollectionDefaultEnabled = true
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
         
         let apiKey = try? InfoPlist.value(for: "mixpanel").value(for: "apiKey").string()
         if let apiKey {

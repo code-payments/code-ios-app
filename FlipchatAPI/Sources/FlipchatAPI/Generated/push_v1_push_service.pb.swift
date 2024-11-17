@@ -73,18 +73,9 @@ public struct Flipchat_Push_V1_AddTokenRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: Flipchat_Common_V1_UserId {
-    get {return _userID ?? Flipchat_Common_V1_UserId()}
-    set {_userID = newValue}
-  }
-  /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
-  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
-  public mutating func clearUserID() {self._userID = nil}
+  public var tokenType: Flipchat_Push_V1_TokenType = .unknown
 
   public var pushToken: String = String()
-
-  public var tokenType: Flipchat_Push_V1_TokenType = .unknown
 
   public var appInstall: Flipchat_Common_V1_AppInstallId {
     get {return _appInstall ?? Flipchat_Common_V1_AppInstallId()}
@@ -108,7 +99,6 @@ public struct Flipchat_Push_V1_AddTokenRequest {
 
   public init() {}
 
-  fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
   fileprivate var _appInstall: Flipchat_Common_V1_AppInstallId? = nil
   fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
 }
@@ -170,27 +160,9 @@ public struct Flipchat_Push_V1_DeleteTokenRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var userID: Flipchat_Common_V1_UserId {
-    get {return _userID ?? Flipchat_Common_V1_UserId()}
-    set {_userID = newValue}
-  }
-  /// Returns true if `userID` has been explicitly set.
-  public var hasUserID: Bool {return self._userID != nil}
-  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
-  public mutating func clearUserID() {self._userID = nil}
-
-  public var pushToken: String = String()
-
   public var tokenType: Flipchat_Push_V1_TokenType = .unknown
 
-  public var appInstall: Flipchat_Common_V1_AppInstallId {
-    get {return _appInstall ?? Flipchat_Common_V1_AppInstallId()}
-    set {_appInstall = newValue}
-  }
-  /// Returns true if `appInstall` has been explicitly set.
-  public var hasAppInstall: Bool {return self._appInstall != nil}
-  /// Clears the value of `appInstall`. Subsequent reads from it will return its default value.
-  public mutating func clearAppInstall() {self._appInstall = nil}
+  public var pushToken: String = String()
 
   public var auth: Flipchat_Common_V1_Auth {
     get {return _auth ?? Flipchat_Common_V1_Auth()}
@@ -205,8 +177,6 @@ public struct Flipchat_Push_V1_DeleteTokenRequest {
 
   public init() {}
 
-  fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
-  fileprivate var _appInstall: Flipchat_Common_V1_AppInstallId? = nil
   fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
 }
 
@@ -244,11 +214,10 @@ extension Flipchat_Push_V1_TokenType: SwiftProtobuf._ProtoNameProviding {
 extension Flipchat_Push_V1_AddTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AddTokenRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "user_id"),
+    1: .standard(proto: "token_type"),
     2: .standard(proto: "push_token"),
-    3: .standard(proto: "token_type"),
-    4: .standard(proto: "app_install"),
-    5: .same(proto: "auth"),
+    3: .standard(proto: "app_install"),
+    4: .same(proto: "auth"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -257,11 +226,10 @@ extension Flipchat_Push_V1_AddTokenRequest: SwiftProtobuf.Message, SwiftProtobuf
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.tokenType) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.pushToken) }()
-      case 3: try { try decoder.decodeSingularEnumField(value: &self.tokenType) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._appInstall) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._appInstall) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
     }
@@ -272,28 +240,24 @@ extension Flipchat_Push_V1_AddTokenRequest: SwiftProtobuf.Message, SwiftProtobuf
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._userID {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    if self.tokenType != .unknown {
+      try visitor.visitSingularEnumField(value: self.tokenType, fieldNumber: 1)
+    }
     if !self.pushToken.isEmpty {
       try visitor.visitSingularStringField(value: self.pushToken, fieldNumber: 2)
     }
-    if self.tokenType != .unknown {
-      try visitor.visitSingularEnumField(value: self.tokenType, fieldNumber: 3)
-    }
     try { if let v = self._appInstall {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
     try { if let v = self._auth {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Push_V1_AddTokenRequest, rhs: Flipchat_Push_V1_AddTokenRequest) -> Bool {
-    if lhs._userID != rhs._userID {return false}
-    if lhs.pushToken != rhs.pushToken {return false}
     if lhs.tokenType != rhs.tokenType {return false}
+    if lhs.pushToken != rhs.pushToken {return false}
     if lhs._appInstall != rhs._appInstall {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -343,11 +307,9 @@ extension Flipchat_Push_V1_AddTokenResponse.Result: SwiftProtobuf._ProtoNameProv
 extension Flipchat_Push_V1_DeleteTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".DeleteTokenRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "user_id"),
+    1: .standard(proto: "token_type"),
     2: .standard(proto: "push_token"),
-    3: .standard(proto: "token_type"),
-    4: .standard(proto: "app_install"),
-    5: .same(proto: "auth"),
+    3: .same(proto: "auth"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -356,11 +318,9 @@ extension Flipchat_Push_V1_DeleteTokenRequest: SwiftProtobuf.Message, SwiftProto
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.tokenType) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.pushToken) }()
-      case 3: try { try decoder.decodeSingularEnumField(value: &self.tokenType) }()
-      case 4: try { try decoder.decodeSingularMessageField(value: &self._appInstall) }()
-      case 5: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
     }
@@ -371,29 +331,21 @@ extension Flipchat_Push_V1_DeleteTokenRequest: SwiftProtobuf.Message, SwiftProto
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._userID {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
+    if self.tokenType != .unknown {
+      try visitor.visitSingularEnumField(value: self.tokenType, fieldNumber: 1)
+    }
     if !self.pushToken.isEmpty {
       try visitor.visitSingularStringField(value: self.pushToken, fieldNumber: 2)
     }
-    if self.tokenType != .unknown {
-      try visitor.visitSingularEnumField(value: self.tokenType, fieldNumber: 3)
-    }
-    try { if let v = self._appInstall {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    } }()
     try { if let v = self._auth {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Push_V1_DeleteTokenRequest, rhs: Flipchat_Push_V1_DeleteTokenRequest) -> Bool {
-    if lhs._userID != rhs._userID {return false}
-    if lhs.pushToken != rhs.pushToken {return false}
     if lhs.tokenType != rhs.tokenType {return false}
-    if lhs._appInstall != rhs._appInstall {return false}
+    if lhs.pushToken != rhs.pushToken {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

@@ -1,0 +1,214 @@
+//
+//  PushController.swift
+//  Flipchat
+//
+//  Created by Dima Bart on 2022-08-12.
+//
+
+import UIKit
+import Combine
+import FlipchatServices
+
+@preconcurrency import Firebase
+@preconcurrency import FirebaseInstallations
+@preconcurrency import UserNotifications
+
+@MainActor
+class PushController: ObservableObject {
+    
+    static var activeChat: ChatID? = nil
+    
+    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .denied
+    
+    private let sessionAuthenticator: SessionAuthenticator
+    private let client: FlipchatClient
+    private let center: UNUserNotificationCenter
+    private let delegate: NotificationDelegate
+    private let firebase: Messaging
+    
+    private var apnsToken: Data?
+    private var firebaseToken: String?
+    
+    private var stateSubscription: AnyCancellable?
+    
+    // MARK: - Init -
+    
+    init(sessionAuthenticator: SessionAuthenticator, client: FlipchatClient) {
+        self.sessionAuthenticator = sessionAuthenticator
+        self.client   = client
+        self.center   = .current()
+        self.firebase = Messaging.messaging()
+        self.delegate = NotificationDelegate(firebase: firebase)
+        
+        delegate.didReceiveFCMToken = { [weak self] token in
+            self?.didReceiveFirebaseToken(token: token)
+        }
+        
+        center.delegate = delegate
+        firebase.delegate = delegate
+        
+        updateStatus()
+//        resetAppBadgeCount()
+        
+        stateSubscription = sessionAuthenticator.$state.sink { [weak self] state in
+            // Subscriptions are invoked with `willSet` semantics so we need
+            // to ensure that we execute the "isLoggedIn" check on the subsequent
+            // runloop when that property has been updated.
+            Task {
+                if case .loggedIn = state, let firebaseToken = self?.firebaseToken {
+                    trace(.note, components: "Firebase token cached.", "Token: \(firebaseToken)")
+                    self?.didReceiveFirebaseToken(token: firebaseToken)
+                }
+            }
+        }
+    }
+    
+    func register() {
+        trace(.warning, components: "Registering for APNs token...")
+        UIApplication.shared.registerForRemoteNotifications()
+    }
+    
+    func didReceiveRemoteNotificationToken(with token: Data) {
+        trace(.warning, components: "Received APNs token: \(token.hexString())")
+        apnsToken = token
+        firebase.setAPNSToken(token, type: .unknown)
+    }
+    
+    // MARK: - Badge -
+    
+    func appDidBecomeActive() {
+//        resetAppBadgeCount()
+    }
+    
+    func appWillResignActive() {
+//        resetAppBadgeCount()
+    }
+    
+//    private func resetAppBadgeCount() {
+//        UIApplication.shared.applicationIconBadgeNumber = 0
+//        if case .loggedIn(let container) = sessionAuthenticator.state {
+//            Task {
+//                try await client.resetBadgeCount(for: container.session.organizer.ownerKeyPair)
+//            }
+//        }
+//    }
+    
+    // MARK: - Firebase -
+    
+    private func didReceiveFirebaseToken(token: String?) {
+        firebaseToken = token
+        if let firebaseToken {
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                let owner = container.session.organizer.ownerKeyPair
+                
+                Task {
+                    trace(.success, components: "Firebase token received. Sending to server...", "Token: \(firebaseToken)")
+                    try await client.addToken(
+                        token: firebaseToken,
+                        installationID: try await Self.installationID(),
+                        owner: owner
+                    )
+                }
+            } else {
+                trace(.failure, components: "Firebase token received but no owner association stored. Can't send to server.")
+            }
+            
+        } else {
+            trace(.warning, components: "Firebase token cleared.")
+        }
+    }
+    
+    // MARK: - Authorization -
+    
+    func authorize(completion: @escaping (UNAuthorizationStatus) -> Void) {
+        Task {
+            do {
+                try await center.requestAuthorization(options: [.alert, .badge, .sound])
+            } catch {
+                trace(.failure, components: "Failed to request authorization status: \(error)")
+            }
+            
+            self.register()
+            
+            self.authorizationStatus = await center.notificationSettings().authorizationStatus
+            completion(self.authorizationStatus)
+        }
+    }
+    
+    private func updateStatus() {
+        Task {
+            self.authorizationStatus = await center.notificationSettings().authorizationStatus
+        }
+    }
+}
+
+extension PushController {
+    static func getAuthorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+    
+    static func installationID() async throws -> String {
+        try await Installations.installations().installationID()
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate -
+
+@MainActor
+private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, MessagingDelegate {
+    
+    var didReceiveFCMToken: (@MainActor (String?) -> Void)?
+    
+    let firebase: Messaging
+    
+    init(firebase: Messaging) {
+        self.firebase = firebase
+        super.init()
+    }
+    
+    nonisolated
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        trace(.warning, components: 
+              "Date:     \(notification.date)",
+              "Category: \(notification.request.content.categoryIdentifier)",
+              "Thread:   \(notification.request.content.threadIdentifier)",
+              "Title:    \(notification.request.content.title)",
+              "Body:     \(notification.request.content.body)",
+              "Info:     \(notification.request.content.userInfo)"
+        )
+        
+        await firebase.appDidReceiveMessage(notification.request.content.userInfo)
+        
+        var options: UNNotificationPresentationOptions = [.badge, .list, .sound]
+        
+        // Gives us the option to disable banners for
+        // incoming conversations dynamically based on
+        // which conversation the user is currently viewing
+        
+        #warning("Filter out banners for active chats")
+//        if await PushController.activeChat == notification.chatID {
+//            options.insert(.banner)
+//        }
+        
+        return options
+    }
+    
+    nonisolated
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        trace(.warning, components: "Received response: \(response.actionIdentifier)")
+        
+        await firebase.appDidReceiveMessage(response.notification.request.content.userInfo)
+        
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
+        }
+    }
+    
+    nonisolated
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        trace(.warning, components: "Received FCM token: \(fcmToken ?? "nil")")
+        Task {
+            await self.didReceiveFCMToken?(fcmToken)
+        }
+    }
+}

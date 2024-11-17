@@ -179,6 +179,10 @@
 		9A9DD6902BBDB9F300CAD548 /* TipController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9DD68F2BBDB9F300CAD548 /* TipController.swift */; };
 		9A9DF7C3274ED7950031E219 /* StatusController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9DF7C2274ED7950031E219 /* StatusController.swift */; };
 		9A9DF7C9275155BE0031E219 /* UpgradeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9DF7C8275155BE0031E219 /* UpgradeScreen.swift */; };
+		9A9E26B12CEA73D80021E5DD /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9E26B02CEA73D80021E5DD /* FirebaseAnalytics */; };
+		9A9E26B32CEA73D80021E5DD /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9E26B22CEA73D80021E5DD /* FirebaseCrashlytics */; };
+		9A9E26B52CEA73D80021E5DD /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9E26B42CEA73D80021E5DD /* FirebaseInstallations */; };
+		9A9E26B72CEA73D80021E5DD /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9E26B62CEA73D80021E5DD /* FirebaseMessaging */; };
 		9A9E2B7327B4496D00C56D6A /* MigrationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9E2B7227B4496D00C56D6A /* MigrationScreen.swift */; };
 		9A9F26992A169CC000FA47DF /* GetKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9F26982A169CC000FA47DF /* GetKinScreen.swift */; };
 		9AA1B5152B7BE9AD000DB4B5 /* BuyKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA1B5142B7BE9AD000DB4B5 /* BuyKinScreen.swift */; };
@@ -587,6 +591,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9A9E26B72CEA73D80021E5DD /* FirebaseMessaging in Frameworks */,
+				9A9E26B52CEA73D80021E5DD /* FirebaseInstallations in Frameworks */,
 				9A6AB53D2CDFE0A60038DBB8 /* SwiftUIIntrospect in Frameworks */,
 				9A91F3AE2CB6FC2E0018CE65 /* Bugsnag in Frameworks */,
 				9A9970DA2CA331A5006BDE08 /* GRPC in Frameworks */,
@@ -594,7 +600,9 @@
 				9A9970D82CA33187006BDE08 /* CodeUI in Frameworks */,
 				9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */,
 				9A91F4C92CC0146A0018CE65 /* FlipchatAPI in Frameworks */,
+				9A9E26B32CEA73D80021E5DD /* FirebaseCrashlytics in Frameworks */,
 				9A91F4D32CC03B930018CE65 /* FlipchatServices in Frameworks */,
+				9A9E26B12CEA73D80021E5DD /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1223,6 +1231,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A9970C42CA33147006BDE08 /* Build configuration list for PBXNativeTarget "Flipchat" */;
 			buildPhases = (
+				9A9E26B82CEA74EB0021E5DD /* Generate Google */,
 				9A91F1492CAB30F20018CE65 /* Generate Localized strings */,
 				9A99709F2CA33145006BDE08 /* Sources */,
 				9A9970A02CA33145006BDE08 /* Frameworks */,
@@ -1245,6 +1254,10 @@
 				9A91F4C82CC0146A0018CE65 /* FlipchatAPI */,
 				9A91F4D22CC03B930018CE65 /* FlipchatServices */,
 				9A6AB53C2CDFE0A60038DBB8 /* SwiftUIIntrospect */,
+				9A9E26B02CEA73D80021E5DD /* FirebaseAnalytics */,
+				9A9E26B22CEA73D80021E5DD /* FirebaseCrashlytics */,
+				9A9E26B42CEA73D80021E5DD /* FirebaseInstallations */,
+				9A9E26B62CEA73D80021E5DD /* FirebaseMessaging */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -1679,6 +1692,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./run -a flipchat # -s 1 # skips pull, only runs generation\n";
+		};
+		9A9E26B82CEA74EB0021E5DD /* Generate Google */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Google";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$SOURCE_ROOT/Flipchat/Supporting Files/GoogleService-Info.plist\" \"FCG_\"\n";
 		};
 		9AEB5FDB25CDD4CB004B3680 /* Generate Code Services */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3619,6 +3651,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1654D526790419000A135E /* XCRemoteSwiftPackageReference "grpc-swift" */;
 			productName = GRPC;
+		};
+		9A9E26B02CEA73D80021E5DD /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		9A9E26B22CEA73D80021E5DD /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		9A9E26B42CEA73D80021E5DD /* FirebaseInstallations */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseInstallations;
+		};
+		9A9E26B62CEA73D80021E5DD /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 		9AA47D3C2B76A8C900F1B9B7 /* CodeAPI */ = {
 			isa = XCSwiftPackageProductDependency;
