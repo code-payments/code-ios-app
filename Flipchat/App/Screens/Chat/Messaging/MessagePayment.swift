@@ -64,13 +64,11 @@ public struct MessagePayment: View {
         .background(Color.backgroundMain)
         .clipShape(
             cornerClip(
-                isReceived: isReceived,
                 location: location
             )
         )
         .overlay {
             cornerClip(
-                isReceived: isReceived,
                 location: location
             )
             .stroke(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent, lineWidth: 4)

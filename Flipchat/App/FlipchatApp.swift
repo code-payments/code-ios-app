@@ -12,9 +12,7 @@ import Firebase
 @main
 struct FlipchatApp: App {
     
-    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
-    
-    @StateObject private var container = AppContainer()
+    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
     
     init() {
         FirebaseApp.configure()
@@ -22,9 +20,10 @@ struct FlipchatApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContainerScreen(sessionAuthenticator: container.sessionAuthenticator)
+            ContainerScreen(sessionAuthenticator: delegate.container.sessionAuthenticator)
                 .modelContainer(ChatStore.container)
-                .injectingEnvironment(from: container)
+                .injectingEnvironment(from: delegate.container)
+                .colorScheme(.dark)
         }
     }
 }

@@ -39,7 +39,6 @@ public struct MessageEncrypted: View {
         .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
         .clipShape(
             cornerClip(
-                isReceived: isReceived,
                 location: location
             )
         )

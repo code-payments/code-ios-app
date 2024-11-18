@@ -106,7 +106,7 @@ struct ChatsScreen: View {
         .sheet(isPresented: $viewModel.isShowingCreatePayment) {
             PartialSheet {
                 ModalPaymentConfirmation(
-                    amount: KinAmount(kin: session.startGroupCost, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
+                    amount: session.startGroupCost.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
                     currency: .kin,
                     primaryAction: "Swipe to Pay",
                     secondaryAction: "Cancel",

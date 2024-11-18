@@ -18,9 +18,7 @@ class PushController: ObservableObject {
     
     static var activeChat: ChatID? = nil
     
-    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .denied
-    
-    private let sessionAuthenticator: SessionAuthenticator
+    private let owner: KeyPair
     private let client: FlipchatClient
     private let center: UNUserNotificationCenter
     private let delegate: NotificationDelegate
@@ -29,43 +27,22 @@ class PushController: ObservableObject {
     private var apnsToken: Data?
     private var firebaseToken: String?
     
-    private var stateSubscription: AnyCancellable?
-    
     // MARK: - Init -
     
-    init(sessionAuthenticator: SessionAuthenticator, client: FlipchatClient) {
-        self.sessionAuthenticator = sessionAuthenticator
+    init(owner: KeyPair, client: FlipchatClient) {
+        self.owner    = owner
         self.client   = client
         self.center   = .current()
         self.firebase = Messaging.messaging()
         self.delegate = NotificationDelegate(firebase: firebase)
         
         delegate.didReceiveFCMToken = { [weak self] token in
-            self?.didReceiveFirebaseToken(token: token)
+            try await self?.didReceiveFirebaseToken(token: token)
         }
         
         center.delegate = delegate
         firebase.delegate = delegate
-        
-        updateStatus()
 //        resetAppBadgeCount()
-        
-        stateSubscription = sessionAuthenticator.$state.sink { [weak self] state in
-            // Subscriptions are invoked with `willSet` semantics so we need
-            // to ensure that we execute the "isLoggedIn" check on the subsequent
-            // runloop when that property has been updated.
-            Task {
-                if case .loggedIn = state, let firebaseToken = self?.firebaseToken {
-                    trace(.note, components: "Firebase token cached.", "Token: \(firebaseToken)")
-                    self?.didReceiveFirebaseToken(token: firebaseToken)
-                }
-            }
-        }
-    }
-    
-    func register() {
-        trace(.warning, components: "Registering for APNs token...")
-        UIApplication.shared.registerForRemoteNotifications()
     }
     
     func didReceiveRemoteNotificationToken(with token: Data) {
@@ -95,55 +72,43 @@ class PushController: ObservableObject {
     
     // MARK: - Firebase -
     
-    private func didReceiveFirebaseToken(token: String?) {
+    private func didReceiveFirebaseToken(token: String?) async throws {
         firebaseToken = token
         if let firebaseToken {
-            if case .loggedIn(let container) = sessionAuthenticator.state {
-                let owner = container.session.organizer.ownerKeyPair
-                
-                Task {
-                    trace(.success, components: "Firebase token received. Sending to server...", "Token: \(firebaseToken)")
-                    try await client.addToken(
-                        token: firebaseToken,
-                        installationID: try await Self.installationID(),
-                        owner: owner
-                    )
-                }
-            } else {
-                trace(.failure, components: "Firebase token received but no owner association stored. Can't send to server.")
-            }
+            trace(.success, components: "APNS: Firebase token received. Sending to server...", "Token: \(firebaseToken)")
+            try await client.addToken(
+                token: firebaseToken,
+                installationID: try await Self.installationID(),
+                owner: owner
+            )
             
         } else {
-            trace(.warning, components: "Firebase token cleared.")
+            trace(.warning, components: "APNS: Firebase token cleared.")
         }
     }
     
     // MARK: - Authorization -
     
-    func authorize(completion: @escaping (UNAuthorizationStatus) -> Void) {
-        Task {
-            do {
-                try await center.requestAuthorization(options: [.alert, .badge, .sound])
-            } catch {
-                trace(.failure, components: "Failed to request authorization status: \(error)")
-            }
-            
-            self.register()
-            
-            self.authorizationStatus = await center.notificationSettings().authorizationStatus
-            completion(self.authorizationStatus)
+    func authorizeAndRegister() async throws {
+        if await Self.fetchStatus() == .notDetermined {
+            try await authorize()
         }
+        
+        await register()
     }
     
-    private func updateStatus() {
-        Task {
-            self.authorizationStatus = await center.notificationSettings().authorizationStatus
-        }
+    func register() async {
+        UIApplication.shared.registerForRemoteNotifications()
+    }
+    
+    private func authorize() async throws {
+        try await center.requestAuthorization(options: [.alert, .badge, .sound])
+        await register()
     }
 }
 
 extension PushController {
-    static func getAuthorizationStatus() async -> UNAuthorizationStatus {
+    static func fetchStatus() async -> UNAuthorizationStatus {
         await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
     
@@ -157,7 +122,7 @@ extension PushController {
 @MainActor
 private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, MessagingDelegate {
     
-    var didReceiveFCMToken: (@MainActor (String?) -> Void)?
+    var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     
     let firebase: Messaging
     
@@ -179,7 +144,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         
         await firebase.appDidReceiveMessage(notification.request.content.userInfo)
         
-        var options: UNNotificationPresentationOptions = [.badge, .list, .sound]
+        let options: UNNotificationPresentationOptions = [.badge, .banner, .list, .sound]
         
         // Gives us the option to disable banners for
         // incoming conversations dynamically based on
@@ -208,7 +173,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         trace(.warning, components: "Received FCM token: \(fcmToken ?? "nil")")
         Task {
-            await self.didReceiveFCMToken?(fcmToken)
+            try await self.didReceiveFCMToken?(fcmToken)
         }
     }
 }

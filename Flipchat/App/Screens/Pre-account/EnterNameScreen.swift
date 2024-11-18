@@ -31,17 +31,24 @@ struct EnterNameScreen: View {
             VStack(alignment: .leading, spacing: 40) {
                 Spacer()
                 
-                TextField("Your Name", text: $viewModel.enteredName)
-                    .focused($isFocused)
-                    .font(.appDisplayMedium)
-                    .frame(maxWidth: .infinity)
-                    .truncationMode(.middle)
-                    .lineLimit(1)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .minimumScaleFactor(0.5)
-                    .multilineTextAlignment(.center)
-                    .padding([.leading, .trailing], 0)
+                VStack(spacing: 20) {
+                    TextField("Your Name", text: $viewModel.enteredName)
+                        .focused($isFocused)
+                        .font(.appDisplayMedium)
+                        .frame(maxWidth: .infinity)
+                        .truncationMode(.middle)
+                        .lineLimit(1)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .minimumScaleFactor(0.5)
+                        .multilineTextAlignment(.center)
+                        .padding([.leading, .trailing], 0)
+                    
+                    Text("This is how you'll show up in Chats.")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                }
+                .foregroundStyle(Color.textMain)
                 
                 Spacer()
                 

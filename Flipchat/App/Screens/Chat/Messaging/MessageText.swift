@@ -21,11 +21,21 @@ public struct MessageText: View {
     public let location: MessageSemanticLocation
     
     private var shouldShowName: Bool {
-        location == .beginning || location == .standalone
+        switch location {
+        case .beginning, .standalone:
+            return true
+        case .middle, .end:
+            return false
+        }
     }
     
     private var shouldShowAvatar: Bool {
-        location == .end || location == .standalone
+        switch location {
+        case .beginning, .standalone:
+            return true
+        case .middle, .end:
+            return false
+        }
     }
     
     private var topPadding: CGFloat {
@@ -103,10 +113,7 @@ public struct MessageText: View {
                 }
                 .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
                 .clipShape(
-                    cornerClip(
-                        isReceived: isReceived,
-                        location: location
-                    )
+                    cornerClip(location: location)
                 )
             }
         }

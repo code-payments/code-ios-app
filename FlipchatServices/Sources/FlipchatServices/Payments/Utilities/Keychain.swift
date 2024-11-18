@@ -7,7 +7,6 @@
 
 import Foundation
 import Security
-import LocalAuthentication
 
 @MainActor
 public class Keychain {
@@ -30,8 +29,7 @@ public class Keychain {
             .account(key),
             .class(.genericPassword),
             .value(data),
-            .isSynchronizable(useSynchronization ? .true : .false),
-            .accessGroup(.sharedCodeGroup)
+            .isSynchronizable(useSynchronization ? .true : .false)
         )
         
         // Keychain will reject any insert queries for
@@ -52,48 +50,15 @@ public class Keychain {
     }
     
     public func data(for key: String, migrateIfNeeded: Bool = true) -> Data? {
-        let accessGroup = Attribute.accessGroup(.sharedCodeGroup)
-        
-        var query = Query(
+        let query = Query(
             .account(key),
             .matchLimit(.one),
             .class(.genericPassword),
             .isSynchronizable(.any),
-            .shouldReturnData(true),
-            accessGroup
+            .shouldReturnData(true)
         )
         
-        let accessGroupResult = copyMatching(query: query)
-        
-        // 1. Keychain found a match within the provided
-        // access group, this is the ideal path
-        if let accessGroupResult {
-            return accessGroupResult
-        }
-        
-        // 2. If we're here that means the keychain was
-        // not able to find a match but that could be
-        // because the items aren't stored under the
-        // same access group. If migration, we'll query
-        // the data without an access group and re-save
-        // it under this same access group.
-        query.remove(accessGroup)
-        let ungroupResult = copyMatching(query: query)
-        
-        if let ungroupResult {
-            trace(.warning, components: "Non-access group keychain item found: \(key)")
-            
-            if migrateIfNeeded {
-                let isSuccessful = set(ungroupResult, for: key)
-                if !isSuccessful {
-                    trace(.failure, components: "Failed to migrate keychain item to access group: \(key)")
-                } else {
-                    trace(.success, components: "Keychain item migrated to access group: \(key)")
-                }
-            }
-        }
-        
-        return ungroupResult
+        return copyMatching(query: query)
     }
     
     // MARK: - Delete -
@@ -198,7 +163,6 @@ extension Keychain {
         case shouldReturnReferences(Bool)
         case shouldReturnAttributes(Bool)
         case shouldReturnData(Bool)
-        case shouldUseAuthenticationContext(LAContext)
         case isSynchronizable(Ternary)
         case value(Data)
         
@@ -215,7 +179,6 @@ extension Keychain {
             case .shouldReturnReferences:         return kSecReturnPersistentRef
             case .shouldReturnAttributes:         return kSecReturnAttributes
             case .shouldReturnData:               return kSecReturnData
-            case .shouldUseAuthenticationContext: return kSecUseAuthenticationContext
             case .isSynchronizable:               return kSecAttrSynchronizable
             case .value:                          return kSecValueData
             case .accessible:                     return kSecAttrAccessible
@@ -233,7 +196,6 @@ extension Keychain {
             case .shouldReturnReferences(let value):         return value.cfBool
             case .shouldReturnAttributes(let value):         return value.cfBool
             case .shouldReturnData(let value):               return value.cfBool
-            case .shouldUseAuthenticationContext(let value): return value
             case .isSynchronizable(let value):               return value.rawValue
             case .value(let value):                          return value
             case .accessible(let value):                     return value.rawValue
@@ -349,8 +311,4 @@ private extension Bool {
             return kCFBooleanFalse
         }
     }
-}
-
-private extension String {
-    static let sharedCodeGroup = "83VHY3GSWL.com.kin.code.keychain.shared"
 }

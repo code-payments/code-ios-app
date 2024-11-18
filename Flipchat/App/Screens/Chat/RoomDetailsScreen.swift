@@ -77,7 +77,7 @@ struct RoomDetailsScreen: View {
                             DeterministicGradient(data: chat.serverID)
                         }
                     }
-                    .padding(20)
+                    .padding(50)
                     
                     Spacer()
                     
@@ -107,7 +107,7 @@ struct RoomDetailsScreen: View {
             .sheet(isPresented: $viewModel.isShowingJoinPayment) {
                 PartialSheet {
                     ModalPaymentConfirmation(
-                        amount: KinAmount(kin: chat.coverCharge, rate: .oneToOne).kin.formattedFiat(rate: .oneToOne, suffix: nil),
+                        amount: chat.coverCharge.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
                         currency: .kin,
                         primaryAction: "Swipe to Pay",
                         secondaryAction: "Cancel",

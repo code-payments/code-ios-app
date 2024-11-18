@@ -34,6 +34,7 @@ struct BalanceScreen: View {
                     )
                 )
                 .padding(.top, 40)
+                .foregroundStyle(Color.textMain)
                 Spacer()
             }
         }

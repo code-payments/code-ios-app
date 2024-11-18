@@ -75,9 +75,10 @@ struct TabBarToolbar: View {
                 } label: {
                     tabView(for: items[index])
                 }
+                .buttonStyle(TabItemStyle())
             }
         }
-        .padding(.bottom, 0)
+        .padding(.bottom, -5)
         .background(
             ZStack(alignment: .top) {
                 Color.darkPurple
@@ -99,9 +100,9 @@ struct TabBarToolbar: View {
             Text(tabBarItem.title)
                 .font(.appTextSmall)
         }
-        .foregroundColor(selected ? .textMain : .textSecondary.opacity(0.7))
-        .padding(.top, 12)
         .frame(maxWidth: .infinity)
+        .foregroundColor(selected ? .textMain : .textSecondary.opacity(0.7))
+        .padding(.top, 14)
         .background {
             if selected {
                 Color.lightPurple.opacity(0.3)
@@ -109,7 +110,16 @@ struct TabBarToolbar: View {
                     .edgesIgnoringSafeArea(.bottom)
             }
         }
-        .animation(.springFastestDamped, value: selection)
+        .animation(.easeOutFastest, value: selection)
+    }
+}
+
+private struct TabItemStyle: ButtonStyle {
+
+    @ViewBuilder
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(Rectangle())
     }
 }
 

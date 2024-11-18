@@ -17,7 +17,10 @@ class AppContainer: ObservableObject {
         queue: .main
     )
     
-    let flipClient = FlipchatClient(network: .mainNet, queue: .main)
+    let flipClient = FlipchatClient(
+        network: Environment.current.network,
+        queue: .main
+    )
     
     let betaFlags = BetaFlags.shared
     let biometrics = Biometrics()
@@ -25,19 +28,26 @@ class AppContainer: ObservableObject {
     
     lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)
     
-    lazy private(set) var pushController = PushController(
-        sessionAuthenticator: sessionAuthenticator,
-        client: flipClient
-    )
-    
     lazy private(set) var banners = Banners()
     
     lazy private(set) var exchange = Exchange(client: client)
     
-    init() {
-        // Register for remote notifications
-        pushController.register()
-    }
+    init() {}
+    
+//    private func registerPushNotifications() {
+//        let push = pushController
+//        if case .loggedIn = sessionAuthenticator.state {
+//            if push.authorizationStatus == .notDetermined {
+//                Task {
+//                    try await push.authorize()
+//                }
+//            } else {
+//                push.register()
+//            }
+//        } else {
+//            push.register() // Logged out
+//        }
+//    }
     
     func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view

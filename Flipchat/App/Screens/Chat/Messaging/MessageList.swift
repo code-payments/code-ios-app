@@ -25,7 +25,7 @@ public struct MessageList: View {
         _state = state
         self.userID = userID
         self.hostID = hostID
-        self.messages = messages.groupByDay()
+        self.messages = messages.groupByDay(userID: userID)
     }
     
     // MARK: - Actions -
@@ -88,16 +88,14 @@ public struct MessageList: View {
     
     @MainActor
     @ViewBuilder private func messageDateGroup(group: MessageDateGroup, geometry: GeometryProxy) -> some View {
-        let spacing: CGFloat = 8
-        
-        VStack(alignment: .leading, spacing: spacing) {
+        VStack(alignment: .leading, spacing: 8) {
             MessageTitle(text: group.date.formattedRelatively())
             
             ForEach(group.messages) { container in // MessageContainer
                 let message = container.message
                 let isReceived = message.senderID != userID.data
                 
-                VStack(alignment: .leading, spacing: spacing) {
+                VStack(alignment: .leading, spacing: 2) {
                     ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
                         MessageRow(width: geometry.messageWidth(), isReceived: isReceived) {
                             MessageText(
@@ -142,9 +140,9 @@ struct MessageDateGroup: Identifiable, Hashable {
     var date: Date
     var messages: [MessageContainer]
     
-    init(date: Date, messages: [pMessage]) {
+    init(userID: UserID, date: Date, messages: [pMessage]) {
         self.date = date
-        self.messages = messages.assigningSemanticLocation()
+        self.messages = messages.assigningSemanticLocation(selfUserID: userID)
     }
 }
 
@@ -159,7 +157,7 @@ struct MessageContainer: Identifiable, Hashable {
 }
 
 extension Array where Element == pMessage {
-    func groupByDay() -> [MessageDateGroup] {
+    func groupByDay(userID: UserID) -> [MessageDateGroup] {
         
         let calendar = Calendar.current
         var container: [Date: [pMessage]] = [:]
@@ -177,13 +175,13 @@ extension Array where Element == pMessage {
         
         let sortedKeys = container.keys.sorted()
         let groupedMessages = sortedKeys.map {
-            MessageDateGroup(date: $0, messages: container[$0] ?? [])
+            MessageDateGroup(userID: userID, date: $0, messages: container[$0] ?? [])
         }
 
         return groupedMessages
     }
     
-    func assigningSemanticLocation() -> [MessageContainer] {
+    func assigningSemanticLocation(selfUserID: UserID) -> [MessageContainer] {
         var containers: [MessageContainer] = []
         let messages = self
         
@@ -191,19 +189,21 @@ extension Array where Element == pMessage {
             let previousSender = index > 0 ? messages[index - 1].senderID : nil
             let nextSender = index < messages.count - 1 ? messages[index + 1].senderID : nil
             
+            let isReceived = message.senderID != selfUserID.data
+            
             let location: MessageSemanticLocation
             
             if message.senderID != previousSender && message.senderID != nextSender {
-                location = .standalone
+                location = .standalone(.init(received: isReceived))
                 
             } else if message.senderID != previousSender && message.senderID == nextSender {
-                location = .beginning
+                location = .beginning(.init(received: isReceived))
                 
             } else if message.senderID == previousSender && message.senderID == nextSender {
-                location = .middle
+                location = .middle(.init(received: isReceived))
                 
             } else {
-                location = .end
+                location = .end(.init(received: isReceived))
             }
             
             containers.append(
@@ -264,23 +264,14 @@ public struct MessageRow<Content>: View where Content: View {
 }
 
 extension View {
-    func cornerClip(isReceived: Bool, smaller: Bool = false, location: MessageSemanticLocation) -> some Shape {
+    func cornerClip(smaller: Bool = false, location: MessageSemanticLocation) -> some Shape {
         let m = (smaller ? 0.65 : 1.0)
-        if isReceived {
-            return UnevenRoundedCorners(
-                tl: location.topLeftRadius * m,
-                bl: location.bottomLeftRadius * m,
-                br: Metrics.chatMessageRadiusLarge * m,
-                tr: Metrics.chatMessageRadiusLarge * m
-            )
-        } else {
-            return UnevenRoundedCorners(
-                tl: Metrics.chatMessageRadiusLarge * m,
-                bl: Metrics.chatMessageRadiusLarge * m,
-                br: location.bottomRightRadius * m,
-                tr: location.topRightRadius * m
-            )
-        }
+        return UnevenRoundedCorners(
+            tl: location.topLeftRadius     * m,
+            bl: location.bottomLeftRadius  * m,
+            br: location.bottomRightRadius * m,
+            tr: location.topRightRadius    * m
+        )
     }
 }
 

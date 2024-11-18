@@ -100,7 +100,7 @@ extension Color {
     
     private static var isFlipchat: Bool = {
         let bundleID = try? InfoPlist.bundleIdentifier(bundle: nil)
-        if bundleID == "com.kin.code.oct24" {
+        if bundleID == "com.flipchat.app" {
             return true
         } else {
             return false
@@ -154,7 +154,7 @@ extension Color {
         case .textAction:                return Color(r: 54,  g: 39,  b: 116) // Done
         case .textGoogle:                return Color(r: 47,  g: 22,  b: 175)
         case .textError:                 return Color(r: 255, g: 131, b: 131)
-        case .textSuccess:               return Color(r: 119, g: 114, b: 255) // Done
+        case .textSuccess:               return Color(r: 195, g: 114, b: 255) // Done
         case .textWarning:               return Color(r: 255, g: 243, b: 131)
         case .textActionDisabled:        return Color(r: 255, g: 255, b: 255, o: 0.2) // Done
         case .bannerDark:                return Color(r: 54,  g: 39,  b: 116) // Done

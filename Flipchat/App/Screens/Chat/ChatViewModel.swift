@@ -49,7 +49,7 @@ class ChatViewModel: ObservableObject {
         banners.show(
             style: .error,
             title: "Log out?",
-            description: "Are you sure you want to logout?",
+            description: "Are you sure you want to log out?",
             position: .bottom,
             actions: [
                 .destructive(title: "Log Out") { [weak self] in
@@ -85,8 +85,8 @@ class ChatViewModel: ObservableObject {
     func attemptLeaveChat(chatID: ChatID, roomNumber: RoomNumber) {
         banners.show(
             style: .error,
-            title: "Leave Room \(roomNumber.roomString)?",
-            description: "Are you sure you want to leave? You'll need to pay the cover charge to get back in.",
+            title: "Leave Room?",
+            description: "We won't tell people you left",
             position: .bottom,
             isDismissable: true,
             actions: [

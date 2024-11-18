@@ -8,29 +8,37 @@
 import SwiftUI
 import CodeUI
 
-public enum MessageSemanticLocation {
+public enum MessageSemanticLocation: Equatable, Hashable {
     
-    case standalone
-    case beginning
-    case middle
-    case end
+    case standalone(Direction)
+    case beginning(Direction)
+    case middle(Direction)
+    case end(Direction)
     
-    static func forIndex(_ index: Int, count: Int) -> MessageSemanticLocation {
-        if count < 2 {
-            return .standalone
-        }
-        
-        if index == 0 {
-            return .beginning
-        } else if index >= count - 1 {
-            return .end
-        } else {
-            return .middle
+    var received: Bool {
+        switch self {
+        case .standalone(let direction):
+            return direction == .received
+        case .beginning(let direction):
+            return direction == .received
+        case .middle(let direction):
+            return direction == .received
+        case .end(let direction):
+            return direction == .received
         }
     }
     
     var topLeftRadius: CGFloat {
-        Metrics.chatMessageRadiusSmall
+        if received {
+            Metrics.chatMessageRadiusSmall
+        } else {
+            switch self {
+            case .standalone, .beginning:
+                Metrics.chatMessageRadiusLarge
+            case .middle, .end:
+                Metrics.chatMessageRadiusSmall
+            }
+        }
     }
     
     var bottomLeftRadius: CGFloat {
@@ -43,10 +51,14 @@ public enum MessageSemanticLocation {
     }
     
     var topRightRadius: CGFloat {
-        switch self {
-        case .standalone, .beginning:
-            Metrics.chatMessageRadiusLarge
-        case .middle, .end:
+        if received {
+            switch self {
+            case .standalone, .beginning:
+                Metrics.chatMessageRadiusLarge
+            case .middle, .end:
+                Metrics.chatMessageRadiusSmall
+            }
+        } else {
             Metrics.chatMessageRadiusSmall
         }
     }
@@ -57,6 +69,21 @@ public enum MessageSemanticLocation {
             Metrics.chatMessageRadiusLarge
         case .middle, .beginning:
             Metrics.chatMessageRadiusSmall
+        }
+    }
+}
+
+extension MessageSemanticLocation {
+    public enum Direction: Equatable, Hashable {
+        case received
+        case sent
+        
+        init(received: Bool) {
+            if received {
+                self = .received
+            } else {
+                self = .sent
+            }
         }
     }
 }

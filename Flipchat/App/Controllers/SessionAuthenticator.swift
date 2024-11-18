@@ -246,13 +246,23 @@ final class SessionAuthenticator: ObservableObject {
             containerViewModel: containerViewModel
         )
         
+        let pushController = PushController(
+            owner: organizer.ownerKeyPair,
+            client: flipClient
+        )
+        
+        Task {
+            try await pushController.authorizeAndRegister()
+        }
+        
         session.delegate = self
         
         return AuthenticatedState(
             session: session,
             chatController: chatController,
             chatViewModel: chatViewModel,
-            containerViewModel: containerViewModel
+            containerViewModel: containerViewModel,
+            pushController: pushController
         )
     }
     
@@ -401,6 +411,7 @@ struct AuthenticatedState {
     let chatController: ChatController
     let chatViewModel: ChatViewModel
     let containerViewModel: ContainerViewModel
+    let pushController: PushController
 }
 
 // MARK: - InitializedAccount -

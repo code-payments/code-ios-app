@@ -10,6 +10,8 @@ import CodeUI
 import FlipchatServices
 
 class AppDelegate: NSObject, UIApplicationDelegate {
+    
+    let container = AppContainer()
 
     // MARK: - Launch -
     
@@ -24,6 +26,28 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         return true
     }
+    
+    // MARK: - Push Notifications -
+    
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        guard case .loggedIn(let state) = container.sessionAuthenticator.state else {
+            trace(.failure, components: "APNS: registration failed, not logged in")
+            return
+        }
+        
+        state.pushController.didReceiveRemoteNotificationToken(with: deviceToken)
+    }
+    
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        trace(.failure, components: "APNS: Push notification registration failed: \(error)")
+    }
+    
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) async -> UIBackgroundFetchResult {
+        trace(.warning, components: "APNS: Received push notification: \(userInfo)")
+        return .noData
+    }
+    
+    // MARK: - Appearance -
     
     private func setupFonts() {
         FontBook.registerApplicationFonts()
