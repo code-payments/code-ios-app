@@ -136,11 +136,15 @@ class ChatViewModel: ObservableObject {
     }
     
     func createChat() async throws {
-        guard let _ = session.userFlags else {
+        guard let userFlags = session.userFlags else {
             throw Error.missingUserFlags
         }
         
-        let chatID = try await chatController.startGroupChat(amount: session.startGroupCost)
+        let chatID = try await chatController.startGroupChat(
+            amount: userFlags.startGroupCost,
+            destination: userFlags.feeDestination
+        )
+        
         containerViewModel?.pushChat(chatID: chatID)
     }
     

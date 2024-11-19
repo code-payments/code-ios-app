@@ -27,7 +27,11 @@ class Session: ObservableObject {
     @Published private(set) var userFlags: UserFlags?
     
     var startGroupCost: Kin {
-        userFlags?.startGroupCost ?? 200 // TODO: Fixed price
+        userFlags?.startGroupCost ?? 201 // TODO: Fixed price
+    }
+    
+    var startGroupDestination: PublicKey? {
+        userFlags?.feeDestination
     }
     
     weak var delegate: SessionDelegate?

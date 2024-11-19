@@ -53,7 +53,7 @@ public struct ModalPaymentConfirmation: View {
                         try await paymentAction()
                     },
                     completion: {
-                        try await Task.delay(seconds: 1) // Checkmark delay
+                        try await Task.delay(milliseconds: 500) // Checkmark delay
                         dismissAction()
                     }
                 )
