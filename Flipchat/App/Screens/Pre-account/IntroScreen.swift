@@ -57,11 +57,11 @@ struct IntroScreen: View {
                                 action: viewModel.startCreateAccount
                             )
                             
-                            CodeButton(
-                                style: .subtle,
-                                title: Localized.Action.logIn,
-                                action: viewModel.startLogin
-                            )
+//                            CodeButton(
+//                                style: .subtle,
+//                                title: Localized.Action.logIn,
+//                                action: viewModel.startLogin
+//                            )
                         }
                     }
                     .padding(20.0)
@@ -79,7 +79,7 @@ struct IntroScreen: View {
                             }
                             .sheet(isPresented: $isShowingTermsOfService) {
                                 SafariView(
-                                    url: .termsOfService,
+                                    url: .flipchatTermsOfService,
                                     entersReaderIfAvailable: false
                                 )
                             }
@@ -92,7 +92,7 @@ struct IntroScreen: View {
                             }
                             .sheet(isPresented: $isShowingPrivacyPolicy) {
                                 SafariView(
-                                    url: .privacyPolicy,
+                                    url: .flipchatPrivacyPolicy,
                                     entersReaderIfAvailable: false
                                 )
                             }
