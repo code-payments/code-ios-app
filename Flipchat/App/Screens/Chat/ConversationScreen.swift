@@ -48,6 +48,7 @@ struct ConversationScreen: View {
     
     private func didAppear() {
         startStream()
+        advanceReadPointer()
     }
     
     private func didDisappear() {
@@ -195,7 +196,7 @@ struct ConversationScreen: View {
     
     private func sendMessage(text: String) {
         Task {
-            try await chatController.sendMessage(text: text, for: ID(data: chat.serverID))
+            try await chatController.sendMessage(text: text, for: chatID)
         }
         
         input = ""
@@ -204,13 +205,19 @@ struct ConversationScreen: View {
     }
     
     private func streamMessages(messages: [Chat.Message]) {
-        try? chatController.receiveMessages(messages: messages, for: ID(data: chat.serverID))
+        try? chatController.receiveMessages(messages: messages, for: chatID)
         
         scrollToBottom()
     }
     
     private func scrollToBottom() {
         messageListState.scrollToBottom()
+    }
+    
+    private func advanceReadPointer() {
+        Task {
+            try await chatController.advanceReadPointerToLatest(for: chatID)
+        }
     }
     
     // MARK: - Errors -

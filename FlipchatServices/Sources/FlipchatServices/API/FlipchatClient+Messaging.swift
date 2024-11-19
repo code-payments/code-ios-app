@@ -29,9 +29,9 @@ extension FlipchatClient {
         }
     }
     
-    public func advancePointer(chatID: ChatID, to messageID: MessageID, owner: KeyPair) async throws {
+    public func advanceReadPointer(chatID: ChatID, to messageID: MessageID, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
-            messagingService.advancePointer(chatID: chatID, to: messageID, owner: owner) { c.resume(with: $0) }
+            messagingService.advanceReadPointer(chatID: chatID, to: messageID, owner: owner) { c.resume(with: $0) }
         }
     }
 }

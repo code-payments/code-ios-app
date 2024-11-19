@@ -95,6 +95,10 @@ class ChatController: ObservableObject {
         try await chatStore.sendMessage(text: text, for: chatID)
     }
     
+    func advanceReadPointerToLatest(for chatID: ChatID) async throws {
+        try await chatStore.advanceReadPointerToLatest(for: chatID)
+    }
+    
     // MARK: - Group Chat -
     
     func startGroupChat(amount: Kin) async throws -> ChatID {

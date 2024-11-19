@@ -177,7 +177,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         }
     }
     
-    func advancePointer(chatID: ChatID, to messageID: MessageID, owner: KeyPair, completion: @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
+    func advanceReadPointer(chatID: ChatID, to messageID: MessageID, owner: KeyPair, completion: @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)", "Message ID: \(chatID.data.hexEncodedString())")
         
         let request = Flipchat_Messaging_V1_AdvancePointerRequest.with {

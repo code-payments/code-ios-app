@@ -86,6 +86,10 @@ class ChatStore: ObservableObject {
             try update(chatID: batchUpdate.chatID, withMetadata: metadata)
         }
         
+        if let lastMessage = batchUpdate.lastMessage {
+            try update(chatID: batchUpdate.chatID, withLastMessage: lastMessage)
+        }
+        
         if let members = batchUpdate.memberUpdate {
             try update(chatID: batchUpdate.chatID, withMembers: members)
         }
@@ -113,6 +117,16 @@ class ChatStore: ObservableObject {
         }
         
         try upsert(members: members, in: chat)
+    }
+    
+    private func update(chatID: ChatID, withLastMessage message: Chat.Message) throws {
+        trace(.success, components: "Message: \(message.id.description)")
+        
+        guard let chat = try fetchSingleChat(serverID: chatID.data) else {
+            return
+        }
+        
+        try upsert(messages: [message], in: chat)
     }
     
     private func update(chatID: ChatID, withPointerUpdate update: Chat.BatchUpdate.PointerUpdate) throws {
@@ -155,18 +169,16 @@ class ChatStore: ObservableObject {
             throw Error.failedToFetchChat
         }
         
-        let localMessage = createMessage(
-            in: chat,
-            id: nil,
-            text: text
-        )
-        
-        try save()
-        
         let deliveredMessage = try await client.sendMessage(
             chatID: ID(data: chat.serverID),
             owner: owner,
             content: .text(text)
+        )
+        
+        let localMessage = createMessage(
+            in: chat,
+            id: nil,
+            text: text
         )
         
         localMessage.update(from: deliveredMessage)
@@ -174,6 +186,17 @@ class ChatStore: ObservableObject {
         try save()
     }
     
+    func advanceReadPointerToLatest(for chatID: ChatID) async throws {
+        guard let message = try fetchLatestMessage(for: chatID.data) else {
+            throw Error.failedToFetchLatest
+        }
+        
+        try await client.advanceReadPointer(
+            chatID: chatID,
+            to: MessageID(data: message.serverID),
+            owner: owner
+        )
+    }
     func startGroupChat(intentID: PublicKey) async throws -> ChatID {
         let metadata = try await client.startGroupChat(
             with: [userID],

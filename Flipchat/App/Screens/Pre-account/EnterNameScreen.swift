@@ -31,7 +31,7 @@ struct EnterNameScreen: View {
             VStack(alignment: .leading, spacing: 40) {
                 Spacer()
                 
-                VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 20) {
                     TextField("Your Name", text: $viewModel.enteredName)
                         .focused($isFocused)
                         .font(.appDisplayMedium)
@@ -41,7 +41,7 @@ struct EnterNameScreen: View {
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .minimumScaleFactor(0.5)
-                        .multilineTextAlignment(.center)
+                        .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 0)
                     
                     Text("This is how you'll show up in Chats.")
