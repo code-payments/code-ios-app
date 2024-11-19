@@ -208,6 +208,7 @@ struct ConversationScreen: View {
         try? chatController.receiveMessages(messages: messages, for: chatID)
         
         scrollToBottom()
+        advanceReadPointer()
     }
     
     private func scrollToBottom() {

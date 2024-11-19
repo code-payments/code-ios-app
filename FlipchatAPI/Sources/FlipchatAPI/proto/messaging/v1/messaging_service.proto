@@ -31,6 +31,9 @@ service Messaging {
     //
     // These requests are transient, and may be dropped at any point.
     rpc NotifyIsTyping(NotifyIsTypingRequest) returns (NotifyIsTypingResponse);
+
+    // DeleteMessage deletes a message
+    rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
 }
 
 message StreamMessagesRequest {
@@ -108,7 +111,6 @@ message SendMessageRequest {
 
     // Allowed content types that can be sent by client:
     //  - TextContent
-    //  - ThankYouContent
     repeated Content content = 2 [(validate.rules).repeated = {
         min_items: 1
         max_items: 1
@@ -163,3 +165,15 @@ message NotifyIsTypingResponse {
     }
 }
 
+message DeleteMessageRequest {
+    MessageId message_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+message DeleteMessageResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+}

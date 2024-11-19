@@ -86,9 +86,15 @@ class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
+                guard let destination = PublicKey(response.userFlags.feeDestination.value) else {
+                    completion(.failure(.failedToParsePublicKey))
+                    return
+                }
+                
                 let flags = UserFlags(
                     isStaff: response.userFlags.isStaff,
-                    startGroupCost: Kin(quarks: response.userFlags.startGroupCost.quarks)
+                    startGroupCost: Kin(quarks: response.userFlags.startGroupFee.quarks),
+                    feeDestination: destination
                 )
                 
                 trace(.success, components: "Is Staff: \(flags.isStaff ? "Yes" : "No")", "Start Group Cost: \(flags.startGroupCost.description)")
@@ -110,6 +116,7 @@ class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {
 public struct UserFlags {
     public let isStaff: Bool
     public let startGroupCost: Kin
+    public let feeDestination: PublicKey
 }
 
 // MARK: - Errors -
@@ -132,6 +139,7 @@ public enum ErrorFetchUserFlags: Int, Error {
     case ok
     case denied
     case unknown = -1
+    case failedToParsePublicKey = -2
 }
 
 // MARK: - Interceptors -

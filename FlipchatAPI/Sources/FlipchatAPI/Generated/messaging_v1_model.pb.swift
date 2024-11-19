@@ -205,15 +205,15 @@ public struct Flipchat_Messaging_V1_Content {
     set {type = .text(newValue)}
   }
 
-  public var localized: Flipchat_Messaging_V1_LocalizedContent {
+  public var localizedAnnouncement: Flipchat_Messaging_V1_LocalizedAnnouncementContent {
     get {
-      if case .localized(let v)? = type {return v}
-      return Flipchat_Messaging_V1_LocalizedContent()
+      if case .localizedAnnouncement(let v)? = type {return v}
+      return Flipchat_Messaging_V1_LocalizedAnnouncementContent()
     }
-    set {type = .localized(newValue)}
+    set {type = .localizedAnnouncement(newValue)}
   }
 
-  ///ExchangeDataContent     exchange_data     = 3;
+  ///ExchangeDataContent         exchange_data     = 3;
   public var naclBox: Flipchat_Messaging_V1_NaclBoxEncryptedContent {
     get {
       if case .naclBox(let v)? = type {return v}
@@ -226,8 +226,8 @@ public struct Flipchat_Messaging_V1_Content {
 
   public enum OneOf_Type: Equatable {
     case text(Flipchat_Messaging_V1_TextContent)
-    case localized(Flipchat_Messaging_V1_LocalizedContent)
-    ///ExchangeDataContent     exchange_data     = 3;
+    case localizedAnnouncement(Flipchat_Messaging_V1_LocalizedAnnouncementContent)
+    ///ExchangeDataContent         exchange_data     = 3;
     case naclBox(Flipchat_Messaging_V1_NaclBoxEncryptedContent)
 
   #if !swift(>=4.1)
@@ -240,8 +240,8 @@ public struct Flipchat_Messaging_V1_Content {
         guard case .text(let l) = lhs, case .text(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.localized, .localized): return {
-        guard case .localized(let l) = lhs, case .localized(let r) = rhs else { preconditionFailure() }
+      case (.localizedAnnouncement, .localizedAnnouncement): return {
+        guard case .localizedAnnouncement(let l) = lhs, case .localizedAnnouncement(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       case (.naclBox, .naclBox): return {
@@ -270,9 +270,10 @@ public struct Flipchat_Messaging_V1_TextContent {
   public init() {}
 }
 
-/// Text content that is either a localization key that should be translated on
-/// client, or a server-side translated piece of text.
-public struct Flipchat_Messaging_V1_LocalizedContent {
+/// LocalizedAnnouncementContent content is an annoucement that is either a
+/// localization key that should be translated on client, or a server-side
+/// translated piece of text.
+public struct Flipchat_Messaging_V1_LocalizedAnnouncementContent {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -323,7 +324,7 @@ extension Flipchat_Messaging_V1_IsTyping: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content.OneOf_Type: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_TextContent: @unchecked Sendable {}
-extension Flipchat_Messaging_V1_LocalizedContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_LocalizedAnnouncementContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_NaclBoxEncryptedContent: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
@@ -514,7 +515,7 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
   public static let protoMessageName: String = _protobuf_package + ".Content"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "text"),
-    2: .same(proto: "localized"),
+    2: .standard(proto: "localized_announcement"),
     4: .standard(proto: "nacl_box"),
   ]
 
@@ -538,16 +539,16 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
         }
       }()
       case 2: try {
-        var v: Flipchat_Messaging_V1_LocalizedContent?
+        var v: Flipchat_Messaging_V1_LocalizedAnnouncementContent?
         var hadOneofValue = false
         if let current = self.type {
           hadOneofValue = true
-          if case .localized(let m) = current {v = m}
+          if case .localizedAnnouncement(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.type = .localized(v)
+          self.type = .localizedAnnouncement(v)
         }
       }()
       case 4: try {
@@ -578,8 +579,8 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
       guard case .text(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     }()
-    case .localized?: try {
-      guard case .localized(let v)? = self.type else { preconditionFailure() }
+    case .localizedAnnouncement?: try {
+      guard case .localizedAnnouncement(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     }()
     case .naclBox?: try {
@@ -630,8 +631,8 @@ extension Flipchat_Messaging_V1_TextContent: SwiftProtobuf.Message, SwiftProtobu
   }
 }
 
-extension Flipchat_Messaging_V1_LocalizedContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".LocalizedContent"
+extension Flipchat_Messaging_V1_LocalizedAnnouncementContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LocalizedAnnouncementContent"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "key_or_text"),
   ]
@@ -655,7 +656,7 @@ extension Flipchat_Messaging_V1_LocalizedContent: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipchat_Messaging_V1_LocalizedContent, rhs: Flipchat_Messaging_V1_LocalizedContent) -> Bool {
+  public static func ==(lhs: Flipchat_Messaging_V1_LocalizedAnnouncementContent, rhs: Flipchat_Messaging_V1_LocalizedAnnouncementContent) -> Bool {
     if lhs.keyOrText != rhs.keyOrText {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

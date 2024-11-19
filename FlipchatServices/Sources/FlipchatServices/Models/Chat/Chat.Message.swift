@@ -64,7 +64,7 @@ extension Chat {
                 date: date,
                 contents: contents.map { content in
                     switch content {
-                    case .localized, .text:
+                    case .announcement, .text:
                         return content // Passthrough
                         
                     case .sodiumBox(let encryptedData):

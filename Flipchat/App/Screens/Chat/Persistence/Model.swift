@@ -147,7 +147,7 @@ extension pChat {
             return "No content"
         }
         
-        return newestMessage.contents
+        return newestMessage.contents.map { $0.text }
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespaces)
     }
@@ -169,7 +169,7 @@ public class pMessage: ServerIdentifiable {
     
     public var isDeleted: Bool
     
-    public var contents: [String]
+    public var contents: [pMessageContent]
     
     // Relationships
     
@@ -182,7 +182,7 @@ public class pMessage: ServerIdentifiable {
     @Relationship(deleteRule: .cascade)
     public var pointers: [pPointer] = []
     
-    init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [String]) {
+    init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [pMessageContent]) {
         self.serverID = serverID
         self.date = date
         self.state = state
@@ -198,7 +198,7 @@ public class pMessage: ServerIdentifiable {
             state: .sent,
             senderID: senderID,
             isDeleted: false,
-            contents: text == nil ? [] : [text!]
+            contents: text == nil ? [] : [.text(text!)]
         )
     }
     
@@ -208,7 +208,7 @@ public class pMessage: ServerIdentifiable {
         self.state = .delivered
         self.isDeleted = false
         self.senderID = message.senderID?.data
-        self.contents = message.contents.compactMap { $0.text }
+        self.contents = message.contents.compactMap { pMessageContent($0) }
     }
 }
 
@@ -220,7 +220,7 @@ extension pMessage {
             state: .delivered,
             senderID: message.senderID?.data,
             isDeleted: false,
-            contents: message.contents.compactMap { $0.text }
+            contents: message.contents.compactMap { pMessageContent($0) }
         )
     }
 }
@@ -228,6 +228,30 @@ extension pMessage {
 extension pMessage {
     var userDisplayName: String {
         sender?.displayName ?? "Anonymous"
+    }
+}
+
+public enum pMessageContent: Codable, Hashable, Equatable {
+    
+    case text(String)
+    case announcement(String)
+    
+    var text: String {
+        switch self {
+        case .text(let text), .announcement(let text):
+            return text
+        }
+    }
+    
+    init(_ content: Chat.Content) {
+        switch content {
+        case .text(let text):
+            self = .text(text)
+        case .announcement(let text):
+            self = .announcement(text)
+        case .sodiumBox:
+            self = .text("<[Encrypted]>")
+        }
     }
 }
 

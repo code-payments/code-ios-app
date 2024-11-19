@@ -13,15 +13,16 @@ extension Chat {
     public enum Content: Equatable, Hashable, Sendable {
         
         case text(String)
-        case localized(String)
+        case announcement(String)
         case sodiumBox(EncryptedData)
         
-        public var text: String? {
+        var text: String {
             switch self {
-            case .text(let value), .localized(let value):
-                return value
+            case .text(let text), .announcement(let text):
+                return text
+                
             case .sodiumBox:
-                return "[Encrypted]"
+                return "<[Encrypted]>"
             }
         }
     }
@@ -32,7 +33,7 @@ extension Chat.Content: Identifiable {
         switch self {
         case .text(let value):
             return "text:\(value)"
-        case .localized(let value):
+        case .announcement(let value):
             return "localized:\(value)"
         case .sodiumBox(let data):
             return "nacl:\(data.nonce.hexString())"
@@ -53,7 +54,7 @@ extension Chat.Content {
                 }
             }
             
-        case .localized, .sodiumBox:
+        case .announcement, .sodiumBox:
             fatalError("Content unsupported")
         }
     }
@@ -64,8 +65,8 @@ extension Chat.Content {
         }
         
         switch type {
-        case .localized(let localizedContent):
-            self = .localized(localizedContent.keyOrText)
+        case .localizedAnnouncement(let announcement):
+            self = .announcement(announcement.keyOrText)
             
         case .text(let textContent):
             self = .text(textContent.text)

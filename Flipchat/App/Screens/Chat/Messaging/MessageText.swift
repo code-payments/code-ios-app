@@ -41,7 +41,7 @@ public struct MessageText: View {
     private var topPadding: CGFloat {
         switch location {
         case .beginning, .standalone:
-            return 8
+            return 0
         case .middle, .end:
             return 0
         }
@@ -59,10 +59,11 @@ public struct MessageText: View {
     }
     
     public var body: some View {
-        HStack(alignment: .bottom) {
+        HStack(alignment: .top) {
             if isReceived {
                 if shouldShowAvatar {
                     DeterministicAvatar(data: avatarData, diameter: 40)
+                        .padding(.top, 17)
                         .if(isHost) { $0
                             .overlay {
                                 Image.asset(.crown)
@@ -73,7 +74,7 @@ public struct MessageText: View {
                     VStack {
                         
                     }
-                    .frame(width: 40, height: 40)
+                    .frame(width: 40, height: 5)
                 }
             }
             
@@ -115,6 +116,14 @@ public struct MessageText: View {
                 .clipShape(
                     cornerClip(location: location)
                 )
+                .contentShape(
+                    cornerClip(location: location)
+                )
+                .contextMenu(ContextMenu {
+                    Button(action: {}) {
+                        Label(Localized.Action.copy, systemImage: SystemSymbol.doc.rawValue)
+                    }
+                })
             }
         }
         .padding(.top, topPadding)

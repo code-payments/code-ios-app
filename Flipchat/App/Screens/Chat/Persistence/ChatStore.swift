@@ -120,7 +120,7 @@ class ChatStore: ObservableObject {
     }
     
     private func update(chatID: ChatID, withLastMessage message: Chat.Message) throws {
-        trace(.success, components: "Message: \(message.id.description)")
+        trace(.success, components: "Message: \(message.id.description)", "Content: \(message.contents)")
         
         guard let chat = try fetchSingleChat(serverID: chatID.data) else {
             return
@@ -196,6 +196,13 @@ class ChatStore: ObservableObject {
             to: MessageID(data: message.serverID),
             owner: owner
         )
+        
+        // Clear unread count
+        
+        if let chat = try fetchSingleChat(serverID: chatID.data) {
+            chat.unreadCount = 0
+            try save()
+        }
     }
     func startGroupChat(intentID: PublicKey) async throws -> ChatID {
         let metadata = try await client.startGroupChat(

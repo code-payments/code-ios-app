@@ -55,6 +55,11 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
+
+  func removeUser(
+    _ request: Flipchat_Chat_V1_RemoveUserRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>
 }
 
 extension Flipchat_Chat_V1_ChatClientProtocol {
@@ -224,6 +229,24 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
     )
   }
+
+  /// RemoveUser removes a user from a chat
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to RemoveUser.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func removeUser(
+    _ request: Flipchat_Chat_V1_RemoveUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -326,6 +349,11 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
+
+  func makeRemoveUserCall(
+    _ request: Flipchat_Chat_V1_RemoveUserRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -429,6 +457,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
+    )
+  }
+
+  public func makeRemoveUserCall(
+    _ request: Flipchat_Chat_V1_RemoveUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
     )
   }
 }
@@ -542,6 +582,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
     )
   }
+
+  public func removeUser(
+    _ request: Flipchat_Chat_V1_RemoveUserRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_RemoveUserResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -586,6 +638,9 @@ public protocol Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol: Sendable 
 
   /// - Returns: Interceptors to use when invoking 'setCoverCharge'.
   func makeSetCoverChargeInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'removeUser'.
+  func makeRemoveUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
 }
 
 public enum Flipchat_Chat_V1_ChatClientMetadata {
@@ -601,6 +656,7 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       Flipchat_Chat_V1_ChatClientMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setMuteState,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser,
     ]
   )
 
@@ -652,6 +708,12 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       path: "/flipchat.chat.v1.Chat/SetCoverCharge",
       type: GRPCCallType.unary
     )
+
+    public static let removeUser = GRPCMethodDescriptor(
+      name: "RemoveUser",
+      path: "/flipchat.chat.v1.Chat/RemoveUser",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -698,6 +760,9 @@ public protocol Flipchat_Chat_V1_ChatProvider: CallHandlerProvider {
 
   /// SetCoverCharge sets a chat's cover charge
   func setCoverCharge(request: Flipchat_Chat_V1_SetCoverChargeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetCoverChargeResponse>
+
+  /// RemoveUser removes a user from a chat
+  func removeUser(request: Flipchat_Chat_V1_RemoveUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_RemoveUserResponse>
 }
 
 extension Flipchat_Chat_V1_ChatProvider {
@@ -784,6 +849,15 @@ extension Flipchat_Chat_V1_ChatProvider {
         userFunction: self.setCoverCharge(request:context:)
       )
 
+    case "RemoveUser":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_RemoveUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_RemoveUserResponse>(),
+        interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? [],
+        userFunction: self.removeUser(request:context:)
+      )
+
     default:
       return nil
     }
@@ -860,6 +934,12 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     request: Flipchat_Chat_V1_SetCoverChargeRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_SetCoverChargeResponse
+
+  /// RemoveUser removes a user from a chat
+  func removeUser(
+    request: Flipchat_Chat_V1_RemoveUserRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_RemoveUserResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -953,6 +1033,15 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.setCoverCharge(request: $0, context: $1) }
       )
 
+    case "RemoveUser":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_RemoveUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_RemoveUserResponse>(),
+        interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? [],
+        wrapping: { try await self.removeUser(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -992,6 +1081,10 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when handling 'setCoverCharge'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetCoverChargeInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
+
+  /// - Returns: Interceptors to use when handling 'removeUser'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeRemoveUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
 }
 
 public enum Flipchat_Chat_V1_ChatServerMetadata {
@@ -1007,6 +1100,7 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       Flipchat_Chat_V1_ChatServerMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setMuteState,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setCoverCharge,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.removeUser,
     ]
   )
 
@@ -1056,6 +1150,12 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
     public static let setCoverCharge = GRPCMethodDescriptor(
       name: "SetCoverCharge",
       path: "/flipchat.chat.v1.Chat/SetCoverCharge",
+      type: GRPCCallType.unary
+    )
+
+    public static let removeUser = GRPCMethodDescriptor(
+      name: "RemoveUser",
+      path: "/flipchat.chat.v1.Chat/RemoveUser",
       type: GRPCCallType.unary
     )
   }

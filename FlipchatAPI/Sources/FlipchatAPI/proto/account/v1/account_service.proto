@@ -162,5 +162,7 @@ message GetUserFlagsResponse {
 message UserFlags {
 	bool is_staff = 1;
 
-	common.v1.PaymentAmount start_group_cost = 2 [(validate.rules).message.required = true];
+	common.v1.PaymentAmount start_group_fee = 2 [(validate.rules).message.required = true];
+
+	common.v1.PublicKey fee_destination = 3 [(validate.rules).message.required = true];
 }

@@ -20,12 +20,12 @@ public struct MessageTitle: View {
         HStack {
             Spacer()
             Text(text)
-                .font(.appTextHeading)
-                .foregroundColor(.textMain)
+                .font(.appTextSmall)
+                .foregroundColor(.textSecondary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color.backgroundMessageReceived)
-                .cornerRadius(99)
+//                .background(Color.backgroundMessageReceived.opacity(0.5))
+//                .cornerRadius(99)
             Spacer()
         }
     }

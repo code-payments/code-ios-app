@@ -44,7 +44,7 @@ struct EnterNameScreen: View {
                         .multilineTextAlignment(.leading)
                         .padding([.leading, .trailing], 0)
                     
-                    Text("This is how you'll show up in Chats.")
+                    Text("This is how you'll show up in chats")
                         .font(.appTextMedium)
                         .foregroundStyle(Color.textSecondary)
                 }

@@ -15,6 +15,15 @@ public enum MessageSemanticLocation: Equatable, Hashable {
     case middle(Direction)
     case end(Direction)
     
+    var isFirst: Bool {
+        switch self {
+        case .standalone, .beginning:
+            return true
+        case .middle, .end:
+            return false
+        }
+    }
+    
     var received: Bool {
         switch self {
         case .standalone(let direction):
@@ -32,43 +41,41 @@ public enum MessageSemanticLocation: Equatable, Hashable {
         if received {
             Metrics.chatMessageRadiusSmall
         } else {
-            switch self {
-            case .standalone, .beginning:
-                Metrics.chatMessageRadiusLarge
-            case .middle, .end:
-                Metrics.chatMessageRadiusSmall
-            }
+            Metrics.chatMessageRadiusLarge
         }
     }
     
     var bottomLeftRadius: CGFloat {
-        switch self {
-        case .standalone, .end:
+        if received {
+            switch self {
+            case .end, .standalone:
+                Metrics.chatMessageRadiusLarge
+            case .middle, .beginning:
+                Metrics.chatMessageRadiusSmall
+            }
+        } else {
             Metrics.chatMessageRadiusLarge
-        case .middle, .beginning:
-            Metrics.chatMessageRadiusSmall
         }
     }
     
     var topRightRadius: CGFloat {
         if received {
-            switch self {
-            case .standalone, .beginning:
-                Metrics.chatMessageRadiusLarge
-            case .middle, .end:
-                Metrics.chatMessageRadiusSmall
-            }
+            Metrics.chatMessageRadiusLarge
         } else {
             Metrics.chatMessageRadiusSmall
         }
     }
     
     var bottomRightRadius: CGFloat {
-        switch self {
-        case .standalone, .end:
+        if received {
             Metrics.chatMessageRadiusLarge
-        case .middle, .beginning:
-            Metrics.chatMessageRadiusSmall
+        } else {
+            switch self {
+            case .end, .standalone:
+                Metrics.chatMessageRadiusLarge
+            case .middle, .beginning:
+                Metrics.chatMessageRadiusSmall
+            }
         }
     }
 }

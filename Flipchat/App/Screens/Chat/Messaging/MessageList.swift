@@ -88,27 +88,33 @@ public struct MessageList: View {
     
     @MainActor
     @ViewBuilder private func messageDateGroup(group: MessageDateGroup, geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 2) { // Spacing between same-sender messages
             MessageTitle(text: group.date.formattedRelatively())
             
             ForEach(group.messages) { container in // MessageContainer
                 let message = container.message
                 let isReceived = message.senderID != userID.data
                 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
-                        MessageRow(width: geometry.messageWidth(), isReceived: isReceived) {
-                            MessageText(
-                                state: message.state.state,
-                                name: message.userDisplayName,
-                                avatarData: message.senderID ?? Data([0, 0, 0, 0]),
-                                text: content,
-                                date: message.date,
-                                isReceived: isReceived,
-                                isHost: message.senderID == hostID.data,
-                                location: container.location
-                            )
-                        }
+                        MessageRow(width: geometry.messageWidth(for: content), isReceived: isReceived) {
+                            switch content {
+                            case .text(let text):
+                                MessageText(
+                                    state: message.state.state,
+                                    name: message.userDisplayName,
+                                    avatarData: message.senderID ?? Data([0, 0, 0, 0]),
+                                    text: text,
+                                    date: message.date,
+                                    isReceived: isReceived,
+                                    isHost: message.senderID == hostID.data,
+                                    location: container.location
+                                )
+                                
+                            case .announcement(let text):
+                                MessageAnnouncement(text: text)
+                            }
+                        }.padding(.top, container.location.isFirst ? 10 : 0) // Spacing for every message row
                     }
                 }
             }
@@ -191,27 +197,38 @@ extension Array where Element == pMessage {
             
             let isReceived = message.senderID != selfUserID.data
             
-            let location: MessageSemanticLocation
-            
-            if message.senderID != previousSender && message.senderID != nextSender {
-                location = .standalone(.init(received: isReceived))
+            if let senderID = message.senderID {
+                let location: MessageSemanticLocation
                 
-            } else if message.senderID != previousSender && message.senderID == nextSender {
-                location = .beginning(.init(received: isReceived))
+                if message.senderID != previousSender && message.senderID != nextSender {
+                    location = .standalone(.init(received: isReceived))
+                    
+                } else if message.senderID != previousSender && message.senderID == nextSender {
+                    location = .beginning(.init(received: isReceived))
+                    
+                } else if message.senderID == previousSender && message.senderID == nextSender {
+                    location = .middle(.init(received: isReceived))
+                    
+                } else {
+                    location = .end(.init(received: isReceived))
+                }
                 
-            } else if message.senderID == previousSender && message.senderID == nextSender {
-                location = .middle(.init(received: isReceived))
+                containers.append(
+                    MessageContainer(
+                        location: location,
+                        message: message
+                    )
+                )
                 
             } else {
-                location = .end(.init(received: isReceived))
-            }
-            
-            containers.append(
-                MessageContainer(
-                    location: location,
-                    message: message
+                let location: MessageSemanticLocation = .standalone(.init(received: isReceived))
+                containers.append(
+                    MessageContainer(
+                        location: location,
+                        message: message
+                    )
                 )
-            )
+            }
         }
         
         return containers
@@ -219,8 +236,13 @@ extension Array where Element == pMessage {
 }
 
 private extension GeometryProxy {
-    func messageWidth() -> CGFloat {
-        size.width * 0.80
+    func messageWidth(for content: pMessageContent) -> CGFloat {
+        switch content {
+        case .text:
+            size.width * 0.80
+        case .announcement:
+            size.width * 1.00
+        }
     }
 }
 
@@ -288,17 +310,49 @@ import SwiftData
                     serverID: Data([1]),
                     date: .now,
                     state: .delivered,
-                    senderID: nil,
+                    senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: ["Hey how's it going"]
+                    contents: [.text("Hey how's it going")]
                 ),
                 .init(
-                    serverID: Data([1]),
+                    serverID: Data([25]),
+                    date: .now,
+                    state: .delivered,
+                    senderID: PublicKey.mock.data,
+                    isDeleted: false,
+                    contents: [.text("Hey")]
+                ),
+                .init(
+                    serverID: Data([2]),
+                    date: .now,
+                    state: .delivered,
+                    senderID: PublicKey.mock.data,
+                    isDeleted: false,
+                    contents: [.text("Hey how's it going Hey how's it going Hey how's it going Hey how's it going Hey how's it going")]
+                ),
+                .init(
+                    serverID: Data([3]),
                     date: .now,
                     state: .delivered,
                     senderID: nil,
                     isDeleted: false,
-                    contents: ["Hey how's it going"]
+                    contents: [.announcement("Bob joined")]
+                ),
+                .init(
+                    serverID: Data([4]),
+                    date: .now,
+                    state: .delivered,
+                    senderID: nil,
+                    isDeleted: false,
+                    contents: [.announcement("Something else happened")]
+                ),
+                .init(
+                    serverID: Data([5]),
+                    date: .now,
+                    state: .delivered,
+                    senderID: PublicKey.mock.data,
+                    isDeleted: false,
+                    contents: [.text("Yeah that sounds good to me")]
                 ),
             ])
         }

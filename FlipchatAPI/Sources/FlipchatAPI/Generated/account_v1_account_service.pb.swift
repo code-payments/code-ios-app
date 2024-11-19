@@ -629,20 +629,30 @@ public struct Flipchat_Account_V1_UserFlags {
 
   public var isStaff: Bool = false
 
-  public var startGroupCost: Flipchat_Common_V1_PaymentAmount {
-    get {return _startGroupCost ?? Flipchat_Common_V1_PaymentAmount()}
-    set {_startGroupCost = newValue}
+  public var startGroupFee: Flipchat_Common_V1_PaymentAmount {
+    get {return _startGroupFee ?? Flipchat_Common_V1_PaymentAmount()}
+    set {_startGroupFee = newValue}
   }
-  /// Returns true if `startGroupCost` has been explicitly set.
-  public var hasStartGroupCost: Bool {return self._startGroupCost != nil}
-  /// Clears the value of `startGroupCost`. Subsequent reads from it will return its default value.
-  public mutating func clearStartGroupCost() {self._startGroupCost = nil}
+  /// Returns true if `startGroupFee` has been explicitly set.
+  public var hasStartGroupFee: Bool {return self._startGroupFee != nil}
+  /// Clears the value of `startGroupFee`. Subsequent reads from it will return its default value.
+  public mutating func clearStartGroupFee() {self._startGroupFee = nil}
+
+  public var feeDestination: Flipchat_Common_V1_PublicKey {
+    get {return _feeDestination ?? Flipchat_Common_V1_PublicKey()}
+    set {_feeDestination = newValue}
+  }
+  /// Returns true if `feeDestination` has been explicitly set.
+  public var hasFeeDestination: Bool {return self._feeDestination != nil}
+  /// Clears the value of `feeDestination`. Subsequent reads from it will return its default value.
+  public mutating func clearFeeDestination() {self._feeDestination = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _startGroupCost: Flipchat_Common_V1_PaymentAmount? = nil
+  fileprivate var _startGroupFee: Flipchat_Common_V1_PaymentAmount? = nil
+  fileprivate var _feeDestination: Flipchat_Common_V1_PublicKey? = nil
 }
 
 #if swift(>=5.5) && canImport(_Concurrency)
@@ -1228,7 +1238,8 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
   public static let protoMessageName: String = _protobuf_package + ".UserFlags"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "is_staff"),
-    2: .standard(proto: "start_group_cost"),
+    2: .standard(proto: "start_group_fee"),
+    3: .standard(proto: "fee_destination"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1238,7 +1249,8 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.isStaff) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._startGroupCost) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._startGroupFee) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._feeDestination) }()
       default: break
       }
     }
@@ -1252,15 +1264,19 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.isStaff != false {
       try visitor.visitSingularBoolField(value: self.isStaff, fieldNumber: 1)
     }
-    try { if let v = self._startGroupCost {
+    try { if let v = self._startGroupFee {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._feeDestination {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Account_V1_UserFlags, rhs: Flipchat_Account_V1_UserFlags) -> Bool {
     if lhs.isStaff != rhs.isStaff {return false}
-    if lhs._startGroupCost != rhs._startGroupCost {return false}
+    if lhs._startGroupFee != rhs._startGroupFee {return false}
+    if lhs._feeDestination != rhs._feeDestination {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

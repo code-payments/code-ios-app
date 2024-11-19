@@ -1,5 +1,5 @@
 //
-//  MessageAction.swift
+//  MessageAnnouncement.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-07-02.
@@ -8,7 +8,7 @@
 import SwiftUI
 import CodeUI
 
-public struct MessageAction: View {
+public struct MessageAnnouncement: View {
     
     public let text: String
         
@@ -20,12 +20,13 @@ public struct MessageAction: View {
         HStack {
             Spacer()
             Text(text)
-                .font(.appTextHeading)
+                .font(.appTextSmall)
                 .foregroundColor(.textSecondary)
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(Color.backgroundMessageReceived.opacity(0.2))
-                .cornerRadius(99)
+//                .background(Color.backgroundMessageReceived.opacity(0.5))
+//                .cornerRadius(Metrics.chatMessageRadiusLarge)
             Spacer()
         }
     }
