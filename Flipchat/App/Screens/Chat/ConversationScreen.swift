@@ -220,6 +220,23 @@ struct ConversationScreen: View {
                     .cancel(title: "Cancel"),
                 ]
             )
+            
+        case .reportUser(let name, let userID, let messageID):
+            banners.show(
+                style: .error,
+                title: "Report \(name)?",
+                description: "This message will be forwarded to Flipchat. This contact will not be notified.",
+                position: .bottom,
+                actions: [
+                    .destructive(title: "Report") {
+                        Task {
+                            try await chatController.reportUser(userID: userID, messageID: messageID)
+                            showReportSuccess()
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
         }
     }
     
@@ -254,13 +271,25 @@ struct ConversationScreen: View {
         }
     }
     
-    // MARK: - Errors -
+    // MARK: - Banners -
     
     private func showError(error: Error) {
         banners.show(
             style: .error,
             title: "Stream Failed",
             description: "Failed to establish a messages stream: \(error.localizedDescription)",
+            position: .top,
+            actions: [
+                .cancel(title: Localized.Action.ok),
+            ]
+        )
+    }
+    
+    private func showReportSuccess() {
+        banners.show(
+            style: .notification,
+            title: "Report Sent",
+            description: "Your report was sent successfully.",
             position: .top,
             actions: [
                 .cancel(title: Localized.Action.ok),

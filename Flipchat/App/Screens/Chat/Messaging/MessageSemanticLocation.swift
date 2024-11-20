@@ -24,11 +24,11 @@ public enum MessageSemanticLocation: Equatable, Hashable {
         }
     }
     
-    var isBottomHalf: Bool {
+    var isLast: Bool {
         switch self {
-        case .middle, .end:
+        case .standalone, .end:
             return true
-        case .beginning, .standalone:
+        case .middle, .beginning:
             return false
         }
     }

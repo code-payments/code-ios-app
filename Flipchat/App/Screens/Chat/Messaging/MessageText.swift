@@ -53,7 +53,7 @@ public struct MessageText: View {
         HStack(alignment: .top) {
             if isReceived {
                 if shouldShowAvatar {
-                    DeterministicAvatar(data: avatarData, diameter: 40)
+                    DeterministicAvatar(data: avatarData, diameter: 35)
                         .if(isHost) { $0
                             .overlay {
                                 Image.asset(.crown)
@@ -65,7 +65,7 @@ public struct MessageText: View {
                     VStack {
                         
                     }
-                    .frame(width: 40, height: 5)
+                    .frame(width: 35, height: 5)
                 }
             }
             

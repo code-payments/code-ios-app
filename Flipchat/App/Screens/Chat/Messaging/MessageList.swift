@@ -158,7 +158,7 @@ public struct MessageList: View {
         case .message(_, let isReceived, _, let location):
             return .init(
                 top: {
-                    if location.isBottomHalf {
+                    if !location.isFirst {
                         return 2
                     } else {
                         if isReceived {
@@ -169,13 +169,13 @@ public struct MessageList: View {
                     }
                 }(),
                 leading: horizontal,
-                bottom: 0,
+                bottom: location.isLast ? 10 : 0,
                 trailing: horizontal
             )
             
         case .announcement:
             return .init(
-                top: 15,
+                top: 5,
                 leading: horizontal,
                 bottom: 10,
                 trailing: horizontal
@@ -207,9 +207,18 @@ public struct MessageList: View {
                     Label("Copy Message", systemImage: "doc.on.doc")
                 }
                 
+                Divider()
+                
+                if let senderID = message.senderID, let name = message.sender?.displayName, senderID != userID.data {
+                    Button(role: .destructive) {
+                        action(.reportUser(name, UserID(data: senderID), MessageID(data: message.serverID)))
+                    } label: {
+                        Label("Report \(name)", systemImage: "exclamationmark.shield")
+                    }
+                }
+                
                 // Only if the current user is a host
                 if userID == hostID, let senderID = message.senderID, let name = message.sender?.displayName {
-                    Divider()
                     
                     Button(role: .destructive) {
                         action(.removeUser(name, UserID(data: senderID), chatID))
@@ -243,6 +252,7 @@ extension MessageList {
 enum MessageAction {
     case copy(String)
     case removeUser(String, UserID, ChatID)
+    case reportUser(String, UserID, MessageID)
 }
 
 struct MessageDescription: Identifiable {
@@ -336,17 +346,17 @@ extension Array where Element == pMessage {
             let nextSender = index < messages.count - 1 ? messages[index + 1].senderID : nil
             
             let isReceived = message.senderID != selfUserID.data
-            
             if let senderID = message.senderID {
+                
                 let location: MessageSemanticLocation
                 
-                if message.senderID != previousSender && message.senderID != nextSender {
+                if senderID != previousSender && senderID != nextSender {
                     location = .standalone(.init(received: isReceived))
                     
-                } else if message.senderID != previousSender && message.senderID == nextSender {
+                } else if senderID != previousSender && senderID == nextSender {
                     location = .beginning(.init(received: isReceived))
                     
-                } else if message.senderID == previousSender && message.senderID == nextSender {
+                } else if senderID == previousSender && senderID == nextSender {
                     location = .middle(.init(received: isReceived))
                     
                 } else {
@@ -472,7 +482,7 @@ import SwiftData
                     state: .delivered,
                     senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: [.text("Hey how's it going")]
+                    contents: [.text("Hey")]
                 ),
                 .init(
                     serverID: .tempID,
@@ -480,7 +490,7 @@ import SwiftData
                     state: .delivered,
                     senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: [.text("Hey")]
+                    contents: [.text("How's it going")]
                 ),
                 .init(
                     serverID: .tempID,

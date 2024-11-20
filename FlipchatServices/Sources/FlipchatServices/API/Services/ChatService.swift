@@ -203,7 +203,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
     }
     
     func removeUser(userID: UserID, chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorRemoveUser>) -> Void) {
-        trace(.send, components: "User ID: \(chatID.description)", "Signed by: \(owner.publicKey.base58)")
+        trace(.send, components: "User ID: \(userID.description)", "Signed by: \(owner.publicKey.base58)")
         
         let request = Flipchat_Chat_V1_RemoveUserRequest.with {
             $0.userID = .with { $0.value = userID.data }
@@ -215,6 +215,31 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         
         call.handle(on: queue) { response in
             let error = ErrorRemoveUser(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func reportUser(userID: UserID, messageID: MessageID, owner: KeyPair, completion: @escaping (Result<(), ErrorReportUser>) -> Void) {
+        trace(.send, components: "User ID: \(userID.description)", "Message ID: \(messageID.description)", "Signed by: \(owner.publicKey.base58)")
+        
+        let request = Flipchat_Chat_V1_ReportUserRequest.with {
+            $0.userID = .with { $0.value = userID.data }
+            $0.messageID = .with { $0.value = messageID.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.reportUser(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorReportUser(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 completion(.success(()))
             } else {
@@ -344,6 +369,11 @@ public enum ErrorRemoveUser: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorReportUser: Int, Error {
+    case ok
+    case unknown = -1
+}
+
 public enum ErrorFetchChats: Int, Error {
     case ok
     case unknown = -1
@@ -358,6 +388,10 @@ public enum ErrorFetchChat: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeReportUserInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_ReportUserRequest, FlipchatAPI.Flipchat_Chat_V1_ReportUserResponse>] {
+        makeInterceptors()
+    }
+    
     func makeRemoveUserInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_RemoveUserRequest, FlipchatAPI.Flipchat_Chat_V1_RemoveUserResponse>] {
         makeInterceptors()
     }

@@ -60,6 +60,11 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>
+
+  func reportUser(
+    _ request: Flipchat_Chat_V1_ReportUserRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_ReportUserRequest, Flipchat_Chat_V1_ReportUserResponse>
 }
 
 extension Flipchat_Chat_V1_ChatClientProtocol {
@@ -247,6 +252,26 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
     )
   }
+
+  /// ReportUser reports a user for a given message
+  ///
+  /// todo: might belong in a different service long-term
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to ReportUser.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func reportUser(
+    _ request: Flipchat_Chat_V1_ReportUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_ReportUserRequest, Flipchat_Chat_V1_ReportUserResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.reportUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeReportUserInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -354,6 +379,11 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>
+
+  func makeReportUserCall(
+    _ request: Flipchat_Chat_V1_ReportUserRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_ReportUserRequest, Flipchat_Chat_V1_ReportUserResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -469,6 +499,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
+    )
+  }
+
+  public func makeReportUserCall(
+    _ request: Flipchat_Chat_V1_ReportUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_ReportUserRequest, Flipchat_Chat_V1_ReportUserResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.reportUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeReportUserInterceptors() ?? []
     )
   }
 }
@@ -594,6 +636,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
     )
   }
+
+  public func reportUser(
+    _ request: Flipchat_Chat_V1_ReportUserRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_ReportUserResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.reportUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeReportUserInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -641,6 +695,9 @@ public protocol Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol: Sendable 
 
   /// - Returns: Interceptors to use when invoking 'removeUser'.
   func makeRemoveUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'reportUser'.
+  func makeReportUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_ReportUserRequest, Flipchat_Chat_V1_ReportUserResponse>]
 }
 
 public enum Flipchat_Chat_V1_ChatClientMetadata {
@@ -657,6 +714,7 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setMuteState,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.reportUser,
     ]
   )
 
@@ -714,6 +772,12 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       path: "/flipchat.chat.v1.Chat/RemoveUser",
       type: GRPCCallType.unary
     )
+
+    public static let reportUser = GRPCMethodDescriptor(
+      name: "ReportUser",
+      path: "/flipchat.chat.v1.Chat/ReportUser",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -763,6 +827,11 @@ public protocol Flipchat_Chat_V1_ChatProvider: CallHandlerProvider {
 
   /// RemoveUser removes a user from a chat
   func removeUser(request: Flipchat_Chat_V1_RemoveUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_RemoveUserResponse>
+
+  /// ReportUser reports a user for a given message
+  ///
+  /// todo: might belong in a different service long-term
+  func reportUser(request: Flipchat_Chat_V1_ReportUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_ReportUserResponse>
 }
 
 extension Flipchat_Chat_V1_ChatProvider {
@@ -858,6 +927,15 @@ extension Flipchat_Chat_V1_ChatProvider {
         userFunction: self.removeUser(request:context:)
       )
 
+    case "ReportUser":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_ReportUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_ReportUserResponse>(),
+        interceptors: self.interceptors?.makeReportUserInterceptors() ?? [],
+        userFunction: self.reportUser(request:context:)
+      )
+
     default:
       return nil
     }
@@ -940,6 +1018,14 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     request: Flipchat_Chat_V1_RemoveUserRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_RemoveUserResponse
+
+  /// ReportUser reports a user for a given message
+  ///
+  /// todo: might belong in a different service long-term
+  func reportUser(
+    request: Flipchat_Chat_V1_ReportUserRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_ReportUserResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -1042,6 +1128,15 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.removeUser(request: $0, context: $1) }
       )
 
+    case "ReportUser":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_ReportUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_ReportUserResponse>(),
+        interceptors: self.interceptors?.makeReportUserInterceptors() ?? [],
+        wrapping: { try await self.reportUser(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -1085,6 +1180,10 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when handling 'removeUser'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeRemoveUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
+
+  /// - Returns: Interceptors to use when handling 'reportUser'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeReportUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_ReportUserRequest, Flipchat_Chat_V1_ReportUserResponse>]
 }
 
 public enum Flipchat_Chat_V1_ChatServerMetadata {
@@ -1101,6 +1200,7 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setMuteState,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setCoverCharge,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.removeUser,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.reportUser,
     ]
   )
 
@@ -1156,6 +1256,12 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
     public static let removeUser = GRPCMethodDescriptor(
       name: "RemoveUser",
       path: "/flipchat.chat.v1.Chat/RemoveUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let reportUser = GRPCMethodDescriptor(
+      name: "ReportUser",
+      path: "/flipchat.chat.v1.Chat/ReportUser",
       type: GRPCCallType.unary
     )
   }
