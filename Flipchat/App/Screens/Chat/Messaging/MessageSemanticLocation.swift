@@ -24,6 +24,15 @@ public enum MessageSemanticLocation: Equatable, Hashable {
         }
     }
     
+    var isBottomHalf: Bool {
+        switch self {
+        case .middle, .end:
+            return true
+        case .beginning, .standalone:
+            return false
+        }
+    }
+    
     var received: Bool {
         switch self {
         case .standalone(let direction):

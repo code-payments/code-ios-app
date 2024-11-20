@@ -103,13 +103,16 @@ public struct MessageList: View {
                         ForEach(messages) { description in
                             MessageRow(kind: description.kind, width: description.messageWidth(in: g.size)) {
                                 row(for: description)
+//                                    .background(.green) // Diagnostics
                             }
+                            .padding(padding(for: description))
+//                            .background(.red) // Diagnostics
+                            .listRowSpacing(0)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.backgroundMain)
+                            .listRowInsets(.zero)
+                            .scrollContentBackground(.hidden)
                         }
-                        .listRowInsets(.init(top: 0, leading: 20, bottom: 0, trailing: 20))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.backgroundMain)
-                        .scrollContentBackground(.hidden)
-                        .environment(\.defaultMinListRowHeight, 0)
                         
                         // This invisible view creates a 44pt row
                         // at the very bottom of the list so we
@@ -119,6 +122,13 @@ public struct MessageList: View {
                             .listRowBackground(Color.backgroundMain)
                             .id(scrollViewBottomID)
                             .frame(height: 1)
+                    }
+                    .environment(\.defaultMinListRowHeight, 0)
+                    .safeAreaInset(edge: .bottom, alignment: .center) {
+                        Rectangle()
+                            .fill(.red)
+                            .frame(height: 20)
+                            .frame(maxWidth: .infinity)
                     }
                     .padding(.bottom, -44) // <- offset*
                     .clipped()
@@ -131,6 +141,45 @@ public struct MessageList: View {
                     }
                 }
             }
+        }
+    }
+    
+    private func padding(for description: MessageDescription) -> EdgeInsets {
+        let horizontal: CGFloat = 20
+        switch description.kind {
+        case .date:
+            return .init(
+                top: 15,
+                leading: horizontal,
+                bottom: 0,
+                trailing: horizontal
+            )
+            
+        case .message(_, let isReceived, _, let location):
+            return .init(
+                top: {
+                    if location.isBottomHalf {
+                        return 2
+                    } else {
+                        if isReceived {
+                            return 10
+                        } else {
+                            return 15
+                        }
+                    }
+                }(),
+                leading: horizontal,
+                bottom: 0,
+                trailing: horizontal
+            )
+            
+        case .announcement:
+            return .init(
+                top: 15,
+                leading: horizontal,
+                bottom: 10,
+                trailing: horizontal
+            )
         }
     }
     
@@ -378,9 +427,7 @@ struct MessageRow<Content>: View where Content: View {
             HStack {
                 switch kind {
                 case .date, .announcement:
-                    Spacer()
                     content()
-                    Spacer()
                     
                 case .message(_, let isReceived, _, _):
                     if isReceived {
@@ -418,9 +465,9 @@ import SwiftData
     
     NavigationStack {
         Background(color: .backgroundMain) {
-            MessageList(state: .constant(.init()), chatID: .mock, userID: .mock, hostID: .mock, messages: [
+            MessageList(state: .constant(.init()), chatID: .mock, userID: .mock3, hostID: .mock, messages: [
                 .init(
-                    serverID: Data([1]),
+                    serverID: .tempID,
                     date: .now,
                     state: .delivered,
                     senderID: PublicKey.mock.data,
@@ -428,7 +475,7 @@ import SwiftData
                     contents: [.text("Hey how's it going")]
                 ),
                 .init(
-                    serverID: Data([25]),
+                    serverID: .tempID,
                     date: .now,
                     state: .delivered,
                     senderID: PublicKey.mock.data,
@@ -436,7 +483,7 @@ import SwiftData
                     contents: [.text("Hey")]
                 ),
                 .init(
-                    serverID: Data([2]),
+                    serverID: .tempID,
                     date: .now,
                     state: .delivered,
                     senderID: PublicKey.mock.data,
@@ -444,7 +491,7 @@ import SwiftData
                     contents: [.text("Hey how's it going Hey how's it going Hey how's it going Hey how's it going Hey how's it going")]
                 ),
                 .init(
-                    serverID: Data([3]),
+                    serverID: .tempID,
                     date: .now,
                     state: .delivered,
                     senderID: nil,
@@ -452,15 +499,47 @@ import SwiftData
                     contents: [.announcement("Bob joined")]
                 ),
                 .init(
-                    serverID: Data([4]),
+                    serverID: .tempID,
                     date: .now,
                     state: .delivered,
                     senderID: nil,
                     isDeleted: false,
-                    contents: [.announcement("Something else happened")]
+                    contents: [.announcement("Something else happened that requires the attention of someone in this chat because it is a very long action")]
                 ),
                 .init(
-                    serverID: Data([5]),
+                    serverID: .tempID,
+                    date: .now,
+                    state: .delivered,
+                    senderID: PublicKey.mock.data,
+                    isDeleted: false,
+                    contents: [.text("Yeah that sounds good to me")]
+                ),
+                .init(
+                    serverID: .tempID,
+                    date: .now,
+                    state: .delivered,
+                    senderID: ID.mock3.data,
+                    isDeleted: false,
+                    contents: [.text("Hey")]
+                ),
+                .init(
+                    serverID: .tempID,
+                    date: .now,
+                    state: .delivered,
+                    senderID: ID.mock3.data,
+                    isDeleted: false,
+                    contents: [.text("That's exactly what I thought")]
+                ),
+                .init(
+                    serverID: .tempID,
+                    date: .now,
+                    state: .delivered,
+                    senderID: PublicKey.mock.data,
+                    isDeleted: false,
+                    contents: [.text("Yeah that sounds good to me")]
+                ),
+                .init(
+                    serverID: .tempID,
                     date: .now,
                     state: .delivered,
                     senderID: PublicKey.mock.data,

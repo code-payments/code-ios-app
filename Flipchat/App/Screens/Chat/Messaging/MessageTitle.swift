@@ -17,13 +17,11 @@ public struct MessageTitle: View {
     }
     
     public var body: some View {
-        HStack {
+        HStack(alignment: .top) {
             Spacer()
             Text(text)
                 .font(.appTextSmall)
                 .foregroundColor(.textSecondary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
 //                .background(Color.backgroundMessageReceived.opacity(0.5))
 //                .cornerRadius(99)
             Spacer()
