@@ -127,7 +127,7 @@ public struct MessageList: View {
                     .safeAreaInset(edge: .bottom, alignment: .center) {
                         Rectangle()
                             .fill(.red)
-                            .frame(height: 20)
+                            .frame(height: 40)
                             .frame(maxWidth: .infinity)
                     }
                     .padding(.bottom, -44) // <- offset*
