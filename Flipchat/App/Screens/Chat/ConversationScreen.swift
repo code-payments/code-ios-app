@@ -221,16 +221,16 @@ struct ConversationScreen: View {
                 ]
             )
             
-        case .reportUser(let name, let userID, let messageID):
+        case .reportMessage(let userID, let messageID):
             banners.show(
                 style: .error,
-                title: "Report \(name)?",
-                description: "This message will be forwarded to Flipchat. This contact will not be notified.",
+                title: "Report Message?",
+                description: "This message will be forwarded to Flipchat. This contact will not be notified",
                 position: .bottom,
                 actions: [
                     .destructive(title: "Report") {
                         Task {
-                            try await chatController.reportUser(userID: userID, messageID: messageID)
+                            try await chatController.reportMessage(userID: userID, messageID: messageID)
                             showReportSuccess()
                         }
                     },

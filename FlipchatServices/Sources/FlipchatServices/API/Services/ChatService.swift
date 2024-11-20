@@ -191,6 +191,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorLeaveChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
+                trace(.success)
                 completion(.success(()))
             } else {
                 trace(.failure, components: "Error: \(error)")
@@ -216,6 +217,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorRemoveUser(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
+                trace(.success)
                 completion(.success(()))
             } else {
                 trace(.failure, components: "Error: \(error)")
@@ -227,7 +229,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func reportUser(userID: UserID, messageID: MessageID, owner: KeyPair, completion: @escaping (Result<(), ErrorReportUser>) -> Void) {
+    func reportMessage(userID: UserID, messageID: MessageID, owner: KeyPair, completion: @escaping (Result<(), ErrorReportUser>) -> Void) {
         trace(.send, components: "User ID: \(userID.description)", "Message ID: \(messageID.description)", "Signed by: \(owner.publicKey.base58)")
         
         let request = Flipchat_Chat_V1_ReportUserRequest.with {
@@ -241,6 +243,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorReportUser(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
+                trace(.success)
                 completion(.success(()))
             } else {
                 trace(.failure, components: "Error: \(error)")

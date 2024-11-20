@@ -139,8 +139,8 @@ class ChatController: ObservableObject {
         try await client.removeUser(userID: userID, chatID: chatID, owner: owner)
     }
     
-    func reportUser(userID: UserID, messageID: MessageID) async throws {
-        try await client.reportUser(userID: userID, messageID: messageID, owner: owner)
+    func reportMessage(userID: UserID, messageID: MessageID) async throws {
+        try await client.reportMessage(userID: userID, messageID: messageID, owner: owner)
     }
     
     func leaveChat(chatID: ChatID) async throws {

@@ -209,11 +209,11 @@ public struct MessageList: View {
                 
                 Divider()
                 
-                if let senderID = message.senderID, let name = message.sender?.displayName, senderID != userID.data {
+                if let senderID = message.senderID, senderID != userID.data {
                     Button(role: .destructive) {
-                        action(.reportUser(name, UserID(data: senderID), MessageID(data: message.serverID)))
+                        action(.reportMessage(UserID(data: senderID), MessageID(data: message.serverID)))
                     } label: {
-                        Label("Report \(name)", systemImage: "exclamationmark.shield")
+                        Label("Report", systemImage: "exclamationmark.shield")
                     }
                 }
                 
@@ -252,7 +252,7 @@ extension MessageList {
 enum MessageAction {
     case copy(String)
     case removeUser(String, UserID, ChatID)
-    case reportUser(String, UserID, MessageID)
+    case reportMessage(UserID, MessageID)
 }
 
 struct MessageDescription: Identifiable {
