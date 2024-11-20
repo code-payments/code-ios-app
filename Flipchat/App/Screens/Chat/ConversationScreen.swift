@@ -47,11 +47,15 @@ struct ConversationScreen: View {
     }
     
     private func didAppear() {
+        PushController.activeChat = chatID
+        
         startStream()
         advanceReadPointer()
     }
     
     private func didDisappear() {
+        PushController.activeChat = nil
+        
         destroyStream()
     }
     

@@ -144,16 +144,19 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         
         await firebase.appDidReceiveMessage(notification.request.content.userInfo)
         
-        let options: UNNotificationPresentationOptions = [.badge, .banner, .list, .sound]
+        var showBanners = true
+        if
+            let base64ChatID = notification.request.content.userInfo["chat_id"] as? String,
+            let chatID = Data(base64Encoded: base64ChatID)
+        {
+            print("Skipping banners, chat is currently active")
+            showBanners = await PushController.activeChat?.data != chatID
+        }
         
-        // Gives us the option to disable banners for
-        // incoming conversations dynamically based on
-        // which conversation the user is currently viewing
-        
-        #warning("Filter out banners for active chats")
-//        if await PushController.activeChat == notification.chatID {
-//            options.insert(.banner)
-//        }
+        var options: UNNotificationPresentationOptions = [.badge, .list, .sound]
+        if showBanners {
+            options.insert(.banner)
+        }
         
         return options
     }
