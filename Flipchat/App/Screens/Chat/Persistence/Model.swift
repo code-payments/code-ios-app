@@ -227,7 +227,7 @@ extension pMessage {
 
 extension pMessage {
     var userDisplayName: String {
-        sender?.displayName ?? "Anonymous"
+        sender?.displayName ?? "Deleted"
     }
 }
 

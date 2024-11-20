@@ -11,21 +11,66 @@ import CodeUI
 
 public struct MessageList: View {
     
+    private let chatID: ChatID
     private let userID: UserID
     private let hostID: UserID
-
-    private var messages: [MessageDateGroup]
+    private let action: (MessageAction) -> Void
+    private var messages: [MessageDescription]
     
     @Binding private var state: State
     
     // MARK: - Init -
     
     @MainActor
-    init(state: Binding<State>, userID: UserID, hostID: UserID, messages: [pMessage]) {
+    init(state: Binding<State>, chatID: ChatID, userID: UserID, hostID: UserID, action: @escaping (MessageAction) -> Void = { _ in }, messages: [pMessage]) {
         _state = state
+        self.chatID = chatID
         self.userID = userID
         self.hostID = hostID
-        self.messages = messages.groupByDay(userID: userID)
+        self.action = action
+        
+        var container: [MessageDescription] = []
+        for dateGroup in messages.groupByDay(userID: userID) {
+            
+            // Date
+            container.append(
+                .init(
+                    kind: .date(dateGroup.date),
+                    content: dateGroup.date.formattedRelatively(),
+                    contentIndex: 0
+                )
+            )
+            
+            for messageContainer in dateGroup.messages {
+                
+                let message = messageContainer.message
+                let isReceived = message.senderID != userID.data
+                
+                for (index, content) in message.contents.enumerated() {
+                    switch content {
+                    case .text(let text):
+                        container.append(
+                            .init(
+                                kind: .message(ID(data: message.serverID), isReceived, message, messageContainer.location),
+                                content: text,
+                                contentIndex: index
+                            )
+                        )
+                        
+                    case .announcement(let text):
+                        container.append(
+                            .init(
+                                kind: .announcement(ID(data: message.serverID)),
+                                content: text,
+                                contentIndex: index
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        
+        self.messages = container
     }
     
     // MARK: - Actions -
@@ -55,13 +100,16 @@ public struct MessageList: View {
             GeometryReader { g in
                 ScrollViewReader { scrollProxy in
                     List {
-                        ForEach(messages) { group in
-                            messageDateGroup(group: group, geometry: g)
+                        ForEach(messages) { description in
+                            MessageRow(kind: description.kind, width: description.messageWidth(in: g.size)) {
+                                row(for: description)
+                            }
                         }
-                        .padding(.bottom, 5)
+                        .listRowInsets(.init(top: 0, leading: 20, bottom: 0, trailing: 20))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.backgroundMain)
                         .scrollContentBackground(.hidden)
+                        .environment(\.defaultMinListRowHeight, 0)
                         
                         // This invisible view creates a 44pt row
                         // at the very bottom of the list so we
@@ -86,38 +134,44 @@ public struct MessageList: View {
         }
     }
     
-    @MainActor
-    @ViewBuilder private func messageDateGroup(group: MessageDateGroup, geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 2) { // Spacing between same-sender messages
-            MessageTitle(text: group.date.formattedRelatively())
+    @ViewBuilder
+    private func row(for description: MessageDescription) -> some View {
+        switch description.kind {
+        case .date(let date):
+            MessageTitle(text: date.formattedRelatively())
             
-            ForEach(group.messages) { container in // MessageContainer
-                let message = container.message
-                let isReceived = message.senderID != userID.data
+        case .message(_, let isReceived, let message, let location):
+            MessageText(
+                state: message.state.state,
+                name: message.userDisplayName,
+                avatarData: message.senderID ?? Data([0, 0, 0, 0]),
+                text: description.content,
+                date: message.date,
+                isReceived: isReceived,
+                isHost: message.senderID == hostID.data,
+                location: location
+            )
+            .contextMenu {
+                Button {
+                    action(.copy(description.content))
+                } label: {
+                    Label("Copy Message", systemImage: "doc.on.doc")
+                }
                 
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(message.contents.enumerated()), id: \.element) { index, content in
-                        MessageRow(width: geometry.messageWidth(for: content), isReceived: isReceived) {
-                            switch content {
-                            case .text(let text):
-                                MessageText(
-                                    state: message.state.state,
-                                    name: message.userDisplayName,
-                                    avatarData: message.senderID ?? Data([0, 0, 0, 0]),
-                                    text: text,
-                                    date: message.date,
-                                    isReceived: isReceived,
-                                    isHost: message.senderID == hostID.data,
-                                    location: container.location
-                                )
-                                
-                            case .announcement(let text):
-                                MessageAnnouncement(text: text)
-                            }
-                        }.padding(.top, container.location.isFirst ? 10 : 0) // Spacing for every message row
+                // Only if the current user is a host
+                if userID == hostID, let senderID = message.senderID, let name = message.sender?.displayName {
+                    Divider()
+                    
+                    Button(role: .destructive) {
+                        action(.removeUser(name, UserID(data: senderID), chatID))
+                    } label: {
+                        Label("Remove \(name)", systemImage: "person.slash")
                     }
                 }
             }
+            
+        case .announcement:
+            MessageAnnouncement(text: description.content)
         }
     }
     
@@ -133,6 +187,43 @@ extension MessageList {
         
         mutating func scrollToBottom() {
             scrollToBottomIndex += 1
+        }
+    }
+}
+
+enum MessageAction {
+    case copy(String)
+    case removeUser(String, UserID, ChatID)
+}
+
+struct MessageDescription: Identifiable {
+    enum Kind {
+        case date(Date)
+        case message(MessageID, Bool, pMessage, MessageSemanticLocation)
+        case announcement(MessageID)
+    }
+    
+    var id: String {
+        switch kind {
+        case .date(let date):
+            return "\(date.timeIntervalSince1970)"
+        case .message(let messageID, _, _, _):
+            return messageID.data.hexString()
+        case .announcement(let messageID):
+            return messageID.data.hexString()
+        }
+    }
+    
+    let kind: Kind
+    let content: String
+    let contentIndex: Int
+    
+    func messageWidth(in size: CGSize) -> CGFloat {
+        switch kind {
+        case .date, .announcement:
+            size.width * 1.0
+        case .message:
+            size.width * 0.8
         }
     }
 }
@@ -248,35 +339,57 @@ private extension GeometryProxy {
 
 // MARK: - MessageRow -
 
-public struct MessageRow<Content>: View where Content: View {
+struct MessageRow<Content>: View where Content: View {
     
+    private let kind: MessageDescription.Kind
     private let width: CGFloat
-    private let isReceived: Bool
     private let content: () -> Content
     
     private var vAlignment: HorizontalAlignment {
-        isReceived ? .leading : .trailing
+        switch kind {
+        case .date:
+            return .center
+        case .message(_, let isReceived, _, _):
+            return isReceived ? .leading : .trailing
+        case .announcement:
+            return .center
+        }
     }
     
     private var alignment: Alignment {
-        isReceived ? .leading : .trailing
+        switch kind {
+        case .date:
+            return .top
+        case .message(_, let isReceived, _, _):
+            return isReceived ? .leading : .trailing
+        case .announcement:
+            return .bottom
+        }
     }
     
-    public init(width: CGFloat, isReceived: Bool, @ViewBuilder content: @escaping () -> Content) {
+    init(kind: MessageDescription.Kind, width: CGFloat, @ViewBuilder content: @escaping () -> Content) {
+        self.kind = kind
         self.width = width
-        self.isReceived = isReceived
         self.content = content
     }
     
-    public var body: some View {
+    var body: some View {
         VStack(alignment: vAlignment) {
             HStack {
-                if isReceived {
-                    content()
-                    Spacer() // TODO: Creates unnecessary space in the MessageAction instances
-                } else {
+                switch kind {
+                case .date, .announcement:
                     Spacer()
                     content()
+                    Spacer()
+                    
+                case .message(_, let isReceived, _, _):
+                    if isReceived {
+                        content()
+                        Spacer()
+                    } else {
+                        Spacer()
+                        content()
+                    }
                 }
             }
             .frame(maxWidth: width, alignment: .leading)
@@ -305,7 +418,7 @@ import SwiftData
     
     NavigationStack {
         Background(color: .backgroundMain) {
-            MessageList(state: .constant(.init()), userID: .mock, hostID: .mock, messages: [
+            MessageList(state: .constant(.init()), chatID: .mock, userID: .mock, hostID: .mock, messages: [
                 .init(
                     serverID: Data([1]),
                     date: .now,

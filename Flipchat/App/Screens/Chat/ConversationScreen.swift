@@ -95,8 +95,10 @@ struct ConversationScreen: View {
             VStack(spacing: 0) {
                 MessageList(
                     state: $messageListState,
+                    chatID: chatID,
                     userID: userID,
                     hostID: UserID(data: chat.ownerUserID),
+                    action: messageAction,
                     messages: chat.messagesByDate
                 )
                 
@@ -193,6 +195,33 @@ struct ConversationScreen: View {
     }
     
     // MARK: - Actions -
+    
+    private func messageAction(action: MessageAction) {
+        switch action {
+        case .copy(let text):
+            copy(text: text)
+            
+        case .removeUser(let name, let userID, let chatID):
+            banners.show(
+                style: .error,
+                title: "Remove \(name)?",
+                description: "They will be able to rejoin after waiting an hour, but will have to pay the cover charge again",
+                position: .bottom,
+                actions: [
+                    .destructive(title: "Remove") {
+                        Task {
+                            try await chatController.removeUser(userID: userID, chatID: chatID)
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
+        }
+    }
+    
+    private func copy(text: String) {
+        UIPasteboard.general.string = text
+    }
     
     private func sendMessage(text: String) {
         Task {

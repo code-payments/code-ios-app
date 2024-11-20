@@ -35,6 +35,12 @@ extension FlipchatClient {
         }
     }
     
+    public func removeUser(userID: UserID, chatID: ChatID, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.removeUser(userID: userID, chatID: chatID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func fetchChats(owner: KeyPair, query: PageQuery = .init()) async throws -> [Chat.Metadata] {
         try await withCheckedThrowingContinuation { c in
             chatService.fetchChats(owner: owner, query: query) { c.resume(with: $0) }

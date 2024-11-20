@@ -135,6 +135,10 @@ class ChatController: ObservableObject {
         )
     }
     
+    func removeUser(userID: UserID, chatID: ChatID) async throws {
+        try await client.removeUser(userID: userID, chatID: chatID, owner: owner)
+    }
+    
     func leaveChat(chatID: ChatID) async throws {
         try await chatStore.leaveChat(chatID: chatID)
     }

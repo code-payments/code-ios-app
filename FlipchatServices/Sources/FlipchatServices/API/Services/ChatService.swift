@@ -202,6 +202,31 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
+    func removeUser(userID: UserID, chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorRemoveUser>) -> Void) {
+        trace(.send, components: "User ID: \(chatID.description)", "Signed by: \(owner.publicKey.base58)")
+        
+        let request = Flipchat_Chat_V1_RemoveUserRequest.with {
+            $0.userID = .with { $0.value = userID.data }
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.removeUser(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorRemoveUser(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
     func fetchChats(owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat.Metadata], ErrorFetchChats>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)", "Query: \(query.description)")
         
@@ -310,6 +335,12 @@ public enum ErrorJoinChat: Int, Error {
 
 public enum ErrorLeaveChat: Int, Error {
     case ok
+    case unknown = -1
+}
+
+public enum ErrorRemoveUser: Int, Error {
+    case ok
+    case denied
     case unknown = -1
 }
 

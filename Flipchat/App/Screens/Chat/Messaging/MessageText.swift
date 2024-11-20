@@ -37,15 +37,6 @@ public struct MessageText: View {
             return false
         }
     }
-    
-    private var topPadding: CGFloat {
-        switch location {
-        case .beginning, .standalone:
-            return 0
-        case .middle, .end:
-            return 0
-        }
-    }
         
     public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, location: MessageSemanticLocation) {
         self.state = state
@@ -63,13 +54,13 @@ public struct MessageText: View {
             if isReceived {
                 if shouldShowAvatar {
                     DeterministicAvatar(data: avatarData, diameter: 40)
-                        .padding(.top, 17)
                         .if(isHost) { $0
                             .overlay {
                                 Image.asset(.crown)
                                     .position(x: 5, y: 5)
                             }
                         }
+                        .padding(.top, 17)
                 } else {
                     VStack {
                         
@@ -116,16 +107,7 @@ public struct MessageText: View {
                 .clipShape(
                     cornerClip(location: location)
                 )
-                .contentShape(
-                    cornerClip(location: location)
-                )
-                .contextMenu(ContextMenu {
-                    Button(action: {}) {
-                        Label(Localized.Action.copy, systemImage: SystemSymbol.doc.rawValue)
-                    }
-                })
             }
         }
-        .padding(.top, topPadding)
     }
 }
