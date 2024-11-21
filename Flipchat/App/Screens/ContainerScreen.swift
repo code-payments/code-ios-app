@@ -107,7 +107,7 @@ struct ContainerScreen: View {
                 container: container
             )
             .tabBarItem(
-                title: "Kin",
+                title: "Balance",
                 asset: .kinHex,
                 selection: tabSelection
             )

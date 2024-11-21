@@ -50,8 +50,8 @@ struct PreviewRoomScreen: View {
                             
                             Spacer()
                             VStack(spacing: 4) {
-                                if let host {
-                                    Text("Hosted by \(host.identity.displayName)")
+                                if let displayName = host?.identity.displayName {
+                                    Text("Hosted by \(displayName)")
                                 }
                                 Text("\(members.count) people inside")
                                 Text("Cover Charge: ⬢ \(chat.coverAmount.truncatedKinValue) Kin")

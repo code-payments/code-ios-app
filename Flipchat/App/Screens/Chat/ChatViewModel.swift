@@ -75,7 +75,7 @@ class ChatViewModel: ObservableObject {
             description: nil,
             position: .bottom,
             actions: [
-                .standard(title: "Join a Room") {
+                .standard(title: "Enter a Room Number") {
                     Task {
                         try await Task.delay(milliseconds: 300)
                         self.showEnterRoomNumber()
@@ -254,8 +254,8 @@ class ChatViewModel: ObservableObject {
     private func showFailedToLoadRoomError() {
         banners.show(
             style: .error,
-            title: "Failed to Load Room",
-            description: "An error occured while retrieving room metadata.",
+            title: "Room Doesn't Exist Yet",
+            description: "Please try a different room number.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

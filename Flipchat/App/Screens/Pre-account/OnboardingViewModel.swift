@@ -20,7 +20,7 @@ class OnboardingViewModel: ObservableObject {
     
     var isEnteredNameValid: Bool {
         let count = enteredName.count
-        return count >= 3 && count <= 12
+        return count >= 3 && count <= 26
     }
     
     private let sessionAuthenticator: SessionAuthenticator

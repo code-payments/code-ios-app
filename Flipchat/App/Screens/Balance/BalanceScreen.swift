@@ -24,19 +24,23 @@ struct BalanceScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            VStack {
-                FiatField(
-                    size: .extraLarge,
-                    amount: .init(
-                        kin: session.currentBalance,
-                        rate: .oneToOne
+        NavigationStack {
+            Background(color: .backgroundMain) {
+                VStack {
+                    FiatField(
+                        size: .extraLarge,
+                        amount: .init(
+                            kin: session.currentBalance,
+                            rate: .oneToOne
+                        )
                     )
-                )
-                .padding(.top, 40)
-                .foregroundStyle(Color.textMain)
-                Spacer()
+                    .padding(.top, 40)
+                    .foregroundStyle(Color.textMain)
+                    Spacer()
+                }
             }
+            .navigationBarTitle(Text("Balance"))
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

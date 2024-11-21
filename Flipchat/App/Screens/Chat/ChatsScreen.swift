@@ -59,7 +59,7 @@ struct ChatsScreen: View {
                                 row(for: room)
                             }
                         } footer: {
-                            CodeButton(style: .filled, title: "Join a Chat") {
+                            CodeButton(style: .filled, title: "Join a Room") {
                                 viewModel.startChatting()
                             }
                             .listRowSeparator(.hidden)
