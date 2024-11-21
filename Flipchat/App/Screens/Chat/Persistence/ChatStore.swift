@@ -550,6 +550,17 @@ extension ChatStore {
         }
     }
     
+    func fetchSingleChat(roomNumber: RoomNumber) throws -> pChat? {
+        var query = FetchDescriptor<pChat>()
+        query.predicate = #Predicate<pChat> { $0.roomNumber == roomNumber }
+        query.fetchLimit = 1
+        do {
+            return try context.fetch(query).first
+        } catch {
+            throw Error.failedToFetchSingle
+        }
+    }
+    
     private func fetchSingleChat(serverID: Data) throws -> pChat? {
         var query = FetchDescriptor<pChat>()
         query.predicate = #Predicate<pChat> { $0.serverID == serverID }

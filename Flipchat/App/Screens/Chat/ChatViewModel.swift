@@ -122,24 +122,36 @@ class ChatViewModel: ObservableObject {
         enteredRoomNumber = ""
     }
     
+    private func resetEnteredCover() {
+        enteredNewCover = ""
+    }
+    
     // MARK: - Chat -
     
     func previewChat() {
-        // TODO: Check if this is an existing room
-        
         guard let roomNumber = RoomNumber(enteredRoomNumber) else {
             // TODO: Use number parser instead
             return
         }
         
-        withButtonState(showSuccess: false) { [chatController] in
-            try await chatController.fetchGroupChat(roomNumber: roomNumber)
+        // Check if this chat exists locally, is so, just
+        // send the user directly into the conversation
+        if let chatID = try? chatController.chatFor(roomNumber: roomNumber) {
             
-        } success: { (chat, members) in
-            self.joinRoomPath.append(.previewRoom(chat, members))
+            withButtonState(delayTask: false) {} success: {
+                self.completeJoiningChat(chatID: chatID)
+            } error: { _ in }
             
-        } error: { _ in
-            self.showFailedToLoadRoomError()
+        } else {
+            withButtonState(showSuccess: false) { [chatController] in
+                try await chatController.fetchGroupChat(roomNumber: roomNumber)
+                
+            } success: { (chat, members) in
+                self.joinRoomPath.append(.previewRoom(chat, members))
+                
+            } error: { _ in
+                self.showFailedToLoadRoomError()
+            }
         }
     }
     
@@ -210,7 +222,7 @@ class ChatViewModel: ObservableObject {
         // it's not desireble to show loading and success state
         // here. Most of the time is taken up by the payment modal.
         do {
-            let chatID = try await chatController.joinGroupChat(
+            _ = try await chatController.joinGroupChat(
                 chatID: chatID,
                 hostID: hostID,
                 amount: amount
@@ -225,7 +237,7 @@ class ChatViewModel: ObservableObject {
     func completeJoiningChat(chatID: ChatID) {
         containerViewModel?.pushChat(chatID: chatID)
         Task {
-            try await Task.delay(milliseconds: 300)
+            try await Task.delay(milliseconds: 400)
             isShowingJoinPayment = false
             isShowingEnterRoomNumber = false
         }
@@ -306,12 +318,14 @@ class ChatViewModel: ObservableObject {
 // MARK: - Button State -
 
 extension ChatViewModel {
-    private func withButtonState<T>(showSuccess: Bool = true, closure: @escaping () async throws -> T, success: @escaping (T) async throws -> Void, error: @escaping (Swift.Error) -> Void) where T: Sendable {
+    private func withButtonState<T>(showSuccess: Bool = true, delayTask: Bool = true, closure: @escaping () async throws -> T, success: @escaping (T) async throws -> Void, error: @escaping (Swift.Error) -> Void) where T: Sendable {
         Task {
             buttonState = .loading
             do {
                 let result = try await closure()
-                try await Task.delay(milliseconds: 250)
+                if delayTask {
+                    try await Task.delay(milliseconds: 250)
+                }
                 
                 if showSuccess {
                     buttonState = .success
@@ -322,9 +336,13 @@ extension ChatViewModel {
                 
                 // Reset
                 
-                try await Task.delay(milliseconds: 100)
+                try await Task.delay(milliseconds: 300)
                 buttonState  = .normal
+                
+                try await Task.delay(milliseconds: 100)
+                
                 resetEnteredRoomNumber()
+                resetEnteredCover()
                 
             } catch let caughtError {
                 error(caughtError)
