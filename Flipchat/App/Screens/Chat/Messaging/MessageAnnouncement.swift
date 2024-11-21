@@ -22,9 +22,11 @@ public struct MessageAnnouncement: View {
             Text(text)
                 .font(.appTextSmall)
                 .foregroundColor(.textSecondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
                 .multilineTextAlignment(.center)
-//                .background(Color.backgroundMessageReceived.opacity(0.5))
-//                .cornerRadius(Metrics.chatMessageRadiusLarge)
+                .background(Color.backgroundMessageReceived.opacity(0.5))
+                .cornerRadius(Metrics.chatMessageRadiusLarge * 2)
             Spacer()
         }
     }

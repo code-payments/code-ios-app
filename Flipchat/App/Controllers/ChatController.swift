@@ -111,7 +111,7 @@ class ChatController: ObservableObject {
         return try await chatStore.startGroupChat(intentID: intentID)
     }
     
-    func fetchGroupChat(roomNumber: RoomNumber, hide: Bool) async throws -> (Chat.Metadata, [Chat.Member]) {
+    func fetchGroupChat(roomNumber: RoomNumber) async throws -> (Chat.Metadata, [Chat.Member]) {
         try await client.fetchChat(
             for: .roomNumber(roomNumber),
             owner: owner

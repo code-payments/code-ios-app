@@ -77,7 +77,7 @@ struct RoomDetailsScreen: View {
                             DeterministicGradient(data: chat.serverID)
                         }
                     }
-                    .padding(50)
+                    .padding(20)
                     
                     Spacer()
                     
@@ -85,7 +85,6 @@ struct RoomDetailsScreen: View {
                         // Only show for room hosts
                         if let host, host.serverID == viewModel.userID.data {
                             CodeButton(
-                                state: viewModel.buttonState,
                                 style: .filled,
                                 title: "Change Cover Charge"
                             ) {
@@ -98,18 +97,20 @@ struct RoomDetailsScreen: View {
                             style: .filled,
                             title: kind.titleFor(roomNumber: chat.roomNumber)
                         ) {
-                            switch kind {
-                            case .joinRoom:
-                                viewModel.attemptJoinChat(
-                                    chatID: chatID,
-                                    hostID: UserID(data: chat.ownerUserID),
-                                    amount: chat.coverCharge
-                                )
-                            case .leaveRoom:
-                                viewModel.attemptLeaveChat(
-                                    chatID: chatID,
-                                    roomNumber: chat.roomNumber
-                                )
+                            Task {
+                                switch kind {
+                                case .joinRoom:
+                                    try await viewModel.attemptJoinChat(
+                                        chatID: chatID,
+                                        hostID: UserID(data: chat.ownerUserID),
+                                        amount: chat.coverCharge
+                                    )
+                                case .leaveRoom:
+                                    viewModel.attemptLeaveChat(
+                                        chatID: chatID,
+                                        roomNumber: chat.roomNumber
+                                    )
+                                }
                             }
                         }
                     }
@@ -117,25 +118,6 @@ struct RoomDetailsScreen: View {
                 .padding(20)
             }
             .foregroundColor(.textMain)
-            .sheet(isPresented: $viewModel.isShowingJoinPayment) {
-                PartialSheet {
-                    ModalPaymentConfirmation(
-                        amount: chat.coverCharge.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
-                        currency: .kin,
-                        primaryAction: "Swipe to Pay",
-                        secondaryAction: "Cancel",
-                        paymentAction: {
-                            viewModel.joinChat(
-                                chatID: ChatID(data: chat.serverID),
-                                hostID: UserID(data: chat.ownerUserID),
-                                amount: chat.coverCharge
-                            )
-                        },
-                        dismissAction: { viewModel.isShowingJoinPayment = false },
-                        cancelAction: { viewModel.isShowingJoinPayment = false }
-                    )
-                }
-            }
             .sheet(isPresented: $viewModel.isShowingChangeCover) {
                 ChangeCoverScreen(chatID: chatID, viewModel: viewModel)
             }

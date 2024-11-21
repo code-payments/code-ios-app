@@ -21,9 +21,12 @@ public struct MessageTitle: View {
             Spacer()
             Text(text)
                 .font(.appTextSmall)
-                .foregroundColor(.textSecondary)
-//                .background(Color.backgroundMessageReceived.opacity(0.5))
-//                .cornerRadius(99)
+                .foregroundColor(.textMain)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .multilineTextAlignment(.center)
+                .background(Color.backgroundMessageReceived.opacity(0.5))
+                .cornerRadius(15)
             Spacer()
         }
     }

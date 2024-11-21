@@ -22,7 +22,7 @@ extension Chat {
         public var isMutable: Bool
         public var unreadCount: Int
         
-        init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
+        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
             self.id = id
             self.kind = kind
             self.roomNumber = roomNumber

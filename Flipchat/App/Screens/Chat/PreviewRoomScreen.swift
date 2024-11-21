@@ -66,7 +66,7 @@ struct PreviewRoomScreen: View {
                             DeterministicGradient(data: chat.id.data)
                         }
                     }
-                    .padding(50)
+                    .padding(20)
                     
                     Spacer()
                     
@@ -76,11 +76,13 @@ struct PreviewRoomScreen: View {
                             style: .filled,
                             title: "Join Room \(chat.roomNumber.roomString)"
                         ) {
-                            viewModel.attemptJoinChat(
-                                chatID: chat.id,
-                                hostID: chat.ownerUser,
-                                amount: chat.coverAmount
-                            )
+                            Task {
+                                try await viewModel.attemptJoinChat(
+                                    chatID: chat.id,
+                                    hostID: chat.ownerUser,
+                                    amount: chat.coverAmount
+                                )
+                            }
                         }
                     }
                 }
@@ -95,14 +97,14 @@ struct PreviewRoomScreen: View {
                         primaryAction: "Swipe to Pay",
                         secondaryAction: "Cancel",
                         paymentAction: {
-                            viewModel.joinChat(
+                            try await viewModel.joinChat(
                                 chatID: chat.id,
                                 hostID: chat.ownerUser,
                                 amount: chat.coverAmount
                             )
                         },
-                        dismissAction: { viewModel.isShowingJoinPayment = false },
-                        cancelAction: { viewModel.isShowingJoinPayment = false }
+                        dismissAction: { viewModel.completeJoiningChat(chatID: chat.id) },
+                        cancelAction: { viewModel.completeJoiningChat(chatID: chat.id) }
                     )
                 }
             }
@@ -114,10 +116,20 @@ struct PreviewRoomScreen: View {
     }
 }
 
-//#Preview {
-//    RoomDetailsScreen(
-//        chat: ,
-//        members: [],
-//        viewModel: .mock
-//    )
-//}
+#Preview {
+    PreviewRoomScreen(
+        chat: Chat.Metadata(
+            id: .mock5,
+            kind: .group,
+            roomNumber: 1,
+            ownerUser: .mock1,
+            coverAmount: 100,
+            title: "",
+            isMuted: false,
+            isMutable: true,
+            unreadCount: 0
+        ),
+        members: [],
+        viewModel: .mock
+    )
+}

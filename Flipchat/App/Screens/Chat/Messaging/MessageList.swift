@@ -123,6 +123,7 @@ public struct MessageList: View {
                             .id(scrollViewBottomID)
                             .frame(height: 1)
                     }
+                    .scrollDismissesKeyboard(.never)
                     .environment(\.defaultMinListRowHeight, 0)
                     .safeAreaInset(edge: .bottom, alignment: .center) {
                         Rectangle()
@@ -149,7 +150,7 @@ public struct MessageList: View {
         switch description.kind {
         case .date:
             return .init(
-                top: 15,
+                top: 10,
                 leading: horizontal,
                 bottom: 0,
                 trailing: horizontal
@@ -164,7 +165,7 @@ public struct MessageList: View {
                         if isReceived {
                             return 10
                         } else {
-                            return 15
+                            return 10
                         }
                     }
                 }(),
@@ -175,7 +176,7 @@ public struct MessageList: View {
             
         case .announcement:
             return .init(
-                top: 5,
+                top: 10,
                 leading: horizontal,
                 bottom: 10,
                 trailing: horizontal
@@ -490,7 +491,7 @@ import SwiftData
                     state: .delivered,
                     senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: [.text("How's it going")]
+                    contents: [.text("How's it going?")]
                 ),
                 .init(
                     serverID: .tempID,
@@ -498,7 +499,7 @@ import SwiftData
                     state: .delivered,
                     senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: [.text("Hey how's it going Hey how's it going Hey how's it going Hey how's it going Hey how's it going")]
+                    contents: [.text("I was wondering if you're for dinner some time next week? Perhaps we can do lunch.")]
                 ),
                 .init(
                     serverID: .tempID,
@@ -520,9 +521,17 @@ import SwiftData
                     serverID: .tempID,
                     date: .now,
                     state: .delivered,
+                    senderID: ID.mock3.data,
+                    isDeleted: false,
+                    contents: [.text("Sure")]
+                ),
+                .init(
+                    serverID: .tempID,
+                    date: .now,
+                    state: .delivered,
                     senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: [.text("Yeah that sounds good to me")]
+                    contents: [.text("Okay cool, I'll let you know what we're doing")]
                 ),
                 .init(
                     serverID: .tempID,
@@ -530,15 +539,7 @@ import SwiftData
                     state: .delivered,
                     senderID: ID.mock3.data,
                     isDeleted: false,
-                    contents: [.text("Hey")]
-                ),
-                .init(
-                    serverID: .tempID,
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock3.data,
-                    isDeleted: false,
-                    contents: [.text("That's exactly what I thought")]
+                    contents: [.text("Sounds good, let me know")]
                 ),
                 .init(
                     serverID: .tempID,
@@ -546,19 +547,12 @@ import SwiftData
                     state: .delivered,
                     senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: [.text("Yeah that sounds good to me")]
-                ),
-                .init(
-                    serverID: .tempID,
-                    date: .now,
-                    state: .delivered,
-                    senderID: PublicKey.mock.data,
-                    isDeleted: false,
-                    contents: [.text("Yeah that sounds good to me")]
+                    contents: [.text("Will do!")]
                 ),
             ])
         }
         .navigationTitle("Chat")
+        .navigationBarTitleDisplayMode(.inline)
     }
     .modelContainer(container)
 }
