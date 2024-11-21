@@ -136,8 +136,8 @@ class ChatViewModel: ObservableObject {
                 hide: true // This is a preview, we don't want to add it to the list yet
             )
             
-        } success: { chatID in
-            self.joinRoomPath.append(.previewRoom(chatID))
+        } success: { (chat, members) in
+            self.joinRoomPath.append(.previewRoom(chat, members))
             
         } error: { _ in
             self.showFailedToLoadRoomError()
@@ -334,7 +334,7 @@ extension ChatViewModel {
 }
 
 enum JoinRoomPath: Hashable {
-    case previewRoom(ChatID)
+    case previewRoom(Chat.Metadata, [Chat.Member])
 }
 
 extension ChatViewModel {

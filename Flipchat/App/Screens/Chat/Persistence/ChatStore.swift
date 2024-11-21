@@ -225,21 +225,21 @@ class ChatStore: ObservableObject {
         return metadata.id
     }
     
-    func fetchChat(identifier: ChatIdentifier, hide: Bool) async throws -> ChatID {
-        let (metadata, members) = try await client.fetchChat(
-            for: identifier,
-            owner: owner
-        )
-        
-        let chat = try upsert(chat: metadata) {
-            $0.isHidden = hide
-        }
-        
-        try upsert(members: members, in: chat)
-        
-        try save()
-        return metadata.id
-    }
+//    func fetchChat(identifier: ChatIdentifier, hide: Bool) async throws -> ChatID {
+//        let (metadata, members) = try await client.fetchChat(
+//            for: identifier,
+//            owner: owner
+//        )
+//        
+//        let chat = try upsert(chat: metadata) {
+//            $0.isHidden = hide
+//        }
+//        
+//        try upsert(members: members, in: chat)
+//        
+//        try save()
+//        return metadata.id
+//    }
     
     func joinChat(chatID: ChatID, intentID: PublicKey?) async throws -> ChatID {
         let (metadata, members) = try await client.joinGroupChat(

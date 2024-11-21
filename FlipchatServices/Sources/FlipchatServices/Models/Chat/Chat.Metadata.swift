@@ -9,7 +9,7 @@ import Foundation
 import FlipchatAPI
 
 extension Chat {
-    public struct Metadata: Hashable, Equatable, Identifiable {
+    public struct Metadata: Hashable, Equatable, Identifiable, Sendable {
             
         public let id: ChatID
         public let kind: Kind
@@ -39,7 +39,7 @@ extension Chat {
 // MARK: - Kind -
 
 extension Chat {
-    public enum Kind: Int, Hashable, Equatable {
+    public enum Kind: Int, Hashable, Equatable, Sendable {
         case unknown
         case twoWay
         case group
