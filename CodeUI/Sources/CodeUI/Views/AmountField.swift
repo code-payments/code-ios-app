@@ -86,16 +86,16 @@ public struct AmountField: View {
                         .font(.default(size: 12, weight: .bold))
                 }
             }
-            .animation(.springFastestDamped)
+            .animation(.springFastestDamped, value: content)
             
             HStack(spacing: 0) {
                 ForEach(chars(content: content), id: \.id) { char in
                     Text(char.value)
                         .opacity(char.isGhost ? 0.2 : 1.0)
                         .transition(transition(for: char))
-                        .animation(.springFastestDamped)
                 }
             }
+            .animation(.springFastestDamped, value: content)
             .minimumScaleFactor(0.1)
             .scaledToFit()
             .font(.appDisplayLarge)
