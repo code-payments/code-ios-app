@@ -50,7 +50,7 @@ public struct AmountField: View {
         )
     }
     
-    init(content: Binding<String>, defaultValue: DefaultValue, prefix: Prefix, formatter: NumberFormatter, suffix: String?, showChevron: Bool) {
+    public init(content: Binding<String>, defaultValue: DefaultValue, prefix: Prefix, formatter: NumberFormatter, suffix: String?, showChevron: Bool) {
         self._content = content
         self.defaultValue = defaultValue
         self.prefix = prefix
@@ -320,7 +320,7 @@ private extension AmountField.Char {
 }
 
 extension AmountField {
-    enum Prefix {
+    public enum Prefix {
         case none
         case flagStyle(Flag.Style)
         case prefix(String)

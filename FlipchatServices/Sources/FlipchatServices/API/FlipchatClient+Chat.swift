@@ -58,4 +58,10 @@ extension FlipchatClient {
             chatService.fetchChat(for: identifier, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.changeCover(chatID: chatID, newCover: newCover, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

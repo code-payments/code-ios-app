@@ -176,10 +176,10 @@ public class pMessage: ServerIdentifiable {
     @Relationship(deleteRule: .nullify)
     public var sender: pMember?
     
-    @Relationship(deleteRule: .nullify)
+    @Relationship(deleteRule: .nullify, inverse: \pChat.messages)
     public var chat: pChat?
     
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .cascade, inverse: \pPointer.message)
     public var pointers: [pPointer] = []
     
     init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [pMessageContent]) {
@@ -284,10 +284,10 @@ public class pMember: ServerIdentifiable {
     
     // Relationships
     
-    @Relationship(deleteRule: .nullify)
+    @Relationship(deleteRule: .nullify, inverse: \pMessage.sender)
     public var messages: [pMessage] = []
     
-    @Relationship(deleteRule: .nullify)
+    @Relationship(deleteRule: .nullify, inverse: \pChat.members)
     public var chats: [pChat] = []
     
     @Relationship(deleteRule: .cascade)

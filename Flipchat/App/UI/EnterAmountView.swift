@@ -14,20 +14,22 @@ struct EnterAmountView: View {
     @Binding var enteredAmount: String
     @Binding var actionState: ButtonState
     
-    private let subtext: String?
-    private let formatter: NumberFormatter
-    private let suffix: String?
+    private let mode: Mode
     private let actionEnabled: (String) -> Bool
     private let action: () -> Void
     
     // MARK: - Init -
     
-    init(enteredAmount: Binding<String>, actionState: Binding<ButtonState>, subtext: String?, formatter: NumberFormatter, suffix: String? = nil, actionEnabled: @escaping (String) -> Bool, action: @escaping () -> Void) {
+    init(
+        mode: Mode,
+        enteredAmount: Binding<String>,
+        actionState: Binding<ButtonState>,
+        actionEnabled: @escaping (String) -> Bool,
+        action: @escaping () -> Void
+    ) {
+        self.mode           = mode
         self._enteredAmount = enteredAmount
         self._actionState   = actionState
-        self.subtext        = subtext
-        self.formatter      = formatter
-        self.suffix         = suffix
         self.actionEnabled  = actionEnabled
         self.action         = action
     }
@@ -45,20 +47,21 @@ struct EnterAmountView: View {
                     HStack(spacing: 15) {
                         AmountField(
                             content: $enteredAmount,
-                            defaultValue: .string("#"),
-                            prefix: "",
-                            formatter: formatter,
-                            suffix: suffix
+                            defaultValue: mode.defaultValue,
+                            prefix: mode.prefix,
+                            formatter: mode.formatter,
+                            suffix: nil,
+                            showChevron: false
                         )
                         .foregroundColor(.textMain)
                     }
                     
-                    if let subtext {
-                        Text(subtext)
-                            .fixedSize()
-                            .foregroundColor(.textSecondary)
-                            .font(.appTextMedium)
-                    }
+//                    if let subtext {
+//                        Text(subtext)
+//                            .fixedSize()
+//                            .foregroundColor(.textSecondary)
+//                            .font(.appTextMedium)
+//                    }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -83,7 +86,7 @@ struct EnterAmountView: View {
             CodeButton(
                 state: actionState,
                 style: .filled,
-                title: Localized.Action.next,
+                title: mode.actionName,
                 disabled: !actionEnabled(enteredAmount),
                 action: action
             )
@@ -95,6 +98,48 @@ struct EnterAmountView: View {
     
     private func copy() {
         UIPasteboard.general.string = enteredAmount
+    }
+}
+
+// MARK: - Mode -
+
+extension EnterAmountView {
+    enum Mode {
+        
+        case roomNumber
+        case coverCharge
+        
+        fileprivate var formatter: NumberFormatter {
+            switch self {
+            case .roomNumber:  return .roomNumber
+            case .coverCharge: return .fiat(
+                currency: FlipchatServices.CurrencyCode.kin,
+                minimumFractionDigits: 0,
+                truncated: true
+            )
+            }
+        }
+        
+        fileprivate var defaultValue: AmountField.DefaultValue {
+            switch self {
+            case .roomNumber:  return .string("#")
+            case .coverCharge: return .string("0")
+            }
+        }
+        
+        fileprivate var prefix: AmountField.Prefix {
+            switch self {
+            case .roomNumber:  return .prefix("")
+            case .coverCharge: return .flagStyle(.crypto(.kin))
+            }
+        }
+        
+        fileprivate var actionName: String {
+            switch self {
+            case .roomNumber:  return "Next"
+            case .coverCharge: return "Save Changes"
+            }
+        }
     }
 }
 
@@ -114,11 +159,9 @@ extension KeyPadView.CurrencyRules {
 
 #Preview {
     EnterAmountView(
+        mode: .roomNumber,
         enteredAmount: .constant("123"),
         actionState: .constant(.normal),
-        subtext: "Enter Room Number",
-        formatter: .roomNumber,
-        suffix: "Kin",
         actionEnabled: { _ in return true }
     ) {}
 }

@@ -81,23 +81,36 @@ struct RoomDetailsScreen: View {
                     
                     Spacer()
                     
-                    CodeButton(
-                        state: viewModel.buttonState,
-                        style: .filled,
-                        title: kind.titleFor(roomNumber: chat.roomNumber)
-                    ) {
-                        switch kind {
-                        case .joinRoom:
-                            viewModel.attemptJoinChat(
-                                chatID: chatID,
-                                hostID: UserID(data: chat.ownerUserID),
-                                amount: chat.coverCharge
-                            )
-                        case .leaveRoom:
-                            viewModel.attemptLeaveChat(
-                                chatID: chatID,
-                                roomNumber: chat.roomNumber
-                            )
+                    VStack(spacing: 20) {
+                        // Only show for room hosts
+                        if let host, host.serverID == viewModel.userID.data {
+                            CodeButton(
+                                state: viewModel.buttonState,
+                                style: .filled,
+                                title: "Change Cover Charge"
+                            ) {
+                                viewModel.showChangeCover(currentCover: chat.coverCharge)
+                            }
+                        }
+                        
+                        CodeButton(
+                            state: viewModel.buttonState,
+                            style: .filled,
+                            title: kind.titleFor(roomNumber: chat.roomNumber)
+                        ) {
+                            switch kind {
+                            case .joinRoom:
+                                viewModel.attemptJoinChat(
+                                    chatID: chatID,
+                                    hostID: UserID(data: chat.ownerUserID),
+                                    amount: chat.coverCharge
+                                )
+                            case .leaveRoom:
+                                viewModel.attemptLeaveChat(
+                                    chatID: chatID,
+                                    roomNumber: chat.roomNumber
+                                )
+                            }
                         }
                     }
                 }
@@ -122,6 +135,9 @@ struct RoomDetailsScreen: View {
                         cancelAction: { viewModel.isShowingJoinPayment = false }
                     )
                 }
+            }
+            .sheet(isPresented: $viewModel.isShowingChangeCover) {
+                ChangeCoverScreen(chatID: chatID, viewModel: viewModel)
             }
         }
     }

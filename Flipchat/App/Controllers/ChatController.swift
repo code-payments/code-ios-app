@@ -146,6 +146,10 @@ class ChatController: ObservableObject {
     func leaveChat(chatID: ChatID) async throws {
         try await chatStore.leaveChat(chatID: chatID)
     }
+    
+    func changeCover(chatID: ChatID, newCover: Kin) async throws {
+        try await chatStore.changeCover(chatID: chatID, newCover: newCover)
+    }
 }
 
 // MARK: - Mock -

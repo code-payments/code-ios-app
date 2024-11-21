@@ -204,6 +204,7 @@ class ChatStore: ObservableObject {
             try save()
         }
     }
+    
     func startGroupChat(intentID: PublicKey) async throws -> ChatID {
         let metadata = try await client.startGroupChat(
             with: [userID],
@@ -214,6 +215,13 @@ class ChatStore: ObservableObject {
         let chat = try fetchOrCreateChat(for: metadata.id)
         chat.update(from: metadata)
         
+        guard let selfMember = try fetchSingleMember(serverID: userID.data) else {
+            throw Error.failedToFetchSingle
+        }
+        
+        chat.members.append(selfMember)
+        
+        try save()
         return metadata.id
     }
     
@@ -229,6 +237,7 @@ class ChatStore: ObservableObject {
         
         try upsert(members: members, in: chat)
         
+        try save()
         return metadata.id
     }
     
@@ -262,6 +271,7 @@ class ChatStore: ObservableObject {
             }
         }
         
+        try save()
         return metadata.id
     }
     
@@ -271,6 +281,18 @@ class ChatStore: ObservableObject {
         if let existingChat = try fetchSingleChat(serverID: chatID.data) {
             existingChat.isHidden = true
         }
+        
+        try save()
+    }
+    
+    func changeCover(chatID: ChatID, newCover: Kin) async throws {
+        guard let chat = try fetchSingleChat(serverID: chatID.data) else {
+            throw Error.failedToFetchChat
+        }
+        
+        chat.coverQuarks = newCover.quarks
+        
+        try await client.changeCover(chatID: chatID, newCover: newCover, owner: owner)
         
         try save()
     }
@@ -370,8 +392,6 @@ class ChatStore: ObservableObject {
         c.update(from: chat)
         
         modify(c)
-        
-        try save()
         
         return c
     }
@@ -489,7 +509,6 @@ class ChatStore: ObservableObject {
         
         chat.insert(members: container)
         
-        try save()
         return container
     }
     

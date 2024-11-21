@@ -18,11 +18,19 @@ class ChatViewModel: ObservableObject {
     
     @Published var enteredRoomNumber: String = ""
     
+    @Published var enteredNewCover: String = ""
+    
     @Published var isShowingEnterRoomNumber: Bool = false
     
     @Published var isShowingJoinPayment: Bool = false
     
     @Published var isShowingCreatePayment: Bool = false
+    
+    @Published var isShowingChangeCover: Bool = false
+    
+    var userID: UserID {
+        session.userID
+    }
     
     private let session: Session
     private let chatController: ChatController
@@ -67,7 +75,12 @@ class ChatViewModel: ObservableObject {
             description: nil,
             position: .bottom,
             actions: [
-                .standard(title: "Join a Room", action: showEnterRoomNumber),
+                .standard(title: "Join a Room") {
+                    Task {
+                        try await Task.delay(milliseconds: 300)
+                        self.showEnterRoomNumber()
+                    }
+                },
                 .standard(title: "Create a New Room", action: attemptCreateChat),
                 .cancel(title: "Cancel"),
             ]
@@ -125,6 +138,39 @@ class ChatViewModel: ObservableObject {
             
         } success: { chatID in
             self.joinRoomPath.append(.previewRoom(chatID))
+            
+        } error: { _ in
+            self.showFailedToLoadRoomError()
+        }
+    }
+    
+    func showChangeCover(currentCover: Kin) {
+        enteredNewCover = String(currentCover.truncatedKinValue)
+        isShowingChangeCover = true
+    }
+    
+    func dismissChangeCover() {
+        isShowingChangeCover = false
+        Task {
+            try await Task.delay(milliseconds: 500)
+            enteredNewCover = ""
+        }
+    }
+    
+    func changeCover(chatID: ChatID) {
+        guard
+            let coverInt = Int(enteredNewCover),
+            let newCover = Kin(kin: coverInt)
+        else {
+            // TODO: Use number parser instead
+            return
+        }
+        
+        withButtonState { [chatController] in
+            try await chatController.changeCover(chatID: chatID, newCover: newCover)
+            
+        } success: { chatID in
+            self.dismissChangeCover()
             
         } error: { _ in
             self.showFailedToLoadRoomError()
@@ -194,6 +240,15 @@ class ChatViewModel: ObservableObject {
         enteredRoomNumber.count >= 1
     }
     
+    func isEnteredCoverChargeValid() -> Bool {
+        guard let coverInt = UInt64(enteredNewCover) else {
+            return false
+        }
+        
+        let cover = Kin(kin: coverInt)
+        return cover > 0 && cover < 1_000_000_000
+    }
+    
     // MARK: - Errors -
     
     private func showFailedToLoadRoomError() {
@@ -222,6 +277,17 @@ class ChatViewModel: ObservableObject {
         banners.show(
             style: .error,
             title: "Failed to Leave Chat",
+            description: "Something wen't wrong. Please try again.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showFailedToChangeCover() {
+        banners.show(
+            style: .error,
+            title: "Failed to Change Cover",
             description: "Something wen't wrong. Please try again.",
             actions: [
                 .cancel(title: Localized.Action.ok)

@@ -26,10 +26,9 @@ struct EnterRoomNumberScreen: View {
         NavigationStack(path: $viewModel.joinRoomPath) {
             Background(color: .backgroundMain) {
                 EnterAmountView(
+                    mode: .roomNumber,
                     enteredAmount: $viewModel.enteredRoomNumber,
                     actionState: $viewModel.buttonState,
-                    subtext: "Enter Room Number",
-                    formatter: .roomNumber,
                     actionEnabled: { _ in
                         viewModel.isEnteredRoomNumberValid()
                     },
