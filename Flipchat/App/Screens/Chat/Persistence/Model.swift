@@ -42,7 +42,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
     @Relationship(deleteRule: .cascade)
     public var messages: [pMessage] = []
     
-    @Relationship(deleteRule: .nullify)
+    @Relationship(deleteRule: .cascade)
     public var members: [pMember] = []
     
     init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, coverQuarks: UInt64, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
