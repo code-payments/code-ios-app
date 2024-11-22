@@ -38,6 +38,32 @@ class PushService: FlipchatService<Flipchat_Push_V1_PushNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func deleteToken(token: String, owner: KeyPair, completion: @escaping (Result<(), ErrorDeleteToken>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Token: \(token)")
+        
+        let request = Flipchat_Push_V1_DeleteTokenRequest.with {
+            $0.tokenType = .fcmApns
+            $0.pushToken = token
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.deleteToken(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorDeleteToken(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -47,6 +73,12 @@ public enum ErrorAddToken: Int, Error {
     case invalidPushToken
     case unknown = -1
 }
+
+public enum ErrorDeleteToken: Int, Error {
+    case ok
+    case unknown = -1
+}
+
 
 // MARK: - Interceptors -
 

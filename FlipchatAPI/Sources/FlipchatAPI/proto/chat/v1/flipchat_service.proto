@@ -46,14 +46,14 @@ service Chat {
     // LeaveChat leaves a given chat.
     rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
 
-    // SetMuteState configures a chat member's mute state.
-    rpc SetMuteState(SetMuteStateRequest) returns (SetMuteStateResponse);
-
     // SetCoverCharge sets a chat's cover charge
     rpc SetCoverCharge(SetCoverChargeRequest) returns (SetCoverChargeResponse);
 
     // RemoveUser removes a user from a chat
     rpc RemoveUser(RemoveUserRequest) returns (RemoveUserResponse);
+
+    // MuteUser mutes a user in the chat and removes their ability to send messages
+    rpc MuteUser(MuteUserRequest) returns (MuteUserResponse);
 
     // ReportUser reports a user for a given message
     //
@@ -299,22 +299,6 @@ message LeaveChatResponse {
     }
 }
 
-message SetMuteStateRequest {
-    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
-
-    bool is_muted = 2;
-
-    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
-}
-message SetMuteStateResponse {
-    Result result = 1;
-    enum Result {
-        OK             = 0;
-        DENIED         = 1;
-        CANT_MUTE      = 2;
-    }
-}
-
 message SetCoverChargeRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
@@ -339,6 +323,21 @@ message RemoveUserRequest{
     common.v1.Auth auth = 3 [(validate.rules).message.required = true];
 }
 message RemoveUserResponse{
+    Result result = 1;
+    enum Result {
+        OK       = 0;
+        DENIED   = 1;
+    }
+}
+
+message MuteUserRequest{
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.UserId user_id = 2 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+message MuteUserResponse{
     Result result = 1;
     enum Result {
         OK       = 0;
@@ -383,12 +382,6 @@ message Metadata {
     // If non-zero, the room number associated with the chat.
     uint64 room_number = 4;
 
-    // Whether or not the chat is muted (from the perspective of the caller).
-    bool is_muted = 5;
-
-    // Whether or not the chat is mutable (from the persective of the caller).
-    bool muteable = 6;
-
     // Number of (estimated) unread message (from the perspective of the caller).
     uint32 num_unread = 7;
 
@@ -428,6 +421,9 @@ message Member {
 
     // NOTE: We may switch to 'roles' in the future.
     bool is_host = 5;
+
+    // Cant this user send messages in the chat?
+    bool is_muted = 6;
 }
 
 message MemberIdentity {

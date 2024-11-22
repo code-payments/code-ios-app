@@ -58,4 +58,8 @@ message DeleteTokenRequest {
 }
 
 message DeleteTokenResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
 }

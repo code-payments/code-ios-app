@@ -124,7 +124,6 @@ message SendMessageResponse {
     enum Result {
         OK                   = 0;
         DENIED               = 1;
-        INVALID_CONTENT_TYPE = 2;
     }
 
     // The chat message that was sent if the RPC was succesful, which includes

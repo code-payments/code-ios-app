@@ -41,6 +41,12 @@ extension FlipchatClient {
         }
     }
     
+    public func muteUser(userID: UserID, chatID: ChatID, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.muteUser(userID: userID, chatID: chatID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func reportMessage(userID: UserID, messageID: MessageID, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
             chatService.reportMessage(userID: userID, messageID: messageID, owner: owner) { c.resume(with: $0) }

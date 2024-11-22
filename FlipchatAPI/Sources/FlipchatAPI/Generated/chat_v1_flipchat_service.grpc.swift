@@ -46,11 +46,6 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>
 
-  func setMuteState(
-    _ request: Flipchat_Chat_V1_SetMuteStateRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>
-
   func setCoverCharge(
     _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
     callOptions: CallOptions?
@@ -60,6 +55,11 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>
+
+  func muteUser(
+    _ request: Flipchat_Chat_V1_MuteUserRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_MuteUserRequest, Flipchat_Chat_V1_MuteUserResponse>
 
   func reportUser(
     _ request: Flipchat_Chat_V1_ReportUserRequest,
@@ -199,24 +199,6 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
     )
   }
 
-  /// SetMuteState configures a chat member's mute state.
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to SetMuteState.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func setMuteState(
-    _ request: Flipchat_Chat_V1_SetMuteStateRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse> {
-    return self.makeUnaryCall(
-      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setMuteState.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
-    )
-  }
-
   /// SetCoverCharge sets a chat's cover charge
   ///
   /// - Parameters:
@@ -250,6 +232,24 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
+    )
+  }
+
+  /// MuteUser mutes a user in the chat and removes their ability to send messages
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to MuteUser.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func muteUser(
+    _ request: Flipchat_Chat_V1_MuteUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_MuteUserRequest, Flipchat_Chat_V1_MuteUserResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.muteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeMuteUserInterceptors() ?? []
     )
   }
 
@@ -365,11 +365,6 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>
 
-  func makeSetMuteStateCall(
-    _ request: Flipchat_Chat_V1_SetMuteStateRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>
-
   func makeSetCoverChargeCall(
     _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
     callOptions: CallOptions?
@@ -379,6 +374,11 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>
+
+  func makeMuteUserCall(
+    _ request: Flipchat_Chat_V1_MuteUserRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_MuteUserRequest, Flipchat_Chat_V1_MuteUserResponse>
 
   func makeReportUserCall(
     _ request: Flipchat_Chat_V1_ReportUserRequest,
@@ -466,18 +466,6 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
-  public func makeSetMuteStateCall(
-    _ request: Flipchat_Chat_V1_SetMuteStateRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setMuteState.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
-    )
-  }
-
   public func makeSetCoverChargeCall(
     _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
     callOptions: CallOptions? = nil
@@ -499,6 +487,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
+    )
+  }
+
+  public func makeMuteUserCall(
+    _ request: Flipchat_Chat_V1_MuteUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_MuteUserRequest, Flipchat_Chat_V1_MuteUserResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.muteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeMuteUserInterceptors() ?? []
     )
   }
 
@@ -601,18 +601,6 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
-  public func setMuteState(
-    _ request: Flipchat_Chat_V1_SetMuteStateRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Flipchat_Chat_V1_SetMuteStateResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setMuteState.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? []
-    )
-  }
-
   public func setCoverCharge(
     _ request: Flipchat_Chat_V1_SetCoverChargeRequest,
     callOptions: CallOptions? = nil
@@ -634,6 +622,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? []
+    )
+  }
+
+  public func muteUser(
+    _ request: Flipchat_Chat_V1_MuteUserRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_MuteUserResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.muteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeMuteUserInterceptors() ?? []
     )
   }
 
@@ -687,14 +687,14 @@ public protocol Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when invoking 'leaveChat'.
   func makeLeaveChatInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>]
 
-  /// - Returns: Interceptors to use when invoking 'setMuteState'.
-  func makeSetMuteStateInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>]
-
   /// - Returns: Interceptors to use when invoking 'setCoverCharge'.
   func makeSetCoverChargeInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
 
   /// - Returns: Interceptors to use when invoking 'removeUser'.
   func makeRemoveUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'muteUser'.
+  func makeMuteUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_MuteUserRequest, Flipchat_Chat_V1_MuteUserResponse>]
 
   /// - Returns: Interceptors to use when invoking 'reportUser'.
   func makeReportUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_ReportUserRequest, Flipchat_Chat_V1_ReportUserResponse>]
@@ -711,9 +711,9 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       Flipchat_Chat_V1_ChatClientMetadata.Methods.startChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.joinChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.leaveChat,
-      Flipchat_Chat_V1_ChatClientMetadata.Methods.setMuteState,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.muteUser,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.reportUser,
     ]
   )
@@ -755,12 +755,6 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       type: GRPCCallType.unary
     )
 
-    public static let setMuteState = GRPCMethodDescriptor(
-      name: "SetMuteState",
-      path: "/flipchat.chat.v1.Chat/SetMuteState",
-      type: GRPCCallType.unary
-    )
-
     public static let setCoverCharge = GRPCMethodDescriptor(
       name: "SetCoverCharge",
       path: "/flipchat.chat.v1.Chat/SetCoverCharge",
@@ -770,6 +764,12 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
     public static let removeUser = GRPCMethodDescriptor(
       name: "RemoveUser",
       path: "/flipchat.chat.v1.Chat/RemoveUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let muteUser = GRPCMethodDescriptor(
+      name: "MuteUser",
+      path: "/flipchat.chat.v1.Chat/MuteUser",
       type: GRPCCallType.unary
     )
 
@@ -819,14 +819,14 @@ public protocol Flipchat_Chat_V1_ChatProvider: CallHandlerProvider {
   /// LeaveChat leaves a given chat.
   func leaveChat(request: Flipchat_Chat_V1_LeaveChatRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_LeaveChatResponse>
 
-  /// SetMuteState configures a chat member's mute state.
-  func setMuteState(request: Flipchat_Chat_V1_SetMuteStateRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetMuteStateResponse>
-
   /// SetCoverCharge sets a chat's cover charge
   func setCoverCharge(request: Flipchat_Chat_V1_SetCoverChargeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetCoverChargeResponse>
 
   /// RemoveUser removes a user from a chat
   func removeUser(request: Flipchat_Chat_V1_RemoveUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_RemoveUserResponse>
+
+  /// MuteUser mutes a user in the chat and removes their ability to send messages
+  func muteUser(request: Flipchat_Chat_V1_MuteUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_MuteUserResponse>
 
   /// ReportUser reports a user for a given message
   ///
@@ -900,15 +900,6 @@ extension Flipchat_Chat_V1_ChatProvider {
         userFunction: self.leaveChat(request:context:)
       )
 
-    case "SetMuteState":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_SetMuteStateRequest>(),
-        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_SetMuteStateResponse>(),
-        interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? [],
-        userFunction: self.setMuteState(request:context:)
-      )
-
     case "SetCoverCharge":
       return UnaryServerHandler(
         context: context,
@@ -925,6 +916,15 @@ extension Flipchat_Chat_V1_ChatProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_RemoveUserResponse>(),
         interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? [],
         userFunction: self.removeUser(request:context:)
+      )
+
+    case "MuteUser":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_MuteUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_MuteUserResponse>(),
+        interceptors: self.interceptors?.makeMuteUserInterceptors() ?? [],
+        userFunction: self.muteUser(request:context:)
       )
 
     case "ReportUser":
@@ -1001,12 +1001,6 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_LeaveChatResponse
 
-  /// SetMuteState configures a chat member's mute state.
-  func setMuteState(
-    request: Flipchat_Chat_V1_SetMuteStateRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Flipchat_Chat_V1_SetMuteStateResponse
-
   /// SetCoverCharge sets a chat's cover charge
   func setCoverCharge(
     request: Flipchat_Chat_V1_SetCoverChargeRequest,
@@ -1018,6 +1012,12 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     request: Flipchat_Chat_V1_RemoveUserRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_RemoveUserResponse
+
+  /// MuteUser mutes a user in the chat and removes their ability to send messages
+  func muteUser(
+    request: Flipchat_Chat_V1_MuteUserRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_MuteUserResponse
 
   /// ReportUser reports a user for a given message
   ///
@@ -1101,15 +1101,6 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.leaveChat(request: $0, context: $1) }
       )
 
-    case "SetMuteState":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_SetMuteStateRequest>(),
-        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_SetMuteStateResponse>(),
-        interceptors: self.interceptors?.makeSetMuteStateInterceptors() ?? [],
-        wrapping: { try await self.setMuteState(request: $0, context: $1) }
-      )
-
     case "SetCoverCharge":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1126,6 +1117,15 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_RemoveUserResponse>(),
         interceptors: self.interceptors?.makeRemoveUserInterceptors() ?? [],
         wrapping: { try await self.removeUser(request: $0, context: $1) }
+      )
+
+    case "MuteUser":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_MuteUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_MuteUserResponse>(),
+        interceptors: self.interceptors?.makeMuteUserInterceptors() ?? [],
+        wrapping: { try await self.muteUser(request: $0, context: $1) }
       )
 
     case "ReportUser":
@@ -1169,10 +1169,6 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeLeaveChatInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>]
 
-  /// - Returns: Interceptors to use when handling 'setMuteState'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeSetMuteStateInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetMuteStateRequest, Flipchat_Chat_V1_SetMuteStateResponse>]
-
   /// - Returns: Interceptors to use when handling 'setCoverCharge'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetCoverChargeInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
@@ -1180,6 +1176,10 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when handling 'removeUser'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeRemoveUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
+
+  /// - Returns: Interceptors to use when handling 'muteUser'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeMuteUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_MuteUserRequest, Flipchat_Chat_V1_MuteUserResponse>]
 
   /// - Returns: Interceptors to use when handling 'reportUser'.
   ///   Defaults to calling `self.makeInterceptors()`.
@@ -1197,9 +1197,9 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       Flipchat_Chat_V1_ChatServerMetadata.Methods.startChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.joinChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.leaveChat,
-      Flipchat_Chat_V1_ChatServerMetadata.Methods.setMuteState,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setCoverCharge,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.removeUser,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.muteUser,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.reportUser,
     ]
   )
@@ -1241,12 +1241,6 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       type: GRPCCallType.unary
     )
 
-    public static let setMuteState = GRPCMethodDescriptor(
-      name: "SetMuteState",
-      path: "/flipchat.chat.v1.Chat/SetMuteState",
-      type: GRPCCallType.unary
-    )
-
     public static let setCoverCharge = GRPCMethodDescriptor(
       name: "SetCoverCharge",
       path: "/flipchat.chat.v1.Chat/SetCoverCharge",
@@ -1256,6 +1250,12 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
     public static let removeUser = GRPCMethodDescriptor(
       name: "RemoveUser",
       path: "/flipchat.chat.v1.Chat/RemoveUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let muteUser = GRPCMethodDescriptor(
+      name: "MuteUser",
+      path: "/flipchat.chat.v1.Chat/MuteUser",
       type: GRPCCallType.unary
     )
 

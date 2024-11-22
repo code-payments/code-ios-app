@@ -15,4 +15,10 @@ extension FlipchatClient {
             pushService.addToken(token: token, installationID: installationID, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func deleteToken(token: String, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            pushService.deleteToken(token: token, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

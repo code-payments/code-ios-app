@@ -217,7 +217,6 @@ public enum ErrorStreamMessages: Int, Error {
 public enum ErrorSendMessage: Int, Error {
     case ok
     case denied
-    case invalidContentType
     case unknown = -1
 }
 

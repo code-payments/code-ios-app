@@ -255,6 +255,32 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
+    func muteUser(userID: UserID, chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorMuteUser>) -> Void) {
+        trace(.send, components: "User ID: \(userID.description)", "Signed by: \(owner.publicKey.base58)")
+        
+        let request = Flipchat_Chat_V1_MuteUserRequest.with {
+            $0.userID = .with { $0.value = userID.data }
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.muteUser(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorMuteUser(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
     func fetchChats(owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat.Metadata], ErrorFetchChats>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)", "Query: \(query.description)")
         
@@ -403,6 +429,12 @@ public enum ErrorReportUser: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorMuteUser: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+}
+
 public enum ErrorFetchChats: Int, Error {
     case ok
     case unknown = -1
@@ -424,6 +456,10 @@ public enum ErrorChangeCover: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeMuteUserInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_MuteUserRequest, FlipchatAPI.Flipchat_Chat_V1_MuteUserResponse>] {
+        makeInterceptors()
+    }
+    
     func makeReportUserInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_ReportUserRequest, FlipchatAPI.Flipchat_Chat_V1_ReportUserResponse>] {
         makeInterceptors()
     }
