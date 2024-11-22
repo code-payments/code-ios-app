@@ -268,13 +268,6 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Login -
     
-    func initializeNewAccount(name: String) async throws -> InitializedAccount {
-        try await initialize(
-            using: .generate(.words12),
-            name: name
-        )
-    }
-    
     func initialize(using mnemonic: MnemonicPhrase, name: String?) async throws -> InitializedAccount {
         inProgress = true
         defer {

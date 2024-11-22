@@ -108,6 +108,10 @@ class PushController: ObservableObject {
 }
 
 extension PushController {
+    static func authorize() async throws {
+        try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+    }
+    
     static func fetchStatus() async -> UNAuthorizationStatus {
         await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }

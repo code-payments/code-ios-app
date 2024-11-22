@@ -1,0 +1,88 @@
+//
+//  AccessKeyScreen.swift
+//  Code
+//
+//  Created by Dima Bart on 2021-04-13.
+//
+
+import SwiftUI
+import CodeUI
+import FlipchatServices
+
+struct AccessKeyScreen: View {
+    
+    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    
+    @ObservedObject private var viewModel: OnboardingViewModel
+    
+    // MARK: - Init -
+    
+    init(viewModel: OnboardingViewModel) {
+        self.viewModel = viewModel
+    }
+    
+    // MARK: - Body -
+    
+    var body: some View {
+        Background(color: .backgroundMain) {
+            VStack(spacing: 0) {
+                Spacer()
+                
+                if let mnemonic = viewModel.inflightMnemonic {
+                    VStack(alignment: .center, spacing: 20) {
+                        AccessKey(
+                            mnemonic: mnemonic,
+                            url: .flipchatLogin(with: mnemonic)
+                        )
+                        .contextMenu(ContextMenu {
+                            Button(action: copy) {
+                                Label("Copy", systemImage: SystemSymbol.doc.rawValue)
+                            }
+                        })
+                        
+                        Text("Your Access Key is the only way to access your account. Please keep it private and safe.")
+                            .font(.appTextSmall)
+                            .foregroundColor(.textMain)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.bottom, 40)
+                }
+                
+                Spacer()
+                
+                CodeButton(
+                    state: viewModel.accessKeyButtonState,
+                    style: .filled,
+                    title: "Save Access Key to My Photos"
+                ) {
+                    viewModel.promptSaveToPhotos()
+                }
+                
+                CodeButton(
+                    style: .subtle,
+                    title: "Wrote the 12 Words Down Instead?",
+                    disabled: sessionAuthenticator.inProgress
+                ) {
+                    viewModel.promptWrittenConfirmation()
+                }
+            }
+            .ignoresSafeArea(.keyboard)
+            .foregroundColor(.textMain)
+            .padding(20)
+            .navigationBarTitle(Text("Access Key"), displayMode: .inline)
+            .navigationBarBackButtonHidden(true)
+        }
+    }
+    
+    // MARK: - Copy / Paste -
+    
+    private func copy() {
+        UIPasteboard.general.string = viewModel.inflightMnemonic?.phrase
+    }
+}
+
+// MARK: - Previews -
+
+#Preview {
+    AccessKeyScreen(viewModel: OnboardingViewModel(sessionAuthenticator: .mock, banners: .mock))
+}

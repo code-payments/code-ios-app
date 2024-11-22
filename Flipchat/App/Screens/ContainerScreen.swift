@@ -64,8 +64,11 @@ struct ContainerScreen: View {
             .transition(.crossFade)
             
         case .loggedOut:
-            IntroScreen(sessionAuthenticator: sessionAuthenticator)
-                .transition(.crossFade)
+            IntroScreen(
+                sessionAuthenticator: sessionAuthenticator,
+                banners: container.banners
+            )
+            .transition(.crossFade)
         }
     }
     

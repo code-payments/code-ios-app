@@ -41,14 +41,6 @@ extension URL {
         URL(string: "https://app.getcode.com/tos")!
     }
     
-    static var flipchatPrivacyPolicy: URL {
-        URL(string: "https://flipchat.xyz/privacy")!
-    }
-    
-    static var flipchatTermsOfService: URL {
-        URL(string: "https://flipchat.xyz/terms")!
-    }
-    
     static func solanaExplorerTransaction(with signature: Signature) -> URL {
         URL(string: "https://explorer.solana.com/tx/\(signature.base58)")!
     }

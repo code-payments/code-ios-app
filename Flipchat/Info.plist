@@ -8,9 +8,11 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>We will save your Access Key to your library.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
-		<string>codewallet</string>
+		<string>flipchat</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

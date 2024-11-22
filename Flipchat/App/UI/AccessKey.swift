@@ -1,13 +1,14 @@
 //
-//  File.swift
-//  CodeUI
+//  AccessKey.swift
+//  Flipchat
 //
 //  Created by Dima Bart.
 //  Copyright © 2021 Code Inc. All rights reserved.
 //
 
 import SwiftUI
-import CodeServices
+import CodeUI
+import FlipchatServices
 
 public struct AccessKey: View {
     
@@ -37,14 +38,12 @@ public struct AccessKey: View {
             .background(
                 LinearGradient(
                     gradient: Gradient(stops: [
-                        Gradient.Stop(color: Color(r: 32,  g: 35,  b: 36),  location: 0.0),
-                        Gradient.Stop(color: Color(r: 102, g: 102, b: 121), location: 0.2),
-                        Gradient.Stop(color: Color(r: 15,  g: 12,  b: 31),  location: 0.53),
-                        Gradient.Stop(color: Color(r: 105, g: 105, b: 132), location: 0.62),
-                        Gradient.Stop(color: Color(r: 32,  g: 35,  b: 36),  location: 1.0),
+                        Gradient.Stop(color: Color(r: 35,  g: 22,  b: 88),  location: 0.21),
+                        Gradient.Stop(color: Color(r: 68, g: 48, b: 145), location: 0.46),
+                        Gradient.Stop(color: Color(r: 148,  g: 94,  b: 206),  location: 0.64),
                     ]),
-                    startPoint: UnitPoint(x: -0.5, y: 1.0),
-                    endPoint:   UnitPoint(x: 1.5,  y: 0.1)
+                    startPoint: UnitPoint(x: 0.19, y: 1),
+                    endPoint: UnitPoint(x: 0.88, y: 0.14)
                 )
                 .scaleEffect(1.3)
                 .blur(radius: 20)
@@ -52,9 +51,11 @@ public struct AccessKey: View {
             .overlay(
                 ZStack {
                     VStack {
-                        CodeBrand(size: .flexible, template: true)
-                            .frame(maxWidth: 90)
-                            .foregroundColor(.white)
+                        
+                        Image(with: .brandLarge)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: 35)
                             
                         Spacer()
                         
@@ -65,7 +66,7 @@ public struct AccessKey: View {
                             backgroundColor: .clear
                         )
                         .aspectRatio(1, contentMode: .fit)
-                        .frame(maxWidth: 145)
+                        .frame(maxWidth: 130)
                         
                         Spacer()
                         
@@ -75,6 +76,7 @@ public struct AccessKey: View {
                             }
                         }
                         .font(.appTextAccessKey)
+                        .foregroundStyle(Color.textMain)
                     }
                     .padding([.top, .bottom], 60)
                     
@@ -94,4 +96,8 @@ public struct AccessKey: View {
             .drawingGroup()
             .frame(maxWidth: 255)
     }
+}
+
+#Preview {
+    AccessKey(mnemonic: .generate(.words12), url: URL(string: "https://example.com")!)
 }

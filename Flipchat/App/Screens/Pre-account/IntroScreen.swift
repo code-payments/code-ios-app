@@ -12,7 +12,6 @@ import FlipchatServices
 struct IntroScreen: View {
     
     @EnvironmentObject private var client: Client
-    @EnvironmentObject private var banners: Banners
     @EnvironmentObject private var cameraAuthorizer: CameraAuthorizer
     
     @State private var isShowingPrivacyPolicy  = false
@@ -21,13 +20,15 @@ struct IntroScreen: View {
     @StateObject private var viewModel: OnboardingViewModel
     
     private let sessionAuthenticator: SessionAuthenticator
+    private let banners: Banners
     
     // MARK: - Init -
     
-    init(sessionAuthenticator: SessionAuthenticator) {
+    init(sessionAuthenticator: SessionAuthenticator, banners: Banners) {
         self.sessionAuthenticator = sessionAuthenticator
+        self.banners = banners
         self._viewModel = StateObject(
-            wrappedValue: OnboardingViewModel(sessionAuthenticator: sessionAuthenticator)
+            wrappedValue: OnboardingViewModel(sessionAuthenticator: sessionAuthenticator, banners: banners)
         )
     }
     
@@ -117,7 +118,9 @@ struct IntroScreen: View {
                 case .login:
                     LoginScreen()
                 case .permissionPush:
-                    EmptyView()
+                    PushPermissionsScreen(viewModel: viewModel)
+                case .accessKey:
+                    AccessKeyScreen(viewModel: viewModel)
                 }
             }
         }
@@ -140,7 +143,7 @@ struct IntroScreen: View {
 
 #Preview {
     Group {
-        IntroScreen(sessionAuthenticator: .mock)
+        IntroScreen(sessionAuthenticator: .mock, banners: .mock)
     }
     .environmentObjectsForSession()
 }

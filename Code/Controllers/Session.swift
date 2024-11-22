@@ -564,7 +564,7 @@ class Session: ObservableObject {
         }
         
         guard !scannedRendezvous.contains(payload.rendezvous.publicKey) else {
-            trace(.warning, components: "Nonce previously received: \(payload.nonce.hexEncodedString())")
+            trace(.warning, components: "Nonce previously received: \(payload.nonce.hexString())")
             return
         }
         
@@ -586,7 +586,7 @@ class Session: ObservableObject {
         
         trace(.note, components:
               "Kind: \(payload.kind)",
-              "Nonce: \(payload.nonce.hexEncodedString())",
+              "Nonce: \(payload.nonce.hexString())",
               "Rendezvous: \(payload.rendezvous.publicKey.base58)"
         )
         
