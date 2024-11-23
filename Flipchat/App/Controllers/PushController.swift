@@ -157,11 +157,10 @@ extension PushController {
 // MARK: - UNUserNotificationCenterDelegate -
 
 @MainActor
-private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, MessagingDelegate {
+private class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDelegate, @preconcurrency MessagingDelegate {
     
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     
-    nonisolated
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         trace(.warning, components: 
               "Date:     \(notification.date)",
@@ -180,7 +179,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
             let chatID = Data(base64Encoded: base64ChatID)
         {
             print("Skipping banners, chat is currently active")
-            showBanners = await PushController.activeChat?.data != chatID
+            showBanners = PushController.activeChat?.data != chatID
         }
         
         var options: UNNotificationPresentationOptions = [.badge, .list, .sound]
@@ -191,7 +190,6 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         return options
     }
     
-    nonisolated
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         trace(.warning, components: "Received response: \(response.actionIdentifier)")
         
@@ -202,7 +200,6 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
         }
     }
     
-    nonisolated
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         trace(.warning, components: "Received FCM token: \(fcmToken ?? "nil")")
         Task {
