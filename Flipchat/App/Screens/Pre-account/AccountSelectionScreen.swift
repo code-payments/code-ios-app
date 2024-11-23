@@ -11,6 +11,7 @@ import FlipchatServices
 
 struct AccountSelectionScreen: View {
     
+    @EnvironmentObject private var flipClient: FlipchatClient
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var exchange: Exchange
     
@@ -77,7 +78,7 @@ struct AccountSelectionScreen: View {
                                             
                                             Group {
                                                 Text("Created \(DateFormatter.relative.string(from: account.details.creationDate))")
-                                                Text("On \(account.details.deviceName)")
+                                                Text("Name: \(account.displayName ?? "nil")")
                                                 Text(account.details.account.ownerPublicKey.base58)
                                                     .truncationMode(.middle)
                                             }
@@ -197,6 +198,25 @@ struct AccountSelectionScreen: View {
                             }
                         }
                     }
+                    
+                    group.addTask {
+                        let owner = historicalAccount.details.account.owner
+                        do {
+                            let userID = try await flipClient.login(owner: owner)
+                            let displayName = try await flipClient.fetchProfile(userID: userID)
+                            
+                            await update(owner: owner.publicKey) {
+                                $0.displayName = displayName
+                                $0.userID = userID
+                            }
+                            
+                        } catch {
+                            await update(owner: owner.publicKey) {
+                                $0.setNotFound()
+                            }
+                            
+                        }
+                    }
                 }
             }
         }
@@ -226,14 +246,22 @@ class HistoricalAccountContainer: Identifiable {
     nonisolated
     let details: AccountDescription
     
+    var displayName: String?
+    var userID: UserID?
+    
     private(set) var organizer: Organizer
     
     private(set) var isNotFound: Bool = false
     private(set) var isMigrationRequired: Bool = false
 
     init(details: AccountDescription) {
+        self.displayName = ""
         self.details = details
         self.organizer = Organizer(mnemonic: details.account.mnemonic)
+    }
+    
+    func setDisplayname(_ name: String) {
+        displayName = name
     }
     
     func setAccountInfo(_ accountInfos: [PublicKey: AccountInfo]) {

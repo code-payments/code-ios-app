@@ -23,6 +23,7 @@ public class FlipchatClient: ObservableObject {
     internal let chatService: ChatService
     internal let pushService: PushService
     internal let messagingService: MessagingService
+    internal let profileService: ProfileService
     
     // MARK: - Init -
     
@@ -38,6 +39,7 @@ public class FlipchatClient: ObservableObject {
         self.chatService      = ChatService(channel: channel, queue: queue)
         self.pushService      = PushService(channel: channel, queue: queue)
         self.messagingService = MessagingService(channel: channel, queue: queue)
+        self.profileService   = ProfileService(channel: channel, queue: queue)
     }
     
     deinit {

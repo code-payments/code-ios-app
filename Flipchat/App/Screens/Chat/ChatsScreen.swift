@@ -13,10 +13,15 @@ import FlipchatServices
 struct ChatsScreen: View {
     
     @EnvironmentObject private var betaFlags: BetaFlags
+    @EnvironmentObject private var banners: Banners
     
+    @ObservedObject private var sessionAuthenticator: SessionAuthenticator
     @ObservedObject private var session: Session
     @ObservedObject private var chatController: ChatController
     @ObservedObject private var viewModel: ChatViewModel
+    
+    @State private var debugTapCount: Int = 0
+    @State private var isShowingSettings: Bool = false
     
     @Query(
         filter: #Predicate<pChat> { $0.isHidden == false },
@@ -33,7 +38,8 @@ struct ChatsScreen: View {
     
     // MARK: - Init -
     
-    init(session: Session, chatController: ChatController, viewModel: ChatViewModel) {
+    init(sessionAuthenticator: SessionAuthenticator, session: Session, chatController: ChatController, viewModel: ChatViewModel) {
+        self.sessionAuthenticator = sessionAuthenticator
         self.session = session
         self.chatController = chatController
         self.viewModel = viewModel
@@ -82,14 +88,46 @@ struct ChatsScreen: View {
             .navigationBarTitle(Text("Chats"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        viewModel.logout()
-                    } label: {
-                        Image(systemName: "door.right.hand.open")
-                            .padding(5)
+                if betaFlags.accessGranted {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {
+                            isShowingSettings = true
+                        } label: {
+                            Image.asset(.more)
+                                .padding(.vertical, 10)
+                                .padding(.leading, 10)
+                                .padding(.trailing, 40)
+                        }
                     }
                 }
+                
+                ToolbarItem(placement: .principal) {
+                    Text("Chats")
+                        .font(.appTitle)
+                        .foregroundStyle(Color.textMain)
+                        .onTapGesture {
+                            if debugTapCount > 9 {
+                                if betaFlags.accessGranted {
+                                    betaFlags.setAccessGranted(false)
+                                } else {
+                                    betaFlags.setAccessGranted(true)
+                                }
+                                
+                                debugTapCount = 0
+                            } else {
+                                debugTapCount += 1
+                            }
+                        }
+                        .sheet(isPresented: $isShowingSettings) {
+                            SettingsScreen(
+                                sessionAuthenticator: sessionAuthenticator,
+                                session: session,
+                                isPresented: $isShowingSettings
+                            )
+                            .environmentObject(banners)
+                        }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         viewModel.startChatting()
@@ -181,6 +219,7 @@ struct ChatsScreen: View {
 
 #Preview {
     ChatsScreen(
+        sessionAuthenticator: .mock,
         session: .mock,
         chatController: .mock,
         viewModel: .mock
