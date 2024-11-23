@@ -156,7 +156,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func showChangeCover(currentCover: Kin) {
-        enteredNewCover = String(currentCover.truncatedKinValue)
+//        enteredNewCover = String(currentCover.truncatedKinValue)
         isShowingChangeCover = true
     }
     
