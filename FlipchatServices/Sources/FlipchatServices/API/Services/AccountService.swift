@@ -43,6 +43,33 @@ class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {
         }
     }
     
+    func login(owner: KeyPair, completion: @escaping (Result<UserID, ErrorLogin>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+        
+        let request = Flipchat_Account_V1_LoginRequest.with {
+            $0.timestamp = .init(date: .now)
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.login(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorLogin(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                let userID = UserID(data: response.userID.value)
+                trace(.success, components: "User ID: \(userID.description)", "Owner: \(owner.publicKey.base58)")
+                completion(.success(userID))
+                
+            } else {
+                trace(.success, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
     func fetchPaymentDestination(userID: UserID, completion: @escaping (Result<PublicKey, ErrorFetchPaymentDestination>) -> Void) {
         trace(.send, components: "User ID: \(userID.description)")
         
@@ -125,6 +152,13 @@ public enum ErrorRegister: Int, Error {
     case ok
     case invalidSignature
     case invalidDisplayName
+    case unknown = -1
+}
+
+public enum ErrorLogin: Int, Error {
+    case ok
+    case invalidTimestamp
+    case denied
     case unknown = -1
 }
 

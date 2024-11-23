@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipchatServices
+import SwiftData
 
 @MainActor
 class ChatController: ObservableObject {
@@ -27,6 +28,10 @@ class ChatController: ObservableObject {
     private var chatStream: StreamChatsReference?
     
     private let chatStore: ChatStore
+    
+    var modelContainer: ModelContainer {
+        chatStore.container
+    }
     
     // MARK: - Init -
     
@@ -146,8 +151,8 @@ class ChatController: ObservableObject {
         )
     }
     
-    func removeUser(userID: UserID, chatID: ChatID) async throws {
-        try await client.removeUser(userID: userID, chatID: chatID, owner: owner)
+    func muteUser(userID: UserID, chatID: ChatID) async throws {
+        try await client.muteUser(userID: userID, chatID: chatID, owner: owner)
     }
     
     func reportMessage(userID: UserID, messageID: MessageID) async throws {

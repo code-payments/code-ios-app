@@ -80,22 +80,13 @@ public class pChat: ServerIdentifiable, ObservableObject {
         self.ownerUserID = metadata.ownerUser.data
         self.coverQuarks = metadata.coverAmount.quarks
         self.title       = metadata.title
-        self.isMuted     = metadata.isMuted
-        self.isMutable   = metadata.isMutable
         self.unreadCount = metadata.unreadCount
     }
     
     func insert(members: [pMember]) {
-        var combined: Set<pMember> = []
-        
-        var m = self.members
-        m.append(contentsOf: members)
-        m.forEach { member in
-            combined.remove(member)
-            combined.insert(member)
+        members.forEach {
+            $0.chat = self
         }
-        
-        self.members = combined.sorted { $0.displayName.lexicographicallyPrecedes($1.displayName) }
     }
 }
 
@@ -179,8 +170,8 @@ public class pMessage: ServerIdentifiable {
     @Relationship(deleteRule: .nullify, inverse: \pChat.messages)
     public var chat: pChat?
     
-    @Relationship(deleteRule: .cascade, inverse: \pPointer.message)
-    public var pointers: [pPointer] = []
+//    @Relationship(deleteRule: .cascade, inverse: \pPointer.message)
+//    public var pointers: [pPointer] = []
     
     init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [pMessageContent]) {
         self.serverID = serverID
@@ -227,7 +218,7 @@ extension pMessage {
 
 extension pMessage {
     var userDisplayName: String {
-        sender?.displayName ?? "Deleted"
+        sender?.identity.displayName ?? "Deleted"
     }
 }
 
@@ -270,6 +261,36 @@ public enum pMessageState: Int, Codable {
     }
 }
 
+// MARK: - Identity -
+
+@Model
+public class pIdentity: ServerIdentifiable {
+    
+    @Attribute(.unique)
+    public var serverID: Data // Same as pMemeber serverID
+    
+    public var displayName: String
+    
+    public var avatarURL: URL?
+    
+    @Relationship(deleteRule: .cascade)
+    public var members: [pMember] = []
+    
+    init(serverID: Data, displayName: String, avatarURL: URL? = nil) {
+        self.serverID = serverID
+        self.displayName = displayName
+        self.avatarURL = avatarURL
+    }
+    
+    static func new(serverID: Data, displayName: String, avatarURL: URL?) -> pIdentity {
+        pIdentity(
+            serverID: serverID,
+            displayName: displayName,
+            avatarURL: avatarURL
+        )
+    }
+}
+
 // MARK: - Member -
 
 @Model
@@ -278,57 +299,69 @@ public class pMember: ServerIdentifiable {
     @Attribute(.unique)
     public var serverID: Data
     
-    public var displayName: String
-    
-    public var avatarURL: URL?
+    public var isMuted: Bool
     
     // Relationships
+    
+    @Relationship(deleteRule: .nullify, inverse: \pIdentity.members)
+    public var identity: pIdentity
+    
+    @Relationship(deleteRule: .nullify, inverse: \pChat.members)
+    public var chat: pChat
     
     @Relationship(deleteRule: .nullify, inverse: \pMessage.sender)
     public var messages: [pMessage] = []
     
-    @Relationship(deleteRule: .nullify, inverse: \pChat.members)
-    public var chats: [pChat] = []
+//    @Relationship(deleteRule: .cascade)
+//    public var pointers: [pPointer] = []
     
-    @Relationship(deleteRule: .cascade)
-    public var pointers: [pPointer] = []
-    
-    init(serverID: Data, displayName: String, avatarURL: URL?) {
+    init(serverID: Data, isMuted: Bool, identity: pIdentity, chat: pChat) {
         self.serverID = serverID
-        self.displayName = displayName
-        self.avatarURL = avatarURL
+        self.isMuted = isMuted
+        self.identity = identity
+        self.chat = chat
     }
     
-    static func new(serverID: Data) -> pMember {
+    static func new(serverID: Data, identity: pIdentity, chat: pChat) -> pMember {
         pMember(
             serverID: serverID,
-            displayName: "",
-            avatarURL: nil
+            isMuted: false,
+            identity: identity,
+            chat: chat
         )
     }
     
     func update(from member: Chat.Member) {
         self.serverID = member.id.data
-        self.displayName = member.identity.displayName ?? "Anonymous"
-        self.avatarURL = nil
+        self.isMuted = member.isMuted
+        
+        let identity         = self.identity
+        identity.displayName = member.identity.displayName
+        identity.avatarURL   = member.identity.avatarURL
+    }
+}
+
+extension pMember {
+    var displayName: String {
+        identity.displayName
     }
 }
 
 // MARK: - Pointer -
 
-@Model
-public class pPointer {
-    
-    // Relationships
-    
-    @Relationship(deleteRule: .nullify)
-    public var member: pMember?
-    
-    @Relationship(deleteRule: .nullify)
-    public var message: pMessage?
-    
-    init() {}
-}
+//@Model
+//public class pPointer {
+//    
+//    // Relationships
+//    
+//    @Relationship(deleteRule: .nullify)
+//    public var member: pMember?
+//    
+//    @Relationship(deleteRule: .nullify)
+//    public var message: pMessage?
+//    
+//    init() {}
+//}
 
 extension Data {
     static var tempID: Data {

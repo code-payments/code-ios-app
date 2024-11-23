@@ -33,6 +33,10 @@ struct ConversationScreen: View {
         chats[0]
     }
     
+    private var selfMember: pMember? {
+        chat.members.first { $0.serverID == userID.data }
+    }
+    
     // MARK: - Init -
     
     init(userID: UserID, chatID: ChatID, containerViewModel: ContainerViewModel, chatController: ChatController) {
@@ -106,7 +110,16 @@ struct ConversationScreen: View {
                     messages: chat.messagesByDate
                 )
                 
-                inputView()
+                if selfMember?.isMuted == false {
+                    inputView()
+                } else {
+                    VStack {
+                        Text("You've been muted")
+                            .font(.appTextMedium)
+                            .foregroundStyle(Color.textSecondary)
+                    }
+                    .frame(height: 50)
+                }
             }
         }
         .onAppear(perform: didAppear)
@@ -205,16 +218,16 @@ struct ConversationScreen: View {
         case .copy(let text):
             copy(text: text)
             
-        case .removeUser(let name, let userID, let chatID):
+        case .muteUser(let name, let userID, let chatID):
             banners.show(
                 style: .error,
-                title: "Remove \(name)?",
-                description: "They will be able to rejoin after waiting an hour, but will have to pay the cover charge again",
+                title: "Mute \(name)?",
+                description: "They will remain in the chat but will not be able to send messages",
                 position: .bottom,
                 actions: [
                     .destructive(title: "Remove") {
                         Task {
-                            try await chatController.removeUser(userID: userID, chatID: chatID)
+                            try await chatController.muteUser(userID: userID, chatID: chatID)
                         }
                     },
                     .cancel(title: "Cancel"),
@@ -245,6 +258,10 @@ struct ConversationScreen: View {
     }
     
     private func sendMessage(text: String) {
+        guard !text.isEmpty else {
+            return
+        }
+        
         Task {
             try await chatController.sendMessage(text: text, for: chatID)
         }

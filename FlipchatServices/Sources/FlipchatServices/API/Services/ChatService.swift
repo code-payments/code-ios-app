@@ -495,10 +495,6 @@ extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProto
     func makeLeaveChatInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_LeaveChatRequest, FlipchatAPI.Flipchat_Chat_V1_LeaveChatResponse>] {
         makeInterceptors()
     }
-    
-    func makeSetMuteStateInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_SetMuteStateRequest, FlipchatAPI.Flipchat_Chat_V1_SetMuteStateResponse>] {
-        makeInterceptors()
-    }
 }
 
 // MARK: - GRPCClientType -

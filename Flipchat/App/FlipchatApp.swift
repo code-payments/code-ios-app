@@ -21,7 +21,6 @@ struct FlipchatApp: App {
     var body: some Scene {
         WindowGroup {
             ContainerScreen(sessionAuthenticator: delegate.container.sessionAuthenticator)
-                .modelContainer(ChatStore.container)
                 .injectingEnvironment(from: delegate.container)
                 .colorScheme(.dark)
         }

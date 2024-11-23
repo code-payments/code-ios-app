@@ -22,6 +22,9 @@ extension Chat {
         /// Is this chat member the host of the chat
         public let isHost: Bool
         
+        /// Is this user allowed to send messages
+        public let isMuted: Bool
+        
         /// The chat member's identity if it has been revealed.
         public var identity: Identity
         
@@ -30,10 +33,11 @@ extension Chat {
         /// on server.
         public var pointers: [Pointer]
         
-        public init(id: ID, isSelf: Bool, isHost: Bool, identity: Identity, pointers: [Pointer]) {
+        public init(id: ID, isSelf: Bool, isHost: Bool, isMuted: Bool, identity: Identity, pointers: [Pointer]) {
             self.id = id
             self.isSelf = isSelf
             self.isHost = isHost
+            self.isMuted = isMuted
             self.identity = identity
             self.pointers = pointers
         }
@@ -43,10 +47,10 @@ extension Chat {
 extension Chat.Member {
     public struct Identity: Equatable, Hashable, Sendable {
         
-        public var displayName: String?
+        public var displayName: String
         public var avatarURL: URL?
         
-        init(displayName: String?, avatarURL: URL?) {
+        init(displayName: String, avatarURL: URL?) {
             self.displayName = displayName
             self.avatarURL = avatarURL
         }
@@ -61,6 +65,7 @@ extension Chat.Member {
             id: .init(data: proto.userID.value),
             isSelf: proto.isSelf,
             isHost: proto.isHost,
+            isMuted: proto.isMuted,
             identity: .init(proto.identity),
             pointers: proto.pointers.map { .init($0) }
         )
@@ -70,7 +75,7 @@ extension Chat.Member {
 extension Chat.Member.Identity {
     init(_ proto: Flipchat_Chat_V1_MemberIdentity) {
         self.init(
-            displayName: proto.displayName,
+            displayName: proto.displayName.isEmpty ? "Member" : proto.displayName,
             avatarURL: URL(string: proto.profilePicURL)
         )
     }

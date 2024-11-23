@@ -288,12 +288,18 @@ final class SessionAuthenticator: ObservableObject {
             // 1. Open all required VM accounts
             try await client.createAccounts(with: organizer)
             
-            // 2. Register flipchat user, sign with owner
-            // used for accounts created above
-            let userID = try await flipClient.register(name: name, owner: owner)
-            
-            // 3. Airdrop initial balance
-            _ = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
+            // 2. If a name is provided, we'll register a new
+            // account but if it's ommited, we'll attempt a login
+            let userID: UserID
+            if let name {
+                userID = try await flipClient.register(name: name, owner: owner)
+                
+                // 3. For new users only, airdrop initial balance
+                _ = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
+                
+            } else {
+                userID = try await flipClient.login(owner: owner)
+            }
             
             accountManager.set(
                 account: keyAccount,
@@ -346,6 +352,7 @@ final class SessionAuthenticator: ObservableObject {
         
         if case .loggedIn(let state) = state {
             state.session.prepareForLogout()
+            state.pushController.prepareForLogout()
         }
         
         state = .loggedOut

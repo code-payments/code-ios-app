@@ -18,19 +18,15 @@ extension Chat {
         public let coverAmount: Kin
         
         public var title: String
-        public var isMuted: Bool
-        public var isMutable: Bool
         public var unreadCount: Int
         
-        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
+        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, unreadCount: Int) {
             self.id = id
             self.kind = kind
             self.roomNumber = roomNumber
             self.ownerUser = ownerUser
             self.coverAmount = coverAmount
             self.title = title
-            self.isMuted = isMuted
-            self.isMutable = isMutable
             self.unreadCount = unreadCount
         }
     }
@@ -72,8 +68,6 @@ extension Chat.Metadata {
             ownerUser: UserID(data: proto.owner.value),
             coverAmount: Kin(quarks: proto.coverCharge.quarks),
             title: proto.title,
-            isMuted: proto.isMuted,
-            isMutable: proto.muteable,
             unreadCount: Int(proto.numUnread)
         )
     }

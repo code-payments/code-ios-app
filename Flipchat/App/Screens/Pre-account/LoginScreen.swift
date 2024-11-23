@@ -191,11 +191,11 @@ struct LoginScreen: View {
     private func showError() {
         banners.show(
             style: .error,
-            title: Localized.Prompt.Title.notCodeAccount,
-            description: Localized.Prompt.Description.notCodeAccount,
+            title: "Invalid Account",
+            description: "This is not a valid Flipchat account.",
             position: .top,
             actions: [
-                .cancel(title: Localized.Action.tryDifferentCodeAccount),
+                .cancel(title: Localized.Action.ok),
             ]
         )
     }
@@ -203,8 +203,8 @@ struct LoginScreen: View {
     private func showUnlockedTimelockError() {
         banners.show(
             style: .error,
-            title: Localized.Error.Title.timelockUnlocked,
-            description: Localized.Error.Description.timelockUnlocked,
+            title: "Access Key No Longer Useable",
+            description: "Your Access Key has initiated an unlock. As a result, you will no longer be able to use this Access Key.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

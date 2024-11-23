@@ -219,12 +219,12 @@ public struct MessageList: View {
                 }
                 
                 // Only if the current user is a host
-                if userID == hostID, let senderID = message.senderID, let name = message.sender?.displayName {
+                if userID == hostID, let senderID = message.senderID, let name = message.sender?.identity.displayName {
                     
                     Button(role: .destructive) {
-                        action(.removeUser(name, UserID(data: senderID), chatID))
+                        action(.muteUser(name, UserID(data: senderID), chatID))
                     } label: {
-                        Label("Remove \(name)", systemImage: "person.slash")
+                        Label("Mute", systemImage: "speaker.slash")
                     }
                 }
             }
@@ -252,7 +252,7 @@ extension MessageList {
 
 enum MessageAction {
     case copy(String)
-    case removeUser(String, UserID, ChatID)
+    case muteUser(String, UserID, ChatID)
     case reportMessage(UserID, MessageID)
 }
 
@@ -472,7 +472,7 @@ import SwiftData
 
 #Preview {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: pChat.self, pMessage.self, pMember.self, pPointer.self, configurations: config)
+    let container = try! ModelContainer(for: pChat.self, pMessage.self, pMember.self, /*pPointer.self,*/ configurations: config)
     
     NavigationStack {
         Background(color: .backgroundMain) {

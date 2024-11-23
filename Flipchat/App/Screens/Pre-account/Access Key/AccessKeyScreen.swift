@@ -11,8 +11,6 @@ import FlipchatServices
 
 struct AccessKeyScreen: View {
     
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
-    
     @ObservedObject private var viewModel: OnboardingViewModel
     
     // MARK: - Init -
@@ -61,7 +59,7 @@ struct AccessKeyScreen: View {
                 CodeButton(
                     style: .subtle,
                     title: "Wrote the 12 Words Down Instead?",
-                    disabled: sessionAuthenticator.inProgress
+                    disabled: viewModel.accessKeyButtonState != .normal
                 ) {
                     viewModel.promptWrittenConfirmation()
                 }

@@ -125,8 +125,6 @@ struct PreviewRoomScreen: View {
             ownerUser: .mock1,
             coverAmount: 100,
             title: "",
-            isMuted: false,
-            isMutable: true,
             unreadCount: 0
         ),
         members: [],

@@ -22,7 +22,6 @@ class PushController: ObservableObject {
     private let client: FlipchatClient
     private let center: UNUserNotificationCenter
     private let delegate: NotificationDelegate
-    private let firebase: Messaging
     
     private var apnsToken: Data?
     private var firebaseToken: String?
@@ -33,22 +32,41 @@ class PushController: ObservableObject {
         self.owner    = owner
         self.client   = client
         self.center   = .current()
-        self.firebase = Messaging.messaging()
-        self.delegate = NotificationDelegate(firebase: firebase)
+        self.delegate = NotificationDelegate()
         
         delegate.didReceiveFCMToken = { [weak self] token in
             try await self?.didReceiveFirebaseToken(token: token)
         }
         
         center.delegate = delegate
-        firebase.delegate = delegate
+        Messaging.messaging().delegate = delegate
+        
+        Task {
+            do {
+                let token = try await Messaging.messaging().token()
+                trace(.note, components: "Uploading existing Firebase token from .messaging().token()")
+                try await addFirebaseToken(token)
+            } catch {
+                trace(.failure, components: "No stored Firebase token. Is this a fresh launch?")
+            }
+        }
 //        resetAppBadgeCount()
     }
     
     func didReceiveRemoteNotificationToken(with token: Data) {
         trace(.warning, components: "Received APNs token: \(token.hexString())")
         apnsToken = token
-        firebase.setAPNSToken(token, type: .unknown)
+        Messaging.messaging().setAPNSToken(token, type: .unknown)
+    }
+    
+    func prepareForLogout() {
+        Task {
+            guard let token = firebaseToken else {
+                return
+            }
+            
+            try await deleteFirebaseToken(token)
+        }
     }
     
     // MARK: - Badge -
@@ -85,6 +103,21 @@ class PushController: ObservableObject {
         } else {
             trace(.warning, components: "APNS: Firebase token cleared.")
         }
+    }
+    
+    private func addFirebaseToken(_ token: String) async throws {
+        try await client.addToken(
+            token: token,
+            installationID: try await Self.installationID(),
+            owner: owner
+        )
+    }
+    
+    private func deleteFirebaseToken(_ token: String) async throws {
+        try await client.deleteToken(
+            token: token,
+            owner: owner
+        )
     }
     
     // MARK: - Authorization -
@@ -128,13 +161,6 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
     
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     
-    let firebase: Messaging
-    
-    init(firebase: Messaging) {
-        self.firebase = firebase
-        super.init()
-    }
-    
     nonisolated
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         trace(.warning, components: 
@@ -146,7 +172,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
               "Info:     \(notification.request.content.userInfo)"
         )
         
-        await firebase.appDidReceiveMessage(notification.request.content.userInfo)
+        Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
         
         var showBanners = true
         if
@@ -169,7 +195,7 @@ private class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         trace(.warning, components: "Received response: \(response.actionIdentifier)")
         
-        await firebase.appDidReceiveMessage(response.notification.request.content.userInfo)
+        Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
         
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)

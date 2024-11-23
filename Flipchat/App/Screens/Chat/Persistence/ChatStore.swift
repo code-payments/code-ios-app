@@ -12,11 +12,8 @@ import FlipchatServices
 @MainActor
 class ChatStore: ObservableObject {
     
-    static let container = try! ModelContainer(
-        for: Schema([pChat.self, pMessage.self, pMember.self, pPointer.self]),
-        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-    )
-
+    let container: ModelContainer
+    
     private let userID: UserID
     private let owner: KeyPair
     private let client: FlipchatClient
@@ -30,7 +27,13 @@ class ChatStore: ObservableObject {
         self.owner = owner
         self.client = client
         
-        self.context = Self.container.mainContext
+        let container = try! ModelContainer(
+            for: Schema([pChat.self, pMessage.self, pMember.self /*pPointer.self*/]),
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        
+        self.context = container.mainContext
+        self.container = container
         
 //        mockupChats()
     }
@@ -61,16 +64,17 @@ class ChatStore: ObservableObject {
 //    }
     
     func nuke() throws {
-        do {
-            try context.delete(model: pChat.self)
-            try context.delete(model: pMessage.self)
-            try context.delete(model: pMember.self)
-            try context.delete(model: pPointer.self)
-            try context.save()
-        } catch {
-            trace(.failure, components: "Failed to nuke persistence store.")
-            throw error
-        }
+//        do {
+//            try context.delete(model: pChat.self)
+//            try context.delete(model: pMessage.self)
+//            try context.delete(model: pMember.self)
+//            try context.delete(model: pIdentity.self)
+////            try context.delete(model: pPointer.self)
+//            try context.save()
+//        } catch {
+//            trace(.failure, components: "Failed to nuke persistence store.")
+//            throw error
+//        }
     }
     
     // MARK: - Stream Updates -
@@ -159,6 +163,7 @@ class ChatStore: ObservableObject {
         }
         
         try upsert(messages: filteredMessages, in: chat)
+        
         try save()
     }
     
@@ -350,6 +355,8 @@ class ChatStore: ObservableObject {
             
             hasMoreChats = chats.count == pageSize
         }
+        
+        try save()
     }
     
     private func syncChat(chatID: ChatID) async throws {
@@ -496,13 +503,26 @@ class ChatStore: ObservableObject {
     
     @discardableResult
     private func upsert(members: [Chat.Member], in chat: pChat) throws -> [pMember] {
+        let ids = members.map { $0.id.data }
+        let identities = try fetchIdentities(in: Set(ids))
+        
         var container: [pMember] = []
         
         for member in members {
             trace(.write, components: "Member ID: \(member.id.description)")
             
-            let m = try fetchOrCreateMember(for: member.id, in: chat)
+            // Fetch or create identity
+            let existingIdentity = identities[member.id.data] ?? createIdentity(
+                id: member.id.data,
+                name: member.identity.displayName,
+                avatarURL: member.identity.avatarURL
+            )
+            
+            // Fetch or create member
+            let m = try fetchOrCreateMember(for: existingIdentity, in: chat)
             m.update(from: member)
+            
+            m.identity = existingIdentity // Update identity relationship
             
             container.append(m)
         }
@@ -512,21 +532,43 @@ class ChatStore: ObservableObject {
         return container
     }
     
-    private func fetchOrCreateMember(for userID: UserID, in chat: pChat) throws -> pMember {
-        if let existingMember = try fetchSingleMember(serverID: userID.data) {
+    private func fetchOrCreateMember(for identity: pIdentity, in chat: pChat) throws -> pMember {
+        // Identity and member serverIDs are the same
+        if let existingMember = try fetchSingleMember(serverID: identity.serverID) {
             return existingMember
         } else {
-            return createMember(in: chat, id: userID.data)
+            return createMember(
+                in: chat,
+                identity: identity,
+                id: userID.data
+            )
         }
     }
     
     @discardableResult
-    private func createMember(in chat: pChat, id: Data) -> pMember {
-        let newMember = pMember.new(serverID: id)
+    private func createMember(in chat: pChat, identity: pIdentity, id: Data) -> pMember {
+        let newMember = pMember.new(
+            serverID: id,
+            identity: identity,
+            chat: chat
+        )
         
         context.insert(newMember)
         
         return newMember
+    }
+    
+    @discardableResult
+    private func createIdentity(id: Data, name: String, avatarURL: URL?) -> pIdentity {
+        let identity = pIdentity.new(
+            serverID: id,
+            displayName: name,
+            avatarURL: avatarURL
+        )
+        
+        context.insert(identity)
+        
+        return identity
     }
     
     // MARK: - Context -
@@ -605,6 +647,17 @@ extension ChatStore {
         }
     }
     
+    private func fetchIdentities(in serverIDs: Set<Data>) throws -> [Data: pIdentity] {
+        var query = FetchDescriptor<pIdentity>()
+        query.predicate = #Predicate<pIdentity> { serverIDs.contains($0.serverID) }
+        do {
+            let members = try context.fetch(query)
+            return members.elementsKeyed(by: \.serverID)
+        } catch {
+            throw Error.failedToFetchSingle
+        }
+    }
+    
     private func fetchLatestChat() throws -> pChat? {
         var query = FetchDescriptor<pChat>()
         query.fetchLimit = 1
@@ -633,6 +686,7 @@ extension ChatStore {
 
 extension ChatStore {
     enum Error: Swift.Error {
+        case failedToFetchIdentities
         case failedToFetchChat
         case failedToFetchCount
         case failedToFetchLatest

@@ -16,6 +16,12 @@ extension FlipchatClient {
         }
     }
     
+    public func login(owner: KeyPair) async throws -> UserID {
+        try await withCheckedThrowingContinuation { c in
+            accountService.login(owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func fetchPaymentDestination(userID: UserID) async throws -> PublicKey {
         try await withCheckedThrowingContinuation { c in
             accountService.fetchPaymentDestination(userID: userID) { c.resume(with: $0) }

@@ -27,14 +27,6 @@ public struct Chat {
         metadata.roomNumber
     }
     
-    public var isMuted: Bool {
-        metadata.isMuted
-    }
-    
-    public var isMutable: Bool {
-        metadata.isMutable
-    }
-    
     public var unreadCount: Int {
         metadata.unreadCount
     }

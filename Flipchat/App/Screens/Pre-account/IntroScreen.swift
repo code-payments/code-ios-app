@@ -58,11 +58,11 @@ struct IntroScreen: View {
                                 action: viewModel.startCreateAccount
                             )
                             
-//                            CodeButton(
-//                                style: .subtle,
-//                                title: Localized.Action.logIn,
-//                                action: viewModel.startLogin
-//                            )
+                            CodeButton(
+                                style: .subtle,
+                                title: Localized.Action.logIn,
+                                action: viewModel.startLogin
+                            )
                         }
                     }
                     .padding(20.0)

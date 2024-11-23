@@ -62,6 +62,10 @@ class OnboardingViewModel: ObservableObject {
         completeLogin()
     }
     
+    private func requiresPushAuthorization() async -> Bool {
+        await PushController.fetchStatus() == .notDetermined
+    }
+    
     func registerEnteredName() {
         Task {
             guard isEnteredNameValid else {
@@ -100,9 +104,13 @@ class OnboardingViewModel: ObservableObject {
                 
                 try await Task.delay(milliseconds: 150)
                 accessKeyButtonState = .success
-                try await Task.delay(milliseconds: 500)
+                try await Task.delay(milliseconds: 400)
                 
-                navigationPath.append(.permissionPush)
+                if await requiresPushAuthorization() {
+                    navigationPath.append(.permissionPush)
+                } else {
+                    completeLogin()
+                }
                 
                 try await Task.delay(milliseconds: 500)
                 accessKeyButtonState = .normal
