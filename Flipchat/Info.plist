@@ -32,5 +32,7 @@
 		<key>apiKey</key>
 		<string>$(FLIPCHAT_MIXPANEL)</string>
 	</dict>
+    <key>UIUserInterfaceStyle</key>
+    <string>Dark</string>
 </dict>
 </plist>
