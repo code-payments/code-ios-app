@@ -40,6 +40,7 @@ class ChatViewModel: ObservableObject {
     
     private weak var containerViewModel: ContainerViewModel?
     
+    
     // MARK: - Init -
     
     init(session: Session, chatController: ChatController, client: FlipchatClient, exchange: Exchange, banners: Banners, containerViewModel: ContainerViewModel) {
@@ -135,7 +136,9 @@ class ChatViewModel: ObservableObject {
         }
         
         // Check if this chat exists locally, is so, just
-        // send the user directly into the conversation
+        // send the user directly into the conversation.
+        // Exclude chats that have been previously joined
+        // and left because we have to update server state.
         if let chatID = try? chatController.chatFor(roomNumber: roomNumber) {
             
             withButtonState(delayTask: false) {} success: {
@@ -146,8 +149,8 @@ class ChatViewModel: ObservableObject {
             withButtonState(showSuccess: false) { [chatController] in
                 try await chatController.fetchGroupChat(roomNumber: roomNumber)
                 
-            } success: { (chat, members) in
-                self.joinRoomPath.append(.previewRoom(chat, members))
+            } success: { (chat, members, host) in
+                self.joinRoomPath.append(.previewRoom(chat, members, host))
                 
             } error: { _ in
                 self.showFailedToLoadRoomError()
@@ -189,7 +192,16 @@ class ChatViewModel: ObservableObject {
     }
     
     private func attemptCreateChat() {
-        isShowingCreatePayment = true
+        guard let userFlags = session.userFlags else {
+            showInsufficientFundsError() // Different error?
+            return
+        }
+        
+        if session.hasSufficientFunds(for: userFlags.startGroupCost) {
+            isShowingCreatePayment = true
+        } else {
+            showInsufficientFundsError()
+        }
     }
     
     func createChat() async throws {
@@ -213,7 +225,11 @@ class ChatViewModel: ObservableObject {
                 amount: amount
             )
         } else {
-            isShowingJoinPayment = true
+            if session.hasSufficientFunds(for: amount) {
+                isShowingJoinPayment = true
+            } else {
+                showInsufficientFundsError()
+            }
         }
     }
     
@@ -241,6 +257,10 @@ class ChatViewModel: ObservableObject {
             isShowingJoinPayment = false
             isShowingEnterRoomNumber = false
         }
+    }
+    
+    func cancelJoinChatPayment() {
+        isShowingJoinPayment = false
     }
     
     private func leaveChat(chatID: ChatID) {
@@ -313,6 +333,17 @@ class ChatViewModel: ObservableObject {
             ]
         )
     }
+    
+    private func showInsufficientFundsError() {
+        banners.show(
+            style: .error,
+            title: "Insufficient Balance",
+            description: "You don't have enough Kin to complete this payment.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
 }
 
 // MARK: - Button State -
@@ -336,7 +367,7 @@ extension ChatViewModel {
                 
                 // Reset
                 
-                try await Task.delay(milliseconds: 300)
+                try await Task.delay(milliseconds: 200)
                 buttonState  = .normal
                 
                 try await Task.delay(milliseconds: 100)
@@ -361,7 +392,7 @@ extension ChatViewModel {
 }
 
 enum JoinRoomPath: Hashable {
-    case previewRoom(Chat.Metadata, [Chat.Member])
+    case previewRoom(Chat.Metadata, [Chat.Member], Chat.Identity)
 }
 
 extension ChatViewModel {

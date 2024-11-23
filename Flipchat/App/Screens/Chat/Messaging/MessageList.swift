@@ -191,6 +191,8 @@ public struct MessageList: View {
             MessageTitle(text: date.formattedRelatively())
             
         case .message(_, let isReceived, let message, let location):
+            let isFromSelf = message.senderID == userID.data
+            
             MessageText(
                 state: message.state.state,
                 name: message.userDisplayName,
@@ -219,7 +221,7 @@ public struct MessageList: View {
                 }
                 
                 // Only if the current user is a host
-                if userID == hostID, let senderID = message.senderID, let name = message.sender?.identity.displayName {
+                if !isFromSelf, userID == hostID, let senderID = message.senderID, let name = message.sender?.identity?.displayName {
                     
                     Button(role: .destructive) {
                         action(.muteUser(name, UserID(data: senderID), chatID))

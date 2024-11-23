@@ -46,10 +46,11 @@ struct EnterRoomNumberScreen: View {
             }
             .navigationDestination(for: JoinRoomPath.self) { path in
                 switch path {
-                case .previewRoom(let chat, let members):
+                case .previewRoom(let chat, let members, let host):
                     PreviewRoomScreen(
                         chat: chat,
                         members: members,
+                        host: host,
                         viewModel: viewModel
                     )
                 }

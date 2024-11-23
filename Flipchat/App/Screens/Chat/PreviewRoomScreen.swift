@@ -18,16 +18,14 @@ struct PreviewRoomScreen: View {
 
     private let chat: Chat.Metadata
     private let members: [Chat.Member]
-    
-    private var host: Chat.Member? {
-        members.first { $0.isHost }
-    }
+    private var host: Chat.Identity
     
     // MARK: - Init -
     
-    init(chat: Chat.Metadata, members: [Chat.Member], viewModel: ChatViewModel) {
+    init(chat: Chat.Metadata, members: [Chat.Member], host: Chat.Identity, viewModel: ChatViewModel) {
         self.chat = chat
         self.members = members
+        self.host = host
         self.viewModel = viewModel
     }
     
@@ -50,9 +48,7 @@ struct PreviewRoomScreen: View {
                             
                             Spacer()
                             VStack(spacing: 4) {
-                                if let displayName = host?.identity.displayName {
-                                    Text("Hosted by \(displayName)")
-                                }
+                                Text("Hosted by \(host.displayName)")
                                 Text("\(members.count) people inside")
                                 Text("Cover Charge: ⬢ \(chat.coverAmount.truncatedKinValue) Kin")
                             }
@@ -104,7 +100,7 @@ struct PreviewRoomScreen: View {
                             )
                         },
                         dismissAction: { viewModel.completeJoiningChat(chatID: chat.id) },
-                        cancelAction: { viewModel.completeJoiningChat(chatID: chat.id) }
+                        cancelAction: { viewModel.cancelJoinChatPayment() }
                     )
                 }
             }
@@ -128,6 +124,7 @@ struct PreviewRoomScreen: View {
             unreadCount: 0
         ),
         members: [],
+        host: .init(displayName: "Bob", avatarURL: nil),
         viewModel: .mock
     )
 }

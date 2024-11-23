@@ -24,8 +24,7 @@ struct ChatsScreen: View {
     @State private var isShowingSettings: Bool = false
     
     @Query(
-        filter: #Predicate<pChat> { $0.isHidden == false },
-        sort: \pChat.serverID, order: .reverse
+        filter: #Predicate<pChat> { $0.deleted == false }
     )
     private var unsortedRooms: [pChat]
     
@@ -193,13 +192,13 @@ struct ChatsScreen: View {
                         
                         Spacer()
                         
-                        if chat.isMuted {
-                            Image.system(.speakerSlash)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20, alignment: .trailing)
-                                .foregroundColor(.textSecondary)
-                        }
+//                        if chat.isMuted {
+//                            Image.system(.speakerSlash)
+//                                .resizable()
+//                                .aspectRatio(contentMode: .fit)
+//                                .frame(width: 20, height: 20, alignment: .trailing)
+//                                .foregroundColor(.textSecondary)
+//                        }
                         
                         if chat.isUnread {
                             Bubble(size: .large, count: chat.unreadCount)

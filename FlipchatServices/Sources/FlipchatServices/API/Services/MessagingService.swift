@@ -85,8 +85,10 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
 //                trace(.receive, components: "Pong", "Chat \(chatID.description)", "Server timestamp: \(ping.timestamp.date)")
                 
             case .error(let streamError):
-                let error = ErrorStreamMessages(rawValue: streamError.code.rawValue) ?? .unknown
-                completion(.failure(error))
+                queue.async {
+                    let error = ErrorStreamMessages(rawValue: streamError.code.rawValue) ?? .unknown
+                    completion(.failure(error))
+                }
             }
         }
         

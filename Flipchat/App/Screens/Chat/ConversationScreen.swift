@@ -34,7 +34,7 @@ struct ConversationScreen: View {
     }
     
     private var selfMember: pMember? {
-        chat.members.first { $0.serverID == userID.data }
+        chat.members.first { $0.serverID == userID.data && $0.chatID == chatID.data }
     }
     
     // MARK: - Init -
@@ -225,7 +225,7 @@ struct ConversationScreen: View {
                 description: "They will remain in the chat but will not be able to send messages",
                 position: .bottom,
                 actions: [
-                    .destructive(title: "Remove") {
+                    .destructive(title: "Mute") {
                         Task {
                             try await chatController.muteUser(userID: userID, chatID: chatID)
                         }

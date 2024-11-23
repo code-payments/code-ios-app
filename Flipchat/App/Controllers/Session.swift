@@ -169,8 +169,8 @@ class Session: ObservableObject {
     
     // MARK: - Send -
     
-    func hasSufficientFunds(for amount: KinAmount) -> Bool {
-        currentBalance >= amount.kin
+    func hasSufficientFunds(for amount: Kin) -> Bool {
+        currentBalance >= amount
     }
     
     func hasAvailableDailyLimit() -> Bool {

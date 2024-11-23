@@ -29,33 +29,27 @@ public class pChat: ServerIdentifiable, ObservableObject {
     
     public var coverQuarks: UInt64
     
-    public var isHidden: Bool
-    
-    public var isMuted: Bool
-    
-    public var isMutable: Bool
-    
     public var unreadCount: Int
+    
+    public var deleted: Bool
     
     // Relationships
     
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .cascade, inverse: \pMessage.chat)
     public var messages: [pMessage] = []
     
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .cascade, inverse: \pMember.chat)
     public var members: [pMember] = []
     
-    init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, coverQuarks: UInt64, isHidden: Bool, isMuted: Bool, isMutable: Bool, unreadCount: Int) {
+    init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, coverQuarks: UInt64, unreadCount: Int, deleted: Bool) {
         self.serverID = serverID
         self.kind = kind
         self.title = title
         self.roomNumber = roomNumber
         self.ownerUserID = ownerUserID
         self.coverQuarks = coverQuarks
-        self.isHidden = isHidden
-        self.isMuted = isMuted
-        self.isMutable = isMutable
         self.unreadCount = unreadCount
+        self.deleted     = deleted
     }
     
     static func new(serverID: Data) -> pChat {
@@ -66,20 +60,18 @@ public class pChat: ServerIdentifiable, ObservableObject {
             roomNumber: 0,
             ownerUserID: Data(),
             coverQuarks: 0,
-            isHidden: false,
-            isMuted: false,
-            isMutable: false,
-            unreadCount: 0
+            unreadCount: 0,
+            deleted: false
         )
     }
     
     func update(from metadata: Chat.Metadata) {
         self.serverID    = metadata.id.data
         self.kind        = pChatKind(kind: metadata.kind)
+        self.title       = metadata.title
         self.roomNumber  = metadata.roomNumber
         self.ownerUserID = metadata.ownerUser.data
         self.coverQuarks = metadata.coverAmount.quarks
-        self.title       = metadata.title
         self.unreadCount = metadata.unreadCount
     }
     
@@ -122,7 +114,7 @@ extension pChat {
     }
     
     public var isUnread: Bool {
-        !isMuted && unreadCount > 0
+        unreadCount > 0
     }
     
     public var oldestMessage: pMessage? {
@@ -164,10 +156,8 @@ public class pMessage: ServerIdentifiable {
     
     // Relationships
     
-    @Relationship(deleteRule: .nullify)
     public var sender: pMember?
     
-    @Relationship(deleteRule: .nullify, inverse: \pChat.messages)
     public var chat: pChat?
     
 //    @Relationship(deleteRule: .cascade, inverse: \pPointer.message)
@@ -218,7 +208,7 @@ extension pMessage {
 
 extension pMessage {
     var userDisplayName: String {
-        sender?.identity.displayName ?? "Deleted"
+        sender?.displayName ?? pMember.defaultName
     }
 }
 
@@ -273,7 +263,7 @@ public class pIdentity: ServerIdentifiable {
     
     public var avatarURL: URL?
     
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .cascade, inverse: \pMember.identity)
     public var members: [pMember] = []
     
     init(serverID: Data, displayName: String, avatarURL: URL? = nil) {
@@ -296,18 +286,17 @@ public class pIdentity: ServerIdentifiable {
 @Model
 public class pMember: ServerIdentifiable {
     
-    @Attribute(.unique)
     public var serverID: Data
+    
+    public var chatID: Data
     
     public var isMuted: Bool
     
     // Relationships
     
-    @Relationship(deleteRule: .nullify, inverse: \pIdentity.members)
-    public var identity: pIdentity
+    public var identity: pIdentity?
     
-    @Relationship(deleteRule: .nullify, inverse: \pChat.members)
-    public var chat: pChat
+    public var chat: pChat?
     
     @Relationship(deleteRule: .nullify, inverse: \pMessage.sender)
     public var messages: [pMessage] = []
@@ -315,16 +304,18 @@ public class pMember: ServerIdentifiable {
 //    @Relationship(deleteRule: .cascade)
 //    public var pointers: [pPointer] = []
     
-    init(serverID: Data, isMuted: Bool, identity: pIdentity, chat: pChat) {
+    init(serverID: Data, chatID: Data, isMuted: Bool, identity: pIdentity, chat: pChat) {
         self.serverID = serverID
+        self.chatID = chatID
         self.isMuted = isMuted
         self.identity = identity
         self.chat = chat
     }
     
-    static func new(serverID: Data, identity: pIdentity, chat: pChat) -> pMember {
+    static func new(serverID: Data, chatID: Data, identity: pIdentity, chat: pChat) -> pMember {
         pMember(
             serverID: serverID,
+            chatID: chatID,
             isMuted: false,
             identity: identity,
             chat: chat
@@ -335,15 +326,19 @@ public class pMember: ServerIdentifiable {
         self.serverID = member.id.data
         self.isMuted = member.isMuted
         
-        let identity         = self.identity
-        identity.displayName = member.identity.displayName
-        identity.avatarURL   = member.identity.avatarURL
+        identity?.displayName = member.identity.displayName
+        identity?.avatarURL   = member.identity.avatarURL
     }
 }
 
 extension pMember {
+    
+    static var defaultName: String {
+        "Member"
+    }
+    
     var displayName: String {
-        identity.displayName
+        identity?.displayName ?? Self.defaultName
     }
 }
 

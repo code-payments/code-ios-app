@@ -35,7 +35,20 @@ class ChatStore: ObservableObject {
         self.context = container.mainContext
         self.container = container
         
-//        mockupChats()
+        fetchAndInsertSelfIdentity()
+    }
+    
+    private func fetchAndInsertSelfIdentity() {
+        Task {
+            let identity = try fetchOrCreateIdentity(
+                id: userID.data,
+                name: try await client.fetchProfile(userID: userID)
+            )
+            
+            trace(.success, components: "Created self identity: \(identity.displayName)")
+            
+            try save()
+        }
     }
     
 //    private func mockupChats(owner: KeyPair, in chat: Chat) {
@@ -220,11 +233,14 @@ class ChatStore: ObservableObject {
         let chat = try fetchOrCreateChat(for: metadata.id)
         chat.update(from: metadata)
         
-        guard let selfMember = try fetchSingleMember(serverID: userID.data) else {
-            throw Error.failedToFetchSingle
-        }
+        // Shouldn't have any members
+        // but remove all to ensure
+        chat.members.removeAll()
         
-        chat.members.append(selfMember)
+        if let identity = try fetchSingleIndentity(serverID: userID.data) {
+            let selfMember = createMember(in: chat, identity: identity, id: userID.data)
+            selfMember.chat = chat
+        }
         
         try save()
         return metadata.id
@@ -255,11 +271,9 @@ class ChatStore: ObservableObject {
         
         // 1. Insert chat
         let chat = try upsert(chat: metadata) {
-            
-            // If this room was previously fetched
-            // but not joined, it might exist in a
-            // hidden state
-            $0.isHidden = false
+            // If the chat already exists,
+            // it might've been deleted
+            $0.deleted = false
         }
         
         // 2. Insert chat members
@@ -284,7 +298,7 @@ class ChatStore: ObservableObject {
         try await client.leaveChat(chatID: chatID, owner: owner)
         
         if let existingChat = try fetchSingleChat(serverID: chatID.data) {
-            existingChat.isHidden = true
+            existingChat.deleted = true
         }
         
         try save()
@@ -367,17 +381,12 @@ class ChatStore: ObservableObject {
         
         // 1. Insert chat
         let chat = try upsert(chat: metadata) {
-            
-            // If this room was previously fetched
-            // but not joined, it might exist in a
-            // hidden state
-            $0.isHidden = false
+            $0.deleted = false
         }
         
         // 2. Insert chat members
-        let localMember = try upsert(members: members, in: chat)
-        
-        let index = localMember.elementsKeyed(by: \.serverID)
+        let localMembers = try upsert(members: members, in: chat)
+        let index = localMembers.elementsKeyed(by: \.serverID)
         
         // 3. Insert messages
         try await syncMessages(for: chat) { message in
@@ -500,11 +509,23 @@ class ChatStore: ObservableObject {
     }
     
     // MARK: - Members -
+//    @discardableResult
+//    private func replaceMembers(in chat: pChat, with members: [Chat.Member]) throws -> [pMember] {
+//        chat.members.forEach {
+//            context.delete($0)
+//        }
+//        
+//        chat.members.removeAll()
+//        
+//        return try insertMembers(in: chat, with: members)
+//    }
     
     @discardableResult
     private func upsert(members: [Chat.Member], in chat: pChat) throws -> [pMember] {
-        let ids = members.map { $0.id.data }
-        let identities = try fetchIdentities(in: Set(ids))
+        let newIDs = Set(members.map { $0.id.data })
+        let identities = try fetchIdentities(in: newIDs)
+        
+        let oldMemberIndex = chat.members.elementsKeyed(by: \.serverID)
         
         var container: [pMember] = []
         
@@ -514,12 +535,15 @@ class ChatStore: ObservableObject {
             // Fetch or create identity
             let existingIdentity = identities[member.id.data] ?? createIdentity(
                 id: member.id.data,
-                name: member.identity.displayName,
-                avatarURL: member.identity.avatarURL
+                name: member.identity.displayName
             )
             
-            // Fetch or create member
-            let m = try fetchOrCreateMember(for: existingIdentity, in: chat)
+            // Create a new member, existing identity
+            let m = oldMemberIndex[member.id.data] ?? createMember(
+                in: chat,
+                identity: existingIdentity,
+                id: userID.data
+            )
             m.update(from: member)
             
             m.identity = existingIdentity // Update identity relationship
@@ -532,23 +556,24 @@ class ChatStore: ObservableObject {
         return container
     }
     
-    private func fetchOrCreateMember(for identity: pIdentity, in chat: pChat) throws -> pMember {
-        // Identity and member serverIDs are the same
-        if let existingMember = try fetchSingleMember(serverID: identity.serverID) {
-            return existingMember
-        } else {
-            return createMember(
-                in: chat,
-                identity: identity,
-                id: userID.data
-            )
-        }
-    }
+//    private func fetchOrCreateMember(for identity: pIdentity, in chat: pChat) throws -> pMember {
+//        // Identity and member serverIDs are the same
+//        if let existingMember = try fetchSingleMember(serverID: identity.serverID, chatID: chat.serverID) {
+//            return existingMember
+//        } else {
+//            return createMember(
+//                in: chat,
+//                identity: identity,
+//                id: userID.data
+//            )
+//        }
+//    }
     
     @discardableResult
     private func createMember(in chat: pChat, identity: pIdentity, id: Data) -> pMember {
         let newMember = pMember.new(
             serverID: id,
+            chatID: chat.serverID,
             identity: identity,
             chat: chat
         )
@@ -558,12 +583,20 @@ class ChatStore: ObservableObject {
         return newMember
     }
     
+    private func fetchOrCreateIdentity(id: Data, name: String) throws -> pIdentity {
+        if let existingIdentity = try fetchSingleIndentity(serverID: id) {
+            return existingIdentity
+        } else {
+            return createIdentity(id: id, name: name)
+        }
+    }
+    
     @discardableResult
-    private func createIdentity(id: Data, name: String, avatarURL: URL?) -> pIdentity {
+    private func createIdentity(id: Data, name: String) -> pIdentity {
         let identity = pIdentity.new(
             serverID: id,
             displayName: name,
-            avatarURL: avatarURL
+            avatarURL: nil
         )
         
         context.insert(identity)
@@ -594,7 +627,7 @@ extension ChatStore {
     
     func fetchSingleChat(roomNumber: RoomNumber) throws -> pChat? {
         var query = FetchDescriptor<pChat>()
-        query.predicate = #Predicate<pChat> { $0.roomNumber == roomNumber }
+        query.predicate = #Predicate<pChat> { $0.roomNumber == roomNumber && $0.deleted == false }
         query.fetchLimit = 1
         do {
             return try context.fetch(query).first
@@ -625,9 +658,20 @@ extension ChatStore {
         }
     }
     
-    private func fetchSingleMember(serverID: Data) throws -> pMember? {
+    private func fetchSingleMember(serverID: Data, chatID: Data) throws -> pMember? {
         var query = FetchDescriptor<pMember>()
-        query.predicate = #Predicate<pMember> { $0.serverID == serverID }
+        query.predicate = #Predicate<pMember> { $0.serverID == serverID && $0.chatID == chatID }
+        query.fetchLimit = 1
+        do {
+            return try context.fetch(query).first
+        } catch {
+            throw Error.failedToFetchSingle
+        }
+    }
+    
+    private func fetchSingleIndentity(serverID: Data) throws -> pIdentity? {
+        var query = FetchDescriptor<pIdentity>()
+        query.predicate = #Predicate<pIdentity> { $0.serverID == serverID }
         query.fetchLimit = 1
         do {
             return try context.fetch(query).first
