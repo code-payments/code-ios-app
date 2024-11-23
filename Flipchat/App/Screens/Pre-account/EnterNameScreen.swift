@@ -31,11 +31,12 @@ struct EnterNameScreen: View {
             VStack(alignment: .leading, spacing: 40) {
                 Spacer()
                 
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 15) {
                     TextField("Your Name", text: $viewModel.enteredName)
                         .focused($isFocused)
                         .font(.appDisplayMedium)
                         .frame(maxWidth: .infinity)
+                        .frame(height: 60) // Needs explicit height to avoid changing offset when scaling text down
                         .truncationMode(.middle)
                         .lineLimit(1)
                         .textInputAutocapitalization(.words)
