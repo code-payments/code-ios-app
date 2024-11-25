@@ -533,7 +533,7 @@ import SwiftData
                     state: .delivered,
                     senderID: PublicKey.mock.data,
                     isDeleted: false,
-                    contents: [.text("Okay cool, I'll let you know what we're doing")]
+                    contents: [.text("Okay cool, tap here to book a reso https://www.google.com")]
                 ),
                 .init(
                     serverID: .tempID,

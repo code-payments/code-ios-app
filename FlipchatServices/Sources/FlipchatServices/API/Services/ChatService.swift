@@ -79,8 +79,10 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
                 _ = stream.sendMessage(request)
                 
             case .error(let streamError):
-                let error = ErrorStreamChatEvents(rawValue: streamError.code.rawValue) ?? .unknown
-                completion(.failure(error))
+                queue.async {
+                    let error = ErrorStreamChatEvents(rawValue: streamError.code.rawValue) ?? .unknown
+                    completion(.failure(error))
+                }
             }
         }
         

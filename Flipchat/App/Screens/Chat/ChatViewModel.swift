@@ -58,7 +58,7 @@ class ChatViewModel: ObservableObject {
         banners.show(
             style: .error,
             title: "Log out?",
-            description: "Are you sure you want to log out?",
+            description: "You will need to enter your Access Key to get back into this account",
             position: .bottom,
             actions: [
                 .destructive(title: "Log Out") { [weak self] in
