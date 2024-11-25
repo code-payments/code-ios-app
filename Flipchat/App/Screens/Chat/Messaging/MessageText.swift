@@ -92,10 +92,13 @@ public struct MessageText: View {
                         
                     } else {
                         VStack(alignment: .trailing, spacing: 5) {
-                            Text(text)
+                            Text(parse(text: text))
                                 .font(.appTextMessage)
                                 .foregroundColor(.textMain)
                                 .multilineTextAlignment(.leading)
+                                .environment(\.openURL, OpenURLAction { url in
+                                    handleURL(url)
+                                })
                             
                             TimestampView(state: state, date: date, isReceived: isReceived)
                         }
@@ -108,6 +111,87 @@ public struct MessageText: View {
                     cornerClip(location: location)
                 )
             }
+        }
+    }
+    
+    func handleURL(_ url: URL) -> OpenURLAction.Result {
+        print("Handled URL: \(url.absoluteString)")
+        return .systemAction
+    }
+    
+    private func parse(text: String) -> AttributedString {
+        let start = Date.now
+        defer {
+            print("Parse took: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")
+        }
+        
+        var string = AttributedString(text)
+        
+        findLinks(in: text, string: &string)
+        
+//        findHashtags(in: text, string: &string)
+        
+        return string
+    }
+    
+    private func findLinks(in text: String, string: inout AttributedString) {
+        let types: NSTextCheckingResult.CheckingType = [.link, .phoneNumber, .regularExpression]
+        
+        guard let detector = try? NSDataDetector(types: types.rawValue) else {
+            return
+        }
+        
+        let matches = detector.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            
+            guard let range = Range(match.range, in: text) else {
+                continue
+            }
+            
+            guard let attributedRange = Range(range, in: string) else {
+                continue
+            }
+            
+            switch match.resultType {
+            case .link:
+                guard let url = match.url else {
+                    break
+                }
+                
+                string[attributedRange].link = url
+                string[attributedRange].underlineStyle = .single
+                
+            case .phoneNumber:
+                guard let phone = match.phoneNumber else {
+                    break
+                }
+                
+                string[attributedRange].link = URL(string: "tel:\(phone)")
+                string[attributedRange].underlineStyle = .single
+                
+            default:
+                break
+            }
+        }
+    }
+    
+    private func findHashtags(in text: String, string: inout AttributedString) {
+        guard let regex = try? NSRegularExpression(pattern: "#(\\d+)", options: []) else {
+            return
+        }
+        
+        let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+        for match in matches {
+            guard let range = Range(match.range, in: text) else {
+                continue
+            }
+            
+            guard let attributedRange = Range(range, in: string) else {
+                continue
+            }
+            
+            string[attributedRange].link = URL(string: "flipchat://action?room=")
+            string[attributedRange].underlineStyle = .single
         }
     }
 }
