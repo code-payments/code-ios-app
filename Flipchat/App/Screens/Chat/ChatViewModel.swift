@@ -76,10 +76,10 @@ class ChatViewModel: ObservableObject {
             description: nil,
             position: .bottom,
             actions: [
-                .standard(title: "Enter a Room Number") {
+                .standard(title: "Enter a Room Number") { [weak self] in
                     Task {
                         try await Task.delay(milliseconds: 300)
-                        self.showEnterRoomNumber()
+                        self?.showEnterRoomNumber()
                     }
                 },
                 .standard(title: "Create a New Room", action: attemptCreateChat),
@@ -187,7 +187,7 @@ class ChatViewModel: ObservableObject {
             self.dismissChangeCover()
             
         } error: { _ in
-            self.showFailedToLoadRoomError()
+            self.showGenericError()
         }
     }
     
@@ -295,6 +295,17 @@ class ChatViewModel: ObservableObject {
             style: .error,
             title: "Room Doesn't Exist Yet",
             description: "Please try a different room number.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showGenericError() {
+        banners.show(
+            style: .error,
+            title: "Something Went Wrong",
+            description: "That wasn't supposed to happen. Please try again.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

@@ -34,7 +34,7 @@ struct ConversationScreen: View {
     }
     
     private var selfMember: pMember? {
-        chat.members.first { $0.serverID == userID.data && $0.chatID == chatID.data }
+        chat.members?.first { $0.serverID == userID.data && $0.chatID == chatID.data }
     }
     
     // MARK: - Init -
@@ -69,7 +69,7 @@ struct ConversationScreen: View {
         destroyStream()
         
         var messageID: MessageID?
-        if let lastMessage = chat.messages.last?.serverID {
+        if let lastMessage = chat.messages?.last?.serverID {
             messageID = MessageID(data: lastMessage)
         }
         
@@ -180,7 +180,7 @@ struct ConversationScreen: View {
                 Text(chat.formattedRoomNumber)
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
-                Text("\(chat.members.count) people here")
+                Text("\(chat.members?.count ?? 0) \(subtext(for: chat.members?.count)) here")
                     .font(.appTextHeading)
                     .foregroundColor(.textSecondary)
             }
@@ -250,6 +250,14 @@ struct ConversationScreen: View {
                     .cancel(title: "Cancel"),
                 ]
             )
+        }
+    }
+    
+    private func subtext(for count: Int?) -> String {
+        if count == 1 {
+            return "person"
+        } else {
+            return "people"
         }
     }
     

@@ -19,6 +19,8 @@ class ChatStore: ObservableObject {
     private let client: FlipchatClient
 
     private let context: ModelContext
+    
+    private static let storeURL = URL.applicationSupportDirectory.appending(path: "chat.sqlite")
 
     // MARK: - Init -
     
@@ -29,7 +31,7 @@ class ChatStore: ObservableObject {
         
         let container = try! ModelContainer(
             for: Schema([pChat.self, pMessage.self, pMember.self /*pPointer.self*/]),
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            configurations: .init(url: Self.storeURL)
         )
         
         self.context = container.mainContext
@@ -78,16 +80,22 @@ class ChatStore: ObservableObject {
     
     func nuke() throws {
 //        do {
-//            try context.delete(model: pChat.self)
-//            try context.delete(model: pMessage.self)
-//            try context.delete(model: pMember.self)
-//            try context.delete(model: pIdentity.self)
-////            try context.delete(model: pPointer.self)
-//            try context.save()
+//            try FileManager.default.removeItem(at: Self.storeURL)
 //        } catch {
-//            trace(.failure, components: "Failed to nuke persistence store.")
-//            throw error
+//            trace(.failure, components: "Failed to delete persistence store.")
 //        }
+        do {
+            try context.delete(model: pIdentity.self)
+            try context.delete(model: pChat.self)
+            try context.delete(model: pMessage.self)
+            try context.delete(model: pMember.self)
+//            try context.delete(model: pPointer.self)
+            try context.save()
+            trace(.warning, components: "Persistence store nuked.")
+        } catch {
+            trace(.failure, components: "Failed to nuke persistence store.")
+            throw error
+        }
     }
     
     // MARK: - Stream Updates -
@@ -235,7 +243,7 @@ class ChatStore: ObservableObject {
         
         // Shouldn't have any members
         // but remove all to ensure
-        chat.members.removeAll()
+        chat.members?.removeAll()
         
         if let identity = try fetchSingleIndentity(serverID: userID.data) {
             let selfMember = createMember(in: chat, identity: identity, id: userID.data)
@@ -319,12 +327,14 @@ class ChatStore: ObservableObject {
     // MARK: - Sync -
     
     func sync() {
+        trace(.send, components: "Sync started.")
         Task {
             if let latestChat = try fetchLatestChat() {
                 try await syncChats(descendingFrom: ChatID(data: latestChat.serverID))
             } else {
                 try await syncChats()
             }
+            trace(.success, components: "Sync success.")
         }
     }
     
@@ -525,7 +535,7 @@ class ChatStore: ObservableObject {
         let newIDs = Set(members.map { $0.id.data })
         let identities = try fetchIdentities(in: newIDs)
         
-        let oldMemberIndex = chat.members.elementsKeyed(by: \.serverID)
+        let oldMemberIndex = chat.members?.elementsKeyed(by: \.serverID) ?? [:]
         
         var container: [pMember] = []
         

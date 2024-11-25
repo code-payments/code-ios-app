@@ -23,7 +23,7 @@ struct RoomDetailsScreen: View {
     }
     
     private var members: [pMember] {
-        chat.members
+        chat.members ?? []
     }
     
     private var host: pMember? {

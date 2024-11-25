@@ -36,10 +36,10 @@ public class pChat: ServerIdentifiable, ObservableObject {
     // Relationships
     
     @Relationship(deleteRule: .cascade, inverse: \pMessage.chat)
-    public var messages: [pMessage] = []
+    public var messages: [pMessage]?
     
     @Relationship(deleteRule: .cascade, inverse: \pMember.chat)
-    public var members: [pMember] = []
+    public var members: [pMember]?
     
     init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, coverQuarks: UInt64, unreadCount: Int, deleted: Bool) {
         self.serverID = serverID
@@ -104,9 +104,9 @@ extension pChat {
     }
     
     public var messagesByDate: [pMessage] {
-        messages.sorted { lhs, rhs in
+        messages?.sorted { lhs, rhs in
             lhs.date < rhs.date
-        }
+        } ?? []
     }
     
     public var formattedRoomNumber: String {
@@ -161,7 +161,7 @@ public class pMessage: ServerIdentifiable {
     public var chat: pChat?
     
 //    @Relationship(deleteRule: .cascade, inverse: \pPointer.message)
-//    public var pointers: [pPointer] = []
+//    public var pointers: [pPointer]?
     
     init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [pMessageContent]) {
         self.serverID = serverID
@@ -264,7 +264,7 @@ public class pIdentity: ServerIdentifiable {
     public var avatarURL: URL?
     
     @Relationship(deleteRule: .cascade, inverse: \pMember.identity)
-    public var members: [pMember] = []
+    public var members: [pMember]?
     
     init(serverID: Data, displayName: String, avatarURL: URL? = nil) {
         self.serverID = serverID
@@ -299,10 +299,10 @@ public class pMember: ServerIdentifiable {
     public var chat: pChat?
     
     @Relationship(deleteRule: .nullify, inverse: \pMessage.sender)
-    public var messages: [pMessage] = []
+    public var messages: [pMessage]?
     
 //    @Relationship(deleteRule: .cascade)
-//    public var pointers: [pPointer] = []
+//    public var pointers: [pPointer]?
     
     init(serverID: Data, chatID: Data, isMuted: Bool, identity: pIdentity, chat: pChat) {
         self.serverID = serverID
