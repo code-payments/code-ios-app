@@ -377,6 +377,7 @@ class ChatStore: ObservableObject {
                 cursor = chat.id
             }
             
+            trace(.write, components: "Inserted \(chats.count) chats.")
             hasMoreChats = chats.count == pageSize
         }
         
@@ -411,8 +412,6 @@ class ChatStore: ObservableObject {
     
     @discardableResult
     private func upsert(chat: Chat.Metadata, modify: (pChat) -> Void = { _ in }) throws -> pChat {
-        trace(.write, components: "Chat ID: \(chat.id.description)")
-        
         let c = try fetchOrCreateChat(for: chat.id)
 
         c.update(from: chat)
@@ -476,8 +475,6 @@ class ChatStore: ObservableObject {
         let membersMap = try fetchMembers(in: senders)
         
         try messages.forEach {
-            trace(.write, components: "Message ID: \($0.id.description)")
-            
             let message = try fetchOrCreateMessage(for: $0.id, in: chat)
             message.update(from: $0)
             
@@ -491,6 +488,8 @@ class ChatStore: ObservableObject {
             
             modify(message)
         }
+        
+        trace(.write, components: "Inserted \(messages.count) messages.")
     }
     
     private func fetchOrCreateMessage(for messageID: MessageID, in chat: pChat) throws -> pMessage {
@@ -540,7 +539,6 @@ class ChatStore: ObservableObject {
         var container: [pMember] = []
         
         for member in members {
-            trace(.write, components: "Member ID: \(member.id.description)")
             
             // Fetch or create identity
             let existingIdentity = identities[member.id.data] ?? createIdentity(
@@ -563,6 +561,7 @@ class ChatStore: ObservableObject {
         
         chat.insert(members: container)
         
+        trace(.write, components: "Inserted \(members.count) members.")
         return container
     }
     

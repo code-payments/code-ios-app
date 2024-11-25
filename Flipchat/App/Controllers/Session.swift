@@ -98,10 +98,16 @@ class Session: ObservableObject {
     
     private func fetchUserFlags() {
         Task {
-            userFlags = try await flipClient.fetchUserFlags(
+            let flags = try await flipClient.fetchUserFlags(
                 userID: userID,
                 owner: organizer.ownerKeyPair
             )
+            
+            if flags.isStaff {
+                BetaFlags.shared.setAccessGranted(true)
+            }
+            
+            userFlags = flags
         }
     }
     

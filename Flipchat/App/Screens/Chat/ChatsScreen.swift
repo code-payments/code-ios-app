@@ -105,16 +105,10 @@ struct ChatsScreen: View {
                         .font(.appTitle)
                         .foregroundStyle(Color.textMain)
                         .onTapGesture {
-                            if debugTapCount > 9 {
-                                if betaFlags.accessGranted {
-                                    betaFlags.setAccessGranted(false)
-                                } else {
-                                    betaFlags.setAccessGranted(true)
-                                }
-                                
+                            debugTapCount += 1
+                            if debugTapCount >= 7 {
+                                logoutAction()
                                 debugTapCount = 0
-                            } else {
-                                debugTapCount += 1
                             }
                         }
                         .sheet(isPresented: $isShowingSettings) {
@@ -211,6 +205,21 @@ struct ChatsScreen: View {
     
     private func avatarValue(for chat: Chat) -> AvatarView.Value {
         .placeholder
+    }
+    
+    private func logoutAction() {
+        banners.show(
+            style: .error,
+            title: "Log out?",
+            description: "Are you sure you want to log out?",
+            position: .bottom,
+            actions: [
+                .destructive(title: "Log Out") {
+                    sessionAuthenticator.logout()
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
     }
 }
 
