@@ -59,7 +59,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
             case .events(let eventBatch):
                 let updates = eventBatch.updates.compactMap { Chat.BatchUpdate($0) }
                 queue.async {
-                    trace(.receive, components: "Owner \(owner.publicKey.base58)", "Received \(updates.count) events.")
+//                    trace(.receive, components: "Owner \(owner.publicKey.base58)", "Received \(updates.count) events.")
                     completion(.success(updates))
                 }
                 
