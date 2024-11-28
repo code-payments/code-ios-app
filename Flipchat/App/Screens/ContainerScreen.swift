@@ -44,7 +44,7 @@ struct ContainerScreen: View {
                         .transition(.crossFade)
                 } else {
                     homeView(state: state)
-                        .modelContainer(state.chatController.modelContainer)
+                        .modelContainer(container.modelContainer)
                         .transition(.crossFade)
                 }
                 

@@ -280,7 +280,9 @@ struct ConversationScreen: View {
     }
     
     private func streamMessages(messages: [Chat.Message]) {
-        try? chatController.receiveMessages(messages: messages, for: chatID)
+        Task {
+            try await chatController.receiveMessages(messages: messages, for: chatID)
+        }
         
         scrollToBottom()
         advanceReadPointer()

@@ -304,21 +304,17 @@ public class pMember: ServerIdentifiable {
 //    @Relationship(deleteRule: .cascade)
 //    public var pointers: [pPointer]?
     
-    init(serverID: Data, chatID: Data, isMuted: Bool, identity: pIdentity, chat: pChat) {
+    init(serverID: Data, chatID: Data, isMuted: Bool) {
         self.serverID = serverID
         self.chatID = chatID
         self.isMuted = isMuted
-        self.identity = identity
-        self.chat = chat
     }
     
-    static func new(serverID: Data, chatID: Data, identity: pIdentity, chat: pChat) -> pMember {
+    static func new(serverID: Data, chatID: Data) -> pMember {
         pMember(
             serverID: serverID,
             chatID: chatID,
-            isMuted: false,
-            identity: identity,
-            chat: chat
+            isMuted: false
         )
     }
     

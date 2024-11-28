@@ -10,7 +10,7 @@ import Foundation
 import FlipchatAPI
 
 extension Chat {
-    public struct BatchUpdate {
+    public struct BatchUpdate: Sendable {
         
         public var chatID: ChatID
         public var chatMetadata: Chat.Metadata?
@@ -19,12 +19,12 @@ extension Chat {
         public var pointerUpdate: PointerUpdate?
         public var typingUpdate: TypingUpdate?
         
-        public struct TypingUpdate {
+        public struct TypingUpdate: Sendable {
             var userID: UserID
             var isTyping: Bool
         }
         
-        public struct PointerUpdate {
+        public struct PointerUpdate: Sendable {
             var userID: UserID
             var pointer: Pointer
         }

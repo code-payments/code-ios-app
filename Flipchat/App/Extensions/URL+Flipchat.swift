@@ -21,3 +21,9 @@ extension URL {
         URL(string: "https://flipchat.xyz/terms")!
     }
 }
+
+// MARK: - Local -
+
+extension URL {
+    static let chatStoreURL = URL.applicationSupportDirectory.appending(path: "chat.sqlite")
+}

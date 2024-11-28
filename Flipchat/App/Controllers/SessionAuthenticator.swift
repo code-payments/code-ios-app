@@ -51,9 +51,12 @@ final class SessionAuthenticator: ObservableObject {
     
     private var biometricsQueue: [ThrowingAction] = []
     
+    weak var container: AppContainer!
+    
     // MARK: - Init -
     
     init(container: AppContainer) {
+        self.container      = container
         self.flipClient     = container.flipClient
         self.client         = container.client
         self.exchange       = container.exchange
@@ -121,45 +124,40 @@ final class SessionAuthenticator: ObservableObject {
             accountManager.upsert(account: keyAccount)
             
         } else {
+            state = .loggedOut
             
-//            if !accountManager.fetchHistorical().isEmpty {
-//                state = .pending
-//            } else {
-                state = .loggedOut
+            // Only attempt to recover if there was an
+            // account that was previous already logged in
+            if UserDefaults.wasLoggedIn == true {
                 
-                // Only attempt to recover if there was an
-                // account that was previous already logged in
-                if UserDefaults.wasLoggedIn == true {
+                // Try a total of 6 times, first attempt +
+                // 5 more retries after that
+                if count <= 5 {
                     
-                    // Try a total of 6 times, first attempt +
-                    // 5 more retries after that
-                    if count <= 5 {
+                    // It's possible the keychain credentials
+                    // haven't been decoded yet and aren't
+                    // available. We'll wait 1 second and
+                    // retry a few times.
+                    Task {
+                        try await Task.delay(seconds: 1)
+                        let nextCount = count + 1
+                        initializeState(
+                            count: nextCount,
+                            migration: migration,
+                            didAuthenticate: didAuthenticate
+                        )
                         
-                        // It's possible the keychain credentials
-                        // haven't been decoded yet and aren't
-                        // available. We'll wait 1 second and
-                        // retry a few times.
-                        Task {
-                            try await Task.delay(seconds: 1)
-                            let nextCount = count + 1
-                            initializeState(
-                                count: nextCount,
-                                migration: migration,
-                                didAuthenticate: didAuthenticate
-                            )
-                            
-                            ErrorReporting.breadcrumb(
-                                name: "Retrying login",
-                                metadata: ["count": "\(nextCount)"],
-                                type: .process
-                            )
-                        }
-                        
-                    } else {
-                        Analytics.unintentialLogout()
+                        ErrorReporting.breadcrumb(
+                            name: "Retrying login",
+                            metadata: ["count": "\(nextCount)"],
+                            type: .process
+                        )
                     }
+                    
+                } else {
+                    Analytics.unintentialLogout()
                 }
-//            }
+            }
         }
     }
     
@@ -234,7 +232,8 @@ final class SessionAuthenticator: ObservableObject {
             userID: userID,
             client: flipClient,
             paymentClient: client,
-            organizer: organizer
+            organizer: organizer,
+            modelContainer: container.modelContainer
         )
         
         let chatViewModel = ChatViewModel(

@@ -27,34 +27,78 @@ class ChatController: ObservableObject {
     
     private var chatStream: StreamChatsReference?
     
-    private let chatStore: ChatStore
-    
-    var modelContainer: ModelContainer {
-        chatStore.container
-    }
+    private let modelContainer: ModelContainer
     
     // MARK: - Init -
     
-    init(userID: UserID, client: FlipchatClient, paymentClient: Client, organizer: Organizer) {
+    init(userID: UserID, client: FlipchatClient, paymentClient: Client, organizer: Organizer, modelContainer: ModelContainer) {
         self.userID    = userID
         self.client    = client
         self.paymentClient = paymentClient
         self.organizer = organizer
         self.owner     = organizer.ownerKeyPair
-        self.chatStore = ChatStore(
-            userID: userID,
-            owner: owner,
-            client: client
-        )
+        self.modelContainer = modelContainer
         
-        chatStore.sync()
-        
+        sync()
+        fetchAndInsertSelf()
         streamChatEvents()
+    }
+    
+    deinit {
+        trace(.warning, components: "Deallocating ChatController.")
     }
     
     func prepareForLogout() {
         destroyChatStream()
-        try? chatStore.nuke()
+        Task {
+            try await withStore {
+                try await $0.nuke()
+            }
+        }
+    }
+//    
+//    private func withStore<T>(action: (ChatStore) async throws -> T) where T: Sendable {
+//        Task.detached { [modelContainer, userID, owner, client] in
+//            let store = await ChatStore(
+//                container: modelContainer,
+//                userID: userID,
+//                owner: owner,
+//                client: client
+//            )
+//            
+//            return try await action(store)
+//        }
+//    }
+    
+    private func withStore<T>(action: @escaping @Sendable (ChatStore) async throws -> T) async throws -> T where T: Sendable  {
+        try await Task.detached { [modelContainer, userID, owner, client] in
+            let store = await ChatStore(
+                container: modelContainer,
+                userID: userID,
+                owner: owner,
+                client: client
+            )
+            
+            return try await action(store)
+        }.value
+    }
+    
+    // MARK: - Startup -
+    
+    private func sync() {
+        Task {
+            try await withStore {
+                await $0.sync()
+            }
+        }
+    }
+    
+    private func fetchAndInsertSelf() {
+        Task {
+            try await withStore {
+                try await $0.fetchAndInsertSelf()
+            }
+        }
     }
     
     // MARK: - Chat Stream -
@@ -65,7 +109,11 @@ class ChatController: ObservableObject {
         chatStream = client.streamChatEvents(owner: owner) { [weak self] result in
             switch result {
             case .success(let updates):
-                try? self?.chatStore.receive(updates: updates)
+                Task {
+                    try await self?.withStore {
+                        try await $0.receive(updates: updates)
+                    }
+                }
                 
             case .failure:
                 self?.reconnectChatStream(after: 250)
@@ -92,26 +140,34 @@ class ChatController: ObservableObject {
     
     // MARK: - Messages -
     
-    func receiveMessages(messages: [Chat.Message], for chatID: ChatID) throws {
-        try chatStore.receive(messages: messages, for: chatID)
+    func receiveMessages(messages: [Chat.Message], for chatID: ChatID) async throws {
+        try await withStore {
+            try await $0.receive(messages: messages, for: chatID)
+        }
     }
     
     func sendMessage(text: String, for chatID: ChatID) async throws {
-        try await chatStore.sendMessage(text: text, for: chatID)
+        try await withStore {
+            try await $0.sendMessage(text: text, for: chatID)
+        }
     }
     
     func advanceReadPointerToLatest(for chatID: ChatID) async throws {
-        try await chatStore.advanceReadPointerToLatest(for: chatID)
+        try await withStore {
+            try await $0.advanceReadPointerToLatest(for: chatID)
+        }
     }
     
     // MARK: - Group Chat -
     
-    func chatFor(roomNumber: RoomNumber) throws -> ChatID? {
-        guard let chat = try chatStore.fetchSingleChat(roomNumber: roomNumber) else {
-            return nil
+    func chatFor(roomNumber: RoomNumber) async throws -> ChatID? {
+        try await withStore {
+            guard let chatID = try await $0.fetchSingleChatID(roomNumber: roomNumber) else {
+                return nil
+            }
+            
+            return ChatID(data: chatID)
         }
-        
-        return ChatID(data: chat.serverID)
     }
     
     func startGroupChat(amount: Kin, destination: PublicKey) async throws -> ChatID {
@@ -121,7 +177,9 @@ class ChatController: ObservableObject {
             destination: destination
         )
         
-        return try await chatStore.startGroupChat(intentID: intentID)
+        return try await withStore {
+            return try await $0.startGroupChat(intentID: intentID)
+        }
     }
     
     func fetchGroupChat(roomNumber: RoomNumber) async throws -> (Chat.Metadata, [Chat.Member], Chat.Identity) {
@@ -141,7 +199,7 @@ class ChatController: ObservableObject {
     func joinGroupChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws -> ChatID {
         let destination = try await client.fetchPaymentDestination(userID: hostID)
         
-        var intentID: PublicKey?
+        let intentID: PublicKey?
         
         // Paying yourself is a no-op
         if hostID != userID {
@@ -150,12 +208,13 @@ class ChatController: ObservableObject {
                 organizer: organizer,
                 destination: destination
             )
+        } else {
+            intentID = nil
         }
         
-        return try await chatStore.joinChat(
-            chatID: chatID,
-            intentID: intentID
-        )
+        return try await withStore {
+            try await $0.joinChat(chatID: chatID, intentID: intentID)
+        }
     }
     
     func muteUser(userID: UserID, chatID: ChatID) async throws {
@@ -167,11 +226,15 @@ class ChatController: ObservableObject {
     }
     
     func leaveChat(chatID: ChatID) async throws {
-        try await chatStore.leaveChat(chatID: chatID)
+        try await withStore {
+            try await $0.leaveChat(chatID: chatID)
+        }
     }
     
     func changeCover(chatID: ChatID, newCover: Kin) async throws {
-        try await chatStore.changeCover(chatID: chatID, newCover: newCover)
+        try await withStore {
+            try await $0.changeCover(chatID: chatID, newCover: newCover)
+        }
     }
 }
 
@@ -182,6 +245,7 @@ extension ChatController {
         userID: .mock,
         client: .mock,
         paymentClient: .mock,
-        organizer: .mock2
+        organizer: .mock2,
+        modelContainer: try! ModelContainer(for: pIdentity.self)
     )
 }

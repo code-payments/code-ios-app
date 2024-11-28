@@ -135,25 +135,27 @@ class ChatViewModel: ObservableObject {
             return
         }
         
-        // Check if this chat exists locally, is so, just
-        // send the user directly into the conversation.
-        // Exclude chats that have been previously joined
-        // and left because we have to update server state.
-        if let chatID = try? chatController.chatFor(roomNumber: roomNumber) {
-            
-            withButtonState(delayTask: false) {} success: {
-                self.completeJoiningChat(chatID: chatID)
-            } error: { _ in }
-            
-        } else {
-            withButtonState(showSuccess: false) { [chatController] in
-                try await chatController.fetchGroupChat(roomNumber: roomNumber)
+        Task {
+            // Check if this chat exists locally, is so, just
+            // send the user directly into the conversation.
+            // Exclude chats that have been previously joined
+            // and left because we have to update server state.
+            if let chatID = try await chatController.chatFor(roomNumber: roomNumber) {
                 
-            } success: { (chat, members, host) in
-                self.joinRoomPath.append(.previewRoom(chat, members, host))
+                withButtonState(delayTask: false) {} success: {
+                    self.completeJoiningChat(chatID: chatID)
+                } error: { _ in }
                 
-            } error: { _ in
-                self.showFailedToLoadRoomError()
+            } else {
+                withButtonState(showSuccess: false) { [chatController] in
+                    try await chatController.fetchGroupChat(roomNumber: roomNumber)
+                    
+                } success: { (chat, members, host) in
+                    self.joinRoomPath.append(.previewRoom(chat, members, host))
+                    
+                } error: { _ in
+                    self.showFailedToLoadRoomError()
+                }
             }
         }
     }
