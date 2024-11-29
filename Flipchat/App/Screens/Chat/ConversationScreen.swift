@@ -92,7 +92,7 @@ struct ConversationScreen: View {
         destroyStream()
         
         var messageID: MessageID?
-        if let lastMessage = chat.messages?.last?.serverID {
+        if let lastMessage = messages.first?.serverID {
             messageID = MessageID(uuid: lastMessage)
         }
         
