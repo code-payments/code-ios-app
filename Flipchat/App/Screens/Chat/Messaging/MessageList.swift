@@ -14,20 +14,22 @@ public struct MessageList: View {
     private let chatID: ChatID
     private let userID: UserID
     private let hostID: UserID
-    private let action: (MessageAction) -> Void
     private var messages: [MessageDescription]
+    private let action: (MessageAction) -> Void
+    private let loadMore: () -> Void
     
-    @Binding private var state: State
+    @Binding private var state: ListState
     
     // MARK: - Init -
     
     @MainActor
-    init(state: Binding<State>, chatID: ChatID, userID: UserID, hostID: UserID, action: @escaping (MessageAction) -> Void = { _ in }, messages: [pMessage]) {
+    init(state: Binding<ListState>, chatID: ChatID, userID: UserID, hostID: UserID, messages: [pMessage], action: @escaping (MessageAction) -> Void = { _ in }, loadMore: @escaping () -> Void = {}) {
         _state = state
         self.chatID = chatID
         self.userID = userID
         self.hostID = hostID
         self.action = action
+        self.loadMore = loadMore
         
         var container: [MessageDescription] = []
         for dateGroup in messages.groupByDay(userID: userID) {
@@ -100,6 +102,15 @@ public struct MessageList: View {
             GeometryReader { g in
                 ScrollViewReader { scrollProxy in
                     List {
+                        Color.clear
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.backgroundMain)
+                            .id(scrollViewTopID)
+                            .frame(height: 1)
+                            .onAppear {
+                                loadMore()
+                            }
+                        
                         ForEach(messages) { description in
                             MessageRow(kind: description.kind, width: description.messageWidth(in: g.size)) {
                                 row(for: description)
@@ -236,11 +247,12 @@ public struct MessageList: View {
         }
     }
     
+    private let scrollViewTopID    = "com.code.scrollView.topID"
     private let scrollViewBottomID = "com.code.scrollView.bottomID"
 }
 
 extension MessageList {
-    public struct State {
+    public struct ListState {
         
         var scrollToBottomIndex: Int = 0
         
@@ -258,8 +270,8 @@ enum MessageAction {
     case reportMessage(UserID, MessageID)
 }
 
-struct MessageDescription: Identifiable {
-    enum Kind {
+struct MessageDescription: Identifiable, Hashable, Equatable {
+    enum Kind: Hashable, Equatable {
         case date(Date)
         case message(MessageID, Bool, pMessage, MessageSemanticLocation)
         case announcement(MessageID)

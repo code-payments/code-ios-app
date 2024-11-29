@@ -18,7 +18,7 @@ struct ConversationScreen: View {
     
     @State private var stream: StreamMessagesReference?
     
-    @State private var messageListState = MessageList.State()
+    @State private var messageListState = MessageList.ListState()
     
     @FocusState private var isEditorFocused: Bool
     
@@ -29,18 +29,32 @@ struct ConversationScreen: View {
     
     @Query private var chats: [pChat]
     
+    static func fetchDescriptorForChat(chatID: ChatID) -> FetchDescriptor<pChat> {
+        var d = FetchDescriptor<pChat>()
+        d.fetchLimit = 1
+        d.relationshipKeyPathsForPrefetching = [\.members]
+        d.predicate = #Predicate<pChat> {
+            $0.serverID == chatID.uuid
+        }
+        return d
+    }
+    
     @Query private var messages: [pMessage]
+    
+    static func fetchDescriptorForMessage(chatID: ChatID, limit: Int) -> FetchDescriptor<pMessage> {
+        var d = FetchDescriptor<pMessage>()
+        d.fetchLimit = limit
+        d.sortBy = [.init(\.date, order: .reverse)]
+        d.relationshipKeyPathsForPrefetching = [\.sender]
+        d.predicate = #Predicate<pMessage> {
+            $0.chatID == chatID.uuid
+        }
+        return d
+    }
     
     private var chat: pChat {
         chats[0]
     }
-    
-//    private var messages: [pMessage] {
-//        if let messages = chat.messages {
-//            return Array(messages.prefix(100))
-//        }
-//        return []
-//    }
     
     private var selfMember: pMember? {
         chat.members?.first { $0.serverID == userID.uuid && $0.chatID == chatID.uuid }
@@ -54,22 +68,8 @@ struct ConversationScreen: View {
         self.containerViewModel = containerViewModel
         self.chatController = chatController
         
-        var chatFetch = FetchDescriptor<pChat>()
-        chatFetch.fetchLimit = 1
-        chatFetch.relationshipKeyPathsForPrefetching = [\.members]
-        chatFetch.predicate = #Predicate<pChat> {
-            $0.serverID == chatID.uuid
-        }
-        _chats = Query(chatFetch)
-        
-        var messageFetch = FetchDescriptor<pMessage>()
-        messageFetch.fetchLimit = 100
-        messageFetch.sortBy = [.init(\.date, order: .reverse)]
-        messageFetch.relationshipKeyPathsForPrefetching = [\.sender]
-        messageFetch.predicate = #Predicate<pMessage> {
-            $0.chatID == chatID.uuid
-        }
-        _messages = Query(messageFetch)
+        _chats    = Query(Self.fetchDescriptorForChat(chatID: chatID))
+        _messages = Query(Self.fetchDescriptorForMessage(chatID: chatID, limit: 150))
     }
     
     private func didAppear() {
@@ -128,8 +128,12 @@ struct ConversationScreen: View {
                     chatID: chatID,
                     userID: userID,
                     hostID: UserID(uuid: chat.ownerUserID),
+                    messages: messages.reversed(),
                     action: messageAction,
-                    messages: messages.reversed()
+                    loadMore: {
+                        // Nothing for now
+                        print("Top reached")
+                    }
                 )
                 
                 if selfMember?.isMuted == false {
@@ -344,5 +348,23 @@ struct ConversationScreen: View {
                 .cancel(title: Localized.Action.ok),
             ]
         )
+    }
+}
+
+struct DynamicQuery<Model: PersistentModel, Content: View>: View {
+    
+    let descriptor: FetchDescriptor<Model>
+    let content: ([Model]) -> Content
+    
+    @Query var items: [Model]
+    
+    init(_ descriptor: FetchDescriptor<Model>, @ViewBuilder content: @escaping ([Model]) -> Content) {
+        self.descriptor = descriptor
+        self.content = content
+        _items = Query(descriptor)
+    }
+    
+    var body: some View {
+        content(items)
     }
 }
