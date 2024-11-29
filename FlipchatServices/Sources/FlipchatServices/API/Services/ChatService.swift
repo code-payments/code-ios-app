@@ -471,6 +471,14 @@ public enum ErrorChangeCover: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeMuteChatInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_MuteChatRequest, FlipchatAPI.Flipchat_Chat_V1_MuteChatResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeUnmuteChatInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_UnmuteChatRequest, FlipchatAPI.Flipchat_Chat_V1_UnmuteChatResponse>] {
+        makeInterceptors()
+    }
+    
     func makeMuteUserInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_MuteUserRequest, FlipchatAPI.Flipchat_Chat_V1_MuteUserResponse>] {
         makeInterceptors()
     }

@@ -1355,6 +1355,172 @@ extension Flipchat_Chat_V1_MuteUserResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Chat_V1_MuteChatRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var chatID: Flipchat_Common_V1_ChatId {
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Chat_V1_MuteChatResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Chat_V1_MuteChatResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Chat_V1_MuteChatResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Chat_V1_MuteChatResponse.Result] = [
+    .ok,
+    .denied,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Flipchat_Chat_V1_UnmuteChatRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var chatID: Flipchat_Common_V1_ChatId {
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Chat_V1_UnmuteChatResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Chat_V1_UnmuteChatResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Chat_V1_UnmuteChatResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Chat_V1_UnmuteChatResponse.Result] = [
+    .ok,
+    .denied,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Flipchat_Chat_V1_ReportUserRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1468,6 +1634,12 @@ public struct Flipchat_Chat_V1_Metadata {
   /// If non-zero, the room number associated with the chat.
   public var roomNumber: UInt64 = 0
 
+  /// Are push notifications enabled for this chat (from the perspective of the caller)?
+  public var isPushEnabled: Bool = false
+
+  /// Can the user disable push notifications for this chat using MuteChat?
+  public var canDisablePush: Bool = false
+
   /// Number of (estimated) unread message (from the perspective of the caller).
   public var numUnread: UInt32 = 0
 
@@ -1493,6 +1665,20 @@ public struct Flipchat_Chat_V1_Metadata {
   public var hasCoverCharge: Bool {return self._coverCharge != nil}
   /// Clears the value of `coverCharge`. Subsequent reads from it will return its default value.
   public mutating func clearCoverCharge() {self._coverCharge = nil}
+
+  /// The timestamp of the last activity in this chat
+  public var lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _lastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_lastActivity = newValue}
+  }
+  /// Returns true if `lastActivity` has been explicitly set.
+  public var hasLastActivity: Bool {return self._lastActivity != nil}
+  /// Clears the value of `lastActivity`. Subsequent reads from it will return its default value.
+  public mutating func clearLastActivity() {self._lastActivity = nil}
+
+  /// If there are more unread messages than indicated by num_unread. If this is
+  /// true, client should show num_unread+ as the unread count.
+  public var hasMoreUnread_p: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1532,6 +1718,7 @@ public struct Flipchat_Chat_V1_Metadata {
   fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
   fileprivate var _owner: Flipchat_Common_V1_UserId? = nil
   fileprivate var _coverCharge: Flipchat_Common_V1_PaymentAmount? = nil
+  fileprivate var _lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 #if swift(>=4.2)
@@ -1661,6 +1848,12 @@ extension Flipchat_Chat_V1_RemoveUserResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MuteUserRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MuteUserResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MuteUserResponse.Result: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MuteChatRequest: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MuteChatResponse: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MuteChatResponse.Result: @unchecked Sendable {}
+extension Flipchat_Chat_V1_UnmuteChatRequest: @unchecked Sendable {}
+extension Flipchat_Chat_V1_UnmuteChatResponse: @unchecked Sendable {}
+extension Flipchat_Chat_V1_UnmuteChatResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_ReportUserRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_ReportUserResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_ReportUserResponse.Result: @unchecked Sendable {}
@@ -3156,6 +3349,168 @@ extension Flipchat_Chat_V1_MuteUserResponse.Result: SwiftProtobuf._ProtoNameProv
   ]
 }
 
+extension Flipchat_Chat_V1_MuteChatRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MuteChatRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MuteChatRequest, rhs: Flipchat_Chat_V1_MuteChatRequest) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MuteChatResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MuteChatResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MuteChatResponse, rhs: Flipchat_Chat_V1_MuteChatResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MuteChatResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+  ]
+}
+
+extension Flipchat_Chat_V1_UnmuteChatRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnmuteChatRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_UnmuteChatRequest, rhs: Flipchat_Chat_V1_UnmuteChatRequest) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_UnmuteChatResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnmuteChatResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_UnmuteChatResponse, rhs: Flipchat_Chat_V1_UnmuteChatResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_UnmuteChatResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+  ]
+}
+
 extension Flipchat_Chat_V1_ReportUserRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ReportUserRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -3249,9 +3604,13 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     2: .same(proto: "type"),
     3: .same(proto: "title"),
     4: .standard(proto: "room_number"),
+    5: .standard(proto: "is_push_enabled"),
+    6: .standard(proto: "can_disable_push"),
     7: .standard(proto: "num_unread"),
     8: .same(proto: "owner"),
     9: .standard(proto: "cover_charge"),
+    10: .standard(proto: "last_activity"),
+    11: .standard(proto: "has_more_unread"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3264,9 +3623,13 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 2: try { try decoder.decodeSingularEnumField(value: &self.type) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.title) }()
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.roomNumber) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.isPushEnabled) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.canDisablePush) }()
       case 7: try { try decoder.decodeSingularUInt32Field(value: &self.numUnread) }()
       case 8: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
       case 9: try { try decoder.decodeSingularMessageField(value: &self._coverCharge) }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._lastActivity) }()
+      case 11: try { try decoder.decodeSingularBoolField(value: &self.hasMoreUnread_p) }()
       default: break
       }
     }
@@ -3289,6 +3652,12 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if self.roomNumber != 0 {
       try visitor.visitSingularUInt64Field(value: self.roomNumber, fieldNumber: 4)
     }
+    if self.isPushEnabled != false {
+      try visitor.visitSingularBoolField(value: self.isPushEnabled, fieldNumber: 5)
+    }
+    if self.canDisablePush != false {
+      try visitor.visitSingularBoolField(value: self.canDisablePush, fieldNumber: 6)
+    }
     if self.numUnread != 0 {
       try visitor.visitSingularUInt32Field(value: self.numUnread, fieldNumber: 7)
     }
@@ -3298,6 +3667,12 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try { if let v = self._coverCharge {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     } }()
+    try { if let v = self._lastActivity {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
+    if self.hasMoreUnread_p != false {
+      try visitor.visitSingularBoolField(value: self.hasMoreUnread_p, fieldNumber: 11)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3306,9 +3681,13 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs.type != rhs.type {return false}
     if lhs.title != rhs.title {return false}
     if lhs.roomNumber != rhs.roomNumber {return false}
+    if lhs.isPushEnabled != rhs.isPushEnabled {return false}
+    if lhs.canDisablePush != rhs.canDisablePush {return false}
     if lhs.numUnread != rhs.numUnread {return false}
     if lhs._owner != rhs._owner {return false}
     if lhs._coverCharge != rhs._coverCharge {return false}
+    if lhs._lastActivity != rhs._lastActivity {return false}
+    if lhs.hasMoreUnread_p != rhs.hasMoreUnread_p {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

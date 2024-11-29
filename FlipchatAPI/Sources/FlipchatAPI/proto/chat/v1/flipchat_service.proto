@@ -55,6 +55,12 @@ service Chat {
     // MuteUser mutes a user in the chat and removes their ability to send messages
     rpc MuteUser(MuteUserRequest) returns (MuteUserResponse);
 
+    // MuteChat mutes a chat and disables push notifications
+    rpc MuteChat(MuteChatRequest) returns (MuteChatResponse);
+
+    // UnmuteChat unmutes a chat and enables push notifications
+    rpc UnmuteChat(UnmuteChatRequest) returns (UnmuteChatResponse);
+
     // ReportUser reports a user for a given message
     //
     // todo: might belong in a different service long-term
@@ -345,6 +351,32 @@ message MuteUserResponse{
     }
 }
 
+message MuteChatRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+message MuteChatResponse {
+    Result result = 1;
+    enum Result {
+        OK       = 0;
+        DENIED   = 1;
+    }
+}
+
+message UnmuteChatRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+message UnmuteChatResponse {
+    Result result = 1;
+    enum Result {
+        OK       = 0;
+        DENIED   = 1;
+    }
+}
+
 message ReportUserRequest{
     common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
 
@@ -382,6 +414,12 @@ message Metadata {
     // If non-zero, the room number associated with the chat.
     uint64 room_number = 4;
 
+    // Are push notifications enabled for this chat (from the perspective of the caller)?
+    bool is_push_enabled = 5;
+
+    // Can the user disable push notifications for this chat using MuteChat?
+    bool can_disable_push = 6;
+
     // Number of (estimated) unread message (from the perspective of the caller).
     uint32 num_unread = 7;
 
@@ -393,6 +431,13 @@ message Metadata {
 
     // If present, the cover charge that must be paid to join the chat
     common.v1.PaymentAmount cover_charge = 9;
+
+    // The timestamp of the last activity in this chat
+    google.protobuf.Timestamp last_activity = 10;
+
+    // If there are more unread messages than indicated by num_unread. If this is
+    // true, client should show num_unread+ as the unread count.
+    bool has_more_unread = 11;
 }
 
 message Member {

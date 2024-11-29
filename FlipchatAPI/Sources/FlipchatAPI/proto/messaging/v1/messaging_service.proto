@@ -102,7 +102,7 @@ message GetMessagesResponse {
 
     repeated Message messages = 2 [(validate.rules).repeated = {
         min_items: 0
-        max_items: 100
+        max_items: 1024
     }];
 }
 
