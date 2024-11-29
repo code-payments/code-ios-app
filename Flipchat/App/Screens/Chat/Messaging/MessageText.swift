@@ -120,11 +120,6 @@ public struct MessageText: View {
     }
     
     private func parse(text: String) -> AttributedString {
-        let start = Date.now
-        defer {
-            print("Parse took: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")
-        }
-        
         var string = AttributedString(text)
         
         findLinks(in: text, string: &string)

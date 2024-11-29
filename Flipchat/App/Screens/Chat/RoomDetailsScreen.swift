@@ -39,7 +39,7 @@ struct RoomDetailsScreen: View {
         self.kind = kind
         self.chatID = chatID
         self.viewModel = viewModel
-        _chats = Query(filter: #Predicate { $0.serverID == chatID.data })
+        _chats = Query(filter: #Predicate { $0.serverID == chatID.uuid })
     }
     
     // MARK: - Body -
@@ -74,7 +74,7 @@ struct RoomDetailsScreen: View {
                         .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background {
-                            DeterministicGradient(data: chat.serverID)
+                            DeterministicGradient(data: chat.serverID.data)
                         }
                     }
                     .padding(20)
@@ -83,7 +83,7 @@ struct RoomDetailsScreen: View {
                     
                     VStack(spacing: 20) {
                         // Only show for room hosts
-                        if let host, host.serverID == viewModel.userID.data {
+                        if let host, host.serverID == viewModel.userID.uuid {
                             CodeButton(
                                 style: .filled,
                                 title: "Change Cover Charge"
@@ -102,7 +102,7 @@ struct RoomDetailsScreen: View {
                                 case .joinRoom:
                                     try await viewModel.attemptJoinChat(
                                         chatID: chatID,
-                                        hostID: UserID(data: chat.ownerUserID),
+                                        hostID: UserID(uuid: chat.ownerUserID),
                                         amount: chat.coverCharge
                                     )
                                 case .leaveRoom:

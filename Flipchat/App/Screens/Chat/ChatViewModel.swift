@@ -89,7 +89,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func selectChat(chat: pChat) {
-        containerViewModel?.pushChat(chatID: ID(data: chat.serverID))
+        containerViewModel?.pushChat(chatID: ID(uuid: chat.serverID))
     }
     
     func popChat() {
@@ -247,7 +247,7 @@ class ChatViewModel: ObservableObject {
             )
             
         } catch {
-            self.showNotFoundError()
+            self.showGenericError()
             throw error
         }
     }

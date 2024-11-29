@@ -23,17 +23,14 @@ struct ChatsScreen: View {
     @State private var debugTapCount: Int = 0
     @State private var isShowingSettings: Bool = false
     
-    @Query(
-        filter: #Predicate<pChat> { $0.deleted == false }
-    )
-    private var unsortedRooms: [pChat]
+    @Query() private var chats: [pChat]
     
-    private var sortedRooms: [pChat] {
-        unsortedRooms.sorted { lhs, rhs in
-            lhs.newestMessage?.date.timeIntervalSince1970 ?? 0 >
-            rhs.newestMessage?.date.timeIntervalSince1970 ?? 0
-        }
-    }
+//    private var sortedRooms: [pChat] {
+//        unsortedRooms.sorted { lhs, rhs in
+//            lhs.newestMessage?.date.timeIntervalSince1970 ?? 0 >
+//            rhs.newestMessage?.date.timeIntervalSince1970 ?? 0
+//        }
+//    }
     
     // MARK: - Init -
     
@@ -42,6 +39,15 @@ struct ChatsScreen: View {
         self.session = session
         self.chatController = chatController
         self.viewModel = viewModel
+        
+        var query = FetchDescriptor<pChat>()
+        query.fetchLimit = 250
+        query.sortBy = [.init(\.roomNumber, order: .reverse)]
+        query.relationshipKeyPathsForPrefetching = [\.messages, \.previewMessage]
+        query.predicate = #Predicate<pChat> {
+            $0.deleted == false
+        }
+        _chats = Query(query)
     }
     
     private func didAppear() {
@@ -60,7 +66,7 @@ struct ChatsScreen: View {
                 ScrollBox(color: .backgroundMain) {
                     List {
                         Section {
-                            ForEach(sortedRooms) { room in
+                            ForEach(chats) { room in
                                 row(for: room)
                             }
                         } footer: {
@@ -157,7 +163,7 @@ struct ChatsScreen: View {
             
         } label: {
             HStack(spacing: 15) {
-                GradientAvatarView(data: chat.serverID, diameter: 50)
+                GradientAvatarView(data: chat.serverID.data, diameter: 50)
                 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 10) {
@@ -168,7 +174,7 @@ struct ChatsScreen: View {
                         
                         Spacer()
                         
-                        if let newestMessage = chat.newestMessage {
+                        if let newestMessage = chat.previewMessage {
                             Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
                                 .foregroundColor(chat.isUnread ? .textSuccess : .textSecondary)
                                 .font(.appTextSmall)

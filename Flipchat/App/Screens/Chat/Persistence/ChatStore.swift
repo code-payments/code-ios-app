@@ -38,7 +38,7 @@ actor ChatStore: ModelActor {
         
         try modelContext.transaction {
             let identity = try fetchOrCreateIdentity(
-                id: userID.data,
+                id: userID.uuid,
                 name: name
             )
             
@@ -125,13 +125,17 @@ actor ChatStore: ModelActor {
     private func update(chatID: ChatID, withMetadata metadata: Chat.Metadata) throws {
         trace(.success, components: "Metadata: \(metadata)")
         
-        try upsert(chat: metadata)
+        try upsert(chat: metadata, ownerID: metadata.ownerUser)
     }
     
     private func update(chatID: ChatID, withMembers members: [Chat.Member]) throws {
-        trace(.success, components: "Members: \(members)")
+        guard !members.isEmpty else {
+            return
+        }
         
-        guard let chat = try fetchSingleChat(serverID: chatID.data) else {
+        trace(.success, components: "Members +\(members.count)")
+        
+        guard let chat = try fetchSingleChat(serverID: chatID.uuid) else {
             return
         }
         
@@ -141,7 +145,7 @@ actor ChatStore: ModelActor {
     private func update(chatID: ChatID, withLastMessage message: Chat.Message) throws {
         trace(.success, components: "Message: \(message.id.description)", "Content: \(message.contents)")
         
-        guard let chat = try fetchSingleChat(serverID: chatID.data) else {
+        guard let chat = try fetchSingleChat(serverID: chatID.uuid) else {
             return
         }
         
@@ -174,7 +178,7 @@ actor ChatStore: ModelActor {
         }
         
         try modelContext.transaction {
-            guard let chat = try fetchSingleChat(serverID: chatID.data) else {
+            guard let chat = try fetchSingleChat(serverID: chatID.uuid) else {
                 throw Error.failedToFetchChat
             }
             
@@ -185,19 +189,20 @@ actor ChatStore: ModelActor {
     // MARK: - Actions -
     
     func sendMessage(text: String, for chatID: ChatID) async throws {
-        guard let chat = try fetchSingleChat(serverID: chatID.data) else {
+        guard let chat = try fetchSingleChat(serverID: chatID.uuid) else {
             throw Error.failedToFetchChat
         }
         
         let deliveredMessage = try await client.sendMessage(
-            chatID: ID(data: chat.serverID),
+            chatID: ID(uuid: chat.serverID),
             owner: owner,
             content: .text(text)
         )
         
         try modelContext.transaction {
             let localMessage = createMessage(
-                id: deliveredMessage.id.data,
+                id: deliveredMessage.id.uuid,
+                chatID: chat.serverID,
                 text: text
             )
             
@@ -207,20 +212,20 @@ actor ChatStore: ModelActor {
     }
     
     func advanceReadPointerToLatest(for chatID: ChatID) async throws {
-        guard let message = try fetchLatestMessage(for: chatID.data) else {
+        guard let message = try fetchLatestMessage(for: chatID.uuid) else {
             throw Error.failedToFetchLatest
         }
         
         try await client.advanceReadPointer(
             chatID: chatID,
-            to: MessageID(data: message.serverID),
+            to: MessageID(uuid: message.serverID),
             owner: owner
         )
         
         // Clear unread count
         
         try modelContext.transaction {
-            if let chat = try fetchSingleChat(serverID: chatID.data) {
+            if let chat = try fetchSingleChat(serverID: chatID.uuid) {
                 chat.unreadCount = 0
             }
         }
@@ -234,15 +239,15 @@ actor ChatStore: ModelActor {
         )
         
         try modelContext.transaction {
-            let chat = try fetchOrCreateChat(for: metadata.id)
+            let chat = try fetchOrCreateChat(for: metadata.id, ownerID: metadata.ownerUser)
             chat.update(from: metadata)
             
             // Shouldn't have any members
             // but remove all to ensure
             chat.members?.removeAll()
             
-            if let identity = try fetchSingleIndentity(serverID: userID.data) {
-                let selfMember = createMember(id: userID.data, chatID: chat.serverID)
+            if let identity = try fetchSingleIndentity(serverID: userID.uuid) {
+                let selfMember = createMember(id: userID.uuid, chatID: chat.serverID)
                 selfMember.chat = chat
                 selfMember.identity = identity
             }
@@ -268,32 +273,32 @@ actor ChatStore: ModelActor {
 //    }
     
     func joinChat(chatID: ChatID, intentID: PublicKey?) async throws -> ChatID {
-        let (metadata, members) = try await client.joinGroupChat(
+        let description = try await client.joinGroupChat(
             chatID: chatID,
             intentID: intentID,
             owner: owner
         )
         
         // 1. Insert chat
-        let chat = try upsert(chat: metadata)
+        let chat = try upsert(chat: description.metadata, ownerID: description.metadata.ownerUser)
         // If the chat already exists,
         // it might've been deleted
         chat.deleted = false
         
         // 2. Insert chat members
-        try upsert(members: members, in: chat)
+        try upsert(members: description.members, in: chat)
         
         // 3. Insert messages
         try await syncMessages(for: chat)
         
         try save()
-        return metadata.id
+        return description.metadata.id
     }
     
     func leaveChat(chatID: ChatID) async throws {
         try await client.leaveChat(chatID: chatID, owner: owner)
         
-        if let existingChat = try fetchSingleChat(serverID: chatID.data) {
+        if let existingChat = try fetchSingleChat(serverID: chatID.uuid) {
             existingChat.deleted = true
         }
         
@@ -301,7 +306,7 @@ actor ChatStore: ModelActor {
     }
     
     func changeCover(chatID: ChatID, newCover: Kin) async throws {
-        guard let chat = try fetchSingleChat(serverID: chatID.data) else {
+        guard let chat = try fetchSingleChat(serverID: chatID.uuid) else {
             throw Error.failedToFetchChat
         }
         
@@ -314,106 +319,46 @@ actor ChatStore: ModelActor {
     
     // MARK: - Sync -
     
-    func sync() {
-        trace(.send, components: "Sync started.")
-        Task {
-            if let latestChat = try fetchLatestChat() {
-                try await syncChats(descendingFrom: ChatID(data: latestChat.serverID))
-            } else {
-                try await syncChats()
-            }
-            trace(.success, components: "Sync success.")
-        }
-    }
-    
-    // MARK: - Chats -
-    
-    private func syncChats(descendingFrom id: ChatID? = nil) async throws {
-        trace(.send, components: "Starting from: \(id?.data.hexString() ?? "nil")")
-        var cursor: ChatID? = id
+    func sync() async throws {
+        trace(.send)
         
-        let pageSize = 100
-        
-        var hasMoreChats = true
-        while hasMoreChats {
-            let chats = try await client.fetchChats(
-                owner: owner,
-                query: PageQuery(
-                    order: .desc,
-                    pagingToken: cursor,
-                    pageSize: pageSize
-                )
-            )
-            
-            for chat in chats {
-                Task {
-                    try await syncChat(chatID: chat.id)
-                }
-                
-                cursor = chat.id
+        let chats = try await client.fetchChats(owner: owner)
+        for chat in chats {
+            Task {
+                try await syncChat(chatID: chat.id)
             }
-            
-            trace(.write, components: "Inserted \(chats.count) chats.")
-            hasMoreChats = chats.count == pageSize
         }
         
+        trace(.write, components: "Inserted \(chats.count) chats.")
         try save()
     }
     
     private func syncChat(chatID: ChatID) async throws {
-        let (metadata, members) = try await client.fetchChat(
+        let description = try await client.fetchChat(
             for: .chatID(chatID),
             owner: owner
         )
         
         // 1. Insert chat
-        let chat = try upsert(chat: metadata)
+        let chat = try upsert(chat: description.metadata, ownerID: description.metadata.ownerUser)
         chat.deleted = false
         
         // 2. Insert chat members
-        try upsert(members: members, in: chat)
+        try upsert(members: description.members, in: chat)
         
         // 3. Sync messages
         try await syncMessages(for: chat)
     }
     
-    @discardableResult
-    private func upsert(chat: Chat.Metadata) throws -> pChat {
-        let c = try fetchOrCreateChat(for: chat.id)
-
-        c.update(from: chat)
-        
-        return c
-    }
-    
-    private func fetchOrCreateChat(for chatID: ChatID) throws -> pChat {
-        if let existingChat = try fetchSingleChat(serverID: chatID.data) {
-            return existingChat
-        } else {
-            return createChat(id: chatID.data)
-        }
-    }
-    
-    @discardableResult
-    private func createChat(id: Data) -> pChat {
-        let newChat = pChat.new(serverID: id)
-        
-        modelContext.insert(newChat)
-        
-        return newChat
-    }
-    
-    // MARK: - Messages -
-    
     private func syncMessages(for chat: pChat) async throws {
         var cursor: ChatID? = nil
         
-        let pageSize = 100
+        let pageSize = 1024
         
         var hasMoreChats = true
         while hasMoreChats {
             let messages = try await client.fetchMessages(
-                chatID: ID(data: chat.serverID),
+                chatID: ID(uuid: chat.serverID),
                 owner: owner,
                 query: PageQuery(
                     order: .desc,
@@ -435,42 +380,87 @@ actor ChatStore: ModelActor {
         }
     }
     
-    private func upsert(messages: [Chat.Message], in chat: pChat) throws {
-        let senders = Set(messages.compactMap { $0.senderID?.data })
-        let membersMap = try fetchMembers(in: senders)
+    // MARK: - Upsert -
+    
+    @discardableResult
+    private func upsert(chat: Chat.Metadata, ownerID: UserID) throws -> pChat {
+        let c = try fetchOrCreateChat(for: chat.id, ownerID: ownerID)
+
+        c.update(from: chat)
         
-        try messages.forEach {
-            let message = try fetchOrCreateMessage(for: $0.id)
-            message.chat = chat
-            message.update(from: $0)
+        return c
+    }
+    
+    private func fetchOrCreateChat(for chatID: ChatID, ownerID: UserID) throws -> pChat {
+        if let existingChat = try fetchSingleChat(serverID: chatID.uuid) {
+            return existingChat
+        } else {
+            return createChat(id: chatID.uuid, ownerID: ownerID.uuid)
+        }
+    }
+    
+    @discardableResult
+    private func createChat(id: UUID, ownerID: UUID) -> pChat {
+        let newChat = pChat.new(serverID: id, ownerID: ownerID)
+        
+        modelContext.insert(newChat)
+        
+        return newChat
+    }
+    
+    private func upsert(messages: [Chat.Message], in chat: pChat) throws {
+        let senderIDs  = Set(messages.compactMap { $0.senderID?.uuid })
+        let messageIDs = Set(messages.map { $0.id.uuid })
+        
+        let membersMap  = try fetchMembers(in: senderIDs)
+        let messagesMap = try fetchMessages(in: messageIDs)
+        
+        var messageToAdd: [UUID: pMessage] = [:]
+        
+        for message in messages {
+            let uuid = message.id.uuid
             
-            if let senderID = $0.senderID {
-                if let member = membersMap[senderID.data] {
-                    message.sender = member
-                } else {
-                    trace(.failure, components: "Failed to assign message member relationship for ID: \(senderID.data.hexString())")
-                }
+            let sender: pMember?
+            if let senderID = message.senderID, let member = membersMap[senderID.uuid] {
+                sender = member
+            } else {
+                sender = nil
             }
             
-//            modify(message)
+            if let existingMessage = messagesMap[uuid] {
+                existingMessage.update(from: message)
+                existingMessage.sender = sender
+            } else {
+                let newMessage = createMessage(id: uuid, chatID: chat.serverID)
+                newMessage.sender = sender
+                newMessage.update(from: message)
+                messageToAdd[uuid] = newMessage
+            }
+        }
+        
+        if !messageToAdd.isEmpty {
+            chat.messages?.append(contentsOf: messageToAdd.values)
+        }
+        
+        // Determine the most recent message and update
+        // the chat preview message
+        let mostRecentMessage = messages.sorted { $0.date < $1.date }.last
+        if
+            let recentMessage = mostRecentMessage,
+            let previewMessage = messageToAdd[recentMessage.id.uuid] ?? messagesMap[recentMessage.id.uuid]
+        {
+            chat.previewMessage = previewMessage
         }
         
         trace(.write, components: "Inserted \(messages.count) messages.")
     }
     
-    private func fetchOrCreateMessage(for messageID: MessageID) throws -> pMessage {
-        if let existingMessage = try fetchSingleMessage(serverID: messageID.data) {
-            return existingMessage
-        } else {
-            return createMessage(id: messageID.data)
-        }
-    }
-    
     @discardableResult
-    private func createMessage(id: Data?, text: String? = nil) -> pMessage {
+    private func createMessage(id: UUID, chatID: UUID, text: String? = nil) -> pMessage {
         let newMessage = pMessage.new(
             serverID: id,
-            senderID: userID.data,
+            chatID: chatID,
+            senderID: userID.uuid,
             date: .now,
             text: text
         )
@@ -481,20 +471,10 @@ actor ChatStore: ModelActor {
     }
     
     // MARK: - Members -
-//    @discardableResult
-//    private func replaceMembers(in chat: pChat, with members: [Chat.Member]) throws -> [pMember] {
-//        chat.members.forEach {
-//            context.delete($0)
-//        }
-//        
-//        chat.members.removeAll()
-//        
-//        return try insertMembers(in: chat, with: members)
-//    }
     
     @discardableResult
     private func upsert(members: [Chat.Member], in chat: pChat) throws -> [pMember] {
-        let newIDs = Set(members.map { $0.id.data })
+        let newIDs = Set(members.map { $0.id.uuid })
         let chatID = chat.serverID
         let identities = try fetchIdentities(in: newIDs)
         
@@ -505,13 +485,13 @@ actor ChatStore: ModelActor {
         for member in members {
             
             // Fetch or create identity
-            let existingIdentity = identities[member.id.data] ?? createIdentity(
-                id: member.id.data,
+            let existingIdentity = identities[member.id.uuid] ?? createIdentity(
+                id: member.id.uuid,
                 name: member.identity.displayName
             )
             
             // Create a new member, existing identity
-            let m = oldMemberIndex[member.id.data] ?? createMember(id: userID.data, chatID: chatID)
+            let m = oldMemberIndex[member.id.uuid] ?? createMember(id: userID.uuid, chatID: chatID)
 
             m.update(from: member)
             
@@ -528,21 +508,8 @@ actor ChatStore: ModelActor {
         return container
     }
     
-//    private func fetchOrCreateMember(for identity: pIdentity, in chat: pChat) throws -> pMember {
-//        // Identity and member serverIDs are the same
-//        if let existingMember = try fetchSingleMember(serverID: identity.serverID, chatID: chat.serverID) {
-//            return existingMember
-//        } else {
-//            return createMember(
-//                in: chat,
-//                identity: identity,
-//                id: userID.data
-//            )
-//        }
-//    }
-    
     @discardableResult
-    private func createMember(id: Data, chatID: Data) -> pMember {
+    private func createMember(id: UUID, chatID: UUID) -> pMember {
         let newMember = pMember.new(
             serverID: id,
             chatID: chatID
@@ -553,7 +520,7 @@ actor ChatStore: ModelActor {
         return newMember
     }
     
-    private func fetchOrCreateIdentity(id: Data, name: String) throws -> pIdentity {
+    private func fetchOrCreateIdentity(id: UUID, name: String) throws -> pIdentity {
         if let existingIdentity = try fetchSingleIndentity(serverID: id) {
             return existingIdentity
         } else {
@@ -562,7 +529,7 @@ actor ChatStore: ModelActor {
     }
     
     @discardableResult
-    private func createIdentity(id: Data, name: String) -> pIdentity {
+    private func createIdentity(id: UUID, name: String) -> pIdentity {
         let identity = pIdentity.new(
             serverID: id,
             displayName: name,
@@ -595,7 +562,7 @@ extension ChatStore {
         }
     }
     
-    func fetchSingleChatID(roomNumber: RoomNumber) throws -> Data? {
+    func fetchSingleChatID(roomNumber: RoomNumber) throws -> UUID? {
         var query = FetchDescriptor<pChat>()
         query.predicate = #Predicate<pChat> { $0.roomNumber == roomNumber && $0.deleted == false }
         query.fetchLimit = 1
@@ -606,7 +573,7 @@ extension ChatStore {
         }
     }
     
-    private func fetchSingleChat(serverID: Data) throws -> pChat? {
+    private func fetchSingleChat(serverID: UUID) throws -> pChat? {
         var query = FetchDescriptor<pChat>()
         query.predicate = #Predicate<pChat> { $0.serverID == serverID }
         query.fetchLimit = 1
@@ -617,7 +584,7 @@ extension ChatStore {
         }
     }
     
-    private func fetchSingleMessage(serverID: Data) throws -> pMessage? {
+    private func fetchSingleMessage(serverID: UUID) throws -> pMessage? {
         var query = FetchDescriptor<pMessage>()
         query.predicate = #Predicate<pMessage> { $0.serverID == serverID }
         query.fetchLimit = 1
@@ -628,7 +595,7 @@ extension ChatStore {
         }
     }
     
-    private func fetchSingleMember(serverID: Data, chatID: Data) throws -> pMember? {
+    private func fetchSingleMember(serverID: UUID, chatID: UUID) throws -> pMember? {
         var query = FetchDescriptor<pMember>()
         query.predicate = #Predicate<pMember> { $0.serverID == serverID && $0.chatID == chatID }
         query.fetchLimit = 1
@@ -639,7 +606,7 @@ extension ChatStore {
         }
     }
     
-    private func fetchSingleIndentity(serverID: Data) throws -> pIdentity? {
+    private func fetchSingleIndentity(serverID: UUID) throws -> pIdentity? {
         var query = FetchDescriptor<pIdentity>()
         query.predicate = #Predicate<pIdentity> { $0.serverID == serverID }
         query.fetchLimit = 1
@@ -650,25 +617,36 @@ extension ChatStore {
         }
     }
     
-    private func fetchMembers(in serverIDs: Set<Data>) throws -> [Data: pMember] {
+    private func fetchMembers(in serverIDs: Set<UUID>) throws -> [UUID: pMember] {
         var query = FetchDescriptor<pMember>()
         query.predicate = #Predicate<pMember> { serverIDs.contains($0.serverID) }
         do {
             let members = try modelContext.fetch(query)
             return members.elementsKeyed(by: \.serverID)
         } catch {
-            throw Error.failedToFetchSingle
+            throw Error.failedToFetch
         }
     }
     
-    private func fetchIdentities(in serverIDs: Set<Data>) throws -> [Data: pIdentity] {
+    private func fetchMessages(in serverIDs: Set<UUID>) throws -> [UUID: pMessage] {
+        var query = FetchDescriptor<pMessage>()
+        query.predicate = #Predicate<pMessage> { serverIDs.contains($0.serverID) }
+        do {
+            let members = try modelContext.fetch(query)
+            return members.elementsKeyed(by: \.serverID)
+        } catch {
+            throw Error.failedToFetch
+        }
+    }
+    
+    private func fetchIdentities(in serverIDs: Set<UUID>) throws -> [UUID: pIdentity] {
         var query = FetchDescriptor<pIdentity>()
         query.predicate = #Predicate<pIdentity> { serverIDs.contains($0.serverID) }
         do {
             let members = try modelContext.fetch(query)
             return members.elementsKeyed(by: \.serverID)
         } catch {
-            throw Error.failedToFetchSingle
+            throw Error.failedToFetch
         }
     }
     
@@ -685,7 +663,7 @@ extension ChatStore {
     
     // MARK: - Typed Fetch -
     
-    private func fetchLatestMessage(for chatID: Data) throws -> pMessage? {
+    private func fetchLatestMessage(for chatID: UUID) throws -> pMessage? {
         var query = FetchDescriptor<pMessage>()
         query.predicate = #Predicate<pMessage> { $0.chat?.serverID == chatID }
         query.fetchLimit = 1
@@ -700,6 +678,7 @@ extension ChatStore {
 
 extension ChatStore {
     enum Error: Swift.Error {
+        case failedToFetch
         case failedToFetchIdentities
         case failedToFetchChat
         case failedToFetchCount

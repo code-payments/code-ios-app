@@ -44,14 +44,14 @@ public struct MessageList: View {
             for messageContainer in dateGroup.messages {
                 
                 let message = messageContainer.message
-                let isReceived = message.senderID != userID.data
+                let isReceived = message.senderID != userID.uuid
                 
                 for (index, content) in message.contents.enumerated() {
                     switch content {
                     case .text(let text):
                         container.append(
                             .init(
-                                kind: .message(ID(data: message.serverID), isReceived, message, messageContainer.location),
+                                kind: .message(ID(uuid: message.serverID), isReceived, message, messageContainer.location),
                                 content: text,
                                 contentIndex: index
                             )
@@ -60,7 +60,7 @@ public struct MessageList: View {
                     case .announcement(let text):
                         container.append(
                             .init(
-                                kind: .announcement(ID(data: message.serverID)),
+                                kind: .announcement(ID(uuid: message.serverID)),
                                 content: text,
                                 contentIndex: index
                             )
@@ -191,16 +191,16 @@ public struct MessageList: View {
             MessageTitle(text: date.formattedRelatively())
             
         case .message(_, let isReceived, let message, let location):
-            let isFromSelf = message.senderID == userID.data
+            let isFromSelf = message.senderID == userID.uuid
             
             MessageText(
                 state: message.state.state,
                 name: message.userDisplayName,
-                avatarData: message.senderID ?? Data([0, 0, 0, 0]),
+                avatarData: message.senderID?.data ?? Data([0, 0, 0, 0]),
                 text: description.content,
                 date: message.date,
                 isReceived: isReceived,
-                isHost: message.senderID == hostID.data,
+                isHost: message.senderID == hostID.uuid,
                 location: location
             )
             .contextMenu {
@@ -212,9 +212,9 @@ public struct MessageList: View {
                 
                 Divider()
                 
-                if let senderID = message.senderID, senderID != userID.data {
+                if let senderID = message.senderID, senderID != userID.uuid {
                     Button(role: .destructive) {
-                        action(.reportMessage(UserID(data: senderID), MessageID(data: message.serverID)))
+                        action(.reportMessage(UserID(data: senderID.data), MessageID(uuid: message.serverID)))
                     } label: {
                         Label("Report", systemImage: "exclamationmark.shield")
                     }
@@ -224,7 +224,7 @@ public struct MessageList: View {
                 if !isFromSelf, userID == hostID, let senderID = message.senderID, let name = message.sender?.identity?.displayName {
                     
                     Button(role: .destructive) {
-                        action(.muteUser(name, UserID(data: senderID), chatID))
+                        action(.muteUser(name, UserID(data: senderID.data), chatID))
                     } label: {
                         Label("Mute", systemImage: "speaker.slash")
                     }
@@ -307,7 +307,7 @@ struct MessageDateGroup: Identifiable, Hashable {
 
 struct MessageContainer: Identifiable, Hashable {
     
-    var id: Data {
+    var id: UUID {
         message.serverID
     }
     
@@ -348,7 +348,7 @@ extension Array where Element == pMessage {
             let previousSender = index > 0 ? messages[index - 1].senderID : nil
             let nextSender = index < messages.count - 1 ? messages[index + 1].senderID : nil
             
-            let isReceived = message.senderID != selfUserID.data
+            let isReceived = message.senderID != selfUserID.uuid
             if let senderID = message.senderID {
                 
                 let location: MessageSemanticLocation
@@ -480,31 +480,35 @@ import SwiftData
         Background(color: .backgroundMain) {
             MessageList(state: .constant(.init()), chatID: .mock, userID: .mock3, hostID: .mock, messages: [
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
-                    senderID: PublicKey.mock.data,
+                    senderID: ID.mock.uuid,
                     isDeleted: false,
                     contents: [.text("Hey")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
-                    senderID: PublicKey.mock.data,
+                    senderID: ID.mock.uuid,
                     isDeleted: false,
                     contents: [.text("How's it going?")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
-                    senderID: PublicKey.mock.data,
+                    senderID: ID.mock.uuid,
                     isDeleted: false,
                     contents: [.text("I was wondering if you're for dinner some time next week? Perhaps we can do lunch.")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
                     senderID: nil,
@@ -512,7 +516,8 @@ import SwiftData
                     contents: [.announcement("Bob joined")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
                     senderID: nil,
@@ -520,34 +525,38 @@ import SwiftData
                     contents: [.announcement("Something else happened that requires the attention of someone in this chat because it is a very long action")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
-                    senderID: ID.mock3.data,
+                    senderID: ID.mock3.uuid,
                     isDeleted: false,
                     contents: [.text("Sure")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
-                    senderID: PublicKey.mock.data,
+                    senderID: ID.mock.uuid,
                     isDeleted: false,
                     contents: [.text("Okay cool, tap here to book a reso https://www.google.com")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
-                    senderID: ID.mock3.data,
+                    senderID: ID.mock3.uuid,
                     isDeleted: false,
                     contents: [.text("Sounds good, let me know")]
                 ),
                 .init(
-                    serverID: .tempID,
+                    serverID: UUID(),
+                    chatID: UUID(),
                     date: .now,
                     state: .delivered,
-                    senderID: PublicKey.mock.data,
+                    senderID: ID.mock.uuid,
                     isDeleted: false,
                     contents: [.text("Will do!")]
                 ),

@@ -29,12 +29,21 @@ struct ConversationScreen: View {
     
     @Query private var chats: [pChat]
     
+    @Query private var messages: [pMessage]
+    
     private var chat: pChat {
         chats[0]
     }
     
+//    private var messages: [pMessage] {
+//        if let messages = chat.messages {
+//            return Array(messages.prefix(100))
+//        }
+//        return []
+//    }
+    
     private var selfMember: pMember? {
-        chat.members?.first { $0.serverID == userID.data && $0.chatID == chatID.data }
+        chat.members?.first { $0.serverID == userID.uuid && $0.chatID == chatID.uuid }
     }
     
     // MARK: - Init -
@@ -46,8 +55,17 @@ struct ConversationScreen: View {
         self.chatController = chatController
         
         _chats = Query(filter: #Predicate<pChat> {
-            $0.serverID == chatID.data
+            $0.serverID == chatID.uuid
         })
+        
+        var query = FetchDescriptor<pMessage>()
+        query.fetchLimit = 250
+        query.sortBy = [.init(\.date, order: .reverse)]
+        query.relationshipKeyPathsForPrefetching = [\.sender]
+        query.predicate = #Predicate<pMessage> {
+            $0.chatID == chatID.uuid
+        }
+        _messages = Query(query)
     }
     
     private func didAppear() {
@@ -70,7 +88,7 @@ struct ConversationScreen: View {
         
         var messageID: MessageID?
         if let lastMessage = chat.messages?.last?.serverID {
-            messageID = MessageID(data: lastMessage)
+            messageID = MessageID(uuid: lastMessage)
         }
         
         stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { result in
@@ -105,9 +123,9 @@ struct ConversationScreen: View {
                     state: $messageListState,
                     chatID: chatID,
                     userID: userID,
-                    hostID: UserID(data: chat.ownerUserID),
+                    hostID: UserID(uuid: chat.ownerUserID),
                     action: messageAction,
-                    messages: chat.messagesByDate
+                    messages: messages.reversed()
                 )
                 
                 if selfMember?.isMuted == false {

@@ -29,9 +29,20 @@ extension ID {
 }
 
 extension ID {
-    public var uuid: UUID? {
+    
+    public init(uuid: UUID) {
+        let n = uuid.uuid
+        let d = Data([
+            n.0, n.1, n.2,  n.3,  n.4,  n.5,  n.6,  n.7,
+            n.8, n.9, n.10, n.11, n.12, n.13, n.14, n.15,
+        ])
+        
+        self.init(data: d)
+    }
+    
+    public var uuid: UUID {
         guard data.count == 16 else {
-            return nil
+            fatalError("ID is not 16 bytes, instead \(data.count) bytes were provided.")
         }
         
         return UUID(uuid: (
@@ -51,7 +62,7 @@ extension ID: Comparable {
 
 extension ID: CustomStringConvertible {
     public var description: String {
-        uuid?.uuidString ?? data.hexEncodedString()
+        uuid.uuidString
     }
 }
 

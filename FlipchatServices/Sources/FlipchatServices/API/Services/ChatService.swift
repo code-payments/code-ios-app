@@ -150,7 +150,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func joinGroupChat(chatID: ChatID, intentID: PublicKey?, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorJoinChat>) -> Void) {
+    func joinGroupChat(chatID: ChatID, intentID: PublicKey?, owner: KeyPair, completion: @escaping (Result<ChatDescription, ErrorJoinChat>) -> Void) {
         trace(.send, components: "Chat ID: \(chatID.description)", "Intent: \(intentID?.base58 ?? "nil")", "Signed by: \(owner.publicKey.base58)")
         
         let request = Flipchat_Chat_V1_JoinChatRequest.with {
@@ -166,10 +166,12 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorJoinChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                let chat = Chat.Metadata(response.metadata)
-                let members = response.members.map { Chat.Member($0) }
-                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chat.id.description)")
-                completion(.success((chat, members)))
+                let description = ChatDescription(
+                    metadata: Chat.Metadata(response.metadata),
+                    members: response.members.map { Chat.Member($0) }
+                )
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(description.metadata.id.description)")
+                completion(.success(description))
             } else {
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
@@ -283,11 +285,15 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchChats(owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat.Metadata], ErrorFetchChats>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Query: \(query.description)")
+    func fetchChats(owner: KeyPair, completion: @escaping (Result<[Chat.Metadata], ErrorFetchChats>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Flipchat_Chat_V1_GetChatsRequest.with {
-            $0.queryOptions = query.protoQueryOptions
+            $0.queryOptions = PageQuery(
+                order: .desc,
+                pagingToken: nil,
+                pageSize: 1024
+            ).protoQueryOptions
             $0.auth = owner.authFor(message: $0)
         }
         
@@ -309,7 +315,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func fetchChat(for identifier: ChatIdentifier, owner: KeyPair, completion: @escaping (Result<(Chat.Metadata, [Chat.Member]), ErrorFetchChat>) -> Void) {
+    func fetchChat(for identifier: ChatIdentifier, owner: KeyPair, completion: @escaping (Result<ChatDescription, ErrorFetchChat>) -> Void) {
         trace(.send, components: "ID: \(identifier)")
         
         let request = Flipchat_Chat_V1_GetChatRequest.with {
@@ -323,9 +329,11 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
             let error = ErrorFetchChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 trace(.success, components: "ID: \(identifier)")
-                let chat = Chat.Metadata(response.metadata)
-                let members = response.members.map { Chat.Member($0) }
-                completion(.success((chat, members)))
+                let description = ChatDescription(
+                    metadata: Chat.Metadata(response.metadata),
+                    members: response.members.map { Chat.Member($0) }
+                )
+                completion(.success(description))
             } else {
                 trace(.success, components: "Error: \(error)")
                 completion(.failure(error))
@@ -379,6 +387,11 @@ public enum ChatIdentifier {
             return .roomNumber(roomNumber)
         }
     }
+}
+
+public struct ChatDescription: Sendable {
+    public let metadata: Chat.Metadata
+    public let members: [Chat.Member]
 }
 
 public typealias RoomNumber = UInt64

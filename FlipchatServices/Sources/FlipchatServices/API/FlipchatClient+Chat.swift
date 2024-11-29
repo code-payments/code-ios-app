@@ -23,7 +23,7 @@ extension FlipchatClient {
         }
     }
     
-    public func joinGroupChat(chatID: ChatID, intentID: PublicKey?, owner: KeyPair) async throws -> (Chat.Metadata, [Chat.Member]) {
+    public func joinGroupChat(chatID: ChatID, intentID: PublicKey?, owner: KeyPair) async throws -> ChatDescription {
         try await withCheckedThrowingContinuation { c in
             chatService.joinGroupChat(chatID: chatID, intentID: intentID, owner: owner) { c.resume(with: $0) }
         }
@@ -53,13 +53,13 @@ extension FlipchatClient {
         }
     }
     
-    public func fetchChats(owner: KeyPair, query: PageQuery = .init()) async throws -> [Chat.Metadata] {
+    public func fetchChats(owner: KeyPair) async throws -> [Chat.Metadata] {
         try await withCheckedThrowingContinuation { c in
-            chatService.fetchChats(owner: owner, query: query) { c.resume(with: $0) }
+            chatService.fetchChats(owner: owner) { c.resume(with: $0) }
         }
     }
     
-    public func fetchChat(for identifier: ChatIdentifier, owner: KeyPair) async throws -> (Chat.Metadata, [Chat.Member]) {
+    public func fetchChat(for identifier: ChatIdentifier, owner: KeyPair) async throws -> ChatDescription {
         try await withCheckedThrowingContinuation { c in
             chatService.fetchChat(for: identifier, owner: owner) { c.resume(with: $0) }
         }

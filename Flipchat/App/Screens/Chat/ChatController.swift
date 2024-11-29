@@ -51,6 +51,8 @@ class ChatController: ObservableObject {
     func prepareForLogout() {
         destroyChatStream()
         Task {
+            #warning("ChatStore.nuke() should use better mechanics.")
+            try await Task.delay(seconds: 2)
             try await withStore {
                 try await $0.nuke()
             }
@@ -88,7 +90,7 @@ class ChatController: ObservableObject {
     private func sync() {
         Task {
             try await withStore {
-                await $0.sync()
+                try await $0.sync()
             }
         }
     }
@@ -166,7 +168,7 @@ class ChatController: ObservableObject {
                 return nil
             }
             
-            return ChatID(data: chatID)
+            return ChatID(uuid: chatID)
         }
     }
     
@@ -183,17 +185,17 @@ class ChatController: ObservableObject {
     }
     
     func fetchGroupChat(roomNumber: RoomNumber) async throws -> (Chat.Metadata, [Chat.Member], Chat.Identity) {
-        let (metadata, members) = try await client.fetchChat(
+        let description = try await client.fetchChat(
             for: .roomNumber(roomNumber),
             owner: owner
         )
         
         let host = Chat.Identity(
-            displayName: (try? await client.fetchProfile(userID: metadata.ownerUser)) ?? "nobody",
+            displayName: (try? await client.fetchProfile(userID: description.metadata.ownerUser)) ?? "nobody",
             avatarURL: nil
         )        
         
-        return (metadata, members, host)
+        return (description.metadata, description.members, host)
     }
     
     func joinGroupChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws -> ChatID {

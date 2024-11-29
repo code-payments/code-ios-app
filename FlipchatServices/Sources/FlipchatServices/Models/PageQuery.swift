@@ -9,7 +9,7 @@ import FlipchatAPI
 
 public struct PageQuery {
     
-    public var pageSize: Int = 100
+    public var pageSize: Int = 1024
     public var order: Order
     public var pagingToken: ID?
 

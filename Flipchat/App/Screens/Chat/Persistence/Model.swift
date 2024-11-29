@@ -10,14 +10,14 @@ import SwiftData
 import FlipchatServices
 
 protocol ServerIdentifiable {
-    var serverID: Data { get }
+    var serverID: UUID { get }
 }
 
 @Model
 public class pChat: ServerIdentifiable, ObservableObject {
     
     @Attribute(.unique)
-    public var serverID: Data
+    public var serverID: UUID
     
     public var kind: pChatKind
     
@@ -25,7 +25,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
     
     public var roomNumber: RoomNumber
     
-    public var ownerUserID: Data
+    public var ownerUserID: UUID
     
     public var coverQuarks: UInt64
     
@@ -35,13 +35,15 @@ public class pChat: ServerIdentifiable, ObservableObject {
     
     // Relationships
     
+    public var previewMessage: pMessage?
+    
     @Relationship(deleteRule: .cascade, inverse: \pMessage.chat)
     public var messages: [pMessage]?
     
     @Relationship(deleteRule: .cascade, inverse: \pMember.chat)
     public var members: [pMember]?
     
-    init(serverID: Data, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: Data, coverQuarks: UInt64, unreadCount: Int, deleted: Bool) {
+    init(serverID: UUID, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: UUID, coverQuarks: UInt64, unreadCount: Int, deleted: Bool) {
         self.serverID = serverID
         self.kind = kind
         self.title = title
@@ -52,13 +54,13 @@ public class pChat: ServerIdentifiable, ObservableObject {
         self.deleted     = deleted
     }
     
-    static func new(serverID: Data) -> pChat {
+    static func new(serverID: UUID, ownerID: UUID) -> pChat {
         pChat(
             serverID: serverID,
             kind: .unknown,
             title: "",
             roomNumber: 0,
-            ownerUserID: Data(),
+            ownerUserID: ownerID,
             coverQuarks: 0,
             unreadCount: 0,
             deleted: false
@@ -66,11 +68,11 @@ public class pChat: ServerIdentifiable, ObservableObject {
     }
     
     func update(from metadata: Chat.Metadata) {
-        self.serverID    = metadata.id.data
+        self.serverID    = metadata.id.uuid
         self.kind        = pChatKind(kind: metadata.kind)
         self.title       = metadata.title
         self.roomNumber  = metadata.roomNumber
-        self.ownerUserID = metadata.ownerUser.data
+        self.ownerUserID = metadata.ownerUser.uuid
         self.coverQuarks = metadata.coverAmount.quarks
         self.unreadCount = metadata.unreadCount
     }
@@ -103,11 +105,11 @@ extension pChat {
         Kin(quarks: coverQuarks)
     }
     
-    public var messagesByDate: [pMessage] {
-        messages?.sorted { lhs, rhs in
-            lhs.date < rhs.date
-        } ?? []
-    }
+//    public var messagesByDate: [pMessage] {
+//        messages?.sorted { lhs, rhs in
+//            lhs.date < rhs.date
+//        } ?? []
+//    }
     
     public var formattedRoomNumber: String {
         "Room #\(roomNumber)"
@@ -117,20 +119,32 @@ extension pChat {
         unreadCount > 0
     }
     
-    public var oldestMessage: pMessage? {
-        messagesByDate.first
+    public func fetchNewestMessage() -> pMessage? {
+        guard let context = modelContext else {
+            return nil
+        }
+        
+        var query = FetchDescriptor<pMessage>()
+        query.fetchLimit = 1
+        query.sortBy = [.init(\.date, order: .reverse)]
+        
+        return try? context.fetch(query).first
     }
     
-    public var newestMessage: pMessage? {
-        messagesByDate.last
-    }
+//    public var oldestMessage: pMessage? {
+//        messagesByDate.first
+//    }
+//    
+//    public var newestMessage: pMessage? {
+//        messagesByDate.last
+//    }
     
     public var newestMessagePreview: String {
-        guard let newestMessage else {
+        guard let previewMessage else {
             return "No content"
         }
         
-        return newestMessage.contents.map { $0.text }
+        return previewMessage.contents.map { $0.text }
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespaces)
     }
@@ -142,13 +156,15 @@ extension pChat {
 public class pMessage: ServerIdentifiable {
     
     @Attribute(.unique)
-    public var serverID: Data
+    public var serverID: UUID
+    
+    public var chatID: UUID
     
     public var date: Date
     
     public var state: pMessageState
     
-    public var senderID: Data?
+    public var senderID: UUID?
     
     public var isDeleted: Bool
     
@@ -163,8 +179,9 @@ public class pMessage: ServerIdentifiable {
 //    @Relationship(deleteRule: .cascade, inverse: \pPointer.message)
 //    public var pointers: [pPointer]?
     
-    init(serverID: Data, date: Date, state: pMessageState, senderID: Data?, isDeleted: Bool, contents: [pMessageContent]) {
+    init(serverID: UUID, chatID: UUID, date: Date, state: pMessageState, senderID: UUID?, isDeleted: Bool, contents: [pMessageContent]) {
         self.serverID = serverID
+        self.chatID = chatID
         self.date = date
         self.state = state
         self.senderID = senderID
@@ -172,9 +189,10 @@ public class pMessage: ServerIdentifiable {
         self.contents = contents
     }
     
-    static func new(serverID: Data?, senderID: Data, date: Date = .now, text: String? = nil) -> pMessage {
+    static func new(serverID: UUID, chatID: UUID, senderID: UUID, date: Date = .now, text: String? = nil) -> pMessage {
         pMessage(
-            serverID: serverID ?? .tempID,
+            serverID: serverID,
+            chatID: chatID,
             date: date,
             state: .sent,
             senderID: senderID,
@@ -184,27 +202,28 @@ public class pMessage: ServerIdentifiable {
     }
     
     func update(from message: Chat.Message) {
-        self.serverID = message.id.data
+        self.serverID = message.id.uuid
         self.date = message.date
         self.state = .delivered
         self.isDeleted = false
-        self.senderID = message.senderID?.data
+        self.senderID = message.senderID?.uuid
         self.contents = message.contents.compactMap { pMessageContent($0) }
     }
 }
 
-extension pMessage {
-    convenience init(message: Chat.Message) {
-        self.init(
-            serverID: message.id.data,
-            date: message.date,
-            state: .delivered,
-            senderID: message.senderID?.data,
-            isDeleted: false,
-            contents: message.contents.compactMap { pMessageContent($0) }
-        )
-    }
-}
+//extension pMessage {
+//    convenience init(message: Chat.Message) {
+//        self.init(
+//            serverID: message.id.uuid,
+//            chatID: <#T##UUID#>
+//            date: message.date,
+//            state: .delivered,
+//            senderID: message.senderID?.uuid,
+//            isDeleted: false,
+//            contents: message.contents.compactMap { pMessageContent($0) }
+//        )
+//    }
+//}
 
 extension pMessage {
     var userDisplayName: String {
@@ -257,7 +276,7 @@ public enum pMessageState: Int, Codable {
 public class pIdentity: ServerIdentifiable {
     
     @Attribute(.unique)
-    public var serverID: Data // Same as pMemeber serverID
+    public var serverID: UUID // Same as pMemeber serverID
     
     public var displayName: String
     
@@ -266,13 +285,13 @@ public class pIdentity: ServerIdentifiable {
     @Relationship(deleteRule: .cascade, inverse: \pMember.identity)
     public var members: [pMember]?
     
-    init(serverID: Data, displayName: String, avatarURL: URL? = nil) {
+    init(serverID: UUID, displayName: String, avatarURL: URL? = nil) {
         self.serverID = serverID
         self.displayName = displayName
         self.avatarURL = avatarURL
     }
     
-    static func new(serverID: Data, displayName: String, avatarURL: URL?) -> pIdentity {
+    static func new(serverID: UUID, displayName: String, avatarURL: URL?) -> pIdentity {
         pIdentity(
             serverID: serverID,
             displayName: displayName,
@@ -286,9 +305,9 @@ public class pIdentity: ServerIdentifiable {
 @Model
 public class pMember: ServerIdentifiable {
     
-    public var serverID: Data
+    public var serverID: UUID
     
-    public var chatID: Data
+    public var chatID: UUID
     
     public var isMuted: Bool
     
@@ -304,13 +323,13 @@ public class pMember: ServerIdentifiable {
 //    @Relationship(deleteRule: .cascade)
 //    public var pointers: [pPointer]?
     
-    init(serverID: Data, chatID: Data, isMuted: Bool) {
+    init(serverID: UUID, chatID: UUID, isMuted: Bool) {
         self.serverID = serverID
         self.chatID = chatID
         self.isMuted = isMuted
     }
     
-    static func new(serverID: Data, chatID: Data) -> pMember {
+    static func new(serverID: UUID, chatID: UUID) -> pMember {
         pMember(
             serverID: serverID,
             chatID: chatID,
@@ -319,7 +338,7 @@ public class pMember: ServerIdentifiable {
     }
     
     func update(from member: Chat.Member) {
-        self.serverID = member.id.data
+        self.serverID = member.id.uuid
         self.isMuted = member.isMuted
         
         identity?.displayName = member.identity.displayName
@@ -360,5 +379,15 @@ extension Data {
         d.append(Data("temp:".utf8))
         d.append(UUID().data)
         return d
+    }
+    
+    func uuidRepresentation() -> UUID? {
+        withUnsafeBytes { rawBuffer in
+            guard let baseAddress = rawBuffer.baseAddress else {
+                return nil
+            }
+            
+            return UUID(uuid: baseAddress.assumingMemoryBound(to: uuid_t.self).pointee)
+        }
     }
 }
