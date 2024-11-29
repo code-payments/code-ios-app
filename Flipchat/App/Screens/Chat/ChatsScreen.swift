@@ -14,6 +14,7 @@ struct ChatsScreen: View {
     
     @EnvironmentObject private var betaFlags: BetaFlags
     @EnvironmentObject private var banners: Banners
+    @EnvironmentObject private var notificationController: NotificationController
     
     @ObservedObject private var sessionAuthenticator: SessionAuthenticator
     @ObservedObject private var session: Session
@@ -154,6 +155,12 @@ struct ChatsScreen: View {
                     cancelAction: { viewModel.isShowingCreatePayment = false }
                 )
             }
+        }
+        .onChange(of: notificationController.didBecomeActive) { _, _ in
+            chatController.streamChatEvents()
+        }
+        .onChange(of: notificationController.willResignActive) { _, _ in
+            chatController.destroyChatStream()
         }
     }
     

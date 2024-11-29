@@ -90,7 +90,7 @@ class ChatController: ObservableObject {
     
     // MARK: - Chat Stream -
     
-    private func streamChatEvents() {
+    func streamChatEvents() {
         destroyChatStream()
         
         chatStream = client.streamChatEvents(owner: owner) { [weak self] result in
@@ -115,7 +115,7 @@ class ChatController: ObservableObject {
         }
     }
     
-    private func destroyChatStream() {
+    func destroyChatStream() {
         chatStream?.destroy()
     }
     

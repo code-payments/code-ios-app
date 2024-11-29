@@ -13,6 +13,7 @@ import FlipchatServices
 struct ConversationScreen: View {
     
     @EnvironmentObject private var banners: Banners
+    @EnvironmentObject private var notificationController: NotificationController
     
     @State private var input: String = ""
     
@@ -159,6 +160,12 @@ struct ConversationScreen: View {
             ToolbarItem(placement: .topBarTrailing) {
                 moreItem()
             }
+        }
+        .onChange(of: notificationController.didBecomeActive) { _, _ in
+            startStream()
+        }
+        .onChange(of: notificationController.willResignActive) { _, _ in
+            destroyStream()
         }
     }
     
