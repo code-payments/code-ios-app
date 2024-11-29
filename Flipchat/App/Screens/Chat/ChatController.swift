@@ -51,26 +51,11 @@ class ChatController: ObservableObject {
     func prepareForLogout() {
         destroyChatStream()
         Task {
-            #warning("ChatStore.nuke() should use better mechanics.")
-            try await Task.delay(seconds: 2)
             try await withStore {
                 try await $0.nuke()
             }
         }
     }
-//    
-//    private func withStore<T>(action: (ChatStore) async throws -> T) where T: Sendable {
-//        Task.detached { [modelContainer, userID, owner, client] in
-//            let store = await ChatStore(
-//                container: modelContainer,
-//                userID: userID,
-//                owner: owner,
-//                client: client
-//            )
-//            
-//            return try await action(store)
-//        }
-//    }
     
     private func withStore<T>(action: @escaping @Sendable (ChatStore) async throws -> T) async throws -> T where T: Sendable  {
         try await Task.detached { [modelContainer, userID, owner, client] in

@@ -342,19 +342,18 @@ final class SessionAuthenticator: ObservableObject {
     }
     
     func logout() {
-        if case .loggedIn(let state) = state {
-            state.session.prepareForLogout()
-            state.chatController.prepareForLogout()
-        }
+        let preState = state
         
         accountManager.resetForLogout()
         
-        if case .loggedIn(let state) = state {
+        state = .loggedOut
+        
+        if case .loggedIn(let state) = preState {
             state.session.prepareForLogout()
+            state.chatController.prepareForLogout()
             state.pushController.prepareForLogout()
         }
         
-        state = .loggedOut
         UserDefaults.wasLoggedIn = false
         
         trace(.note, components: "Logged out")
