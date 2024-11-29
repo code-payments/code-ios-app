@@ -403,6 +403,8 @@ actor ChatStore: ModelActor {
     }
     
     private func upsert(messages: [Chat.Message], in chat: pChat) throws {
+        let chatID = chat.serverID
+        
         let senderIDs  = Set(messages.compactMap { $0.senderID?.uuid })
         let messageIDs = Set(messages.map { $0.id.uuid })
         
@@ -425,7 +427,7 @@ actor ChatStore: ModelActor {
                 existingMessage.update(from: message)
                 existingMessage.sender = sender
             } else {
-                let newMessage = createMessage(id: uuid, chatID: chat.serverID)
+                let newMessage = createMessage(id: uuid, chatID: chatID)
                 newMessage.sender = sender
                 newMessage.update(from: message)
                 messageToAdd[uuid] = newMessage
