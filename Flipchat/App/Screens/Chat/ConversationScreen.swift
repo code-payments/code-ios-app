@@ -54,18 +54,22 @@ struct ConversationScreen: View {
         self.containerViewModel = containerViewModel
         self.chatController = chatController
         
-        _chats = Query(filter: #Predicate<pChat> {
+        var chatFetch = FetchDescriptor<pChat>()
+        chatFetch.fetchLimit = 1
+        chatFetch.relationshipKeyPathsForPrefetching = [\.members]
+        chatFetch.predicate = #Predicate<pChat> {
             $0.serverID == chatID.uuid
-        })
+        }
+        _chats = Query(chatFetch)
         
-        var query = FetchDescriptor<pMessage>()
-        query.fetchLimit = 250
-        query.sortBy = [.init(\.date, order: .reverse)]
-        query.relationshipKeyPathsForPrefetching = [\.sender]
-        query.predicate = #Predicate<pMessage> {
+        var messageFetch = FetchDescriptor<pMessage>()
+        messageFetch.fetchLimit = 100
+        messageFetch.sortBy = [.init(\.date, order: .reverse)]
+        messageFetch.relationshipKeyPathsForPrefetching = [\.sender]
+        messageFetch.predicate = #Predicate<pMessage> {
             $0.chatID == chatID.uuid
         }
-        _messages = Query(query)
+        _messages = Query(messageFetch)
     }
     
     private func didAppear() {

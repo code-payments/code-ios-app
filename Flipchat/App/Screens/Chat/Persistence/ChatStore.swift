@@ -126,6 +126,7 @@ actor ChatStore: ModelActor {
         trace(.success, components: "Metadata: \(metadata)")
         
         try upsert(chat: metadata, ownerID: metadata.ownerUser)
+        try save()
     }
     
     private func update(chatID: ChatID, withMembers members: [Chat.Member]) throws {
@@ -140,6 +141,7 @@ actor ChatStore: ModelActor {
         }
         
         try upsert(members: members, in: chat)
+        try save()
     }
     
     private func update(chatID: ChatID, withLastMessage message: Chat.Message) throws {
@@ -150,6 +152,7 @@ actor ChatStore: ModelActor {
         }
         
         try upsert(messages: [message], in: chat)
+        try save()
     }
     
     private func update(chatID: ChatID, withPointerUpdate update: Chat.BatchUpdate.PointerUpdate) throws {
@@ -159,15 +162,6 @@ actor ChatStore: ModelActor {
     private func update(chatID: ChatID, withTypingUpdate update: Chat.BatchUpdate.TypingUpdate) throws {
         trace(.success, components: "Typing: \(update)")
     }
-    
-//    func streamMessages(chatID: ChatID, messageID: MessageID, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
-//        client.streamMessages(
-//            chatID: chatID,
-//            from: messageID,
-//            owner: owner,
-//            completion: completion
-//        )
-//    }
     
     func receive(messages: [Chat.Message], for chatID: ChatID) throws {
         let filteredMessages = messages.filter {
