@@ -1,0 +1,34 @@
+{
+    "applinks": {
+        "apps": [],
+        "details": [
+            {
+                "appIDs": [
+                    "S32LQ663LU.com.flipchat.app"
+                ],
+                "components": [
+                    {
+                        "/": "/login",
+                        "#": "/e=?*",
+                        "comment": "Support for login"
+                    },
+                    {
+                        "/": "/room",
+                        "#": "/r=?*",
+                        "comment": "Support for rooms"
+                    },
+                    {
+                        "/": "/user",
+                        "#": "/u=?*",
+                        "comment": "Support for users"
+                    }
+                ]
+            }
+        ]
+    },
+    "webcredentials": {
+        "apps": [
+            "S32LQ663LU.com.flipchat.app"
+        ]
+    }
+}
