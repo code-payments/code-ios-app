@@ -26,5 +26,5 @@ extension URL {
 
 extension URL {
     // Prev chat.sqlite
-    static let chatStoreURL = URL.applicationSupportDirectory.appending(path: "rooms.sqlite")
+    static let chatStoreURL = URL.applicationSupportDirectory.appending(path: "flipchat.sqlite")
 }

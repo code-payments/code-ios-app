@@ -44,8 +44,8 @@ struct ChatsScreen: View {
         var query = FetchDescriptor<pChat>()
         query.fetchLimit = 250
         query.sortBy = [
-            .init(\.previewMessage?.date, order: .reverse),
-            .init(\.roomNumber,           order: .reverse),
+            .init(\.lastMessageDate, order: .reverse),
+            .init(\.roomNumber,      order: .reverse),
         ]
         query.relationshipKeyPathsForPrefetching = [\.messages, \.previewMessage]
         query.predicate = #Predicate<pChat> {

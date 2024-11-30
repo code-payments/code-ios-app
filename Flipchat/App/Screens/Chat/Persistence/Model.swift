@@ -33,8 +33,11 @@ public class pChat: ServerIdentifiable, ObservableObject {
     
     public var deleted: Bool
     
+    public var lastMessageDate: Date
+    
     // Relationships
     
+    @Relationship
     private(set) var previewMessage: pMessage?
     
     @Relationship(deleteRule: .cascade, inverse: \pMessage.chat)
@@ -43,7 +46,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
     @Relationship(deleteRule: .cascade, inverse: \pMember.chat)
     public var members: [pMember]?
     
-    init(serverID: UUID, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: UUID, coverQuarks: UInt64, unreadCount: Int, deleted: Bool) {
+    init(serverID: UUID, kind: pChatKind, title: String, roomNumber: RoomNumber, ownerUserID: UUID, coverQuarks: UInt64, unreadCount: Int, deleted: Bool, lastMessageDate: Date) {
         self.serverID = serverID
         self.kind = kind
         self.title = title
@@ -52,6 +55,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
         self.coverQuarks = coverQuarks
         self.unreadCount = unreadCount
         self.deleted     = deleted
+        self.lastMessageDate = lastMessageDate
     }
     
     static func new(serverID: UUID, ownerID: UUID) -> pChat {
@@ -63,7 +67,8 @@ public class pChat: ServerIdentifiable, ObservableObject {
             ownerUserID: ownerID,
             coverQuarks: 0,
             unreadCount: 0,
-            deleted: false
+            deleted: false,
+            lastMessageDate: Date(timeIntervalSince1970: 0)
         )
     }
     
@@ -78,14 +83,16 @@ public class pChat: ServerIdentifiable, ObservableObject {
     }
     
     func update(previewMessage message: pMessage) {
-        if let previewMessage {
-            if message.date > previewMessage.date {
-                self.previewMessage = message
+        if let currentPreview = previewMessage {
+            if message.date > currentPreview.date {
+                previewMessage  = message
+                lastMessageDate = message.date
             } else {
                 // Ignore, message is older than current preview
             }
         } else {
-            self.previewMessage = message
+            previewMessage  = message
+            lastMessageDate = message.date
         }
     }
     
