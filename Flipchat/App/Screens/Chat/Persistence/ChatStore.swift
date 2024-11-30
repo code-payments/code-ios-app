@@ -445,7 +445,7 @@ actor ChatStore: ModelActor {
             let recentMessage = mostRecentMessage,
             let previewMessage = messageToAdd[recentMessage.id.uuid] ?? messagesMap[recentMessage.id.uuid]
         {
-            chat.previewMessage = previewMessage
+            chat.update(previewMessage: previewMessage)
         }
         
         trace(.write, components: "Inserted \(messages.count) messages.")

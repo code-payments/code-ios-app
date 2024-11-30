@@ -24,7 +24,7 @@ struct ChatsScreen: View {
     @State private var debugTapCount: Int = 0
     @State private var isShowingSettings: Bool = false
     
-    @Query() private var chats: [pChat]
+    @Query private var chats: [pChat]
     
 //    private var sortedRooms: [pChat] {
 //        unsortedRooms.sorted { lhs, rhs in
@@ -43,7 +43,10 @@ struct ChatsScreen: View {
         
         var query = FetchDescriptor<pChat>()
         query.fetchLimit = 250
-        query.sortBy = [.init(\.roomNumber, order: .reverse)]
+        query.sortBy = [
+            .init(\.previewMessage?.date, order: .reverse),
+            .init(\.roomNumber,           order: .reverse),
+        ]
         query.relationshipKeyPathsForPrefetching = [\.messages, \.previewMessage]
         query.predicate = #Predicate<pChat> {
             $0.deleted == false

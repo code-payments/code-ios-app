@@ -35,7 +35,7 @@ public class pChat: ServerIdentifiable, ObservableObject {
     
     // Relationships
     
-    public var previewMessage: pMessage?
+    private(set) var previewMessage: pMessage?
     
     @Relationship(deleteRule: .cascade, inverse: \pMessage.chat)
     public var messages: [pMessage]?
@@ -75,6 +75,18 @@ public class pChat: ServerIdentifiable, ObservableObject {
         self.ownerUserID = metadata.ownerUser.uuid
         self.coverQuarks = metadata.coverAmount.quarks
         self.unreadCount = metadata.unreadCount
+    }
+    
+    func update(previewMessage message: pMessage) {
+        if let previewMessage {
+            if message.date > previewMessage.date {
+                self.previewMessage = message
+            } else {
+                // Ignore, message is older than current preview
+            }
+        } else {
+            self.previewMessage = message
+        }
     }
     
     func insert(members: [pMember]) {
