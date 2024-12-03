@@ -250,8 +250,11 @@ message StartChatResponse {
         USER_NOT_FOUND = 2;
     }
 
-    // The chat to use if the RPC was successful.
+    // The chat to use, if result == OK.
     Metadata chat = 2;
+
+    // Members contains the chat members, if result == OK.
+    repeated Member members = 3;
 }
 message StartGroupChatPaymentMetadata {
     // The user creating the group chat, who will be the initial owner
@@ -266,8 +269,14 @@ message JoinChatRequest {
         uint64 room_id = 2;
     }
 
-    // The payment for joining a chat, which is required when the user isn't
-    // the chat owner
+    // Does the user want to join without the ability to send messages in the chat?
+    // If so, then payment_intent is not required? Otherwise, it is.
+    bool without_send_permission = 8;
+
+    // The payment for joining a chat, which is required for sending messages in
+    // the chat.
+    //
+    // Note: The chat owner can always bypass payment.
     common.v1.IntentId payment_intent = 9;
 
     common.v1.Auth auth = 10 [(validate.rules).message.required = true];
@@ -464,11 +473,17 @@ message Member {
     // If the member is the caller (where applicable), will be set to true.
     bool is_self = 4;
 
-    // NOTE: We may switch to 'roles' in the future.
-    bool is_host = 5;
+    // Does the chat member have permission to perform moderation actions in
+    // the chat?
+    bool has_moderator_permission = 5;
 
-    // Cant this user send messages in the chat?
+    // Has the chat member been muted by a moderator? If so, they cannot send
+    // messages, even if they paid for the permission.
     bool is_muted = 6;
+
+    // Does the chat member have permission to send messages in the chat? If
+    // not, the user is considered to be a spectator.
+    bool has_send_permission = 7;
 }
 
 message MemberIdentity {

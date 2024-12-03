@@ -325,26 +325,24 @@ class ChatController: ObservableObject {
             destination: destination
         )
         
-        let createdMetadata = try await client.startGroupChat(
+        let description = try await client.startGroupChat(
             with: [userID],
             intentID: intentID,
             owner: owner
         )
         
-        // We need to fetch the chat explicitly because startGroupChat doesn't return members
-        let description = try await client.fetchChat(for: .chatID(createdMetadata.id), owner: owner)
-        
-        let messages = try await syncMessagesBackwards(for: createdMetadata.id)
+        let roomID = description.metadata.id
+        let messages = try await syncMessagesBackwards(for: roomID)
         
         try database.transaction {
             try $0.insertRooms(rooms: [description.metadata])
-            try $0.insertMembers(members: description.members, chatID: createdMetadata.id)
-            try $0.insertMessages(messages: messages, chatID: createdMetadata.id)
+            try $0.insertMembers(members: description.members, chatID: roomID)
+            try $0.insertMessages(messages: messages, chatID: roomID)
         }
         
         changedChats()
         
-        return createdMetadata.id
+        return roomID
     }
     
     func fetchGroupChat(roomNumber: RoomNumber) async throws -> (Chat.Metadata, [Chat.Member], Chat.Identity) {

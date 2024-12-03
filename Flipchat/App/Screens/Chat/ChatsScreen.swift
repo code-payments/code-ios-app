@@ -44,13 +44,6 @@ struct ChatsScreen: View {
     
     @State private var chatState: ChatsState
     
-//    private var sortedRooms: [pChat] {
-//        unsortedRooms.sorted { lhs, rhs in
-//            lhs.newestMessage?.date.timeIntervalSince1970 ?? 0 >
-//            rhs.newestMessage?.date.timeIntervalSince1970 ?? 0
-//        }
-//    }
-    
     // MARK: - Init -
     
     init(sessionAuthenticator: SessionAuthenticator, session: Session, chatController: ChatController, viewModel: ChatViewModel) {

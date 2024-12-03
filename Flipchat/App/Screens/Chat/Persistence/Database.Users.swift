@@ -12,7 +12,7 @@ import SQLite
 extension Database {
     
     /// Incomplete Chat.Member
-    func getUser(userID: UUID) throws -> Chat.Member {
+    func getUser(userID: UUID) throws -> MemberRow? {
         let statement = try reader.prepareRowIterator("""
         SELECT 
             u.serverID,
@@ -34,26 +34,23 @@ extension Database {
         let uTable = UserTable()
         
         let members = try statement.map { row in
-            Chat.Member(
-                id: UserID(data: row[uTable.serverID].data),
-                isSelf: false, // Not stored locally
-                isHost: false, // Not stored locally
-                isMuted: row[mTable.isMuted],
-                identity: .init(
-                    displayName: row[uTable.displayName],
-                    avatarURL: row[uTable.avatarURL]
-                ),
-                pointers: [] // Not stored locally (yet)
+            MemberRow(
+                serverID: row[uTable.serverID],
+                displayName: row[uTable.displayName],
+                avatarURL: row[uTable.avatarURL],
+                isMuted: row[mTable.isMuted]
             )
         }
         
-        guard let user = members.first else {
-            throw GenericError(code: 1)
-        }
-        
-        return user
+        return members.first
     }
 }
 
 // MARK: - Types -
 
+struct MemberRow {
+    let serverID: UUID
+    let displayName: String?
+    let avatarURL: URL?
+    let isMuted: Bool
+}

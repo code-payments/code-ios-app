@@ -13,7 +13,7 @@ import FlipchatServices
 private class ConversationState: ObservableObject {
     
     @Published var room: RoomDescription!
-    @Published var selfUser: Chat.Member
+    @Published var selfUser: MemberRow!
     @Published var messages: [MessageRow] = []
     
     @Published var scrollToBottom: Int = 0

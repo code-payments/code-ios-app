@@ -116,7 +116,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         trace(.success, components: "Owner \(owner.publicKey.base58)", "Initiating a connection...")
     }
     
-    func startGroupChat(with users: [UserID], intentID: PublicKey, owner: KeyPair, completion: @escaping (Result<Chat.Metadata, ErrorStartChat>) -> Void) {
+    func startGroupChat(with users: [UserID], intentID: PublicKey, owner: KeyPair, completion: @escaping (Result<ChatDescription, ErrorStartChat>) -> Void) {
         trace(.send, components: "Users: \(users.map { "\($0.description)" }.joined(separator: ", "))")
         
         let request = Flipchat_Chat_V1_StartChatRequest.with {
@@ -137,9 +137,12 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorStartChat(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                let chatMetadata = Chat.Metadata(response.chat)
-                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(chatMetadata.id.description)")
-                completion(.success(chatMetadata))
+                let description = ChatDescription(
+                    metadata: Chat.Metadata(response.chat),
+                    members: response.members.map { Chat.Member($0) }
+                )
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Chat: \(description.metadata.id.description)")
+                completion(.success(description))
             } else {
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))

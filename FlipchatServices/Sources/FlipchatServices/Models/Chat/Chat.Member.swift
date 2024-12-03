@@ -19,11 +19,16 @@ extension Chat {
         /// is themselves.
         public let isSelf: Bool
         
-        /// Is this chat member the host of the chat
-        public let isHost: Bool
-        
         /// Is this user allowed to send messages
         public let isMuted: Bool
+
+        /// Does the chat member have permission to perform moderation actions in
+        /// the chat?
+        public let hasModeratorPermission: Bool
+        
+        /// Does the chat member have permission to send messages in the chat? If
+        /// not, the user is considered to be a spectator.
+        public let hasSendPermission: Bool
         
         /// The chat member's identity if it has been revealed.
         public var identity: Identity
@@ -33,11 +38,12 @@ extension Chat {
         /// on server.
         public var pointers: [Pointer]
         
-        public init(id: ID, isSelf: Bool, isHost: Bool, isMuted: Bool, identity: Identity, pointers: [Pointer]) {
+        public init(id: UserID, isSelf: Bool, isMuted: Bool, hasModeratorPermission: Bool, hasSendPermission: Bool, identity: Identity, pointers: [Pointer]) {
             self.id = id
             self.isSelf = isSelf
-            self.isHost = isHost
             self.isMuted = isMuted
+            self.hasModeratorPermission = hasModeratorPermission
+            self.hasSendPermission = hasSendPermission
             self.identity = identity
             self.pointers = pointers
         }
@@ -64,8 +70,9 @@ extension Chat.Member {
         self.init(
             id: .init(data: proto.userID.value),
             isSelf: proto.isSelf,
-            isHost: proto.isHost,
             isMuted: proto.isMuted,
+            hasModeratorPermission: proto.hasModeratorPermission_p,
+            hasSendPermission: proto.hasSendPermission_p,
             identity: .init(proto.identity),
             pointers: proto.pointers.map { .init($0) }
         )

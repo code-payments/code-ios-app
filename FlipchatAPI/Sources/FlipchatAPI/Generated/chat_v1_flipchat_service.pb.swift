@@ -731,7 +731,7 @@ public struct Flipchat_Chat_V1_StartChatResponse {
 
   public var result: Flipchat_Chat_V1_StartChatResponse.Result = .ok
 
-  /// The chat to use if the RPC was successful.
+  /// The chat to use, if result == OK.
   public var chat: Flipchat_Chat_V1_Metadata {
     get {return _chat ?? Flipchat_Chat_V1_Metadata()}
     set {_chat = newValue}
@@ -740,6 +740,9 @@ public struct Flipchat_Chat_V1_StartChatResponse {
   public var hasChat: Bool {return self._chat != nil}
   /// Clears the value of `chat`. Subsequent reads from it will return its default value.
   public mutating func clearChat() {self._chat = nil}
+
+  /// Members contains the chat members, if result == OK.
+  public var members: [Flipchat_Chat_V1_Member] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -841,8 +844,14 @@ public struct Flipchat_Chat_V1_JoinChatRequest {
     set {identifier = .roomID(newValue)}
   }
 
-  /// The payment for joining a chat, which is required when the user isn't
-  /// the chat owner
+  /// Does the user want to join without the ability to send messages in the chat?
+  /// If so, then payment_intent is not required? Otherwise, it is.
+  public var withoutSendPermission: Bool = false
+
+  /// The payment for joining a chat, which is required for sending messages in
+  /// the chat.
+  ///
+  /// Note: The chat owner can always bypass payment.
   public var paymentIntent: Flipchat_Common_V1_IntentId {
     get {return _paymentIntent ?? Flipchat_Common_V1_IntentId()}
     set {_paymentIntent = newValue}
@@ -1773,11 +1782,17 @@ public struct Flipchat_Chat_V1_Member {
   /// If the member is the caller (where applicable), will be set to true.
   public var isSelf: Bool = false
 
-  /// NOTE: We may switch to 'roles' in the future.
-  public var isHost: Bool = false
+  /// Does the chat member have permission to perform moderation actions in
+  /// the chat?
+  public var hasModeratorPermission_p: Bool = false
 
-  /// Cant this user send messages in the chat?
+  /// Has the chat member been muted by a moderator? If so, they cannot send
+  /// messages, even if they paid for the permission.
   public var isMuted: Bool = false
+
+  /// Does the chat member have permission to send messages in the chat? If
+  /// not, the user is considered to be a spectator.
+  public var hasSendPermission_p: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -2752,6 +2767,7 @@ extension Flipchat_Chat_V1_StartChatResponse: SwiftProtobuf.Message, SwiftProtob
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "result"),
     2: .same(proto: "chat"),
+    3: .same(proto: "members"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2762,6 +2778,7 @@ extension Flipchat_Chat_V1_StartChatResponse: SwiftProtobuf.Message, SwiftProtob
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._chat) }()
+      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
       default: break
       }
     }
@@ -2778,12 +2795,16 @@ extension Flipchat_Chat_V1_StartChatResponse: SwiftProtobuf.Message, SwiftProtob
     try { if let v = self._chat {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    if !self.members.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Chat_V1_StartChatResponse, rhs: Flipchat_Chat_V1_StartChatResponse) -> Bool {
     if lhs.result != rhs.result {return false}
     if lhs._chat != rhs._chat {return false}
+    if lhs.members != rhs.members {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -2838,6 +2859,7 @@ extension Flipchat_Chat_V1_JoinChatRequest: SwiftProtobuf.Message, SwiftProtobuf
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "chat_id"),
     2: .standard(proto: "room_id"),
+    8: .standard(proto: "without_send_permission"),
     9: .standard(proto: "payment_intent"),
     10: .same(proto: "auth"),
   ]
@@ -2869,6 +2891,7 @@ extension Flipchat_Chat_V1_JoinChatRequest: SwiftProtobuf.Message, SwiftProtobuf
           self.identifier = .roomID(v)
         }
       }()
+      case 8: try { try decoder.decodeSingularBoolField(value: &self.withoutSendPermission) }()
       case 9: try { try decoder.decodeSingularMessageField(value: &self._paymentIntent) }()
       case 10: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
@@ -2892,6 +2915,9 @@ extension Flipchat_Chat_V1_JoinChatRequest: SwiftProtobuf.Message, SwiftProtobuf
     }()
     case nil: break
     }
+    if self.withoutSendPermission != false {
+      try visitor.visitSingularBoolField(value: self.withoutSendPermission, fieldNumber: 8)
+    }
     try { if let v = self._paymentIntent {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     } }()
@@ -2903,6 +2929,7 @@ extension Flipchat_Chat_V1_JoinChatRequest: SwiftProtobuf.Message, SwiftProtobuf
 
   public static func ==(lhs: Flipchat_Chat_V1_JoinChatRequest, rhs: Flipchat_Chat_V1_JoinChatRequest) -> Bool {
     if lhs.identifier != rhs.identifier {return false}
+    if lhs.withoutSendPermission != rhs.withoutSendPermission {return false}
     if lhs._paymentIntent != rhs._paymentIntent {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -3708,8 +3735,9 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
     2: .same(proto: "identity"),
     3: .same(proto: "pointers"),
     4: .standard(proto: "is_self"),
-    5: .standard(proto: "is_host"),
+    5: .standard(proto: "has_moderator_permission"),
     6: .standard(proto: "is_muted"),
+    7: .standard(proto: "has_send_permission"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3722,8 +3750,9 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
       case 2: try { try decoder.decodeSingularMessageField(value: &self._identity) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.pointers) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.isSelf) }()
-      case 5: try { try decoder.decodeSingularBoolField(value: &self.isHost) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.hasModeratorPermission_p) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.isMuted) }()
+      case 7: try { try decoder.decodeSingularBoolField(value: &self.hasSendPermission_p) }()
       default: break
       }
     }
@@ -3746,11 +3775,14 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
     if self.isSelf != false {
       try visitor.visitSingularBoolField(value: self.isSelf, fieldNumber: 4)
     }
-    if self.isHost != false {
-      try visitor.visitSingularBoolField(value: self.isHost, fieldNumber: 5)
+    if self.hasModeratorPermission_p != false {
+      try visitor.visitSingularBoolField(value: self.hasModeratorPermission_p, fieldNumber: 5)
     }
     if self.isMuted != false {
       try visitor.visitSingularBoolField(value: self.isMuted, fieldNumber: 6)
+    }
+    if self.hasSendPermission_p != false {
+      try visitor.visitSingularBoolField(value: self.hasSendPermission_p, fieldNumber: 7)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -3760,8 +3792,9 @@ extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._Message
     if lhs._identity != rhs._identity {return false}
     if lhs.pointers != rhs.pointers {return false}
     if lhs.isSelf != rhs.isSelf {return false}
-    if lhs.isHost != rhs.isHost {return false}
+    if lhs.hasModeratorPermission_p != rhs.hasModeratorPermission_p {return false}
     if lhs.isMuted != rhs.isMuted {return false}
+    if lhs.hasSendPermission_p != rhs.hasSendPermission_p {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
