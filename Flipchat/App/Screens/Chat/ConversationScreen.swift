@@ -33,9 +33,9 @@ private class ConversationState: ObservableObject {
         self.chatID = chatID
         self.chatController = chatController
         
-        room = try chatController.fetchRoom(chatID: chatID)
-        selfUser = try chatController.fetchUser(userID: userID)
-        messages = try chatController.fetchMessages(chatID: chatID, pageSize: pageSize)
+        room = try chatController.getRoom(chatID: chatID)
+        selfUser = try chatController.getUser(userID: userID)
+        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
         
         startStream()
         Task {
@@ -56,9 +56,9 @@ private class ConversationState: ObservableObject {
     }
     
     func reload() throws {
-        room = try chatController.fetchRoom(chatID: chatID)
-        selfUser = try chatController.fetchUser(userID: userID)
-        messages = try chatController.fetchMessages(chatID: chatID, pageSize: pageSize)
+        room = try chatController.getRoom(chatID: chatID)
+        selfUser = try chatController.getUser(userID: userID)
+        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
     }
     
     // MARK: - Pointer -

@@ -24,7 +24,7 @@ private class ChatsState {
     }
     
     func reload() throws {
-        rooms = try chatController.fetchRooms()
+        rooms = try chatController.getRooms()
     }
 }
 

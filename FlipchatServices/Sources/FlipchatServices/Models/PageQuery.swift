@@ -5,15 +5,16 @@
 //  Created by Dima Bart on 2024-10-23.
 //
 
+import Foundation
 import FlipchatAPI
 
 public struct PageQuery {
     
     public var pageSize: Int = 1024
     public var order: Order
-    public var pagingToken: ID?
+    public var pagingToken: UUID?
 
-    public init(order: Order = .asc, pagingToken: ID? = nil, pageSize: Int = 100) {
+    public init(order: Order = .asc, pagingToken: UUID? = nil, pageSize: Int = 100) {
         self.order = order
         self.pagingToken = pagingToken
         self.pageSize = pageSize

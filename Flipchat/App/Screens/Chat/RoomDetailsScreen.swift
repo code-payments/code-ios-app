@@ -22,11 +22,11 @@ private class RoomDetailsState {
         self.chatID = chatID
         self.chatController = chatController
         
-        room = try chatController.fetchRoom(chatID: chatID)
+        room = try chatController.getRoom(chatID: chatID)
     }
     
     func reload() throws {
-        room = try chatController.fetchRoom(chatID: chatID)
+        room = try chatController.getRoom(chatID: chatID)
     }
 }
 

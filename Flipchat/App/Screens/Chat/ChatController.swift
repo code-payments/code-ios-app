@@ -63,21 +63,21 @@ class ChatController: ObservableObject {
         destroyChatStream()
     }
     
-    // MARK: - Loading -
+    // MARK: - Database -
     
-    func fetchUser(userID: UserID) throws -> Chat.Member {
+    func getUser(userID: UserID) throws -> MemberRow? {
         try database.getUser(userID: userID.uuid)
     }
     
-    func fetchRooms() throws -> [RoomRow] {
+    func getRooms() throws -> [RoomRow] {
         try database.getRooms()
     }
     
-    func fetchRoom(chatID: ChatID) throws -> RoomDescription? {
+    func getRoom(chatID: ChatID) throws -> RoomDescription? {
         try database.getRoom(roomID: chatID.uuid)
     }
     
-    func fetchMessages(chatID: ChatID, pageSize: Int = 1024) throws -> [MessageRow] {
+    func getMessages(chatID: ChatID, pageSize: Int = 1024) throws -> [MessageRow] {
         try database.getMessages(roomID: chatID.uuid, pageSize: pageSize, offset: 0)
     }
     
@@ -120,20 +120,20 @@ class ChatController: ObservableObject {
         }
     }
     
-    func syncMessagesBackwards(for chatID: ChatID) async throws -> [Chat.Message] {
+    func syncMessagesBackwards(for chatID: ChatID, from messageID: UUID? = nil) async throws -> [Chat.Message] {
         try await client.fetchMessages(
             chatID: chatID,
             owner: owner,
             query: PageQuery(
                 order: .desc,
-                pagingToken: nil,
+                pagingToken: messageID,
                 pageSize: 500
             )
         )
     }
     
     func syncMessagesForward(for chatID: ChatID, from messageID: UUID) async throws -> [Chat.Message] {
-        var cursor = MessageID(uuid: messageID)
+        var cursor = messageID
         
         let pageSize = 1024
         
@@ -153,7 +153,7 @@ class ChatController: ObservableObject {
             
             if !messages.isEmpty {
                 container.append(contentsOf: messages)
-                cursor = messages.last!.id
+                cursor = messages.last!.id.uuid
             }
             
             hasMoreChats = messages.count == pageSize
