@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 import CodeUI
 import FlipchatServices
 
@@ -48,7 +47,7 @@ struct PreviewRoomScreen: View {
                             
                             Spacer()
                             VStack(spacing: 4) {
-                                Text("Hosted by \(host.displayName)")
+                                Text("Hosted by \(host.displayName ?? "Member")")
                                 Text("\(members.count) people inside")
                                 Text("Cover Charge: ⬢ \(chat.coverAmount.truncatedKinValue) Kin")
                             }

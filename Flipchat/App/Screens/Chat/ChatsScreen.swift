@@ -6,9 +6,27 @@
 //
 
 import SwiftUI
-import SwiftData
 import CodeUI
 import FlipchatServices
+
+@MainActor
+@Observable
+private class ChatsState {
+    
+    var rooms: [RoomRow] = []
+    
+    private let chatController: ChatController
+    
+    init(chatController: ChatController) {
+        self.chatController = chatController
+        
+        try? reload()
+    }
+    
+    func reload() throws {
+        rooms = try chatController.fetchRooms()
+    }
+}
 
 struct ChatsScreen: View {
     
@@ -24,7 +42,7 @@ struct ChatsScreen: View {
     @State private var debugTapCount: Int = 0
     @State private var isShowingSettings: Bool = false
     
-    @Query private var chats: [pChat]
+    @State private var chatState: ChatsState
     
 //    private var sortedRooms: [pChat] {
 //        unsortedRooms.sorted { lhs, rhs in
@@ -40,18 +58,7 @@ struct ChatsScreen: View {
         self.session = session
         self.chatController = chatController
         self.viewModel = viewModel
-        
-        var query = FetchDescriptor<pChat>()
-        query.fetchLimit = 250
-        query.sortBy = [
-            .init(\.lastMessageDate, order: .reverse),
-            .init(\.roomNumber,      order: .reverse),
-        ]
-        query.relationshipKeyPathsForPrefetching = [\.messages, \.previewMessage]
-        query.predicate = #Predicate<pChat> {
-            $0.deleted == false
-        }
-        _chats = Query(query)
+        self.chatState = .init(chatController: chatController)
     }
     
     private func didAppear() {
@@ -70,7 +77,7 @@ struct ChatsScreen: View {
                 ScrollBox(color: .backgroundMain) {
                     List {
                         Section {
-                            ForEach(chats) { room in
+                            ForEach(chatState.rooms) { room in
                                 row(for: room)
                             }
                         } footer: {
@@ -78,8 +85,9 @@ struct ChatsScreen: View {
                                 viewModel.startChatting()
                             }
                             .listRowSeparator(.hidden)
-                            .padding(.top, 20)
+                            .padding(.vertical, 20)
                         }
+                        .padding(.top, 5)
                         .listRowSeparatorTint(.rowSeparator)
                         .listRowBackground(Color.backgroundMain)
                         .scrollContentBackground(.hidden)
@@ -165,36 +173,37 @@ struct ChatsScreen: View {
         .onChange(of: notificationController.willResignActive) { _, _ in
             chatController.destroyChatStream()
         }
+        .onChange(of: chatController.chatsDidChange) { _, _ in
+            try? chatState.reload()
+        }
     }
     
-    @ViewBuilder private func row(for chat: pChat) -> some View {
+    @ViewBuilder private func row(for row: RoomRow) -> some View {
         Button {
-            viewModel.selectChat(chat: chat)
+            viewModel.selectChat(chatID: ChatID(uuid: row.room.serverID))
             
         } label: {
             HStack(spacing: 15) {
-                GradientAvatarView(data: chat.serverID.data, diameter: 50)
+                GradientAvatarView(data: row.room.serverID.data, diameter: 50)
                 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 10) {
-                            Text(chat.formattedRoomNumber)
+                            Text(row.room.roomNumber.formattedRoomNumber)
                                 .foregroundColor(.textMain)
                                 .font(.appTextMedium)
                                 .lineLimit(1)
                         
                         Spacer()
                         
-                        if let newestMessage = chat.previewMessage {
-                            Text(newestMessage.date.formattedRelatively(useTimeForToday: true))
-                                .foregroundColor(chat.isUnread ? .textSuccess : .textSecondary)
-                                .font(.appTextSmall)
-                                .lineLimit(1)
-                        }
+                        Text(row.lastMessage.date.formattedRelatively(useTimeForToday: true))
+                            .foregroundColor(row.room.unreadCount > 0 ? .textSuccess : .textSecondary)
+                            .font(.appTextSmall)
+                            .lineLimit(1)
                     }
                     .frame(height: 23) // Ensures the same height with and without Bubble
                     
                     HStack(alignment: .top, spacing: 5) {
-                        Text(chat.newestMessagePreview)
+                        Text(row.lastMessage.contents.contentPreview)
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
                             .lineLimit(2)
@@ -210,8 +219,8 @@ struct ChatsScreen: View {
 //                                .foregroundColor(.textSecondary)
 //                        }
                         
-                        if chat.isUnread {
-                            Bubble(size: .large, count: chat.unreadCount)
+                        if row.room.unreadCount > 0 {
+                            Bubble(size: .large, count: row.room.unreadCount)
                         }
                     }
                 }

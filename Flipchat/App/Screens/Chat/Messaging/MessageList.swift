@@ -23,7 +23,7 @@ public struct MessageList: View {
     // MARK: - Init -
     
     @MainActor
-    init(state: Binding<ListState>, chatID: ChatID, userID: UserID, hostID: UserID, messages: [pMessage], action: @escaping (MessageAction) -> Void = { _ in }, loadMore: @escaping () -> Void = {}) {
+    init(state: Binding<ListState>, chatID: ChatID, userID: UserID, hostID: UserID, messages: [MessageRow], action: @escaping (MessageAction) -> Void = { _ in }, loadMore: @escaping () -> Void = {}) {
         _state = state
         self.chatID = chatID
         self.userID = userID
@@ -45,15 +45,15 @@ public struct MessageList: View {
             
             for messageContainer in dateGroup.messages {
                 
-                let message = messageContainer.message
+                let message = messageContainer.row.message
                 let isReceived = message.senderID != userID.uuid
                 
-                for (index, content) in message.contents.enumerated() {
+                for (index, content) in message.contents.contents.enumerated() {
                     switch content {
                     case .text(let text):
                         container.append(
                             .init(
-                                kind: .message(ID(uuid: message.serverID), isReceived, message, messageContainer.location),
+                                kind: .message(ID(uuid: message.serverID), isReceived, messageContainer.row, messageContainer.location),
                                 content: text,
                                 contentIndex: index
                             )
@@ -112,7 +112,7 @@ public struct MessageList: View {
                             }
                         
                         ForEach(messages) { description in
-                            MessageRow(kind: description.kind, width: description.messageWidth(in: g.size)) {
+                            MessageRowView(kind: description.kind, width: description.messageWidth(in: g.size)) {
                                 row(for: description)
 //                                    .background(.green) // Diagnostics
                             }
@@ -201,12 +201,14 @@ public struct MessageList: View {
         case .date(let date):
             MessageTitle(text: date.formattedRelatively())
             
-        case .message(_, let isReceived, let message, let location):
+        case .message(_, let isReceived, let row, let location):
+            let message = row.message
             let isFromSelf = message.senderID == userID.uuid
+            let displayName = row.member.displayName ?? "Member"
             
             MessageText(
-                state: message.state.state,
-                name: message.userDisplayName,
+                state: message.state,
+                name: displayName,
                 avatarData: message.senderID?.data ?? Data([0, 0, 0, 0]),
                 text: description.content,
                 date: message.date,
@@ -232,10 +234,10 @@ public struct MessageList: View {
                 }
                 
                 // Only if the current user is a host
-                if !isFromSelf, userID == hostID, let senderID = message.senderID, let name = message.sender?.identity?.displayName {
+                if !isFromSelf, userID == hostID, let senderID = message.senderID {
                     
                     Button(role: .destructive) {
-                        action(.muteUser(name, UserID(data: senderID.data), chatID))
+                        action(.muteUser(displayName, UserID(data: senderID.data), chatID))
                     } label: {
                         Label("Mute", systemImage: "speaker.slash")
                     }
@@ -273,7 +275,7 @@ enum MessageAction {
 struct MessageDescription: Identifiable, Hashable, Equatable {
     enum Kind: Hashable, Equatable {
         case date(Date)
-        case message(MessageID, Bool, pMessage, MessageSemanticLocation)
+        case message(MessageID, Bool, MessageRow, MessageSemanticLocation)
         case announcement(MessageID)
     }
     
@@ -311,7 +313,7 @@ struct MessageDateGroup: Identifiable, Hashable {
     var date: Date
     var messages: [MessageContainer]
     
-    init(userID: UserID, date: Date, messages: [pMessage]) {
+    init(userID: UserID, date: Date, messages: [MessageRow]) {
         self.date = date
         self.messages = messages.assigningSemanticLocation(selfUserID: userID)
     }
@@ -320,26 +322,26 @@ struct MessageDateGroup: Identifiable, Hashable {
 struct MessageContainer: Identifiable, Hashable {
     
     var id: UUID {
-        message.serverID
+        row.message.roomID
     }
     
     var location: MessageSemanticLocation
-    var message: pMessage
+    var row: MessageRow
 }
 
-extension Array where Element == pMessage {
+extension Array where Element == MessageRow {
     func groupByDay(userID: UserID) -> [MessageDateGroup] {
         
         let calendar = Calendar.current
-        var container: [Date: [pMessage]] = [:]
+        var container: [Date: [MessageRow]] = [:]
 
-        forEach { message in
-            let components = calendar.dateComponents([.year, .month, .day], from: message.date)
+        forEach { row in
+            let components = calendar.dateComponents([.year, .month, .day], from: row.message.date)
             if let date = calendar.date(from: components) {
                 if container[date] == nil {
-                    container[date] = [message]
+                    container[date] = [row]
                 } else {
-                    container[date]?.append(message)
+                    container[date]?.append(row)
                 }
             }
         }
@@ -356,9 +358,10 @@ extension Array where Element == pMessage {
         var containers: [MessageContainer] = []
         let messages = self
         
-        for (index, message) in messages.enumerated() {
-            let previousSender = index > 0 ? messages[index - 1].senderID : nil
-            let nextSender = index < messages.count - 1 ? messages[index + 1].senderID : nil
+        for (index, row) in messages.enumerated() {
+            let message = row.message
+            let previousSender = index > 0 ? messages[index - 1].message.senderID : nil
+            let nextSender = index < messages.count - 1 ? messages[index + 1].message.senderID : nil
             
             let isReceived = message.senderID != selfUserID.uuid
             if let senderID = message.senderID {
@@ -381,7 +384,7 @@ extension Array where Element == pMessage {
                 containers.append(
                     MessageContainer(
                         location: location,
-                        message: message
+                        row: row
                     )
                 )
                 
@@ -390,7 +393,7 @@ extension Array where Element == pMessage {
                 containers.append(
                     MessageContainer(
                         location: location,
-                        message: message
+                        row: row
                     )
                 )
             }
@@ -401,7 +404,7 @@ extension Array where Element == pMessage {
 }
 
 private extension GeometryProxy {
-    func messageWidth(for content: pMessageContent) -> CGFloat {
+    func messageWidth(for content: ContentContainer.Content) -> CGFloat {
         switch content {
         case .text:
             size.width * 0.80
@@ -413,7 +416,7 @@ private extension GeometryProxy {
 
 // MARK: - MessageRow -
 
-struct MessageRow<Content>: View where Content: View {
+private struct MessageRowView<Content>: View where Content: View {
     
     private let kind: MessageDescription.Kind
     private let width: CGFloat
@@ -482,100 +485,94 @@ extension View {
     }
 }
 
-import SwiftData
-
-#Preview {
-    let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: pChat.self, pMessage.self, pMember.self, /*pPointer.self,*/ configurations: config)
-    
-    NavigationStack {
-        Background(color: .backgroundMain) {
-            MessageList(state: .constant(.init()), chatID: .mock, userID: .mock3, hostID: .mock, messages: [
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock.uuid,
-                    isDeleted: false,
-                    contents: [.text("Hey")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock.uuid,
-                    isDeleted: false,
-                    contents: [.text("How's it going?")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock.uuid,
-                    isDeleted: false,
-                    contents: [.text("I was wondering if you're for dinner some time next week? Perhaps we can do lunch.")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: nil,
-                    isDeleted: false,
-                    contents: [.announcement("Bob joined")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: nil,
-                    isDeleted: false,
-                    contents: [.announcement("Something else happened that requires the attention of someone in this chat because it is a very long action")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock3.uuid,
-                    isDeleted: false,
-                    contents: [.text("Sure")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock.uuid,
-                    isDeleted: false,
-                    contents: [.text("Okay cool, tap here to book a reso https://www.google.com")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock3.uuid,
-                    isDeleted: false,
-                    contents: [.text("Sounds good, let me know")]
-                ),
-                .init(
-                    serverID: UUID(),
-                    chatID: UUID(),
-                    date: .now,
-                    state: .delivered,
-                    senderID: ID.mock.uuid,
-                    isDeleted: false,
-                    contents: [.text("Will do!")]
-                ),
-            ])
-        }
-        .navigationTitle("Chat")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-    .modelContainer(container)
-}
+//#Preview {
+//    NavigationStack {
+//        Background(color: .backgroundMain) {
+//            MessageList(state: .constant(.init()), chatID: .mock, userID: .mock3, hostID: .mock, messages: [
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: ID.mock.uuid,
+//                    isDeleted: false,
+//                    contents: [.text("Hey")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: ID.mock.uuid,
+//                    isDeleted: false,
+//                    contents: [.text("How's it going?")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: ID.mock.uuid,
+//                    isDeleted: false,
+//                    contents: [.text("I was wondering if you're for dinner some time next week? Perhaps we can do lunch.")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: nil,
+//                    isDeleted: false,
+//                    contents: [.announcement("Bob joined")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: nil,
+//                    isDeleted: false,
+//                    contents: [.announcement("Something else happened that requires the attention of someone in this chat because it is a very long action")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: ID.mock3.uuid,
+//                    isDeleted: false,
+//                    contents: [.text("Sure")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: ID.mock.uuid,
+//                    isDeleted: false,
+//                    contents: [.text("Okay cool, tap here to book a reso https://www.google.com")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: ID.mock3.uuid,
+//                    isDeleted: false,
+//                    contents: [.text("Sounds good, let me know")]
+//                ),
+//                .init(
+//                    serverID: UUID(),
+//                    chatID: UUID(),
+//                    date: .now,
+//                    state: .delivered,
+//                    senderID: ID.mock.uuid,
+//                    isDeleted: false,
+//                    contents: [.text("Will do!")]
+//                ),
+//            ])
+//        }
+//        .navigationTitle("Chat")
+//        .navigationBarTitleDisplayMode(.inline)
+//    }
+//}

@@ -6,40 +6,54 @@
 //
 
 import SwiftUI
-import SwiftData
 import CodeUI
 import FlipchatServices
+
+@MainActor
+@Observable
+private class RoomDetailsState {
+    
+    var room: RoomDescription?
+    
+    private let chatID: ChatID
+    private let chatController: ChatController
+    
+    init(chatID: ChatID, chatController: ChatController) throws {
+        self.chatID = chatID
+        self.chatController = chatController
+        
+        room = try chatController.fetchRoom(chatID: chatID)
+    }
+    
+    func reload() throws {
+        room = try chatController.fetchRoom(chatID: chatID)
+    }
+}
 
 struct RoomDetailsScreen: View {
     
     @EnvironmentObject private var banners: Banners
     
     @ObservedObject private var viewModel: ChatViewModel
+    @ObservedObject private var chatController: ChatController
     
-    @Query private var chats: [pChat]
-    
-    private var chat: pChat {
-        chats[0]
-    }
-    
-    private var members: [pMember] {
-        chat.members ?? []
-    }
-    
-    private var host: pMember? {
-        members.first { chat.ownerUserID == $0.serverID }
-    }
+    @State private var detailsState: RoomDetailsState
     
     private let kind: Kind
     private let chatID: ChatID
     
+    var room: RoomDescription? {
+        detailsState.room
+    }
+    
     // MARK: - Init -
     
-    init(kind: Kind, chatID: ChatID, viewModel: ChatViewModel) {
+    init(kind: Kind, chatID: ChatID, viewModel: ChatViewModel, chatController: ChatController) {
         self.kind = kind
         self.chatID = chatID
         self.viewModel = viewModel
-        _chats = Query(filter: #Predicate { $0.serverID == chatID.uuid })
+        self.chatController = chatController
+        self.detailsState = try! RoomDetailsState(chatID: chatID, chatController: chatController)
     }
     
     // MARK: - Body -
@@ -47,79 +61,86 @@ struct RoomDetailsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    AspectRatioCard {
-                        VStack {
-                            Spacer()
-                            Image(with: .brandLarge)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 50)
-                            Spacer()
-                            Text("Room \(chat.roomNumber.roomString)")
-                                .font(.appDisplaySmall)
-                            
-                            Spacer()
-                            VStack(spacing: 4) {
-                                if let host {
-                                    Text("Hosted by \(host.displayName)")
+                if let room = room {
+                    VStack(spacing: 0) {
+                        AspectRatioCard {
+                            VStack {
+                                Spacer()
+                                Image(with: .brandLarge)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(maxHeight: 50)
+                                Spacer()
+                                Text(room.room.roomNumber.formattedRoomNumber)
+                                    .font(.appDisplaySmall)
+                                
+                                Spacer()
+                                VStack(spacing: 4) {
+                                    if let host = room.hostDisplayName {
+                                        Text("Hosted by \(host)")
+                                    }
+                                    Text("\(room.memberCount) people inside")
+                                    Text("Cover Charge: ⬢ \(room.room.cover.truncatedKinValue) Kin")
                                 }
-                                Text("\(members.count) people inside")
-                                Text("Cover Charge: ⬢ \(chat.coverCharge.truncatedKinValue) Kin")
+                                .opacity(0.8)
+                                .font(.appTextSmall)
+                                Spacer()
                             }
-                            .opacity(0.8)
-                            .font(.appTextSmall)
-                            Spacer()
+                            .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background {
+                                DeterministicGradient(data: room.room.serverID.data)
+                            }
                         }
-                        .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background {
-                            DeterministicGradient(data: chat.serverID.data)
+                        .padding(20)
+                    
+                        Spacer()
+                    
+                        VStack(spacing: 20) {
+                            // Only show for room hosts
+                            if viewModel.userID.uuid == room.room.ownerUserID {
+                                CodeButton(
+                                    style: .filled,
+                                    title: "Change Cover Charge"
+                                ) {
+                                    viewModel.showChangeCover(currentCover: room.room.cover)
+                                }
+                            }
+                            
+                            CodeButton(
+                                state: viewModel.buttonState,
+                                style: .filled,
+                                title: kind.titleFor(roomNumber: RoomNumber(room.room.roomNumber))
+                            ) {
+                                Task {
+                                    switch kind {
+                                    case .joinRoom:
+                                        try await viewModel.attemptJoinChat(
+                                            chatID: chatID,
+                                            hostID: UserID(uuid: room.room.ownerUserID),
+                                            amount: room.room.cover
+                                        )
+                                    case .leaveRoom:
+                                        viewModel.attemptLeaveChat(
+                                            chatID: chatID,
+                                            roomNumber: room.room.roomNumber
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                     .padding(20)
-                    
-                    Spacer()
-                    
-                    VStack(spacing: 20) {
-                        // Only show for room hosts
-                        if let host, host.serverID == viewModel.userID.uuid {
-                            CodeButton(
-                                style: .filled,
-                                title: "Change Cover Charge"
-                            ) {
-                                viewModel.showChangeCover(currentCover: chat.coverCharge)
-                            }
-                        }
-                        
-                        CodeButton(
-                            state: viewModel.buttonState,
-                            style: .filled,
-                            title: kind.titleFor(roomNumber: chat.roomNumber)
-                        ) {
-                            Task {
-                                switch kind {
-                                case .joinRoom:
-                                    try await viewModel.attemptJoinChat(
-                                        chatID: chatID,
-                                        hostID: UserID(uuid: chat.ownerUserID),
-                                        amount: chat.coverCharge
-                                    )
-                                case .leaveRoom:
-                                    viewModel.attemptLeaveChat(
-                                        chatID: chatID,
-                                        roomNumber: chat.roomNumber
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    .transition(.move(edge: .bottom))
                 }
-                .padding(20)
             }
+            .animation(.easeInOut, value: room == nil)
             .foregroundColor(.textMain)
             .sheet(isPresented: $viewModel.isShowingChangeCover) {
                 ChangeCoverScreen(chatID: chatID, viewModel: viewModel)
+            }
+            .onChange(of: chatController.chatsDidChange) { _, _ in
+                try? detailsState.reload()
             }
         }
     }
@@ -149,6 +170,7 @@ extension RoomDetailsScreen {
     RoomDetailsScreen(
         kind: .joinRoom,
         chatID: .mock,
-        viewModel: .mock
+        viewModel: .mock,
+        chatController: .mock
     )
 }

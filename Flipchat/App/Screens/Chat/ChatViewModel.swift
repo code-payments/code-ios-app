@@ -88,8 +88,8 @@ class ChatViewModel: ObservableObject {
         )
     }
     
-    func selectChat(chat: pChat) {
-        containerViewModel?.pushChat(chatID: ID(uuid: chat.serverID))
+    func selectChat(chatID: ChatID) {
+        containerViewModel?.pushChat(chatID: chatID)
     }
     
     func popChat() {

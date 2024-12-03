@@ -29,7 +29,7 @@ class StreamReference<Request, Response>: Cancellable {
     }
 }
 
-public class BidirectionalStreamReference<Request, Response>: Cancellable {
+public class BidirectionalStreamReference<Request, Response>: Cancellable, @unchecked Sendable {
     
     var stream: BidirectionalStreamingCall<Request, Response>? {
         didSet {

@@ -10,13 +10,13 @@ import Foundation
 import FlipchatAPI
 
 extension Chat {
-    public enum Content: Equatable, Hashable, Sendable {
+    public enum Content: Equatable, Hashable, Sendable, Codable {
         
         case text(String)
         case announcement(String)
         case sodiumBox(EncryptedData)
         
-        var text: String {
+        public var text: String {
             switch self {
             case .text(let text), .announcement(let text):
                 return text

@@ -1,0 +1,126 @@
+//
+//  Database.Writer.swift
+//  Code
+//
+//  Created by Dima Bart on 2024-11-30.
+//
+
+import Foundation
+import FlipchatServices
+@preconcurrency import SQLite
+
+extension Database {
+        
+    func transaction(_ block: (Database) throws -> Void) throws {
+        try writer.transaction { [unowned self] in
+            try block(self)
+        }
+        
+        commit?()
+    }
+
+    func insertRooms(rooms: [Chat.Metadata]) throws {
+        let room = RoomTable()
+        try rooms.forEach {
+            try insertRoom(room: $0, into: room)
+        }
+    }
+
+    private func insertRoom(room: Chat.Metadata, into table: RoomTable) throws {
+        try writer.run(
+            table.table.upsert(
+                table.serverID    <- room.id.uuid,
+                table.kind        <- room.kind.rawValue,
+                table.title       <- room.title.isEmpty ? nil : room.title,
+                table.roomNumber  <- room.roomNumber,
+                table.ownerUserID <- room.ownerUser.uuid,
+                table.coverQuarks <- Int64(room.coverAmount.quarks),
+                table.unreadCount <- room.unreadCount,
+                
+                onConflictOf: table.serverID
+            )
+        )
+    }
+
+    func clearUnread(chatID: ChatID) throws {
+        let room = RoomTable()
+        try writer.run(
+            room.table
+                .filter(room.serverID == chatID.uuid)
+                .update(room.unreadCount <- 0)
+        )
+    }
+
+    func deleteRoom(chatID: ChatID) throws {
+        let room = RoomTable()
+        try writer.run(
+            room.table
+                .filter(room.serverID == chatID.uuid)
+                .delete()
+        )
+    }
+    
+    func muteMember(userID: UUID, muted: Bool) throws {
+        let member = MemberTable()
+        try writer.run(
+            member.table
+                .filter(member.userID == userID)
+                .update(member.isMuted <- muted)
+        )
+    }
+
+    func insertMessages(messages: [Chat.Message], chatID: ChatID) throws {
+        let message = MessageTable()
+        try messages.forEach {
+            try insertMessage(message: $0, roomID: chatID.uuid, into: message)
+        }
+    }
+
+    private func insertMessage(message: Chat.Message, roomID: UUID, into table: MessageTable) throws {
+        try writer.run(
+            table.table.upsert(
+                table.serverID    <- message.id.uuid,
+                table.roomID      <- roomID,
+                table.date        <- message.date,
+                table.state       <- Chat.Message.State.delivered.rawValue,
+                table.senderID    <- message.senderID?.uuid,
+                table.contents    <- ContentContainer(contents: message.contents.compactMap { .init(content: $0) }),
+                
+                onConflictOf: table.serverID
+            )
+        )
+    }
+
+    func insertMembers(members: [Chat.Member], chatID: ChatID) throws {
+        let member = MemberTable()
+        let user = UserTable()
+        try members.forEach {
+            try insertMember(member: $0, roomID: chatID.uuid, into: member)
+            try insertUser(user: $0.identity, userID: $0.id.uuid, into: user)
+        }
+    }
+
+    private func insertMember(member: Chat.Member, roomID: UUID, into table: MemberTable) throws {
+        try writer.run(
+            table.table.upsert(
+                table.userID      <- member.id.uuid,
+                table.roomID      <- roomID,
+                table.isMuted     <- member.isMuted,
+                
+                onConflictOf: Expression<Void>(literal: "\"userID\", \"roomID\"")
+            )
+        )
+    }
+
+    private func insertUser(user: Chat.Identity, userID: UUID, into table: UserTable) throws {
+        try writer.run(
+            table.table.upsert(
+                table.serverID    <- userID,
+                table.displayName <- user.displayName,
+                table.avatarURL   <- user.avatarURL,
+                
+                onConflictOf: table.serverID
+            )
+        )
+    }
+}

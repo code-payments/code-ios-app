@@ -6,9 +6,108 @@
 //
 
 import SwiftUI
-import SwiftData
 import CodeUI
 import FlipchatServices
+
+@MainActor
+private class ConversationState: ObservableObject {
+    
+    @Published var room: RoomDescription!
+    @Published var selfUser: Chat.Member
+    @Published var messages: [MessageRow] = []
+    
+    @Published var scrollToBottom: Int = 0
+    
+    private var pageSize: Int = 1024
+    
+    private let userID: UserID
+    private let chatID: ChatID
+    private let chatController: ChatController
+    
+    private var stream: StreamMessagesReference?
+    
+    // MARK: - Init -
+    
+    init(userID: UserID, chatID: ChatID, chatController: ChatController) throws {
+        self.userID = userID
+        self.chatID = chatID
+        self.chatController = chatController
+        
+        room = try chatController.fetchRoom(chatID: chatID)
+        selfUser = try chatController.fetchUser(userID: userID)
+        messages = try chatController.fetchMessages(chatID: chatID, pageSize: pageSize)
+        
+        startStream()
+        Task {
+            try await advanceReadPointer()
+        }
+    }
+    
+    deinit {
+        DispatchQueue.main.async { [stream] in
+            trace(.warning, components: "Destroying conversation stream...")
+            stream?.destroy()
+        }
+    }
+    
+    func addPageAndReload() throws {
+        pageSize += 1024
+        try reload()
+    }
+    
+    func reload() throws {
+        room = try chatController.fetchRoom(chatID: chatID)
+        selfUser = try chatController.fetchUser(userID: userID)
+        messages = try chatController.fetchMessages(chatID: chatID, pageSize: pageSize)
+    }
+    
+    // MARK: - Pointer -
+    
+    func advanceReadPointer() async throws {
+        try await chatController.advanceReadPointerToLatest(for: chatID)
+    }
+    
+    // MARK: - Streams -
+    
+    func startStream() {
+        destroyStream()
+        
+        guard let room else {
+            return
+        }
+        
+        let messageID = MessageID(uuid: room.lastMessage.serverID)
+        stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { [weak self] result in
+            switch result {
+            case .success(let messages):
+                self?.streamMessages(messages: messages)
+
+            case .failure(let error):
+                self?.destroyStream()
+                switch error {
+                case .unknown:
+                    break
+                case .denied:
+                    break
+                }
+            }
+        }
+    }
+    
+    private func streamMessages(messages: [Chat.Message]) {
+        Task {
+            try await chatController.receiveMessages(messages: messages, for: chatID)
+            try await advanceReadPointer()
+            
+            scrollToBottom += 1
+        }
+    }
+    
+    func destroyStream() {
+        trace(.warning, components: "Destroying conversation stream...")
+        stream?.destroy()
+    }
+}
 
 struct ConversationScreen: View {
     
@@ -17,9 +116,9 @@ struct ConversationScreen: View {
     
     @State private var input: String = ""
     
-    @State private var stream: StreamMessagesReference?
-    
     @State private var messageListState = MessageList.ListState()
+    
+    @StateObject private var conversationState: ConversationState
     
     @FocusState private var isEditorFocused: Bool
     
@@ -28,39 +127,6 @@ struct ConversationScreen: View {
     private let containerViewModel: ContainerViewModel
     private let chatController: ChatController
     
-    @Query private var chats: [pChat]
-    
-    static func fetchDescriptorForChat(chatID: ChatID) -> FetchDescriptor<pChat> {
-        var d = FetchDescriptor<pChat>()
-        d.fetchLimit = 1
-        d.relationshipKeyPathsForPrefetching = [\.members]
-        d.predicate = #Predicate<pChat> {
-            $0.serverID == chatID.uuid
-        }
-        return d
-    }
-    
-    @Query private var messages: [pMessage]
-    
-    static func fetchDescriptorForMessage(chatID: ChatID, limit: Int) -> FetchDescriptor<pMessage> {
-        var d = FetchDescriptor<pMessage>()
-        d.fetchLimit = limit
-        d.sortBy = [.init(\.date, order: .reverse)]
-        d.relationshipKeyPathsForPrefetching = [\.sender]
-        d.predicate = #Predicate<pMessage> {
-            $0.chatID == chatID.uuid
-        }
-        return d
-    }
-    
-    private var chat: pChat {
-        chats[0]
-    }
-    
-    private var selfMember: pMember? {
-        chat.members?.first { $0.serverID == userID.uuid && $0.chatID == chatID.uuid }
-    }
-    
     // MARK: - Init -
     
     init(userID: UserID, chatID: ChatID, containerViewModel: ContainerViewModel, chatController: ChatController) {
@@ -68,55 +134,19 @@ struct ConversationScreen: View {
         self.chatID = chatID
         self.containerViewModel = containerViewModel
         self.chatController = chatController
-        
-        _chats    = Query(Self.fetchDescriptorForChat(chatID: chatID))
-        _messages = Query(Self.fetchDescriptorForMessage(chatID: chatID, limit: 150))
+        self._conversationState = StateObject(wrappedValue: try! .init(
+            userID: userID,
+            chatID: chatID,
+            chatController: chatController
+        ))
     }
     
     private func didAppear() {
         PushController.activeChat = chatID
-        
-        startStream()
-        advanceReadPointer()
     }
     
     private func didDisappear() {
         PushController.activeChat = nil
-        
-        destroyStream()
-    }
-    
-    // MARK: - Streams -
-    
-    private func startStream() {
-        destroyStream()
-        
-        var messageID: MessageID?
-        if let lastMessage = messages.first?.serverID {
-            messageID = MessageID(uuid: lastMessage)
-        }
-        
-        stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { result in
-            switch result {
-            case .success(let messages):
-                streamMessages(messages: messages)
-
-            case .failure(let error):
-                destroyStream()
-                switch error {
-                case .unknown:
-                    break
-                case .denied:
-                    break
-                }
-                
-                showError(error: error)
-            }
-        }
-    }
-    
-    private func destroyStream() {
-        stream?.destroy()
     }
     
     // MARK: - Body -
@@ -128,16 +158,15 @@ struct ConversationScreen: View {
                     state: $messageListState,
                     chatID: chatID,
                     userID: userID,
-                    hostID: UserID(uuid: chat.ownerUserID),
-                    messages: messages.reversed(),
+                    hostID: UserID(uuid: conversationState.room.room.ownerUserID),
+                    messages: conversationState.messages,
                     action: messageAction,
                     loadMore: {
-                        // Nothing for now
-                        print("Top reached")
+                        try? conversationState.addPageAndReload()
                     }
                 )
                 
-                if selfMember?.isMuted == false {
+                if !conversationState.selfUser.isMuted {
                     inputView()
                 } else {
                     VStack {
@@ -162,10 +191,13 @@ struct ConversationScreen: View {
             }
         }
         .onChange(of: notificationController.didBecomeActive) { _, _ in
-            startStream()
+            conversationState.startStream()
         }
         .onChange(of: notificationController.willResignActive) { _, _ in
-            destroyStream()
+            conversationState.destroyStream()
+        }
+        .onChange(of: chatController.chatsDidChange) { _, _ in
+            try? conversationState.reload()
         }
     }
     
@@ -210,10 +242,10 @@ struct ConversationScreen: View {
             GradientAvatarView(data: chatID.data, diameter: 30)
             
             VStack(alignment: .leading, spacing: 0) {
-                Text(chat.formattedRoomNumber)
+                Text(conversationState.room.room.roomNumber.formattedRoomNumber)
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
-                Text("\(chat.members?.count ?? 0) \(subtext(for: chat.members?.count)) here")
+                Text("\(conversationState.room.memberCount) \(subtext(for: conversationState.room.memberCount)) here")
                     .font(.appTextHeading)
                     .foregroundColor(.textSecondary)
             }
@@ -312,23 +344,8 @@ struct ConversationScreen: View {
         scrollToBottom()
     }
     
-    private func streamMessages(messages: [Chat.Message]) {
-        Task {
-            try await chatController.receiveMessages(messages: messages, for: chatID)
-        }
-        
-        scrollToBottom()
-        advanceReadPointer()
-    }
-    
     private func scrollToBottom() {
         messageListState.scrollToBottom()
-    }
-    
-    private func advanceReadPointer() {
-        Task {
-            try await chatController.advanceReadPointerToLatest(for: chatID)
-        }
     }
     
     // MARK: - Banners -
@@ -355,23 +372,5 @@ struct ConversationScreen: View {
                 .cancel(title: Localized.Action.ok),
             ]
         )
-    }
-}
-
-struct DynamicQuery<Model: PersistentModel, Content: View>: View {
-    
-    let descriptor: FetchDescriptor<Model>
-    let content: ([Model]) -> Content
-    
-    @Query var items: [Model]
-    
-    init(_ descriptor: FetchDescriptor<Model>, @ViewBuilder content: @escaping ([Model]) -> Content) {
-        self.descriptor = descriptor
-        self.content = content
-        _items = Query(descriptor)
-    }
-    
-    var body: some View {
-        content(items)
     }
 }

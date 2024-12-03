@@ -47,10 +47,10 @@ extension Chat {
 extension Chat {
     public struct Identity: Equatable, Hashable, Sendable {
         
-        public var displayName: String
+        public var displayName: String?
         public var avatarURL: URL?
         
-        public init(displayName: String, avatarURL: URL?) {
+        public init(displayName: String?, avatarURL: URL?) {
             self.displayName = displayName
             self.avatarURL = avatarURL
         }
@@ -75,8 +75,8 @@ extension Chat.Member {
 extension Chat.Identity {
     init(_ proto: Flipchat_Chat_V1_MemberIdentity) {
         self.init(
-            displayName: proto.displayName.isEmpty ? "Member" : proto.displayName,
-            avatarURL: URL(string: proto.profilePicURL)
+            displayName: proto.displayName.isEmpty ? nil : proto.displayName,
+            avatarURL: proto.profilePicURL.isEmpty ? nil : URL(string: proto.profilePicURL)
         )
     }
 }

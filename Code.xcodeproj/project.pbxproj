@@ -167,6 +167,7 @@
 		9A91F4C92CC0146A0018CE65 /* FlipchatAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F4C82CC0146A0018CE65 /* FlipchatAPI */; };
 		9A91F4D32CC03B930018CE65 /* FlipchatServices in Frameworks */ = {isa = PBXBuildFile; productRef = 9A91F4D22CC03B930018CE65 /* FlipchatServices */; };
 		9A9469BB27A090E10028F27E /* MessageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9469BA27A090E10028F27E /* MessageController.swift */; };
+		9A9499D82CFB82A200DC219B /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9499D72CFB82A200DC219B /* SQLite */; };
 		9A9970902C9B66B7006BDE08 /* ConversationScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A99708F2C9B66B7006BDE08 /* ConversationScreen.swift */; };
 		9A9970922C9CA6BA006BDE08 /* ConversationContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A9970912C9CA6BA006BDE08 /* ConversationContainer.swift */; };
 		9A9970D42CA33187006BDE08 /* CodeAPI in Frameworks */ = {isa = PBXBuildFile; productRef = 9A9970D32CA33187006BDE08 /* CodeAPI */; };
@@ -591,6 +592,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9A9499D82CFB82A200DC219B /* SQLite in Frameworks */,
 				9A9E26B72CEA73D80021E5DD /* FirebaseMessaging in Frameworks */,
 				9A9E26B52CEA73D80021E5DD /* FirebaseInstallations in Frameworks */,
 				9A6AB53D2CDFE0A60038DBB8 /* SwiftUIIntrospect in Frameworks */,
@@ -1258,6 +1260,7 @@
 				9A9E26B22CEA73D80021E5DD /* FirebaseCrashlytics */,
 				9A9E26B42CEA73D80021E5DD /* FirebaseInstallations */,
 				9A9E26B62CEA73D80021E5DD /* FirebaseMessaging */,
+				9A9499D72CFB82A200DC219B /* SQLite */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -1479,6 +1482,7 @@
 				9A4279CF281190E500726D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */,
 				9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */,
+				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -3575,6 +3579,14 @@
 				kind = branch;
 			};
 		};
+		9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stephencelis/SQLite.swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.15.3;
+			};
+		};
 		9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mixpanel/mixpanel-swift";
@@ -3646,6 +3658,11 @@
 		9A91F4D22CC03B930018CE65 /* FlipchatServices */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipchatServices;
+		};
+		9A9499D72CFB82A200DC219B /* SQLite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
+			productName = SQLite;
 		};
 		9A9970D32CA33187006BDE08 /* CodeAPI */ = {
 			isa = XCSwiftPackageProductDependency;

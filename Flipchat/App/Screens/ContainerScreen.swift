@@ -44,7 +44,6 @@ struct ContainerScreen: View {
                         .transition(.crossFade)
                 } else {
                     homeView(state: state)
-                        .modelContainer(container.modelContainer)
                         .transition(.crossFade)
                 }
                 
@@ -83,23 +82,24 @@ struct ContainerScreen: View {
                     viewModel: state.chatViewModel
                 )
                 .navigationDestination(for: ContainerPath.self) { path in
-                    switch path {
-                    case .chat(let chatID):
-                        if let authenticatedState {
+                    if let authenticatedState {
+                        switch path {
+                        case .chat(let chatID):
                             ConversationScreen(
                                 userID: authenticatedState.session.userID,
                                 chatID: chatID,
                                 containerViewModel: state.containerViewModel,
                                 chatController: authenticatedState.chatController
                             )
+                            
+                        case .details(let chatID):
+                            RoomDetailsScreen(
+                                kind: .leaveRoom,
+                                chatID: chatID,
+                                viewModel: state.chatViewModel,
+                                chatController: authenticatedState.chatController
+                            )
                         }
-                        
-                    case .details(let chatID):
-                        RoomDetailsScreen(
-                            kind: .leaveRoom,
-                            chatID: chatID,
-                            viewModel: state.chatViewModel
-                        )
                     }
                 }
                 

@@ -232,8 +232,7 @@ final class SessionAuthenticator: ObservableObject {
             userID: userID,
             client: flipClient,
             paymentClient: client,
-            organizer: organizer,
-            modelContainer: container.modelContainer
+            organizer: organizer
         )
         
         let chatViewModel = ChatViewModel(

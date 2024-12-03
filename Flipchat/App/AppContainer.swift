@@ -7,20 +7,9 @@
 
 import SwiftUI
 import FlipchatServices
-import SwiftData
 
 @MainActor
 class AppContainer: ObservableObject {
-    
-    let modelContainer = try! ModelContainer(
-        for: Schema([
-            pChat.self,
-            pMessage.self,
-            pMember.self,
-//            pPointer.self,
-        ]),
-        configurations: .init(url: .chatStoreURL)
-    )
     
     let client = Client(
         network: Environment.current.network,
