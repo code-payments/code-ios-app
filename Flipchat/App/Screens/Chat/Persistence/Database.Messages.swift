@@ -55,7 +55,7 @@ extension Database {
         ON m.senderID = b.userID AND m.roomID = b.roomID
         WHERE 
             m.roomID = "\(roomID.uuidString)"
-        ORDER BY m.date ASC
+        ORDER BY m.serverID ASC
         LIMIT \(pageSize) OFFSET \(offset);
         """)
         
