@@ -183,13 +183,19 @@ struct ChatsScreen: View {
         } label: {
             HStack(spacing: 15) {
                 GradientAvatarView(data: row.room.serverID.data, diameter: 50)
+                    .if(row.room.ownerUserID == session.userID.uuid) { $0
+                        .overlay {
+                            Image.asset(.crown)
+                                .position(x: 5, y: 5)
+                        }
+                    }
                 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 10) {
-                            Text(row.room.roomNumber.formattedRoomNumber)
-                                .foregroundColor(.textMain)
-                                .font(.appTextMedium)
-                                .lineLimit(1)
+                        Text(row.room.roomNumber.formattedRoomNumber)
+                            .foregroundColor(.textMain)
+                            .font(.appTextMedium)
+                            .lineLimit(1)
                         
                         Spacer()
                         
@@ -223,6 +229,7 @@ struct ChatsScreen: View {
                     }
                 }
             }
+            .padding(.bottom, 8)
         }
     }
     
