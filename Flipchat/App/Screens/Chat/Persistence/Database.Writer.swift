@@ -38,6 +38,8 @@ extension Database {
                 table.ownerUserID <- room.ownerUser.uuid,
                 table.coverQuarks <- Int64(room.coverAmount.quarks),
                 table.unreadCount <- room.unreadCount,
+                table.isMuted     <- room.isMuted,
+                table.canMute     <- room.canMute,
                 
                 onConflictOf: table.serverID
             )
@@ -68,6 +70,15 @@ extension Database {
             member.table
                 .filter(member.userID == userID)
                 .update(member.isMuted <- muted)
+        )
+    }
+    
+    func muteChat(roomID: UUID, muted: Bool) throws {
+        let room = RoomTable()
+        try writer.run(
+            room.table
+                .filter(room.serverID == roomID)
+                .update(room.isMuted <- muted)
         )
     }
 

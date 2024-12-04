@@ -20,7 +20,10 @@ extension Chat {
         public var title: String
         public var unreadCount: Int
         
-        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, unreadCount: Int) {
+        public var isMuted: Bool
+        public var canMute: Bool
+        
+        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, unreadCount: Int, isMuted: Bool, canMute: Bool) {
             self.id = id
             self.kind = kind
             self.roomNumber = roomNumber
@@ -28,6 +31,8 @@ extension Chat {
             self.coverAmount = coverAmount
             self.title = title
             self.unreadCount = unreadCount
+            self.isMuted = isMuted
+            self.canMute = canMute
         }
     }
 }
@@ -68,7 +73,9 @@ extension Chat.Metadata {
             ownerUser: UserID(data: proto.owner.value),
             coverAmount: Kin(quarks: proto.coverCharge.quarks),
             title: proto.title,
-            unreadCount: Int(proto.numUnread)
+            unreadCount: Int(proto.numUnread),
+            isMuted: !proto.isPushEnabled,
+            canMute: proto.canDisablePush
         )
     }
 }

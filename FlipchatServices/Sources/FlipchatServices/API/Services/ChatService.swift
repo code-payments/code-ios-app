@@ -154,7 +154,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
     }
     
     func joinGroupChat(chatID: ChatID, intentID: PublicKey?, owner: KeyPair, completion: @escaping (Result<ChatDescription, ErrorJoinChat>) -> Void) {
-        trace(.send, components: "Chat ID: \(chatID.description)", "Intent: \(intentID?.base58 ?? "nil")", "Signed by: \(owner.publicKey.base58)")
+        trace(.send, components: "Chat ID: \(chatID.description)", "Intent: \(intentID?.base58 ?? "nil")")
         
         let request = Flipchat_Chat_V1_JoinChatRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
@@ -186,7 +186,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
     }
     
     func leaveChat(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorLeaveChat>) -> Void) {
-        trace(.send, components: "Chat ID: \(chatID.description)", "Signed by: \(owner.publicKey.base58)")
+        trace(.send, components: "Chat ID: \(chatID.description)")
         
         let request = Flipchat_Chat_V1_LeaveChatRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
@@ -211,7 +211,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
     }
     
     func removeUser(userID: UserID, chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorRemoveUser>) -> Void) {
-        trace(.send, components: "User ID: \(userID.description)", "Signed by: \(owner.publicKey.base58)")
+        trace(.send, components: "User ID: \(userID.description)")
         
         let request = Flipchat_Chat_V1_RemoveUserRequest.with {
             $0.userID = .with { $0.value = userID.data }
@@ -237,7 +237,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
     }
     
     func reportMessage(userID: UserID, messageID: MessageID, owner: KeyPair, completion: @escaping (Result<(), ErrorReportUser>) -> Void) {
-        trace(.send, components: "User ID: \(userID.description)", "Message ID: \(messageID.description)", "Signed by: \(owner.publicKey.base58)")
+        trace(.send, components: "User ID: \(userID.description)", "Message ID: \(messageID.description)")
         
         let request = Flipchat_Chat_V1_ReportUserRequest.with {
             $0.userID = .with { $0.value = userID.data }
@@ -263,7 +263,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
     }
     
     func muteUser(userID: UserID, chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorMuteUser>) -> Void) {
-        trace(.send, components: "User ID: \(userID.description)", "Signed by: \(owner.publicKey.base58)")
+        trace(.send, components: "User ID: \(userID.description)")
         
         let request = Flipchat_Chat_V1_MuteUserRequest.with {
             $0.userID = .with { $0.value = userID.data }
@@ -285,6 +285,55 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
             
         } failure: { error in
             completion(.failure(.unknown))
+        }
+    }
+    
+    func muteChat(chatID: ChatID, muted: Bool, owner: KeyPair, completion: @escaping (Result<(), ErrorMuteChat>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.uuid.uuidString)", "Muted: \(muted ? "yes" : "no")")
+        
+        if muted {
+            let request = Flipchat_Chat_V1_MuteChatRequest.with {
+                $0.chatID = .with { $0.value = chatID.data }
+                $0.auth = owner.authFor(message: $0)
+            }
+            
+            let call = service.muteChat(request)
+            
+            call.handle(on: queue) { response in
+                let error = ErrorMuteChat(rawValue: response.result.rawValue) ?? .unknown
+                if error == .ok {
+                    trace(.success)
+                    completion(.success(()))
+                } else {
+                    trace(.failure, components: "Error: \(error)")
+                    completion(.failure(error))
+                }
+                
+            } failure: { error in
+                completion(.failure(.unknown))
+            }
+            
+        } else {
+            let request = Flipchat_Chat_V1_UnmuteChatRequest.with {
+                $0.chatID = .with { $0.value = chatID.data }
+                $0.auth = owner.authFor(message: $0)
+            }
+            
+            let call = service.unmuteChat(request)
+            
+            call.handle(on: queue) { response in
+                let error = ErrorMuteChat(rawValue: response.result.rawValue) ?? .unknown
+                if error == .ok {
+                    trace(.success)
+                    completion(.success(()))
+                } else {
+                    trace(.failure, components: "Error: \(error)")
+                    completion(.failure(error))
+                }
+                
+            } failure: { error in
+                completion(.failure(.unknown))
+            }
         }
     }
     
@@ -348,7 +397,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
     }
     
     func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair, completion: @escaping (Result<(), ErrorChangeCover>) -> Void) {
-        trace(.send, components: "Chat ID: \(chatID.description)", "Cover: \(newCover.description)", "Signed by: \(owner.publicKey.base58)")
+        trace(.send, components: "Chat ID: \(chatID.description)", "Cover: \(newCover.description)")
         
         let request = Flipchat_Chat_V1_SetCoverChargeRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
@@ -448,6 +497,12 @@ public enum ErrorReportUser: Int, Error {
 }
 
 public enum ErrorMuteUser: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+}
+
+public enum ErrorMuteChat: Int, Error {
     case ok
     case denied
     case unknown = -1

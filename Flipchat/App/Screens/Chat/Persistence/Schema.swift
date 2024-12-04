@@ -18,6 +18,8 @@ struct RoomTable: Sendable {
     let ownerUserID  = Expression <UUID>       ("ownerUserID")
     let coverQuarks  = Expression <Int64>      ("coverQuarks")
     let unreadCount  = Expression <Int>        ("unreadCount")
+    let isMuted      = Expression <Bool>       ("isMuted")
+    let canMute      = Expression <Bool>       ("canMute")
     let isDeleted    = Expression <Bool>       ("isDeleted")
 }
 
@@ -61,6 +63,72 @@ extension Expression {
     
     func casting<T>(to type: T.Type) -> Expression<T> {
         Expression<T>(template)
+    }
+}
+
+// MARK: - Tables -
+
+extension Database {
+    func createTablesIfNeeded() throws {
+        let roomTable    = RoomTable()
+        let messageTable = MessageTable()
+        let memberTable  = MemberTable()
+        let userTable    = UserTable()
+        let pointerTable = PointerTable()
+        
+        try writer.transaction {
+            try writer.run(roomTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(roomTable.serverID, primaryKey: true)
+                t.column(roomTable.kind)
+                t.column(roomTable.title)
+                t.column(roomTable.roomNumber, unique: true)
+                t.column(roomTable.ownerUserID)
+                t.column(roomTable.coverQuarks, defaultValue: 0)
+                t.column(roomTable.unreadCount, defaultValue: 0)
+                t.column(roomTable.isMuted,   defaultValue: false)
+                t.column(roomTable.canMute,   defaultValue: false)
+                t.column(roomTable.isDeleted, defaultValue: false)
+            })
+            
+            try writer.run(messageTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(messageTable.serverID, primaryKey: true)
+                t.column(messageTable.roomID) // FK room.serverID
+                t.column(messageTable.date)
+                t.column(messageTable.state, defaultValue: 0) // Default: .sent
+                t.column(messageTable.senderID)
+                t.column(messageTable.contents)
+                t.column(messageTable.isBatch, defaultValue: false)
+                
+                t.foreignKey(messageTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
+            })
+            
+            try writer.run(memberTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(memberTable.userID) // FK user.serverID
+                t.column(memberTable.roomID) // FK room.serverID
+                t.column(memberTable.isMuted)
+                
+                t.primaryKey(memberTable.userID, memberTable.roomID)
+                t.foreignKey(memberTable.roomID, references: userTable.table, userTable.serverID, delete: .setNull)
+                t.foreignKey(memberTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
+            })
+            
+            try writer.run(userTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(userTable.serverID, primaryKey: true)
+                t.column(userTable.displayName)
+                t.column(userTable.avatarURL)
+            })
+            
+            try writer.run(pointerTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(pointerTable.userID)    // FK user.serverID
+                t.column(pointerTable.roomID)    // FK room.serverID
+                t.column(pointerTable.kind)
+                t.column(pointerTable.messageID)
+                
+                t.primaryKey(pointerTable.userID, pointerTable.roomID)
+                t.foreignKey(pointerTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
+                t.foreignKey(pointerTable.userID, references: userTable.table, memberTable.userID, delete: .cascade)
+            })
+        }
     }
 }
 

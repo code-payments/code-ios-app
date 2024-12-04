@@ -120,7 +120,9 @@ struct PreviewRoomScreen: View {
             ownerUser: .mock1,
             coverAmount: 100,
             title: "",
-            unreadCount: 0
+            unreadCount: 0,
+            isMuted: false,
+            canMute: false
         ),
         members: [],
         host: .init(displayName: "Bob", avatarURL: nil),

@@ -35,6 +35,6 @@
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
 	<key>SQLiteVersion</key>
-	<integer>1</integer>
+	<integer>2</integer>
 </dict>
 </plist>

@@ -129,6 +129,8 @@ extension Database {
             r.coverQuarks,
             r.unreadCount,
             r.isDeleted,
+            r.isMuted,
+            r.canMute,
 
             m.serverID AS mServerID,
             m.roomID   AS mRoomID,
@@ -169,7 +171,9 @@ extension Database {
                     ownerUserID: row[rTable.ownerUserID],
                     cover:       Kin(quarks: row[rTable.coverQuarks])!,
                     unreadCount: row[rTable.unreadCount],
-                    isDeleted:   row[rTable.isDeleted]
+                    isDeleted:   row[rTable.isDeleted],
+                    isMuted:     row[rTable.isMuted],
+                    canMute:     row[rTable.canMute]
                 ),
                 lastMessage: .init(
                     serverID:    row[mTable.serverID.alias("mServerID")],
@@ -234,6 +238,8 @@ struct RoomRow: Identifiable {
         let cover: Kin
         let unreadCount: Int
         let isDeleted: Bool
+        let isMuted: Bool
+        let canMute: Bool
     }
     
     struct Message {

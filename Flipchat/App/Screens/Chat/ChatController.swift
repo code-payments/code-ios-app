@@ -442,6 +442,13 @@ class ChatController: ObservableObject {
         }
     }
     
+    func muteChat(chatID: ChatID, muted: Bool) async throws {
+        try await client.muteChat(chatID: chatID, muted: muted, owner: owner)
+        try database.transaction {
+            try $0.muteChat(roomID: chatID.uuid, muted: muted)
+        }
+    }
+    
     func reportMessage(userID: UserID, messageID: MessageID) async throws {
         try await client.reportMessage(userID: userID, messageID: messageID, owner: owner)
     }

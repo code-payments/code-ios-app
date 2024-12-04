@@ -58,7 +58,7 @@ struct ChatsScreen: View {
     }
     
     private func didDisappear() {
-        
+       
     }
     
     // MARK: - Body -
@@ -69,8 +69,20 @@ struct ChatsScreen: View {
                 ScrollBox(color: .backgroundMain) {
                     List {
                         Section {
-                            ForEach(chatState.rooms) { room in
-                                row(for: room)
+                            ForEach(chatState.rooms) { roomRow in
+                                row(for: roomRow)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .cancel) {
+                                            muteChat(for: roomRow.room)
+                                        } label: {
+                                            if roomRow.room.isMuted {
+                                                Label("", systemImage: "speaker.wave.2")
+                                            } else {
+                                                Label("", systemImage: "speaker.slash")
+                                            }
+                                        }
+                                        .tint(.darkPurple)
+                                    }
                             }
                         } footer: {
                             CodeButton(style: .filled, title: "Join a Room") {
@@ -182,7 +194,7 @@ struct ChatsScreen: View {
                         Spacer()
                         
                         Text(row.lastMessage.date.formattedRelatively(useTimeForToday: true))
-                            .foregroundColor(row.room.unreadCount > 0 ? .textSuccess : .textSecondary)
+                            .foregroundColor(row.room.unreadCount > 0 && !row.room.isMuted ? .textSuccess : .textSecondary)
                             .font(.appTextSmall)
                             .lineLimit(1)
                     }
@@ -197,16 +209,16 @@ struct ChatsScreen: View {
                         
                         Spacer()
                         
-//                        if chat.isMuted {
-//                            Image.system(.speakerSlash)
-//                                .resizable()
-//                                .aspectRatio(contentMode: .fit)
-//                                .frame(width: 20, height: 20, alignment: .trailing)
-//                                .foregroundColor(.textSecondary)
-//                        }
-                        
-                        if row.room.unreadCount > 0 {
-                            Bubble(size: .large, count: row.room.unreadCount)
+                        if row.room.isMuted {
+                            Image.system(.speakerSlash)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 15, height: 15, alignment: .trailing)
+                                .foregroundColor(.textSecondary)
+                        } else {
+                            if row.room.unreadCount > 0 {
+                                Bubble(size: .large, count: row.room.unreadCount)
+                            }
                         }
                     }
                 }
@@ -216,6 +228,17 @@ struct ChatsScreen: View {
     
     private func avatarValue(for chat: Chat) -> AvatarView.Value {
         .placeholder
+    }
+    
+    // MARK: - Action -
+    
+    private func muteChat(for room: RoomRow.Room) {
+        Task {
+            try await chatController.muteChat(
+                chatID: ChatID(uuid: room.serverID),
+                muted: !room.isMuted
+            )
+        }
     }
     
     private func logoutAction() {
