@@ -67,7 +67,6 @@ struct PreviewRoomScreen: View {
                     
                     VStack(spacing: 20) {
                         CodeButton(
-                            state: viewModel.buttonState,
                             style: .filled,
                             title: "Join Room \(chat.roomNumber.roomString)"
                         ) {

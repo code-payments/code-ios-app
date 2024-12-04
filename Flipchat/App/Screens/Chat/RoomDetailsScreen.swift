@@ -108,7 +108,7 @@ struct RoomDetailsScreen: View {
                             }
                             
                             CodeButton(
-                                state: viewModel.buttonState,
+                                state: viewModel.buttonStateLeaveChat,
                                 style: .filled,
                                 title: kind.titleFor(roomNumber: RoomNumber(room.room.roomNumber))
                             ) {

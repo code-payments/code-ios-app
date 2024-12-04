@@ -14,11 +14,11 @@ class ChatViewModel: ObservableObject {
     
     @Published var joinRoomPath: [JoinRoomPath] = []
     
-    @Published var buttonState: ButtonState = .normal
-    
     @Published var enteredRoomNumber: String = ""
     
     @Published var enteredNewCover: String = ""
+    
+    // Sheets
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
@@ -27,6 +27,14 @@ class ChatViewModel: ObservableObject {
     @Published var isShowingCreatePayment: Bool = false
     
     @Published var isShowingChangeCover: Bool = false
+    
+    // Button States
+    
+    @Published var buttonStatePreviewRoom: ButtonState = .normal
+    
+    @Published var buttonStateChangeCover: ButtonState = .normal
+    
+    @Published var buttonStateLeaveChat: ButtonState = .normal
     
     var userID: UserID {
         session.userID
@@ -145,12 +153,12 @@ class ChatViewModel: ObservableObject {
             // and left because we have to update server state.
             if let chatID = try await chatController.chatFor(roomNumber: roomNumber) {
                 
-                withButtonState(delayTask: false) {} success: {
+                withButtonState(state: \.buttonStatePreviewRoom, delayTask: false) {} success: {
                     self.completeJoiningChat(chatID: chatID)
                 } error: { _ in }
                 
             } else {
-                withButtonState(showSuccess: false) { [chatController] in
+                withButtonState(state: \.buttonStatePreviewRoom, showSuccess: false) { [chatController] in
                     try await chatController.fetchGroupChat(roomNumber: roomNumber)
                     
                 } success: { (chat, members, host) in
@@ -185,7 +193,7 @@ class ChatViewModel: ObservableObject {
             return
         }
         
-        withButtonState { [chatController] in
+        withButtonState(state: \.buttonStateChangeCover) { [chatController] in
             try await chatController.changeCover(chatID: chatID, newCover: newCover)
             
         } success: { chatID in
@@ -269,7 +277,7 @@ class ChatViewModel: ObservableObject {
     }
     
     private func leaveChat(chatID: ChatID) {
-        withButtonState { [chatController] in
+        withButtonState(state: \.buttonStateLeaveChat) { [chatController] in
             try await chatController.leaveChat(chatID: chatID)
         } success: {
             self.popChat()
@@ -365,9 +373,9 @@ class ChatViewModel: ObservableObject {
 // MARK: - Button State -
 
 extension ChatViewModel {
-    private func withButtonState<T>(showSuccess: Bool = true, delayTask: Bool = true, closure: @escaping () async throws -> T, success: @escaping (T) async throws -> Void, error: @escaping (Swift.Error) -> Void) where T: Sendable {
+    private func withButtonState<T>(state: ReferenceWritableKeyPath<ChatViewModel, ButtonState>, showSuccess: Bool = true, delayTask: Bool = true, closure: @escaping () async throws -> T, success: @escaping (T) async throws -> Void, error: @escaping (Swift.Error) -> Void) where T: Sendable {
         Task {
-            buttonState = .loading
+            self[keyPath: state] = .loading
             do {
                 let result = try await closure()
                 if delayTask {
@@ -375,7 +383,7 @@ extension ChatViewModel {
                 }
                 
                 if showSuccess {
-                    buttonState = .success
+                    self[keyPath: state] = .success
                     try await Task.delay(milliseconds: 500)
                 }
                 
@@ -383,17 +391,15 @@ extension ChatViewModel {
                 
                 // Reset
                 
-                try await Task.delay(milliseconds: 200)
-                buttonState  = .normal
-                
-                try await Task.delay(milliseconds: 100)
+                try await Task.delay(milliseconds: 500)
+                self[keyPath: state]  = .normal
                 
                 resetEnteredRoomNumber()
                 resetEnteredCover()
                 
             } catch let caughtError {
                 error(caughtError)
-                buttonState  = .normal
+                self[keyPath: state]  = .normal
             }
         }
     }

@@ -28,7 +28,7 @@ struct EnterRoomNumberScreen: View {
                 EnterAmountView(
                     mode: .roomNumber,
                     enteredAmount: $viewModel.enteredRoomNumber,
-                    actionState: $viewModel.buttonState,
+                    actionState: $viewModel.buttonStatePreviewRoom,
                     actionEnabled: { _ in
                         viewModel.isEnteredRoomNumberValid()
                     },

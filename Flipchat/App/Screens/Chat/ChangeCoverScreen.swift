@@ -32,7 +32,7 @@ struct ChangeCoverScreen: View {
                 EnterAmountView(
                     mode: .coverCharge,
                     enteredAmount: $viewModel.enteredNewCover,
-                    actionState: $viewModel.buttonState,
+                    actionState: $viewModel.buttonStateChangeCover,
                     actionEnabled: { _ in
                         viewModel.isEnteredCoverChargeValid()
                     }
