@@ -47,6 +47,26 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return .noData
     }
     
+    // MARK: - SwiftUI Scene Phase -
+    
+    func sceneDidBecomeActive() {
+        trace(.warning)
+        guard case .loggedIn(let state) = container.sessionAuthenticator.state else {
+            return
+        }
+        
+        state.chatController.sceneDidBecomeActive()
+    }
+    
+    func sceneDidEnterBackground() {
+        trace(.warning)
+        guard case .loggedIn(let state) = container.sessionAuthenticator.state else {
+            return
+        }
+        
+        state.chatController.sceneDidEnterBackground()
+    }
+    
     // MARK: - Appearance -
     
     private func setupFonts() {

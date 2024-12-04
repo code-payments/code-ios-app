@@ -12,9 +12,11 @@ import FlipchatServices
 extension Database {
         
     func transaction(_ block: (Database) throws -> Void) throws {
+//        let start = Date.now
         try writer.transaction { [unowned self] in
             try block(self)
         }
+//        print("[DB TX]: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")
         
         commit?()
     }
@@ -69,14 +71,37 @@ extension Database {
         )
     }
 
-    func insertMessages(messages: [Chat.Message], chatID: ChatID) throws {
+    func insertMessages(messages: [Chat.Message], chatID: ChatID, isBatch: Bool) throws {
         let message = MessageTable()
         try messages.forEach {
-            try insertMessage(message: $0, roomID: chatID.uuid, into: message)
+            try insertMessage(message: $0, roomID: chatID.uuid, isBatch: isBatch, into: message)
         }
     }
+    
+    func insertMembers(members: [Chat.Member], chatID: ChatID) throws {
+        let member = MemberTable()
+        let user = UserTable()
+        try members.forEach {
+            try insertMember(member: $0, roomID: chatID.uuid, into: member)
+            try insertUser(user: $0.identity, userID: $0.id.uuid, into: user)
+        }
+    }
+    
+    private func insertUser(user: Chat.Identity, userID: UUID, into table: UserTable) throws {
+        try writer.run(
+            table.table.upsert(
+                table.serverID    <- userID,
+                table.displayName <- user.displayName,
+                table.avatarURL   <- user.avatarURL,
+                
+                onConflictOf: table.serverID
+            )
+        )
+    }
+    
+    // MARK: - Private -
 
-    private func insertMessage(message: Chat.Message, roomID: UUID, into table: MessageTable) throws {
+    private func insertMessage(message: Chat.Message, roomID: UUID, isBatch: Bool, into table: MessageTable) throws {
         try writer.run(
             table.table.upsert(
                 table.serverID    <- message.id.uuid,
@@ -85,19 +110,11 @@ extension Database {
                 table.state       <- Chat.Message.State.delivered.rawValue,
                 table.senderID    <- message.senderID?.uuid,
                 table.contents    <- ContentContainer(contents: message.contents.compactMap { .init(content: $0) }),
+                table.isBatch     <- isBatch,
                 
                 onConflictOf: table.serverID
             )
         )
-    }
-
-    func insertMembers(members: [Chat.Member], chatID: ChatID) throws {
-        let member = MemberTable()
-        let user = UserTable()
-        try members.forEach {
-            try insertMember(member: $0, roomID: chatID.uuid, into: member)
-            try insertUser(user: $0.identity, userID: $0.id.uuid, into: user)
-        }
     }
 
     private func insertMember(member: Chat.Member, roomID: UUID, into table: MemberTable) throws {
@@ -111,15 +128,17 @@ extension Database {
             )
         )
     }
-
-    private func insertUser(user: Chat.Identity, userID: UUID, into table: UserTable) throws {
+    
+    func insertPointer(kind: Chat.Pointer.Kind, userID: UUID, roomID: UUID, messageID: UUID) throws {
+        let table = PointerTable()
         try writer.run(
             table.table.upsert(
-                table.serverID    <- userID,
-                table.displayName <- user.displayName,
-                table.avatarURL   <- user.avatarURL,
+                table.userID    <- userID,
+                table.roomID    <- roomID,
+                table.kind      <- kind.rawValue,
+                table.messageID <- messageID,
                 
-                onConflictOf: table.serverID
+                onConflictOf: Expression<Void>(literal: "\"userID\", \"roomID\"")
             )
         )
     }

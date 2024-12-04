@@ -29,6 +29,7 @@ struct MessageTable: Sendable {
     let state    = Expression <Int>              ("state")
     let senderID = Expression <UUID?>            ("senderID")
     let contents = Expression <ContentContainer> ("contents")
+    let isBatch  = Expression <Bool>             ("isBatch")
 }
 
 struct MemberTable: Sendable {
@@ -47,7 +48,9 @@ struct UserTable: Sendable {
 
 struct PointerTable: Sendable {
     let table     = Table("pointer")
+    let roomID    = Expression <UUID> ("roomID")
     let userID    = Expression <UUID> ("userID")
+    let kind      = Expression <Int>  ("kind")
     let messageID = Expression <UUID> ("messageID")
 }
 

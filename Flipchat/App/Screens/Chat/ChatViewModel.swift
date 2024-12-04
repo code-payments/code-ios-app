@@ -89,6 +89,9 @@ class ChatViewModel: ObservableObject {
     }
     
     func selectChat(chatID: ChatID) {
+        Task {
+            try await chatController.syncChatAndMembers(for: chatID)
+        }
         containerViewModel?.pushChat(chatID: chatID)
     }
     

@@ -39,7 +39,7 @@ private class ConversationState: ObservableObject {
         
         startStream()
         Task {
-            try await advanceReadPointer()
+            try? await advanceReadPointer()
         }
     }
     

@@ -38,21 +38,26 @@ class ChatController: ObservableObject {
         self.paymentClient = paymentClient
         self.organizer = organizer
         self.owner     = organizer.ownerKeyPair
-        
-        let storeURL = URL.applicationSupportDirectory.appendingPathComponent("\(userID.uuid.uuidString).sqlite")
-        self.database = try! Database(url: storeURL)
-        
-//        fetchAndInsertSelf()
-        streamChatEvents()
-        
-        Task {
-            try await sync()
-        }
+        self.database  = try! Self.initializeDatabase(userID: userID)
         
         database.commit = { [weak self] in
             self?.chatsDidChange += 1
-            trace(.warning, components: "COMMIT")
         }
+    }
+    
+    static func initializeDatabase(userID: UserID) throws -> Database {
+        // Currently we don't do migrations so every time
+        // the user version is outdated, we'll rebuild the
+        // database during sync.
+        let userVersion = (try? Database.userVersion(userID: userID)) ?? 0
+        let currentVersion = try InfoPlist.value(for: "SQLiteVersion").integer()
+        if currentVersion > userVersion {
+            try Database.deleteStore(for: userID)
+            trace(.failure, components: "Outdated user version, deleted database.")
+            try Database.setUserVersion(version: currentVersion, userID: userID)
+        }
+        
+        return try Database(url: .store(for: userID))
     }
     
     deinit {
@@ -60,6 +65,19 @@ class ChatController: ObservableObject {
     }
     
     func prepareForLogout() {
+        destroyChatStream()
+    }
+    
+    // MARK: - App Life Cycle -
+    
+    func sceneDidBecomeActive() {
+        streamChatEvents()
+        Task {
+            try? await sync()
+        }
+    }
+    
+    func sceneDidEnterBackground() {
         destroyChatStream()
     }
     
@@ -98,41 +116,55 @@ class ChatController: ObservableObject {
                     owner: owner
                 )
                 
-                // If there's a latest message for the chat, we'll fetch all
-                // messages since that message going forward, otherwise we'll
-                // fetch all messages backwards starting from now.
+                // Batch denotes any messages that we're inserted as part of an explicit sync
+                // operation that loaded messages in a batch. Without this flag, we can receive
+                // messages over the stream that don't continue the previous sequence and corrupt
+                // the true head of the conversation.
+                let latestBatchMessageID = try database.getLatestMessageID(roomID: chat.id.uuid, batchOnly: true)
+                
                 let messages: [Chat.Message]
-//                if let latestMessageID = try database.getLatestMessageID(roomID: chat.id.uuid) {
-//                    messages = try await syncMessagesForward(for: chat.id, from: latestMessageID)
-//                    trace(.warning, components: "[FORWARD] Messages \(messages.count)")
-//                } else {
+                if let latestBatchMessageID {
+                    messages = try await syncMessagesForward(for: chat.id, from: latestBatchMessageID)
+                } else {
                     messages = try await syncMessagesBackwards(for: chat.id)
-//                    trace(.warning, components: "[BACKWARD] Messages \(messages.count)")
-//                }
+                }
                 
                 try database.transaction {
                     try $0.insertMembers(members: description.members, chatID: chat.id)
-                    try $0.insertMessages(messages: messages, chatID: chat.id)
+                    try $0.insertMessages(messages: messages, chatID: chat.id, isBatch: true)
                 }
-                
-                trace(.warning, components: "Chat synced [\(chat.id)]", "Members: \(description.members.count)", "Messages: \(messages.count)")
             }
         }
     }
     
-    func syncMessagesBackwards(for chatID: ChatID, from messageID: UUID? = nil) async throws -> [Chat.Message] {
-        try await client.fetchMessages(
+    func syncChatAndMembers(for chatID: ChatID) async throws {
+        let description = try await client.fetchChat(
+            for: .chatID(chatID),
+            owner: owner
+        )
+        
+        try database.transaction {
+            try $0.insertMembers(members: description.members, chatID: chatID)
+            try $0.insertRooms(rooms: [description.metadata])
+        }
+    }
+    
+    private func syncMessagesBackwards(for chatID: ChatID, from messageID: UUID? = nil) async throws -> [Chat.Message] {
+        let messages = try await client.fetchMessages(
             chatID: chatID,
             owner: owner,
             query: PageQuery(
                 order: .desc,
                 pagingToken: messageID,
-                pageSize: 500
+                pageSize: 512
             )
         )
+        
+        print("[SYNC] BACKWARD: \(messages.count) messages from: \(messageID?.uuidString ?? "nil")")
+        return messages
     }
     
-    func syncMessagesForward(for chatID: ChatID, from messageID: UUID) async throws -> [Chat.Message] {
+    private func syncMessagesForward(for chatID: ChatID, from messageID: UUID) async throws -> [Chat.Message] {
         var cursor = messageID
         
         let pageSize = 1024
@@ -159,6 +191,7 @@ class ChatController: ObservableObject {
             hasMoreChats = messages.count == pageSize
         }
         
+        print("[SYNC] FORWARD: \(container.count) messages from: \(messageID.uuidString)")
         return container
     }
     
@@ -241,7 +274,7 @@ class ChatController: ObservableObject {
         trace(.success, components: "Message: \(message.id.description)", "Content: \(message.contents)")
         
         try database.transaction {
-            try $0.insertMessages(messages: [message], chatID: chatID)
+            try $0.insertMessages(messages: [message], chatID: chatID, isBatch: false)
             trace(.success, components: "Message: \(message.contents.first?.text.prefix(100) ?? "nil")")
         }
     }
@@ -271,7 +304,7 @@ class ChatController: ObservableObject {
         }
         
         try database.transaction {
-            try $0.insertMessages(messages: filteredMessages, chatID: chatID)
+            try $0.insertMessages(messages: filteredMessages, chatID: chatID, isBatch: false)
         }
         
         changedChats()
@@ -285,16 +318,18 @@ class ChatController: ObservableObject {
         )
         
         try database.transaction {
-            try $0.insertMessages(messages: [deliveredMessage], chatID: chatID)
+            try $0.insertMessages(messages: [deliveredMessage], chatID: chatID, isBatch: false)
         }
         
         changedChats()
     }
     
     func advanceReadPointerToLatest(for chatID: ChatID) async throws {
-        guard let messageID = try database.getLatestMessageID(roomID: chatID.uuid) else {
+        guard let messageID = try database.getLatestMessageID(roomID: chatID.uuid, batchOnly: false) else {
             throw Error.failedToFetchLatestMessage
         }
+        
+        let userID = userID.uuid
         
         try await client.advanceReadPointer(
             chatID: chatID,
@@ -304,6 +339,12 @@ class ChatController: ObservableObject {
         
         try database.transaction {
             try $0.clearUnread(chatID: chatID)
+            try $0.insertPointer(
+                kind: .read,
+                userID: userID,
+                roomID: chatID.uuid,
+                messageID: messageID
+            )
         }
         
         changedChats()
@@ -337,7 +378,7 @@ class ChatController: ObservableObject {
         try database.transaction {
             try $0.insertRooms(rooms: [description.metadata])
             try $0.insertMembers(members: description.members, chatID: roomID)
-            try $0.insertMessages(messages: messages, chatID: roomID)
+            try $0.insertMessages(messages: messages, chatID: roomID, isBatch: true)
         }
         
         changedChats()
@@ -386,7 +427,7 @@ class ChatController: ObservableObject {
         try database.transaction {
             try $0.insertRooms(rooms: [description.metadata])
             try $0.insertMembers(members: description.members, chatID: chatID)
-            try $0.insertMessages(messages: messages, chatID: chatID)
+            try $0.insertMessages(messages: messages, chatID: chatID, isBatch: true)
         }
         
         changedChats()
