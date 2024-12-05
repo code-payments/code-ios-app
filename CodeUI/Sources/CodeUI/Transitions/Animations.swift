@@ -44,7 +44,7 @@ extension AnyTransition {
     public static var crossFade: AnyTransition {
         AnyTransition
             .opacity
-            .animation(.easeOutSlower)
+            .animation(.easeOut)
     }
 }
 

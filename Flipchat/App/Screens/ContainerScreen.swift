@@ -34,42 +34,45 @@ struct ContainerScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        switch sessionAuthenticator.state {
-        case .loggedIn(let state):
-            
-            switch sessionAuthenticator.biometricState {
-            case .disabled, .verified:
-                if sessionAuthenticator.isUnlocked {
-                    RestrictedScreen(kind: .timelockAccountUnlocked)
-                        .transition(.crossFade)
-                } else {
-                    homeView(state: state)
-                        .transition(.crossFade)
+        VStack {
+            switch sessionAuthenticator.state {
+            case .loggedIn(let state):
+                
+                switch sessionAuthenticator.biometricState {
+                case .disabled, .verified:
+                    if sessionAuthenticator.isUnlocked {
+                        RestrictedScreen(kind: .timelockAccountUnlocked)
+                            .transition(.opacity)
+                    } else {
+                        homeView(state: state)
+                            .transition(.opacity)
+                    }
+                    
+                case .notVerified:
+                    BiometricsAuthScreen()
+                        .transition(.opacity)
                 }
                 
-            case .notVerified:
-                BiometricsAuthScreen()
-                    .transition(.crossFade)
+            case .migrating:
+                MigrationScreen()
+                    .transition(.opacity)
+                
+            case .pending:
+                SavedLoginScreen(
+                    client: container.client,
+                    sessionAuthenticator: sessionAuthenticator
+                )
+                .transition(.opacity)
+                
+            case .loggedOut:
+                IntroScreen(
+                    sessionAuthenticator: sessionAuthenticator,
+                    banners: container.banners
+                )
+                .transition(.opacity)
             }
-            
-        case .migrating:
-            MigrationScreen()
-                .transition(.crossFade)
-            
-        case .pending:
-            SavedLoginScreen(
-                client: container.client,
-                sessionAuthenticator: sessionAuthenticator
-            )
-            .transition(.crossFade)
-            
-        case .loggedOut:
-            IntroScreen(
-                sessionAuthenticator: sessionAuthenticator,
-                banners: container.banners
-            )
-            .transition(.crossFade)
         }
+        .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.state.intValue)
     }
     
     @ViewBuilder private func homeView(state: AuthenticatedState) -> some View {
@@ -127,6 +130,17 @@ struct BlackScreen: View {
     var body: some View {
         Background(color: .black) {
             VStack{}
+        }
+    }
+}
+
+extension SessionAuthenticator.AuthenticationState {
+    var intValue: Int {
+        switch self {
+        case .loggedOut: return 0
+        case .migrating: return 1
+        case .pending:   return 2
+        case .loggedIn:  return 3
         }
     }
 }
