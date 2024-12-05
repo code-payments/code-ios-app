@@ -40,6 +40,8 @@ class ChatController: ObservableObject {
         self.owner     = organizer.ownerKeyPair
         self.database  = try! Self.initializeDatabase(userID: userID)
         
+        streamChatEvents()
+        
         database.commit = { [weak self] in
             self?.chatsDidChange += 1
         }
@@ -197,7 +199,12 @@ class ChatController: ObservableObject {
     
     // MARK: - Chat Stream -
     
-    func streamChatEvents() {
+    private func streamChatEvents() {
+        guard chatStream == nil else {
+            // Stream already open
+            return
+        }
+        
         destroyChatStream()
         
         chatStream = client.streamChatEvents(owner: owner) { [weak self] result in
@@ -206,7 +213,7 @@ class ChatController: ObservableObject {
                 self?.receive(updates: updates)
                 
             case .failure:
-                self?.reconnectChatStream(after: 250)
+                self?.reconnectChatStream(after: 500)
             }
         }
     }
@@ -218,8 +225,9 @@ class ChatController: ObservableObject {
         }
     }
     
-    func destroyChatStream() {
+    private func destroyChatStream() {
         chatStream?.destroy()
+        chatStream = nil
     }
     
     private func receive(updates: [Chat.BatchUpdate]) {
