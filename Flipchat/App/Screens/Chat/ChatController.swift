@@ -259,11 +259,9 @@ class ChatController: ObservableObject {
     }
     
     private func update(chatID: ChatID, withMetadata metadata: Chat.Metadata) throws {
-        trace(.success, components: "Metadata: \(metadata)")
-        
         try database.transaction {
             try $0.insertRooms(rooms: [metadata])
-            trace(.success, components: "Chat updated: \(chatID.uuid.uuidString)")
+            print("[STREAM] Metadata: \(metadata.id.uuid)")
         }
     }
     
@@ -274,25 +272,24 @@ class ChatController: ObservableObject {
         
         try database.transaction {
             try $0.insertMembers(members: members, chatID: chatID)
-            trace(.success, components: "Members +\(members.count)")
+            print("[STREAM] Members: \(members.count == 1 ? members[0].id.uuid.uuidString : members.count.description)")
         }
     }
     
     private func update(chatID: ChatID, withLastMessage message: Chat.Message) throws {
-        trace(.success, components: "Message: \(message.id.description)", "Content: \(message.contents)")
         
         try database.transaction {
             try $0.insertMessages(messages: [message], chatID: chatID, isBatch: false)
-            trace(.success, components: "Message: \(message.contents.first?.text.prefix(100) ?? "nil")")
+            print("[STREAM] Message: \(message.id.uuid) - \(message.content.prefix(50))")
         }
     }
     
     private func update(chatID: ChatID, withPointerUpdate update: Chat.BatchUpdate.PointerUpdate) throws {
-        trace(.success, components: "Pointer: \(update)")
+//        trace(.success, components: "Pointer: \(update)")
     }
     
     private func update(chatID: ChatID, withTypingUpdate update: Chat.BatchUpdate.TypingUpdate) throws {
-        trace(.success, components: "Typing: \(update)")
+//        trace(.success, components: "Typing: \(update)")
     }
     
     // MARK: - Message Stream -
@@ -324,7 +321,7 @@ class ChatController: ObservableObject {
         let deliveredMessage = try await client.sendMessage(
             chatID: chatID,
             owner: owner,
-            content: .text(trimmedText)
+            text: trimmedText
         )
         
         try database.transaction {

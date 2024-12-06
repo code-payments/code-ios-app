@@ -43,12 +43,13 @@ extension Database {
             r.unreadCount,
             r.isDeleted,
 
-            m.serverID AS mServerID,
-            m.roomID   AS mRoomID,
-            m.date     AS mDate,
-            m.state    AS mState,
-            m.senderID AS mSenderID,
-            m.contents AS mContents,
+            m.serverID    AS mServerID,
+            m.roomID      AS mRoomID,
+            m.date        AS mDate,
+            m.state       AS mState,
+            m.senderID    AS mSenderID,
+            m.contentType AS mType,
+            m.content     AS mContent,
 
             memberCount.count AS memberCount,
             u.displayName AS hostDisplayName
@@ -108,7 +109,8 @@ extension Database {
                     date:        row[mTable.date.alias("mDate")],
                     state:       row[mTable.state.alias("mState")],
                     senderID:    row[mTable.senderID.alias("mSenderID")],
-                    contents:    row[mTable.contents.alias("mContents")]
+                    contentType: row[mTable.contentType.alias("mType")],
+                    content:     row[mTable.content.alias("mContent")]
                 ),
                 memberCount: row[Expression<Int>("memberCount")],
                 hostDisplayName: row[Expression<String?>("hostDisplayName")]
@@ -132,15 +134,16 @@ extension Database {
             r.isMuted,
             r.canMute,
 
-            m.serverID AS mServerID,
-            m.roomID   AS mRoomID,
-            m.date     AS mDate,
-            m.state    AS mState,
-            m.senderID AS mSenderID,
-            m.contents AS mContents
+            m.serverID    AS mServerID,
+            m.roomID      AS mRoomID,
+            m.date        AS mDate,  
+            m.state       AS mState,
+            m.senderID    AS mSenderID,
+            m.contentType AS mType,
+            m.content     AS mContent
         FROM
             room r
-        INNER JOIN (
+        LEFT JOIN (
             SELECT
                 roomID,
                 MAX(date) AS maxDate
@@ -151,7 +154,7 @@ extension Database {
         ) AS latestMessage
         ON
             r.serverID = latestMessage.roomID
-        INNER JOIN message m
+        LEFT JOIN message m
         ON
             latestMessage.roomID = m.roomID
             AND latestMessage.maxDate = m.date
@@ -162,7 +165,8 @@ extension Database {
         let mTable = MessageTable()
         
         let rooms = try statement.map { row in
-            RoomRow(
+            let messageID = (try? row.get(mTable.serverID.alias("mServerID")))
+            return RoomRow(
                 room: .init(
                     serverID:    row[rTable.serverID],
                     kind:        row[rTable.kind],
@@ -175,13 +179,14 @@ extension Database {
                     isMuted:     row[rTable.isMuted],
                     canMute:     row[rTable.canMute]
                 ),
-                lastMessage: .init(
+                lastMessage: messageID == nil ? nil : .init(
                     serverID:    row[mTable.serverID.alias("mServerID")],
                     roomID:      row[mTable.roomID.alias("mRoomID")],
                     date:        row[mTable.date.alias("mDate")],
                     state:       row[mTable.state.alias("mState")],
                     senderID:    row[mTable.senderID.alias("mSenderID")],
-                    contents:    row[mTable.contents.alias("mContents")]
+                    contentType: row[mTable.contentType.alias("mType")],
+                    content:     row[mTable.content.alias("mContent")]
                 )
             )
         }
@@ -216,7 +221,8 @@ struct RoomDescription {
         let date: Date
         let state: Int
         let senderID: UUID?
-        let contents: ContentContainer
+        let contentType: ContentType
+        let content: String
     }
 }
 
@@ -227,7 +233,7 @@ struct RoomRow: Identifiable {
     }
     
     let room: Room
-    let lastMessage: Message
+    let lastMessage: Message?
     
     struct Room {
         let serverID: UUID
@@ -248,6 +254,7 @@ struct RoomRow: Identifiable {
         let date: Date
         let state: Int
         let senderID: UUID?
-        let contents: ContentContainer
+        let contentType: ContentType
+        let content: String
     }
 }

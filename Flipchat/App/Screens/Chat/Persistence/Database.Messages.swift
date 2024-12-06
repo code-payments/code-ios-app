@@ -66,7 +66,8 @@ extension Database {
             m.date,
             m.state,
             m.senderID,
-            m.contents,
+            m.contentType,
+            m.content,
 
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
@@ -95,7 +96,8 @@ extension Database {
                     date:        row[mTable.date],
                     state:       .init(rawValue: row[mTable.state]) ?? .sent,
                     senderID:    row[mTable.senderID],
-                    contents:    row[mTable.contents]
+                    contentType: row[mTable.contentType],
+                    content:     row[mTable.content]
                 ),
                 member: .init(
                     userID:      row[Expression<UUID?>("uServerID")],
@@ -122,7 +124,8 @@ struct MessageRow: Hashable {
         let date: Date
         let state: Chat.Message.State
         let senderID: UUID?
-        let contents: ContentContainer
+        let contentType: ContentType
+        let content: String
     }
     
     struct Member: Hashable {

@@ -38,8 +38,7 @@ public struct MessageList: View {
             container.append(
                 .init(
                     kind: .date(dateGroup.date),
-                    content: dateGroup.date.formattedRelatively(),
-                    contentIndex: 0
+                    content: dateGroup.date.formattedRelatively()
                 )
             )
             
@@ -48,26 +47,25 @@ public struct MessageList: View {
                 let message = messageContainer.row.message
                 let isReceived = message.senderID != userID.uuid
                 
-                for (index, content) in message.contents.contents.enumerated() {
-                    switch content {
-                    case .text(let text):
-                        container.append(
-                            .init(
-                                kind: .message(ID(uuid: message.serverID), isReceived, messageContainer.row, messageContainer.location),
-                                content: text,
-                                contentIndex: index
-                            )
+                switch message.contentType {
+                case .text:
+                    container.append(
+                        .init(
+                            kind: .message(ID(uuid: message.serverID), isReceived, messageContainer.row, messageContainer.location),
+                            content: message.content
                         )
-                        
-                    case .announcement(let text):
-                        container.append(
-                            .init(
-                                kind: .announcement(ID(uuid: message.serverID)),
-                                content: text,
-                                contentIndex: index
-                            )
+                    )
+                    
+                case .announcement:
+                    container.append(
+                        .init(
+                            kind: .announcement(ID(uuid: message.serverID)),
+                            content: message.content
                         )
-                    }
+                    )
+                    
+                case .unknown:
+                    break
                 }
             }
         }
@@ -292,7 +290,6 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
     
     let kind: Kind
     let content: String
-    let contentIndex: Int
     
     func messageWidth(in size: CGSize) -> CGFloat {
         switch kind {
@@ -404,11 +401,11 @@ extension Array where Element == MessageRow {
 }
 
 private extension GeometryProxy {
-    func messageWidth(for content: ContentContainer.Content) -> CGFloat {
-        switch content {
+    func messageWidth(for contentType: Chat.Message.ContentType) -> CGFloat {
+        switch contentType {
         case .text:
             size.width * 0.80
-        case .announcement:
+        case .announcement, .unknown:
             size.width * 1.00
         }
     }

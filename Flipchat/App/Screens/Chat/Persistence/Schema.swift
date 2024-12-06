@@ -24,14 +24,15 @@ struct RoomTable: Sendable {
 }
 
 struct MessageTable: Sendable {
-    let table    = Table("message")
-    let serverID = Expression <UUID>             ("serverID")
-    let roomID   = Expression <UUID>             ("roomID")
-    let date     = Expression <Date>             ("date")
-    let state    = Expression <Int>              ("state")
-    let senderID = Expression <UUID?>            ("senderID")
-    let contents = Expression <ContentContainer> ("contents")
-    let isBatch  = Expression <Bool>             ("isBatch")
+    let table       = Table("message")
+    let serverID    = Expression <UUID>        ("serverID")
+    let roomID      = Expression <UUID>        ("roomID")
+    let date        = Expression <Date>        ("date")
+    let state       = Expression <Int>         ("state")
+    let senderID    = Expression <UUID?>       ("senderID")
+    let contentType = Expression <ContentType> ("contentType")
+    let content     = Expression <String>      ("content")
+    let isBatch     = Expression <Bool>        ("isBatch")
 }
 
 struct MemberTable: Sendable {
@@ -96,7 +97,8 @@ extension Database {
                 t.column(messageTable.date)
                 t.column(messageTable.state, defaultValue: 0) // Default: .sent
                 t.column(messageTable.senderID)
-                t.column(messageTable.contents)
+                t.column(messageTable.contentType, defaultValue: .unknown)
+                t.column(messageTable.content)
                 t.column(messageTable.isBatch, defaultValue: false)
                 
                 t.foreignKey(messageTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
@@ -134,60 +136,90 @@ extension Database {
 
 // MARK: - Types -
 
-struct ContentContainer: Value, Codable, Hashable, Equatable {
+//struct ContentContainer: Value, Codable, Hashable, Equatable {
+//    
+//    enum Content: Equatable, Hashable, Sendable, Codable {
+//        case text(String)
+//        case announcement(String)
+//        
+//        var text: String {
+//            switch self {
+//            case .text(let text):
+//                return text
+//            case .announcement(let text):
+//                return text
+//            }
+//        }
+//        
+//        init?(content: Chat.Content) {
+//            switch content {
+//            case .text(let text):
+//                self = .text(text)
+//            case .announcement(let text):
+//                self = .announcement(text)
+//            case .sodiumBox:
+//                return nil
+//            }
+//        }
+//    }
+//    
+//    var contents: [Content]
+//    
+//    static let encoder = JSONEncoder()
+//    static let decoder = JSONDecoder()
+//    
+//    public static var declaredDatatype: String {
+//        String.declaredDatatype
+//    }
+//
+//    public static func fromDatatypeValue(_ dataValue: String) -> ContentContainer {
+//        try! Self.decoder.decode(ContentContainer.self, from: Data(dataValue.utf8))// ?? ContentContainer(contents: [])
+//    }
+//
+//    public var datatypeValue: String {
+//        String(data: try! Self.encoder.encode(self), encoding: .utf8)!
+//    }
+//    
+//    // MARK: - Preview -
+//    
+//    public var contentPreview: String {
+//        guard !contents.isEmpty else {
+//            return "No content"
+//        }
+//        
+//        return contents.map { $0.text }
+//            .joined(separator: " ")
+//            .trimmingCharacters(in: .whitespaces)
+//    }
+//}
+
+enum ContentType: Int, Value {
     
-    enum Content: Equatable, Hashable, Sendable, Codable {
-        case text(String)
-        case announcement(String)
-        
-        var text: String {
-            switch self {
-            case .text(let text):
-                return text
-            case .announcement(let text):
-                return text
-            }
-        }
-        
-        init?(content: Chat.Content) {
-            switch content {
-            case .text(let text):
-                self = .text(text)
-            case .announcement(let text):
-                self = .announcement(text)
-            case .sodiumBox:
-                return nil
-            }
+    case text
+    case announcement
+    case unknown = -1
+    
+    init(_ content: Chat.Message.ContentType) {
+        switch content {
+        case .text:
+            self = .text
+        case .announcement:
+            self = .announcement
+        case .unknown:
+            self = .unknown
         }
     }
-    
-    var contents: [Content]
-    
-    static let encoder = JSONEncoder()
-    static let decoder = JSONDecoder()
     
     public static var declaredDatatype: String {
-        String.declaredDatatype
+        Int.declaredDatatype
     }
 
-    public static func fromDatatypeValue(_ dataValue: String) -> ContentContainer {
-        try! Self.decoder.decode(ContentContainer.self, from: Data(dataValue.utf8))// ?? ContentContainer(contents: [])
+    public static func fromDatatypeValue(_ dataValue: Int64) -> ContentType {
+        ContentType(rawValue: Int(dataValue)) ?? .unknown
     }
 
-    public var datatypeValue: String {
-        String(data: try! Self.encoder.encode(self), encoding: .utf8)!
-    }
-    
-    // MARK: - Preview -
-    
-    public var contentPreview: String {
-        guard !contents.isEmpty else {
-            return "No content"
-        }
-        
-        return contents.map { $0.text }
-            .joined(separator: " ")
-            .trimmingCharacters(in: .whitespaces)
+    public var datatypeValue: Int64 {
+        Int64(rawValue)
     }
 }
 

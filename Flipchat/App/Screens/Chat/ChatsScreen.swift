@@ -199,15 +199,18 @@ struct ChatsScreen: View {
                         
                         Spacer()
                         
-                        Text(row.lastMessage.date.formattedRelatively(useTimeForToday: true))
-                            .foregroundColor(row.room.unreadCount > 0 && !row.room.isMuted ? .textSuccess : .textSecondary)
-                            .font(.appTextSmall)
-                            .lineLimit(1)
+                        if let message = row.lastMessage {
+                            Text(message.date.formattedRelatively(useTimeForToday: true))
+                                .foregroundColor(row.room.unreadCount > 0 && !row.room.isMuted ? .textSuccess : .textSecondary)
+                                .font(.appTextSmall)
+                                .lineLimit(1)
+                        }
                     }
                     .frame(height: 23) // Ensures the same height with and without Bubble
                     
                     HStack(alignment: .top, spacing: 5) {
-                        Text(row.lastMessage.contents.contentPreview)
+                        let content = row.lastMessage?.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? "No content"
+                        Text(content)
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
                             .lineLimit(2)

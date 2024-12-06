@@ -120,7 +120,8 @@ extension Database {
                 table.date        <- message.date,
                 table.state       <- Chat.Message.State.delivered.rawValue,
                 table.senderID    <- message.senderID?.uuid,
-                table.contents    <- ContentContainer(contents: message.contents.compactMap { .init(content: $0) }),
+                table.contentType <- ContentType(message.contentType),
+                table.content     <- message.content,
                 table.isBatch     <- isBatch,
                 
                 onConflictOf: table.serverID

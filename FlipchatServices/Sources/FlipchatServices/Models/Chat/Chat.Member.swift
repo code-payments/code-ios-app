@@ -12,30 +12,12 @@ import FlipchatAPI
 extension Chat {
     public struct Member: Equatable, Identifiable, Hashable, Sendable {
         
-        /// Globally unique ID for this chat member
         public let id: UserID
-        
-        /// Is this chat member yourself? This enables client to identify which member_id
-        /// is themselves.
         public let isSelf: Bool
-        
-        /// Is this user allowed to send messages
         public let isMuted: Bool
-
-        /// Does the chat member have permission to perform moderation actions in
-        /// the chat?
         public let hasModeratorPermission: Bool
-        
-        /// Does the chat member have permission to send messages in the chat? If
-        /// not, the user is considered to be a spectator.
         public let hasSendPermission: Bool
-        
-        /// The chat member's identity if it has been revealed.
         public var identity: Identity
-        
-        /// Chat message state for this member. This list will have DELIVERED and READ
-        /// pointers, if they exist. SENT pointers should be inferred by persistence
-        /// on server.
         public var pointers: [Pointer]
         
         public init(id: UserID, isSelf: Bool, isMuted: Bool, hasModeratorPermission: Bool, hasSendPermission: Bool, identity: Identity, pointers: [Pointer]) {
