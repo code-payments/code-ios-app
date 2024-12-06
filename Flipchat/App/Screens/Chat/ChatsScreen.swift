@@ -97,7 +97,7 @@ struct ChatsScreen: View {
                     }
                 }
                 
-                ScrollBox(color: .backgroundMain, ignoreEdges: [.bottom]) {
+                ScrollBox(color: .backgroundMain, ignoreEdges: [.bottom], edgePadding: 8) {
                     List {
                         Section {
                             ForEach(chatState.rooms) { roomRow in

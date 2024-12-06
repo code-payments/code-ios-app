@@ -12,6 +12,7 @@ public struct ScrollBox<Content>: View where Content: View {
     
     public var color: Color
     public var ignoreEdges: [Edge]
+    public var edgePadding: CGFloat
     public var content: () -> Content
     
     private var gradient: Gradient {
@@ -25,9 +26,10 @@ public struct ScrollBox<Content>: View where Content: View {
     
     // MARK: - Init -
     
-    public init(color: Color, ignoreEdges: [Edge] = [], @ViewBuilder content: @escaping () -> Content) {
+    public init(color: Color, ignoreEdges: [Edge] = [], edgePadding: CGFloat = 0, @ViewBuilder content: @escaping () -> Content) {
         self.color = color
         self.ignoreEdges = ignoreEdges
+        self.edgePadding = edgePadding
         self.content = content
     }
     
@@ -47,6 +49,7 @@ public struct ScrollBox<Content>: View where Content: View {
                             )
                         )
                         .frame(height: gradientHeight, alignment: .center)
+                        .padding(.horizontal, edgePadding)
                 }
                 Spacer()
                 if !ignoreEdges.contains(.bottom) {
@@ -59,6 +62,7 @@ public struct ScrollBox<Content>: View where Content: View {
                             )
                         )
                         .frame(height: gradientHeight, alignment: .center)
+                        .padding(.horizontal, edgePadding)
                 }
             }
             .edgesIgnoringSafeArea([.leading, .bottom, .trailing])

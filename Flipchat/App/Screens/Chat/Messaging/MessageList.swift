@@ -96,7 +96,7 @@ public struct MessageList: View {
     // MARK: - Body -
     
     public var body: some View {
-        ScrollBox(color: .backgroundMain, ignoreEdges: []) {
+        ScrollBox(color: .backgroundMain, ignoreEdges: [], edgePadding: 8) {
             GeometryReader { g in
                 ScrollViewReader { scrollProxy in
                     List {
