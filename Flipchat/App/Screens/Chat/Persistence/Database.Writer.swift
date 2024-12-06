@@ -11,14 +11,22 @@ import FlipchatServices
 
 extension Database {
         
+    /// Always inline this function to ensure that captureError
+    /// captures the function in which this was called, otherwise
+    /// it will always captured in transaction {}
+    @inline(__always)
     func transaction(_ block: (Database) throws -> Void) throws {
 //        let start = Date.now
-        try writer.transaction { [unowned self] in
-            try block(self)
+        do {
+            try writer.transaction { [unowned self] in
+                try block(self)
+            }
+            commit?()
+            
+        } catch {
+            ErrorReporting.captureError(error)
         }
 //        print("[DB TX]: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")
-        
-        commit?()
     }
 
     func insertRooms(rooms: [Chat.Metadata]) throws {
