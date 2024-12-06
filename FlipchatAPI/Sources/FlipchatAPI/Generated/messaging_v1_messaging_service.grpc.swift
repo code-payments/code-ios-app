@@ -21,6 +21,11 @@ public protocol Flipchat_Messaging_V1_MessagingClientProtocol: GRPCClient {
     handler: @escaping (Flipchat_Messaging_V1_StreamMessagesResponse) -> Void
   ) -> BidirectionalStreamingCall<Flipchat_Messaging_V1_StreamMessagesRequest, Flipchat_Messaging_V1_StreamMessagesResponse>
 
+  func getMessage(
+    _ request: Flipchat_Messaging_V1_GetMessageRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Messaging_V1_GetMessageRequest, Flipchat_Messaging_V1_GetMessageResponse>
+
   func getMessages(
     _ request: Flipchat_Messaging_V1_GetMessagesRequest,
     callOptions: CallOptions?
@@ -77,7 +82,25 @@ extension Flipchat_Messaging_V1_MessagingClientProtocol {
     )
   }
 
-  /// GetMessages gets the set of messages for a chat member using a paged API
+  /// GetMessage gets a single message in a chat
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetMessage.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getMessage(
+    _ request: Flipchat_Messaging_V1_GetMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Messaging_V1_GetMessageRequest, Flipchat_Messaging_V1_GetMessageResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Messaging_V1_MessagingClientMetadata.Methods.getMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMessageInterceptors() ?? []
+    )
+  }
+
+  /// GetMessages gets the set of messages for a chat using a paged API
   ///
   /// - Parameters:
   ///   - request: Request to send to GetMessages.
@@ -236,6 +259,11 @@ public protocol Flipchat_Messaging_V1_MessagingAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncBidirectionalStreamingCall<Flipchat_Messaging_V1_StreamMessagesRequest, Flipchat_Messaging_V1_StreamMessagesResponse>
 
+  func makeGetMessageCall(
+    _ request: Flipchat_Messaging_V1_GetMessageRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Messaging_V1_GetMessageRequest, Flipchat_Messaging_V1_GetMessageResponse>
+
   func makeGetMessagesCall(
     _ request: Flipchat_Messaging_V1_GetMessagesRequest,
     callOptions: CallOptions?
@@ -279,6 +307,18 @@ extension Flipchat_Messaging_V1_MessagingAsyncClientProtocol {
       path: Flipchat_Messaging_V1_MessagingClientMetadata.Methods.streamMessages.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeStreamMessagesInterceptors() ?? []
+    )
+  }
+
+  public func makeGetMessageCall(
+    _ request: Flipchat_Messaging_V1_GetMessageRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Messaging_V1_GetMessageRequest, Flipchat_Messaging_V1_GetMessageResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Messaging_V1_MessagingClientMetadata.Methods.getMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMessageInterceptors() ?? []
     )
   }
 
@@ -369,6 +409,18 @@ extension Flipchat_Messaging_V1_MessagingAsyncClientProtocol {
     )
   }
 
+  public func getMessage(
+    _ request: Flipchat_Messaging_V1_GetMessageRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Messaging_V1_GetMessageResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Messaging_V1_MessagingClientMetadata.Methods.getMessage.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMessageInterceptors() ?? []
+    )
+  }
+
   public func getMessages(
     _ request: Flipchat_Messaging_V1_GetMessagesRequest,
     callOptions: CallOptions? = nil
@@ -452,6 +504,9 @@ public protocol Flipchat_Messaging_V1_MessagingClientInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when invoking 'streamMessages'.
   func makeStreamMessagesInterceptors() -> [ClientInterceptor<Flipchat_Messaging_V1_StreamMessagesRequest, Flipchat_Messaging_V1_StreamMessagesResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'getMessage'.
+  func makeGetMessageInterceptors() -> [ClientInterceptor<Flipchat_Messaging_V1_GetMessageRequest, Flipchat_Messaging_V1_GetMessageResponse>]
+
   /// - Returns: Interceptors to use when invoking 'getMessages'.
   func makeGetMessagesInterceptors() -> [ClientInterceptor<Flipchat_Messaging_V1_GetMessagesRequest, Flipchat_Messaging_V1_GetMessagesResponse>]
 
@@ -474,6 +529,7 @@ public enum Flipchat_Messaging_V1_MessagingClientMetadata {
     fullName: "flipchat.messaging.v1.Messaging",
     methods: [
       Flipchat_Messaging_V1_MessagingClientMetadata.Methods.streamMessages,
+      Flipchat_Messaging_V1_MessagingClientMetadata.Methods.getMessage,
       Flipchat_Messaging_V1_MessagingClientMetadata.Methods.getMessages,
       Flipchat_Messaging_V1_MessagingClientMetadata.Methods.sendMessage,
       Flipchat_Messaging_V1_MessagingClientMetadata.Methods.advancePointer,
@@ -487,6 +543,12 @@ public enum Flipchat_Messaging_V1_MessagingClientMetadata {
       name: "StreamMessages",
       path: "/flipchat.messaging.v1.Messaging/StreamMessages",
       type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let getMessage = GRPCMethodDescriptor(
+      name: "GetMessage",
+      path: "/flipchat.messaging.v1.Messaging/GetMessage",
+      type: GRPCCallType.unary
     )
 
     public static let getMessages = GRPCMethodDescriptor(
@@ -532,7 +594,10 @@ public protocol Flipchat_Messaging_V1_MessagingProvider: CallHandlerProvider {
   /// 'latest_only'.
   func streamMessages(context: StreamingResponseCallContext<Flipchat_Messaging_V1_StreamMessagesResponse>) -> EventLoopFuture<(StreamEvent<Flipchat_Messaging_V1_StreamMessagesRequest>) -> Void>
 
-  /// GetMessages gets the set of messages for a chat member using a paged API
+  /// GetMessage gets a single message in a chat
+  func getMessage(request: Flipchat_Messaging_V1_GetMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Messaging_V1_GetMessageResponse>
+
+  /// GetMessages gets the set of messages for a chat using a paged API
   func getMessages(request: Flipchat_Messaging_V1_GetMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Messaging_V1_GetMessagesResponse>
 
   /// SendMessage sends a message to a chat.
@@ -569,6 +634,15 @@ extension Flipchat_Messaging_V1_MessagingProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Messaging_V1_StreamMessagesResponse>(),
         interceptors: self.interceptors?.makeStreamMessagesInterceptors() ?? [],
         observerFactory: self.streamMessages(context:)
+      )
+
+    case "GetMessage":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Messaging_V1_GetMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Messaging_V1_GetMessageResponse>(),
+        interceptors: self.interceptors?.makeGetMessageInterceptors() ?? [],
+        userFunction: self.getMessage(request:context:)
       )
 
     case "GetMessages":
@@ -639,7 +713,13 @@ public protocol Flipchat_Messaging_V1_MessagingAsyncProvider: CallHandlerProvide
     context: GRPCAsyncServerCallContext
   ) async throws
 
-  /// GetMessages gets the set of messages for a chat member using a paged API
+  /// GetMessage gets a single message in a chat
+  func getMessage(
+    request: Flipchat_Messaging_V1_GetMessageRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Messaging_V1_GetMessageResponse
+
+  /// GetMessages gets the set of messages for a chat using a paged API
   func getMessages(
     request: Flipchat_Messaging_V1_GetMessagesRequest,
     context: GRPCAsyncServerCallContext
@@ -700,6 +780,15 @@ extension Flipchat_Messaging_V1_MessagingAsyncProvider {
         wrapping: { try await self.streamMessages(requestStream: $0, responseStream: $1, context: $2) }
       )
 
+    case "GetMessage":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Messaging_V1_GetMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Messaging_V1_GetMessageResponse>(),
+        interceptors: self.interceptors?.makeGetMessageInterceptors() ?? [],
+        wrapping: { try await self.getMessage(request: $0, context: $1) }
+      )
+
     case "GetMessages":
       return GRPCAsyncServerHandler(
         context: context,
@@ -757,6 +846,10 @@ public protocol Flipchat_Messaging_V1_MessagingServerInterceptorFactoryProtocol:
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeStreamMessagesInterceptors() -> [ServerInterceptor<Flipchat_Messaging_V1_StreamMessagesRequest, Flipchat_Messaging_V1_StreamMessagesResponse>]
 
+  /// - Returns: Interceptors to use when handling 'getMessage'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetMessageInterceptors() -> [ServerInterceptor<Flipchat_Messaging_V1_GetMessageRequest, Flipchat_Messaging_V1_GetMessageResponse>]
+
   /// - Returns: Interceptors to use when handling 'getMessages'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetMessagesInterceptors() -> [ServerInterceptor<Flipchat_Messaging_V1_GetMessagesRequest, Flipchat_Messaging_V1_GetMessagesResponse>]
@@ -784,6 +877,7 @@ public enum Flipchat_Messaging_V1_MessagingServerMetadata {
     fullName: "flipchat.messaging.v1.Messaging",
     methods: [
       Flipchat_Messaging_V1_MessagingServerMetadata.Methods.streamMessages,
+      Flipchat_Messaging_V1_MessagingServerMetadata.Methods.getMessage,
       Flipchat_Messaging_V1_MessagingServerMetadata.Methods.getMessages,
       Flipchat_Messaging_V1_MessagingServerMetadata.Methods.sendMessage,
       Flipchat_Messaging_V1_MessagingServerMetadata.Methods.advancePointer,
@@ -797,6 +891,12 @@ public enum Flipchat_Messaging_V1_MessagingServerMetadata {
       name: "StreamMessages",
       path: "/flipchat.messaging.v1.Messaging/StreamMessages",
       type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let getMessage = GRPCMethodDescriptor(
+      name: "GetMessage",
+      path: "/flipchat.messaging.v1.Messaging/GetMessage",
+      type: GRPCCallType.unary
     )
 
     public static let getMessages = GRPCMethodDescriptor(

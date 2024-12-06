@@ -61,7 +61,7 @@ public struct Flipchat_Messaging_V1_Message {
   /// Clears the value of `senderID`. Subsequent reads from it will return its default value.
   public mutating func clearSenderID() {self._senderID = nil}
 
-  /// Ordered message content. A message may have more than one piece of content.
+  /// Message content, which is currently guaranteed to have exactly one item.
   public var content: [Flipchat_Messaging_V1_Content] = []
 
   /// Timestamp this message was generated at. This value is also encoded in
@@ -213,13 +213,20 @@ public struct Flipchat_Messaging_V1_Content {
     set {type = .localizedAnnouncement(newValue)}
   }
 
-  ///ExchangeDataContent         exchange_data     = 3;
-  public var naclBox: Flipchat_Messaging_V1_NaclBoxEncryptedContent {
+  public var reaction: Flipchat_Messaging_V1_ReactionContent {
     get {
-      if case .naclBox(let v)? = type {return v}
-      return Flipchat_Messaging_V1_NaclBoxEncryptedContent()
+      if case .reaction(let v)? = type {return v}
+      return Flipchat_Messaging_V1_ReactionContent()
     }
-    set {type = .naclBox(newValue)}
+    set {type = .reaction(newValue)}
+  }
+
+  public var reply: Flipchat_Messaging_V1_ReplyContent {
+    get {
+      if case .reply(let v)? = type {return v}
+      return Flipchat_Messaging_V1_ReplyContent()
+    }
+    set {type = .reply(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -227,8 +234,8 @@ public struct Flipchat_Messaging_V1_Content {
   public enum OneOf_Type: Equatable {
     case text(Flipchat_Messaging_V1_TextContent)
     case localizedAnnouncement(Flipchat_Messaging_V1_LocalizedAnnouncementContent)
-    ///ExchangeDataContent         exchange_data     = 3;
-    case naclBox(Flipchat_Messaging_V1_NaclBoxEncryptedContent)
+    case reaction(Flipchat_Messaging_V1_ReactionContent)
+    case reply(Flipchat_Messaging_V1_ReplyContent)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipchat_Messaging_V1_Content.OneOf_Type, rhs: Flipchat_Messaging_V1_Content.OneOf_Type) -> Bool {
@@ -244,8 +251,12 @@ public struct Flipchat_Messaging_V1_Content {
         guard case .localizedAnnouncement(let l) = lhs, case .localizedAnnouncement(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.naclBox, .naclBox): return {
-        guard case .naclBox(let l) = lhs, case .naclBox(let r) = rhs else { preconditionFailure() }
+      case (.reaction, .reaction): return {
+        guard case .reaction(let l) = lhs, case .reaction(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.reply, .reply): return {
+        guard case .reply(let l) = lhs, case .reply(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -285,34 +296,56 @@ public struct Flipchat_Messaging_V1_LocalizedAnnouncementContent {
   public init() {}
 }
 
-/// Encrypted piece of content using NaCl box encryption
-public struct Flipchat_Messaging_V1_NaclBoxEncryptedContent {
+/// Emoji reaction to another message
+public struct Flipchat_Messaging_V1_ReactionContent {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The sender's public key that is used to derive the shared private key for
-  /// decryption for message content.
-  public var peerPublicKey: Flipchat_Common_V1_PublicKey {
-    get {return _peerPublicKey ?? Flipchat_Common_V1_PublicKey()}
-    set {_peerPublicKey = newValue}
+  /// The message ID of the message this reaction is associated with
+  public var originalMessageID: Flipchat_Messaging_V1_MessageId {
+    get {return _originalMessageID ?? Flipchat_Messaging_V1_MessageId()}
+    set {_originalMessageID = newValue}
   }
-  /// Returns true if `peerPublicKey` has been explicitly set.
-  public var hasPeerPublicKey: Bool {return self._peerPublicKey != nil}
-  /// Clears the value of `peerPublicKey`. Subsequent reads from it will return its default value.
-  public mutating func clearPeerPublicKey() {self._peerPublicKey = nil}
+  /// Returns true if `originalMessageID` has been explicitly set.
+  public var hasOriginalMessageID: Bool {return self._originalMessageID != nil}
+  /// Clears the value of `originalMessageID`. Subsequent reads from it will return its default value.
+  public mutating func clearOriginalMessageID() {self._originalMessageID = nil}
 
-  /// Globally random nonce that is unique to this encrypted piece of content
-  public var nonce: Data = Data()
-
-  /// The encrypted piece of message content
-  public var encryptedPayload: Data = Data()
+  /// The emoji or reaction symbol
+  public var emoji: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _peerPublicKey: Flipchat_Common_V1_PublicKey? = nil
+  fileprivate var _originalMessageID: Flipchat_Messaging_V1_MessageId? = nil
+}
+
+/// Text reply of another message
+public struct Flipchat_Messaging_V1_ReplyContent {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The message ID of the message this reply is referencing
+  public var originalMessageID: Flipchat_Messaging_V1_MessageId {
+    get {return _originalMessageID ?? Flipchat_Messaging_V1_MessageId()}
+    set {_originalMessageID = newValue}
+  }
+  /// Returns true if `originalMessageID` has been explicitly set.
+  public var hasOriginalMessageID: Bool {return self._originalMessageID != nil}
+  /// Clears the value of `originalMessageID`. Subsequent reads from it will return its default value.
+  public mutating func clearOriginalMessageID() {self._originalMessageID = nil}
+
+  /// The reply text, which can be handled similarly to TextContent
+  public var replyText: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _originalMessageID: Flipchat_Messaging_V1_MessageId? = nil
 }
 
 #if swift(>=5.5) && canImport(_Concurrency)
@@ -325,7 +358,8 @@ extension Flipchat_Messaging_V1_Content: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content.OneOf_Type: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_TextContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_LocalizedAnnouncementContent: @unchecked Sendable {}
-extension Flipchat_Messaging_V1_NaclBoxEncryptedContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_ReactionContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_ReplyContent: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -516,7 +550,8 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "text"),
     2: .standard(proto: "localized_announcement"),
-    4: .standard(proto: "nacl_box"),
+    5: .same(proto: "reaction"),
+    6: .same(proto: "reply"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -551,17 +586,30 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
           self.type = .localizedAnnouncement(v)
         }
       }()
-      case 4: try {
-        var v: Flipchat_Messaging_V1_NaclBoxEncryptedContent?
+      case 5: try {
+        var v: Flipchat_Messaging_V1_ReactionContent?
         var hadOneofValue = false
         if let current = self.type {
           hadOneofValue = true
-          if case .naclBox(let m) = current {v = m}
+          if case .reaction(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.type = .naclBox(v)
+          self.type = .reaction(v)
+        }
+      }()
+      case 6: try {
+        var v: Flipchat_Messaging_V1_ReplyContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .reply(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .reply(v)
         }
       }()
       default: break
@@ -583,9 +631,13 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
       guard case .localizedAnnouncement(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     }()
-    case .naclBox?: try {
-      guard case .naclBox(let v)? = self.type else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    case .reaction?: try {
+      guard case .reaction(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .reply?: try {
+      guard case .reply(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
     case nil: break
     }
@@ -663,12 +715,11 @@ extension Flipchat_Messaging_V1_LocalizedAnnouncementContent: SwiftProtobuf.Mess
   }
 }
 
-extension Flipchat_Messaging_V1_NaclBoxEncryptedContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".NaclBoxEncryptedContent"
+extension Flipchat_Messaging_V1_ReactionContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReactionContent"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "peer_public_key"),
-    2: .same(proto: "nonce"),
-    3: .standard(proto: "encrypted_payload"),
+    1: .standard(proto: "original_message_id"),
+    2: .same(proto: "emoji"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -677,9 +728,8 @@ extension Flipchat_Messaging_V1_NaclBoxEncryptedContent: SwiftProtobuf.Message, 
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._peerPublicKey) }()
-      case 2: try { try decoder.decodeSingularBytesField(value: &self.nonce) }()
-      case 3: try { try decoder.decodeSingularBytesField(value: &self.encryptedPayload) }()
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._originalMessageID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.emoji) }()
       default: break
       }
     }
@@ -690,22 +740,60 @@ extension Flipchat_Messaging_V1_NaclBoxEncryptedContent: SwiftProtobuf.Message, 
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._peerPublicKey {
+    try { if let v = self._originalMessageID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    if !self.nonce.isEmpty {
-      try visitor.visitSingularBytesField(value: self.nonce, fieldNumber: 2)
-    }
-    if !self.encryptedPayload.isEmpty {
-      try visitor.visitSingularBytesField(value: self.encryptedPayload, fieldNumber: 3)
+    if !self.emoji.isEmpty {
+      try visitor.visitSingularStringField(value: self.emoji, fieldNumber: 2)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipchat_Messaging_V1_NaclBoxEncryptedContent, rhs: Flipchat_Messaging_V1_NaclBoxEncryptedContent) -> Bool {
-    if lhs._peerPublicKey != rhs._peerPublicKey {return false}
-    if lhs.nonce != rhs.nonce {return false}
-    if lhs.encryptedPayload != rhs.encryptedPayload {return false}
+  public static func ==(lhs: Flipchat_Messaging_V1_ReactionContent, rhs: Flipchat_Messaging_V1_ReactionContent) -> Bool {
+    if lhs._originalMessageID != rhs._originalMessageID {return false}
+    if lhs.emoji != rhs.emoji {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_ReplyContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReplyContent"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "original_message_id"),
+    2: .standard(proto: "reply_text"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._originalMessageID) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.replyText) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._originalMessageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.replyText.isEmpty {
+      try visitor.visitSingularStringField(value: self.replyText, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_ReplyContent, rhs: Flipchat_Messaging_V1_ReplyContent) -> Bool {
+    if lhs._originalMessageID != rhs._originalMessageID {return false}
+    if lhs.replyText != rhs.replyText {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

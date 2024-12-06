@@ -48,7 +48,7 @@ public struct MessageList: View {
                 let isReceived = message.senderID != userID.uuid
                 
                 switch message.contentType {
-                case .text:
+                case .text, .reply:
                     container.append(
                         .init(
                             kind: .message(ID(uuid: message.serverID), isReceived, messageContainer.row, messageContainer.location),
@@ -64,7 +64,7 @@ public struct MessageList: View {
                         )
                     )
                     
-                case .unknown:
+                case .reaction, .unknown:
                     break
                 }
             }
@@ -403,9 +403,9 @@ extension Array where Element == MessageRow {
 private extension GeometryProxy {
     func messageWidth(for contentType: Chat.Message.ContentType) -> CGFloat {
         switch contentType {
-        case .text:
+        case .text, .reply:
             size.width * 0.80
-        case .announcement, .unknown:
+        case .announcement, .reaction, .unknown:
             size.width * 1.00
         }
     }

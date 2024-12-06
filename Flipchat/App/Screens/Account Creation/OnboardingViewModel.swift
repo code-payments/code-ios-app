@@ -76,7 +76,7 @@ class OnboardingViewModel: ObservableObject {
             
             let mnemonic: MnemonicPhrase = .generate(.words12)
             inflightMnemonic = mnemonic
-            initializedAccount = try await sessionAuthenticator.initialize(using: mnemonic, name: enteredName)
+            initializedAccount = try await sessionAuthenticator.initialize(using: mnemonic, name: enteredName, isRegistration: true)
             
             try await Task.delay(milliseconds: 500)
             accountCreationState = .success

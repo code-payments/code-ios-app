@@ -155,7 +155,8 @@ struct SavedLoginScreen: View {
             buttonState = .loading
             let initializedAccount = try await sessionAuthenticator.initialize(
                 using: account.details.account.mnemonic,
-                name: nil // Existing accounts don't need a name
+                name: nil, // Existing accounts don't need a name
+                isRegistration: false
             )
             try await Task.delay(seconds: 1)
             buttonState = .success

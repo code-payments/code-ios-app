@@ -10,7 +10,7 @@ import Foundation
 
 extension FlipchatClient {
     
-    public func fetchProfile(userID: UserID) async throws -> String {
+    public func fetchProfile(userID: UserID) async throws -> String? {
         try await withCheckedThrowingContinuation { c in
             profileService.fetchProfile(userID: userID) { c.resume(with: $0) }
         }

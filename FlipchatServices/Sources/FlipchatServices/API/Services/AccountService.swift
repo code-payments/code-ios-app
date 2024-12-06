@@ -120,6 +120,7 @@ class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {
                 
                 let flags = UserFlags(
                     isStaff: response.userFlags.isStaff,
+                    isRegistered: response.userFlags.isRegisteredAccount,
                     startGroupCost: Kin(quarks: response.userFlags.startGroupFee.quarks),
                     feeDestination: destination
                 )
@@ -136,14 +137,6 @@ class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {
             completion(.failure(.unknown))
         }
     }
-}
-
-// MARK: - User Flags -
-
-public struct UserFlags {
-    public let isStaff: Bool
-    public let startGroupCost: Kin
-    public let feeDestination: PublicKey
 }
 
 // MARK: - Errors -

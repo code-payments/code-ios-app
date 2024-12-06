@@ -33,6 +33,15 @@ class AccountManager {
         }
     }
     
+    private var currentUserFlags: UserFlags? {
+        get {
+            Keychain.userFlags
+        }
+        set {
+            Keychain.userFlags = newValue
+        }
+    }
+    
     // MARK: - Init -
     
     init() {}
@@ -47,15 +56,22 @@ class AccountManager {
         }
     }
     
-    func fetchCurrent() -> (account: KeyAccount?, userID: UserID?) {
-        (currentAccount, currentUserID)
+    func fetchCurrent() -> (account: KeyAccount?, userID: UserID?, userFlags: UserFlags?) {
+        (currentAccount, currentUserID, currentUserFlags)
     }
     
-    func set(account: KeyAccount, userID: UserID) {
+    func set(account: KeyAccount, userID: UserID, userFlags: UserFlags) {
         currentAccount = account
         currentUserID = userID
+        currentUserFlags = userFlags
         
         upsert(account: account)
+    }
+    
+    func update(userFlags: UserFlags) {
+        if currentUserFlags != nil {
+            currentUserFlags = userFlags
+        }
     }
     
     func upsert(account: KeyAccount) {
@@ -98,6 +114,7 @@ class AccountManager {
     func resetForLogout() {
         currentAccount = nil
         currentUserID = nil
+        currentUserFlags = nil
     }
     
     func nuke() {
@@ -124,6 +141,9 @@ private extension Keychain {
     
     @SecureCodable(.userCurrent)
     static var userID: UserID?
+    
+    @SecureCodable(.userFlags)
+    static var userFlags: UserFlags?
     
     @SecureCodable(.accountList, sync: true)
     static var historicalAccounts: [String: AccountDescription]?

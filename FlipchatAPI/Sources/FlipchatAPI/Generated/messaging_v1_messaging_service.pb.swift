@@ -276,6 +276,114 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError.Code: CaseIte
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Messaging_V1_GetMessageRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var chatID: Flipchat_Common_V1_ChatId {
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  public var messageID: Flipchat_Messaging_V1_MessageId {
+    get {return _messageID ?? Flipchat_Messaging_V1_MessageId()}
+    set {_messageID = newValue}
+  }
+  /// Returns true if `messageID` has been explicitly set.
+  public var hasMessageID: Bool {return self._messageID != nil}
+  /// Clears the value of `messageID`. Subsequent reads from it will return its default value.
+  public mutating func clearMessageID() {self._messageID = nil}
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _messageID: Flipchat_Messaging_V1_MessageId? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Messaging_V1_GetMessageResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Messaging_V1_GetMessageResponse.Result = .ok
+
+  public var message: Flipchat_Messaging_V1_Message {
+    get {return _message ?? Flipchat_Messaging_V1_Message()}
+    set {_message = newValue}
+  }
+  /// Returns true if `message` has been explicitly set.
+  public var hasMessage: Bool {return self._message != nil}
+  /// Clears the value of `message`. Subsequent reads from it will return its default value.
+  public mutating func clearMessage() {self._message = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case notFound // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      case 2: self = .notFound
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .notFound: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+
+  fileprivate var _message: Flipchat_Messaging_V1_Message? = nil
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Messaging_V1_GetMessageResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Messaging_V1_GetMessageResponse.Result] = [
+    .ok,
+    .denied,
+    .notFound,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Flipchat_Messaging_V1_GetMessagesRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -387,6 +495,8 @@ public struct Flipchat_Messaging_V1_SendMessageRequest {
 
   /// Allowed content types that can be sent by client:
   ///  - TextContent
+  ///  - ReactionContent
+  ///  - ReplyContent
   public var content: [Flipchat_Messaging_V1_Content] = []
 
   public var auth: Flipchat_Common_V1_Auth {
@@ -746,6 +856,9 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse.OneOf_Type: @unchecked Se
 extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError.Code: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_GetMessageRequest: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_GetMessageResponse: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_GetMessageResponse.Result: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesRequest: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesResponse: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesResponse.Result: @unchecked Sendable {}
@@ -1070,6 +1183,104 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch: SwiftProtob
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipchat_Messaging_V1_GetMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetMessageRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .standard(proto: "message_id"),
+    3: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._messageID) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._messageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_GetMessageRequest, rhs: Flipchat_Messaging_V1_GetMessageRequest) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._messageID != rhs._messageID {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_GetMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetMessageResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .same(proto: "message"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._message) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try { if let v = self._message {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_GetMessageResponse, rhs: Flipchat_Messaging_V1_GetMessageResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs._message != rhs._message {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_GetMessageResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+    2: .same(proto: "NOT_FOUND"),
+  ]
 }
 
 extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

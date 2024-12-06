@@ -14,13 +14,15 @@ extension Chat {
         
         public let id: MessageID
         public let senderID: UserID?
+        public let referenceMessageID: MessageID?
         public let date: Date
-        public var contentType: ContentType
-        public var content: String
+        public let contentType: ContentType
+        public let content: String
         
-        public init(id: MessageID, senderID: UserID?, date: Date, contentType: ContentType, content: String) {
+        public init(id: MessageID, senderID: UserID?, referenceMessageID: MessageID?, date: Date, contentType: ContentType, content: String) {
             self.id = id
             self.senderID = senderID
+            self.referenceMessageID = referenceMessageID
             self.date = date
             self.contentType = contentType
             self.content = content
@@ -32,6 +34,8 @@ extension Chat.Message {
     public enum ContentType: Int, Sendable {
         case text
         case announcement
+        case reaction
+        case reply
         case unknown = -1
     }
 }
@@ -48,28 +52,43 @@ extension Chat.Message {
 
 extension Chat.Message {
     public init(_ proto: Flipchat_Messaging_V1_Message) {
-        let (contentType, content) = Self.parseContent(proto.content)!
+        let (contentType, content, referenceMessageID) = Self.parseContent(proto.content)!
         self.init(
             id: .init(data: proto.messageID.value),
             senderID: !proto.senderID.value.isEmpty ? .init(data: proto.senderID.value) : nil,
+            referenceMessageID: referenceMessageID,
             date: proto.ts.date,
             contentType: contentType,
             content: content
         )
     }
     
-    private static func parseContent(_ contents: [Flipchat_Messaging_V1_Content]) -> (ContentType, String)? {
+    private static func parseContent(_ contents: [Flipchat_Messaging_V1_Content]) -> (ContentType, String, MessageID?)? {
         guard let type = contents[0].type else {
             return nil
         }
         
         switch type {
         case .text(let c):
-            return (.text, c.text)
+            return (.text, c.text, nil)
+            
         case .localizedAnnouncement(let c):
-            return (.announcement, c.keyOrText)
-        case .naclBox:
-            return (.text, "<Encrypted>")
+            return (.announcement, c.keyOrText, nil)
+            
+        case .reaction(let reaction):
+            return (.reaction, reaction.emoji, ID(data: reaction.originalMessageID.value))
+            
+        case .reply(let reply):
+            return (.reply, reply.replyText, ID(data: reply.originalMessageID.value))
         }
+    }
+}
+
+private extension ID {
+    init?(data: Data?) {
+        guard let data else {
+            return nil
+        }
+        self.init(data: data)
     }
 }

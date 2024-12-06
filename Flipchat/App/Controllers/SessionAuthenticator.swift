@@ -77,32 +77,32 @@ final class SessionAuthenticator: ObservableObject {
         initializeState { mnemonic in // Migration
             Task {
                 do {
-                    self.completeLogin(with: try await self.initialize(using: mnemonic, name: nil))
+                    self.completeLogin(with: try await self.initialize(using: mnemonic, name: nil, isRegistration: false))
                 } catch {
                     Analytics.userMigrationFailed()
                     self.state = .loggedOut
                 }
             }
             
-        } didAuthenticate: { keyAccount, userID in
-            self.completeLogin(with: InitializedAccount(keyAccount: keyAccount, userID: userID))
+        } didAuthenticate: { keyAccount, userID, userFlags in
+            self.completeLogin(with: InitializedAccount(keyAccount: keyAccount, userID: userID, userFlags: userFlags))
         }
         
         updateBiometricsState()
     }
     
-    private func initializeState(count: Int = 0, migration: @escaping (MnemonicPhrase) -> Void, didAuthenticate: @escaping (KeyAccount, UserID) -> Void) {
+    private func initializeState(count: Int = 0, migration: @escaping (MnemonicPhrase) -> Void, didAuthenticate: @escaping (KeyAccount, UserID, UserFlags) -> Void) {
         trace(.warning)
         
         // The most important Keychain item is the key account
         // because it's the only thing we can't derive. If the
         // the user is missing we'll transition into a 'migration'
         // and fetch the latest user data from the server.
-        let (keyAccount, userID) = accountManager.fetchCurrent()
+        let (keyAccount, userID, userFlags) = accountManager.fetchCurrent()
         
         if let keyAccount = keyAccount {
-            if let userID = userID {
-                didAuthenticate(keyAccount, userID)
+            if let userID, let userFlags {
+                didAuthenticate(keyAccount, userID, userFlags)
                 
                 if count > 0 {
                     trace(.failure, components: "Logged in after \(count) retries")
@@ -216,10 +216,11 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Session -
     
-    private func createSessionContainer(keyAccount: KeyAccount, userID: UserID) -> AuthenticatedState {
+    private func createSessionContainer(keyAccount: KeyAccount, userID: UserID, userFlags: UserFlags) -> AuthenticatedState {
         let organizer = Organizer(mnemonic: keyAccount.mnemonic)
         let session = Session(
             userID: userID,
+            userFlags: userFlags,
             organizer: organizer,
             client: client,
             flipClient: flipClient,
@@ -249,24 +250,47 @@ final class SessionAuthenticator: ObservableObject {
             client: flipClient
         )
         
-        Task {
-            try await pushController.authorizeAndRegister()
-        }
-        
-        session.delegate = self
-        
-        return AuthenticatedState(
+        let state = AuthenticatedState(
             session: session,
             chatController: chatController,
             chatViewModel: chatViewModel,
             containerViewModel: containerViewModel,
             pushController: pushController
         )
+        
+        initializeSession(state: state)
+        
+        session.delegate = self
+        
+        return state
+    }
+    
+    private func initializeSession(state: AuthenticatedState) {
+        let owner = state.session.organizer.ownerKeyPair
+        Task {
+            // 1. Push permissions
+            async let _ = try state.pushController.authorizeAndRegister()
+            
+            // 2. Update user flags
+            let flags = try await flipClient.fetchUserFlags(
+                userID: state.session.userID,
+                owner: owner
+            )
+            
+            trace(.success, components:
+                  "Updated user flags",
+                  "Staff: \(flags.isStaff ? "yes" : "no")",
+                  "Registered: \(flags.isRegistered ? "yes" : "no")"
+            )
+            
+            state.session.updateUserFlags(flags: flags)
+            accountManager.update(userFlags: flags)
+        }
     }
     
     // MARK: - Login -
     
-    func initialize(using mnemonic: MnemonicPhrase, name: String?) async throws -> InitializedAccount {
+    func initialize(using mnemonic: MnemonicPhrase, name: String?, isRegistration: Bool) async throws -> InitializedAccount {
         inProgress = true
         defer {
             inProgress = false
@@ -289,26 +313,32 @@ final class SessionAuthenticator: ObservableObject {
             // 2. If a name is provided, we'll register a new
             // account but if it's ommited, we'll attempt a login
             let userID: UserID
-            if let name {
+            let userFlags: UserFlags
+            
+            if isRegistration {
                 userID = try await flipClient.register(name: name, owner: owner)
+                userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: owner)
                 
                 // 3. For new users only, airdrop initial balance
                 _ = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
                 
             } else {
                 userID = try await flipClient.login(owner: owner)
+                userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: owner)
             }
             
             accountManager.set(
                 account: keyAccount,
-                userID: userID
+                userID: userID,
+                userFlags: userFlags
             )
             
             trace(.note, components: "Owner: \(organizer.ownerKeyPair.publicKey)")
             
             return InitializedAccount(
                 keyAccount: keyAccount,
-                userID: userID
+                userID: userID,
+                userFlags: userFlags
             )
             
         } catch {
@@ -324,7 +354,8 @@ final class SessionAuthenticator: ObservableObject {
         
         let container = createSessionContainer(
             keyAccount: initializedAccount.keyAccount,
-            userID: initializedAccount.userID
+            userID: initializedAccount.userID,
+            userFlags: initializedAccount.userFlags
         )
         
         state = .loggedIn(container)
@@ -417,10 +448,12 @@ struct InitializedAccount {
     
     let keyAccount: KeyAccount
     let userID: UserID
+    let userFlags: UserFlags
     
-    fileprivate init(keyAccount: KeyAccount, userID: UserID) {
+    fileprivate init(keyAccount: KeyAccount, userID: UserID, userFlags: UserFlags) {
         self.keyAccount = keyAccount
         self.userID = userID
+        self.userFlags = userFlags
     }
 }
 

@@ -18,7 +18,10 @@ service Messaging {
     // 'latest_only'.
     rpc StreamMessages(stream StreamMessagesRequest) returns (stream StreamMessagesResponse);
 
-    // GetMessages gets the set of messages for a chat member using a paged API
+    // GetMessage gets a single message in a chat
+    rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+
+    // GetMessages gets the set of messages for a chat using a paged API
     rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
 
     // SendMessage sends a message to a chat.
@@ -84,6 +87,25 @@ message StreamMessagesResponse {
     }
 }
 
+message GetMessageRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 3;
+}
+
+message GetMessageResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        DENIED    = 1;
+        NOT_FOUND = 2;
+    }
+
+    Message message = 2;
+}
+
 
 message GetMessagesRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
@@ -111,6 +133,8 @@ message SendMessageRequest {
 
     // Allowed content types that can be sent by client:
     //  - TextContent
+    //  - ReactionContent
+    //  - ReplyContent
     repeated Content content = 2 [(validate.rules).repeated = {
         min_items: 1
         max_items: 1
@@ -122,8 +146,8 @@ message SendMessageRequest {
 message SendMessageResponse {
     Result result = 1;
     enum Result {
-        OK                   = 0;
-        DENIED               = 1;
+        OK     = 0;
+        DENIED = 1;
     }
 
     // The chat message that was sent if the RPC was succesful, which includes

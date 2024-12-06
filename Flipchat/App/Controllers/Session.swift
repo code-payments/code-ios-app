@@ -24,20 +24,20 @@ class Session: ObservableObject {
     @Published private(set) var currentBalance: Kin = 0
     @Published private(set) var presentationState: PresentationState = .hidden(.slide)
     
-    @Published private(set) var userFlags: UserFlags?
-    
     var startGroupCost: Kin {
-        userFlags?.startGroupCost ?? 201 // TODO: Fixed price
+        userFlags.startGroupCost
     }
     
     var startGroupDestination: PublicKey? {
-        userFlags?.feeDestination
+        userFlags.feeDestination
     }
     
     weak var delegate: SessionDelegate?
     
     let userID: UserID
     let organizer: Organizer
+    
+    private(set) var userFlags: UserFlags
     
     private let client: Client
     private let flipClient: FlipchatClient
@@ -66,8 +66,9 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(userID: UserID, organizer: Organizer, client: Client, flipClient: FlipchatClient, exchange: Exchange, banners: Banners, betaFlags: BetaFlags) {
+    init(userID: UserID, userFlags: UserFlags, organizer: Organizer, client: Client, flipClient: FlipchatClient, exchange: Exchange, banners: Banners, betaFlags: BetaFlags) {
         self.userID = userID
+        self.userFlags = userFlags
         self.organizer = organizer
         self.client = client
         self.flipClient = flipClient
@@ -81,7 +82,6 @@ class Session: ObservableObject {
         )
         
         registerPoller()
-        fetchUserFlags()
         
         poll()
     }
@@ -94,21 +94,8 @@ class Session: ObservableObject {
         
     }
     
-    // MARK: - Flags -
-    
-    private func fetchUserFlags() {
-        Task {
-            let flags = try await flipClient.fetchUserFlags(
-                userID: userID,
-                owner: organizer.ownerKeyPair
-            )
-            
-            if flags.isStaff {
-                BetaFlags.shared.setAccessGranted(true)
-            }
-            
-            userFlags = flags
-        }
+    func updateUserFlags(flags: UserFlags) {
+        userFlags = flags
     }
     
     // MARK: - Poller -
@@ -269,6 +256,7 @@ extension Session {
 extension Session {
     static let mock = Session(
         userID: .mock,
+        userFlags: .mock,
         organizer: .mock,
         client: .mock,
         flipClient: .mock,

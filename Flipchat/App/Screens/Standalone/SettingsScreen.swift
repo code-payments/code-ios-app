@@ -200,7 +200,9 @@ struct SettingsScreen: View {
             sessionAuthenticator.completeLogin(
                 with: try await sessionAuthenticator.initialize(
                     using: account.account.mnemonic,
-                    name: nil)
+                    name: nil,
+                    isRegistration: false
+                )
             )
         }
     }

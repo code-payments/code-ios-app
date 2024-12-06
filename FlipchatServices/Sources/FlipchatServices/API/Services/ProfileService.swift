@@ -12,7 +12,7 @@ import GRPC
 
 class ProfileService: FlipchatService<Flipchat_Profile_V1_ProfileNIOClient> {
     
-    func fetchProfile(userID: UserID, completion: @escaping (Result<String, ErrorFetchProfile>) -> Void) {
+    func fetchProfile(userID: UserID, completion: @escaping (Result<String?, ErrorFetchProfile>) -> Void) {
         trace(.send, components: "User ID: \(userID.description)")
         
         let request = Flipchat_Profile_V1_GetProfileRequest.with {
@@ -25,7 +25,8 @@ class ProfileService: FlipchatService<Flipchat_Profile_V1_ProfileNIOClient> {
             let error = ErrorFetchProfile(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 trace(.success)
-                completion(.success(response.userProfile.displayName))
+                let displayName = response.userProfile.displayName.isEmpty ? nil : response.userProfile.displayName
+                completion(.success(displayName))
             } else {
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))

@@ -197,6 +197,8 @@ enum ContentType: Int, Value {
     
     case text
     case announcement
+    case reaction
+    case reply
     case unknown = -1
     
     init(_ content: Chat.Message.ContentType) {
@@ -205,6 +207,10 @@ enum ContentType: Int, Value {
             self = .text
         case .announcement:
             self = .announcement
+        case .reaction:
+            self = .reaction
+        case .reply:
+            self = .reply
         case .unknown:
             self = .unknown
         }

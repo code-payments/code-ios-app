@@ -164,7 +164,8 @@ struct LoginScreen: View {
         do {
             let initializedAccount = try await sessionAuthenticator.initialize(
                 using: mnemonic,
-                name: nil
+                name: nil,
+                isRegistration: false
             )
             
             try await Task.delay(seconds: 1)

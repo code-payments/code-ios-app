@@ -242,6 +242,10 @@ public enum ErrorAdvancePointer: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Messaging_V1_MessagingClientInterceptorFactoryProtocol {
+    func makeGetMessageInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Messaging_V1_GetMessageRequest, FlipchatAPI.Flipchat_Messaging_V1_GetMessageResponse>] {
+        makeInterceptors()
+    }
+    
     func makeDeleteMessageInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Messaging_V1_DeleteMessageRequest, FlipchatAPI.Flipchat_Messaging_V1_DeleteMessageResponse>] {
         makeInterceptors()
     }

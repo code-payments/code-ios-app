@@ -46,7 +46,7 @@ public struct Flipchat_Account_V1_RegisterRequest {
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
-  /// DisplayName of the new user.
+  /// Optional DisplayName of the new user
   ///
   /// If the user already exists, this is not used.
   public var displayName: String = String()
@@ -627,8 +627,10 @@ public struct Flipchat_Account_V1_UserFlags {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// Is this user associated with a Flipchat staff member?
   public var isStaff: Bool = false
 
+  /// The fee payment amount for starting a new group
   public var startGroupFee: Flipchat_Common_V1_PaymentAmount {
     get {return _startGroupFee ?? Flipchat_Common_V1_PaymentAmount()}
     set {_startGroupFee = newValue}
@@ -638,6 +640,7 @@ public struct Flipchat_Account_V1_UserFlags {
   /// Clears the value of `startGroupFee`. Subsequent reads from it will return its default value.
   public mutating func clearStartGroupFee() {self._startGroupFee = nil}
 
+  /// The destination account where fees should be paid to
   public var feeDestination: Flipchat_Common_V1_PublicKey {
     get {return _feeDestination ?? Flipchat_Common_V1_PublicKey()}
     set {_feeDestination = newValue}
@@ -646,6 +649,9 @@ public struct Flipchat_Account_V1_UserFlags {
   public var hasFeeDestination: Bool {return self._feeDestination != nil}
   /// Clears the value of `feeDestination`. Subsequent reads from it will return its default value.
   public mutating func clearFeeDestination() {self._feeDestination = nil}
+
+  /// Is this a fully registered account using IAP for account creation?
+  public var isRegisteredAccount: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1240,6 +1246,7 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     1: .standard(proto: "is_staff"),
     2: .standard(proto: "start_group_fee"),
     3: .standard(proto: "fee_destination"),
+    4: .standard(proto: "is_registered_account"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1251,6 +1258,7 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 1: try { try decoder.decodeSingularBoolField(value: &self.isStaff) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._startGroupFee) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._feeDestination) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.isRegisteredAccount) }()
       default: break
       }
     }
@@ -1270,6 +1278,9 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     try { if let v = self._feeDestination {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if self.isRegisteredAccount != false {
+      try visitor.visitSingularBoolField(value: self.isRegisteredAccount, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1277,6 +1288,7 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.isStaff != rhs.isStaff {return false}
     if lhs._startGroupFee != rhs._startGroupFee {return false}
     if lhs._feeDestination != rhs._feeDestination {return false}
+    if lhs.isRegisteredAccount != rhs.isRegisteredAccount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

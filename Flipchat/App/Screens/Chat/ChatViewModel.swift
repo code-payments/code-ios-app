@@ -205,12 +205,7 @@ class ChatViewModel: ObservableObject {
     }
     
     private func attemptCreateChat() {
-        guard let userFlags = session.userFlags else {
-            showInsufficientFundsError() // Different error?
-            return
-        }
-        
-        if session.hasSufficientFunds(for: userFlags.startGroupCost) {
+        if session.hasSufficientFunds(for: session.userFlags.startGroupCost) {
             isShowingCreatePayment = true
         } else {
             showInsufficientFundsError()
@@ -218,10 +213,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func createChat() async throws {
-        guard let userFlags = session.userFlags else {
-            throw Error.missingUserFlags
-        }
-        
+        let userFlags = session.userFlags
         let chatID = try await chatController.startGroupChat(
             amount: userFlags.startGroupCost,
             destination: userFlags.feeDestination

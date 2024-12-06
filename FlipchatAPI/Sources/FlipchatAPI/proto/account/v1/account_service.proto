@@ -43,11 +43,11 @@ message RegisterRequest {
 	// Signature of this message (without the signature), using the provided keypaid.
 	common.v1.Signature signature = 2 [(validate.rules).message.required = true];
 
-	// DisplayName of the new user.
+	// Optional DisplayName of the new user
 	//
 	// If the user already exists, this is not used.
 	string display_name = 3 [(validate.rules).string = {
-		min_len: 1
+		min_len: 0
 		max_len: 64
 	}];
 }
@@ -160,9 +160,15 @@ message GetUserFlagsResponse {
 }
 
 message UserFlags {
+	// Is this user associated with a Flipchat staff member?
 	bool is_staff = 1;
 
+	// The fee payment amount for starting a new group
 	common.v1.PaymentAmount start_group_fee = 2 [(validate.rules).message.required = true];
 
+	// The destination account where fees should be paid to
 	common.v1.PublicKey fee_destination = 3 [(validate.rules).message.required = true];
+
+	// Is this a fully registered account using IAP for account creation?
+	bool is_registered_account = 4;
 }

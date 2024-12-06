@@ -11,6 +11,7 @@ import FlipchatServices
 enum SecureKey: String {
     
     case userCurrent    = "com.flipchat.user.current"
+    case userFlags      = "com.flipchat.user.flags"
 
     case accountCurrent = "com.flipchat.account.current"
     case accountList    = "com.flipchat.account.list"

@@ -17,7 +17,7 @@ struct IntroScreen: View {
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
     
-    @StateObject private var viewModel: OnboardingViewModel
+    @StateObject private var viewModel: IntroViewModel
     
     private let sessionAuthenticator: SessionAuthenticator
     private let banners: Banners
@@ -28,7 +28,7 @@ struct IntroScreen: View {
         self.sessionAuthenticator = sessionAuthenticator
         self.banners = banners
         self._viewModel = StateObject(
-            wrappedValue: OnboardingViewModel(sessionAuthenticator: sessionAuthenticator, banners: banners)
+            wrappedValue: IntroViewModel(sessionAuthenticator: sessionAuthenticator, banners: banners)
         )
     }
     
@@ -111,16 +111,16 @@ struct IntroScreen: View {
             .ignoresSafeArea(.keyboard)
             .navigationBarTitle("")
             .navigationBarHidden(true)
-            .navigationDestination(for: OnboardingViewModel.NavPath.self) { path in
+            .navigationDestination(for: IntroViewModel.NavPath.self) { path in
                 switch path {
-                case .enterName:
-                    EnterNameScreen(viewModel: viewModel)
+//                case .enterName:
+//                    EnterNameScreen(viewModel: viewModel)
                 case .login:
                     LoginScreen()
-                case .permissionPush:
-                    PushPermissionsScreen(viewModel: viewModel)
-                case .accessKey:
-                    AccessKeyScreen(viewModel: viewModel)
+//                case .permissionPush:
+//                    PushPermissionsScreen(viewModel: viewModel)
+//                case .accessKey:
+//                    AccessKeyScreen(viewModel: viewModel)
                 }
             }
         }
