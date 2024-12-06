@@ -51,7 +51,7 @@ extension Database {
             m.contentType AS mType,
             m.content     AS mContent,
 
-            memberCount.count AS memberCount,
+            COALESCE(memberCount.count, 0) AS memberCount,
             u.displayName AS hostDisplayName
         FROM
             room r
