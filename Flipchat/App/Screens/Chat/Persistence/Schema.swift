@@ -30,6 +30,7 @@ struct MessageTable: Sendable {
     let date        = Expression <Date>        ("date")
     let state       = Expression <Int>         ("state")
     let senderID    = Expression <UUID?>       ("senderID")
+    let referenceID = Expression <UUID?>       ("referenceID")
     let contentType = Expression <ContentType> ("contentType")
     let content     = Expression <String>      ("content")
     let isBatch     = Expression <Bool>        ("isBatch")
@@ -97,6 +98,7 @@ extension Database {
                 t.column(messageTable.date)
                 t.column(messageTable.state, defaultValue: 0) // Default: .sent
                 t.column(messageTable.senderID)
+                t.column(messageTable.referenceID)
                 t.column(messageTable.contentType, defaultValue: .unknown)
                 t.column(messageTable.content)
                 t.column(messageTable.isBatch, defaultValue: false)

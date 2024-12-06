@@ -129,6 +129,7 @@ extension Database {
                 table.date        <- message.date,
                 table.state       <- Chat.Message.State.delivered.rawValue,
                 table.senderID    <- message.senderID?.uuid,
+                table.referenceID <- message.referenceMessageID?.uuid,
                 table.contentType <- ContentType(message.contentType),
                 table.content     <- message.content,
                 table.isBatch     <- isBatch,
