@@ -66,7 +66,38 @@ struct ChatsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                ScrollBox(color: .backgroundMain) {
+                NavBar(title: "Rooms") {
+                    debugTapCount += 1
+                    if debugTapCount >= 7 {
+                        logoutAction()
+                        debugTapCount = 0
+                    }
+                    
+                } leading: {
+                    if betaFlags.accessGranted {
+                        Button {
+                            isShowingSettings = true
+                        } label: {
+                            Image.asset(.more)
+                                .padding(.vertical, 10)
+                                .padding(.leading, 20)
+                                .padding(.trailing, 30)
+                        }
+                        
+                    } else {
+                        NavBarEmptyItem()
+                    }
+                    
+                } trailing: {
+                    Button {
+                        viewModel.startChatting()
+                    } label: {
+                        Image.asset(.plusCircle)
+                            .padding(5)
+                    }
+                }
+                
+                ScrollBox(color: .backgroundMain, ignoreEdges: [.bottom]) {
                     List {
                         Section {
                             ForEach(chatState.rooms) { roomRow in
@@ -85,7 +116,7 @@ struct ChatsScreen: View {
                                     }
                             }
                         } footer: {
-                            CodeButton(style: .filled, title: "Join a Room") {
+                            CodeButton(style: .filled, title: "Find Room") {
                                 viewModel.startChatting()
                             }
                             .listRowSeparator(.hidden)
@@ -105,53 +136,6 @@ struct ChatsScreen: View {
             .onDisappear {
                 didDisappear()
             }
-            .navigationBarHidden(false)
-            .navigationBarTitle(Text("Chats"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if betaFlags.accessGranted {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button {
-                            isShowingSettings = true
-                        } label: {
-                            Image.asset(.more)
-                                .padding(.vertical, 10)
-                                .padding(.leading, 10)
-                                .padding(.trailing, 40)
-                        }
-                    }
-                }
-                
-                ToolbarItem(placement: .principal) {
-                    Text("Chats")
-                        .font(.appTitle)
-                        .foregroundStyle(Color.textMain)
-                        .onTapGesture {
-                            debugTapCount += 1
-                            if debugTapCount >= 7 {
-                                logoutAction()
-                                debugTapCount = 0
-                            }
-                        }
-                        .sheet(isPresented: $isShowingSettings) {
-                            SettingsScreen(
-                                sessionAuthenticator: sessionAuthenticator,
-                                session: session,
-                                isPresented: $isShowingSettings
-                            )
-                            .environmentObject(banners)
-                        }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        viewModel.startChatting()
-                    } label: {
-                        Image.asset(.plusCircle)
-                            .padding(5)
-                    }
-                }
-            }
         }
         .sheet(isPresented: $viewModel.isShowingEnterRoomNumber) {
             EnterRoomNumberScreen(viewModel: viewModel)
@@ -170,6 +154,14 @@ struct ChatsScreen: View {
                     cancelAction: { viewModel.isShowingCreatePayment = false }
                 )
             }
+        }
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsScreen(
+                sessionAuthenticator: sessionAuthenticator,
+                session: session,
+                isPresented: $isShowingSettings
+            )
+            .environmentObject(banners)
         }
         .onChange(of: chatController.chatsDidChange) { _, _ in
             try? chatState.reload()

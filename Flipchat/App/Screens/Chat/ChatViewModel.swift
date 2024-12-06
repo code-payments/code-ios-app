@@ -84,13 +84,13 @@ class ChatViewModel: ObservableObject {
             description: nil,
             position: .bottom,
             actions: [
-                .standard(title: "Enter a Room Number") { [weak self] in
+                .standard(title: "Enter Room Number") { [weak self] in
                     Task {
                         try await Task.delay(milliseconds: 300)
                         self?.showEnterRoomNumber()
                     }
                 },
-                .standard(title: "Create a New Room", action: attemptCreateChat),
+                .standard(title: "Create New Room", action: attemptCreateChat),
                 .cancel(title: "Cancel"),
             ]
         )

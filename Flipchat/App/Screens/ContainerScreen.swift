@@ -76,14 +76,30 @@ struct ContainerScreen: View {
     }
     
     @ViewBuilder private func homeView(state: AuthenticatedState) -> some View {
-        TabBarView(selection: $tabSelection, isTabBarVisible: $viewModel.isTabBarVisible) {
             NavigationStack(path: $viewModel.navigationPath) {
-                ChatsScreen(
-                    sessionAuthenticator: sessionAuthenticator,
-                    session: state.session,
-                    chatController: state.chatController,
-                    viewModel: state.chatViewModel
-                )
+                TabBarView(selection: $tabSelection, isTabBarVisible: .constant(true)) {
+                    ChatsScreen(
+                        sessionAuthenticator: sessionAuthenticator,
+                        session: state.session,
+                        chatController: state.chatController,
+                        viewModel: state.chatViewModel
+                    )
+                    .tabBarItem(
+                        title: "Chats",
+                        asset: .bubble,
+                        selection: tabSelection
+                    )
+                    
+                    BalanceScreen(
+                        session: state.session,
+                        container: container
+                    )
+                    .tabBarItem(
+                        title: "Balance",
+                        asset: .kinHex,
+                        selection: tabSelection
+                    )
+                }
                 .navigationDestination(for: ContainerPath.self) { path in
                     if let authenticatedState {
                         switch path {
@@ -105,24 +121,7 @@ struct ContainerScreen: View {
                         }
                     }
                 }
-                
             }
-            .tabBarItem(
-                title: "Chats",
-                asset: .bubble,
-                selection: tabSelection
-            )
-            
-            BalanceScreen(
-                session: state.session,
-                container: container
-            )
-            .tabBarItem(
-                title: "Balance",
-                asset: .kinHex,
-                selection: tabSelection
-            )
-        }
     }
 }
 
