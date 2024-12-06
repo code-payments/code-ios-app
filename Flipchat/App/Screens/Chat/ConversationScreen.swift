@@ -162,7 +162,7 @@ struct ConversationScreen: View {
                     messages: conversationState.messages,
                     action: messageAction,
                     loadMore: {
-                        try? conversationState.addPageAndReload()
+//                        try? conversationState.addPageAndReload()
                     }
                 )
                 
