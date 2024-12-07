@@ -15,13 +15,19 @@ extension Database {
     /// captures the function in which this was called, otherwise
     /// it will always captured in transaction {}
     @inline(__always)
-    func transaction(_ block: (Database) throws -> Void) throws {
+    func transaction(silent: Bool = false, _ block: (Database) throws -> Void) throws {
 //        let start = Date.now
         do {
             try writer.transaction { [unowned self] in
                 try block(self)
             }
-            commit?()
+            
+            // There are instances where we want to commit
+            // the transaction but avoid notifying the UI
+            // layer of the change
+            if !silent {
+                commit?()
+            }
             
         } catch {
             trace(.failure, components: "Transaction error: \(error)")

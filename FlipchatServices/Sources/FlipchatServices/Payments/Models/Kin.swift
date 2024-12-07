@@ -96,7 +96,8 @@ extension Kin {
 
 extension Kin {
     public func formattedTruncatedKin() -> String {
-        NumberFormatter.kin.string(from: truncatedKinValue)!
+        let number = NumberFormatter.kin.string(from: truncatedKinValue)!
+        return "\(number) Kin"
     }
     
     public func formattedFiat(rate: Rate, truncated: Bool = false, suffix: String?) -> String {

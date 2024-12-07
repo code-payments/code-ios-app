@@ -48,7 +48,6 @@ class ChatViewModel: ObservableObject {
     
     private weak var containerViewModel: ContainerViewModel?
     
-    
     // MARK: - Init -
     
     init(session: Session, chatController: ChatController, client: FlipchatClient, exchange: Exchange, banners: Banners, containerViewModel: ContainerViewModel) {
@@ -151,7 +150,7 @@ class ChatViewModel: ObservableObject {
             // send the user directly into the conversation.
             // Exclude chats that have been previously joined
             // and left because we have to update server state.
-            if let chatID = try await chatController.chatFor(roomNumber: roomNumber) {
+            if let chatID = try await chatController.localChatFor(roomNumber: roomNumber) {
                 
                 withButtonState(state: \.buttonStatePreviewRoom, delayTask: false) {} success: {
                     self.completeJoiningChat(chatID: chatID)

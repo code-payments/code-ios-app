@@ -43,7 +43,7 @@ class ChatController: ObservableObject {
         streamChatEvents()
         
         database.commit = { [weak self] in
-            self?.chatsDidChange += 1
+            self?.chatsChanged()
         }
     }
     
@@ -64,6 +64,10 @@ class ChatController: ObservableObject {
     
     deinit {
         trace(.warning, components: "Deallocating ChatController.")
+    }
+    
+    private func chatsChanged() {
+        chatsDidChange += 1
     }
     
     func prepareForLogout() {
@@ -107,36 +111,34 @@ class ChatController: ObservableObject {
         trace(.send)
         
         let chats = try await client.fetchChats(owner: owner)
-        try database.transaction {
-            try $0.insertRooms(rooms: chats)
-        }
         
-        for chat in chats {
-            Task {
-                let description = try await client.fetchChat(
-                    for: .chatID(chat.id),
-                    owner: owner
-                )
-                
-                // Batch denotes any messages that we're inserted as part of an explicit sync
-                // operation that loaded messages in a batch. Without this flag, we can receive
-                // messages over the stream that don't continue the previous sequence and corrupt
-                // the true head of the conversation.
-                let latestBatchMessageID = try database.getLatestMessageID(roomID: chat.id.uuid, batchOnly: true)
-                
-                let messages: [Chat.Message]
-                if let latestBatchMessageID {
-                    messages = try await syncMessagesForward(for: chat.id, from: latestBatchMessageID)
-                } else {
-                    messages = try await syncMessagesBackwards(for: chat.id)
-                }
-                
-                try database.transaction {
-                    try $0.insertMembers(members: description.members, chatID: chat.id)
-                    try $0.insertMessages(messages: messages, chatID: chat.id, isBatch: true)
+        await withThrowingTaskGroup(of: Void.self) { group in
+            for chat in chats {
+                group.addTask { [weak self] in
+                    guard let self else { return }
+                    let description = try await client.fetchChat(
+                        for: .chatID(chat.id),
+                        owner: owner
+                    )
+                    
+                    let latestBatchMessageID = try await database.getLatestMessageID(roomID: chat.id.uuid, batchOnly: true)
+                    
+                    let messages: [Chat.Message]
+                    if let latestBatchMessageID {
+                        messages = try await syncMessagesForward(for: chat.id, from: latestBatchMessageID)
+                    } else {
+                        messages = try await syncMessagesBackwards(for: chat.id)
+                    }
+                    
+                    try await insert(chat: description, messages: messages, silent: true)
                 }
             }
         }
+        
+        // We silence all transactions and defer
+        // the UI updates until all sync tasks
+        // above are finished.
+        chatsChanged()
     }
     
     func syncChatAndMembers(for chatID: ChatID) async throws {
@@ -145,10 +147,7 @@ class ChatController: ObservableObject {
             owner: owner
         )
         
-        try database.transaction {
-            try $0.insertMembers(members: description.members, chatID: chatID)
-            try $0.insertRooms(rooms: [description.metadata])
-        }
+        try insert(chat: description)
     }
     
     private func syncMessagesBackwards(for chatID: ChatID, from messageID: UUID? = nil) async throws -> [Chat.Message] {
@@ -311,8 +310,6 @@ class ChatController: ObservableObject {
         try database.transaction {
             try $0.insertMessages(messages: filteredMessages, chatID: chatID, isBatch: false)
         }
-        
-        changedChats()
     }
     
     func sendMessage(text: String, for chatID: ChatID) async throws {
@@ -327,8 +324,6 @@ class ChatController: ObservableObject {
         try database.transaction {
             try $0.insertMessages(messages: [deliveredMessage], chatID: chatID, isBatch: false)
         }
-        
-        changedChats()
     }
     
     func advanceReadPointerToLatest(for chatID: ChatID) async throws {
@@ -353,13 +348,11 @@ class ChatController: ObservableObject {
                 messageID: messageID
             )
         }
-        
-        changedChats()
     }
     
     // MARK: - Group Chat -
     
-    func chatFor(roomNumber: RoomNumber) async throws -> ChatID? {
+    func localChatFor(roomNumber: RoomNumber) async throws -> ChatID? {
         if let id = try? database.getRoomID(roomNumber: roomNumber) {
             return ChatID(data: id.data)
         }
@@ -379,18 +372,14 @@ class ChatController: ObservableObject {
             owner: owner
         )
         
-        let roomID = description.metadata.id
-        let messages = try await syncMessagesBackwards(for: roomID)
+        let messages = try await syncMessagesBackwards(for: description.metadata.id)
         
-        try database.transaction {
-            try $0.insertRooms(rooms: [description.metadata])
-            try $0.insertMembers(members: description.members, chatID: roomID)
-            try $0.insertMessages(messages: messages, chatID: roomID, isBatch: true)
-        }
+        try insert(
+            chat: description,
+            messages: messages
+        )
         
-        changedChats()
-        
-        return roomID
+        return description.metadata.id
     }
     
     func fetchGroupChat(roomNumber: RoomNumber) async throws -> (Chat.Metadata, [Chat.Member], Chat.Identity) {
@@ -423,21 +412,35 @@ class ChatController: ObservableObject {
             intentID = nil
         }
         
-        let description = try await client.joinGroupChat(
+        async let description = try client.joinGroupChat(
             chatID: chatID,
             intentID: intentID,
             owner: owner
         )
         
-        let messages = try await syncMessagesBackwards(for: chatID)
+        async let messages = try syncMessagesBackwards(for: chatID)
         
-        try database.transaction {
-            try $0.insertRooms(rooms: [description.metadata])
-            try $0.insertMembers(members: description.members, chatID: chatID)
-            try $0.insertMessages(messages: messages, chatID: chatID, isBatch: true)
-        }
+        try insert(
+            chat: await description,
+            messages: await messages
+        )
         
-        changedChats()
+        return chatID
+    }
+    
+    func watchRoom(chatID: ChatID) async throws -> ChatID {
+        async let description = try client.joinGroupChat(
+            chatID: chatID,
+            intentID: nil, // No payment to watch
+            owner: owner
+        )
+        
+        async let messages = try syncMessagesBackwards(for: chatID)
+        
+        try insert(
+            chat: await description,
+            messages: await messages
+        )
         
         return chatID
     }
@@ -466,26 +469,25 @@ class ChatController: ObservableObject {
         try database.transaction {
             try $0.deleteRoom(chatID: chatID)
         }
-        
-        changedChats()
     }
     
     func changeCover(chatID: ChatID, newCover: Kin) async throws {
         try await client.changeCover(chatID: chatID, newCover: newCover, owner: owner)
         let chat = try await client.fetchChat(for: .chatID(chatID), owner: owner)
         
-        try database.transaction {
-            try $0.insertRooms(rooms: [chat.metadata])
-            try $0.insertMembers(members: chat.members, chatID: chatID)
-        }
-        
-        changedChats()
+        try insert(chat: chat)
     }
     
     // MARK: - Changes -
     
-    private func changedChats() {
-        chatsDidChange += 1
+    private func insert(chat: ChatDescription, messages: [Chat.Message]? = nil, silent: Bool = false) throws {
+        try database.transaction(silent: silent) {
+            try $0.insertRooms(rooms: [chat.metadata])
+            try $0.insertMembers(members: chat.members, chatID: chat.metadata.id)
+            if let messages {
+                try $0.insertMessages(messages: messages, chatID: chat.metadata.id, isBatch: true)
+            }
+        }
     }
 }
 

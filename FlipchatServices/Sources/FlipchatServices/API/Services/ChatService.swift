@@ -158,6 +158,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         
         let request = Flipchat_Chat_V1_JoinChatRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
+            $0.withoutSendPermission = intentID == nil
             if let intentID {
                 $0.paymentIntent = .with { $0.value = intentID.data }
             }

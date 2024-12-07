@@ -49,7 +49,7 @@ struct PreviewRoomScreen: View {
                             VStack(spacing: 4) {
                                 Text("Hosted by \(host.displayName ?? "Member")")
                                 Text("\(members.count) people inside")
-                                Text("Cover Charge: ⬢ \(chat.coverAmount.truncatedKinValue) Kin")
+                                Text("Cover Charge: ⬢ \(chat.coverAmount.formattedTruncatedKin())")
                             }
                             .opacity(0.8)
                             .font(.appTextSmall)
@@ -61,14 +61,16 @@ struct PreviewRoomScreen: View {
                             DeterministicGradient(data: chat.id.data)
                         }
                     }
-                    .padding(20)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
                     
                     Spacer()
                     
-                    VStack(spacing: 20) {
+                    VStack(spacing: 10) {
                         CodeButton(
                             style: .filled,
-                            title: "Join Room \(chat.roomNumber.roomString)"
+                            title: "Join Room: ⬣ \(chat.coverAmount.formattedTruncatedKin())"
                         ) {
                             Task {
                                 try await viewModel.attemptJoinChat(
@@ -78,9 +80,17 @@ struct PreviewRoomScreen: View {
                                 )
                             }
                         }
+                        
+                        CodeButton(
+                            style: .subtle,
+                            title: "Let me chat first"
+                        ) {
+                            // Nothing yet
+                        }
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
             .foregroundColor(.textMain)
             .sheet(isPresented: $viewModel.isShowingJoinPayment) {
