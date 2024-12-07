@@ -36,6 +36,8 @@ class ChatViewModel: ObservableObject {
     
     @Published var buttonStateLeaveChat: ButtonState = .normal
     
+    @Published var buttonStateWatchChat: ButtonState = .normal
+    
     var userID: UserID {
         session.userID
     }
@@ -153,8 +155,10 @@ class ChatViewModel: ObservableObject {
             if let chatID = try await chatController.localChatFor(roomNumber: roomNumber) {
                 
                 withButtonState(state: \.buttonStatePreviewRoom, delayTask: false) {} success: {
-                    self.completeJoiningChat(chatID: chatID)
-                } error: { _ in }
+                    self.pushJoinedChat(chatID: chatID)
+                } error: { error in
+                    ErrorReporting.captureError(error)
+                }
                 
             } else {
                 withButtonState(state: \.buttonStatePreviewRoom, showSuccess: false) { [chatController] in
@@ -163,15 +167,15 @@ class ChatViewModel: ObservableObject {
                 } success: { (chat, members, host) in
                     self.joinRoomPath.append(.previewRoom(chat, members, host))
                     
-                } error: { _ in
+                } error: { error in
+                    ErrorReporting.captureError(error)
                     self.showFailedToLoadRoomError()
                 }
             }
         }
     }
     
-    func showChangeCover(currentCover: Kin) {
-//        enteredNewCover = String(currentCover.truncatedKinValue)
+    func showChangeCover() {
         isShowingChangeCover = true
     }
     
@@ -198,7 +202,8 @@ class ChatViewModel: ObservableObject {
         } success: { chatID in
             self.dismissChangeCover()
             
-        } error: { _ in
+        } error: { error in
+            ErrorReporting.captureError(error)
             self.showGenericError()
         }
     }
@@ -223,7 +228,7 @@ class ChatViewModel: ObservableObject {
     
     func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
         if chatID == hostID {
-            try await joinChat(
+            try await payAndJoinChat( // Payment skipped for chat hosts / owners
                 chatID: chatID,
                 hostID: hostID,
                 amount: amount
@@ -237,7 +242,7 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    func joinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+    func payAndJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
         // We don't want to use withButtonState here because
         // it's not desireble to show loading and success state
         // here. Most of the time is taken up by the payment modal.
@@ -249,12 +254,24 @@ class ChatViewModel: ObservableObject {
             )
             
         } catch {
+            ErrorReporting.captureError(error)
             self.showGenericError()
             throw error
         }
     }
     
-    func completeJoiningChat(chatID: ChatID) {
+    func watchChat(chatID: ChatID) async throws {
+        withButtonState(state: \.buttonStateWatchChat) { [chatController] in
+            _ = try await chatController.watchRoom(chatID: chatID)
+        } success: {
+            self.pushJoinedChat(chatID: chatID)
+        } error: { error in
+            ErrorReporting.captureError(error)
+            self.showGenericError()
+        }
+    }
+    
+    func pushJoinedChat(chatID: ChatID) {
         containerViewModel?.pushChat(chatID: chatID)
         Task {
             try await Task.delay(milliseconds: 400)
@@ -272,7 +289,8 @@ class ChatViewModel: ObservableObject {
             try await chatController.leaveChat(chatID: chatID)
         } success: {
             self.popChat()
-        } error: { _ in
+        } error: { error in
+            ErrorReporting.captureError(error)
             self.showFailedToLeaveChatError()
         }
     }

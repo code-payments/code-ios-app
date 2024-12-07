@@ -92,7 +92,8 @@ extension Database {
         let mTable = MessageTable()
         
         let rooms = try statement.map { row in
-            RoomDescription(
+            let messageID = (try? row.get(mTable.serverID.alias("mServerID")))
+            return RoomDescription(
                 room: .init(
                     serverID:    row[rTable.serverID],
                     kind:        row[rTable.kind],
@@ -103,7 +104,7 @@ extension Database {
                     unreadCount: row[rTable.unreadCount],
                     isDeleted:   row[rTable.isDeleted]
                 ),
-                lastMessage: .init(
+                lastMessage: messageID == nil ? nil : .init(
                     serverID:    row[mTable.serverID.alias("mServerID")],
                     roomID:      row[mTable.roomID.alias("mRoomID")],
                     date:        row[mTable.date.alias("mDate")],
@@ -200,7 +201,7 @@ extension Database {
 struct RoomDescription {
     
     let room: Room
-    let lastMessage: Message
+    let lastMessage: Message?
     let memberCount: Int
     let hostDisplayName: String?
     

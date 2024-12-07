@@ -103,7 +103,7 @@ struct RoomDetailsScreen: View {
                                     style: .filled,
                                     title: "Change Cover Charge"
                                 ) {
-                                    viewModel.showChangeCover(currentCover: room.room.cover)
+                                    viewModel.showChangeCover()
                                 }
                             }
                             

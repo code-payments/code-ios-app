@@ -76,7 +76,13 @@ private class ConversationState: ObservableObject {
             return
         }
         
-        let messageID = MessageID(uuid: room.lastMessage.serverID)
+        let messageID: MessageID?
+        if let lastMessage = room.lastMessage {
+            messageID = MessageID(uuid: lastMessage.serverID)
+        } else {
+            messageID = nil
+        }
+        
         stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { [weak self] result in
             switch result {
             case .success(let messages):
@@ -166,15 +172,26 @@ struct ConversationScreen: View {
                     }
                 )
                 
-                if !conversationState.selfUser.isMuted {
-                    inputView()
-                } else {
-                    VStack {
-                        Text("You've been muted")
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.textSecondary)
+                if chatController.isRegistered {
+                    if !conversationState.selfUser.isMuted {
+                        inputView()
+                    } else {
+                        VStack {
+                            Text("You've been muted")
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textSecondary)
+                        }
+                        .frame(height: 50)
                     }
-                    .frame(height: 50)
+                } else {
+                    CodeButton(
+                        style: .filled,
+                        title: "Join Room: ⬣ \(conversationState.room.room.cover.formattedTruncatedKin())"
+                    ) {
+                        // Do nothing for now
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
                 }
             }
         }

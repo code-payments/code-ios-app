@@ -25,6 +25,13 @@ struct ContainerScreen: View {
         return nil
     }
     
+    private var isTabBarVisible: Bool {
+        if case .loggedIn(let state) = sessionAuthenticator.state {
+            return state.session.isRegistered
+        }
+        return false
+    }
+    
     // MARK: - Init -
     
     init(sessionAuthenticator: SessionAuthenticator) {
@@ -77,7 +84,7 @@ struct ContainerScreen: View {
     
     @ViewBuilder private func homeView(state: AuthenticatedState) -> some View {
             NavigationStack(path: $viewModel.navigationPath) {
-                TabBarView(selection: $tabSelection, isTabBarVisible: .constant(true)) {
+                TabBarView(selection: $tabSelection, isTabBarVisible: .constant(isTabBarVisible)) {
                     ChatsScreen(
                         sessionAuthenticator: sessionAuthenticator,
                         session: state.session,

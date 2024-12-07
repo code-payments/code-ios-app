@@ -52,15 +52,15 @@ struct IntroScreen: View {
                         
                         VStack(spacing: 5) {
                             CodeButton(
-                                isLoading: sessionAuthenticator.inProgress,
+                                state: sessionAuthenticator.loginState,
                                 style: .filled,
-                                title: Localized.Action.createAccount,
+                                title: "Get Started",
                                 action: viewModel.startCreateAccount
                             )
                             
                             CodeButton(
                                 style: .subtle,
-                                title: Localized.Action.logIn,
+                                title: "Log In",
                                 action: viewModel.startLogin
                             )
                         }

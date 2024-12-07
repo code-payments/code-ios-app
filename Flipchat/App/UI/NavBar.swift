@@ -12,17 +12,20 @@ import FlipchatServices
 
 public struct NavBar<Leading, Trailing>: View where Leading: View, Trailing: View {
     
+    public let isLoading: Bool
     public let title: String
     public let titleAction: () -> Void
     public let leading: () -> Leading
     public let trailing: () -> Trailing
     
     public init(
+        isLoading: Bool = false,
         title: String,
         titleAction: @escaping () -> Void = {},
         @ViewBuilder leading: @escaping () -> Leading = { NavBarEmptyItem() },
         @ViewBuilder trailing: @escaping () -> Trailing = { NavBarEmptyItem() }
     ) {
+        self.isLoading = isLoading
         self.title = title
         self.titleAction = titleAction
         self.leading = leading
@@ -37,13 +40,17 @@ public struct NavBar<Leading, Trailing>: View where Leading: View, Trailing: Vie
                 
                 Spacer()
                 
-                Text(title)
-                    .padding(10)
-                    .foregroundColor(.textMain)
-                    .font(.appTitle)
-                    .onTapGesture {
-                        titleAction()
-                    }
+                if isLoading {
+                    LoadingView(color: .textSecondary)
+                } else {
+                    Text(title)
+                        .padding(10)
+                        .foregroundColor(.textMain)
+                        .font(.appTitle)
+                        .onTapGesture {
+                            titleAction()
+                        }
+                }
                     
                 Spacer()
                 

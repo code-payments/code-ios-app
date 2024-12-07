@@ -82,10 +82,13 @@ struct PreviewRoomScreen: View {
                         }
                         
                         CodeButton(
+                            state: viewModel.buttonStateWatchChat,
                             style: .subtle,
                             title: "Let me chat first"
                         ) {
-                            // Nothing yet
+                            Task {
+                                try await viewModel.watchChat(chatID: chat.id)
+                            }
                         }
                     }
                 }
@@ -101,13 +104,13 @@ struct PreviewRoomScreen: View {
                         primaryAction: "Swipe to Pay",
                         secondaryAction: "Cancel",
                         paymentAction: {
-                            try await viewModel.joinChat(
+                            try await viewModel.payAndJoinChat(
                                 chatID: chat.id,
                                 hostID: chat.ownerUser,
                                 amount: chat.coverAmount
                             )
                         },
-                        dismissAction: { viewModel.completeJoiningChat(chatID: chat.id) },
+                        dismissAction: { viewModel.pushJoinedChat(chatID: chat.id) },
                         cancelAction: { viewModel.cancelJoinChatPayment() }
                     )
                 }

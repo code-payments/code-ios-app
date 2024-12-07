@@ -14,8 +14,6 @@ class IntroViewModel: ObservableObject {
     
     @Published var navigationPath: [NavPath] = []
     
-    @Published var accountCreationState: ButtonState = .normal
-    
     private let sessionAuthenticator: SessionAuthenticator
     private let banners: Banners
     
@@ -34,23 +32,13 @@ class IntroViewModel: ObservableObject {
     
     func startCreateAccount() {
         Task {
-            accountCreationState = .loading
-            
             let mnemonic: MnemonicPhrase = .generate(.words12)
             let initializedAccount = try await sessionAuthenticator.initialize(
                 using: mnemonic,
                 name: nil,
                 isRegistration: true
             )
-            
-            try await Task.delay(milliseconds: 500)
-            accountCreationState = .success
-            try await Task.delay(milliseconds: 500)
-            
             sessionAuthenticator.completeLogin(with: initializedAccount)
-            
-            try await Task.delay(milliseconds: 500)
-            accountCreationState = .normal
         }
     }
 }

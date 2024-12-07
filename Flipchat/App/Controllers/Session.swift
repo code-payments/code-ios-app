@@ -13,6 +13,7 @@ import FlipchatServices
 @MainActor
 protocol SessionDelegate: AnyObject {
     func didDetectUnlockedAccount()
+    func didUpdateUserFlags(flags: UserFlags)
 }
 
 @MainActor
@@ -30,6 +31,10 @@ class Session: ObservableObject {
     
     var startGroupDestination: PublicKey? {
         userFlags.feeDestination
+    }
+    
+    var isRegistered: Bool {
+        userFlags.isRegistered
     }
     
     weak var delegate: SessionDelegate?
@@ -94,8 +99,15 @@ class Session: ObservableObject {
         
     }
     
-    func updateUserFlags(flags: UserFlags) {
-        userFlags = flags
+    func updateUserFlags() async throws -> UserFlags {
+        userFlags = try await flipClient.fetchUserFlags(
+            userID: userID,
+            owner: organizer.ownerKeyPair
+        )
+        
+        delegate?.didUpdateUserFlags(flags: userFlags)
+        
+        return userFlags
     }
     
     // MARK: - Poller -

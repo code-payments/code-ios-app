@@ -147,7 +147,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 trace(.success, components: "Owner: \(owner.publicKey.base58)", "Message: \(message.id.description)")
                 completion(.success(message))
             } else {
-                trace(.success, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             
@@ -174,7 +174,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 trace(.success, components: "Chat ID: \(chatID)", "Messages: \(messages.count)")
                 completion(.success(messages))
             } else {
-                trace(.success, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             
@@ -203,7 +203,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 trace(.success, components: "Owner: \(owner.publicKey.base58)", "New Pointer: \(messageID.data.hexEncodedString())")
                 completion(.success(()))
             } else {
-                trace(.success, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             

@@ -25,7 +25,7 @@ final class SessionAuthenticator: ObservableObject {
     
     let accountManager: AccountManager
     
-    @Published private(set) var inProgress: Bool = false
+    @Published private(set) var loginState: ButtonState = .normal
     @Published private(set) var isUnlocked: Bool = false
     @Published private(set) var state: AuthenticationState = .migrating
     @Published private(set) var biometricState: BiometricState = .disabled
@@ -230,7 +230,7 @@ final class SessionAuthenticator: ObservableObject {
         )
         
         let chatController = ChatController(
-            userID: userID,
+            session: session,
             client: flipClient,
             paymentClient: client,
             organizer: organizer
@@ -272,29 +272,20 @@ final class SessionAuthenticator: ObservableObject {
             async let _ = try state.pushController.authorizeAndRegister()
             
             // 2. Update user flags
-            let flags = try await flipClient.fetchUserFlags(
-                userID: state.session.userID,
-                owner: owner
-            )
+            let flags = try await state.session.updateUserFlags()
             
             trace(.success, components:
                   "Updated user flags",
                   "Staff: \(flags.isStaff ? "yes" : "no")",
                   "Registered: \(flags.isRegistered ? "yes" : "no")"
             )
-            
-            state.session.updateUserFlags(flags: flags)
-            accountManager.update(userFlags: flags)
         }
     }
     
     // MARK: - Login -
     
     func initialize(using mnemonic: MnemonicPhrase, name: String?, isRegistration: Bool) async throws -> InitializedAccount {
-        inProgress = true
-        defer {
-            inProgress = false
-        }
+        loginState = .loading
         
         let owner      = mnemonic.solanaKeyPair()
         let organizer  = Organizer(mnemonic: mnemonic)
@@ -320,7 +311,7 @@ final class SessionAuthenticator: ObservableObject {
                 userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: owner)
                 
                 // 3. For new users only, airdrop initial balance
-                _ = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
+                //_ = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
                 
             } else {
                 userID = try await flipClient.login(owner: owner)
@@ -343,11 +334,18 @@ final class SessionAuthenticator: ObservableObject {
             
         } catch {
             ErrorReporting.captureError(error)
+            loginState = .normal
             throw error
         }
     }
     
     func completeLogin(with initializedAccount: InitializedAccount) {
+        Task {
+            loginState = .success
+            try await Task.delay(milliseconds: 500)
+            loginState = .normal
+        }
+        
         trace(.note, components:
             "Owner: \(initializedAccount.keyAccount.ownerPublicKey)"
         )
@@ -397,6 +395,10 @@ extension SessionAuthenticator: SessionDelegate {
         if !isUnlocked {
             isUnlocked = true
         }
+    }
+    
+    func didUpdateUserFlags(flags: UserFlags) {
+        accountManager.update(userFlags: flags)
     }
 }
 

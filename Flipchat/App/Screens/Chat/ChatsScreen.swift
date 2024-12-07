@@ -66,7 +66,7 @@ struct ChatsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                NavBar(title: "Rooms") {
+                NavBar(isLoading: chatController.isSyncInProgress, title: "Rooms") {
                     debugTapCount += 1
                     if debugTapCount >= 7 {
                         logoutAction()

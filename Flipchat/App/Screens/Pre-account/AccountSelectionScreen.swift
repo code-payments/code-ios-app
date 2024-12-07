@@ -61,7 +61,7 @@ struct AccountSelectionScreen: View {
                                         VStack(alignment: .leading, spacing: 4) {
                                             
                                             HStack(alignment: .bottom, spacing: 10) {
-                                                Text("\(account.formattedKin()) \(Localized.Core.kin)")
+                                                Text("\(account.formattedKin())")
                                                 if account.isNotFound {
                                                     Badge(decoration: .circle(.textError), text: "Not Found")
                                                 } else if account.organizer.isUnuseable {

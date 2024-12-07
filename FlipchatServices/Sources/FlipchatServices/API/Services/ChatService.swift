@@ -359,7 +359,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
                 let chats = response.chats.map { Chat.Metadata($0) }
                 completion(.success(chats))
             } else {
-                trace(.success, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             
@@ -388,7 +388,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
                 )
                 completion(.success(description))
             } else {
-                trace(.success, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             

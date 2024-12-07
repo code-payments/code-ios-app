@@ -13,8 +13,15 @@ class ChatController: ObservableObject {
     
     @Published private(set) var chatsDidChange: Int = 0
     
+    @Published private(set) var isSyncInProgress: Bool = false
+    
+    var isRegistered: Bool {
+        session.isRegistered
+    }
+    
     let owner: KeyPair
     
+    private let session: Session
     private let userID: UserID
     private let client: FlipchatClient
     private let paymentClient: Client
@@ -32,8 +39,9 @@ class ChatController: ObservableObject {
     
     // MARK: - Init -
     
-    init(userID: UserID, client: FlipchatClient, paymentClient: Client, organizer: Organizer) {
-        self.userID    = userID
+    init(session: Session, client: FlipchatClient, paymentClient: Client, organizer: Organizer) {
+        self.session   = session
+        self.userID    = session.userID
         self.client    = client
         self.paymentClient = paymentClient
         self.organizer = organizer
@@ -45,6 +53,8 @@ class ChatController: ObservableObject {
         database.commit = { [weak self] in
             self?.chatsChanged()
         }
+        
+        startSync()
     }
     
     static func initializeDatabase(userID: UserID) throws -> Database {
@@ -78,9 +88,7 @@ class ChatController: ObservableObject {
     
     func sceneDidBecomeActive() {
         streamChatEvents()
-        Task {
-            try? await sync()
-        }
+        startSync()
     }
     
     func sceneDidEnterBackground() {
@@ -107,8 +115,21 @@ class ChatController: ObservableObject {
     
     // MARK: - Sync -
     
-    func sync() async throws {
+    func startSync() {
+        Task {
+            try await sync()
+        }
+    }
+    
+    private func sync() async throws {
+        guard !isSyncInProgress else {
+            print("Attempt to start sync when it's already in progress, ignoring.")
+            return
+        }
+        
         trace(.send)
+        
+        isSyncInProgress = true
         
         let chats = try await client.fetchChats(owner: owner)
         
@@ -134,6 +155,8 @@ class ChatController: ObservableObject {
                 }
             }
         }
+        
+        isSyncInProgress = false
         
         // We silence all transactions and defer
         // the UI updates until all sync tasks
@@ -412,34 +435,34 @@ class ChatController: ObservableObject {
             intentID = nil
         }
         
-        async let description = try client.joinGroupChat(
+        let description = try await client.joinGroupChat(
             chatID: chatID,
             intentID: intentID,
             owner: owner
         )
         
-        async let messages = try syncMessagesBackwards(for: chatID)
+        let messages = try await syncMessagesBackwards(for: chatID)
         
         try insert(
-            chat: await description,
-            messages: await messages
+            chat: description,
+            messages: messages
         )
         
         return chatID
     }
     
     func watchRoom(chatID: ChatID) async throws -> ChatID {
-        async let description = try client.joinGroupChat(
+        let description = try await client.joinGroupChat(
             chatID: chatID,
             intentID: nil, // No payment to watch
             owner: owner
         )
         
-        async let messages = try syncMessagesBackwards(for: chatID)
+        let messages = try await syncMessagesBackwards(for: chatID)
         
         try insert(
-            chat: await description,
-            messages: await messages
+            chat: description,
+            messages: messages
         )
         
         return chatID
@@ -503,7 +526,7 @@ extension ChatController {
 
 extension ChatController {
     static let mock = ChatController(
-        userID: .mock,
+        session: .mock,
         client: .mock,
         paymentClient: .mock,
         organizer: .mock2
