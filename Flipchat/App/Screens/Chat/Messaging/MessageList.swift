@@ -213,8 +213,7 @@ public struct MessageList: View {
                 isReceived: isReceived,
                 isHost: message.senderID == hostID.uuid,
                 location: location
-            )
-            .contextMenu {
+            ) {
                 Button {
                     action(.copy(description.content))
                 } label: {

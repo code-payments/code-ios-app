@@ -9,7 +9,7 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-public struct MessageText: View {
+public struct MessageText<MenuItems>: View where MenuItems: View {
     
     public let state: Chat.Message.State
     public let name: String
@@ -19,6 +19,7 @@ public struct MessageText: View {
     public let isReceived: Bool
     public let isHost: Bool
     public let location: MessageSemanticLocation
+    public let menu: () -> MenuItems
     
     private var shouldShowName: Bool {
         switch location {
@@ -38,7 +39,7 @@ public struct MessageText: View {
         }
     }
         
-    public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, location: MessageSemanticLocation) {
+    public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, location: MessageSemanticLocation, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.state = state
         self.name = name
         self.avatarData = avatarData
@@ -47,6 +48,7 @@ public struct MessageText: View {
         self.isReceived = isReceived
         self.isHost = isHost
         self.location = location
+        self.menu = menu
     }
     
     public var body: some View {
@@ -77,41 +79,63 @@ public struct MessageText: View {
                         .padding(.leading, Metrics.chatMessageRadiusSmall)
                 }
                 
-                Group {
-                    if text.count < 10 {
-                        HStack(alignment: .bottom) {
-                            Text(text)
-                                .font(.appTextMessage)
-                                .foregroundColor(.textMain)
-                                .multilineTextAlignment(.leading)
-                            
-                            TimestampView(state: state, date: date, isReceived: isReceived)
-                        }
-                        .padding([.horizontal], 10)
-                        .padding([.vertical], 8)
-                        
-                    } else {
-                        VStack(alignment: .trailing, spacing: 5) {
-                            Text(parse(text: text))
-                                .font(.appTextMessage)
-                                .foregroundColor(.textMain)
-                                .multilineTextAlignment(.leading)
-                                .environment(\.openURL, OpenURLAction { url in
-                                    handleURL(url)
-                                })
-                            
-                            TimestampView(state: state, date: date, isReceived: isReceived)
-                        }
-                        .padding([.horizontal], 11)
-                        .padding([.vertical], 11)
-                    }
-                }
-                .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
-                .clipShape(
-                    cornerClip(location: location)
+                MessageBubble(
+                    state: state,
+                    text: text,
+                    date: date,
+                    isReceived: isReceived,
+                    location: location
                 )
+                .contextMenu {
+                    menu()
+                }
             }
         }
+    }
+}
+
+public struct MessageBubble: View {
+    
+    public let state: Chat.Message.State
+    public let text: String
+    public let date: Date
+    public let isReceived: Bool
+    public let location: MessageSemanticLocation
+    
+    public var body: some View {
+        Group {
+            if text.count < 10 {
+                HStack(alignment: .bottom) {
+                    Text(text)
+                        .font(.appTextMessage)
+                        .foregroundColor(.textMain)
+                        .multilineTextAlignment(.leading)
+                    
+                    TimestampView(state: state, date: date, isReceived: isReceived)
+                }
+                .padding([.horizontal], 10)
+                .padding([.vertical], 8)
+                
+            } else {
+                VStack(alignment: .trailing, spacing: 5) {
+                    Text(parse(text: text))
+                        .font(.appTextMessage)
+                        .foregroundColor(.textMain)
+                        .multilineTextAlignment(.leading)
+                        .environment(\.openURL, OpenURLAction { url in
+                            handleURL(url)
+                        })
+                    
+                    TimestampView(state: state, date: date, isReceived: isReceived)
+                }
+                .padding([.horizontal], 11)
+                .padding([.vertical], 11)
+            }
+        }
+        .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
+        .clipShape(
+            cornerClip(location: location)
+        )
     }
     
     func handleURL(_ url: URL) -> OpenURLAction.Result {
@@ -123,7 +147,6 @@ public struct MessageText: View {
         var string = AttributedString(text)
         
         findLinks(in: text, string: &string)
-        
 //        findHashtags(in: text, string: &string)
         
         return string
