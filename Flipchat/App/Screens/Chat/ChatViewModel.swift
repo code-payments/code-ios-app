@@ -97,11 +97,13 @@ class ChatViewModel: ObservableObject {
         )
     }
     
-    func selectChat(chatID: ChatID) {
-        Task {
-            try await chatController.syncChatAndMembers(for: chatID)
-        }
+    func pushChat(chatID: ChatID) {
         containerViewModel?.pushChat(chatID: chatID)
+        Task {
+            try await chatController.advanceReadPointerToLatest(for: chatID)
+            try await chatController.syncChatAndMembers(for: chatID)
+            
+        }
     }
     
     func popChat() {
@@ -223,7 +225,7 @@ class ChatViewModel: ObservableObject {
             destination: userFlags.feeDestination
         )
         
-        containerViewModel?.pushChat(chatID: chatID)
+        pushChat(chatID: chatID)
     }
     
     func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
@@ -272,7 +274,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func pushJoinedChat(chatID: ChatID) {
-        containerViewModel?.pushChat(chatID: chatID)
+        pushChat(chatID: chatID)
         Task {
             try await Task.delay(milliseconds: 400)
             isShowingJoinPayment = false

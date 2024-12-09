@@ -38,9 +38,6 @@ private class ConversationState: ObservableObject {
         messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
         
         startStream()
-        Task {
-            try? await advanceReadPointer()
-        }
     }
     
     deinit {

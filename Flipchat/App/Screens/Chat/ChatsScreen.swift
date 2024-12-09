@@ -170,7 +170,7 @@ struct ChatsScreen: View {
     
     @ViewBuilder private func row(for row: RoomRow) -> some View {
         Button {
-            viewModel.selectChat(chatID: ChatID(uuid: row.room.serverID))
+            viewModel.pushChat(chatID: ChatID(uuid: row.room.serverID))
             
         } label: {
             HStack(spacing: 15) {
