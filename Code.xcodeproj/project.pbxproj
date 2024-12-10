@@ -2745,7 +2745,6 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -2791,7 +2790,6 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -2833,7 +2831,6 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -2875,7 +2872,6 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipchat enables you to receive Kin by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to help keep your Kin secure.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;

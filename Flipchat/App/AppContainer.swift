@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipchatServices
+import Firebase
 
 @MainActor
 class AppContainer: ObservableObject {
@@ -22,17 +23,18 @@ class AppContainer: ObservableObject {
         queue: .main
     )
     
+    let banners = Banners()
     let betaFlags = BetaFlags.shared
     let biometrics = Biometrics()
     let notificationController = NotificationController()
     
-    lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)
-    
-    lazy private(set) var banners = Banners()
+    lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)    
     
     lazy private(set) var exchange = Exchange(client: client)
     
-    init() {}
+    init() {
+        FirebaseApp.configure()
+    }
     
 //    private func registerPushNotifications() {
 //        let push = pushController

@@ -5,18 +5,22 @@
 //  Created by Dima Bart on 2024-10-04.
 //
 
-import UIKit
+import SwiftUI
 import CodeUI
 import FlipchatServices
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
     
-    let container = AppContainer()
+    var window: UIWindow?
+    
+    private let container = AppContainer()
 
     // MARK: - Launch -
     
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-    
+    func applicationDidFinishLaunching(_ application: UIApplication) {
+        self.window = UIWindow(frame: UIScreen.main.bounds)
+        
         Analytics.initialize()
         
         ErrorReporting.initialize()
@@ -24,7 +28,24 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         setupFonts()
         setupAppearance()
         
-        return true
+        assignHost()
+    }
+    
+    private func assignHost() {
+        guard let window = window else {
+            return
+        }
+        
+        let controller = UIHostingController(
+            rootView: ContainerScreen(
+                sessionAuthenticator: container.sessionAuthenticator
+            )
+            .injectingEnvironment(from: container)
+        )
+        controller.view.backgroundColor = .backgroundMain
+        
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
     }
     
     // MARK: - Push Notifications -
@@ -49,7 +70,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     
     // MARK: - SwiftUI Scene Phase -
     
-    func sceneDidBecomeActive() {
+    func applicationWillEnterForeground(_ application: UIApplication) {
         trace(.warning)
         guard case .loggedIn(let state) = container.sessionAuthenticator.state else {
             return
@@ -58,7 +79,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         state.chatController.sceneDidBecomeActive()
     }
     
-    func sceneDidEnterBackground() {
+    func applicationDidEnterBackground(_ application: UIApplication) {
         trace(.warning)
         guard case .loggedIn(let state) = container.sessionAuthenticator.state else {
             return

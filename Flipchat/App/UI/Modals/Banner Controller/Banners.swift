@@ -34,8 +34,7 @@ public class Banners: ObservableObject {
     // MARK: - Init -
     
     public init() {
-        let windowScenes = UIApplication.shared.connectedScenes
-        self.window = UIWindow(windowScene: windowScenes.first as! UIWindowScene)
+        self.window = UIWindow(frame: UIScreen.main.bounds)
         
         let container = BannerContainer()
             .environmentObject(self)
