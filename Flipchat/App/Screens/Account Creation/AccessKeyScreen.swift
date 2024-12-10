@@ -26,32 +26,31 @@ struct AccessKeyScreen: View {
             VStack(spacing: 0) {
                 Spacer()
                 
-                if let mnemonic = viewModel.inflightMnemonic {
-                    VStack(alignment: .center, spacing: 20) {
-                        AccessKey(
-                            mnemonic: mnemonic,
-                            url: .flipchatLogin(with: mnemonic)
-                        )
-                        .contextMenu(ContextMenu {
-                            Button(action: copy) {
-                                Label("Copy", systemImage: SystemSymbol.doc.rawValue)
-                            }
-                        })
-                        
-                        Text("Your Access Key is the only way to access your account. Please keep it private and safe.")
-                            .font(.appTextSmall)
-                            .foregroundColor(.textMain)
-                            .multilineTextAlignment(.center)
+                VStack(alignment: .center, spacing: 30) {
+                    AccessKey(
+                        mnemonic: viewModel.inflightMnemonic,
+                        url: .flipchatLogin(with: viewModel.inflightMnemonic)
+                    )
+                    .contextMenu {
+                        Button(action: copy) {
+                            Label("Copy", systemImage: SystemSymbol.doc.rawValue)
+                        }
                     }
-                    .padding(.bottom, 40)
+                    
+                    Text("Your Access Key is the only way to access your account. Please keep it private and safe.")
+                        .font(.appTextSmall)
+                        .foregroundColor(.textMain)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
                 }
+                .padding(.bottom, 40)
                 
                 Spacer()
                 
                 CodeButton(
                     state: viewModel.accessKeyButtonState,
                     style: .filled,
-                    title: "Save Access Key to My Photos"
+                    title: "Save Access Key to Photos"
                 ) {
                     viewModel.promptSaveToPhotos()
                 }
@@ -67,15 +66,14 @@ struct AccessKeyScreen: View {
             .ignoresSafeArea(.keyboard)
             .foregroundColor(.textMain)
             .padding(20)
-            .navigationBarTitle(Text("Access Key"), displayMode: .inline)
-            .navigationBarBackButtonHidden(true)
+            .navigationBarTitle(Text("Your Access Key"), displayMode: .inline)
         }
     }
     
     // MARK: - Copy / Paste -
     
     private func copy() {
-        UIPasteboard.general.string = viewModel.inflightMnemonic?.phrase
+        UIPasteboard.general.string = viewModel.inflightMnemonic.phrase
     }
 }
 

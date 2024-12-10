@@ -7,23 +7,23 @@
 
 import SwiftUI
 
-struct PushPermissionsScreen: View {
-    
-    @ObservedObject private var viewModel: OnboardingViewModel
-    
-    // MARK: - Init -
-    
-    init(viewModel: OnboardingViewModel) {
-        self.viewModel = viewModel
-    }
-    
-    var body: some View {
-        PermissionScreen.forPushNotifications {
-            Task {
-                try await viewModel.authorizePushPermissions()
-            }
-        } skipAction: {
-            viewModel.completeLogin()
-        }
-    }
-}
+//struct PushPermissionsScreen: View {
+//    
+//    @ObservedObject private var viewModel: OnboardingViewModel
+//    
+//    // MARK: - Init -
+//    
+//    init(viewModel: OnboardingViewModel) {
+//        self.viewModel = viewModel
+//    }
+//    
+//    var body: some View {
+//        PermissionScreen.forPushNotifications {
+//            Task {
+//                try await viewModel.authorizePushPermissions()
+//            }
+//        } skipAction: {
+//            viewModel.completeLogin()
+//        }
+//    }
+//}

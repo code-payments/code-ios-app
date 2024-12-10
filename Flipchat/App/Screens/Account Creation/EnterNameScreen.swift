@@ -11,9 +11,6 @@ import FlipchatServices
 
 struct EnterNameScreen: View {
     
-    @EnvironmentObject private var client: Client
-    @EnvironmentObject private var banners: Banners
-    
     @ObservedObject private var viewModel: OnboardingViewModel
     
     @FocusState private var isFocused: Bool
@@ -60,7 +57,7 @@ struct EnterNameScreen: View {
                     disabled: !viewModel.isEnteredNameValid
                 ) {
                     hideKeyboard()
-                    viewModel.registerEnteredName()
+                    viewModel.proceedWithEnteredName()
                 }
             }
             .foregroundColor(.textMain)

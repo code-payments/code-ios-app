@@ -116,10 +116,13 @@ struct ConversationScreen: View {
     
     @EnvironmentObject private var banners: Banners
     @EnvironmentObject private var notificationController: NotificationController
+    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     
     @State private var input: String = ""
     
     @State private var messageListState = MessageList.ListState()
+    
+    @State private var isShowingAccountCreation: Bool = false
     
     @StateObject private var conversationState: ConversationState
     
@@ -185,7 +188,7 @@ struct ConversationScreen: View {
                         style: .filled,
                         title: "Join Room: ⬣ \(conversationState.room.room.cover.formattedTruncatedKin())"
                     ) {
-                        // Do nothing for now
+                        isShowingAccountCreation = true
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
@@ -212,6 +215,13 @@ struct ConversationScreen: View {
         }
         .onChange(of: chatController.chatsDidChange) { _, _ in
             try? conversationState.reload()
+        }
+        .sheet(isPresented: $isShowingAccountCreation) {
+            CreateAccountScreen(
+                isPresented: $isShowingAccountCreation,
+                sessionAuthenticator: sessionAuthenticator,
+                banners: banners
+            )
         }
     }
     
