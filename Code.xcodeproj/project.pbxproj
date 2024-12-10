@@ -101,6 +101,7 @@
 		9A4283BC2A02B5B100792BFD /* ShareCashItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BB2A02B5B100792BFD /* ShareCashItem.swift */; };
 		9A4283BE2A02B9F200792BFD /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BD2A02B9F200792BFD /* ShareSheet.swift */; };
 		9A4283C12A055C5400792BFD /* GiftCardVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283C02A055C5400792BFD /* GiftCardVault.swift */; };
+		9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9A44E6852D08061200922066 /* StoreKit.framework */; };
 		9A476D4A2978884700C5B5CE /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A476D492978884700C5B5CE /* Bugsnag */; };
 		9A476D4C2978892600C5B5CE /* ErrorReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A476D4B2978892600C5B5CE /* ErrorReporting.swift */; };
 		9A48D93928512E7800EA9AA4 /* PermissionScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */; };
@@ -386,6 +387,7 @@
 		9A4283BB2A02B5B100792BFD /* ShareCashItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCashItem.swift; sourceTree = "<group>"; };
 		9A4283BD2A02B9F200792BFD /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		9A4283C02A055C5400792BFD /* GiftCardVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftCardVault.swift; sourceTree = "<group>"; };
+		9A44E6852D08061200922066 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		9A476D4B2978892600C5B5CE /* ErrorReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorReporting.swift; sourceTree = "<group>"; };
 		9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionScreen.swift; sourceTree = "<group>"; };
 		9A4F3D06298D99930089C0FB /* BucketScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketScreen.swift; sourceTree = "<group>"; };
@@ -593,6 +595,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9A9499D82CFB82A200DC219B /* SQLite in Frameworks */,
+				9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */,
 				9A9E26B72CEA73D80021E5DD /* FirebaseMessaging in Frameworks */,
 				9A9E26B52CEA73D80021E5DD /* FirebaseInstallations in Frameworks */,
 				9A6AB53D2CDFE0A60038DBB8 /* SwiftUIIntrospect in Frameworks */,
@@ -734,6 +737,7 @@
 		9A1654C42678FB60000A135E /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				9A44E6852D08061200922066 /* StoreKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
