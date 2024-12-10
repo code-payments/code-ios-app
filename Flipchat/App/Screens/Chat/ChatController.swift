@@ -78,6 +78,7 @@ class ChatController: ObservableObject {
     
     private func chatsChanged() {
         chatsDidChange += 1
+        print("[CHATS CHANGED]")
     }
     
     func prepareForLogout() {
