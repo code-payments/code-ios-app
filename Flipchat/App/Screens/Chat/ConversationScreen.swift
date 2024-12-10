@@ -207,6 +207,13 @@ struct ConversationScreen: View {
                 moreItem()
             }
         }
+        .sheet(isPresented: $isShowingAccountCreation) {
+            CreateAccountScreen(
+                isPresented: $isShowingAccountCreation,
+                sessionAuthenticator: sessionAuthenticator,
+                banners: banners
+            )
+        }
         .onChange(of: notificationController.didBecomeActive) { _, _ in
             conversationState.startStream()
         }
@@ -215,13 +222,6 @@ struct ConversationScreen: View {
         }
         .onChange(of: chatController.chatsDidChange) { _, _ in
             try? conversationState.reload()
-        }
-        .sheet(isPresented: $isShowingAccountCreation) {
-            CreateAccountScreen(
-                isPresented: $isShowingAccountCreation,
-                sessionAuthenticator: sessionAuthenticator,
-                banners: banners
-            )
         }
     }
     

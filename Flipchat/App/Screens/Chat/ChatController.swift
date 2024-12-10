@@ -357,26 +357,20 @@ class ChatController: ObservableObject {
         
         let userID = userID.uuid
         
-        // Check against the current pointer for the room, if the oldest
-        // message is greater than the last pointer value, we'll update
-        // the server, otherwise it's a no-op.
-        let currentPointer = try database.getPointerMessageID(roomID: chatID.uuid, userID: userID)
-        if currentPointer == nil || messageID > currentPointer!.messageID {
-            try await client.advanceReadPointer(
-                chatID: chatID,
-                to: MessageID(uuid: messageID),
-                owner: owner
+        try await client.advanceReadPointer(
+            chatID: chatID,
+            to: MessageID(uuid: messageID),
+            owner: owner
+        )
+        
+        try database.transaction {
+            try $0.clearUnread(chatID: chatID)
+            try $0.insertPointer(
+                kind: .read,
+                userID: userID,
+                roomID: chatID.uuid,
+                messageID: messageID
             )
-            
-            try database.transaction {
-                try $0.clearUnread(chatID: chatID)
-                try $0.insertPointer(
-                    kind: .read,
-                    userID: userID,
-                    roomID: chatID.uuid,
-                    messageID: messageID
-                )
-            }
         }
     }
     
