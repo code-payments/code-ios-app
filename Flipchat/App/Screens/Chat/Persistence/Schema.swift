@@ -247,6 +247,9 @@ extension UInt64: Value {
 
 extension BinaryInteger {
     public var formattedRoomNumber: String {
-        "Room #\(self)"
+        "Room \(self.formattedRoomNumberShort)"
+    }
+    public var formattedRoomNumberShort: String {
+        "#\(self)"
     }
 }

@@ -184,7 +184,7 @@ struct ChatsScreen: View {
                 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 10) {
-                        Text(row.room.roomNumber.formattedRoomNumber)
+                        Text(row.room.formattedTitle)
                             .foregroundColor(.textMain)
                             .font(.appTextMedium)
                             .lineLimit(1)

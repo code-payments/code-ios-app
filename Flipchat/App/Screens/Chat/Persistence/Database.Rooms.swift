@@ -247,6 +247,14 @@ struct RoomRow: Identifiable {
         let isDeleted: Bool
         let isMuted: Bool
         let canMute: Bool
+        
+        var formattedTitle: String {
+            if let title {
+                return "\(roomNumber.formattedRoomNumberShort): \(title)"
+            } else {
+                return roomNumber.formattedRoomNumber
+            }
+        }
     }
     
     struct Message {
