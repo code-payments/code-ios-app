@@ -60,7 +60,7 @@ private class ConversationState: ObservableObject {
     
     // MARK: - Pointer -
     
-    func advanceReadPointer() async throws {
+    private func advanceReadPointer() async throws {
         try await chatController.advanceReadPointerToLatest(for: chatID)
     }
     
@@ -85,14 +85,8 @@ private class ConversationState: ObservableObject {
             case .success(let messages):
                 self?.streamMessages(messages: messages)
 
-            case .failure(let error):
+            case .failure:
                 self?.destroyStream()
-                switch error {
-                case .unknown:
-                    break
-                case .denied:
-                    break
-                }
             }
         }
     }
@@ -160,17 +154,32 @@ struct ConversationScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                MessageList(
-                    state: $messageListState,
-                    chatID: chatID,
-                    userID: userID,
-                    hostID: UserID(uuid: conversationState.room.room.ownerUserID),
-                    messages: conversationState.messages,
-                    action: messageAction,
-                    loadMore: {
-//                        try? conversationState.addPageAndReload()
-                    }
-                )
+                ScrollBox(color: .backgroundMain, edgePadding: 12) {
+                    MessageListV2(
+                        userID: userID,
+                        hostID: UserID(uuid: conversationState.room.room.ownerUserID),
+                        chatID: chatID,
+                        messages: conversationState.messages,
+                        action: { action in
+                            Task {
+                                try await messageAction(action: action)
+                            }
+                        },
+                        loadMore: {}
+                    )
+                }
+                
+//                MessageList(
+//                    state: $messageListState,
+//                    chatID: chatID,
+//                    userID: userID,
+//                    hostID: UserID(uuid: conversationState.room.room.ownerUserID),
+//                    messages: conversationState.messages,
+//                    action: messageAction,
+//                    loadMore: {
+////                        try? conversationState.addPageAndReload()
+//                    }
+//                )
                 
                 if chatController.isRegistered {
                     if !conversationState.selfUser.isMuted {
@@ -302,12 +311,16 @@ struct ConversationScreen: View {
     
     // MARK: - Actions -
     
-    private func messageAction(action: MessageAction) {
+    private func messageAction(action: MessageAction) async throws {
         switch action {
         case .copy(let text):
             copy(text: text)
             
         case .muteUser(let name, let userID, let chatID):
+            
+            // Gives the context menu time to animate
+            try await Task.delay(milliseconds: 200)
+            
             banners.show(
                 style: .error,
                 title: "Mute \(name)?",
@@ -324,6 +337,10 @@ struct ConversationScreen: View {
             )
             
         case .reportMessage(let userID, let messageID):
+            
+            // Gives the context menu time to animate
+            try await Task.delay(milliseconds: 200)
+            
             banners.show(
                 style: .error,
                 title: "Report Message?",

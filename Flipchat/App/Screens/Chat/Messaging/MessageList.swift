@@ -110,7 +110,7 @@ public struct MessageList: View {
                             }
                         
                         ForEach(messages) { description in
-                            MessageRowView(kind: description.kind, width: description.messageWidth(in: g.size)) {
+                            MessageRowView(kind: description.kind, width: description.messageWidth(in: g.size).width) {
                                 row(for: description)
 //                                    .background(.green) // Diagnostics
                             }
@@ -290,12 +290,12 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
     let kind: Kind
     let content: String
     
-    func messageWidth(in size: CGSize) -> CGFloat {
+    func messageWidth(in size: CGSize) -> (width: CGFloat, isReceived: Bool) {
         switch kind {
         case .date, .announcement:
-            size.width * 1.0
-        case .message:
-            size.width * 0.8
+            return (size.width * 1.0, false)
+        case .message(_, let isReceived, _, _):
+            return (size.width * 0.8, isReceived)
         }
     }
 }

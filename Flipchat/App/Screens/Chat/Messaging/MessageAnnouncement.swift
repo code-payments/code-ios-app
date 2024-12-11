@@ -29,5 +29,6 @@ public struct MessageAnnouncement: View {
                 .cornerRadius(Metrics.chatMessageRadiusLarge * 2)
             Spacer()
         }
+        .padding(.top, 8)
     }
 }

@@ -38,6 +38,15 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
             return false
         }
     }
+    
+    private var topPadding: CGFloat {
+        switch location {
+        case .beginning, .standalone:
+            return 8
+        case .middle, .end:
+            return 0
+        }
+    }
         
     public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, location: MessageSemanticLocation, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.state = state
@@ -91,6 +100,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
                 }
             }
         }
+        .padding(.top, topPadding)
     }
 }
 
