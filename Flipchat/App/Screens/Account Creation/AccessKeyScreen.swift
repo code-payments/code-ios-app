@@ -28,8 +28,8 @@ struct AccessKeyScreen: View {
                 
                 VStack(alignment: .center, spacing: 30) {
                     AccessKey(
-                        mnemonic: viewModel.inflightMnemonic,
-                        url: .flipchatLogin(with: viewModel.inflightMnemonic)
+                        mnemonic: viewModel.mnemonic,
+                        url: .flipchatLogin(with: viewModel.mnemonic)
                     )
                     .contextMenu {
                         Button(action: copy) {
@@ -73,12 +73,20 @@ struct AccessKeyScreen: View {
     // MARK: - Copy / Paste -
     
     private func copy() {
-        UIPasteboard.general.string = viewModel.inflightMnemonic.phrase
+        UIPasteboard.general.string = viewModel.mnemonic.phrase
     }
 }
 
 // MARK: - Previews -
 
 #Preview {
-    AccessKeyScreen(viewModel: OnboardingViewModel(sessionAuthenticator: .mock, banners: .mock))
+    AccessKeyScreen(
+        viewModel: OnboardingViewModel(
+            session: .mock,
+            client: .mock,
+            flipClient: .mock,
+            banners: .mock,
+            isPresenting: .constant(true)
+        )
+    )
 }

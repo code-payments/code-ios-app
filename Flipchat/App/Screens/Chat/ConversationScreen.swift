@@ -108,9 +108,10 @@ private class ConversationState: ObservableObject {
 
 struct ConversationScreen: View {
     
+    @EnvironmentObject private var client: Client
+    @EnvironmentObject private var flipClient: FlipchatClient
     @EnvironmentObject private var banners: Banners
     @EnvironmentObject private var notificationController: NotificationController
-    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     
     @State private var input: String = ""
     
@@ -124,14 +125,16 @@ struct ConversationScreen: View {
     
     private let userID: UserID
     private let chatID: ChatID
+    private let session: Session
     private let containerViewModel: ContainerViewModel
     private let chatController: ChatController
     
     // MARK: - Init -
     
-    init(userID: UserID, chatID: ChatID, containerViewModel: ContainerViewModel, chatController: ChatController) {
+    init(userID: UserID, chatID: ChatID, session: Session, containerViewModel: ContainerViewModel, chatController: ChatController) {
         self.userID = userID
         self.chatID = chatID
+        self.session = session
         self.containerViewModel = containerViewModel
         self.chatController = chatController
         self._conversationState = StateObject(wrappedValue: try! .init(
@@ -166,6 +169,17 @@ struct ConversationScreen: View {
                             }
                         },
                         loadMore: {}
+                    )
+                }
+                .sheet(isPresented: $isShowingAccountCreation) {
+                    CreateAccountScreen(
+                        viewModel: OnboardingViewModel(
+                            session: session,
+                            client: client,
+                            flipClient: flipClient,
+                            banners: banners,
+                            isPresenting: $isShowingAccountCreation
+                        )
                     )
                 }
                 
@@ -215,13 +229,6 @@ struct ConversationScreen: View {
             ToolbarItem(placement: .topBarTrailing) {
                 moreItem()
             }
-        }
-        .sheet(isPresented: $isShowingAccountCreation) {
-            CreateAccountScreen(
-                isPresented: $isShowingAccountCreation,
-                sessionAuthenticator: sessionAuthenticator,
-                banners: banners
-            )
         }
         .onChange(of: notificationController.didBecomeActive) { _, _ in
             conversationState.startStream()

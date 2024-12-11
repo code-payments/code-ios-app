@@ -114,6 +114,7 @@ struct ContainerScreen: View {
                             ConversationScreen(
                                 userID: authenticatedState.session.userID,
                                 chatID: chatID,
+                                session: state.session,
                                 containerViewModel: state.containerViewModel,
                                 chatController: authenticatedState.chatController
                             )

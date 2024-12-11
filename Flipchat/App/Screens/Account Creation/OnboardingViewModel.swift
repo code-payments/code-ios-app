@@ -20,10 +20,14 @@ class OnboardingViewModel: ObservableObject {
     
     @Published var accountCreationState: ButtonState = .normal
     
-    @Published var inflightMnemonic: MnemonicPhrase
+    @Published var paymentButtonState: ButtonState = .normal
     
-    var ownerForMnemonic: KeyPair {
-        inflightMnemonic.solanaKeyPair()
+    var mnemonic: MnemonicPhrase {
+        session.organizer.mnemonic
+    }
+    
+    var owner: KeyPair {
+        session.organizer.ownerKeyPair
     }
     
     var isEnteredNameValid: Bool {
@@ -31,21 +35,24 @@ class OnboardingViewModel: ObservableObject {
         return count >= 3 && count <= 26
     }
     
-    private let sessionAuthenticator: SessionAuthenticator
+    private let session: Session
+    private let client: Client
+    private let flipClient: FlipchatClient
     private let banners: Banners
+    private let isPresenting: Binding<Bool>
     
-    private var initializedAccount: InitializedAccount?
+    private lazy var storeController = StoreController(delegate: self)
     
     // MARK: - Init -
     
-    init(sessionAuthenticator: SessionAuthenticator, banners: Banners) {
-        self.sessionAuthenticator = sessionAuthenticator
+    init(session: Session, client: Client, flipClient: FlipchatClient, banners: Banners, isPresenting: Binding<Bool>) {
+        self.session = session
         self.banners = banners
-        self.inflightMnemonic = .generate(.words12)
-    }
-    
-    func generateNewSeed() {
-        inflightMnemonic = .generate(.words12)
+        self.client = client
+        self.flipClient = flipClient
+        self.isPresenting = isPresenting
+        
+        storeController.loadProducts()
     }
     
     // MARK: - Actions -
@@ -54,14 +61,6 @@ class OnboardingViewModel: ObservableObject {
         enteredName = ""
         navigationPath.append(.enterName)
     }
-    
-//    func completeLogin() {
-//        guard let initializedAccount else {
-//            return
-//        }
-//        
-//        sessionAuthenticator.completeLogin(with: initializedAccount)
-//    }
     
     func proceedWithEnteredName() {
         guard isEnteredNameValid else {
@@ -72,6 +71,14 @@ class OnboardingViewModel: ObservableObject {
         navigationPath.append(.accessKey)
     }
     
+    func dismiss() {
+        isPresenting.wrappedValue = false
+    }
+    
+    private func setPaymentState(_ state: ButtonState) {
+        paymentButtonState = state
+    }
+    
     // MARK: - Access Key -
     
     func promptSaveToPhotos() {
@@ -79,7 +86,7 @@ class OnboardingViewModel: ObservableObject {
             accessKeyButtonState = .loading
             
             do {
-                try await PhotoLibrary.saveSecretRecoveryPhraseSnapshot(for: inflightMnemonic)
+                try await PhotoLibrary.saveSecretRecoveryPhraseSnapshot(for: session.organizer.mnemonic)
                 
                 try await Task.delay(milliseconds: 150)
                 accessKeyButtonState = .success
@@ -122,29 +129,6 @@ class OnboardingViewModel: ObservableObject {
         )
     }
     
-//    func registerEnteredName() {
-//        Task {
-//            guard isEnteredNameValid else {
-//                throw GenericError(message: "Invalid name")
-//            }
-//            
-//            accountCreationState = .loading
-//            
-//            let mnemonic: MnemonicPhrase = .generate(.words12)
-//            inflightMnemonic = mnemonic
-//            initializedAccount = try await sessionAuthenticator.initialize(using: mnemonic, name: enteredName, isRegistration: true)
-//            
-//            try await Task.delay(milliseconds: 500)
-//            accountCreationState = .success
-//            try await Task.delay(milliseconds: 500)
-//            
-//            navigationPath.append(.accessKey)
-//            
-//            try await Task.delay(milliseconds: 500)
-//            accountCreationState = .normal
-//        }
-//    }
-    
     // MARK: - Errors -
     
     func showInvalidNameError() {
@@ -156,6 +140,55 @@ class OnboardingViewModel: ObservableObject {
                 .cancel(title: "OK"),
             ]
         )
+    }
+    
+    func showPaymentFailed() {
+        banners.show(
+            style: .error,
+            title: "Purchase Failed",
+            description: "Something went wrong during payment. Please try again.",
+            actions: [
+                .cancel(title: "OK"),
+            ]
+        )
+    }
+}
+
+extension OnboardingViewModel: StoreControllerDelegate {
+    
+    func payForCreateAccount() throws {
+        setPaymentState(.loading)
+        
+        try storeController.pay(for: .createAccount)
+    }
+    
+    nonisolated
+    func handlePayment(payment: Result<StoreController.Payment, any Error>) {
+        Task {
+            switch payment {
+            case .success(let payment):
+                if payment.productIdentifier == StoreController.Product.createAccount.rawValue {
+                    try await completeAccountUpgrade()
+                    await setPaymentState(.success)
+                    
+                    try await Task.delay(seconds: 250)
+                    await dismiss()
+                }
+                
+            case .failure:
+                await showPaymentFailed()
+                await setPaymentState(.normal)
+            }
+        }
+    }
+    
+    private func completeAccountUpgrade() async throws {
+        
+        // 1. Update account from anonymous to a named one
+        try await flipClient.setDisplayName(name: enteredName, owner: owner)
+        
+        // 2. Airdrop initial account Kin balance
+        _ = try await client.airdrop(type: .getFirstKin, owner: owner)
     }
 }
 

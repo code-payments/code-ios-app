@@ -15,4 +15,10 @@ extension FlipchatClient {
             profileService.fetchProfile(userID: userID) { c.resume(with: $0) }
         }
     }
+    
+    public func setDisplayName(name: String, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            profileService.setDisplayName(name: name, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

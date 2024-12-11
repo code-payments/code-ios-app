@@ -28,7 +28,7 @@ struct FinalizeAccountScreen: View {
                 
                 VStack(spacing: 60) {
                     DeterministicAvatar(
-                        data: viewModel.ownerForMnemonic.publicKey.data,
+                        data: viewModel.owner.publicKey.data,
                         diameter: 120
                     )
                     
@@ -48,17 +48,17 @@ struct FinalizeAccountScreen: View {
                 Spacer()
                 
                 CodeButton(
-                    state: viewModel.accountCreationState,
+                    state: viewModel.paymentButtonState,
                     style: .filled,
                     title: "Purchase Your Account"
                 ) {
-                    viewModel.getStarted()
+                    try? viewModel.payForCreateAccount()
                 }
             }
             .ignoresSafeArea(.keyboard)
             .foregroundColor(.textMain)
             .padding(20)
-            .navigationBarTitle(Text("Your Access Key"), displayMode: .inline)
+            .navigationBarTitle(Text(""), displayMode: .inline)
         }
     }
 }
@@ -67,6 +67,12 @@ struct FinalizeAccountScreen: View {
 
 #Preview {
     FinalizeAccountScreen(
-        viewModel: OnboardingViewModel(sessionAuthenticator: .mock, banners: .mock)
+        viewModel: OnboardingViewModel(
+            session: .mock,
+            client: .mock,
+            flipClient: .mock,
+            banners: .mock,
+            isPresenting: .constant(true)
+        )
     )
 }

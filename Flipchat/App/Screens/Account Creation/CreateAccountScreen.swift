@@ -11,21 +11,12 @@ import FlipchatServices
 
 struct CreateAccountScreen: View {
     
-    @Binding var isPresented: Bool
-    
     @StateObject private var viewModel: OnboardingViewModel
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, sessionAuthenticator: SessionAuthenticator, banners: Banners) {
-        self._isPresented = isPresented
-        
-        let viewModel = OnboardingViewModel(sessionAuthenticator: sessionAuthenticator, banners: banners)
-        viewModel.generateNewSeed()
-        
-        self._viewModel = StateObject(
-            wrappedValue: viewModel
-        )
+    init(viewModel: @autoclosure @escaping () -> OnboardingViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
     // MARK: - Body -
@@ -38,7 +29,7 @@ struct CreateAccountScreen: View {
                     
                     VStack(spacing: 60) {
                         DeterministicAvatar(
-                            data: viewModel.ownerForMnemonic.publicKey.data,
+                            data: viewModel.owner.publicKey.data,
                             diameter: 120
                         )
                         
@@ -70,7 +61,7 @@ struct CreateAccountScreen: View {
                         title: "Not Now",
                         disabled: viewModel.accessKeyButtonState != .normal
                     ) {
-                        isPresented = false
+                        viewModel.dismiss()
                     }
                 }
                 .ignoresSafeArea(.keyboard)
@@ -79,7 +70,7 @@ struct CreateAccountScreen: View {
                 .navigationBarTitle(Text(""), displayMode: .inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        ToolbarCloseButton(binding: $isPresented)
+                        ToolbarCloseButton { viewModel.dismiss() }
                     }
                 }
             }
@@ -101,8 +92,12 @@ struct CreateAccountScreen: View {
 
 #Preview {
     CreateAccountScreen(
-        isPresented: .constant(true),
-        sessionAuthenticator: .mock,
-        banners: .mock
+        viewModel: .init(
+            session: .mock,
+            client: .mock,
+            flipClient: .mock,
+            banners: .mock,
+            isPresenting: .constant(true)
+        )
     )
 }

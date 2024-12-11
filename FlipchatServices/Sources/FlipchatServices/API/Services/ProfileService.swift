@@ -36,6 +36,31 @@ class ProfileService: FlipchatService<Flipchat_Profile_V1_ProfileNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func setDisplayName(name: String, owner: KeyPair, completion: @escaping (Result<(), ErrorSetDisplayName>) -> Void) {
+        trace(.send, components: "Name: \(name)")
+        
+        let request = Flipchat_Profile_V1_SetDisplayNameRequest.with {
+            $0.displayName = name
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.setDisplayName(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSetDisplayName(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -43,6 +68,12 @@ class ProfileService: FlipchatService<Flipchat_Profile_V1_ProfileNIOClient> {
 public enum ErrorFetchProfile: Int, Error {
     case ok
     case notFound
+    case unknown = -1
+}
+
+public enum ErrorSetDisplayName: Int, Error {
+    case ok
+    case invalidDisplayName
     case unknown = -1
 }
 
