@@ -12,13 +12,15 @@ import SQLite
 extension Database {
     
     /// Incomplete Chat.Member
-    func getUser(userID: UUID) throws -> MemberRow? {
+    func getUser(userID: UUID, roomID: UUID) throws -> MemberRow? {
         let statement = try reader.prepareRowIterator("""
         SELECT 
             u.serverID,
             u.displayName,
             u.avatarURL,
-            m.isMuted
+            m.isMuted,
+            m.canModerate,
+            m.canSend
         FROM 
             member m
         LEFT JOIN
@@ -26,7 +28,8 @@ extension Database {
         ON
             m.userID = u.serverID
         WHERE 
-            serverID = "\(userID.uuidString)"
+            serverID = "\(userID.uuidString)" AND
+            m.roomID = "\(roomID.uuidString)"
         LIMIT 1;
         """)
         
@@ -35,10 +38,12 @@ extension Database {
         
         let members = try statement.map { row in
             MemberRow(
-                serverID: row[uTable.serverID],
+                serverID:    row[uTable.serverID],
                 displayName: row[uTable.displayName],
-                avatarURL: row[uTable.avatarURL],
-                isMuted: row[mTable.isMuted]
+                avatarURL:   row[uTable.avatarURL],
+                isMuted:     row[mTable.isMuted],
+                canModerate: row[mTable.canModerate],
+                canSend:     row[mTable.canSend]
             )
         }
         
@@ -53,4 +58,6 @@ struct MemberRow {
     let displayName: String?
     let avatarURL: URL?
     let isMuted: Bool
+    let canModerate: Bool
+    let canSend: Bool
 }

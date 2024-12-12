@@ -67,10 +67,12 @@ struct FinalizeAccountScreen: View {
 
 #Preview {
     FinalizeAccountScreen(
-        viewModel: OnboardingViewModel(
+        viewModel: .init(
+            chatID: .mock,
             session: .mock,
             client: .mock,
             flipClient: .mock,
+            chatController: .mock,
             banners: .mock,
             isPresenting: .constant(true)
         )

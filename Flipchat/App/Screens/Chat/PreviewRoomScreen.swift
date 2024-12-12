@@ -67,33 +67,17 @@ struct PreviewRoomScreen: View {
                     
                     Spacer()
                     
-                    VStack(spacing: 10) {
-                        CodeButton(
-                            style: .filled,
-                            title: "Join Room: ⬣ \(chat.coverAmount.formattedTruncatedKin())"
-                        ) {
-                            Task {
-                                try await viewModel.attemptJoinChat(
-                                    chatID: chat.id,
-                                    hostID: chat.ownerUser,
-                                    amount: chat.coverAmount
-                                )
-                            }
-                        }
-                        
-                        CodeButton(
-                            state: viewModel.buttonStateWatchChat,
-                            style: .subtle,
-                            title: "Let me chat first"
-                        ) {
-                            Task {
-                                try await viewModel.watchChat(chatID: chat.id)
-                            }
+                    CodeButton(
+                        state: viewModel.buttonStateWatchChat,
+                        style: .filled,
+                        title: "Watch Room"
+                    ) {
+                        Task {
+                            try await viewModel.watchChat(chatID: chat.id)
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(20)
             }
             .foregroundColor(.textMain)
             .sheet(isPresented: $viewModel.isShowingJoinPayment) {

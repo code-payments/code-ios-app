@@ -116,6 +116,7 @@ struct ContainerScreen: View {
                                 chatID: chatID,
                                 session: state.session,
                                 containerViewModel: state.containerViewModel,
+                                chatViewModel: state.chatViewModel,
                                 chatController: authenticatedState.chatController
                             )
                             

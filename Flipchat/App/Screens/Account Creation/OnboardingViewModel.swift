@@ -35,9 +35,11 @@ class OnboardingViewModel: ObservableObject {
         return count >= 3 && count <= 26
     }
     
+    private let chatID: ChatID
     private let session: Session
     private let client: Client
     private let flipClient: FlipchatClient
+    private let chatController: ChatController
     private let banners: Banners
     private let isPresenting: Binding<Bool>
     
@@ -45,11 +47,13 @@ class OnboardingViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(session: Session, client: Client, flipClient: FlipchatClient, banners: Banners, isPresenting: Binding<Bool>) {
+    init(chatID: ChatID, session: Session, client: Client, flipClient: FlipchatClient, chatController: ChatController, banners: Banners, isPresenting: Binding<Bool>) {
+        self.chatID = chatID
         self.session = session
-        self.banners = banners
         self.client = client
         self.flipClient = flipClient
+        self.chatController = chatController
+        self.banners = banners
         self.isPresenting = isPresenting
         
         storeController.loadProducts()
@@ -164,31 +168,41 @@ extension OnboardingViewModel: StoreControllerDelegate {
     
     nonisolated
     func handlePayment(payment: Result<StoreController.Payment, any Error>) {
-        Task {
-            switch payment {
-            case .success(let payment):
-                if payment.productIdentifier == StoreController.Product.createAccount.rawValue {
+        Task { @MainActor in
+            handlePaymentResult(payment: payment)
+        }
+    }
+    
+    private func handlePaymentResult(payment: Result<StoreController.Payment, any Error>) {
+        switch payment {
+        case .success(let payment):
+            if payment.productIdentifier == StoreController.Product.createAccount.rawValue {
+                Task {
                     try await completeAccountUpgrade()
-                    await setPaymentState(.success)
-                    
-                    try await Task.delay(seconds: 250)
-                    await dismiss()
+                    setPaymentState(.success)
+                    Task {
+                        try await Task.delay(milliseconds: 200)
+                        dismiss()
+                    }
                 }
-                
-            case .failure:
-                await showPaymentFailed()
-                await setPaymentState(.normal)
             }
+            
+        case .failure:
+            showPaymentFailed()
+            setPaymentState(.normal)
         }
     }
     
     private func completeAccountUpgrade() async throws {
-        
         // 1. Update account from anonymous to a named one
         try await flipClient.setDisplayName(name: enteredName, owner: owner)
         
         // 2. Airdrop initial account Kin balance
         _ = try await client.airdrop(type: .getFirstKin, owner: owner)
+        
+        // 3. Update the user flags to indicate that
+        // this account is now registered
+        _ = try await session.updateUserFlags()
     }
 }
 

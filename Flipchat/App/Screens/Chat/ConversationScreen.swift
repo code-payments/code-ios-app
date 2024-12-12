@@ -34,7 +34,7 @@ private class ConversationState: ObservableObject {
         self.chatController = chatController
         
         room = try chatController.getRoom(chatID: chatID)
-        selfUser = try chatController.getUser(userID: userID)
+        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
         messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
         
         startStream()
@@ -54,7 +54,7 @@ private class ConversationState: ObservableObject {
     
     func reload() throws {
         room = try chatController.getRoom(chatID: chatID)
-        selfUser = try chatController.getUser(userID: userID)
+        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
         messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
     }
     
@@ -113,6 +113,9 @@ struct ConversationScreen: View {
     @EnvironmentObject private var banners: Banners
     @EnvironmentObject private var notificationController: NotificationController
     
+    @ObservedObject private var containerViewModel: ContainerViewModel
+    @ObservedObject private var chatViewModel: ChatViewModel
+    
     @State private var input: String = ""
     
     @State private var messageListState = MessageList.ListState()
@@ -126,16 +129,20 @@ struct ConversationScreen: View {
     private let userID: UserID
     private let chatID: ChatID
     private let session: Session
-    private let containerViewModel: ContainerViewModel
     private let chatController: ChatController
+    
+    var room: RoomDescription {
+        conversationState.room
+    }
     
     // MARK: - Init -
     
-    init(userID: UserID, chatID: ChatID, session: Session, containerViewModel: ContainerViewModel, chatController: ChatController) {
+    init(userID: UserID, chatID: ChatID, session: Session, containerViewModel: ContainerViewModel, chatViewModel: ChatViewModel, chatController: ChatController) {
         self.userID = userID
         self.chatID = chatID
         self.session = session
         self.containerViewModel = containerViewModel
+        self.chatViewModel = chatViewModel
         self.chatController = chatController
         self._conversationState = StateObject(wrappedValue: try! .init(
             userID: userID,
@@ -174,13 +181,34 @@ struct ConversationScreen: View {
                 .sheet(isPresented: $isShowingAccountCreation) {
                     CreateAccountScreen(
                         viewModel: OnboardingViewModel(
+                            chatID: chatID,
                             session: session,
                             client: client,
                             flipClient: flipClient,
+                            chatController: chatController,
                             banners: banners,
                             isPresenting: $isShowingAccountCreation
                         )
                     )
+                }
+                .sheet(isPresented: $chatViewModel.isShowingJoinPayment) {
+                    PartialSheet {
+                        ModalPaymentConfirmation(
+                            amount: room.room.cover.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
+                            currency: .kin,
+                            primaryAction: "Swipe to Pay",
+                            secondaryAction: "Cancel",
+                            paymentAction: {
+                                try await chatViewModel.payAndJoinChat(
+                                    chatID: ChatID(uuid: room.room.serverID),
+                                    hostID: UserID(uuid: room.room.ownerUserID),
+                                    amount: room.room.cover
+                                )
+                            },
+                            dismissAction: { chatViewModel.cancelJoinChatPayment() },
+                            cancelAction:  { chatViewModel.cancelJoinChatPayment() }
+                        )
+                    }
                 }
                 
 //                MessageList(
@@ -195,7 +223,7 @@ struct ConversationScreen: View {
 //                    }
 //                )
                 
-                if chatController.isRegistered {
+                if chatController.isRegistered && conversationState.selfUser.canSend {
                     if !conversationState.selfUser.isMuted {
                         inputView()
                     } else {
@@ -211,7 +239,17 @@ struct ConversationScreen: View {
                         style: .filled,
                         title: "Join Room: ⬣ \(conversationState.room.room.cover.formattedTruncatedKin())"
                     ) {
-                        isShowingAccountCreation = true
+                        if chatController.isRegistered {
+                            Task {
+                                try await chatViewModel.attemptJoinChat(
+                                    chatID: ChatID(uuid: room.room.serverID),
+                                    hostID: UserID(uuid: room.room.ownerUserID),
+                                    amount: room.room.cover
+                                )
+                            }
+                        } else {
+                            isShowingAccountCreation = true
+                        }
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)

@@ -62,6 +62,7 @@ class StoreController: NSObject, ObservableObject {
     }
     
     func processPayment(payment: Result<StoreController.Payment, Swift.Error>) {
+        print("[IAP] Received payment: \(payment)")
         delegate?.handlePayment(payment: payment)
     }
 }

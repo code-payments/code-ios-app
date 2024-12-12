@@ -151,6 +151,8 @@ extension Database {
                 table.userID      <- member.id.uuid,
                 table.roomID      <- roomID,
                 table.isMuted     <- member.isMuted,
+                table.canModerate <- member.hasModeratorPermission,
+                table.canSend     <- member.hasSendPermission,
                 
                 onConflictOf: Expression<Void>(literal: "\"userID\", \"roomID\"")
             )

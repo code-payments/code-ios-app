@@ -93,9 +93,11 @@ struct CreateAccountScreen: View {
 #Preview {
     CreateAccountScreen(
         viewModel: .init(
+            chatID: .mock,
             session: .mock,
             client: .mock,
             flipClient: .mock,
+            chatController: .mock,
             banners: .mock,
             isPresenting: .constant(true)
         )
