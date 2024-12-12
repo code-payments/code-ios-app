@@ -36,10 +36,13 @@ class OnboardingViewModel: ObservableObject {
     }
     
     private let chatID: ChatID
+    private let hostID: UserID
+    private let cover: Kin
     private let session: Session
     private let client: Client
     private let flipClient: FlipchatClient
     private let chatController: ChatController
+    private let chatViewModel: ChatViewModel
     private let banners: Banners
     private let isPresenting: Binding<Bool>
     
@@ -47,14 +50,17 @@ class OnboardingViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(chatID: ChatID, session: Session, client: Client, flipClient: FlipchatClient, chatController: ChatController, banners: Banners, isPresenting: Binding<Bool>) {
-        self.chatID = chatID
-        self.session = session
-        self.client = client
-        self.flipClient = flipClient
+    init(chatID: ChatID, hostID: UserID, cover: Kin, session: Session, client: Client, flipClient: FlipchatClient, chatController: ChatController, chatViewModel: ChatViewModel, banners: Banners, isPresenting: Binding<Bool>) {
+        self.chatID         = chatID
+        self.hostID         = hostID
+        self.cover          = cover
+        self.session        = session
+        self.client         = client
+        self.flipClient     = flipClient
         self.chatController = chatController
-        self.banners = banners
-        self.isPresenting = isPresenting
+        self.chatViewModel  = chatViewModel
+        self.banners        = banners
+        self.isPresenting   = isPresenting
         
         storeController.loadProducts()
     }
@@ -183,6 +189,12 @@ extension OnboardingViewModel: StoreControllerDelegate {
                     Task {
                         try await Task.delay(milliseconds: 200)
                         dismiss()
+                        try await Task.delay(milliseconds: 200)
+                        try await chatViewModel.attemptJoinChat(
+                            chatID: chatID,
+                            hostID: hostID,
+                            amount: cover
+                        )
                     }
                 }
             }
@@ -198,9 +210,13 @@ extension OnboardingViewModel: StoreControllerDelegate {
         try await flipClient.setDisplayName(name: enteredName, owner: owner)
         
         // 2. Airdrop initial account Kin balance
-        _ = try await client.airdrop(type: .getFirstKin, owner: owner)
+        _ = try? await client.airdrop(type: .getFirstKin, owner: owner)
         
-        // 3. Update the user flags to indicate that
+        // 3. Update the user's balance to reflect
+        // the aidropped Kin right away
+        _ = try await session.updateBalance()
+        
+        // 4. Update the user flags to indicate that
         // this account is now registered
         _ = try await session.updateUserFlags()
     }

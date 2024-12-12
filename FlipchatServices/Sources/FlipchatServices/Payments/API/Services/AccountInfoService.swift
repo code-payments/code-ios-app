@@ -131,7 +131,7 @@ public enum ErrorFetchIsCodeAccount: Int, Error {
     case unknown = -1
 }
 
-public enum ErrorFetchAccountInfos: Error, Equatable {
+public enum ErrorFetchAccountInfos: Error, Equatable, Sendable {
     case ok
     case notFound
     

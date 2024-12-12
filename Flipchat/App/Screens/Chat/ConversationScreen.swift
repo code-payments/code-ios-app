@@ -199,10 +199,13 @@ struct ConversationScreen: View {
                     CreateAccountScreen(
                         viewModel: OnboardingViewModel(
                             chatID: chatID,
+                            hostID: UserID(uuid: room.room.ownerUserID),
+                            cover: room.room.cover,
                             session: session,
                             client: client,
                             flipClient: flipClient,
                             chatController: chatController,
+                            chatViewModel: chatViewModel,
                             banners: banners,
                             isPresenting: $isShowingAccountCreation
                         )

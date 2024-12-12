@@ -123,7 +123,9 @@ class Session: ObservableObject {
             flowController.updateLimits()
         }
         
-        updateBalance()
+        Task {
+            try await updateBalance()
+        }
     }
     
     // MARK: - Balance -
@@ -132,22 +134,15 @@ class Session: ObservableObject {
         currentBalance = try await flowController.fetchBalance()
     }
     
-    private func updateBalance() {
-        Task {
-            do {
-                try await fetchBalance()
-                
-                if organizer.isUnuseable {
-                    delegate?.didDetectUnlockedAccount()
-                }
-                
-                balanceQueue.setUnblocked()
-                hasBalance = true
-                
-            } catch ErrorFetchAccountInfos.migrationRequired {
-                Analytics.migrationRequired()
-            }
+    func updateBalance() async throws {
+        try await fetchBalance()
+        
+        if organizer.isUnuseable {
+            delegate?.didDetectUnlockedAccount()
         }
+        
+        balanceQueue.setUnblocked()
+        hasBalance = true
     }
     
     func receiveIfNeeded() {
