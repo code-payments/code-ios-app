@@ -254,7 +254,7 @@ struct ConversationScreen: View {
                 } else {
                     CodeButton(
                         style: .filled,
-                        title: "Join Room: ⬣ \(conversationState.room.room.cover.formattedTruncatedKin())"
+                        title: "Join Room: ⬢ \(conversationState.room.room.cover.formattedTruncatedKin())"
                     ) {
                         if chatController.isRegistered {
                             Task {
