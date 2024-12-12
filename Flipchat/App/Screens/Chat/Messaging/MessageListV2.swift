@@ -14,14 +14,16 @@ struct MessageListV2: UIViewRepresentable {
     let hostID: UserID
     let chatID: ChatID
     let messages: [MessageRow]
+    let scroll: Binding<ScrollConfiguration?>
     let action: (MessageAction) -> Void
     let loadMore: () -> Void
     
-    init(userID: UserID, hostID: UserID, chatID: ChatID, messages: [MessageRow], action: @escaping (MessageAction) -> Void, loadMore: @escaping () -> Void) {
+    init(userID: UserID, hostID: UserID, chatID: ChatID, messages: [MessageRow], scroll: Binding<ScrollConfiguration?>, action: @escaping (MessageAction) -> Void, loadMore: @escaping () -> Void) {
         self.userID   = userID
         self.hostID   = hostID
         self.chatID   = chatID
         self.messages = messages
+        self.scroll   = scroll
         self.action   = action
         self.loadMore = loadMore
     }
@@ -59,6 +61,13 @@ struct MessageListV2: UIViewRepresentable {
     func updateUIView(_ tableView: UITableView, context: Context) {
         context.coordinator.tableView = tableView
         context.coordinator.update(newMessages: messages)
+        
+        if let configuration = scroll.wrappedValue {
+            context.coordinator.scrollTo(configuration: configuration)
+            Task { // Have to modify when not updating
+                scroll.wrappedValue = nil
+            }
+        }
     }
 }
 
@@ -133,8 +142,35 @@ extension MessageListV2 {
             tableView.reloadData()
             
             if isEmpty {
-                Task {
-                    tableView.scrollToRow(at: IndexPath(row: container.count - 1, section: 0), at: .bottom, animated: false)
+                scrollTo(configuration: .init(destination: .bottom, animated: false))
+            }
+        }
+        
+        func scrollTo(configuration: ScrollConfiguration) {
+            let indexPath: IndexPath
+            switch configuration.destination {
+            case .bottom:
+                indexPath = IndexPath(row: messages.count - 1, section: 0)
+            case .row(let row):
+                indexPath = IndexPath(row: row, section: 0)
+            }
+            
+            Task {
+                try await Task.delay(milliseconds: 25)
+                if configuration.animated {
+                    UIView.animate(withDuration: 0.2, delay: 0.0, options: .curveEaseInOut) { [tableView] in
+                        tableView?.scrollToRow(
+                            at: indexPath,
+                            at: .middle,
+                            animated: true
+                        )
+                    }
+                } else {
+                    tableView.scrollToRow(
+                        at: indexPath,
+                        at: .middle,
+                        animated: false
+                    )
                 }
             }
         }
@@ -289,5 +325,18 @@ private struct MessageRowView<Content>: View where Content: View {
             .frame(maxWidth: width, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: alignment)
+    }
+}
+
+// MARK: - Types -
+
+struct ScrollConfiguration {
+    
+    var destination: Destination
+    var animated: Bool
+    
+    enum Destination {
+        case bottom
+        case row(Int)
     }
 }

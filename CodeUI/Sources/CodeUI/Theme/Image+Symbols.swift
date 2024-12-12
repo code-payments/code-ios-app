@@ -116,6 +116,7 @@ public enum Asset: String, Sendable {
     case kinHex
     case more
     case crown
+    case scrollBottom
     
     case kado
     

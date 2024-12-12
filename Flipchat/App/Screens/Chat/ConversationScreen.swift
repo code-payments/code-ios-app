@@ -118,9 +118,9 @@ struct ConversationScreen: View {
     
     @State private var input: String = ""
     
-    @State private var messageListState = MessageList.ListState()
-    
     @State private var isShowingAccountCreation: Bool = false
+    
+    @State private var scrollConfiguration: ScrollConfiguration?
     
     @StateObject private var conversationState: ConversationState
     
@@ -170,6 +170,7 @@ struct ConversationScreen: View {
                         hostID: UserID(uuid: conversationState.room.room.ownerUserID),
                         chatID: chatID,
                         messages: conversationState.messages,
+                        scroll: $scrollConfiguration,
                         action: { action in
                             Task {
                                 try await messageAction(action: action)
@@ -177,6 +178,22 @@ struct ConversationScreen: View {
                         },
                         loadMore: {}
                     )
+//                    .overlay {
+//                        VStack {
+//                            Spacer()
+//                            HStack {
+//                                Spacer()
+//                                Button {
+//                                    scrollToBottom(animated: true)
+//                                } label: {
+//                                    Image.asset(.scrollBottom)
+//                                        .padding(5)
+//                                        .opacity(0.8)
+//                                }
+//                            }
+//                        }
+//                        .padding(15)
+//                    }
                 }
                 .sheet(isPresented: $isShowingAccountCreation) {
                     CreateAccountScreen(
@@ -311,7 +328,7 @@ struct ConversationScreen: View {
             if focused {
                 Task {
                     try await Task.delay(milliseconds: 150)
-                    scrollToBottom()
+                    scrollToBottom(animated: true)
                 }
             }
         }
@@ -425,15 +442,13 @@ struct ConversationScreen: View {
         
         Task {
             try await chatController.sendMessage(text: text, for: chatID)
+            scrollToBottom(animated: true)
+            input = ""
         }
-        
-        input = ""
-        
-        scrollToBottom()
     }
     
-    private func scrollToBottom() {
-        messageListState.scrollToBottom()
+    private func scrollToBottom(animated: Bool = false) {
+        scrollConfiguration = .init(destination: .bottom, animated: animated)
     }
     
     // MARK: - Banners -
