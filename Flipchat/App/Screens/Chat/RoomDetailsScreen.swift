@@ -79,7 +79,7 @@ struct RoomDetailsScreen: View {
                                     if let host = room.hostDisplayName {
                                         Text("Hosted by \(host)")
                                     }
-                                    Text("\(room.memberCount) people inside")
+                                    Text("\(room.memberCount) \(room.memberCount == 1 ? "person" : "peaple") here")
                                     Text("Cover Charge: ⬢ \(room.room.cover.truncatedKinValue) Kin")
                                 }
                                 .opacity(0.8)

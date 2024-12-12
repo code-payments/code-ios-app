@@ -260,6 +260,7 @@ struct ConversationScreen: View {
         .onDisappear(perform: didDisappear)
         .interactiveDismissDisabled()
         .navigationBarHidden(false)
+        .navigationBarTitle("", displayMode: .inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 titleItem()
@@ -287,7 +288,7 @@ struct ConversationScreen: View {
                 .foregroundColor(.backgroundMain)
                 .tint(.backgroundMain)
                 .multilineTextAlignment(.leading)
-                .frame(minHeight: 35, maxHeight: 95, alignment: .leading)
+                .frame(minHeight: 36, maxHeight: 95, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 5)
                 .background(.white)
@@ -299,7 +300,8 @@ struct ConversationScreen: View {
                 Image.asset(.paperplane)
                     .resizable()
                     .frame(width: 36, height: 36, alignment: .center)
-                    .padding(2)
+//                    .padding([.bottom, .leading, .trailing], 2)
+//                    .padding(.top, 8)
             }
         }
         .padding(.horizontal, 15)

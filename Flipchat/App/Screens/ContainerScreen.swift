@@ -107,6 +107,8 @@ struct ContainerScreen: View {
                         selection: tabSelection
                     )
                 }
+                .navigationBarHidden(true)
+                .navigationBarTitle("", displayMode: .inline)
                 .navigationDestination(for: ContainerPath.self) { path in
                     if let authenticatedState {
                         switch path {

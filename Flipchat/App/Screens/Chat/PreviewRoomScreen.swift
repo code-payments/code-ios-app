@@ -48,7 +48,7 @@ struct PreviewRoomScreen: View {
                             Spacer()
                             VStack(spacing: 4) {
                                 Text("Hosted by \(host.displayName ?? "Member")")
-                                Text("\(members.count) people inside")
+                                Text("\(members.count) \(members.count == 1 ? "person" : "peaple") here")
                                 Text("Cover Charge: ⬢ \(chat.coverAmount.formattedTruncatedKin())")
                             }
                             .opacity(0.8)
