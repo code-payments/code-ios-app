@@ -339,7 +339,7 @@ struct ConversationScreen: View {
             GradientAvatarView(data: chatID.data, diameter: 30)
             
             VStack(alignment: .leading, spacing: 0) {
-                Text(conversationState.room.room.roomNumber.formattedRoomNumber)
+                Text(conversationState.room.room.formattedTitle)
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
                 Text("\(conversationState.room.memberCount) \(subtext(for: conversationState.room.memberCount)) here")

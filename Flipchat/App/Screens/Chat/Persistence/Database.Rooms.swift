@@ -214,6 +214,14 @@ struct RoomDescription {
         let cover: Kin
         let unreadCount: Int
         let isDeleted: Bool
+        
+        var formattedTitle: String {
+            if let title {
+                return "\(roomNumber.formattedRoomNumberShort): \(title)"
+            } else {
+                return roomNumber.formattedRoomNumber
+            }
+        }
     }
     
     struct Message {
