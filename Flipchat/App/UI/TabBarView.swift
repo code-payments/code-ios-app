@@ -133,6 +133,9 @@ extension Color {
 struct TabBarItem: Equatable, Hashable, Sendable {
     var title: String
     var asset: Asset
+    
+    static let rooms   = TabBarItem(title: "Rooms",   asset: .bubble)
+    static let balance = TabBarItem(title: "Balance", asset: .kinHex)
 }
 
 // MARK: - PreferenceKey -
@@ -160,13 +163,10 @@ struct TabBarItemViewModifer: ViewModifier {
 }
 
 extension View {
-    func tabBarItem(title: String, asset: Asset, selection: TabBarItem) -> some View {
+    func tabBarItem(item: TabBarItem, selection: TabBarItem) -> some View {
         modifier(
             TabBarItemViewModifer(
-                tabBarItem: TabBarItem(
-                    title: title,
-                    asset: asset
-                ),
+                tabBarItem: item,
                 selection: selection
             )
         )
@@ -185,7 +185,7 @@ extension View {
                     .navigationTitle("Chat")
             }
         }
-        .tabBarItem(title: "Chat", asset: .bubble, selection: selection)
+        .tabBarItem(item: .rooms, selection: selection)
         
         Background(color: .backgroundMain) {
             NavigationStack {
@@ -193,6 +193,6 @@ extension View {
                     .navigationTitle("Balance")
             }
         }
-        .tabBarItem(title: "Balance", asset: .bubble, selection: selection)
+        .tabBarItem(item: .balance, selection: selection)
     }
 }

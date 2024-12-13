@@ -14,7 +14,7 @@ struct ContainerScreen: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     
-    @State private var tabSelection: TabBarItem = .init(title: "Chats", asset: .bubble)
+    @State private var tabSelection: TabBarItem = .rooms
     
     @ObservedObject private var viewModel: ContainerViewModel
     
@@ -92,8 +92,7 @@ struct ContainerScreen: View {
                         viewModel: state.chatViewModel
                     )
                     .tabBarItem(
-                        title: "Chats",
-                        asset: .bubble,
+                        item: .rooms,
                         selection: tabSelection
                     )
                     
@@ -102,8 +101,7 @@ struct ContainerScreen: View {
                         container: container
                     )
                     .tabBarItem(
-                        title: "Balance",
-                        asset: .kinHex,
+                        item: .balance,
                         selection: tabSelection
                     )
                 }
