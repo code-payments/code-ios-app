@@ -40,6 +40,14 @@ extension ID {
         self.init(data: d)
     }
     
+    public init?(uuid: UUID?) {
+        if let uuid {
+            self.init(uuid: uuid)
+        } else {
+            return nil
+        }
+    }
+    
     public var uuid: UUID {
         guard data.count == 16 else {
             fatalError("ID is not 16 bytes, instead \(data.count) bytes were provided.")

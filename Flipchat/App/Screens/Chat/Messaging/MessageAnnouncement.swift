@@ -32,3 +32,25 @@ public struct MessageAnnouncement: View {
         .padding(.top, 8)
     }
 }
+
+public struct MessageUnread: View {
+    
+    public let text: String
+        
+    public init(text: String) {
+        self.text = text
+    }
+    
+    public var body: some View {
+        Text(text)
+            .font(.appTextHeading)
+            .foregroundColor(.ultraLightPurple)
+            .padding(.vertical, 6)
+            .multilineTextAlignment(.center)
+            .frame(height: 30)
+            .frame(maxWidth: .infinity)
+            .background(Color.backgroundMessageSent)
+            .padding(.bottom, 8)
+            .padding(.top, 16)
+    }
+}

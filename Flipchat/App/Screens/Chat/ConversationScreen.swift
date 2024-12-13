@@ -12,6 +12,8 @@ import FlipchatServices
 @MainActor
 private class ConversationState: ObservableObject {
     
+    let pointer: MessagePointer? // We don't want to publish changes
+    
     @Published var room: RoomDescription!
     @Published var selfUser: MemberRow!
     @Published var messages: [MessageRow] = []
@@ -33,9 +35,11 @@ private class ConversationState: ObservableObject {
         self.chatID = chatID
         self.chatController = chatController
         
-        room = try chatController.getRoom(chatID: chatID)
+        room     = try chatController.getRoom(chatID: chatID)
         selfUser = try chatController.getMember(userID: userID, roomID: chatID)
         messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
+        
+        pointer  = try chatController.getPointer(userID: userID, chatID: chatID)
         
         startStream()
     }
@@ -53,8 +57,9 @@ private class ConversationState: ObservableObject {
     }
     
     func reload() throws {
-        room = try chatController.getRoom(chatID: chatID)
+        room     = try chatController.getRoom(chatID: chatID)
         selfUser = try chatController.getMember(userID: userID, roomID: chatID)
+        // Don't update the pointer
         messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
     }
     
@@ -135,6 +140,16 @@ struct ConversationScreen: View {
         conversationState.room
     }
     
+    var unreadDescription: UnreadDescription? {
+        if let pointer = conversationState.pointer {
+            return UnreadDescription(
+                messageID: pointer.messageID,
+                unread: pointer.newUnreads
+            )
+        }
+        return nil
+    }
+    
     // MARK: - Init -
     
     init(userID: UserID, chatID: ChatID, session: Session, containerViewModel: ContainerViewModel, chatViewModel: ChatViewModel, chatController: ChatController) {
@@ -169,6 +184,7 @@ struct ConversationScreen: View {
                         userID: userID,
                         hostID: UserID(uuid: conversationState.room.room.ownerUserID),
                         chatID: chatID,
+                        unread: unreadDescription,
                         messages: conversationState.messages,
                         scroll: $scrollConfiguration,
                         action: { action in
@@ -230,18 +246,6 @@ struct ConversationScreen: View {
                         )
                     }
                 }
-                
-//                MessageList(
-//                    state: $messageListState,
-//                    chatID: chatID,
-//                    userID: userID,
-//                    hostID: UserID(uuid: conversationState.room.room.ownerUserID),
-//                    messages: conversationState.messages,
-//                    action: messageAction,
-//                    loadMore: {
-////                        try? conversationState.addPageAndReload()
-//                    }
-//                )
                 
                 if chatController.isRegistered && conversationState.selfUser.canSend {
                     if !conversationState.selfUser.isMuted {

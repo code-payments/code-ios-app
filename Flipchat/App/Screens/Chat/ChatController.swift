@@ -114,6 +114,10 @@ class ChatController: ObservableObject {
         try database.getMessages(roomID: chatID.uuid, pageSize: pageSize, offset: 0)
     }
     
+    func getPointer(userID: UserID, chatID: ChatID) throws -> MessagePointer? {
+        try database.getPointer(userID: userID.uuid, roomID: chatID.uuid)
+    }
+    
     // MARK: - Sync -
     
     func startSync() {

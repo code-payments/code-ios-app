@@ -33,11 +33,20 @@ extension Database {
         return messages.first
     }
     
-    func getPointerMessageID(roomID: UUID, userID: UUID) throws -> MessagePointer? {
+    func getPointer(userID: UUID, roomID: UUID) throws -> MessagePointer? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             p.kind,
-            p.messageID
+            p.messageID,
+            (
+                SELECT 
+                    COUNT(*)
+                FROM 
+                    message m
+                WHERE 
+                    m.roomID = "\(roomID.uuidString)" AND 
+                    m.serverID > p.messageID
+            ) AS newUnreads
         FROM
             pointer p
         WHERE
@@ -51,7 +60,8 @@ extension Database {
         let pointers = try statement.map { row in
             MessagePointer(
                 messageID: row[pTable.messageID],
-                kind: Chat.Pointer.Kind(rawValue: row[pTable.kind])!
+                kind: Chat.Pointer.Kind(rawValue: row[pTable.kind])!,
+                newUnreads: row[Expression<Int>("newUnreads")]
             )
         }
         
@@ -138,4 +148,5 @@ struct MessageRow: Hashable {
 struct MessagePointer {
     let messageID: UUID
     let kind: Chat.Pointer.Kind
+    let newUnreads: Int
 }

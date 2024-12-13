@@ -13,15 +13,17 @@ struct MessageListV2: UIViewRepresentable {
     let userID: UserID
     let hostID: UserID
     let chatID: ChatID
+    let unread: UnreadDescription?
     let messages: [MessageRow]
     let scroll: Binding<ScrollConfiguration?>
     let action: (MessageAction) -> Void
     let loadMore: () -> Void
     
-    init(userID: UserID, hostID: UserID, chatID: ChatID, messages: [MessageRow], scroll: Binding<ScrollConfiguration?>, action: @escaping (MessageAction) -> Void, loadMore: @escaping () -> Void) {
+    init(userID: UserID, hostID: UserID, chatID: ChatID, unread: UnreadDescription? = nil, messages: [MessageRow], scroll: Binding<ScrollConfiguration?>, action: @escaping (MessageAction) -> Void, loadMore: @escaping () -> Void) {
         self.userID   = userID
         self.hostID   = hostID
         self.chatID   = chatID
+        self.unread   = unread
         self.messages = messages
         self.scroll   = scroll
         self.action   = action
@@ -59,6 +61,7 @@ struct MessageListV2: UIViewRepresentable {
     }
 
     func updateUIView(_ tableView: UITableView, context: Context) {
+        context.coordinator.unreadDescription = unread
         context.coordinator.tableView = tableView
         context.coordinator.update(newMessages: messages)
         
@@ -77,6 +80,8 @@ extension MessageListV2 {
     class Coordinator: NSObject, UITableViewDataSource, UITableViewDelegate {
         
         typealias Action = (MessageAction) -> Void
+        
+        var unreadDescription: UnreadDescription?
         
         private let list: MessageListV2
         private let userID: UserID
@@ -98,6 +103,8 @@ extension MessageListV2 {
 
         func update(newMessages: [MessageRow]) {
             var container: [MessageDescription] = []
+            var unreadIndex: Int?
+            
             for dateGroup in newMessages.groupByDay(userID: userID) {
                 
                 // Date
@@ -133,16 +140,54 @@ extension MessageListV2 {
                     case .reaction, .unknown:
                         break
                     }
+                    
+                    // If unread description is present, we'll augment the list of
+                    // messages to include an unread banner as a 'message' row. The
+                    // pointer is to the last seen message so we have to insert the
+                    // banner after the message itself.
+                    if let unreadDescription, message.serverID == unreadDescription.messageID {
+                        
+                        // Index of this message in container
+                        unreadIndex = container.count
+                        
+                        let count = unreadDescription.unread
+                        container.append(
+                            .init(
+                                kind: .unread,
+                                content: "\(count) Unread Message\(count == 1 ? "" : "s")"
+                            )
+                        )
+                    }
                 }
             }
             
             let isEmpty = messages.isEmpty
             
+            if let lastItem = container.last, lastItem.kind == .unread {
+                print("Removed unread banner, it's the last message")
+                unreadIndex = nil
+                container.removeLast()
+            }
+            
             messages = container
             tableView.reloadData()
             
             if isEmpty {
-                scrollTo(configuration: .init(destination: .bottom, animated: false))
+                if let unreadIndex {
+                    scrollTo(
+                        configuration: .init(
+                            destination: .row(unreadIndex),
+                            animated: false
+                        )
+                    )
+                } else {
+                    scrollTo(
+                        configuration: .init(
+                            destination: .bottom,
+                            animated: false
+                        )
+                    )
+                }
             }
         }
         
@@ -200,6 +245,7 @@ extension MessageListV2 {
                 MessageRowView(kind: message.kind, width: width) { row }
             }
             .margins(.vertical, 2)
+            .margins(.horizontal, 0)
 
             // Load more when reaching the last cell
 //            if indexPath.row == messages.count - 1 {
@@ -264,6 +310,9 @@ extension MessageListV2 {
                 
             case .announcement:
                 MessageAnnouncement(text: description.content)
+                
+            case .unread:
+                MessageUnread(text: description.content)
             }
         }
     }
@@ -283,7 +332,7 @@ private struct MessageRowView<Content>: View where Content: View {
             return .center
         case .message(_, let isReceived, _, _):
             return isReceived ? .leading : .trailing
-        case .announcement:
+        case .announcement, .unread:
             return .center
         }
     }
@@ -294,8 +343,17 @@ private struct MessageRowView<Content>: View where Content: View {
             return .top
         case .message(_, let isReceived, _, _):
             return isReceived ? .leading : .trailing
-        case .announcement:
+        case .announcement, .unread:
             return .bottom
+        }
+    }
+    
+    private var horizontalPadding: CGFloat {
+        switch kind {
+        case .date, .message, .announcement:
+            return 20
+        case .unread:
+            return 0
         }
     }
     
@@ -309,7 +367,7 @@ private struct MessageRowView<Content>: View where Content: View {
         VStack(alignment: vAlignment) {
             HStack {
                 switch kind {
-                case .date, .announcement:
+                case .date, .announcement, .unread:
                     content()
                     
                 case .message(_, let isReceived, _, _):
@@ -325,6 +383,7 @@ private struct MessageRowView<Content>: View where Content: View {
             .frame(maxWidth: width, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: alignment)
+        .padding(.horizontal, horizontalPadding)
     }
 }
 
@@ -333,10 +392,22 @@ private struct MessageRowView<Content>: View where Content: View {
 struct ScrollConfiguration {
     
     var destination: Destination
+    var position: UITableView.ScrollPosition
     var animated: Bool
+    
+    init(destination: Destination, position: UITableView.ScrollPosition = .middle, animated: Bool) {
+        self.destination = destination
+        self.position = position
+        self.animated = animated
+    }
     
     enum Destination {
         case bottom
         case row(Int)
     }
+}
+
+struct UnreadDescription {
+    var messageID: UUID
+    var unread: Int
 }

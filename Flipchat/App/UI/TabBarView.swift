@@ -124,8 +124,9 @@ private struct TabItemStyle: ButtonStyle {
 }
 
 extension Color {
-    static let darkPurple = Color(r: 40, g: 23, b: 110)
-    static let lightPurple = Color(r: 68, g: 48, b: 145)
+    static let darkPurple       = Color(r: 40, g: 23, b: 110)
+    static let lightPurple      = Color(r: 68, g: 48, b: 145)
+    static let ultraLightPurple = Color(r: 210, g: 198, b: 255)
 }
 
 // MARK: - TabBarItem -
