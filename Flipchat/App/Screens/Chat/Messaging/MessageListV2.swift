@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipchatServices
+import CodeUI
 
 struct MessageListV2: UIViewRepresentable {
     
@@ -43,7 +44,7 @@ struct MessageListV2: UIViewRepresentable {
     func makeUIView(context: Context) -> UITableView {
         let tableView = UITableView(frame: UIScreen.main.bounds, style: .plain)
         
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        tableView.register(MessageTableCell.self, forCellReuseIdentifier: "cell")
         
         tableView.dataSource          = context.coordinator
         tableView.delegate            = context.coordinator
@@ -220,6 +221,10 @@ extension MessageListV2 {
             }
         }
         
+        func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+            print("Showing index: \(indexPath.row)")
+        }
+        
         // MARK: - UITableViewDataSource -
         
         func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -227,12 +232,16 @@ extension MessageListV2 {
         }
 
         func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-            let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-            
-            cell.backgroundColor = .clear
+            let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath) as! MessageTableCell
             
             let message = messages[indexPath.row]
             let width = message.messageWidth(in: tableView.frame.size).width
+            
+            cell.backgroundColor = .clear
+            cell.swipeEnabled    = message.kind.messageRow != nil
+            cell.onSwipeToReply  = { [weak self] in
+                self?.action(.reply(message.kind.messageRow!))
+            }
             
             cell.contentConfiguration = UIHostingConfiguration {
                 let row = row(

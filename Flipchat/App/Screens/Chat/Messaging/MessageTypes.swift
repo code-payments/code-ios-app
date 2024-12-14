@@ -13,6 +13,7 @@ enum MessageAction {
     case copy(String)
     case muteUser(String, UserID, ChatID)
     case reportMessage(UserID, MessageID)
+    case reply(MessageRow)
 }
 
 struct MessageDescription: Identifiable, Hashable, Equatable {
@@ -21,6 +22,15 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         case message(MessageID, Bool, MessageRow, MessageSemanticLocation)
         case announcement(MessageID)
         case unread
+        
+        var messageRow: MessageRow? {
+            switch self {
+            case .message(_, _, let row, _):
+                return row
+            case .date, .announcement, .unread:
+                return nil
+            }
+        }
     }
     
     var id: String {

@@ -127,6 +127,8 @@ struct ConversationScreen: View {
     
     @State private var scrollConfiguration: ScrollConfiguration?
     
+    @State private var replyMessage: MessageRow?
+    
     @StateObject private var conversationState: ConversationState
     
     @FocusState private var isEditorFocused: Bool
@@ -305,36 +307,47 @@ struct ConversationScreen: View {
     }
     
     @ViewBuilder private func inputView() -> some View {
-        HStack(alignment: .bottom) {
-            conversationTextView()
-                .focused($isEditorFocused)
-                .font(.appTextMessage)
-                .foregroundColor(.backgroundMain)
-                .tint(.backgroundMain)
-                .multilineTextAlignment(.leading)
-                .frame(minHeight: 36, maxHeight: 95, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 5)
-                .background(.white)
-                .cornerRadius(20)
-            
-            Button {
-                sendMessage(text: input)
-            } label: {
-                Image.asset(.paperplane)
-                    .resizable()
-                    .frame(width: 36, height: 36, alignment: .center)
-//                    .padding([.bottom, .leading, .trailing], 2)
-//                    .padding(.top, 8)
+        VStack(alignment: .leading) {
+            if let replyMessage {
+                MessageReplyBanner(
+                    name: replyMessage.member.displayName ?? "Unknown",
+                    content: replyMessage.message.content
+                ) {
+                    self.replyMessage = nil
+                }
             }
+            HStack(alignment: .bottom) {
+                conversationTextView()
+                    .focused($isEditorFocused)
+                    .font(.appTextMessage)
+                    .foregroundColor(.backgroundMain)
+                    .tint(.backgroundMain)
+                    .multilineTextAlignment(.leading)
+                    .frame(minHeight: 36, maxHeight: 95, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 5)
+                    .background(.white)
+                    .cornerRadius(20)
+                
+                Button {
+                    sendMessage(text: input)
+                } label: {
+                    Image.asset(.paperplane)
+                        .resizable()
+                        .frame(width: 36, height: 36, alignment: .center)
+                    //                    .padding([.bottom, .leading, .trailing], 2)
+                    //                    .padding(.top, 8)
+                }
+            }
+            .padding(.horizontal, 15)
+            .padding(.top, 5)
+            .padding(.bottom, 8)
         }
-        .padding(.horizontal, 15)
-        .padding(.top, 5)
-        .padding(.bottom, 8)
+        .animation(.easeInOut(duration: 0.2), value: replyMessage)
         .onChange(of: isEditorFocused) { _, focused in
             if focused {
                 Task {
-                    try await Task.delay(milliseconds: 150)
+                    try await Task.delay(milliseconds: 250)
                     scrollToBottom(animated: true)
                 }
             }
@@ -427,6 +440,9 @@ struct ConversationScreen: View {
                     .cancel(title: "Cancel"),
                 ]
             )
+            
+        case .reply(let messageRow):
+            replyMessage = messageRow
         }
     }
     
