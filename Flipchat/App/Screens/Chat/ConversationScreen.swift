@@ -464,9 +464,16 @@ struct ConversationScreen: View {
         }
         
         Task {
-            try await chatController.sendMessage(text: text, for: chatID)
+            try await chatController.sendMessage(
+                text: text,
+                for: chatID,
+                replyingTo: MessageID(uuid: replyMessage?.message.serverID)
+            )
+            
             scrollToBottom(animated: true)
+            
             input = ""
+            replyMessage = nil
         }
     }
     

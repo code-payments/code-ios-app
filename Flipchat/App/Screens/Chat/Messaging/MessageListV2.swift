@@ -146,7 +146,7 @@ extension MessageListV2 {
                     // messages to include an unread banner as a 'message' row. The
                     // pointer is to the last seen message so we have to insert the
                     // banner after the message itself.
-                    if let unreadDescription, message.serverID == unreadDescription.messageID {
+                    if let unreadDescription, message.serverID == unreadDescription.messageID, unreadDescription.unread > 0 {
                         
                         // Index of this message in container
                         unreadIndex = container.count
@@ -279,7 +279,8 @@ extension MessageListV2 {
             case .message(_, let isReceived, let row, let location):
                 let message = row.message
                 let isFromSelf = message.senderID == userID.uuid
-                let displayName = row.member.displayName ?? "Member"
+                let defaultName = "Member"
+                let displayName = row.member.displayName ?? defaultName
                 
                 MessageText(
                     state: message.state,
@@ -289,6 +290,10 @@ extension MessageListV2 {
                     date: message.date,
                     isReceived: isReceived,
                     isHost: message.senderID == hostID.uuid,
+                    replyingTo: row.reference == nil ? nil : .init(
+                        name: row.reference!.displayName ?? defaultName,
+                        content: row.reference!.content
+                    ),
                     location: location
                 ) {
                     Button {

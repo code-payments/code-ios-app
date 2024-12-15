@@ -18,6 +18,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
     public let date: Date
     public let isReceived: Bool
     public let isHost: Bool
+    public let replyingTo: ReplyingTo?
     public let location: MessageSemanticLocation
     public let menu: () -> MenuItems
     
@@ -48,7 +49,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, location: MessageSemanticLocation, @ViewBuilder menu: @escaping () -> MenuItems) {
+    public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, replyingTo: ReplyingTo?, location: MessageSemanticLocation, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.state = state
         self.name = name
         self.avatarData = avatarData
@@ -56,6 +57,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
         self.date = date
         self.isReceived = isReceived
         self.isHost = isHost
+        self.replyingTo = replyingTo
         self.location = location
         self.menu = menu
     }
@@ -93,6 +95,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
                     text: text,
                     date: date,
                     isReceived: isReceived,
+                    replyingTo: replyingTo,
                     location: location
                 )
                 .contextMenu {
@@ -104,42 +107,90 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
     }
 }
 
+public struct ReplyingTo {
+    let name: String
+    let content: String
+}
+
 public struct MessageBubble: View {
     
     public let state: Chat.Message.State
     public let text: String
     public let date: Date
     public let isReceived: Bool
+    public let replyingTo: ReplyingTo?
     public let location: MessageSemanticLocation
+    
+    private let horizontalPadding: CGFloat = 11
+    private let verticalPadding: CGFloat = 11
     
     public var body: some View {
         Group {
             if text.count < 10 {
-                HStack(alignment: .bottom) {
-                    Text(text)
-                        .font(.appTextMessage)
-                        .foregroundColor(.textMain)
-                        .multilineTextAlignment(.leading)
-                    
-                    TimestampView(state: state, date: date, isReceived: isReceived)
+                VStack(alignment: .leading) {
+                    if let replyingTo {
+                        MessageReplyBannerCompact(
+                            name: replyingTo.name,
+                            content: replyingTo.content
+                        )
+                    }
+                    HStack(alignment: .bottom) {
+                        Text(text)
+                            .font(.appTextMessage)
+                            .foregroundColor(.textMain)
+                            .multilineTextAlignment(.leading)
+                        
+                        // Expand the the message
+                        // if there's a reply
+                        if replyingTo != nil {
+                            Spacer()
+                        }
+                        
+                        TimestampView(state: state, date: date, isReceived: isReceived)
+                    }
                 }
                 .padding([.horizontal], 10)
                 .padding([.vertical], 8)
                 
             } else {
-                VStack(alignment: .trailing, spacing: 5) {
-                    Text(parse(text: text))
-                        .font(.appTextMessage)
-                        .foregroundColor(.textMain)
-                        .multilineTextAlignment(.leading)
-                        .environment(\.openURL, OpenURLAction { url in
-                            handleURL(url)
-                        })
+                VStack(alignment: .leading) {
+                    if replyingTo != nil {
+                        // Create space for the reply banner
+                        // but don't insert it here. We want
+                        // to prevent from expanding the text
+                        // bubble so we'll apply it as an overlay
+                        Rectangle()
+                            .fill(.clear)
+                            .frame(width: 1, height: MessageReplyBannerCompact.height)
+                    }
                     
-                    TimestampView(state: state, date: date, isReceived: isReceived)
+                    VStack(alignment: .trailing, spacing: 5) {
+                        Text(parse(text: text))
+                            .font(.appTextMessage)
+                            .foregroundColor(.textMain)
+                            .multilineTextAlignment(.leading)
+                            .environment(\.openURL, OpenURLAction { url in
+                                handleURL(url)
+                            })
+                        
+                        TimestampView(state: state, date: date, isReceived: isReceived)
+                    }
                 }
-                .padding([.horizontal], 11)
-                .padding([.vertical], 11)
+                .padding([.horizontal], horizontalPadding)
+                .padding([.vertical], verticalPadding)
+                .overlay {
+                    if let replyingTo {
+                        VStack(alignment: .leading) {
+                            MessageReplyBannerCompact(
+                                name: replyingTo.name,
+                                content: replyingTo.content
+                            )
+                            Spacer()
+                        }
+                        .padding([.horizontal], horizontalPadding)
+                        .padding([.vertical], verticalPadding)
+                    }
+                }
             }
         }
         .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
@@ -221,5 +272,48 @@ public struct MessageBubble: View {
             string[attributedRange].link = URL(string: "flipchat://action?room=")
             string[attributedRange].underlineStyle = .single
         }
+    }
+}
+
+private struct WidthPreferenceKey: PreferenceKey {
+    
+    static let defaultValue: CGFloat = 0
+    
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+#Preview {
+    Background(color: .backgroundMain) {
+        VStack {
+            Spacer()
+            MessageText(
+                state: .delivered,
+                name: "Bob",
+                avatarData: Data([0,0,0,0,0,0,0,0]),
+                text: "Hey",
+                date: .now,
+                isReceived: true,
+                isHost: false,
+                replyingTo: .init(
+                    name: "Bob",
+                    content: "That's what I was trying to say before"
+                ),
+                location: .standalone(.received),
+                menu: {
+                    Button {
+                        /* action */
+                    } label: {
+                        Label("Copy Message", systemImage: "doc.on.doc")
+                    }
+                }
+            )
+            Rectangle()
+                .fill(.black)
+                .frame(height: 200)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(20)
     }
 }

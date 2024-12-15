@@ -33,6 +33,7 @@ struct MessageReplyBanner: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(name)
                     .multilineTextAlignment(.leading)
+                    .lineLimit(1)
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain.opacity(0.8))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,6 +60,49 @@ struct MessageReplyBanner: View {
         .frame(height: 55)
         .background(Color.backgroundMessageReceived)
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
+struct MessageReplyBannerCompact: View {
+    
+    static let height: CGFloat = 44
+    
+    let name: String
+    let content: String
+    
+    // MARK: - Init -
+    
+    init(name: String, content: String) {
+        self.name = name
+        self.content = content
+    }
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Rectangle()
+                .fill(Color.textSuccess)
+                .frame(width: 3)
+                .frame(maxHeight: .infinity)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .lineLimit(1)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textMain.opacity(0.8))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Text(content)
+                    .lineLimit(1)
+                    .font(.appTextCaption)
+                    .foregroundStyle(Color.textMain)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.trailing, 8)
+        .background(Color.textSuccess.opacity(0.2))
+        .cornerRadius(Metrics.chatMessageRadiusSmall)
+        .frame(height: Self.height)
+        .frame(maxWidth: .infinity)
     }
 }
 

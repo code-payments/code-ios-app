@@ -78,18 +78,33 @@ extension Database {
             m.senderID,
             m.contentType,
             m.content,
+            m.referenceID,
 
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
-            b.isMuted AS uIsMuted
+            b.isMuted AS uIsMuted,
+
+            r.content AS rContent,
+            ru.displayName AS rDisplayName
         FROM
             message m
+
+        LEFT JOIN 
+            message r
+        ON m.referenceID = r.serverID
+
+        LEFT JOIN 
+            user ru
+        ON r.senderID = ru.serverID
+
         LEFT JOIN
             user u
         ON m.senderID = u.serverID
+
         LEFT JOIN
             member b
         ON m.senderID = b.userID AND m.roomID = b.roomID
+
         WHERE 
             m.roomID = "\(roomID.uuidString)"
         ORDER BY m.serverID ASC
@@ -99,7 +114,10 @@ extension Database {
         let mTable = MessageTable()
         
         let messages = try statement.map { row in
-            MessageRow(
+            let referenceID = row[Expression<UUID?>("referenceID")]
+            let rDisplayName = row[Expression<String?>("rDisplayName")]
+            let rContent = row[Expression<String?>("rContent")]
+            return MessageRow(
                 message: .init(
                     serverID:    row[mTable.serverID],
                     roomID:      row[mTable.roomID],
@@ -113,6 +131,14 @@ extension Database {
                     userID:      row[Expression<UUID?>("uServerID")],
                     displayName: row[Expression<String?>("uDisplayName")],
                     isMuted:     row[Expression<Bool?>("uIsMuted")]
+                ),
+                referenceID: referenceID,
+                
+                // Only return a reference object if a
+                // local version of the reference exists
+                reference: rContent == nil ? nil : .init(
+                    displayName: rDisplayName,
+                    content: rContent!
                 )
             )
         }
@@ -127,6 +153,8 @@ struct MessageRow: Hashable {
     
     let message: Message
     let member: Member
+    let referenceID: UUID?
+    let reference: Reference?
     
     struct Message: Hashable {
         let serverID: UUID
@@ -142,6 +170,11 @@ struct MessageRow: Hashable {
         let userID: UUID?
         let displayName: String?
         let isMuted: Bool?
+    }
+    
+    struct Reference: Hashable {
+        let displayName: String?
+        let content: String
     }
 }
 

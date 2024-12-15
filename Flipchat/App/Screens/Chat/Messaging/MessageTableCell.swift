@@ -97,7 +97,7 @@ class MessageTableCell: UITableViewCell {
             )
             
         case .ended:
-            if xOffset >= threshold {
+            if xOffset >= threshold - snapDistance {
                 onSwipeToReply?()
             }
             animateToIdentity()

@@ -125,14 +125,21 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         trace(.success, components: "Chat \(chatID.description)]", "Initiating a connection...")
     }
     
-    func sendMessage(chatID: ChatID, owner: KeyPair, text: String, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
+    func sendMessage(chatID: ChatID, owner: KeyPair, text: String, replyingTo: MessageID?, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Flipchat_Messaging_V1_SendMessageRequest.with {
             $0.chatID  = .with { $0.value = chatID.data }
             $0.content = [
                 .with {
-                    $0.text = .with { $0.text = text }
+                    if let replyingTo {
+                        $0.reply = .with {
+                            $0.replyText = text
+                            $0.originalMessageID = .with { $0.value = replyingTo.data }
+                        }
+                    } else {
+                        $0.text = .with { $0.text = text }
+                    }
                 }
             ]
             $0.auth = owner.authFor(message: $0)

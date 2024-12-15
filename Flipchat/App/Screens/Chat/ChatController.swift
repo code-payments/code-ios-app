@@ -340,13 +340,14 @@ class ChatController: ObservableObject {
         }
     }
     
-    func sendMessage(text: String, for chatID: ChatID) async throws {
+    func sendMessage(text: String, for chatID: ChatID, replyingTo: MessageID? = nil) async throws {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         
         let deliveredMessage = try await client.sendMessage(
             chatID: chatID,
             owner: owner,
-            text: trimmedText
+            text: trimmedText,
+            replyingTo: replyingTo
         )
         
         try database.transaction {

@@ -74,6 +74,7 @@ public enum ErrorFetchProfile: Int, Error {
 public enum ErrorSetDisplayName: Int, Error {
     case ok
     case invalidDisplayName
+    case denied
     case unknown = -1
 }
 
