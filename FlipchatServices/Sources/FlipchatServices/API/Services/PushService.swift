@@ -39,16 +39,15 @@ class PushService: FlipchatService<Flipchat_Push_V1_PushNIOClient> {
         }
     }
     
-    func deleteToken(token: String, owner: KeyPair, completion: @escaping (Result<(), ErrorDeleteToken>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Token: \(token)")
+    func deleteTokens(installationID: String, owner: KeyPair, completion: @escaping (Result<(), ErrorDeleteToken>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Install: \(installationID)")
         
-        let request = Flipchat_Push_V1_DeleteTokenRequest.with {
-            $0.tokenType = .fcmApns
-            $0.pushToken = token
+        let request = Flipchat_Push_V1_DeleteTokensRequest.with {
+            $0.appInstall = .with { $0.value = installationID }
             $0.auth = owner.authFor(message: $0)
         }
         
-        let call = service.deleteToken(request)
+        let call = service.deleteTokens(request)
         
         call.handle(on: queue) { response in
             let error = ErrorDeleteToken(rawValue: response.result.rawValue) ?? .unknown
@@ -83,6 +82,10 @@ public enum ErrorDeleteToken: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Push_V1_PushClientInterceptorFactoryProtocol {
+    func makeDeleteTokensInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Push_V1_DeleteTokensRequest, FlipchatAPI.Flipchat_Push_V1_DeleteTokensResponse>] {
+        makeInterceptors()
+    }
+    
     func makeAddTokenInterceptors() -> [ClientInterceptor<Flipchat_Push_V1_AddTokenRequest, Flipchat_Push_V1_AddTokenResponse>] {
         makeInterceptors()
     }

@@ -264,59 +264,66 @@ class ChatController: ObservableObject {
     }
     
     private func handleEvent(_ batchUpdate: Chat.BatchUpdate) throws {
-        if let metadata = batchUpdate.chatMetadata {
-            try update(chatID: batchUpdate.chatID, withMetadata: metadata)
-        }
+        let chatID = batchUpdate.chatID.uuid
         
-        if let lastMessage = batchUpdate.lastMessage {
-            try update(chatID: batchUpdate.chatID, withLastMessage: lastMessage)
-        }
-        
-        if let members = batchUpdate.memberUpdate {
-            try update(chatID: batchUpdate.chatID, withMembers: members)
-        }
-        
-        if let pointer = batchUpdate.pointerUpdate {
-            try update(chatID: batchUpdate.chatID, withPointerUpdate: pointer)
-        }
-        
-        if let typing = batchUpdate.typingUpdate {
-            try update(chatID: batchUpdate.chatID, withTypingUpdate: typing)
-        }
-    }
-    
-    private func update(chatID: ChatID, withMetadata metadata: Chat.Metadata) throws {
+        // Update the database in a single transaction
+        // to minimize any UI reloads and updates
         try database.transaction {
-            try $0.insertRooms(rooms: [metadata])
-            print("[STREAM] Metadata: \(metadata.id.uuid)")
-        }
-    }
-    
-    private func update(chatID: ChatID, withMembers members: [Chat.Member]) throws {
-        guard !members.isEmpty else {
-            return
+            
+            // 1. Apply all room batch updates
+            for chatUpdate in batchUpdate.chatUpdates {
+                switch chatUpdate {
+                case .fullRefresh(let metadata):
+                    try $0.insertRooms(rooms: [metadata])
+                    print("[STREAM] Room updated (full): \(metadata.id.uuid)")
+                    
+                case .unreadCount(let unreadCount, let hasMore):
+                    try $0.updateUnreadCount(roomID: chatID, unreadCount: unreadCount)
+                    print("[STREAM] Unread count updated: \(unreadCount)")
+                    
+                case .displayName(let displayName):
+                    try $0.updateDisplayName(roomID: chatID, displayName: displayName)
+                    print("[STREAM] Display name updated: \(displayName)")
+                    
+                case .coverCharge(let cover):
+                    try $0.updateCoverCharge(roomID: chatID, cover: cover)
+                    print("[STREAM] Cover updated: \(cover)")
+                    
+                case .lastActivity(let date):
+                    // Ignore
+                    break
+                }
+            }
+            
+            // 2. Apply all member batch updates
+            for memberUpdate in batchUpdate.memberUpdates {
+                switch memberUpdate {
+                case .fullRefresh(let members):
+                    try $0.insertMembers(members: members, roomID: chatID)
+                    print("[STREAM] Members updated (full): \(members.count)")
+                    
+                case .invidualRefresh(let member), .joined(let member):
+                    try $0.insertMembers(members: [member], roomID: chatID)
+                    print("[STREAM] Member updated: \(member.identity.displayName ?? "<unknown>")")
+                    
+                case .left(let userID), .removed(let userID):
+                    try $0.deleteMember(userID: userID.uuid, roomID: chatID)
+                    print("[STREAM] Member deleted")
+                    
+                case .muted(let userID):
+                    try $0.muteMember(userID: userID.uuid, muted: true)
+                    print("[STREAM] Member muted")
+                }
+            }
+            
+            // 3. Apply last message
+            if let lastMessage = batchUpdate.lastMessage {
+                try $0.insertMessages(messages: [lastMessage], roomID: chatID, isBatch: false)
+                print("[STREAM] Message: \(lastMessage.content)")
+            }
         }
         
-        try database.transaction {
-            try $0.insertMembers(members: members, chatID: chatID)
-            print("[STREAM] Members: \(members.count == 1 ? members[0].id.uuid.uuidString : members.count.description)")
-        }
-    }
-    
-    private func update(chatID: ChatID, withLastMessage message: Chat.Message) throws {
-        
-        try database.transaction {
-            try $0.insertMessages(messages: [message], chatID: chatID, isBatch: false)
-            print("[STREAM] Message: \(message.id.uuid) - \(message.content.prefix(50))")
-        }
-    }
-    
-    private func update(chatID: ChatID, withPointerUpdate update: Chat.BatchUpdate.PointerUpdate) throws {
-//        trace(.success, components: "Pointer: \(update)")
-    }
-    
-    private func update(chatID: ChatID, withTypingUpdate update: Chat.BatchUpdate.TypingUpdate) throws {
-//        trace(.success, components: "Typing: \(update)")
+        // TODO: Add pointer and typing updates as needed
     }
     
     // MARK: - Message Stream -
@@ -336,7 +343,7 @@ class ChatController: ObservableObject {
         }
         
         try database.transaction {
-            try $0.insertMessages(messages: filteredMessages, chatID: chatID, isBatch: false)
+            try $0.insertMessages(messages: filteredMessages, roomID: chatID.uuid, isBatch: false)
         }
     }
     
@@ -350,8 +357,15 @@ class ChatController: ObservableObject {
             replyingTo: replyingTo
         )
         
+        let userID = userID.uuid
         try database.transaction {
-            try $0.insertMessages(messages: [deliveredMessage], chatID: chatID, isBatch: false)
+            try $0.insertMessages(messages: [deliveredMessage], roomID: chatID.uuid, isBatch: false)
+            try $0.insertPointer(
+                kind: .read,
+                userID: userID,
+                roomID: chatID.uuid,
+                messageID: deliveredMessage.id.uuid
+            )
         }
     }
     
@@ -369,7 +383,7 @@ class ChatController: ObservableObject {
         )
         
         try database.transaction {
-            try $0.clearUnread(chatID: chatID)
+            try $0.clearUnread(roomID: chatID.uuid)
             try $0.insertPointer(
                 kind: .read,
                 userID: userID,
@@ -484,7 +498,7 @@ class ChatController: ObservableObject {
     func muteChat(chatID: ChatID, muted: Bool) async throws {
         try await client.muteChat(chatID: chatID, muted: muted, owner: owner)
         try database.transaction {
-            try $0.muteChat(roomID: chatID.uuid, muted: muted)
+            try $0.muteRoom(roomID: chatID.uuid, muted: muted)
         }
     }
     
@@ -496,7 +510,7 @@ class ChatController: ObservableObject {
         try await client.leaveChat(chatID: chatID, owner: owner)
         
         try database.transaction {
-            try $0.deleteRoom(chatID: chatID)
+            try $0.deleteRoom(roomID: chatID.uuid)
         }
     }
     
@@ -512,9 +526,9 @@ class ChatController: ObservableObject {
     private func insert(chat: ChatDescription, messages: [Chat.Message]? = nil, silent: Bool = false) throws {
         try database.transaction(silent: silent) {
             try $0.insertRooms(rooms: [chat.metadata])
-            try $0.insertMembers(members: chat.members, chatID: chat.metadata.id)
+            try $0.insertMembers(members: chat.members, roomID: chat.metadata.id.uuid)
             if let messages {
-                try $0.insertMessages(messages: messages, chatID: chat.metadata.id, isBatch: true)
+                try $0.insertMessages(messages: messages, roomID: chat.metadata.id.uuid, isBatch: true)
             }
         }
     }

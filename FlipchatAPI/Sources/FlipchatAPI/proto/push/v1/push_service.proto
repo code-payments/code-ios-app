@@ -6,15 +6,20 @@ option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go
 option java_package = "com.codeinc.flipchat.gen.push.v1";
 option objc_class_prefix = "FPBPushV1";
 
-import "common/v1/flipchat.proto";
+import "common/v1/common.proto";
 import "validate/validate.proto";
 
 service Push {
-    // AddToken adds a push token associated with a user/device.
+    // AddToken adds a push token associated with a user.
     rpc AddToken(AddTokenRequest) returns (AddTokenResponse);
 
-    // DeleteToken removes a push token from a user/device.
+    // DeleteToken removes a specific push token from a user.
+    //
+    // Deprecated: Use DeleteTokens intead
     rpc DeleteToken(DeleteTokenRequest) returns (DeleteTokenResponse);
+
+    // DeleteTokens removes all push tokens within an app install for a user
+    rpc DeleteTokens(DeleteTokensRequest) returns (DeleteTokensResponse);
 }
 
 enum TokenType {
@@ -33,9 +38,9 @@ message AddTokenRequest {
         max_len: 4096
     }];
 
-    common.v1.AppInstallId app_install = 3;
+    common.v1.AppInstallId app_install = 3 [(validate.rules).message.required = true];
 
-    common.v1.Auth auth = 4;
+    common.v1.Auth auth = 4 [(validate.rules).message.required = true];
 }
 
 message AddTokenResponse {
@@ -58,6 +63,19 @@ message DeleteTokenRequest {
 }
 
 message DeleteTokenResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+}
+
+message DeleteTokensRequest {
+    common.v1.AppInstallId app_install = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message DeleteTokensResponse {
     Result result = 1;
     enum Result {
         OK = 0;

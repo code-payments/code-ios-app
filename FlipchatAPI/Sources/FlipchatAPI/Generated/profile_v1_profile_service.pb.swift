@@ -145,6 +145,7 @@ public struct Flipchat_Profile_V1_SetDisplayNameResponse {
     public typealias RawValue = Int
     case ok // = 0
     case invalidDisplayName // = 1
+    case denied // = 2
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -155,6 +156,7 @@ public struct Flipchat_Profile_V1_SetDisplayNameResponse {
       switch rawValue {
       case 0: self = .ok
       case 1: self = .invalidDisplayName
+      case 2: self = .denied
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -163,6 +165,7 @@ public struct Flipchat_Profile_V1_SetDisplayNameResponse {
       switch self {
       case .ok: return 0
       case .invalidDisplayName: return 1
+      case .denied: return 2
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -179,6 +182,7 @@ extension Flipchat_Profile_V1_SetDisplayNameResponse.Result: CaseIterable {
   public static let allCases: [Flipchat_Profile_V1_SetDisplayNameResponse.Result] = [
     .ok,
     .invalidDisplayName,
+    .denied,
   ]
 }
 
@@ -360,5 +364,6 @@ extension Flipchat_Profile_V1_SetDisplayNameResponse.Result: SwiftProtobuf._Prot
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "OK"),
     1: .same(proto: "INVALID_DISPLAY_NAME"),
+    2: .same(proto: "DENIED"),
   ]
 }

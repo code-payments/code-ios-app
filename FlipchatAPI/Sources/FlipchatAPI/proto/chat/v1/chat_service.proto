@@ -6,7 +6,7 @@ option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go
 option java_package = "com.codeinc.flipchat.gen.chat.v1";
 option objc_class_prefix = "FCPBChatV1";
 
-import "common/v1/flipchat.proto";
+import "common/v1/common.proto";
 import "messaging/v1/model.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
@@ -20,7 +20,7 @@ service Chat {
     //   3. Latest messages.
     //
     // The server will optionally filter out some events depending on load
-    // and chat type. For example, Broadcast chats will not receive latest
+    // and chat type. For example, Broadcast chats may not receive latest
     // messages.
     //
     // Clients should use GetMessages to backfill in any historical messages
@@ -45,6 +45,10 @@ service Chat {
 
     // LeaveChat leaves a given chat.
     rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
+
+    // SetDisplayName sets a chat's display name. If the display name isn't allowed,
+    // then a set of alternate suggestions may be provided
+    rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
 
     // SetCoverCharge sets a chat's cover charge
     rpc SetCoverCharge(SetCoverChargeRequest) returns (SetCoverChargeResponse);
@@ -115,17 +119,30 @@ message StreamChatEventsResponse {
     message ChatUpdate {
         common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
-        // metadata contains the latest (full) metadata of the chat.
+        // Metadata contains the latest (full) chat metadata.
+        //
+        // Deprecated: Use metadata_updates instead. For backwards compatibility
+        // this will only contain full metadata refreshes.
         Metadata metadata = 2;
 
+        // MetadataUpdate contains updates to a chat metadata
+        repeated MetadataUpdate metadata_updates = 7;
+
         // MemberUpdate contains an update to the membership set.
+        //
+        // Deprecated: Use member_updates instead. For backwards compatibility
+        // this will only contain full member refreshes.
         MemberUpdate member_update = 3;
+
+        // MemberUpdate contains updates to the membership set.
+        repeated MemberUpdate member_updates = 8;
 
         // Message contains the last known message of the chat.
         messaging.v1.Message last_message = 4;
 
-        // where 'relevant' means "relevant to UI updates". For example,
-        // when a user has read the latest message.
+        // Relevant update to a chat member's pointer state, where 'relevant' means
+        // "relevant to UI updates". For example, when a user has read the latest
+        // message.
         PointerUpdate pointer = 5;
         message PointerUpdate {
             common.v1.UserId member = 1 [(validate.rules).message.required = true];
@@ -134,24 +151,99 @@ message StreamChatEventsResponse {
 
         // IsTyping indicates whether or not someone is typing in the group.
         messaging.v1.IsTyping is_typing = 6;
+    }
 
+    message MetadataUpdate {
+        oneof kind {
+            option (validate.required) = true;
+
+            FullRefresh         full_refresh          = 1;
+            UnreadCountChanged  unread_count_changed  = 2;
+            DisplayNameChanged  display_name_changed  = 3;
+            CoverChargeChanged  cover_charge_changed  = 4;
+            LastActivityChanged last_activity_changed = 5;
+        }
+
+        // Refreshes the entire chat metadata
+        message FullRefresh {
+            Metadata metadata = 1 [(validate.rules).message.required = true];
+        }
+
+        // New message in the chat has generated a new unread count
+        message UnreadCountChanged {
+            // Number of (estimated) unread message
+            uint32 num_unread = 1;
+
+            // If there are more unread messages than indicated by num_unread.
+            // If this is true, client should show num_unread+ as the unread count.
+            bool has_more_unread = 2;
+        }
+
+        // The chat display name has been updated to a new value
+        message DisplayNameChanged {
+            string new_display_name = 1 [(validate.rules).string = {
+                min_len: 1
+                max_len: 64
+            }];
+        }
+
+        // The chat cover charge has been updated to a new value
+        message CoverChargeChanged {
+            common.v1.PaymentAmount new_cover_charge = 1 [(validate.rules).message.required = true];
+        }
+
+        // The last activity timestamp has changed to a newer value
+        message LastActivityChanged {
+            google.protobuf.Timestamp new_last_activity = 1 [(validate.rules).timestamp.required = true];
+        }
     }
 
     message MemberUpdate {
         oneof kind {
             option (validate.required) = true;
 
-            Refresh refresh = 1;
-
-            // May want to add Joined and Removed events.
-            // However, these may make more sense as a message, rather than
-            // an out of band event.
+            FullRefresh       full_refresh       = 1;
+            IndividualRefresh individual_refresh = 2;
+            Joined            joined             = 3;
+            Left              left               = 4;
+            Removed           removed            = 5;
+            Muted             muted              = 6;
         }
 
-        message Refresh {
+        // Refreshes the state of the entire chat membership
+        message FullRefresh {
             repeated Member members = 1 [(validate.rules).repeated = {
                 min_items: 1
             }];
+        }
+
+        // Refreshes the state of an individual member in the chat
+        message IndividualRefresh {
+            Member member = 1 [(validate.rules).message.required = true];
+        }
+
+        // Member joined the chat via the JoinChat RPC
+        message Joined {
+            Member member = 1 [(validate.rules).message.required = true];
+        }
+
+        // Member left the chat via the LeaveChat RPC
+        message Left {
+            common.v1.UserId member = 1 [(validate.rules).message.required = true];
+        }
+
+        // Member was removed from the chat via the RemoveUser RPC
+        message Removed {
+            common.v1.UserId member = 1 [(validate.rules).message.required = true];
+
+            common.v1.UserId removed_by = 2 [(validate.rules).message.required = true];
+        }
+
+        // Member was muted in the chat via the MuteUser RPC
+        message Muted {
+            common.v1.UserId member = 1 [(validate.rules).message.required = true];
+
+            common.v1.UserId muted_by = 2 [(validate.rules).message.required = true];
         }
     }
 }
@@ -181,6 +273,8 @@ message GetChatRequest {
         uint64 room_number = 2;
     }
 
+    bool exclude_members = 9;
+
     // Auth is an optional field that authenticates the call, which
     // can be used to fill out extra information in the Metadata.
     common.v1.Auth auth = 10;
@@ -198,7 +292,7 @@ message GetChatResponse {
     // call was authenticated.
     Metadata metadata = 2;
 
-    // Members contains the chat members, if result == OK.
+    // Members contains the chat members, if result == OK and were requested.
     repeated Member members = 3;
 }
 
@@ -228,8 +322,8 @@ message StartChatRequest {
             max_items: 32 // Arbitrary
         }];
 
-        // Optional title to set for the group.
-        string title = 2;
+        // Reserved for display_name field
+        reserved 2;
 
         // Optional payment for creating the group. It's up to server to decide
         // if the user is allowed to create a group without payment.
@@ -312,6 +406,30 @@ message LeaveChatResponse {
     enum Result {
         OK = 0;
     }
+}
+
+message SetDisplayNameRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    string display_name = 2 [(validate.rules).string = {
+		min_len: 1
+		max_len: 64
+	}];
+
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+message SetDisplayNameResponse {
+    Result result = 1;
+    enum Result {
+        OK       = 0;
+        DENIED   = 1;
+        CANT_SET = 2;
+    }
+
+    repeated string alternate_suggestions = 2 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 10
+    }];
 }
 
 message SetCoverChargeRequest {
@@ -413,11 +531,10 @@ message Metadata {
         GROUP   = 2;
     }
 
-    // The chat title, which is _only_ set by server if an explicit title
-    // was set. Otherwise, clients should fill in an appropriate chat title.
-    string title = 3 [(validate.rules).string = {
+    // The chat display name
+    string display_name = 3 [(validate.rules).string = {
         min_len: 0
-        max_len: 1024
+        max_len: 64
     }];
 
     // If non-zero, the room number associated with the chat.
@@ -432,6 +549,10 @@ message Metadata {
     // Number of (estimated) unread message (from the perspective of the caller).
     uint32 num_unread = 7;
 
+    // If there are more unread messages than indicated by num_unread. If this is
+    // true, client should show num_unread+ as the unread count.
+    bool has_more_unread = 11;
+
     // Owner is the owner/creator of the chat.
     //
     // This is a super priviledge role, in which there can only be one.
@@ -443,10 +564,6 @@ message Metadata {
 
     // The timestamp of the last activity in this chat
     google.protobuf.Timestamp last_activity = 10;
-
-    // If there are more unread messages than indicated by num_unread. If this is
-    // true, client should show num_unread+ as the unread count.
-    bool has_more_unread = 11;
 }
 
 message Member {

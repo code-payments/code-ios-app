@@ -13,9 +13,9 @@ extension Chat {
     public struct BatchUpdate: Sendable {
         
         public var chatID: ChatID
-        public var chatMetadata: Chat.Metadata?
+        public var chatUpdates: [ChatUpdate]
         public var lastMessage: Chat.Message?
-        public var memberUpdate: [Chat.Member]?
+        public var memberUpdates: [MemberUpdate]
         public var pointerUpdate: PointerUpdate?
         public var typingUpdate: TypingUpdate?
         
@@ -27,6 +27,23 @@ extension Chat {
         public struct PointerUpdate: Sendable {
             var userID: UserID
             var pointer: Pointer
+        }
+        
+        public enum ChatUpdate: Sendable {
+            case fullRefresh(Chat.Metadata)
+            case unreadCount(Int, Bool) // count, hasMore
+            case displayName(String)
+            case coverCharge(Kin)
+            case lastActivity(Date)
+        }
+        
+        public enum MemberUpdate: Sendable {
+            case fullRefresh([Chat.Member])
+            case invidualRefresh(Chat.Member)
+            case joined(Chat.Member)
+            case left(UserID)
+            case removed(UserID)
+            case muted(UserID)
         }
     }
 }
@@ -40,14 +57,15 @@ extension Chat.BatchUpdate {
         
         self.init(
             chatID: ChatID(data: proto.chatID.value),
-            chatMetadata: proto.hasMetadata ? Chat.Metadata(proto.metadata) : nil,
+            chatUpdates: proto.metadataUpdates.compactMap { ChatUpdate($0) },
             lastMessage: proto.hasLastMessage ? Chat.Message(proto.lastMessage) : nil,
-            memberUpdate: proto.memberUpdate.refresh.members.map { Chat.Member($0) },
+            memberUpdates: proto.memberUpdates.compactMap { MemberUpdate($0) },
             pointerUpdate: proto.hasPointer ? PointerUpdate(proto.pointer) : nil,
             typingUpdate: proto.hasIsTyping ? TypingUpdate(proto.isTyping) : nil
         )
     }
 }
+
 
 extension Chat.BatchUpdate.TypingUpdate {
     public init?(_ proto: Flipchat_Messaging_V1_IsTyping) {
@@ -72,5 +90,58 @@ extension Chat.BatchUpdate.PointerUpdate {
             userID: UserID(data: proto.member.value),
             pointer: Chat.Pointer(proto.pointer)
         )
+    }
+}
+
+extension Chat.BatchUpdate.ChatUpdate {
+    public init?(_ proto: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate) {
+        guard let kind = proto.kind else {
+            return nil
+        }
+        
+        switch kind {
+        case .fullRefresh(let update):
+            self = .fullRefresh(Chat.Metadata(update.metadata))
+            
+        case .unreadCountChanged(let update):
+            self = .unreadCount(Int(update.numUnread), update.hasMoreUnread_p)
+            
+        case .displayNameChanged(let update):
+            self = .displayName(update.newDisplayName)
+            
+        case .coverChargeChanged(let update):
+            self = .coverCharge(Kin(quarks: update.newCoverCharge.quarks))
+            
+        case .lastActivityChanged(let update):
+            self = .lastActivity(update.newLastActivity.date)
+        }
+    }
+}
+
+extension Chat.BatchUpdate.MemberUpdate {
+    public init?(_ proto: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate) {
+        guard let kind = proto.kind else {
+            return nil
+        }
+        
+        switch kind {
+        case .fullRefresh(let update):
+            self = .fullRefresh(update.members.map { Chat.Member($0) })
+            
+        case .individualRefresh(let update):
+            self = .invidualRefresh(Chat.Member(update.member))
+            
+        case .joined(let update):
+            self = .joined(Chat.Member(update.member))
+            
+        case .left(let update):
+            self = .left(UserID(data: update.member.value))
+            
+        case .removed(let update):
+            self = .removed(UserID(data: update.member.value))
+            
+        case .muted(let update):
+            self = .muted(UserID(data: update.member.value))
+        }
     }
 }

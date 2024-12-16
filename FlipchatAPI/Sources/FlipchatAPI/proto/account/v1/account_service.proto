@@ -6,7 +6,7 @@ option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go
 option java_package = "com.codeinc.flipchat.gen.account.v1";
 option objc_class_prefix = "FCPBAccountV1";
 
-import "common/v1/flipchat.proto";
+import "common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -43,9 +43,7 @@ message RegisterRequest {
 	// Signature of this message (without the signature), using the provided keypaid.
 	common.v1.Signature signature = 2 [(validate.rules).message.required = true];
 
-	// Optional DisplayName of the new user
-	//
-	// If the user already exists, this is not used.
+	// Deprecated: New account creation flow requires using profile service after IAP
 	string display_name = 3 [(validate.rules).string = {
 		min_len: 0
 		max_len: 64
@@ -57,6 +55,7 @@ message RegisterResponse {
 		OK                   = 0;
 		INVALID_SIGNATURE    = 1;
 		INVALID_DISPLAY_NAME = 2;
+		DENIED               = 3;
 	}
 
 	// Error reason contains the reason for the error, if the

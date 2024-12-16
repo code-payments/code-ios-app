@@ -61,20 +61,20 @@ extension Database {
         )
     }
 
-    func clearUnread(chatID: ChatID) throws {
+    func clearUnread(roomID: UUID) throws {
         let room = RoomTable()
         try writer.run(
             room.table
-                .filter(room.serverID == chatID.uuid)
+                .filter(room.serverID == roomID)
                 .update(room.unreadCount <- 0)
         )
     }
 
-    func deleteRoom(chatID: ChatID) throws {
+    func deleteRoom(roomID: UUID) throws {
         let room = RoomTable()
         try writer.run(
             room.table
-                .filter(room.serverID == chatID.uuid)
+                .filter(room.serverID == roomID)
                 .delete()
         )
     }
@@ -88,7 +88,7 @@ extension Database {
         )
     }
     
-    func muteChat(roomID: UUID, muted: Bool) throws {
+    func muteRoom(roomID: UUID, muted: Bool) throws {
         let room = RoomTable()
         try writer.run(
             room.table
@@ -97,18 +97,18 @@ extension Database {
         )
     }
 
-    func insertMessages(messages: [Chat.Message], chatID: ChatID, isBatch: Bool) throws {
+    func insertMessages(messages: [Chat.Message], roomID: UUID, isBatch: Bool) throws {
         let message = MessageTable()
         try messages.forEach {
-            try insertMessage(message: $0, roomID: chatID.uuid, isBatch: isBatch, into: message)
+            try insertMessage(message: $0, roomID: roomID, isBatch: isBatch, into: message)
         }
     }
     
-    func insertMembers(members: [Chat.Member], chatID: ChatID) throws {
+    func insertMembers(members: [Chat.Member], roomID: UUID) throws {
         let member = MemberTable()
         let user = UserTable()
         try members.forEach {
-            try insertMember(member: $0, roomID: chatID.uuid, into: member)
+            try insertMember(member: $0, roomID: roomID, into: member)
             try insertUser(user: $0.identity, userID: $0.id.uuid, into: user)
         }
     }
@@ -122,6 +122,46 @@ extension Database {
                 
                 onConflictOf: table.serverID
             )
+        )
+    }
+    
+    // MARK: - Incremental Room Updates -
+    
+    func updateUnreadCount(roomID: UUID, unreadCount: Int) throws {
+        let room = RoomTable()
+        try writer.run(
+            room.table
+                .filter(room.serverID == roomID)
+                .update(room.unreadCount <- unreadCount)
+        )
+    }
+    
+    func updateDisplayName(roomID: UUID, displayName: String) throws {
+        let room = RoomTable()
+        try writer.run(
+            room.table
+                .filter(room.serverID == roomID)
+                .update(room.title <- displayName)
+        )
+    }
+    
+    func updateCoverCharge(roomID: UUID, cover: Kin) throws {
+        let room = RoomTable()
+        try writer.run(
+            room.table
+                .filter(room.serverID == roomID)
+                .update(room.coverQuarks <- Int64(cover.quarks))
+        )
+    }
+    
+    // MARK: - Incremental Member Updates -
+    
+    func deleteMember(userID: UUID, roomID: UUID) throws {
+        let member = MemberTable()
+        try writer.run(
+            member.table
+                .filter(member.userID == userID && member.roomID == roomID)
+                .delete()
         )
     }
     

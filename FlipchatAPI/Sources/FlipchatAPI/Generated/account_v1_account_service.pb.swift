@@ -46,9 +46,7 @@ public struct Flipchat_Account_V1_RegisterRequest {
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
-  /// Optional DisplayName of the new user
-  ///
-  /// If the user already exists, this is not used.
+  /// Deprecated: New account creation flow requires using profile service after IAP
   public var displayName: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -88,6 +86,7 @@ public struct Flipchat_Account_V1_RegisterResponse {
     case ok // = 0
     case invalidSignature // = 1
     case invalidDisplayName // = 2
+    case denied // = 3
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -99,6 +98,7 @@ public struct Flipchat_Account_V1_RegisterResponse {
       case 0: self = .ok
       case 1: self = .invalidSignature
       case 2: self = .invalidDisplayName
+      case 3: self = .denied
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -108,6 +108,7 @@ public struct Flipchat_Account_V1_RegisterResponse {
       case .ok: return 0
       case .invalidSignature: return 1
       case .invalidDisplayName: return 2
+      case .denied: return 3
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -127,6 +128,7 @@ extension Flipchat_Account_V1_RegisterResponse.Result: CaseIterable {
     .ok,
     .invalidSignature,
     .invalidDisplayName,
+    .denied,
   ]
 }
 
@@ -788,6 +790,7 @@ extension Flipchat_Account_V1_RegisterResponse.Result: SwiftProtobuf._ProtoNameP
     0: .same(proto: "OK"),
     1: .same(proto: "INVALID_SIGNATURE"),
     2: .same(proto: "INVALID_DISPLAY_NAME"),
+    3: .same(proto: "DENIED"),
   ]
 }
 

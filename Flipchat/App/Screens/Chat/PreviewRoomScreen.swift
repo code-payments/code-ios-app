@@ -117,6 +117,7 @@ struct PreviewRoomScreen: View {
             coverAmount: 100,
             title: "",
             unreadCount: 0,
+            hasMoreUnread: false,
             isMuted: false,
             canMute: false
         ),

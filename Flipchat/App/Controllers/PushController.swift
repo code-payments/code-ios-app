@@ -114,8 +114,8 @@ class PushController: ObservableObject {
     }
     
     private func deleteFirebaseToken(_ token: String) async throws {
-        try await client.deleteToken(
-            token: token,
+        try await client.deleteTokens(
+            installationID: try await Self.installationID(),
             owner: owner
         )
     }

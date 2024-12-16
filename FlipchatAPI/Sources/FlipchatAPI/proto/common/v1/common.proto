@@ -132,3 +132,9 @@ message QueryOptions {
         DESC = 1;
     }
 }
+
+enum Platform {
+    UNKNOWN = 0;
+    APPLE   = 1;
+    GOOGLE  = 2;
+}
