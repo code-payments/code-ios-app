@@ -97,38 +97,36 @@ struct ChatsScreen: View {
                     }
                 }
                 
-                ScrollBox(color: .backgroundMain, ignoreEdges: [.bottom], edgePadding: 8) {
-                    List {
-                        Section {
-                            ForEach(chatState.rooms) { roomRow in
-                                row(for: roomRow)
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .cancel) {
-                                            muteChat(for: roomRow.room)
-                                        } label: {
-                                            if roomRow.room.isMuted {
-                                                Label("", systemImage: "speaker.wave.2")
-                                            } else {
-                                                Label("", systemImage: "speaker.slash")
-                                            }
+                List {
+                    Section {
+                        ForEach(chatState.rooms) { roomRow in
+                            row(for: roomRow)
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .cancel) {
+                                        muteChat(for: roomRow.room)
+                                    } label: {
+                                        if roomRow.room.isMuted {
+                                            Label("", systemImage: "speaker.wave.2")
+                                        } else {
+                                            Label("", systemImage: "speaker.slash")
                                         }
-                                        .tint(.darkPurple)
                                     }
-                            }
-                        } footer: {
-                            CodeButton(style: .filled, title: "Find Room") {
-                                viewModel.startChatting()
-                            }
-                            .listRowSeparator(.hidden)
-                            .padding(.vertical, 20)
+                                    .tint(.darkPurple)
+                                }
                         }
-                        .padding(.top, 5)
-                        .listRowSeparatorTint(.rowSeparator)
-                        .listRowBackground(Color.backgroundMain)
-                        .scrollContentBackground(.hidden)
+                    } footer: {
+                        CodeButton(style: .filled, title: "Find Room") {
+                            viewModel.startChatting()
+                        }
+                        .listRowSeparator(.hidden)
+                        .padding(.vertical, 20)
                     }
-                    .listStyle(.plain)
+                    .padding(.top, 5)
+                    .listRowSeparatorTint(.rowSeparator)
+                    .listRowBackground(Color.backgroundMain)
+                    .scrollContentBackground(.hidden)
                 }
+                .listStyle(.plain)
             }
             .onAppear {
                 didAppear()
@@ -193,7 +191,7 @@ struct ChatsScreen: View {
                         
                         if let message = row.lastMessage {
                             Text(message.date.formattedRelatively(useTimeForToday: true))
-                                .foregroundColor(row.room.unreadCount > 0 && !row.room.isMuted ? .textSuccess : .textSecondary)
+                                .foregroundColor(row.room.unreadCount > 0 ? .textSuccess : .textSecondary)
                                 .font(.appTextSmall)
                                 .lineLimit(1)
                         }
@@ -210,13 +208,15 @@ struct ChatsScreen: View {
                         
                         Spacer()
                         
-                        if row.room.isMuted {
-                            Image.system(.speakerSlash)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 15, height: 15, alignment: .trailing)
-                                .foregroundColor(.textSecondary)
-                        } else {
+                        HStack {
+                            if row.room.isMuted {
+                                Image.system(.speakerSlash)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 15, height: 15, alignment: .trailing)
+                                    .foregroundColor(.textSecondary)
+                            }
+                            
                             if row.room.unreadCount > 0 {
                                 Bubble(size: .large, count: row.room.unreadCount)
                             }
