@@ -69,40 +69,46 @@ struct MessageReplyBannerCompact: View {
     
     let name: String
     let content: String
+    let action: () -> Void
     
     // MARK: - Init -
     
-    init(name: String, content: String) {
+    init(name: String, content: String, action: @escaping () -> Void) {
         self.name = name
         self.content = content
+        self.action = action
     }
     
     var body: some View {
-        HStack(spacing: 8) {
-            Rectangle()
-                .fill(Color.textSuccess)
-                .frame(width: 3)
-                .frame(maxHeight: .infinity)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(name)
-                    .lineLimit(1)
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textMain.opacity(0.8))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        Button {
+            action()
+        } label: {
+            HStack(spacing: 8) {
+                Rectangle()
+                    .fill(Color.textSuccess)
+                    .frame(width: 3)
+                    .frame(maxHeight: .infinity)
                 
-                Text(content)
-                    .lineLimit(1)
-                    .font(.appTextCaption)
-                    .foregroundStyle(Color.textMain)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name)
+                        .lineLimit(1)
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textMain.opacity(0.8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Text(content)
+                        .lineLimit(1)
+                        .font(.appTextCaption)
+                        .foregroundStyle(Color.textMain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
+            .padding(.trailing, 8)
+            .background(Color.textSuccess.opacity(0.2))
+            .cornerRadius(Metrics.chatMessageRadiusSmall)
+            .frame(height: Self.height)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.trailing, 8)
-        .background(Color.textSuccess.opacity(0.2))
-        .cornerRadius(Metrics.chatMessageRadiusSmall)
-        .frame(height: Self.height)
-        .frame(maxWidth: .infinity)
     }
 }
 

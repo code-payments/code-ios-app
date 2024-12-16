@@ -110,6 +110,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
 public struct ReplyingTo {
     let name: String
     let content: String
+    let action: () -> Void
 }
 
 public struct MessageBubble: View {
@@ -132,7 +133,9 @@ public struct MessageBubble: View {
                         MessageReplyBannerCompact(
                             name: replyingTo.name,
                             content: replyingTo.content
-                        )
+                        ) {
+                            replyingTo.action()
+                        }
                     }
                     HStack(alignment: .bottom) {
                         Text(text)
@@ -184,7 +187,9 @@ public struct MessageBubble: View {
                             MessageReplyBannerCompact(
                                 name: replyingTo.name,
                                 content: replyingTo.content
-                            )
+                            ) {
+                                replyingTo.action()
+                            }
                             Spacer()
                         }
                         .padding([.horizontal], horizontalPadding)
@@ -298,7 +303,8 @@ private struct WidthPreferenceKey: PreferenceKey {
                 isHost: false,
                 replyingTo: .init(
                     name: "Bob",
-                    content: "That's what I was trying to say before"
+                    content: "That's what I was trying to say before",
+                    action: {}
                 ),
                 location: .standalone(.received),
                 menu: {

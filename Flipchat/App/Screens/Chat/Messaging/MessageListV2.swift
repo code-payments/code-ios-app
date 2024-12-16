@@ -93,6 +93,8 @@ extension MessageListV2 {
         private var messages: [MessageDescription] = []
         
         fileprivate weak var tableView: UITableView!
+        
+        private let defaultMemberName = "Member"
 
         init(list: MessageListV2, userID: UserID, hostID: UserID, chatID: ChatID, action: @escaping (MessageAction) -> Void) {
             self.list = list
@@ -192,6 +194,29 @@ extension MessageListV2 {
             }
         }
         
+        func scrollTo(messageID: UUID) {
+            let index = messages.firstIndex {
+                if case .message(let id, _, _, _) = $0.kind {
+                    return messageID == id.uuid
+                }
+                return false
+            }
+            
+            // Message not found
+            guard let index else {
+                return
+            }
+            
+            scrollTo(
+                configuration: .init(
+                    destination: .row(index),
+                    position: .top,
+                    delay: 0,
+                    animated: true
+                )
+            )
+        }
+        
         func scrollTo(configuration: ScrollConfiguration) {
             let indexPath: IndexPath
             switch configuration.destination {
@@ -202,19 +227,23 @@ extension MessageListV2 {
             }
             
             Task {
-                try await Task.delay(milliseconds: 25)
+                if configuration.delay > 0 {
+                    try await Task.delay(milliseconds: configuration.delay)
+                }
+                
                 if configuration.animated {
                     UIView.animate(withDuration: 0.2, delay: 0.0, options: .curveEaseInOut) { [tableView] in
                         tableView?.scrollToRow(
                             at: indexPath,
-                            at: .middle,
+                            at: configuration.position,
                             animated: true
                         )
                     }
+                    
                 } else {
                     tableView.scrollToRow(
                         at: indexPath,
-                        at: .middle,
+                        at: configuration.position,
                         animated: false
                     )
                 }
@@ -279,8 +308,7 @@ extension MessageListV2 {
             case .message(_, let isReceived, let row, let location):
                 let message = row.message
                 let isFromSelf = message.senderID == userID.uuid
-                let defaultName = "Member"
-                let displayName = row.member.displayName ?? defaultName
+                let displayName = row.member.displayName ?? defaultMemberName
                 
                 MessageText(
                     state: message.state,
@@ -290,10 +318,7 @@ extension MessageListV2 {
                     date: message.date,
                     isReceived: isReceived,
                     isHost: message.senderID == hostID.uuid,
-                    replyingTo: row.reference == nil ? nil : .init(
-                        name: row.reference!.displayName ?? defaultName,
-                        content: row.reference!.content
-                    ),
+                    replyingTo: replyingTo(for: row, action: action),
                     location: location
                 ) {
                     Button {
@@ -328,6 +353,23 @@ extension MessageListV2 {
             case .unread:
                 MessageUnread(text: description.content)
             }
+        }
+        
+        func replyingTo(for row: MessageRow, action: @escaping Action) -> ReplyingTo? {
+            guard
+                let referenceID = row.referenceID,
+                let reference = row.reference
+            else {
+                return nil
+            }
+            
+            return .init(
+                name: reference.displayName ?? defaultMemberName,
+                content: reference.content,
+                action: { [weak self] in
+                    self?.scrollTo(messageID: referenceID)
+                }
+            )
         }
     }
 }
@@ -407,11 +449,13 @@ struct ScrollConfiguration {
     
     var destination: Destination
     var position: UITableView.ScrollPosition
+    var delay: Int // milliseconds
     var animated: Bool
     
-    init(destination: Destination, position: UITableView.ScrollPosition = .middle, animated: Bool) {
+    init(destination: Destination, position: UITableView.ScrollPosition = .middle, delay: Int = 25, animated: Bool) {
         self.destination = destination
         self.position = position
+        self.delay = delay
         self.animated = animated
     }
     
