@@ -33,7 +33,7 @@ struct FinalizeAccountScreen: View {
                     )
                     
                     VStack(spacing: 10) {
-                        Text("Finalize account creation")
+                        Text("Finalize Account Creation")
                             .font(.appTextLarge)
                             .foregroundStyle(Color.textMain)
                         Text("Accounts on Flipchat must be purchased for $0.99 to reduce spam")

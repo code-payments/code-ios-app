@@ -69,9 +69,8 @@ struct IntroScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     
                     VStack(spacing: 0) {
-                        Text(Localized.Login.Description.byTapping)
+                        Text("By tapping any button above you agree to our")
                         HStack(spacing: 3) {
-                            Text(Localized.Login.Description.agreeToOur)
                             Button {
                                 isShowingTermsOfService.toggle()
                             } label: {
