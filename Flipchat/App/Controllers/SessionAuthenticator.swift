@@ -464,3 +464,14 @@ struct InitializedAccount {
 extension SessionAuthenticator {
     static let mock: SessionAuthenticator = SessionAuthenticator(container: .mock)
 }
+
+extension AuthenticatedState {
+    @MainActor
+    static let mock: AuthenticatedState = AuthenticatedState(
+        session: .mock,
+        chatController: .mock,
+        chatViewModel: .mock,
+        containerViewModel: .mock,
+        pushController: .mock
+    )
+}

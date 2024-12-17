@@ -86,10 +86,8 @@ struct ContainerScreen: View {
             NavigationStack(path: $viewModel.navigationPath) {
                 TabBarView(selection: $tabSelection, isTabBarVisible: .constant(isTabBarVisible)) {
                     ChatsScreen(
-                        sessionAuthenticator: sessionAuthenticator,
-                        session: state.session,
-                        chatController: state.chatController,
-                        viewModel: state.chatViewModel
+                        state: state,
+                        container: container
                     )
                     .tabBarItem(
                         item: .rooms,

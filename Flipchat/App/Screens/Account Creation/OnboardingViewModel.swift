@@ -35,9 +35,6 @@ class OnboardingViewModel: ObservableObject {
         return count >= 3 && count <= 26
     }
     
-    private let chatID: ChatID
-    private let hostID: UserID
-    private let cover: Kin
     private let session: Session
     private let client: Client
     private let flipClient: FlipchatClient
@@ -45,15 +42,13 @@ class OnboardingViewModel: ObservableObject {
     private let chatViewModel: ChatViewModel
     private let banners: Banners
     private let isPresenting: Binding<Bool>
+    private let completion: () async throws -> Void
     
     private lazy var storeController = StoreController(delegate: self)
     
     // MARK: - Init -
     
-    init(chatID: ChatID, hostID: UserID, cover: Kin, session: Session, client: Client, flipClient: FlipchatClient, chatController: ChatController, chatViewModel: ChatViewModel, banners: Banners, isPresenting: Binding<Bool>) {
-        self.chatID         = chatID
-        self.hostID         = hostID
-        self.cover          = cover
+    init(session: Session, client: Client, flipClient: FlipchatClient, chatController: ChatController, chatViewModel: ChatViewModel, banners: Banners, isPresenting: Binding<Bool>, completion: @escaping () async throws -> Void) {
         self.session        = session
         self.client         = client
         self.flipClient     = flipClient
@@ -61,6 +56,7 @@ class OnboardingViewModel: ObservableObject {
         self.chatViewModel  = chatViewModel
         self.banners        = banners
         self.isPresenting   = isPresenting
+        self.completion     = completion
         
         storeController.loadProducts()
     }
@@ -190,11 +186,7 @@ extension OnboardingViewModel: StoreControllerDelegate {
                         try await Task.delay(milliseconds: 200)
                         dismiss()
                         try await Task.delay(milliseconds: 200)
-                        try await chatViewModel.attemptJoinChat(
-                            chatID: chatID,
-                            hostID: hostID,
-                            amount: cover
-                        )
+                        try await completion()
                     }
                 }
             }
@@ -227,5 +219,13 @@ extension OnboardingViewModel {
         case enterName
         case accessKey
         case finalizeCreation
+    }
+}
+
+extension OnboardingViewModel {
+    struct JoinRoom {
+        let chatID: ChatID
+        let hostID: UserID
+        let cover: Kin
     }
 }

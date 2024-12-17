@@ -123,8 +123,6 @@ struct ConversationScreen: View {
     
     @State private var input: String = ""
     
-    @State private var isShowingAccountCreation: Bool = false
-    
     @State private var scrollConfiguration: ScrollConfiguration?
     
     @State private var replyMessage: MessageRow?
@@ -213,20 +211,23 @@ struct ConversationScreen: View {
 //                        .padding(15)
 //                    }
                 }
-                .sheet(isPresented: $isShowingAccountCreation) {
+                .sheet(isPresented: $chatViewModel.isShowingCreateAccount) {
                     CreateAccountScreen(
                         viewModel: OnboardingViewModel(
-                            chatID: chatID,
-                            hostID: UserID(uuid: room.room.ownerUserID),
-                            cover: room.room.cover,
                             session: session,
                             client: client,
                             flipClient: flipClient,
                             chatController: chatController,
                             chatViewModel: chatViewModel,
                             banners: banners,
-                            isPresenting: $isShowingAccountCreation
-                        )
+                            isPresenting: $chatViewModel.isShowingCreateAccount
+                        ) { [weak chatViewModel] in
+                            try await chatViewModel?.attemptJoinChat(
+                                chatID: chatID,
+                                hostID: UserID(uuid: room.room.ownerUserID),
+                                amount: room.room.cover
+                            )
+                        }
                     )
                 }
                 .sheet(isPresented: $chatViewModel.isShowingJoinPayment) {
@@ -265,16 +266,12 @@ struct ConversationScreen: View {
                         style: .filled,
                         title: "Join Room: ⬢ \(conversationState.room.room.cover.formattedTruncatedKin())"
                     ) {
-                        if chatController.isRegistered {
-                            Task {
-                                try await chatViewModel.attemptJoinChat(
-                                    chatID: ChatID(uuid: room.room.serverID),
-                                    hostID: UserID(uuid: room.room.ownerUserID),
-                                    amount: room.room.cover
-                                )
-                            }
-                        } else {
-                            isShowingAccountCreation = true
+                        Task {
+                            try await chatViewModel.attemptJoinChat(
+                                chatID: ChatID(uuid: room.room.serverID),
+                                hostID: UserID(uuid: room.room.ownerUserID),
+                                amount: room.room.cover
+                            )
                         }
                     }
                     .padding(.horizontal, 20)

@@ -67,6 +67,7 @@ struct AccessKeyScreen: View {
             .foregroundColor(.textMain)
             .padding(20)
             .navigationBarTitle(Text("Your Access Key"), displayMode: .inline)
+            .interactiveDismissDisabled()
         }
     }
     
@@ -82,9 +83,6 @@ struct AccessKeyScreen: View {
 #Preview {
     AccessKeyScreen(
         viewModel: .init(
-            chatID: .mock,
-            hostID: .mock,
-            cover: 100,
             session: .mock,
             client: .mock,
             flipClient: .mock,
@@ -92,6 +90,6 @@ struct AccessKeyScreen: View {
             chatViewModel: .mock,
             banners: .mock,
             isPresenting: .constant(true)
-        )
+        ) {}
     )
 }

@@ -66,6 +66,7 @@ struct EnterNameScreen: View {
         }
         .navigationBarTitle(Text(""), displayMode: .inline)
         .onAppear(perform: onAppear)
+        .interactiveDismissDisabled()
     }
     
     private func onAppear() {

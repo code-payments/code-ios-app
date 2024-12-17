@@ -43,14 +43,19 @@ struct ChatsScreen: View {
     
     @State private var chatState: ChatsState
     
+    private let flipClient: FlipchatClient
+    private let client: Client
+    
     // MARK: - Init -
     
-    init(sessionAuthenticator: SessionAuthenticator, session: Session, chatController: ChatController, viewModel: ChatViewModel) {
-        self.sessionAuthenticator = sessionAuthenticator
-        self.session = session
-        self.chatController = chatController
-        self.viewModel = viewModel
-        self.chatState = .init(chatController: chatController)
+    init(state: AuthenticatedState, container: AppContainer) {
+        self.sessionAuthenticator = container.sessionAuthenticator
+        self.session = state.session
+        self.chatController = state.chatController
+        self.viewModel = state.chatViewModel
+        self.flipClient = container.flipClient
+        self.client = container.client
+        self.chatState = .init(chatController: state.chatController)
     }
     
     private func didAppear() {
@@ -161,6 +166,21 @@ struct ChatsScreen: View {
             )
             .environmentObject(banners)
         }
+        .sheet(isPresented: $viewModel.isShowingCreateAccount) {
+            CreateAccountScreen(
+                viewModel: OnboardingViewModel(
+                    session: session,
+                    client: client,
+                    flipClient: flipClient,
+                    chatController: chatController,
+                    chatViewModel: viewModel,
+                    banners: banners,
+                    isPresenting: $viewModel.isShowingCreateAccount
+                ) { [weak viewModel] in
+                    viewModel?.attemptCreateChat()
+                }
+            )
+        }
         .onChange(of: chatController.chatsDidChange) { _, _ in
             try? chatState.reload()
         }
@@ -263,9 +283,7 @@ struct ChatsScreen: View {
 
 #Preview {
     ChatsScreen(
-        sessionAuthenticator: .mock,
-        session: .mock,
-        chatController: .mock,
-        viewModel: .mock
+        state: .mock,
+        container: .mock
     )
 }

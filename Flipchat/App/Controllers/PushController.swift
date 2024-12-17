@@ -207,3 +207,8 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         }
     }
 }
+
+extension PushController {
+    static let mock: PushController = PushController(owner: .mock, client: .mock)
+}
+

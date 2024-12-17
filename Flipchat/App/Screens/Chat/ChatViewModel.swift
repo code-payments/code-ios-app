@@ -26,6 +26,8 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingCreatePayment: Bool = false
     
+    @Published var isShowingCreateAccount: Bool = false
+    
     @Published var isShowingChangeCover: Bool = false
     
     // Button States
@@ -210,7 +212,12 @@ class ChatViewModel: ObservableObject {
         }
     }
     
-    private func attemptCreateChat() {
+    func attemptCreateChat() {
+        guard chatController.isRegistered else {
+            isShowingCreateAccount = true
+            return
+        }
+        
         if session.hasSufficientFunds(for: session.userFlags.startGroupCost) {
             isShowingCreatePayment = true
         } else {
@@ -229,6 +236,11 @@ class ChatViewModel: ObservableObject {
     }
     
     func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+        guard chatController.isRegistered else {
+            isShowingCreateAccount = true
+            return
+        }
+        
         if chatID == hostID {
             try await payAndJoinChat( // Payment skipped for chat hosts / owners
                 chatID: chatID,

@@ -59,6 +59,7 @@ struct FinalizeAccountScreen: View {
             .foregroundColor(.textMain)
             .padding(20)
             .navigationBarTitle(Text(""), displayMode: .inline)
+            .interactiveDismissDisabled()
         }
     }
 }
@@ -68,9 +69,6 @@ struct FinalizeAccountScreen: View {
 #Preview {
     FinalizeAccountScreen(
         viewModel: .init(
-            chatID: .mock,
-            hostID: .mock,
-            cover: 100,
             session: .mock,
             client: .mock,
             flipClient: .mock,
@@ -78,6 +76,6 @@ struct FinalizeAccountScreen: View {
             chatViewModel: .mock,
             banners: .mock,
             isPresenting: .constant(true)
-        )
+        ) {}
     )
 }
