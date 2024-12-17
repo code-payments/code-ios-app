@@ -12,11 +12,17 @@ import FlipchatServices
 struct FinalizeAccountScreen: View {
     
     @ObservedObject private var viewModel: OnboardingViewModel
+    @ObservedObject private var storeController: StoreController
+    
+    private var formattedPrice: String {
+        storeController.products[FlipchatProduct.createAccount.rawValue]?.formattedPrice ?? ""
+    }
     
     // MARK: - Init -
     
     init(viewModel: OnboardingViewModel) {
         self.viewModel = viewModel
+        self.storeController = viewModel.storeController
     }
     
     // MARK: - Body -
@@ -36,7 +42,7 @@ struct FinalizeAccountScreen: View {
                         Text("Finalize Account Creation")
                             .font(.appTextLarge)
                             .foregroundStyle(Color.textMain)
-                        Text("Accounts on Flipchat must be purchased for \(viewModel.createAccountCost ?? "") to reduce spam")
+                        Text("Accounts on Flipchat must be purchased for \(formattedPrice) to reduce spam")
                             .font(.appTextMedium)
                             .foregroundStyle(Color.textSecondary)
                             .padding(.horizontal, 20)
@@ -52,7 +58,9 @@ struct FinalizeAccountScreen: View {
                     style: .filled,
                     title: "Purchase Your Account"
                 ) {
-                    try? viewModel.payForCreateAccount()
+                    Task {
+                        try await viewModel.payForCreateAccount()
+                    }
                 }
             }
             .ignoresSafeArea(.keyboard)
@@ -69,12 +77,8 @@ struct FinalizeAccountScreen: View {
 #Preview {
     FinalizeAccountScreen(
         viewModel: .init(
-            session: .mock,
-            client: .mock,
-            flipClient: .mock,
-            chatController: .mock,
-            chatViewModel: .mock,
-            banners: .mock,
+            state: .mock,
+            container: .mock,
             isPresenting: .constant(true)
         ) {}
     )

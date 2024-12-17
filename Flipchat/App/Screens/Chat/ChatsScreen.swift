@@ -43,12 +43,16 @@ struct ChatsScreen: View {
     
     @State private var chatState: ChatsState
     
+    private let state: AuthenticatedState
+    private let container: AppContainer
     private let flipClient: FlipchatClient
     private let client: Client
     
     // MARK: - Init -
     
     init(state: AuthenticatedState, container: AppContainer) {
+        self.state = state
+        self.container = container
         self.sessionAuthenticator = container.sessionAuthenticator
         self.session = state.session
         self.chatController = state.chatController
@@ -168,13 +172,10 @@ struct ChatsScreen: View {
         }
         .sheet(isPresented: $viewModel.isShowingCreateAccount) {
             CreateAccountScreen(
+                storeController: container.storeController,
                 viewModel: OnboardingViewModel(
-                    session: session,
-                    client: client,
-                    flipClient: flipClient,
-                    chatController: chatController,
-                    chatViewModel: viewModel,
-                    banners: banners,
+                    state: state,
+                    container: container,
                     isPresenting: $viewModel.isShowingCreateAccount
                 ) { [weak viewModel] in
                     viewModel?.attemptCreateChat()

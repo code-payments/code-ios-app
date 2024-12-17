@@ -27,6 +27,7 @@ class AppContainer: ObservableObject {
     let betaFlags = BetaFlags.shared
     let biometrics = Biometrics()
     let notificationController = NotificationController()
+    let storeController = StoreController()
     
     lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)    
     
@@ -64,6 +65,7 @@ class AppContainer: ObservableObject {
 
             .environmentObject(exchange)
             .environmentObject(sessionAuthenticator)
+            .environmentObject(storeController)
     }
 }
 

@@ -110,12 +110,9 @@ struct ContainerScreen: View {
                         switch path {
                         case .chat(let chatID):
                             ConversationScreen(
-                                userID: authenticatedState.session.userID,
                                 chatID: chatID,
-                                session: state.session,
-                                containerViewModel: state.containerViewModel,
-                                chatViewModel: state.chatViewModel,
-                                chatController: authenticatedState.chatController
+                                state: authenticatedState,
+                                container: container
                             )
                             
                         case .details(let chatID):

@@ -11,11 +11,17 @@ import FlipchatServices
 
 struct CreateAccountScreen: View {
     
+    @ObservedObject private var storeController: StoreController
     @StateObject private var viewModel: OnboardingViewModel
+    
+    private var formattedPrice: String {
+        storeController.products[FlipchatProduct.createAccount.rawValue]?.formattedPrice ?? ""
+    }
     
     // MARK: - Init -
     
-    init(viewModel: @autoclosure @escaping () -> OnboardingViewModel) {
+    init(storeController: StoreController, viewModel: @autoclosure @escaping () -> OnboardingViewModel) {
+        self.storeController = storeController
         self._viewModel = StateObject(wrappedValue: viewModel())
     }
     
@@ -37,7 +43,7 @@ struct CreateAccountScreen: View {
                             Text("Create an Account to Join Rooms")
                                 .font(.appTextLarge)
                                 .foregroundStyle(Color.textMain)
-                            Text("New accounts cost \(viewModel.createAccountCost ?? "")")
+                            Text("New accounts cost \(formattedPrice)")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                                 .padding(.horizontal, 20)
@@ -92,13 +98,10 @@ struct CreateAccountScreen: View {
 
 #Preview {
     CreateAccountScreen(
+        storeController: .mock,
         viewModel: .init(
-            session: .mock,
-            client: .mock,
-            flipClient: .mock,
-            chatController: .mock,
-            chatViewModel: .mock,
-            banners: .mock,
+            state: .mock,
+            container: .mock,
             isPresenting: .constant(true)
         ) {}
     )

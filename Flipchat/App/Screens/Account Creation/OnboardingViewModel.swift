@@ -37,30 +37,33 @@ class OnboardingViewModel: ObservableObject {
         return count >= 3 && count <= 26
     }
     
+    let storeController: StoreController
+    
     private let session: Session
-    private let client: Client
-    private let flipClient: FlipchatClient
     private let chatController: ChatController
     private let chatViewModel: ChatViewModel
+    
+    private let client: Client
+    private let flipClient: FlipchatClient
     private let banners: Banners
+    
     private let isPresenting: Binding<Bool>
     private let completion: () async throws -> Void
     
-    private lazy var storeController = StoreController(delegate: self)
-    
     // MARK: - Init -
     
-    init(session: Session, client: Client, flipClient: FlipchatClient, chatController: ChatController, chatViewModel: ChatViewModel, banners: Banners, isPresenting: Binding<Bool>, completion: @escaping () async throws -> Void) {
-        self.session        = session
-        self.client         = client
-        self.flipClient     = flipClient
-        self.chatController = chatController
-        self.chatViewModel  = chatViewModel
-        self.banners        = banners
-        self.isPresenting   = isPresenting
-        self.completion     = completion
+    init(state: AuthenticatedState, container: AppContainer, isPresenting: Binding<Bool>, completion: @escaping () async throws -> Void) {
+        self.session         = state.session
+        self.chatController  = state.chatController
+        self.chatViewModel   = state.chatViewModel
         
-        storeController.loadProducts()
+        self.client          = container.client
+        self.flipClient      = container.flipClient
+        self.banners         = container.banners
+        self.storeController = container.storeController
+        
+        self.isPresenting    = isPresenting
+        self.completion      = completion
     }
     
     // MARK: - Actions -
@@ -85,6 +88,53 @@ class OnboardingViewModel: ObservableObject {
     
     private func setPaymentState(_ state: ButtonState) {
         paymentButtonState = state
+    }
+    
+    // MARK: - In-App Purchases -
+    
+    func payForCreateAccount() async throws -> StoreController.PurchaseResult {
+        setPaymentState(.loading)
+        
+        let result = try await storeController.pay(for: .createAccount)
+        switch result {
+        case .success(let purchasedProduct):
+            
+            if purchasedProduct == .createAccount {
+                try await completeAccountUpgrade()
+                setPaymentState(.success)
+                Task {
+                    try await Task.delay(milliseconds: 200)
+                    dismiss()
+                    try await Task.delay(milliseconds: 200)
+                    try await completion()
+                }
+            }
+            
+        case .failed:
+            showPaymentFailed()
+            setPaymentState(.normal)
+            
+        case .cancelled:
+            setPaymentState(.normal)
+        }
+        
+        return result
+    }
+    
+    private func completeAccountUpgrade() async throws {
+        // 1. Update account from anonymous to a named one
+        try await flipClient.setDisplayName(name: enteredName, owner: owner)
+        
+        // 2. Airdrop initial account Kin balance
+        _ = try? await client.airdrop(type: .getFirstKin, owner: owner)
+        
+        // 3. Update the user's balance to reflect
+        // the aidropped Kin right away
+        _ = try await session.updateBalance()
+        
+        // 4. Update the user flags to indicate that
+        // this account is now registered
+        _ = try await session.updateUserFlags()
     }
     
     // MARK: - Access Key -
@@ -159,67 +209,6 @@ class OnboardingViewModel: ObservableObject {
                 .cancel(title: "OK"),
             ]
         )
-    }
-}
-
-extension OnboardingViewModel: StoreControllerDelegate {
-    
-    nonisolated
-    func didLoadPrices(products: [StoreController.Product : String]) {
-        Task { @MainActor in
-            createAccountCost = products[.createAccount]
-        }
-    }
-    
-    func payForCreateAccount() throws {
-        setPaymentState(.loading)
-        
-        try storeController.pay(for: .createAccount)
-    }
-    
-    nonisolated
-    func handlePayment(payment: Result<StoreController.Payment, any Error>) {
-        Task { @MainActor in
-            handlePaymentResult(payment: payment)
-        }
-    }
-    
-    private func handlePaymentResult(payment: Result<StoreController.Payment, any Error>) {
-        switch payment {
-        case .success(let payment):
-            if payment.productIdentifier == StoreController.Product.createAccount.rawValue {
-                Task {
-                    try await completeAccountUpgrade()
-                    setPaymentState(.success)
-                    Task {
-                        try await Task.delay(milliseconds: 200)
-                        dismiss()
-                        try await Task.delay(milliseconds: 200)
-                        try await completion()
-                    }
-                }
-            }
-            
-        case .failure:
-            showPaymentFailed()
-            setPaymentState(.normal)
-        }
-    }
-    
-    private func completeAccountUpgrade() async throws {
-        // 1. Update account from anonymous to a named one
-        try await flipClient.setDisplayName(name: enteredName, owner: owner)
-        
-        // 2. Airdrop initial account Kin balance
-        _ = try? await client.airdrop(type: .getFirstKin, owner: owner)
-        
-        // 3. Update the user's balance to reflect
-        // the aidropped Kin right away
-        _ = try await session.updateBalance()
-        
-        // 4. Update the user flags to indicate that
-        // this account is now registered
-        _ = try await session.updateUserFlags()
     }
 }
 

@@ -131,8 +131,10 @@ struct ConversationScreen: View {
     
     @FocusState private var isEditorFocused: Bool
     
-    private let userID: UserID
     private let chatID: ChatID
+    private let state: AuthenticatedState
+    private let container: AppContainer
+    private let userID: UserID
     private let session: Session
     private let chatController: ChatController
     
@@ -152,13 +154,20 @@ struct ConversationScreen: View {
     
     // MARK: - Init -
     
-    init(userID: UserID, chatID: ChatID, session: Session, containerViewModel: ContainerViewModel, chatViewModel: ChatViewModel, chatController: ChatController) {
-        self.userID = userID
+    init(chatID: ChatID, state: AuthenticatedState, container: AppContainer) {
         self.chatID = chatID
-        self.session = session
-        self.containerViewModel = containerViewModel
-        self.chatViewModel = chatViewModel
+        self.state = state
+        self.container = container
+        self.session = state.session
+        self.containerViewModel = state.containerViewModel
+        self.chatViewModel = state.chatViewModel
+        
+        let userID = state.session.userID
+        let chatController = state.chatController
+        
+        self.userID = userID
         self.chatController = chatController
+        
         self._conversationState = StateObject(wrappedValue: try! .init(
             userID: userID,
             chatID: chatID,
@@ -197,13 +206,10 @@ struct ConversationScreen: View {
                 }
                 .sheet(isPresented: $chatViewModel.isShowingCreateAccount) {
                     CreateAccountScreen(
+                        storeController: container.storeController,
                         viewModel: OnboardingViewModel(
-                            session: session,
-                            client: client,
-                            flipClient: flipClient,
-                            chatController: chatController,
-                            chatViewModel: chatViewModel,
-                            banners: banners,
+                            state: state,
+                            container: container,
                             isPresenting: $chatViewModel.isShowingCreateAccount
                         ) { [weak chatViewModel] in
                             try await chatViewModel?.attemptJoinChat(

@@ -83,12 +83,8 @@ struct AccessKeyScreen: View {
 #Preview {
     AccessKeyScreen(
         viewModel: .init(
-            session: .mock,
-            client: .mock,
-            flipClient: .mock,
-            chatController: .mock,
-            chatViewModel: .mock,
-            banners: .mock,
+            state: .mock,
+            container: .mock,
             isPresenting: .constant(true)
         ) {}
     )
