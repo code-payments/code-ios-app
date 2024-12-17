@@ -22,6 +22,8 @@ class OnboardingViewModel: ObservableObject {
     
     @Published var paymentButtonState: ButtonState = .normal
     
+    @Published var createAccountCost: String?
+    
     var mnemonic: MnemonicPhrase {
         session.organizer.mnemonic
     }
@@ -161,6 +163,13 @@ class OnboardingViewModel: ObservableObject {
 }
 
 extension OnboardingViewModel: StoreControllerDelegate {
+    
+    nonisolated
+    func didLoadPrices(products: [StoreController.Product : String]) {
+        Task { @MainActor in
+            createAccountCost = products[.createAccount]
+        }
+    }
     
     func payForCreateAccount() throws {
         setPaymentState(.loading)

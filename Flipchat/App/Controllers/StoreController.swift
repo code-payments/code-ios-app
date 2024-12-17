@@ -10,6 +10,7 @@ import StoreKit
 
 protocol StoreControllerDelegate: AnyObject {
     func handlePayment(payment: Result<StoreController.Payment, Error>)
+    func didLoadPrices(products: [StoreController.Product: String])
 }
 
 @MainActor
@@ -100,8 +101,25 @@ extension StoreController: SKRequestDelegate, SKProductsRequestDelegate, SKPayme
         let products = response.products.elementsKeyed(by: \.productIdentifier)
         Task {
             await setProducts(products: products)
-            print("[IAP] Loaded products: \(response.products.map { $0.productIdentifier })")
+            
+            var container: [Product: String] = [:]
+            for (id, product) in products {
+                container[Product(rawValue: id)!] = localizedPrice(for: product)
+            }
+            
+            Task { @MainActor [weak self] in
+                self?.delegate?.didLoadPrices(products: container)
+                print("[IAP] Loaded products: \(response.products.map { $0.productIdentifier })")
+            }
         }
+    }
+    
+    nonisolated
+    private func localizedPrice(for product: SKProduct) -> String? {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = product.priceLocale
+        return formatter.string(from: product.price)
     }
     
     nonisolated

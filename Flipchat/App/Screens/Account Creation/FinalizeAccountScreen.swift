@@ -36,7 +36,7 @@ struct FinalizeAccountScreen: View {
                         Text("Finalize Account Creation")
                             .font(.appTextLarge)
                             .foregroundStyle(Color.textMain)
-                        Text("Accounts on Flipchat must be purchased for $0.99 to reduce spam")
+                        Text("Accounts on Flipchat must be purchased for \(viewModel.createAccountCost ?? "") to reduce spam")
                             .font(.appTextMedium)
                             .foregroundStyle(Color.textSecondary)
                             .padding(.horizontal, 20)

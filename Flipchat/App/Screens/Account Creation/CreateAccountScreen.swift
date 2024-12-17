@@ -37,7 +37,7 @@ struct CreateAccountScreen: View {
                             Text("Create an Account to Join Rooms")
                                 .font(.appTextLarge)
                                 .foregroundStyle(Color.textMain)
-                            Text("New accounts cost $0.99")
+                            Text("New accounts cost \(viewModel.createAccountCost ?? "")")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                                 .padding(.horizontal, 20)
