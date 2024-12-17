@@ -211,9 +211,13 @@ extension MessageListV2 {
             
             if isEmpty {
                 if let unreadIndex {
+                    // Show one message from previously seen
+                    // and then banner followed by all new
+                    let adjustedIndex = max(unreadIndex - 1, 0)
                     scrollTo(
                         configuration: .init(
-                            destination: .row(unreadIndex),
+                            destination: .row(adjustedIndex),
+                            position: .top,
                             animated: false
                         )
                     )

@@ -194,22 +194,6 @@ struct ConversationScreen: View {
                         },
                         loadMore: {}
                     )
-//                    .overlay {
-//                        VStack {
-//                            Spacer()
-//                            HStack {
-//                                Spacer()
-//                                Button {
-//                                    scrollToBottom(animated: true)
-//                                } label: {
-//                                    Image.asset(.scrollBottom)
-//                                        .padding(5)
-//                                        .opacity(0.8)
-//                                }
-//                            }
-//                        }
-//                        .padding(15)
-//                    }
                 }
                 .sheet(isPresented: $chatViewModel.isShowingCreateAccount) {
                     CreateAccountScreen(
