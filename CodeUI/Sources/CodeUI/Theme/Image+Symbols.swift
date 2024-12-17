@@ -31,6 +31,12 @@ extension Image {
     }
 }
 
+extension UIImage {
+    public static func asset(_ name: Asset) -> UIImage  {
+        UIImage(named: name.rawValue, in: Bundle.module, compatibleWith: nil)!
+    }
+}
+
 // MARK: - System -
 
 public enum SystemSymbol: String {

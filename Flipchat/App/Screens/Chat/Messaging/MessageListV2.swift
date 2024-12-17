@@ -41,11 +41,14 @@ struct MessageListV2: UIViewRepresentable {
         )
     }
 
-    func makeUIView(context: Context) -> UITableView {
-        let tableView = UITableView(frame: UIScreen.main.bounds, style: .plain)
+    func makeUIView(context: Context) -> UIView {
+        let bounds = UIScreen.main.bounds
         
+        let container = UIView(frame: bounds)
+        
+        let tableView = UITableView(frame: bounds, style: .plain)
+        tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.register(MessageTableCell.self, forCellReuseIdentifier: "cell")
-        
         tableView.dataSource          = context.coordinator
         tableView.delegate            = context.coordinator
         tableView.separatorStyle      = .none
@@ -55,15 +58,40 @@ struct MessageListV2: UIViewRepresentable {
         tableView.backgroundColor     = .clear
         tableView.keyboardDismissMode = .interactive
         tableView.contentInset        = .init(top: 10, left: 0, bottom: 15, right: 0)
-        
+        tableView.tag                 = .tableViewTag
         context.coordinator.tableView = tableView
         
-        return tableView
+        let scrollButton = UIButton(type: .custom)
+        scrollButton.setImage(UIImage.asset(.scrollBottom), for: .normal)
+        scrollButton.translatesAutoresizingMaskIntoConstraints = false
+        scrollButton.addTarget(context.coordinator, action: #selector(Coordinator.scrollToBottom), for: .touchUpInside)
+        scrollButton.tag = .scrollButton
+        
+        container.addSubview(tableView)
+        container.addSubview(scrollButton)
+        
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: container.topAnchor),
+            tableView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            tableView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            
+            scrollButton.bottomAnchor.constraint(equalTo: container.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            scrollButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20),
+            scrollButton.widthAnchor.constraint(equalToConstant: 40),
+            scrollButton.heightAnchor.constraint(equalToConstant: 40),
+        ])
+        
+        return container
     }
 
-    func updateUIView(_ tableView: UITableView, context: Context) {
+    func updateUIView(_ container: UIView, context: Context) {
+        let tableView = container.viewWithTag(.tableViewTag) as! UITableView
+        let scrollButton = container.viewWithTag(.scrollButton) as! UIButton
+        
         context.coordinator.unreadDescription = unread
         context.coordinator.tableView = tableView
+        context.coordinator.scrollButton = scrollButton
         context.coordinator.update(newMessages: messages)
         
         if let configuration = scroll.wrappedValue {
@@ -73,6 +101,11 @@ struct MessageListV2: UIViewRepresentable {
             }
         }
     }
+}
+
+private extension Int {
+    static let tableViewTag = 0xE73E8995
+    static let scrollButton = 0xE73E8996
 }
 
 // MARK: - Coordinator -
@@ -93,6 +126,7 @@ extension MessageListV2 {
         private var messages: [MessageDescription] = []
         
         fileprivate weak var tableView: UITableView!
+        fileprivate weak var scrollButton: UIButton!
         
         private let defaultMemberName = "Member"
 
@@ -194,6 +228,15 @@ extension MessageListV2 {
             }
         }
         
+        @objc fileprivate func scrollToBottom() {
+            scrollTo(configuration: .init(
+                destination: .bottom,
+                position: .bottom,
+                delay: 0,
+                animated: true
+            ))
+        }
+        
         func scrollTo(messageID: UUID) {
             let index = messages.firstIndex {
                 if case .message(let id, _, _, _) = $0.kind {
@@ -250,8 +293,23 @@ extension MessageListV2 {
             }
         }
         
-        func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
-            print("Showing index: \(indexPath.row)")
+        // MARK: - ScrollView -
+        
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            let height        = scrollView.frame.height
+            let contentHeight = scrollView.contentSize.height
+            let offsetY       = scrollView.contentOffset.y
+            let threshold     = contentHeight - height / 2
+            
+            if offsetY >= threshold - height {
+                UIView.animate(withDuration: 0.15) {
+                    self.scrollButton?.alpha = 0.0
+                }
+            } else {
+                UIView.animate(withDuration: 0.15) {
+                    self.scrollButton?.alpha = 1.0
+                }
+            }
         }
         
         // MARK: - UITableViewDataSource -
