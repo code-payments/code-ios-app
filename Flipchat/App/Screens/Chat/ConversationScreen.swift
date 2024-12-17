@@ -440,6 +440,7 @@ struct ConversationScreen: View {
             
         case .reply(let messageRow):
             replyMessage = messageRow
+            isEditorFocused = true
         }
     }
     
