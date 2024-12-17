@@ -322,6 +322,14 @@ extension MessageListV2 {
                     location: location
                 ) {
                     Button {
+                        Task {
+                            action(.reply(row))
+                        }
+                    } label: {
+                        Label("Reply", systemImage: "arrowshape.turn.up.backward.fill")
+                    }
+                    
+                    Button {
                         action(.copy(description.content))
                     } label: {
                         Label("Copy Message", systemImage: "doc.on.doc")
