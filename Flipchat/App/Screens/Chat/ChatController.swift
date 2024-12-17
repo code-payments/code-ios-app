@@ -179,18 +179,46 @@ class ChatController: ObservableObject {
     }
     
     private func syncMessagesBackwards(for chatID: ChatID, from messageID: UUID? = nil) async throws -> [Chat.Message] {
-        let messages = try await client.fetchMessages(
-            chatID: chatID,
-            owner: owner,
-            query: PageQuery(
-                order: .desc,
-                pagingToken: messageID,
-                pageSize: 512
-            )
-        )
+        var container: [Chat.Message] = []
         
-        print("[SYNC] BACKWARD: \(messages.count) messages from: \(messageID?.uuidString ?? "nil")")
-        return messages
+        var fetchMore = false
+        var earliestPointerID: MessageID?
+        var earliestMessageID: UUID? = messageID
+        
+        repeat {
+            let messages = try await client.fetchMessages(
+                chatID: chatID,
+                owner: owner,
+                query: PageQuery(
+                    order: .desc,
+                    pagingToken: earliestMessageID,
+                    pageSize: 500
+                )
+            )
+            
+            container.append(contentsOf: messages)
+            
+            // Find the earliest message reference
+            earliestPointerID = messages.findOldestReferenceID()
+            
+            // Check to see if the oldest message we fetched
+            // is older than the reference, otherwise we have
+            // to keep fetching messages.
+            if
+                let earliestPointerID,
+                let lastMessage = messages.last,
+                earliestPointerID < lastMessage.id
+            {
+                earliestMessageID = lastMessage.id.uuid
+                fetchMore = true
+            } else {
+                fetchMore = false
+            }
+            
+        } while fetchMore
+        
+        print("[SYNC] BACKWARD: \(container.count) messages from: \(messageID?.uuidString ?? "nil")")
+        return container
     }
     
     private func syncMessagesForward(for chatID: ChatID, from messageID: UUID) async throws -> [Chat.Message] {
@@ -531,6 +559,30 @@ class ChatController: ObservableObject {
                 try $0.insertMessages(messages: messages, roomID: chat.metadata.id.uuid, isBatch: true)
             }
         }
+    }
+}
+
+// MARK: - Array -
+
+extension Array where Element == Chat.Message {
+    func findOldestReferenceID() -> MessageID? {
+        var earliestPointerID: MessageID?
+        forEach {
+            if let ref = $0.referenceMessageID {
+                guard earliestPointerID != nil else {
+                    earliestPointerID = ref
+                    return
+                }
+                
+                // Only assign references that
+                // are older to get the oldest
+                // reference in this set.
+                if ref < earliestPointerID! {
+                    earliestPointerID = ref
+                }
+            }
+        }
+        return earliestPointerID
     }
 }
 
