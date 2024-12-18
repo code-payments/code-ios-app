@@ -17,15 +17,17 @@ struct PreviewRoomScreen: View {
 
     private let chat: Chat.Metadata
     private let members: [Chat.Member]
-    private var host: Chat.Identity
+    private let host: Chat.Identity
+    private let isModal: Bool
     
     // MARK: - Init -
     
-    init(chat: Chat.Metadata, members: [Chat.Member], host: Chat.Identity, viewModel: ChatViewModel) {
+    init(chat: Chat.Metadata, members: [Chat.Member], host: Chat.Identity, viewModel: ChatViewModel, isModal: Bool) {
         self.chat = chat
         self.members = members
         self.host = host
         self.viewModel = viewModel
+        self.isModal = isModal
     }
     
     // MARK: - Body -
@@ -100,6 +102,11 @@ struct PreviewRoomScreen: View {
                 }
             }
         }
+        .if(isModal) { $0
+            .wrapInNavigation {
+                viewModel.dismissPreviewChatModal()
+            }
+        }
     }
     
     private func onAppear() {
@@ -123,6 +130,7 @@ struct PreviewRoomScreen: View {
         ),
         members: [],
         host: .init(displayName: "Bob", avatarURL: nil),
-        viewModel: .mock
+        viewModel: .mock,
+        isModal: false
     )
 }

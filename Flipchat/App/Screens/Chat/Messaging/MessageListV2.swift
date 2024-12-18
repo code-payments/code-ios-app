@@ -381,7 +381,10 @@ extension MessageListV2 {
                     isReceived: isReceived,
                     isHost: message.senderID == hostID.uuid,
                     replyingTo: replyingTo(for: row, action: action),
-                    location: location
+                    location: location,
+                    action: { [weak self] messageAction in
+                        self?.action(messageAction)
+                    }
                 ) {
                     Button {
                         Task {

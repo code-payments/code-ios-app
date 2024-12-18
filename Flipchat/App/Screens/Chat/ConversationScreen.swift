@@ -239,6 +239,15 @@ struct ConversationScreen: View {
                         )
                     }
                 }
+                .sheet(item: $chatViewModel.isShowingPreviewRoom) { preview in
+                    PreviewRoomScreen(
+                        chat: preview.chat,
+                        members: preview.members,
+                        host: preview.host,
+                        viewModel: chatViewModel,
+                        isModal: true
+                    )
+                }
                 
                 if chatController.isRegistered && conversationState.selfUser.canSend {
                     if !conversationState.selfUser.isMuted {
@@ -431,6 +440,13 @@ struct ConversationScreen: View {
         case .reply(let messageRow):
             replyMessage = messageRow
             isEditorFocused = true
+            
+        case .linkTo(let roomNumber):
+            chatViewModel.previewChat(
+                roomNumber: roomNumber,
+                showSuccess: false,
+                showModally: true
+            )
         }
     }
     

@@ -14,6 +14,7 @@ enum MessageAction {
     case muteUser(String, UserID, ChatID)
     case reportMessage(UserID, MessageID)
     case reply(MessageRow)
+    case linkTo(RoomNumber)
 }
 
 struct MessageDescription: Identifiable, Hashable, Equatable {

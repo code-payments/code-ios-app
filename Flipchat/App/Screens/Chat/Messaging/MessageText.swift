@@ -9,18 +9,19 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-public struct MessageText<MenuItems>: View where MenuItems: View {
+struct MessageText<MenuItems>: View where MenuItems: View {
     
-    public let state: Chat.Message.State
-    public let name: String
-    public let avatarData: Data
-    public let text: String
-    public let date: Date
-    public let isReceived: Bool
-    public let isHost: Bool
-    public let replyingTo: ReplyingTo?
-    public let location: MessageSemanticLocation
-    public let menu: () -> MenuItems
+    let state: Chat.Message.State
+    let name: String
+    let avatarData: Data
+    let text: String
+    let date: Date
+    let isReceived: Bool
+    let isHost: Bool
+    let replyingTo: ReplyingTo?
+    let location: MessageSemanticLocation
+    let action: (MessageAction) -> Void
+    let menu: () -> MenuItems
     
     private var shouldShowName: Bool {
         switch location {
@@ -49,7 +50,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    public init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, replyingTo: ReplyingTo?, location: MessageSemanticLocation, @ViewBuilder menu: @escaping () -> MenuItems) {
+    init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.state = state
         self.name = name
         self.avatarData = avatarData
@@ -59,10 +60,11 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
         self.isHost = isHost
         self.replyingTo = replyingTo
         self.location = location
+        self.action = action
         self.menu = menu
     }
     
-    public var body: some View {
+    var body: some View {
         HStack(alignment: .top) {
             if isReceived {
                 if shouldShowAvatar {
@@ -96,6 +98,7 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
                     date: date,
                     isReceived: isReceived,
                     replyingTo: replyingTo,
+                    action: action,
                     location: location
                 )
                 .contextMenu {
@@ -107,25 +110,26 @@ public struct MessageText<MenuItems>: View where MenuItems: View {
     }
 }
 
-public struct ReplyingTo {
+struct ReplyingTo {
     let name: String
     let content: String
     let action: () -> Void
 }
 
-public struct MessageBubble: View {
+struct MessageBubble: View {
     
-    public let state: Chat.Message.State
-    public let text: String
-    public let date: Date
-    public let isReceived: Bool
-    public let replyingTo: ReplyingTo?
-    public let location: MessageSemanticLocation
+    let state: Chat.Message.State
+    let text: String
+    let date: Date
+    let isReceived: Bool
+    let replyingTo: ReplyingTo?
+    let action: (MessageAction) -> Void
+    let location: MessageSemanticLocation
     
     private let horizontalPadding: CGFloat = 11
     private let verticalPadding: CGFloat = 11
     
-    public var body: some View {
+    var body: some View {
         Group {
             if text.count < 10 {
                 VStack(alignment: .leading) {
@@ -206,14 +210,25 @@ public struct MessageBubble: View {
     
     func handleURL(_ url: URL) -> OpenURLAction.Result {
         print("Handled URL: \(url.absoluteString)")
-        return .systemAction
+        if url.scheme == "fc" {
+            let roomNumber = RoomNumber(url.host(percentEncoded: false)?.dropFirst(4) ?? "")
+            if let roomNumber {
+                action(.linkTo(roomNumber))
+                return .handled
+            } else {
+                return .discarded
+            }
+            
+        } else {
+            return .systemAction
+        }
     }
     
     private func parse(text: String) -> AttributedString {
         var string = AttributedString(text)
         
         findLinks(in: text, string: &string)
-//        findHashtags(in: text, string: &string)
+        findHashtags(in: text, string: &string)
         
         return string
     }
@@ -266,15 +281,17 @@ public struct MessageBubble: View {
         
         let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
         for match in matches {
-            guard let range = Range(match.range, in: text) else {
+            guard let range = Range(match.range, in: text), let roomNumberRange = Range(match.range(at: 1), in: text) else {
                 continue
             }
+            
+            let roomNumber = String(text[roomNumberRange])
             
             guard let attributedRange = Range(range, in: string) else {
                 continue
             }
             
-            string[attributedRange].link = URL(string: "flipchat://action?room=")
+            string[attributedRange].link = URL(string: "fc://room\(roomNumber)")
             string[attributedRange].underlineStyle = .single
         }
     }
@@ -307,6 +324,7 @@ private struct WidthPreferenceKey: PreferenceKey {
                     action: {}
                 ),
                 location: .standalone(.received),
+                action: { _ in },
                 menu: {
                     Button {
                         /* action */

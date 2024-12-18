@@ -41,7 +41,7 @@ class ContainerViewModel: ObservableObject {
     // MARK: - Chat -
     
     func pushChat(chatID: ChatID) {
-        navigationPath = [.chat(chatID)]
+        navigationPath.append(.chat(chatID))
     }
     
     func pushDetails(chatID: ChatID) {

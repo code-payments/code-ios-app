@@ -51,7 +51,8 @@ struct EnterRoomNumberScreen: View {
                         chat: chat,
                         members: members,
                         host: host,
-                        viewModel: viewModel
+                        viewModel: viewModel,
+                        isModal: false
                     )
                 }
             }

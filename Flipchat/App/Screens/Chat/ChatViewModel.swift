@@ -30,6 +30,8 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingChangeCover: Bool = false
     
+    @Published var isShowingPreviewRoom: RoomPreview?
+    
     // Button States
     
     @Published var buttonStatePreviewRoom: ButtonState = .normal
@@ -151,6 +153,14 @@ class ChatViewModel: ObservableObject {
             return
         }
         
+        previewChat(
+            roomNumber: roomNumber,
+            showSuccess: true,
+            showModally: false
+        )
+    }
+    
+    func previewChat(roomNumber: RoomNumber, showSuccess: Bool, showModally: Bool) {
         Task {
             // Check if this chat exists locally, is so, just
             // send the user directly into the conversation.
@@ -158,7 +168,8 @@ class ChatViewModel: ObservableObject {
             // and left because we have to update server state.
             if let chatID = try await chatController.localChatFor(roomNumber: roomNumber) {
                 
-                withButtonState(state: \.buttonStatePreviewRoom, delayTask: false) {} success: {
+                // showSuccess == false, in this case just removes the delay for success
+                withButtonState(state: \.buttonStatePreviewRoom, showSuccess: showSuccess, delayTask: false) {} success: {
                     self.pushJoinedChat(chatID: chatID)
                 } error: { error in
                     ErrorReporting.captureError(error)
@@ -169,7 +180,15 @@ class ChatViewModel: ObservableObject {
                     try await chatController.fetchGroupChat(roomNumber: roomNumber)
                     
                 } success: { (chat, members, host) in
-                    self.joinRoomPath.append(.previewRoom(chat, members, host))
+                    if showModally {
+                        self.isShowingPreviewRoom = RoomPreview(
+                            chat: chat,
+                            members: members,
+                            host: host
+                        )
+                    } else {
+                        self.joinRoomPath.append(.previewRoom(chat, members, host))
+                    }
                     
                 } error: { error in
                     ErrorReporting.captureError(error)
@@ -177,6 +196,10 @@ class ChatViewModel: ObservableObject {
                 }
             }
         }
+    }
+    
+    func dismissPreviewChatModal() {
+        isShowingPreviewRoom = nil
     }
     
     func showChangeCover() {
@@ -438,6 +461,17 @@ extension ChatViewModel {
 
 enum JoinRoomPath: Hashable {
     case previewRoom(Chat.Metadata, [Chat.Member], Chat.Identity)
+}
+
+struct RoomPreview: Hashable, Identifiable {
+    
+    let chat: Chat.Metadata
+    let members: [Chat.Member]
+    let host: Chat.Identity
+    
+    var id: ChatID {
+        chat.id
+    }
 }
 
 extension ChatViewModel {
