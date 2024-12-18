@@ -134,7 +134,8 @@ class ChatController: ObservableObject {
         
         trace(.send)
         
-        isSyncInProgress = true
+        // Hide progress for now
+//        isSyncInProgress = true
         
         let chats = try await client.fetchChats(owner: owner)
         

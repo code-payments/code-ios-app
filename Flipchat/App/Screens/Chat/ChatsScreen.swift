@@ -249,10 +249,6 @@ struct ChatsScreen: View {
         }
     }
     
-    private func avatarValue(for chat: Chat) -> AvatarView.Value {
-        .placeholder
-    }
-    
     // MARK: - Action -
     
     private func muteChat(for room: RoomRow.Room) {
