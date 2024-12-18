@@ -113,6 +113,8 @@ private class ConversationState: ObservableObject {
 
 struct ConversationScreen: View {
     
+    @StateObject private var conversationState: ConversationState
+    
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var flipClient: FlipchatClient
     @EnvironmentObject private var banners: Banners
@@ -127,7 +129,7 @@ struct ConversationScreen: View {
     
     @State private var replyMessage: MessageRow?
     
-    @StateObject private var conversationState: ConversationState
+    @State private var shouldScrollOnFocus: Bool = true
     
     @FocusState private var isEditorFocused: Bool
     
@@ -341,12 +343,15 @@ struct ConversationScreen: View {
         }
         .animation(.easeInOut(duration: 0.2), value: replyMessage)
         .onChange(of: isEditorFocused) { _, focused in
-            if focused {
+            if focused, shouldScrollOnFocus {
                 Task {
                     try await Task.delay(milliseconds: 250)
                     scrollToBottom(animated: true)
                 }
             }
+            
+            // Reset to default
+            shouldScrollOnFocus = true
         }
     }
     
@@ -439,6 +444,7 @@ struct ConversationScreen: View {
             
         case .reply(let messageRow):
             replyMessage = messageRow
+            shouldScrollOnFocus = false
             isEditorFocused = true
             
         case .linkTo(let roomNumber):
