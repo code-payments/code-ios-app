@@ -458,10 +458,12 @@ struct ConversationScreen: View {
                 replyingTo: MessageID(uuid: replyMessage?.message.serverID)
             )
             
-            scrollToBottom(animated: true)
-            
             input = ""
             replyMessage = nil
+            
+            try await Task.delay(milliseconds: 150)
+            
+            scrollToBottom(animated: true)
         }
     }
     

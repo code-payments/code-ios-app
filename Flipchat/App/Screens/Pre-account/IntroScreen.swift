@@ -109,14 +109,8 @@ struct IntroScreen: View {
             .navigationBarHidden(true)
             .navigationDestination(for: IntroViewModel.NavPath.self) { path in
                 switch path {
-//                case .enterName:
-//                    EnterNameScreen(viewModel: viewModel)
                 case .login:
                     LoginScreen()
-//                case .permissionPush:
-//                    PushPermissionsScreen(viewModel: viewModel)
-//                case .accessKey:
-//                    AccessKeyScreen(viewModel: viewModel)
                 }
             }
         }
