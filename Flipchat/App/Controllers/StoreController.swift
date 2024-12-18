@@ -95,6 +95,9 @@ class StoreController: NSObject, ObservableObject {
                     owner: owner
                 )
                 
+                let transaction = try purchaseResult.payloadValue
+                await transaction.finish()
+                
                 return .success(product)
             }
             
