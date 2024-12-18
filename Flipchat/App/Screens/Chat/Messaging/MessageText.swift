@@ -142,7 +142,7 @@ struct MessageBubble: View {
                         }
                     }
                     HStack(alignment: .bottom) {
-                        Text(text)
+                        Text(parse(text: text))
                             .font(.appTextMessage)
                             .foregroundColor(.textMain)
                             .multilineTextAlignment(.leading)
