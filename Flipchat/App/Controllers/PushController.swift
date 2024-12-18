@@ -16,7 +16,7 @@ import FlipchatServices
 @MainActor
 class PushController: ObservableObject {
     
-    static var activeChat: ChatID? = nil
+    static var activeRoomIDs: Set<ChatID>? = nil
     
     private let owner: KeyPair
     private let client: FlipchatClient
@@ -176,10 +176,13 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         var showBanners = true
         if
             let base64ChatID = notification.request.content.userInfo["chat_id"] as? String,
-            let chatID = Data(base64Encoded: base64ChatID)
+            let data = Data(base64Encoded: base64ChatID)
         {
-            print("Skipping banners, chat is currently active")
-            showBanners = PushController.activeChat?.data != chatID
+            let chatID = ChatID(data: data)
+            showBanners = !(PushController.activeRoomIDs?.contains(chatID) ?? false)
+            if !showBanners {                
+                print("Skipping banners, chat is currently active")
+            }
         }
         
         var options: UNNotificationPresentationOptions = [.badge, .list, .sound]

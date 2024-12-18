@@ -176,11 +176,11 @@ struct ConversationScreen: View {
     }
     
     private func didAppear() {
-        PushController.activeChat = chatID
+        
     }
     
     private func didDisappear() {
-        PushController.activeChat = nil
+        
     }
     
     // MARK: - Body -

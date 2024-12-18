@@ -11,9 +11,26 @@ import FlipchatServices
 @MainActor
 class ContainerViewModel: ObservableObject {
     
-    @Published var navigationPath: [ContainerPath] = []
+    @Published var navigationPath: [ContainerPath] = [] {
+        didSet {
+            PushController.activeRoomIDs = activeRoomIDs
+        }
+    }
     
     private let sessionAuthenticator: SessionAuthenticator
+    
+    private var activeRoomIDs: Set<ChatID> {
+        let ids = navigationPath.compactMap {
+            switch $0 {
+            case .chat(let id):
+                return id
+            case .details:
+                return nil
+            }
+        }
+        
+        return Set(ids)
+    }
     
     // MARK: - Init -
     
