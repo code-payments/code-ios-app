@@ -10,6 +10,7 @@ import SwiftUI
 extension Image {
     enum CompileTimeImage: String {
         case brandLarge
+        case flipchatFull
     }
     
     init(with compileTimeImage: CompileTimeImage) {

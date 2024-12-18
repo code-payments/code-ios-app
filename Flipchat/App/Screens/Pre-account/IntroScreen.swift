@@ -43,9 +43,6 @@ struct IntroScreen: View {
                         
                         VStack(spacing: 20) {
                             Image(with: .brandLarge)
-                            Text("Flipchat")
-                                .font(.appDisplayMedium)
-                                .foregroundStyle(Color.textMain)
                         }
                         
                         Spacer()
