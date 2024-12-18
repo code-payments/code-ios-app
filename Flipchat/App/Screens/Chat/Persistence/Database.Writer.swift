@@ -18,15 +18,23 @@ extension Database {
     func transaction(silent: Bool = false, _ block: (Database) throws -> Void) throws {
 //        let start = Date.now
         do {
+            let startChangeCount = writer.totalChanges
             try writer.transaction { [unowned self] in
                 try block(self)
             }
+            let endChangeCount = writer.totalChanges
             
             // There are instances where we want to commit
             // the transaction but avoid notifying the UI
-            // layer of the change
+            // layer of the change. Also, we'll check if
+            // there's been any changes in this transaction
+            // to avoid reloading unnecessarily.
             if !silent {
-                commit?()
+                if endChangeCount - startChangeCount > 0 {
+                    commit?()
+                } else {
+                    print("Transaction detected no changes. Skipping commit...")
+                }
             }
             
         } catch {
