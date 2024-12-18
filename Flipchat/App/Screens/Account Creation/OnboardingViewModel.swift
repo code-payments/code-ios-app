@@ -56,11 +56,11 @@ class OnboardingViewModel: ObservableObject {
         self.session         = state.session
         self.chatController  = state.chatController
         self.chatViewModel   = state.chatViewModel
+        self.storeController = state.storeController
         
         self.client          = container.client
         self.flipClient      = container.flipClient
         self.banners         = container.banners
-        self.storeController = container.storeController
         
         self.isPresenting    = isPresenting
         self.completion      = completion

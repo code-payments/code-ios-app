@@ -250,12 +250,15 @@ final class SessionAuthenticator: ObservableObject {
             client: flipClient
         )
         
+        let storeController = StoreController(client: flipClient, owner: organizer.ownerKeyPair)
+        
         let state = AuthenticatedState(
             session: session,
             chatController: chatController,
             chatViewModel: chatViewModel,
             containerViewModel: containerViewModel,
-            pushController: pushController
+            pushController: pushController,
+            storeController: storeController
         )
         
         initializeSession(state: state)
@@ -442,6 +445,7 @@ struct AuthenticatedState {
     let chatViewModel: ChatViewModel
     let containerViewModel: ContainerViewModel
     let pushController: PushController
+    let storeController: StoreController
 }
 
 // MARK: - InitializedAccount -
@@ -472,6 +476,7 @@ extension AuthenticatedState {
         chatController: .mock,
         chatViewModel: .mock,
         containerViewModel: .mock,
-        pushController: .mock
+        pushController: .mock,
+        storeController: .mock
     )
 }

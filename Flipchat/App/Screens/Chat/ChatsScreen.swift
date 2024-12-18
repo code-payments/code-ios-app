@@ -172,7 +172,7 @@ struct ChatsScreen: View {
         }
         .sheet(isPresented: $viewModel.isShowingCreateAccount) {
             CreateAccountScreen(
-                storeController: container.storeController,
+                storeController: state.storeController,
                 viewModel: OnboardingViewModel(
                     state: state,
                     container: container,

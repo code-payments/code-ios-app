@@ -5,7 +5,7 @@
 //  Created by Dima Bart on 2024-12-10.
 //
 
-import Foundation
+import FlipchatServices
 import StoreKit
 
 @MainActor
@@ -15,16 +15,26 @@ class StoreController: NSObject, ObservableObject {
     
     private var updates: Task<Void, Never>?
     
+    private let client: FlipchatClient
+    private let owner: KeyPair
+    
     // MARK: - Init -
     
-    override init() {
+    init(client: FlipchatClient, owner: KeyPair) {
+        self.client = client
+        self.owner = owner
+        
         super.init()
         
         Task {
             try await loadProducts()
         }
         
-        updates = Task {
+        listenForTransactionUpdates()
+    }
+    
+    private func listenForTransactionUpdates() {
+        updates = Task { @MainActor in
             for await update in Transaction.updates {
                 if let transaction = try? update.payloadValue {
                     print("[IAP] Finished transaction: \(transaction.id)")
@@ -48,21 +58,9 @@ class StoreController: NSObject, ObservableObject {
         }
     }
     
-//    func fetchReceipt() throws -> Data {
-//        let f = FileManager.default
-//        
-//        guard let receiptURL = Bundle.main.appStoreReceiptURL, f.fileExists(atPath: receiptURL.path) else {
-//            throw Error.receiptNotFound
-//        }
-//
-//        do {
-//            let receiptData = try Data(contentsOf: receiptURL)
-////            let receiptBase64 = receiptData.base64EncodedString()
-//            return receiptData
-//        } catch {
-//            throw Error.failedToLoadReceipt
-//        }
-//    }
+    private func getReceipt() async throws -> Data {
+        try await AppTransaction.shared.signedData
+    }
     
     // MARK: - Actions -
 
@@ -87,8 +85,16 @@ class StoreController: NSObject, ObservableObject {
                 return .failed
                 
             case .verified(let tx):
+                let receipt = try await getReceipt()
+                
                 print("[IAP] Purchase success. Tx: \(tx.id)")
-                print("[IAP] Transaction: \(String(data: tx.jsonRepresentation, encoding: .utf8) ?? "nil")")
+                print("[IAP] Receipt: \(receipt.count) bytes")
+                
+                try await client.notifyPurchaseCompleted(
+                    receipt: receipt,
+                    owner: owner
+                )
+                
                 return .success(product)
             }
             
@@ -149,74 +155,10 @@ extension Product {
         formatter.numberStyle = .currency
         formatter.locale = priceFormatStyle.locale
         
-        return formatter.string(from: price)!
+        return formatter.string(from: price) ?? "n/a"
     }
 }
 
 extension StoreController {
-    static let mock = StoreController()
+    static let mock = StoreController(client: .mock, owner: .mock)
 }
-
-// MARK: - Delegate -
-
-//extension StoreController: SKRequestDelegate, SKProductsRequestDelegate, SKPaymentTransactionObserver {
-//    
-//    nonisolated
-//    func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
-//        let products = response.products.elementsKeyed(by: \.productIdentifier)
-//        Task {
-//            await setProducts(products: products)
-//            
-//            var container: [FlipchatProduct: String] = [:]
-//            for (id, product) in products {
-//                container[FlipchatProduct(rawValue: id)!] = localizedPrice(for: product)
-//            }
-//            
-//            Task { @MainActor [weak self] in
-//                self?.delegate?.didLoadPrices(products: container)
-//                print("[IAP] Loaded products: \(response.products.map { $0.productIdentifier })")
-//            }
-//        }
-//    }
-//    
-//    nonisolated
-//    private func localizedPrice(for product: SKProduct) -> String? {
-//        let formatter = NumberFormatter()
-//        formatter.numberStyle = .currency
-//        formatter.locale = product.priceLocale
-//        return formatter.string(from: product.price)
-//    }
-//    
-//    nonisolated
-//    func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
-//        let paymentQueue = SKPaymentQueue.default()
-//        
-//        transactions.forEach {
-//            switch $0.transactionState {
-//            case .purchased, .restored:
-//                paymentQueue.finishTransaction($0)
-//                
-//                let payment = Payment(
-//                    productIdentifier: $0.payment.productIdentifier
-//                )
-//                
-//                Task {
-//                    await processPayment(payment: .success(payment))
-//                }
-//                
-//            case .failed:
-//                paymentQueue.finishTransaction($0)
-//                let error = $0.error ?? Error.unknown
-//                Task {
-//                    await processPayment(payment: .failure(error))
-//                }
-//                
-//            case .purchasing, .deferred:
-//                break
-//                
-//            @unknown default:
-//                break
-//            }
-//        }
-//    }
-//}

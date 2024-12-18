@@ -206,7 +206,7 @@ struct ConversationScreen: View {
                 }
                 .sheet(isPresented: $chatViewModel.isShowingCreateAccount) {
                     CreateAccountScreen(
-                        storeController: container.storeController,
+                        storeController: state.storeController,
                         viewModel: OnboardingViewModel(
                             state: state,
                             container: container,
