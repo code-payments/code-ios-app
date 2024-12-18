@@ -26,7 +26,9 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingCreatePayment: Bool = false
     
-    @Published var isShowingCreateAccount: Bool = false
+    @Published var isShowingCreateAccountFromChats: Bool = false
+
+    @Published var isShowingCreateAccountFromConversation: Bool = false
     
     @Published var isShowingChangeCover: Bool = false
     
@@ -237,7 +239,7 @@ class ChatViewModel: ObservableObject {
     
     func attemptCreateChat() {
         guard chatController.isRegistered else {
-            isShowingCreateAccount = true
+            isShowingCreateAccountFromChats = true
             return
         }
         
@@ -260,7 +262,7 @@ class ChatViewModel: ObservableObject {
     
     func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
         guard chatController.isRegistered else {
-            isShowingCreateAccount = true
+            isShowingCreateAccountFromConversation = true
             return
         }
         
@@ -312,8 +314,9 @@ class ChatViewModel: ObservableObject {
         pushChat(chatID: chatID)
         Task {
             try await Task.delay(milliseconds: 400)
-            isShowingJoinPayment = false
+            cancelJoinChatPayment()
             isShowingEnterRoomNumber = false
+            isShowingPreviewRoom = nil
         }
     }
     

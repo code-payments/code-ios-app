@@ -170,13 +170,13 @@ struct ChatsScreen: View {
             )
             .environmentObject(banners)
         }
-        .sheet(isPresented: $viewModel.isShowingCreateAccount) {
+        .sheet(isPresented: $viewModel.isShowingCreateAccountFromChats) {
             CreateAccountScreen(
                 storeController: state.storeController,
                 viewModel: OnboardingViewModel(
                     state: state,
                     container: container,
-                    isPresenting: $viewModel.isShowingCreateAccount
+                    isPresenting: $viewModel.isShowingCreateAccountFromChats
                 ) { [weak viewModel] in
                     viewModel?.attemptCreateChat()
                 }

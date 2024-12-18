@@ -82,25 +82,25 @@ struct PreviewRoomScreen: View {
                 .padding(20)
             }
             .foregroundColor(.textMain)
-            .sheet(isPresented: $viewModel.isShowingJoinPayment) {
-                PartialSheet {
-                    ModalPaymentConfirmation(
-                        amount: chat.coverAmount.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
-                        currency: .kin,
-                        primaryAction: "Swipe to Pay",
-                        secondaryAction: "Cancel",
-                        paymentAction: {
-                            try await viewModel.payAndJoinChat(
-                                chatID: chat.id,
-                                hostID: chat.ownerUser,
-                                amount: chat.coverAmount
-                            )
-                        },
-                        dismissAction: { viewModel.pushJoinedChat(chatID: chat.id) },
-                        cancelAction: { viewModel.cancelJoinChatPayment() }
-                    )
-                }
-            }
+//            .sheet(isPresented: $viewModel.isShowingJoinPayment) {
+//                PartialSheet {
+//                    ModalPaymentConfirmation(
+//                        amount: chat.coverAmount.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
+//                        currency: .kin,
+//                        primaryAction: "Swipe to Pay",
+//                        secondaryAction: "Cancel",
+//                        paymentAction: {
+//                            try await viewModel.payAndJoinChat(
+//                                chatID: chat.id,
+//                                hostID: chat.ownerUser,
+//                                amount: chat.coverAmount
+//                            )
+//                        },
+//                        dismissAction: { viewModel.pushJoinedChat(chatID: chat.id) },
+//                        cancelAction: { viewModel.cancelJoinChatPayment() }
+//                    )
+//                }
+//            }
         }
         .if(isModal) { $0
             .wrapInNavigation {

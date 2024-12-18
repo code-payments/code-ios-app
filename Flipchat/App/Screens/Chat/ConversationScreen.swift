@@ -206,13 +206,13 @@ struct ConversationScreen: View {
                         loadMore: {}
                     )
                 }
-                .sheet(isPresented: $chatViewModel.isShowingCreateAccount) {
+                .sheet(isPresented: $chatViewModel.isShowingCreateAccountFromConversation) {
                     CreateAccountScreen(
                         storeController: state.storeController,
                         viewModel: OnboardingViewModel(
                             state: state,
                             container: container,
-                            isPresenting: $chatViewModel.isShowingCreateAccount
+                            isPresenting: $chatViewModel.isShowingCreateAccountFromConversation
                         ) { [weak chatViewModel] in
                             try await chatViewModel?.attemptJoinChat(
                                 chatID: chatID,
