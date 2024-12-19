@@ -231,7 +231,8 @@ struct MessageBubble: View {
     
     @ViewBuilder private func innerContent(compact: Bool, expand: Bool = false) -> some View {
         Text(parse(text: text))
-            .font(isOnlyEmoji ? .appDisplayMedium : .appTextMessage)
+            .font(.appTextMessage)
+//            .font(isOnlyEmoji ? .appDisplayMedium : .appTextMessage)
             .foregroundColor(.textMain)
             .multilineTextAlignment(.leading)
             .environment(\.openURL, OpenURLAction { url in
