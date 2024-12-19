@@ -59,7 +59,17 @@ class StoreController: NSObject, ObservableObject {
     }
     
     private func getReceipt() async throws -> Data {
-        try await AppTransaction.shared.signedData
+        let f = FileManager.default
+        
+        guard let receiptURL = Bundle.main.appStoreReceiptURL, f.fileExists(atPath: receiptURL.path) else {
+            throw Error.receiptNotFound
+        }
+
+        do {
+            return try Data(contentsOf: receiptURL)
+        } catch {
+            throw error
+        }
     }
     
     // MARK: - Actions -

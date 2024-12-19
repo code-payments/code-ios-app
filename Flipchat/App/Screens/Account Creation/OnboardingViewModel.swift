@@ -122,17 +122,20 @@ class OnboardingViewModel: ObservableObject {
     }
     
     private func completeAccountUpgrade() async throws {
-        // 1. Update account from anonymous to a named one
+        // 1. Open all required VM accounts
+        try await client.createAccounts(with: session.organizer)
+        
+        // 2. Update account from anonymous to a named one
         try await flipClient.setDisplayName(name: enteredName, owner: owner)
         
-        // 2. Airdrop initial account Kin balance
+        // 3. Airdrop initial account Kin balance
         _ = try? await client.airdrop(type: .getFirstKin, owner: owner)
         
-        // 3. Update the user's balance to reflect
+        // 4. Update the user's balance to reflect
         // the aidropped Kin right away
         _ = try await session.updateBalance()
         
-        // 4. Update the user flags to indicate that
+        // 5. Update the user flags to indicate that
         // this account is now registered
         _ = try await session.updateUserFlags()
     }

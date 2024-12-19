@@ -301,21 +301,12 @@ final class SessionAuthenticator: ObservableObject {
         )
         
         do {
-            // 1. Open all required VM accounts
-            try await client.createAccounts(with: organizer)
-            
-            // 2. If a name is provided, we'll register a new
-            // account but if it's ommited, we'll attempt a login
             let userID: UserID
             let userFlags: UserFlags
             
             if isRegistration {
                 userID = try await flipClient.register(name: name, owner: owner)
                 userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: owner)
-                
-                // 3. For new users only, airdrop initial balance
-                //_ = try await client.airdrop(type: .getFirstKin, owner: organizer.ownerKeyPair)
-                
             } else {
                 userID = try await flipClient.login(owner: owner)
                 userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: owner)

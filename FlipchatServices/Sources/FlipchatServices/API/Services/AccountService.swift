@@ -12,6 +12,7 @@ import GRPC
 
 class AccountService: FlipchatService<Flipchat_Account_V1_AccountNIOClient> {
     
+    // TODO: Remove `name`
     func register(name: String?, owner: KeyPair, completion: @escaping (Result<UserID, ErrorRegister>) -> Void) {
         trace(.send, components: "Name: \(name ?? "<empty>")", "Owner: \(owner.publicKey.base58)")
         
