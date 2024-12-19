@@ -344,6 +344,7 @@ extension MessageListV2 {
                 
                 MessageRowView(kind: message.kind, width: width) { row }
             }
+            .minSize(width: 0, height: 20)
             .margins(.vertical, 2)
             .margins(.horizontal, 0)
 
