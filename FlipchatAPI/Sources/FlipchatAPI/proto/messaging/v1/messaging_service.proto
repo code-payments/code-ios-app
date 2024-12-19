@@ -12,10 +12,6 @@ import "validate/validate.proto";
 
 service Messaging {
     // StreamMessages streams all messages/message states for the requested chat.
-    //
-    // By default, streams will resume messages from the last acknowledged delivery
-    // pointer of the caller. This can be overridden by setting 'last_message',
-    // 'latest_only'.
     rpc StreamMessages(stream StreamMessagesRequest) returns (stream StreamMessagesResponse);
 
     // GetMessage gets a single message in a chat
@@ -50,12 +46,9 @@ message StreamMessagesRequest {
     message Params {
         common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
-        // Callers may optionally specify a resume mode other than last delivery pointer.
+        // Deprecated: stream flushes are no longer supported
         oneof resume {
-            // Server will return all messages newer than this message id.
             MessageId last_known_message_id = 2;
-
-            // Server will not load any previous messages.
             bool latest_only = 3;
         }
 

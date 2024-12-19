@@ -83,10 +83,9 @@ public struct Flipchat_Messaging_V1_StreamMessagesRequest {
     /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
     public mutating func clearChatID() {self._chatID = nil}
 
-    /// Callers may optionally specify a resume mode other than last delivery pointer.
+    /// Deprecated: stream flushes are no longer supported
     public var resume: Flipchat_Messaging_V1_StreamMessagesRequest.Params.OneOf_Resume? = nil
 
-    /// Server will return all messages newer than this message id.
     public var lastKnownMessageID: Flipchat_Messaging_V1_MessageId {
       get {
         if case .lastKnownMessageID(let v)? = resume {return v}
@@ -95,7 +94,6 @@ public struct Flipchat_Messaging_V1_StreamMessagesRequest {
       set {resume = .lastKnownMessageID(newValue)}
     }
 
-    /// Server will not load any previous messages.
     public var latestOnly: Bool {
       get {
         if case .latestOnly(let v)? = resume {return v}
@@ -115,11 +113,9 @@ public struct Flipchat_Messaging_V1_StreamMessagesRequest {
 
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-    /// Callers may optionally specify a resume mode other than last delivery pointer.
+    /// Deprecated: stream flushes are no longer supported
     public enum OneOf_Resume: Equatable {
-      /// Server will return all messages newer than this message id.
       case lastKnownMessageID(Flipchat_Messaging_V1_MessageId)
-      /// Server will not load any previous messages.
       case latestOnly(Bool)
 
     #if !swift(>=4.1)

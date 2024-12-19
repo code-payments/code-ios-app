@@ -59,10 +59,6 @@ extension Flipchat_Messaging_V1_MessagingClientProtocol {
 
   /// StreamMessages streams all messages/message states for the requested chat.
   ///
-  /// By default, streams will resume messages from the last acknowledged delivery
-  /// pointer of the caller. This can be overridden by setting 'last_message',
-  /// 'latest_only'.
-  ///
   /// Callers should use the `send` method on the returned object to send messages
   /// to the server. The caller should send an `.end` after the final message has been sent.
   ///
@@ -588,10 +584,6 @@ public protocol Flipchat_Messaging_V1_MessagingProvider: CallHandlerProvider {
   var interceptors: Flipchat_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
 
   /// StreamMessages streams all messages/message states for the requested chat.
-  ///
-  /// By default, streams will resume messages from the last acknowledged delivery
-  /// pointer of the caller. This can be overridden by setting 'last_message',
-  /// 'latest_only'.
   func streamMessages(context: StreamingResponseCallContext<Flipchat_Messaging_V1_StreamMessagesResponse>) -> EventLoopFuture<(StreamEvent<Flipchat_Messaging_V1_StreamMessagesRequest>) -> Void>
 
   /// GetMessage gets a single message in a chat
@@ -703,10 +695,6 @@ public protocol Flipchat_Messaging_V1_MessagingAsyncProvider: CallHandlerProvide
   var interceptors: Flipchat_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
 
   /// StreamMessages streams all messages/message states for the requested chat.
-  ///
-  /// By default, streams will resume messages from the last acknowledged delivery
-  /// pointer of the caller. This can be overridden by setting 'last_message',
-  /// 'latest_only'.
   func streamMessages(
     requestStream: GRPCAsyncRequestStream<Flipchat_Messaging_V1_StreamMessagesRequest>,
     responseStream: GRPCAsyncResponseStreamWriter<Flipchat_Messaging_V1_StreamMessagesResponse>,

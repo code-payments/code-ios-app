@@ -34,6 +34,6 @@ message OnPurchaseCompletedResponse {
 message Receipt {
     string value = 1 [(validate.rules).string = {
         min_len: 1
-        max_len: 4096 // todo: arbitrary value
+        // todo: what's a reasonable max length?
     }];
 }
