@@ -58,17 +58,36 @@ class StoreController: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Receipt -
+    
     private func getReceipt() async throws -> Data {
         let f = FileManager.default
         
-        guard let receiptURL = Bundle.main.appStoreReceiptURL, f.fileExists(atPath: receiptURL.path) else {
-            throw Error.receiptNotFound
+        if let receiptURL = Bundle.main.appStoreReceiptURL, f.fileExists(atPath: receiptURL.path) {
+            print("[IAP] Found receipt. Loading...")
+            do {
+                return try Data(contentsOf: receiptURL)
+            } catch {
+                throw error
+            }
+        } else {
+            print("[IAP] Receipt not found. Sending refresh request...")
+            try await refreshReceipt()
+            return try await getReceipt()
         }
-
-        do {
-            return try Data(contentsOf: receiptURL)
-        } catch {
-            throw error
+    }
+    
+    func refreshReceipt() async throws {
+        let delegate = ReceiptDelegate()
+        
+        return try await withCheckedThrowingContinuation { c in
+            let request = SKReceiptRefreshRequest()
+            delegate.completion = {
+                c.resume(with: $0)
+            }
+            
+            request.delegate = delegate
+            request.start()
         }
     }
     
@@ -122,6 +141,32 @@ class StoreController: NSObject, ObservableObject {
             print("[IAP] Unknown purchase result: \(result)")
             return .failed
         }
+    }
+}
+
+// MARK: - ReceiptDelegate -
+
+private class ReceiptDelegate: NSObject, SKRequestDelegate {
+    
+    var completion: ((Result<(), Error>) -> Void)?
+
+    override init() {
+        super.init()
+    }
+
+    func requestDidFinish(_ request: SKRequest) {
+        if let _ = Bundle.main.appStoreReceiptURL {
+            print("[IAP] Refresh successful.")
+            completion?(.success(()))
+        } else {
+            print("[IAP] Refresh finished but no receipt was found.")
+            completion?(.failure(StoreController.Error.receiptNotFound))
+        }
+    }
+
+    func request(_ request: SKRequest, didFailWithError error: Error) {
+        print("[IAP] Refresh failed: \(error)")
+        completion?(.failure(error))
     }
 }
 

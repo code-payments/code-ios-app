@@ -92,33 +92,36 @@ class OnboardingViewModel: ObservableObject {
     
     // MARK: - In-App Purchases -
     
-    func payForCreateAccount() async throws -> StoreController.PurchaseResult {
+    func payForCreateAccount() async throws {
         setPaymentState(.loading)
         
-        let result = try await storeController.pay(for: .createAccount)
-        switch result {
-        case .success(let purchasedProduct):
-            
-            if purchasedProduct == .createAccount {
-                try await completeAccountUpgrade()
-                setPaymentState(.success)
-                Task {
-                    try await Task.delay(milliseconds: 200)
-                    dismiss()
-                    try await Task.delay(milliseconds: 200)
-                    try await completion()
+        do {
+            let result = try await storeController.pay(for: .createAccount)
+            switch result {
+            case .success(let purchasedProduct):
+                
+                if purchasedProduct == .createAccount {
+                    try await completeAccountUpgrade()
+                    setPaymentState(.success)
+                    Task {
+                        try await Task.delay(milliseconds: 200)
+                        dismiss()
+                        try await Task.delay(milliseconds: 200)
+                        try await completion()
+                    }
                 }
+                
+            case .failed:
+                showPaymentFailed()
+                setPaymentState(.normal)
+                
+            case .cancelled:
+                setPaymentState(.normal)
             }
             
-        case .failed:
-            showPaymentFailed()
-            setPaymentState(.normal)
-            
-        case .cancelled:
+        } catch {
             setPaymentState(.normal)
         }
-        
-        return result
     }
     
     private func completeAccountUpgrade() async throws {
