@@ -65,17 +65,19 @@ struct MessageReplyBanner: View {
 
 struct MessageReplyBannerCompact: View {
     
-    static let height: CGFloat = 44
+    static let height: CGFloat = 50
     
     let name: String
     let content: String
+    let expand: Bool
     let action: () -> Void
     
     // MARK: - Init -
     
-    init(name: String, content: String, action: @escaping () -> Void) {
+    init(name: String, content: String, expand: Bool = false, action: @escaping () -> Void) {
         self.name = name
         self.content = content
+        self.expand = expand
         self.action = action
     }
     
@@ -83,7 +85,7 @@ struct MessageReplyBannerCompact: View {
         Button {
             action()
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Rectangle()
                     .fill(Color.textSuccess)
                     .frame(width: 3)
@@ -94,20 +96,23 @@ struct MessageReplyBannerCompact: View {
                         .lineLimit(1)
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textMain.opacity(0.8))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .if(expand) { $0
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     
                     Text(content)
                         .lineLimit(1)
                         .font(.appTextCaption)
                         .foregroundStyle(Color.textMain)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .if(expand) { $0
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                 }
             }
-            .padding(.trailing, 8)
+            .padding(.trailing, 10)
             .background(Color.textSuccess.opacity(0.2))
             .cornerRadius(Metrics.chatMessageRadiusSmall)
             .frame(height: Self.height)
-            .frame(maxWidth: .infinity)
         }
     }
 }
@@ -116,10 +121,11 @@ struct MessageReplyBannerCompact: View {
     Background(color: .backgroundMain) {
         VStack {
             Spacer()
-            MessageReplyBanner(
+            MessageReplyBannerCompact(
                 name: "KinShip",
                 content: "Yeah, that's what I was thinking too but I couldn't find it",
-                cancel: {}
+                expand: true,
+                action: {}
             )
             Rectangle()
                 .fill(.black)

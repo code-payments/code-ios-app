@@ -78,7 +78,7 @@ extension ID {
     public static let null = ID(data: Data([0x00]))
     
     public static var random: ID {
-        ID(data: Data(UUID().uuidString.utf8))
+        ID(data: UUID().data)
     }
 }
 

@@ -519,3 +519,57 @@ struct ConversationScreen: View {
         )
     }
 }
+
+#Preview {
+    let userID1 = ID.random
+    let userID2 = ID.random
+    let chatID  = ID.random
+    let hostID  = userID1
+ 
+    Background(color: .backgroundMain) {
+        MessageListV2(
+            userID: userID1,
+            hostID: hostID,
+            chatID: chatID,
+            unread: nil,
+            messages: [
+                messageRow(
+                    chatID: chatID,
+                    sender: userID2,
+                    senderName: "Bob",
+                    reference: ID.random.uuid,
+                    referenceName: "Alice",
+                    referenceContent: "Yeah that's what I mean",
+                    text: "I was thinking the same"
+                )
+            ],
+            scroll: .constant(nil),
+            action: { _ in },
+            loadMore: {}
+        )
+    }
+}
+
+private func messageRow(chatID: ChatID, sender: UserID, senderName: String, reference: UUID?, referenceName: String?, referenceContent: String?, text: String) -> MessageRow {
+    .init(
+        message: .init(
+            serverID: UUID(),
+            roomID: chatID.uuid,
+            date: .now,
+            state: .delivered,
+            senderID: sender.uuid,
+            contentType: .text,
+            content: text
+        ),
+        member: .init(
+            userID: sender.uuid,
+            displayName: senderName,
+            isMuted: false
+        ),
+        referenceID: reference,
+        reference: .init(
+            displayName: referenceName,
+            content: referenceContent ?? ""
+        )
+    )
+}

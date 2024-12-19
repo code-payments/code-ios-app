@@ -125,87 +125,131 @@ struct MessageBubble: View {
     let replyingTo: ReplyingTo?
     let action: (MessageAction) -> Void
     let location: MessageSemanticLocation
+    let isOnlyEmoji: Bool
     
-    private let horizontalPadding: CGFloat = 11
-    private let verticalPadding: CGFloat = 11
+    private var spacing: CGFloat {
+        if isOnlyEmoji {
+            return 0
+        } else {
+            return 4
+        }
+    }
+    
+    init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+        self.state = state
+        self.text = text
+        self.date = date
+        self.isReceived = isReceived
+        self.replyingTo = replyingTo
+        self.action = action
+        self.location = location
+        self.isOnlyEmoji = text.isOnlyEmoji
+    }
     
     var body: some View {
         Group {
             if text.count < 10 {
-                VStack(alignment: .leading) {
-                    if let replyingTo {
-                        MessageReplyBannerCompact(
-                            name: replyingTo.name,
-                            content: replyingTo.content
-                        ) {
-                            replyingTo.action()
-                        }
-                    }
-                    HStack(alignment: .bottom) {
-                        Text(parse(text: text))
-                            .font(.appTextMessage)
-                            .foregroundColor(.textMain)
-                            .multilineTextAlignment(.leading)
-                        
-                        // Expand the the message
-                        // if there's a reply
-                        if replyingTo != nil {
-                            Spacer()
-                        }
-                        
-                        TimestampView(state: state, date: date, isReceived: isReceived)
-                    }
-                }
-                .padding([.horizontal], 10)
-                .padding([.vertical], 8)
-                
+                compactBubble()
             } else {
-                VStack(alignment: .leading) {
-                    if replyingTo != nil {
-                        // Create space for the reply banner
-                        // but don't insert it here. We want
-                        // to prevent from expanding the text
-                        // bubble so we'll apply it as an overlay
-                        Rectangle()
-                            .fill(.clear)
-                            .frame(width: 1, height: MessageReplyBannerCompact.height)
-                    }
-                    
-                    VStack(alignment: .trailing, spacing: 5) {
-                        Text(parse(text: text))
-                            .font(.appTextMessage)
-                            .foregroundColor(.textMain)
-                            .multilineTextAlignment(.leading)
-                            .environment(\.openURL, OpenURLAction { url in
-                                handleURL(url)
-                            })
-                        
-                        TimestampView(state: state, date: date, isReceived: isReceived)
-                    }
-                }
-                .padding([.horizontal], horizontalPadding)
-                .padding([.vertical], verticalPadding)
-                .overlay {
-                    if let replyingTo {
-                        VStack(alignment: .leading) {
-                            MessageReplyBannerCompact(
-                                name: replyingTo.name,
-                                content: replyingTo.content
-                            ) {
-                                replyingTo.action()
-                            }
-                            Spacer()
-                        }
-                        .padding([.horizontal], horizontalPadding)
-                        .padding([.vertical], verticalPadding)
-                    }
-                }
+                standardBubble()
             }
         }
         .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
         .clipShape(
             cornerClip(location: location)
         )
+    }
+    
+    @ViewBuilder private func compactBubble() -> some View {
+        ///
+        /// The Overlay Maneuver
+        ///
+        /// The Goal: The point of this tactic is to expand the
+        /// underlying content width-wise but only up to
+        /// the maximum width of the widest child. We can't
+        /// use a spacer or similar approach because it will
+        /// expand to the full width of the container
+        ///
+        /// How it works: The content is provided by a builder
+        /// and it determines the overall size of this container
+        /// VStack. We don't actually want to show this content,
+        /// it's here just to determine the size so opacity 0.
+        /// Next, we overlay the same content in the same container
+        /// and pass in the `expand` flag. The child views will
+        /// then use this flag to max out all relevant component
+        /// widths so they always fill the container.
+        ///
+        VStack(alignment: .leading, spacing: spacing) {
+            content(compact: true)
+        }
+        .opacity(0)
+        .overlay {
+            VStack(alignment: .leading, spacing: spacing) {
+                content(compact: true, expand: true)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding([.horizontal], 10)
+        .padding([.vertical], 8)
+    }
+    
+    @ViewBuilder private func standardBubble() -> some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            content(compact: false)
+        }
+        .opacity(0)
+        .overlay {
+            VStack(alignment: .leading, spacing: spacing) {
+                content(compact: false, expand: true)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding([.horizontal], 11)
+        .padding([.vertical], 11)
+    }
+    
+    @ViewBuilder private func content(compact: Bool, expand: Bool = false) -> some View {
+        if let replyingTo {
+            MessageReplyBannerCompact(
+                name: replyingTo.name,
+                content: replyingTo.content,
+                expand: expand
+            ) {
+                replyingTo.action()
+            }
+            .padding(.bottom, 2)
+        }
+        
+        if compact {
+            HStack(alignment: .bottom) {
+                innerContent(compact: true, expand: expand)
+            }
+        } else {
+            innerContent(compact: false, expand: expand)
+        }
+    }
+    
+    @ViewBuilder private func innerContent(compact: Bool, expand: Bool = false) -> some View {
+        Text(parse(text: text))
+            .font(isOnlyEmoji ? .appDisplayMedium : .appTextMessage)
+            .foregroundColor(.textMain)
+            .multilineTextAlignment(.leading)
+            .environment(\.openURL, OpenURLAction { url in
+                handleURL(url)
+            })
+            .layoutPriority(1)
+            .if(expand) { $0
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        
+        TimestampView(state: state, date: date, isReceived: isReceived)
+        .fixedSize(horizontal: true, vertical: false)
+        .if(expand && !compact) { $0
+            // Don't expand for compact formats
+            // because we want the text to fill
+            // all the space
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
     }
     
     func handleURL(_ url: URL) -> OpenURLAction.Result {
@@ -297,15 +341,6 @@ struct MessageBubble: View {
     }
 }
 
-private struct WidthPreferenceKey: PreferenceKey {
-    
-    static let defaultValue: CGFloat = 0
-    
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
-
 #Preview {
     Background(color: .backgroundMain) {
         VStack {
@@ -320,7 +355,8 @@ private struct WidthPreferenceKey: PreferenceKey {
                 isHost: false,
                 replyingTo: .init(
                     name: "Bob",
-                    content: "That's what I was trying to say before",
+//                    content: "That's what I was trying to say before",
+                    content: "🔥",
                     action: {}
                 ),
                 location: .standalone(.received),
