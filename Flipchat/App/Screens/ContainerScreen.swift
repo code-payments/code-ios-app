@@ -38,6 +38,10 @@ struct ContainerScreen: View {
         self.viewModel = sessionAuthenticator.containerViewModel
     }
     
+    private func resetTabBar() {
+        tabSelection = .rooms
+    }
+    
     // MARK: - Body -
     
     var body: some View {
@@ -80,6 +84,14 @@ struct ContainerScreen: View {
             }
         }
         .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.state.intValue)
+        .onChange(of: sessionAuthenticator.state) { oldValue, newValue in
+            if case .loggedOut = newValue {
+                Task {
+                    try await Task.delay(milliseconds: 250)
+                    resetTabBar()
+                }
+            }
+        }
     }
     
     @ViewBuilder private func homeView(state: AuthenticatedState) -> some View {

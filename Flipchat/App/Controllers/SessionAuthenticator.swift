@@ -431,11 +431,27 @@ extension SessionAuthenticator {
         }
     }
     
-    enum AuthenticationState {
+    enum AuthenticationState: Equatable {
+        
         case loggedOut
         case migrating
         case pending
         case loggedIn(AuthenticatedState)
+        
+        static func == (lhs: SessionAuthenticator.AuthenticationState, rhs: SessionAuthenticator.AuthenticationState) -> Bool {
+            switch (lhs, rhs) {
+            case (.loggedOut, .loggedOut):
+                return true
+            case (.migrating, .migrating):
+                return true
+            case (.pending, .pending):
+                return true
+            case (.loggedIn, .loggedIn):
+                return true
+            default:
+                return false
+            }
+        }
     }
 }
 
