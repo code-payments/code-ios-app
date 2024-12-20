@@ -54,7 +54,7 @@ class AccountService: CodeService<Code_Account_V1_AccountNIOClient> {
             
             let error = ErrorFetchAccountInfos(rawValue: response.result.rawValue)
             guard error == .ok else {
-                trace(.failure, components: "Account not found for owner: \(owner.publicKey.base58)")
+//                trace(.failure, components: "Account not found for owner: \(owner.publicKey.base58)")
                 completion(.failure(error))
                 return
             }

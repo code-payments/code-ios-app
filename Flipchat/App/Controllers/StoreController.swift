@@ -108,9 +108,11 @@ class StoreController: NSObject, ObservableObject {
         switch result {
         case .success(let purchaseResult):
             
+            // Handle purchase result
             switch purchaseResult {
             case .unverified(_, let error):
                 print("[IAP] Purchase could not be verified: \(error)")
+                try await purchaseResult.payloadValue.finish() // Remove from queue
                 return .failed
                 
             case .verified(let tx):
@@ -124,8 +126,7 @@ class StoreController: NSObject, ObservableObject {
                     owner: owner
                 )
                 
-                let transaction = try purchaseResult.payloadValue
-                await transaction.finish()
+                try await purchaseResult.payloadValue.finish() // Remove from queue
                 
                 return .success(product)
             }

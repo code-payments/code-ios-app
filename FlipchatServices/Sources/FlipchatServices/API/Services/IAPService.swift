@@ -29,7 +29,7 @@ class IAPService: FlipchatService<Flipchat_Iap_V1_IapNIOClient> {
                 trace(.success)
                 completion(.success(()))
             } else {
-                trace(.failure, components: "Error: \(error)")
+                trace(.failure, components: "Error: \(error)", "Receipt: \(receipt.base64EncodedString())")
                 completion(.failure(error))
             }
             
