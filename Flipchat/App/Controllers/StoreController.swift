@@ -81,11 +81,11 @@ class StoreController: NSObject, ObservableObject {
         let delegate = ReceiptDelegate()
         
         return try await withCheckedThrowingContinuation { c in
-            let request = SKReceiptRefreshRequest()
             delegate.completion = {
                 c.resume(with: $0)
             }
             
+            let request = SKReceiptRefreshRequest()
             request.delegate = delegate
             request.start()
         }
@@ -116,10 +116,12 @@ class StoreController: NSObject, ObservableObject {
                 return .failed
                 
             case .verified(let tx):
-                let receipt = try await getReceipt()
-                
                 print("[IAP] Purchase success. Tx: \(tx.id)")
-                print("[IAP] Receipt: \(receipt.count) bytes")
+                
+                try await refreshReceipt()
+                
+                let receipt = try await getReceipt()
+                print("[IAP] Receipt: \(receipt.base64EncodedString())")
                 
                 try await client.notifyPurchaseCompleted(
                     receipt: receipt,
