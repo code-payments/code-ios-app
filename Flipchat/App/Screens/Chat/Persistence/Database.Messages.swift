@@ -82,8 +82,8 @@ extension Database {
 
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
+            u.isBlocked as uIsBlocked,
             b.isMuted AS uIsMuted,
-            b.isBlocked as uIsBlocked,
 
             r.content AS rContent,
             ru.displayName AS rDisplayName

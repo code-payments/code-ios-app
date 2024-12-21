@@ -528,12 +528,11 @@ class ChatController: ObservableObject {
         }
     }
     
-    func setUserBlocked(userID: UserID, chatID: ChatID, blocked: Bool) async throws {
+    func setUserBlocked(userID: UserID, blocked: Bool) async throws {
 //        try await client.blockUser(userID: userID, chatID: chatID, owner: owner)
         try database.transaction {
-            try $0.setMemberBlocked(
+            try $0.setUserBlocked( // Not member, user
                 userID: userID.uuid,
-                roomID: chatID.uuid,
                 blocked: blocked
             )
         }

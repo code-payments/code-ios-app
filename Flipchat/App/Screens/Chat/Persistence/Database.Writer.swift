@@ -96,12 +96,12 @@ extension Database {
         )
     }
     
-    func setMemberBlocked(userID: UUID, roomID: UUID, blocked: Bool) throws {
-        let member = MemberTable()
+    func setUserBlocked(userID: UUID, blocked: Bool) throws {
+        let user = UserTable()
         try writer.run(
-            member.table
-                .filter(member.userID == userID && member.roomID == roomID)
-                .update(member.isBlocked <- blocked)
+            user.table
+                .filter(user.serverID == userID)
+                .update(user.isBlocked <- blocked)
         )
     }
     

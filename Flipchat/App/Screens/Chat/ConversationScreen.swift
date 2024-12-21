@@ -445,7 +445,7 @@ struct ConversationScreen: View {
                 actions: [
                     .destructive(title: title) {
                         Task {
-                            try await chatController.setUserBlocked(userID: userID, chatID: chatID, blocked: isBlocked)
+                            try await chatController.setUserBlocked(userID: userID, blocked: isBlocked)
                         }
                     },
                     .cancel(title: "Cancel"),

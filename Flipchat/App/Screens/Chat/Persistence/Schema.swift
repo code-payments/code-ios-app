@@ -41,7 +41,6 @@ struct MemberTable: Sendable {
     let userID      = Expression <UUID> ("userID")
     let roomID      = Expression <UUID> ("roomID")
     let isMuted     = Expression <Bool> ("isMuted")
-    let isBlocked   = Expression <Bool> ("isBlocked")
     let canModerate = Expression <Bool> ("canModerate")
     let canSend     = Expression <Bool> ("canSend")
 }
@@ -51,6 +50,7 @@ struct UserTable: Sendable {
     let serverID    = Expression <UUID>    ("serverID")
     let displayName = Expression <String?> ("displayName")
     let avatarURL   = Expression <URL?>    ("avatarURL")
+    let isBlocked   = Expression <Bool>    ("isBlocked")
 }
 
 struct PointerTable: Sendable {
@@ -113,7 +113,6 @@ extension Database {
                 t.column(memberTable.userID) // FK user.serverID
                 t.column(memberTable.roomID) // FK room.serverID
                 t.column(memberTable.isMuted,   defaultValue: false)
-                t.column(memberTable.isBlocked, defaultValue: false)
                 t.column(memberTable.canModerate)
                 t.column(memberTable.canSend)
                 
@@ -126,6 +125,7 @@ extension Database {
                 t.column(userTable.serverID, primaryKey: true)
                 t.column(userTable.displayName)
                 t.column(userTable.avatarURL)
+                t.column(userTable.isBlocked, defaultValue: false)
             })
             
             try writer.run(pointerTable.table.create(ifNotExists: true, withoutRowid: true) { t in
