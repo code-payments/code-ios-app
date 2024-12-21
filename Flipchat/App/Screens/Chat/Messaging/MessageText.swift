@@ -18,6 +18,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
     let date: Date
     let isReceived: Bool
     let isHost: Bool
+    let isBlocked: Bool
     let replyingTo: ReplyingTo?
     let location: MessageSemanticLocation
     let action: (MessageAction) -> Void
@@ -50,7 +51,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+    init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.state = state
         self.name = name
         self.avatarData = avatarData
@@ -58,6 +59,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.date = date
         self.isReceived = isReceived
         self.isHost = isHost
+        self.isBlocked = isBlocked
         self.replyingTo = replyingTo
         self.location = location
         self.action = action
@@ -97,6 +99,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
                     text: text,
                     date: date,
                     isReceived: isReceived,
+                    isBlocked: isBlocked,
                     replyingTo: replyingTo,
                     action: action,
                     location: location
@@ -122,6 +125,7 @@ struct MessageBubble: View {
     let text: String
     let date: Date
     let isReceived: Bool
+    let isBlocked: Bool
     let replyingTo: ReplyingTo?
     let action: (MessageAction) -> Void
     let location: MessageSemanticLocation
@@ -135,11 +139,12 @@ struct MessageBubble: View {
         }
     }
     
-    init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+    init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
         self.state = state
         self.text = text
         self.date = date
         self.isReceived = isReceived
+        self.isBlocked = isBlocked
         self.replyingTo = replyingTo
         self.action = action
         self.location = location
@@ -218,6 +223,7 @@ struct MessageBubble: View {
                 replyingTo.action()
             }
             .padding(.bottom, 2)
+            .opacity(isBlocked ? 0.6 : 1.0)
         }
         
         if compact {
@@ -234,6 +240,7 @@ struct MessageBubble: View {
             .font(.appTextMessage)
 //            .font(isOnlyEmoji ? .appDisplayMedium : .appTextMessage)
             .foregroundColor(.textMain)
+            .opacity(isBlocked ? 0.6 : 1.0)
             .multilineTextAlignment(.leading)
             .environment(\.openURL, OpenURLAction { url in
                 handleURL(url)
@@ -271,6 +278,10 @@ struct MessageBubble: View {
     
     private func parse(text: String) -> AttributedString {
         var string = AttributedString(text)
+        
+        guard !isBlocked else {
+            return "Blocked message"
+        }
         
         findLinks(in: text, string: &string)
         findHashtags(in: text, string: &string)
@@ -354,6 +365,7 @@ struct MessageBubble: View {
                 date: .now,
                 isReceived: true,
                 isHost: false,
+                isBlocked: false,
                 replyingTo: .init(
                     name: "Bob",
 //                    content: "That's what I was trying to say before",

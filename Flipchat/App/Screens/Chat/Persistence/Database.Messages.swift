@@ -83,6 +83,7 @@ extension Database {
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
             b.isMuted AS uIsMuted,
+            b.isBlocked as uIsBlocked,
 
             r.content AS rContent,
             ru.displayName AS rDisplayName
@@ -130,7 +131,8 @@ extension Database {
                 member: .init(
                     userID:      row[Expression<UUID?>("uServerID")],
                     displayName: row[Expression<String?>("uDisplayName")],
-                    isMuted:     row[Expression<Bool?>("uIsMuted")]
+                    isMuted:     row[Expression<Bool?>("uIsMuted")],
+                    isBlocked:   row[Expression<Bool?>("uIsBlocked")]
                 ),
                 referenceID: referenceID,
                 
@@ -170,6 +172,7 @@ struct MessageRow: Hashable {
         let userID: UUID?
         let displayName: String?
         let isMuted: Bool?
+        let isBlocked: Bool?
     }
     
     struct Reference: Hashable {

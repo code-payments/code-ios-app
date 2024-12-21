@@ -41,6 +41,7 @@ struct MemberTable: Sendable {
     let userID      = Expression <UUID> ("userID")
     let roomID      = Expression <UUID> ("roomID")
     let isMuted     = Expression <Bool> ("isMuted")
+    let isBlocked   = Expression <Bool> ("isBlocked")
     let canModerate = Expression <Bool> ("canModerate")
     let canSend     = Expression <Bool> ("canSend")
 }
@@ -111,7 +112,8 @@ extension Database {
             try writer.run(memberTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(memberTable.userID) // FK user.serverID
                 t.column(memberTable.roomID) // FK room.serverID
-                t.column(memberTable.isMuted)
+                t.column(memberTable.isMuted,   defaultValue: false)
+                t.column(memberTable.isBlocked, defaultValue: false)
                 t.column(memberTable.canModerate)
                 t.column(memberTable.canSend)
                 

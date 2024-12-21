@@ -421,6 +421,37 @@ struct ConversationScreen: View {
                 ]
             )
             
+        case .setUserBlocked(let name, let userID, let chatID, let isBlocked):
+            
+            // Gives the context menu time to animate
+            try await Task.delay(milliseconds: 200)
+            
+            let title: String
+            let description: String
+            
+            if isBlocked {
+                title = "Block \(name)?"
+                description = "All messages from this user will be hidden"
+            } else {
+                title = "Unblock \(name)?"
+                description = "All messages from this user will be visible again"
+            }
+            
+            banners.show(
+                style: .error,
+                title: title,
+                description: description,
+                position: .bottom,
+                actions: [
+                    .destructive(title: title) {
+                        Task {
+                            try await chatController.setUserBlocked(userID: userID, chatID: chatID, blocked: isBlocked)
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
+            
         case .reportMessage(let userID, let messageID):
             
             // Gives the context menu time to animate
@@ -564,7 +595,8 @@ private func messageRow(chatID: ChatID, sender: UserID, senderName: String, refe
         member: .init(
             userID: sender.uuid,
             displayName: senderName,
-            isMuted: false
+            isMuted: false,
+            isBlocked: false
         ),
         referenceID: reference,
         reference: .init(

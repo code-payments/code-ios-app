@@ -340,7 +340,7 @@ class ChatController: ObservableObject {
                     print("[STREAM] Member deleted")
                     
                 case .muted(let userID):
-                    try $0.muteMember(userID: userID.uuid, muted: true)
+                    try $0.setMemberMuted(userID: userID.uuid, roomID: chatID, muted: true)
                     print("[STREAM] Member muted")
                 }
             }
@@ -520,14 +520,32 @@ class ChatController: ObservableObject {
     func muteUser(userID: UserID, chatID: ChatID) async throws {
         try await client.muteUser(userID: userID, chatID: chatID, owner: owner)
         try database.transaction {
-            try $0.muteMember(userID: userID.uuid, muted: true)
+            try $0.setMemberMuted(
+                userID: userID.uuid,
+                roomID: chatID.uuid,
+                muted: true
+            )
+        }
+    }
+    
+    func setUserBlocked(userID: UserID, chatID: ChatID, blocked: Bool) async throws {
+//        try await client.blockUser(userID: userID, chatID: chatID, owner: owner)
+        try database.transaction {
+            try $0.setMemberBlocked(
+                userID: userID.uuid,
+                roomID: chatID.uuid,
+                blocked: blocked
+            )
         }
     }
     
     func muteChat(chatID: ChatID, muted: Bool) async throws {
         try await client.muteChat(chatID: chatID, muted: muted, owner: owner)
         try database.transaction {
-            try $0.muteRoom(roomID: chatID.uuid, muted: muted)
+            try $0.muteRoom(
+                roomID: chatID.uuid,
+                muted: muted
+            )
         }
     }
     

@@ -87,12 +87,21 @@ extension Database {
         )
     }
     
-    func muteMember(userID: UUID, muted: Bool) throws {
+    func setMemberMuted(userID: UUID, roomID: UUID, muted: Bool) throws {
         let member = MemberTable()
         try writer.run(
             member.table
-                .filter(member.userID == userID)
+                .filter(member.userID == userID && member.roomID == roomID)
                 .update(member.isMuted <- muted)
+        )
+    }
+    
+    func setMemberBlocked(userID: UUID, roomID: UUID, blocked: Bool) throws {
+        let member = MemberTable()
+        try writer.run(
+            member.table
+                .filter(member.userID == userID && member.roomID == roomID)
+                .update(member.isBlocked <- blocked)
         )
     }
     

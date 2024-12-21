@@ -161,7 +161,7 @@ extension MessageListV2 {
                     case .text, .reply:
                         container.append(
                             .init(
-                                kind: .message(ID(uuid: message.serverID), isReceived, messageContainer.row, messageContainer.location),
+                                kind: .message(ID(uuid: message.serverID), isReceived, messageContainer.row, messageContainer.location, messageContainer.row.member.isBlocked == true),
                                 content: message.content
                             )
                         )
@@ -243,7 +243,7 @@ extension MessageListV2 {
         
         func scrollTo(messageID: UUID) {
             let index = messages.firstIndex {
-                if case .message(let id, _, _, _) = $0.kind {
+                if case .message(let id, _, _, _, _) = $0.kind {
                     return messageID == id.uuid
                 }
                 return false
@@ -368,7 +368,7 @@ extension MessageListV2 {
             case .date(let date):
                 MessageTitle(text: date.formattedRelatively())
                 
-            case .message(_, let isReceived, let row, let location):
+            case .message(_, let isReceived, let row, let location, let isBlocked):
                 let message = row.message
                 let isFromSelf = message.senderID == userID.uuid
                 let displayName = row.member.displayName ?? defaultMemberName
@@ -381,6 +381,7 @@ extension MessageListV2 {
                     date: message.date,
                     isReceived: isReceived,
                     isHost: message.senderID == hostID.uuid,
+                    isBlocked: row.member.isBlocked == true,
                     replyingTo: replyingTo(for: row, action: action),
                     location: location,
                     action: { [weak self] messageAction in
@@ -417,6 +418,19 @@ extension MessageListV2 {
                             action(.muteUser(displayName, UserID(data: senderID.data), self.chatID))
                         } label: {
                             Label("Mute", systemImage: "speaker.slash")
+                        }
+                    }
+                    
+                    // Only if the sender isn't self (can't block self)
+                    if let senderID = message.senderID, senderID != userID.uuid {
+                        Button(role: .destructive) {
+                            action(.setUserBlocked(displayName, UserID(data: senderID.data), self.chatID, !(row.member.isBlocked == true)))
+                        } label: {
+                            if row.member.isBlocked == true {
+                                Label("Unblock", systemImage: "person.slash")
+                            } else {
+                                Label("Block", systemImage: "person.slash")
+                            }
                         }
                     }
                 }
@@ -460,7 +474,7 @@ private struct MessageRowView<Content>: View where Content: View {
         switch kind {
         case .date:
             return .center
-        case .message(_, let isReceived, _, _):
+        case .message(_, let isReceived, _, _, _):
             return isReceived ? .leading : .trailing
         case .announcement, .unread:
             return .center
@@ -471,7 +485,7 @@ private struct MessageRowView<Content>: View where Content: View {
         switch kind {
         case .date:
             return .top
-        case .message(_, let isReceived, _, _):
+        case .message(_, let isReceived, _, _, _):
             return isReceived ? .leading : .trailing
         case .announcement, .unread:
             return .bottom
@@ -500,7 +514,7 @@ private struct MessageRowView<Content>: View where Content: View {
                 case .date, .announcement, .unread:
                     content()
                     
-                case .message(_, let isReceived, _, _):
+                case .message(_, let isReceived, _, _, _):
                     if isReceived {
                         content()
                         Spacer()
