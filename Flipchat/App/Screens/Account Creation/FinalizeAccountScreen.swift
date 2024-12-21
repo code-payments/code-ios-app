@@ -68,6 +68,9 @@ struct FinalizeAccountScreen: View {
             .padding(20)
             .navigationBarTitle(Text(""), displayMode: .inline)
             .interactiveDismissDisabled()
+            .onAppear {
+                storeController.loadProductsIfNeeded()
+            }
         }
     }
 }

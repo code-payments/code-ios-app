@@ -90,6 +90,9 @@ struct CreateAccountScreen: View {
                     FinalizeAccountScreen(viewModel: viewModel)
                 }
             }
+            .onAppear {
+                storeController.loadProductsIfNeeded()
+            }
         }
     }
 }

@@ -112,7 +112,7 @@ class OnboardingViewModel: ObservableObject {
                 }
                 
             case .failed:
-                showPaymentFailed()
+                showPurchaseFailed()
                 setPaymentState(.normal)
                 
             case .cancelled:
@@ -121,6 +121,8 @@ class OnboardingViewModel: ObservableObject {
             
         } catch {
             setPaymentState(.normal)
+            showPurchaseUnavailable()
+            ErrorReporting.captureError(error)
         }
     }
     
@@ -206,7 +208,18 @@ class OnboardingViewModel: ObservableObject {
         )
     }
     
-    func showPaymentFailed() {
+    func showPurchaseUnavailable() {
+        banners.show(
+            style: .error,
+            title: "Purchase Unavailable",
+            description: "Please check your internet connection and try again.",
+            actions: [
+                .cancel(title: "OK"),
+            ]
+        )
+    }
+    
+    func showPurchaseFailed() {
         banners.show(
             style: .error,
             title: "Purchase Failed",

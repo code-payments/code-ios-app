@@ -26,10 +26,7 @@ class StoreController: NSObject, ObservableObject {
         
         super.init()
         
-        Task {
-            try await loadProducts()
-        }
-        
+        loadProductsIfNeeded()
         listenForTransactionUpdates()
     }
     
@@ -50,11 +47,25 @@ class StoreController: NSObject, ObservableObject {
     }
     
     func loadProducts() async throws {
-        let products = try await Product.products(for: FlipchatProduct.productIDs)
-        self.products = products.elementsKeyed(by: \.id)
-        print("[IAP] Loaded products:")
-        products.forEach {
-            print("\($0.id): \($0.formattedPrice) - \($0.displayName)")
+        do {
+            let products = try await Product.products(for: FlipchatProduct.productIDs)
+            self.products = products.elementsKeyed(by: \.id)
+            print("[IAP] Loaded products:")
+            products.forEach {
+                print("\($0.id): \($0.formattedPrice) - \($0.displayName)")
+            }
+        } catch {
+            ErrorReporting.captureError(error)
+        }
+    }
+    
+    func loadProductsIfNeeded() {
+        guard products.isEmpty else {
+            return
+        }
+        
+        Task {
+            try await loadProducts()
         }
     }
     
