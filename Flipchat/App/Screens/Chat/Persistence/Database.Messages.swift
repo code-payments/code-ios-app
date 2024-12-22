@@ -108,7 +108,7 @@ extension Database {
 
         WHERE 
             m.roomID = "\(roomID.uuidString)"
-        ORDER BY m.serverID ASC
+        ORDER BY m.serverID DESC
         LIMIT \(pageSize) OFFSET \(offset);
         """)
         
@@ -145,7 +145,7 @@ extension Database {
             )
         }
         
-        return messages
+        return messages.reversed()
     }
 }
 
