@@ -148,7 +148,7 @@ class ChatController: ObservableObject {
                         owner: owner
                     )
                     
-                    let latestBatchMessageID = try await database.getLatestMessageID(roomID: chat.id.uuid, batchOnly: true)
+                    let latestBatchMessageID = try await latestMessageID(for: chat.id, batchOnly: true)
                     
                     let messages: [Chat.Message]
                     if let latestBatchMessageID {
@@ -398,8 +398,12 @@ class ChatController: ObservableObject {
         }
     }
     
+    func latestMessageID(for chatID: ChatID, batchOnly: Bool) throws -> UUID? {
+        try database.getLatestMessageID(roomID: chatID.uuid, batchOnly: batchOnly)
+    }
+    
     func advanceReadPointerToLatest(for chatID: ChatID) async throws {
-        guard let messageID = try database.getLatestMessageID(roomID: chatID.uuid, batchOnly: false) else {
+        guard let messageID = try latestMessageID(for: chatID, batchOnly: false) else {
             throw Error.failedToFetchLatestMessage
         }
         

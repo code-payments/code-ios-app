@@ -21,13 +21,13 @@ enum MessageAction {
 struct MessageDescription: Identifiable, Hashable, Equatable {
     enum Kind: Hashable, Equatable {
         case date(Date)
-        case message(MessageID, Bool, MessageRow, MessageSemanticLocation, Bool) // id, isReceived, row, location, isBlocked
+        case message(MessageID, Bool, MessageRow, MessageSemanticLocation) // id, isReceived, row, location
         case announcement(MessageID)
         case unread
         
         var messageRow: MessageRow? {
             switch self {
-            case .message(_, _, let row, _, _):
+            case .message(_, _, let row, _):
                 return row
             case .date, .announcement, .unread:
                 return nil
@@ -39,7 +39,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         switch kind {
         case .date(let date):
             return "\(date.timeIntervalSince1970)"
-        case .message(let messageID, _, _, _, _):
+        case .message(let messageID, _, _, _):
             return messageID.data.hexString()
         case .announcement(let messageID):
             return messageID.data.hexString()
@@ -55,7 +55,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         switch kind {
         case .date, .announcement, .unread:
             return (size.width * 1.0, false)
-        case .message(_, let isReceived, _, _, _):
+        case .message(_, let isReceived, _, _):
             return (size.width * 0.8, isReceived)
         }
     }

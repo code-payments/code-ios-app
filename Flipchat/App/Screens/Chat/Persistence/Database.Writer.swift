@@ -9,6 +9,10 @@ import Foundation
 import FlipchatServices
 @preconcurrency import SQLite
 
+extension Notification.Name {
+    static let databaseDidChange = Notification.Name("databaseDidChange")
+}
+
 extension Database {
         
     /// Always inline this function to ensure that captureError
@@ -30,7 +34,19 @@ extension Database {
             // there's been any changes in this transaction
             // to avoid reloading unnecessarily.
             if !silent {
-                if endChangeCount - startChangeCount > 0 {
+                let changeDelta = endChangeCount - startChangeCount
+                if changeDelta > 0 {
+                    NotificationQueue.default.enqueue(
+                        .init(
+                            name: .databaseDidChange,
+                            userInfo: [
+                                "changeCount": changeDelta,
+                            ]
+                        ),
+                        postingStyle: .asap,
+                        coalesceMask: .onName,
+                        forModes: [.common]
+                    )
                     commit?()
                 } else {
                     print("Transaction detected no changes. Skipping commit...")

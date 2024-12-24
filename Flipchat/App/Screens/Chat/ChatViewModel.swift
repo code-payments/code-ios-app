@@ -105,11 +105,6 @@ class ChatViewModel: ObservableObject {
     
     func pushChat(chatID: ChatID) {
         containerViewModel?.pushChat(chatID: chatID)
-        Task {
-            try await chatController.advanceReadPointerToLatest(for: chatID)
-            try await chatController.syncChatAndMembers(for: chatID)
-            
-        }
     }
     
     func popChat() {

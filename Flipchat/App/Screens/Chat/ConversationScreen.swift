@@ -9,111 +9,109 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-@MainActor
-private class ConversationState: ObservableObject {
-    
-    let pointer: MessagePointer? // We don't want to publish changes
-    
-    @Published var room: RoomDescription!
-    @Published var selfUser: MemberRow!
-    @Published var messages: [MessageRow] = []
-    
-    @Published var scrollToBottom: Int = 0
-    
-    private var pageSize: Int = 1024
-    
-    private let userID: UserID
-    private let chatID: ChatID
-    private let chatController: ChatController
-    
-    private var stream: StreamMessagesReference?
-    
-    // MARK: - Init -
-    
-    init(userID: UserID, chatID: ChatID, chatController: ChatController) throws {
-        self.userID = userID
-        self.chatID = chatID
-        self.chatController = chatController
-        
-        room     = try chatController.getRoom(chatID: chatID)
-        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
-        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
-        
-        pointer  = try chatController.getPointer(userID: userID, chatID: chatID)
-        
-        startStream()
-    }
-    
-    deinit {
-        DispatchQueue.main.async { [stream] in
-            trace(.warning, components: "Destroying conversation stream...")
-            stream?.destroy()
-        }
-    }
-    
-    func addPageAndReload() throws {
-        pageSize += 1024
-        try reload()
-    }
-    
-    func reload() throws {
-        room     = try chatController.getRoom(chatID: chatID)
-        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
-        // Don't update the pointer
-        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
-    }
-    
-    // MARK: - Pointer -
-    
-    private func advanceReadPointer() async throws {
-        try await chatController.advanceReadPointerToLatest(for: chatID)
-    }
-    
-    // MARK: - Streams -
-    
-    func startStream() {
-        destroyStream()
-        
-        guard let room else {
-            return
-        }
-        
-        let messageID: MessageID?
-        if let lastMessage = room.lastMessage {
-            messageID = MessageID(uuid: lastMessage.serverID)
-        } else {
-            messageID = nil
-        }
-        
-        stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { [weak self] result in
-            switch result {
-            case .success(let messages):
-                self?.streamMessages(messages: messages)
-
-            case .failure:
-                self?.destroyStream()
-            }
-        }
-    }
-    
-    private func streamMessages(messages: [Chat.Message]) {
-        Task {
-            try await chatController.receiveMessages(messages: messages, for: chatID)
-            try await advanceReadPointer()
-            
-            scrollToBottom += 1
-        }
-    }
-    
-    func destroyStream() {
-        trace(.warning, components: "Destroying conversation stream...")
-        stream?.destroy()
-    }
-}
+//@MainActor
+//private class ConversationState: ObservableObject {
+//    
+//    let pointer: MessagePointer? // We don't want to publish changes
+//    
+//    @Published var room: RoomDescription!
+//    @Published var selfUser: MemberRow!
+//    @Published var messages: [MessageRow] = []
+//    
+//    @Published var scrollToBottom: Int = 0
+//    
+//    private var pageSize: Int = 1024
+//    
+//    private let userID: UserID
+//    private let chatID: ChatID
+//    private let chatController: ChatController
+//    
+//    private var stream: StreamMessagesReference?
+//    
+//    // MARK: - Init -
+//    
+//    init(userID: UserID, chatID: ChatID, chatController: ChatController) throws {
+//        self.userID = userID
+//        self.chatID = chatID
+//        self.chatController = chatController
+//        
+//        room     = try chatController.getRoom(chatID: chatID)
+//        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
+//        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
+//        
+//        pointer  = try chatController.getPointer(userID: userID, chatID: chatID)
+//        
+//        startStream()
+//    }
+//    
+//    deinit {
+//        DispatchQueue.main.async { [stream] in
+//            trace(.warning, components: "Destroying conversation stream...")
+//            stream?.destroy()
+//        }
+//    }
+//    
+//    func addPageAndReload() throws {
+//        pageSize += 1024
+//        try reload()
+//    }
+//    
+//    func reload() throws {
+//        room     = try chatController.getRoom(chatID: chatID)
+//        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
+//        // Don't update the pointer
+//        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
+//    }
+//    
+//    // MARK: - Pointer -
+//    
+//    private func advanceReadPointer() async throws {
+//        try await chatController.advanceReadPointerToLatest(for: chatID)
+//    }
+//    
+//    // MARK: - Streams -
+//    
+//    func startStream() {
+//        destroyStream()
+//        
+//        guard let room else {
+//            return
+//        }
+//        
+//        let messageID: MessageID?
+//        if let lastMessage = room.lastMessage {
+//            messageID = MessageID(uuid: lastMessage.serverID)
+//        } else {
+//            messageID = nil
+//        }
+//        
+//        stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { [weak self] result in
+//            switch result {
+//            case .success(let messages):
+//                self?.streamMessages(messages: messages)
+//
+//            case .failure:
+//                self?.destroyStream()
+//            }
+//        }
+//    }
+//    
+//    private func streamMessages(messages: [Chat.Message]) {
+//        Task {
+//            try await chatController.receiveMessages(messages: messages, for: chatID)
+//            try await advanceReadPointer()
+//            
+//            scrollToBottom += 1
+//        }
+//    }
+//    
+//    func destroyStream() {
+//        trace(.warning, components: "Destroying conversation stream...")
+//        stream?.destroy()
+//    }
+//}
 
 struct ConversationScreen: View {
-    
-    @StateObject private var conversationState: ConversationState
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var flipClient: FlipchatClient
@@ -140,18 +138,15 @@ struct ConversationScreen: View {
     private let session: Session
     private let chatController: ChatController
     
-    var room: RoomDescription {
-        conversationState.room
+    @StateObject private var updateableRoom: Updateable<RoomDescription>
+    @StateObject private var updateableUser: Updateable<MemberRow>
+    
+    private var roomDescription: RoomDescription {
+        updateableRoom.value
     }
     
-    var unreadDescription: UnreadDescription? {
-        if let pointer = conversationState.pointer {
-            return UnreadDescription(
-                messageID: pointer.messageID,
-                unread: pointer.newUnreads
-            )
-        }
-        return nil
+    private var selfUser: MemberRow {
+        updateableUser.value
     }
     
     // MARK: - Init -
@@ -170,11 +165,13 @@ struct ConversationScreen: View {
         self.userID = userID
         self.chatController = chatController
         
-        self._conversationState = StateObject(wrappedValue: try! .init(
-            userID: userID,
-            chatID: chatID,
-            chatController: chatController
-        ))
+        self._updateableRoom = .init(wrappedValue: Updateable {
+            try! chatController.getRoom(chatID: chatID)!
+        })
+        
+        self._updateableUser = .init(wrappedValue: Updateable {
+            try! chatController.getMember(userID: userID, roomID: chatID)!
+        })
     }
     
     private func didAppear() {
@@ -191,12 +188,10 @@ struct ConversationScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 ScrollBox(color: .backgroundMain, edgePadding: 12) {
-                    MessageListV2(
+                    MessagesListController(
+                        chatController: chatController,
                         userID: userID,
-                        hostID: UserID(uuid: conversationState.room.room.ownerUserID),
                         chatID: chatID,
-                        unread: unreadDescription,
-                        messages: conversationState.messages,
                         scroll: $scrollConfiguration,
                         action: { action in
                             Task {
@@ -216,8 +211,8 @@ struct ConversationScreen: View {
                         ) { [weak chatViewModel] in
                             try await chatViewModel?.attemptJoinChat(
                                 chatID: chatID,
-                                hostID: UserID(uuid: room.room.ownerUserID),
-                                amount: room.room.cover
+                                hostID: UserID(uuid: roomDescription.room.ownerUserID),
+                                amount: roomDescription.room.cover
                             )
                         }
                     )
@@ -225,15 +220,15 @@ struct ConversationScreen: View {
                 .sheet(isPresented: $chatViewModel.isShowingJoinPayment) {
                     PartialSheet {
                         ModalPaymentConfirmation(
-                            amount: room.room.cover.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
+                            amount: roomDescription.room.cover.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
                             currency: .kin,
                             primaryAction: "Swipe to Pay",
                             secondaryAction: "Cancel",
                             paymentAction: {
                                 try await chatViewModel.payAndJoinChat(
-                                    chatID: ChatID(uuid: room.room.serverID),
-                                    hostID: UserID(uuid: room.room.ownerUserID),
-                                    amount: room.room.cover
+                                    chatID: ChatID(uuid: roomDescription.room.serverID),
+                                    hostID: UserID(uuid: roomDescription.room.ownerUserID),
+                                    amount: roomDescription.room.cover
                                 )
                             },
                             dismissAction: { chatViewModel.cancelJoinChatPayment() },
@@ -251,8 +246,8 @@ struct ConversationScreen: View {
                     )
                 }
                 
-                if chatController.isRegistered && conversationState.selfUser.canSend {
-                    if !conversationState.selfUser.isMuted {
+                if chatController.isRegistered && selfUser.canSend {
+                    if !selfUser.isMuted {
                         inputView()
                     } else {
                         VStack {
@@ -265,13 +260,13 @@ struct ConversationScreen: View {
                 } else {
                     CodeButton(
                         style: .filled,
-                        title: "Join Room: ⬢ \(conversationState.room.room.cover.formattedTruncatedKin())"
+                        title: "Join Room: ⬢ \(roomDescription.room.cover.formattedTruncatedKin())"
                     ) {
                         Task {
                             try await chatViewModel.attemptJoinChat(
-                                chatID: ChatID(uuid: room.room.serverID),
-                                hostID: UserID(uuid: room.room.ownerUserID),
-                                amount: room.room.cover
+                                chatID: ChatID(uuid: roomDescription.room.serverID),
+                                hostID: UserID(uuid: roomDescription.room.ownerUserID),
+                                amount: roomDescription.room.cover
                             )
                         }
                     }
@@ -293,15 +288,15 @@ struct ConversationScreen: View {
                 moreItem()
             }
         }
-        .onChange(of: notificationController.didBecomeActive) { _, _ in
-            conversationState.startStream()
-        }
-        .onChange(of: notificationController.willResignActive) { _, _ in
-            conversationState.destroyStream()
-        }
-        .onChange(of: chatController.chatsDidChange) { _, _ in
-            try? conversationState.reload()
-        }
+//        .onChange(of: notificationController.didBecomeActive) { _, _ in
+//            conversationState.startStream()
+//        }
+//        .onChange(of: notificationController.willResignActive) { _, _ in
+//            conversationState.destroyStream()
+//        }
+//        .onChange(of: chatController.chatsDidChange) { _, _ in
+//            try? conversationState.reload()
+//        }
     }
     
     @ViewBuilder private func inputView() -> some View {
@@ -351,7 +346,9 @@ struct ConversationScreen: View {
             }
             
             // Reset to default
-            shouldScrollOnFocus = true
+            Task {
+                shouldScrollOnFocus = true
+            }
         }
     }
     
@@ -360,10 +357,10 @@ struct ConversationScreen: View {
             GradientAvatarView(data: chatID.data, diameter: 30)
             
             VStack(alignment: .leading, spacing: 0) {
-                Text(conversationState.room.room.formattedTitle)
+                Text(updateableRoom.value.room.formattedTitle)
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
-                Text("\(conversationState.room.memberCount) \(subtext(for: conversationState.room.memberCount)) here")
+                Text("\(updateableRoom.value.memberCount) \(subtext(for: updateableRoom.value.memberCount)) here")
                     .font(.appTextHeading)
                     .foregroundColor(.textSecondary)
             }
@@ -421,7 +418,7 @@ struct ConversationScreen: View {
                 ]
             )
             
-        case .setUserBlocked(let name, let userID, let chatID, let isBlocked):
+        case .setUserBlocked(let name, let userID, _, let isBlocked):
             
             // Gives the context menu time to animate
             try await Task.delay(milliseconds: 200)
@@ -551,35 +548,35 @@ struct ConversationScreen: View {
     }
 }
 
-#Preview {
-    let userID1 = ID.random
-    let userID2 = ID.random
-    let chatID  = ID.random
-    let hostID  = userID1
- 
-    Background(color: .backgroundMain) {
-        MessageListV2(
-            userID: userID1,
-            hostID: hostID,
-            chatID: chatID,
-            unread: nil,
-            messages: [
-                messageRow(
-                    chatID: chatID,
-                    sender: userID2,
-                    senderName: "Bob",
-                    reference: ID.random.uuid,
-                    referenceName: "Alice",
-                    referenceContent: "Yeah that's what I mean",
-                    text: "I was thinking the same"
-                )
-            ],
-            scroll: .constant(nil),
-            action: { _ in },
-            loadMore: {}
-        )
-    }
-}
+//#Preview {
+//    let userID1 = ID.random
+//    let userID2 = ID.random
+//    let chatID  = ID.random
+//    let hostID  = userID1
+// 
+//    Background(color: .backgroundMain) {
+//        MessagesListController(
+//            userID: userID1,
+//            hostID: hostID,
+//            chatID: chatID,
+//            unread: nil,
+//            messages: [
+//                messageRow(
+//                    chatID: chatID,
+//                    sender: userID2,
+//                    senderName: "Bob",
+//                    reference: ID.random.uuid,
+//                    referenceName: "Alice",
+//                    referenceContent: "Yeah that's what I mean",
+//                    text: "I was thinking the same"
+//                )
+//            ],
+//            scroll: .constant(nil),
+//            action: { _ in },
+//            loadMore: {}
+//        )
+//    }
+//}
 
 private func messageRow(chatID: ChatID, sender: UserID, senderName: String, reference: UUID?, referenceName: String?, referenceContent: String?, text: String) -> MessageRow {
     .init(
