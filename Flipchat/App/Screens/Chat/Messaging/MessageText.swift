@@ -331,26 +331,34 @@ struct MessageBubble: View {
     }
     
     private func findHashtags(in text: String, string: inout AttributedString) {
-        guard let regex = try? NSRegularExpression(pattern: "#(\\d+)", options: []) else {
-            return
-        }
+        let rules: [NSRegularExpression] = [
+            .matchRoomHashtag,
+            .matchRoomSpelled,
+        ]
         
-        let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
-        for match in matches {
-            guard let range = Range(match.range, in: text), let roomNumberRange = Range(match.range(at: 1), in: text) else {
-                continue
+        rules.forEach {
+            let matches = $0.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+            for match in matches {
+                guard let range = Range(match.range, in: text), let roomNumberRange = Range(match.range(at: 1), in: text) else {
+                    continue
+                }
+                
+                let roomNumber = String(text[roomNumberRange])
+                
+                guard let attributedRange = Range(range, in: string) else {
+                    continue
+                }
+                
+                string[attributedRange].link = URL(string: "fc://room\(roomNumber)")
+                string[attributedRange].underlineStyle = .single
             }
-            
-            let roomNumber = String(text[roomNumberRange])
-            
-            guard let attributedRange = Range(range, in: string) else {
-                continue
-            }
-            
-            string[attributedRange].link = URL(string: "fc://room\(roomNumber)")
-            string[attributedRange].underlineStyle = .single
         }
     }
+}
+
+extension NSRegularExpression {
+    static let matchRoomHashtag = try! NSRegularExpression(pattern: "#(\\d+)", options: [])
+    static let matchRoomSpelled = try! NSRegularExpression(pattern: "[rR]oom ?(\\d+)", options: [])
 }
 
 #Preview {
