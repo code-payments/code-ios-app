@@ -20,6 +20,7 @@ class PushController: ObservableObject {
     
     private let owner: KeyPair
     private let client: FlipchatClient
+    private let chatViewModel: ChatViewModel
     private let center: UNUserNotificationCenter
     private let delegate: NotificationDelegate
     
@@ -28,11 +29,12 @@ class PushController: ObservableObject {
     
     // MARK: - Init -
     
-    init(owner: KeyPair, client: FlipchatClient) {
+    init(owner: KeyPair, client: FlipchatClient, chatViewModel: ChatViewModel) {
         self.owner    = owner
         self.client   = client
+        self.chatViewModel = chatViewModel
         self.center   = .current()
-        self.delegate = NotificationDelegate()
+        self.delegate = NotificationDelegate(chatViewModel: chatViewModel)
         
         delegate.didReceiveFCMToken = { [weak self] token in
             try await self?.didReceiveFirebaseToken(token: token)
@@ -161,6 +163,12 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     
     var didReceiveFCMToken: (@MainActor (String?) async throws -> Void)?
     
+    let chatViewModel: ChatViewModel
+    
+    init(chatViewModel: ChatViewModel) {
+        self.chatViewModel = chatViewModel
+    }
+    
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         trace(.warning, components: 
               "Date:     \(notification.date)",
@@ -174,11 +182,7 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
         
         var showBanners = true
-        if
-            let base64ChatID = notification.request.content.userInfo["chat_id"] as? String,
-            let data = Data(base64Encoded: base64ChatID)
-        {
-            let chatID = ChatID(data: data)
+        if let chatID = notification.chatID {
             showBanners = !(PushController.activeRoomIDs?.contains(chatID) ?? false)
             if !showBanners {                
                 print("Skipping banners, chat is currently active")
@@ -201,6 +205,10 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
         }
+        
+        if let chatID = response.notification.chatID {
+            chatViewModel.restoreTo(chatID: chatID)
+        }
     }
     
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
@@ -211,7 +219,20 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     }
 }
 
+extension UNNotification {
+    var chatID: ChatID? {
+        guard
+            let base64ChatID = request.content.userInfo["chat_id"] as? String,
+            let data = Data(base64Encoded: base64ChatID)
+        else {
+            return nil
+        }
+        
+        return ChatID(data: data)
+    }
+}
+
 extension PushController {
-    static let mock: PushController = PushController(owner: .mock, client: .mock)
+    static let mock: PushController = PushController(owner: .mock, client: .mock, chatViewModel: .mock)
 }
 

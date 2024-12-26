@@ -52,6 +52,25 @@ class ContainerViewModel: ObservableObject {
         navigationPath = []
     }
     
+    func popTo(chatID: ChatID) -> Bool {
+        let index = navigationPath.firstIndex {
+            switch $0 {
+            case .chat(let id):
+                return id == chatID
+            case .details:
+                return false
+            }
+        }
+        
+        if let index {
+            navigationPath = Array(navigationPath.prefix(upTo: index + 1)) // Converting 0 index to count
+            return true
+        } else {
+            popChat()
+            return false
+        }
+    }
+    
     // MARK: - Logout -
     
     func logout() {

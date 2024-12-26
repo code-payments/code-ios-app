@@ -103,6 +103,24 @@ class ChatViewModel: ObservableObject {
         )
     }
     
+    func restoreTo(chatID: ChatID) {
+        Task {
+            var chatFound = false
+
+            if containerViewModel?.navigationPath.isEmpty == false {
+                chatFound = containerViewModel?.popTo(chatID: chatID) == true
+                try await Task.delay(milliseconds: 400)
+            }
+
+            // Only push a new chat with this ID
+            // if it's not already foudn in the
+            // navigation stack
+            if !chatFound {
+                containerViewModel?.pushChat(chatID: chatID)
+            }
+        }
+    }
+    
     func pushChat(chatID: ChatID) {
         containerViewModel?.pushChat(chatID: chatID)
     }

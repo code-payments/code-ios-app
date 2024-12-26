@@ -247,7 +247,8 @@ final class SessionAuthenticator: ObservableObject {
         
         let pushController = PushController(
             owner: organizer.ownerKeyPair,
-            client: flipClient
+            client: flipClient,
+            chatViewModel: chatViewModel
         )
         
         let storeController = StoreController(client: flipClient, owner: organizer.ownerKeyPair)
@@ -269,7 +270,6 @@ final class SessionAuthenticator: ObservableObject {
     }
     
     private func initializeSession(state: AuthenticatedState) {
-        let owner = state.session.organizer.ownerKeyPair
         Task {
             // 1. Push permissions
             async let _ = try state.pushController.authorizeAndRegister()
