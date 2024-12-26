@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import BackgroundTasks
 import CodeUI
 import FlipchatServices
 
@@ -28,6 +29,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         setupFonts()
         setupAppearance()
         
+        registerBackgroundTask()
+        
         assignHost()
     }
     
@@ -46,6 +49,55 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         window.rootViewController = controller
         window.makeKeyAndVisible()
+    }
+    
+    // MARK: - Background Fetch -
+    
+    private func registerBackgroundTask() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: .bgSync, using: .main) { [weak self] task in
+            Task {
+                try await self?.performBackgroundRefresh()
+            }
+        }
+    }
+    
+    private func beginBackgroundTask() throws {
+        cancelBackgroundTaskIfNeeded()
+        try scheduleBackgroundRefresh()
+    }
+    
+    @discardableResult
+    private func performBackgroundRefresh() async throws -> Int {
+        trace(.warning, components: "[BGF] Performing background sync.")
+        
+        try scheduleBackgroundRefresh()
+        
+        guard case .loggedIn(let state) = container.sessionAuthenticator.state else {
+            trace(.failure, components: "[BGF] Skipping, not logged in.")
+            return 0
+        }
+        
+        let chatController = state.chatController
+        Analytics.backgroundSync()
+        
+        do {
+            return try await chatController.sync()
+        } catch {
+            return 0
+        }
+    }
+    
+    private func scheduleBackgroundRefresh() throws {
+        let request = BGAppRefreshTaskRequest(identifier: .bgSync)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60) // 15 min
+        try BGTaskScheduler.shared.submit(request)
+        
+        trace(.warning, components: "[BGF] Scheduled background sync.")
+    }
+    
+    private func cancelBackgroundTaskIfNeeded() {
+        trace(.warning, components: "[BGF] Cancelling background sync.")
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: .bgSync)
     }
     
     // MARK: - Push Notifications -
@@ -77,6 +129,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         state.chatController.sceneDidBecomeActive()
+        cancelBackgroundTaskIfNeeded()
     }
     
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -86,6 +139,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         state.chatController.sceneDidEnterBackground()
+        try? beginBackgroundTask()
     }
     
     // MARK: - Appearance -
@@ -164,4 +218,8 @@ extension UINavigationController {
             action: nil
         )
     }
+}
+
+extension String {
+    static let bgSync = "com.flipchat.background.sync"
 }

@@ -8,8 +8,6 @@
 import Foundation
 import FlipchatServices
 
-// MARK: - Open -
-
 extension Analytics {
     
     static func unintentialLogout() {
@@ -18,6 +16,10 @@ extension Analytics {
     
     static func userMigrationFailed() {
         track(.userMigrationFailed)
+    }
+    
+    static func backgroundSync() {
+        track(.backgroundSync)
     }
 }
 
@@ -237,6 +239,9 @@ extension Analytics {
 
 extension Analytics {
     enum Name: String {
+        
+        // General
+        case backgroundSync = "Background Sync"
         
         // Open
         case open = "Open"

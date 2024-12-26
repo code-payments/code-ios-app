@@ -126,10 +126,11 @@ class ChatController: ObservableObject {
         }
     }
     
-    private func sync() async throws {
+    @discardableResult
+    func sync() async throws -> Int {
         guard !isSyncInProgress else {
             print("Attempt to start sync when it's already in progress, ignoring.")
-            return
+            return 0
         }
         
         trace(.send)
@@ -138,11 +139,13 @@ class ChatController: ObservableObject {
 //        isSyncInProgress = true
         
         let chats = try await client.fetchChats(owner: owner)
-        
-        await withThrowingTaskGroup(of: Void.self) { group in
+        var totalSynced = 0
+
+        try await withThrowingTaskGroup(of: Int.self) { group in
             for chat in chats {
                 group.addTask { [weak self] in
-                    guard let self else { return }
+                    guard let self else { return 0 }
+                    
                     let description = try await client.fetchChat(
                         for: .chatID(chat.id),
                         owner: owner
@@ -158,16 +161,20 @@ class ChatController: ObservableObject {
                     }
                     
                     try await insert(chat: description, messages: messages, silent: true)
+                    
+                    return messages.count
                 }
+            }
+            
+            for try await messageCount in group {
+                totalSynced += messageCount
             }
         }
         
         isSyncInProgress = false
-        
-        // We silence all transactions and defer
-        // the UI updates until all sync tasks
-        // above are finished.
         chatsChanged()
+
+        return totalSynced
     }
     
     func syncChatAndMembers(for chatID: ChatID) async throws {
