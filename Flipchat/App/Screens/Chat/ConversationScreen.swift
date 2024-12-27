@@ -138,14 +138,14 @@ struct ConversationScreen: View {
     private let session: Session
     private let chatController: ChatController
     
-    @StateObject private var updateableRoom: Updateable<RoomDescription>
-    @StateObject private var updateableUser: Updateable<MemberRow>
+    @StateObject private var updateableRoom: Updateable<RoomDescription?>
+    @StateObject private var updateableUser: Updateable<MemberRow?>
     
-    private var roomDescription: RoomDescription {
+    private var roomDescription: RoomDescription? {
         updateableRoom.value
     }
     
-    private var selfUser: MemberRow {
+    private var selfUser: MemberRow? {
         updateableUser.value
     }
     
@@ -166,11 +166,11 @@ struct ConversationScreen: View {
         self.chatController = chatController
         
         self._updateableRoom = .init(wrappedValue: Updateable {
-            try! chatController.getRoom(chatID: chatID)!
+            try? chatController.getRoom(chatID: chatID)
         })
         
         self._updateableUser = .init(wrappedValue: Updateable {
-            try! chatController.getMember(userID: userID, roomID: chatID)!
+            try? chatController.getMember(userID: userID, roomID: chatID)
         })
     }
     
@@ -209,6 +209,10 @@ struct ConversationScreen: View {
                             container: container,
                             isPresenting: $chatViewModel.isShowingCreateAccountFromConversation
                         ) { [weak chatViewModel] in
+                            guard let roomDescription else {
+                                return
+                            }
+                            
                             try await chatViewModel?.attemptJoinChat(
                                 chatID: chatID,
                                 hostID: UserID(uuid: roomDescription.room.ownerUserID),
@@ -220,12 +224,16 @@ struct ConversationScreen: View {
                 .sheet(isPresented: $chatViewModel.isShowingJoinPayment) {
                     PartialSheet {
                         ModalPaymentConfirmation(
-                            amount: roomDescription.room.cover.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
+                            amount: roomDescription?.room.cover.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true) ?? "",
                             currency: .kin,
                             primaryAction: "Swipe to Pay",
                             secondaryAction: "Cancel",
-                            paymentAction: {
-                                try await chatViewModel.payAndJoinChat(
+                            paymentAction: { [weak chatViewModel] in
+                                guard let roomDescription else {
+                                    return
+                                }
+                                
+                                try await chatViewModel?.payAndJoinChat(
                                     chatID: ChatID(uuid: roomDescription.room.serverID),
                                     hostID: UserID(uuid: roomDescription.room.ownerUserID),
                                     amount: roomDescription.room.cover
@@ -246,8 +254,8 @@ struct ConversationScreen: View {
                     )
                 }
                 
-                if chatController.isRegistered && selfUser.canSend {
-                    if !selfUser.isMuted {
+                if chatController.isRegistered && selfUser?.canSend == true {
+                    if selfUser?.isMuted != true {
                         inputView()
                     } else {
                         VStack {
@@ -260,10 +268,14 @@ struct ConversationScreen: View {
                 } else {
                     CodeButton(
                         style: .filled,
-                        title: "Join Room: ⬢ \(roomDescription.room.cover.formattedTruncatedKin())"
+                        title: "Join Room: ⬢ \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
                     ) {
-                        Task {
-                            try await chatViewModel.attemptJoinChat(
+                        Task { [weak chatViewModel] in
+                            guard let roomDescription else {
+                                return
+                            }
+                            
+                            try await chatViewModel?.attemptJoinChat(
                                 chatID: ChatID(uuid: roomDescription.room.serverID),
                                 hostID: UserID(uuid: roomDescription.room.ownerUserID),
                                 amount: roomDescription.room.cover
@@ -356,13 +368,15 @@ struct ConversationScreen: View {
         HStack(spacing: 10) {
             GradientAvatarView(data: chatID.data, diameter: 30)
             
-            VStack(alignment: .leading, spacing: 0) {
-                Text(updateableRoom.value.room.formattedTitle)
-                    .font(.appTextMedium)
-                    .foregroundColor(.textMain)
-                Text("\(updateableRoom.value.memberCount) \(subtext(for: updateableRoom.value.memberCount)) here")
-                    .font(.appTextHeading)
-                    .foregroundColor(.textSecondary)
+            if let roomDescription = updateableRoom.value {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(roomDescription.room.formattedTitle)
+                        .font(.appTextMedium)
+                        .foregroundColor(.textMain)
+                    Text("\(roomDescription.memberCount) \(subtext(for: roomDescription.memberCount)) here")
+                        .font(.appTextHeading)
+                        .foregroundColor(.textSecondary)
+                }
             }
             
             Spacer()
