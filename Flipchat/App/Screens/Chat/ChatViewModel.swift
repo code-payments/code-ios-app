@@ -22,7 +22,7 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
-    @Published var isShowingJoinPayment: Bool = false
+    @Published var isShowingJoinPayment: RoomDescription? = nil
     
     @Published var isShowingCreatePayment: Bool = false
     
@@ -286,8 +286,8 @@ class ChatViewModel: ObservableObject {
                 amount: amount
             )
         } else {
-            if session.hasSufficientFunds(for: amount) {
-                isShowingJoinPayment = true
+            if session.hasSufficientFunds(for: amount), let description = try? chatController.getRoom(chatID: chatID) {
+                isShowingJoinPayment = description
             } else {
                 showInsufficientFundsError()
             }
@@ -334,7 +334,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func cancelJoinChatPayment() {
-        isShowingJoinPayment = false
+        isShowingJoinPayment = nil
     }
     
     private func leaveChat(chatID: ChatID) {

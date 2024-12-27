@@ -198,7 +198,11 @@ extension Database {
 
 // MARK: - Types -
 
-struct RoomDescription {
+struct RoomDescription: Identifiable {
+    
+    var id: UUID {
+        room.serverID
+    }
     
     let room: Room
     let lastMessage: Message?
