@@ -12,14 +12,24 @@ public struct Bubble: View {
     
     public let size: Size
     public let count: Int
+    public let hasMore: Bool
     
-    public init(size: Size, count: Int) {
+    private var decoration: String {
+        if hasMore {
+            return "+"
+        } else {
+            return ""
+        }
+    }
+    
+    public init(size: Size, count: Int, hasMore: Bool = false) {
         self.size = size
         self.count = count
+        self.hasMore = hasMore
     }
     
     public var body: some View {
-        Text("\(count)")
+        Text("\(count)\(decoration)")
             .foregroundColor(.textMain)
             .font(size.font)
             .lineLimit(1)

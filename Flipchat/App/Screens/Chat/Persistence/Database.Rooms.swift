@@ -167,18 +167,20 @@ extension Database {
         
         let rooms = try statement.map { row in
             let messageID = (try? row.get(mTable.serverID.alias("mServerID")))
+            let unread = row[rTable.unreadCount].decodingUnreadCount()
             return RoomRow(
                 room: .init(
-                    serverID:    row[rTable.serverID],
-                    kind:        row[rTable.kind],
-                    title:       row[rTable.title],
-                    roomNumber:  row[rTable.roomNumber],
-                    ownerUserID: row[rTable.ownerUserID],
-                    cover:       Kin(quarks: row[rTable.coverQuarks])!,
-                    unreadCount: row[rTable.unreadCount],
-                    isDeleted:   row[rTable.isDeleted],
-                    isMuted:     row[rTable.isMuted],
-                    canMute:     row[rTable.canMute]
+                    serverID:      row[rTable.serverID],
+                    kind:          row[rTable.kind],
+                    title:         row[rTable.title],
+                    roomNumber:    row[rTable.roomNumber],
+                    ownerUserID:   row[rTable.ownerUserID],
+                    cover:         Kin(quarks: row[rTable.coverQuarks])!,
+                    unreadCount:   unread.count,
+                    hasMoreUnread: unread.hasMore,
+                    isDeleted:     row[rTable.isDeleted],
+                    isMuted:       row[rTable.isMuted],
+                    canMute:       row[rTable.canMute]
                 ),
                 lastMessage: messageID == nil ? nil : .init(
                     serverID:    row[mTable.serverID.alias("mServerID")],
@@ -256,6 +258,7 @@ struct RoomRow: Identifiable {
         let ownerUserID: UUID
         let cover: Kin
         let unreadCount: Int
+        let hasMoreUnread: Bool
         let isDeleted: Bool
         let isMuted: Bool
         let canMute: Bool

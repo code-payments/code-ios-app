@@ -76,7 +76,7 @@ extension Database {
                 table.roomNumber  <- room.roomNumber,
                 table.ownerUserID <- room.ownerUser.uuid,
                 table.coverQuarks <- Int64(room.coverAmount.quarks),
-                table.unreadCount <- room.unreadCount,
+                table.unreadCount <- room.unreadCount.encodingUnreadCount(hasMore: room.hasMoreUnread),
                 table.isMuted     <- room.isMuted,
                 table.canMute     <- room.canMute,
                 

@@ -82,3 +82,24 @@ extension Chat.Metadata {
         )
     }
 }
+
+extension Int {
+    
+    /// Unread count with more unread is encoded as a negative value
+    public func encodingUnreadCount(hasMore: Bool) -> Int {
+        if hasMore {
+            return -self
+        } else {
+            return self
+        }
+    }
+    
+    /// Unread count with more unread is encoded as a negative value
+    public func decodingUnreadCount() -> (count: Int, hasMore: Bool) {
+        if self < 0 {
+            return (-self, true)
+        } else {
+            return (self, false)
+        }
+    }
+}

@@ -258,7 +258,11 @@ struct ChatsScreen: View {
                             }
                             
                             if row.room.unreadCount > 0 {
-                                Bubble(size: .large, count: row.room.unreadCount)
+                                Bubble(
+                                    size: .large,
+                                    count: row.room.unreadCount,
+                                    hasMore: row.room.hasMoreUnread
+                                )
                             }
                         }
                     }
