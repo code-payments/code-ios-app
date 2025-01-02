@@ -352,22 +352,11 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 try await Task.delay(milliseconds: configuration.delay)
             }
             
-            if configuration.animated {
-//                UIView.animate(withDuration: 0.3, delay: 0.0, options: .curveEaseInOut) { [tableView] in
-                    tableView.scrollToRow(
-                        at: indexPath,
-                        at: configuration.position,
-                        animated: true
-                    )
-//                }
-                
-            } else {
-                tableView.scrollToRow(
-                    at: indexPath,
-                    at: configuration.position,
-                    animated: false
-                )
-            }
+            tableView.scrollToRow(
+                at: indexPath,
+                at: configuration.position,
+                animated: configuration.animated
+            )
         }
     }
     
