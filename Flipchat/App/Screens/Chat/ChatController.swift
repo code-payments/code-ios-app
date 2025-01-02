@@ -146,21 +146,7 @@ class ChatController: ObservableObject {
                 group.addTask { [weak self] in
                     guard let self else { return 0 }
                     
-                    let description = try await client.fetchChat(
-                        for: .chatID(chat.id),
-                        owner: owner
-                    )
-                    
-                    let latestBatchMessageID = try await latestMessageID(for: chat.id, batchOnly: true)
-                    
-                    let messages: [Chat.Message]
-                    if let latestBatchMessageID {
-                        messages = try await syncMessagesForward(for: chat.id, from: latestBatchMessageID)
-                    } else {
-                        messages = try await syncMessagesBackwards(for: chat.id)
-                    }
-                    
-                    try await insert(chat: description, messages: messages, silent: true)
+                    let messages = try await syncChatAndMessages(for: chat.id)
                     
                     return messages.count
                 }
@@ -175,6 +161,26 @@ class ChatController: ObservableObject {
         chatsChanged()
 
         return totalSynced
+    }
+    
+    func syncChatAndMessages(for chatID: ChatID) async throws -> [Chat.Message] {
+        let description = try await client.fetchChat(
+            for: .chatID(chatID),
+            owner: owner
+        )
+        
+        let latestBatchMessageID = try latestMessageID(for: chatID, batchOnly: true)
+        
+        let messages: [Chat.Message]
+        if let latestBatchMessageID {
+            messages = try await syncMessagesForward(for: chatID, from: latestBatchMessageID)
+        } else {
+            messages = try await syncMessagesBackwards(for: chatID)
+        }
+        
+        try insert(chat: description, messages: messages, silent: true)
+        
+        return messages
     }
     
     func syncChatAndMembers(for chatID: ChatID) async throws {

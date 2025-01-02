@@ -105,19 +105,16 @@ class ChatViewModel: ObservableObject {
     
     func restoreTo(chatID: ChatID) {
         Task {
-            var chatFound = false
-
+            // 1. Pop any existing conversations
             if containerViewModel?.navigationPath.isEmpty == false {
-                chatFound = containerViewModel?.popTo(chatID: chatID) == true
-                try await Task.delay(milliseconds: 400)
+                containerViewModel?.popToRoot()
             }
-
-            // Only push a new chat with this ID
-            // if it's not already foudn in the
-            // navigation stack
-            if !chatFound {
-                containerViewModel?.pushChat(chatID: chatID)
-            }
+            
+            // 2. Ensure we have the latest room state and messages are up-to-date
+            _ = try await chatController.syncChatAndMessages(for: chatID)
+            
+            // 3. Present the conversation with this ID
+            containerViewModel?.pushChat(chatID: chatID)
         }
     }
     
@@ -125,8 +122,8 @@ class ChatViewModel: ObservableObject {
         containerViewModel?.pushChat(chatID: chatID)
     }
     
-    func popChat() {
-        containerViewModel?.popChat()
+    func popToRoot() {
+        containerViewModel?.popToRoot()
     }
     
     func attemptLeaveChat(chatID: ChatID, roomNumber: RoomNumber) {
@@ -341,7 +338,7 @@ class ChatViewModel: ObservableObject {
         withButtonState(state: \.buttonStateLeaveChat) { [chatController] in
             try await chatController.leaveChat(chatID: chatID)
         } success: {
-            self.popChat()
+            self.popToRoot()
         } error: { error in
             ErrorReporting.captureError(error)
             self.showFailedToLeaveChatError()

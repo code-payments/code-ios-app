@@ -48,7 +48,7 @@ class ContainerViewModel: ObservableObject {
         navigationPath.append(.details(chatID))
     }
     
-    func popChat() {
+    func popToRoot() {
         navigationPath = []
     }
     
@@ -66,7 +66,7 @@ class ContainerViewModel: ObservableObject {
             navigationPath = Array(navigationPath.prefix(upTo: index + 1)) // Converting 0 index to count
             return true
         } else {
-            popChat()
+            popToRoot()
             return false
         }
     }
