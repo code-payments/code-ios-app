@@ -333,7 +333,7 @@ struct MessageBubble: View {
     private func findHashtags(in text: String, string: inout AttributedString) {
         let rules: [NSRegularExpression] = [
             .matchRoomHashtag,
-            .matchRoomSpelled,
+//            .matchRoomSpelled,
         ]
         
         rules.forEach {
