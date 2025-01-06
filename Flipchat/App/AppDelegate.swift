@@ -129,7 +129,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         state.chatController.sceneDidBecomeActive()
-        cancelBackgroundTaskIfNeeded()
+//        cancelBackgroundTaskIfNeeded()
     }
     
     func applicationDidEnterBackground(_ application: UIApplication) {
@@ -139,7 +139,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         state.chatController.sceneDidEnterBackground()
-        try? beginBackgroundTask()
+//        try? beginBackgroundTask()
     }
     
     // MARK: - Appearance -
