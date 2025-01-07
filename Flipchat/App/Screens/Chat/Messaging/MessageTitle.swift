@@ -29,5 +29,6 @@ public struct MessageTitle: View {
                 .cornerRadius(15)
             Spacer()
         }
+        .padding(.top, 8)
     }
 }
