@@ -111,8 +111,6 @@ class MessageTableCell: UITableViewCell {
     }
     
     private func animateToIdentity() {
-        
-        
         UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 1.5, options: .curveEaseOut) {
             self.center = self.startCenter
             self.arrowImageView.alpha = 0

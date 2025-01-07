@@ -44,7 +44,7 @@ public class Banners: ObservableObject {
         
         window.rootViewController = controller
         window.backgroundColor = .clear
-        window.windowLevel = UIWindow.Level(UIWindow.Level.normal.rawValue + 1)
+        window.windowLevel = UIWindow.Level(UIWindow.Level.alert.rawValue + 1)
         window.isHidden = false
         window.isUserInteractionEnabled = false
         

@@ -14,6 +14,8 @@ class ChatViewModel: ObservableObject {
     
     @Published var joinRoomPath: [JoinRoomPath] = []
     
+    @Published var enteredRoomName: String = ""
+    
     @Published var enteredRoomNumber: String = ""
     
     @Published var enteredNewCover: String = ""
@@ -30,11 +32,17 @@ class ChatViewModel: ObservableObject {
 
     @Published var isShowingCreateAccountFromConversation: Bool = false
     
+    @Published var isShowingCustomize: Bool = false
+    
     @Published var isShowingChangeCover: Bool = false
+    
+    @Published var isShowingChangeRoomName: Bool = false
     
     @Published var isShowingPreviewRoom: RoomPreview?
     
     // Button States
+    
+    @Published var buttonStateEnterRoomName: ButtonState = .normal
     
     @Published var buttonStatePreviewRoom: ButtonState = .normal
     
@@ -157,7 +165,7 @@ class ChatViewModel: ObservableObject {
         enteredNewCover = ""
     }
     
-    // MARK: - Chat -
+    // MARK: - Preview Chat -
     
     func previewChat() {
         guard let roomNumber = RoomNumber(enteredRoomNumber) else {
@@ -214,8 +222,25 @@ class ChatViewModel: ObservableObject {
         isShowingPreviewRoom = nil
     }
     
+    // MARK: - Customize Chat -
+    
+    func showCustomizeRoomModal() {
+        isShowingCustomize = true
+    }
+    
     func showChangeCover() {
+        dismissCustomize()
         isShowingChangeCover = true
+    }
+    
+    func showChangeRoomName(existingName: String?) {
+        dismissCustomize()
+        enteredRoomName = existingName ?? ""
+        isShowingChangeRoomName = true
+    }
+    
+    func dismissCustomize() {
+        isShowingCustomize = false
     }
     
     func dismissChangeCover() {
@@ -226,12 +251,33 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    func dismissChangeRoomName() {
+        isShowingChangeRoomName = false
+        Task {
+            try await Task.delay(milliseconds: 500)
+            enteredRoomName = ""
+        }
+    }
+    
+    func changeRoomName(chatID: ChatID) {
+        let newName = enteredRoomName
+        
+        withButtonState(state: \.buttonStateEnterRoomName) { [chatController] in
+            try await chatController.changeRoomName(chatID: chatID, newName: newName)
+        } success: { chatID in
+            self.dismissChangeRoomName()
+            
+        } error: { error in
+            ErrorReporting.captureError(error)
+            self.showGenericError()
+        }
+    }
+    
     func changeCover(chatID: ChatID) {
         guard
             let coverInt = Int(enteredNewCover),
             let newCover = Kin(kin: coverInt)
         else {
-            // TODO: Use number parser instead
             return
         }
         
@@ -246,6 +292,8 @@ class ChatViewModel: ObservableObject {
             self.showGenericError()
         }
     }
+    
+    // MARK: - Create Chat -
     
     func attemptCreateChat() {
         guard chatController.isRegistered else {
@@ -269,6 +317,8 @@ class ChatViewModel: ObservableObject {
         
         pushChat(chatID: chatID)
     }
+    
+    // MARK: - Join Chat -
     
     func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
         guard chatController.isRegistered else {
@@ -358,6 +408,10 @@ class ChatViewModel: ObservableObject {
         
         let cover = Kin(kin: coverInt)
         return cover > 0 && cover < 1_000_000_000
+    }
+    
+    func isEnteredRoomNameValid() -> Bool {
+        enteredRoomName.count >= 1 && enteredRoomName.count <= 64
     }
     
     // MARK: - Errors -

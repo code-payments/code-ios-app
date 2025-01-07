@@ -584,6 +584,13 @@ class ChatController: ObservableObject {
         try insert(chat: chat)
     }
     
+    func changeRoomName(chatID: ChatID, newName: String) async throws {
+        try await client.changeRoomName(chatID: chatID, newName: newName, owner: owner)
+        let chat = try await client.fetchChat(for: .chatID(chatID), owner: owner)
+        
+        try insert(chat: chat)
+    }
+    
     // MARK: - Changes -
     
     private func insert(chat: ChatDescription, messages: [Chat.Message]? = nil, silent: Bool = false) throws {

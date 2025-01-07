@@ -19,7 +19,7 @@ public struct PartialSheet<T>: View where T: View {
     }
     
     public var body: some View {
-        Background(color: .black) {
+        Background(color: .backgroundMain) {
             content()
                 .overlay {
                     GeometryReader { g in

@@ -9,108 +9,6 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-//@MainActor
-//private class ConversationState: ObservableObject {
-//    
-//    let pointer: MessagePointer? // We don't want to publish changes
-//    
-//    @Published var room: RoomDescription!
-//    @Published var selfUser: MemberRow!
-//    @Published var messages: [MessageRow] = []
-//    
-//    @Published var scrollToBottom: Int = 0
-//    
-//    private var pageSize: Int = 1024
-//    
-//    private let userID: UserID
-//    private let chatID: ChatID
-//    private let chatController: ChatController
-//    
-//    private var stream: StreamMessagesReference?
-//    
-//    // MARK: - Init -
-//    
-//    init(userID: UserID, chatID: ChatID, chatController: ChatController) throws {
-//        self.userID = userID
-//        self.chatID = chatID
-//        self.chatController = chatController
-//        
-//        room     = try chatController.getRoom(chatID: chatID)
-//        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
-//        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
-//        
-//        pointer  = try chatController.getPointer(userID: userID, chatID: chatID)
-//        
-//        startStream()
-//    }
-//    
-//    deinit {
-//        DispatchQueue.main.async { [stream] in
-//            trace(.warning, components: "Destroying conversation stream...")
-//            stream?.destroy()
-//        }
-//    }
-//    
-//    func addPageAndReload() throws {
-//        pageSize += 1024
-//        try reload()
-//    }
-//    
-//    func reload() throws {
-//        room     = try chatController.getRoom(chatID: chatID)
-//        selfUser = try chatController.getMember(userID: userID, roomID: chatID)
-//        // Don't update the pointer
-//        messages = try chatController.getMessages(chatID: chatID, pageSize: pageSize)
-//    }
-//    
-//    // MARK: - Pointer -
-//    
-//    private func advanceReadPointer() async throws {
-//        try await chatController.advanceReadPointerToLatest(for: chatID)
-//    }
-//    
-//    // MARK: - Streams -
-//    
-//    func startStream() {
-//        destroyStream()
-//        
-//        guard let room else {
-//            return
-//        }
-//        
-//        let messageID: MessageID?
-//        if let lastMessage = room.lastMessage {
-//            messageID = MessageID(uuid: lastMessage.serverID)
-//        } else {
-//            messageID = nil
-//        }
-//        
-//        stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { [weak self] result in
-//            switch result {
-//            case .success(let messages):
-//                self?.streamMessages(messages: messages)
-//
-//            case .failure:
-//                self?.destroyStream()
-//            }
-//        }
-//    }
-//    
-//    private func streamMessages(messages: [Chat.Message]) {
-//        Task {
-//            try await chatController.receiveMessages(messages: messages, for: chatID)
-//            try await advanceReadPointer()
-//            
-//            scrollToBottom += 1
-//        }
-//    }
-//    
-//    func destroyStream() {
-//        trace(.warning, components: "Destroying conversation stream...")
-//        stream?.destroy()
-//    }
-//}
-
 struct ConversationScreen: View {
     
     @EnvironmentObject private var client: Client
@@ -273,19 +171,18 @@ struct ConversationScreen: View {
             ToolbarItem(placement: .topBarLeading) {
                 titleItem()
             }
+            
+            // Spacer is require to prevent the titleItem
+            // from colliding with the the moreItem. The
+            // system doesn't truncate .topBarLeading
+            ToolbarItem(placement: .principal) {
+                Spacer()
+            }
+            
             ToolbarItem(placement: .topBarTrailing) {
                 moreItem()
             }
         }
-//        .onChange(of: notificationController.didBecomeActive) { _, _ in
-//            conversationState.startStream()
-//        }
-//        .onChange(of: notificationController.willResignActive) { _, _ in
-//            conversationState.destroyStream()
-//        }
-//        .onChange(of: chatController.chatsDidChange) { _, _ in
-//            try? conversationState.reload()
-//        }
     }
     
     @ViewBuilder private func inputView() -> some View {
@@ -348,9 +245,13 @@ struct ConversationScreen: View {
             if let roomDescription = updateableRoom.value {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(roomDescription.room.formattedTitle)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                         .font(.appTextMedium)
                         .foregroundColor(.textMain)
+                    
                     Text("\(roomDescription.memberCount) \(subtext(for: roomDescription.memberCount)) here")
+                        .lineLimit(1)
                         .font(.appTextHeading)
                         .foregroundColor(.textSecondary)
                 }
@@ -366,9 +267,11 @@ struct ConversationScreen: View {
         } label: {
             Image.asset(.more)
                 .padding(.vertical, 10)
-                .padding(.leading, 40)
-                .padding(.trailing, 10)
+                .padding(.leading, 20)
+                .padding(.trailing, 20)
         }
+        .padding(.trailing, -10)
+        .buttonStyle(.plain)
     }
     
     @ViewBuilder private func conversationTextView() -> some View {

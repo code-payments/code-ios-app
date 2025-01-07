@@ -71,8 +71,9 @@ struct RoomDetailsScreen: View {
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxHeight: 50)
                                 Spacer()
-                                Text(room.room.roomNumber.formattedRoomNumber)
+                                Text(room.room.formattedTitle)
                                     .font(.appDisplaySmall)
+                                    .multilineTextAlignment(.center)
                                 
                                 Spacer()
                                 VStack(spacing: 4) {
@@ -86,6 +87,7 @@ struct RoomDetailsScreen: View {
                                 .font(.appTextSmall)
                                 Spacer()
                             }
+                            .padding(20)
                             .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background {
@@ -96,20 +98,20 @@ struct RoomDetailsScreen: View {
                     
                         Spacer()
                     
-                        VStack(spacing: 20) {
+                        VStack(spacing: 10) {
                             // Only show for room hosts
                             if viewModel.userID.uuid == room.room.ownerUserID {
                                 CodeButton(
                                     style: .filled,
-                                    title: "Change Cover Charge"
+                                    title: "Customize"
                                 ) {
-                                    viewModel.showChangeCover()
+                                    viewModel.showCustomizeRoomModal()
                                 }
                             }
                             
                             CodeButton(
                                 state: viewModel.buttonStateLeaveChat,
-                                style: .filled,
+                                style: .subtle,
                                 title: kind.titleFor(roomNumber: RoomNumber(room.room.roomNumber))
                             ) {
                                 Task {
@@ -130,14 +132,41 @@ struct RoomDetailsScreen: View {
                             }
                         }
                     }
-                    .padding(20)
+                    .padding([.top, .leading, .trailing], 20)
                     .transition(.move(edge: .bottom))
                 }
             }
+            .ignoresSafeArea(.keyboard)
             .animation(.easeInOut, value: room == nil)
             .foregroundColor(.textMain)
+            .sheet(isPresented: $viewModel.isShowingCustomize) {
+                PartialSheet {
+                    ModalButtons(
+                        isPresented: $viewModel.isShowingCustomize,
+                        actions: [
+                            .init(title: "Change Room Name") {
+                                viewModel.dismissCustomize()
+                                viewModel.showChangeRoomName(existingName: detailsState.room?.room.title)
+                            },
+                            .init(title: "Change Cover Charge") {
+                                viewModel.dismissCustomize()
+                                viewModel.showChangeCover()
+                            },
+                        ]
+                    )
+                }
+            }
             .sheet(isPresented: $viewModel.isShowingChangeCover) {
-                ChangeCoverScreen(chatID: chatID, viewModel: viewModel)
+                ChangeCoverScreen(
+                    chatID: chatID,
+                    viewModel: viewModel
+                )
+            }
+            .sheet(isPresented: $viewModel.isShowingChangeRoomName) {
+                ChangeRoomNameScreen(
+                    chatID: chatID,
+                    viewModel: viewModel
+                )
             }
             .onChange(of: chatController.chatsDidChange) { _, _ in
                 try? detailsState.reload()

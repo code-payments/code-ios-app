@@ -422,6 +422,32 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func changeRoomName(chatID: ChatID, newName: String, owner: KeyPair, completion: @escaping (Result<(), ErrorChangeRoomName>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)", "New Name: \(newName)")
+        
+        let request = Flipchat_Chat_V1_SetDisplayNameRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.displayName = newName
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.setDisplayName(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorChangeRoomName(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Types -
@@ -521,6 +547,13 @@ public enum ErrorFetchChat: Int, Error {
 }
 
 public enum ErrorChangeCover: Int, Error {
+    case ok
+    case denied
+    case cantSet
+    case unknown = -1
+}
+
+public enum ErrorChangeRoomName: Int, Error {
     case ok
     case denied
     case cantSet
