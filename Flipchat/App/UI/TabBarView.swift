@@ -47,7 +47,9 @@ struct TabBarView<Content>: View where Content: View {
         }
         .animation(.easeOut(duration: 0.05), value: isTabBarVisible)
         .onPreferenceChange(TabBarItemPreferenceKey.self) { items in
-            self.tabBarItems = items
+            Task { @MainActor in
+                self.tabBarItems = items
+            }
         }
     }
 }
