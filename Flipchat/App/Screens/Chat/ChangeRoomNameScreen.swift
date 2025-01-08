@@ -41,7 +41,6 @@ struct ChangeRoomNameScreen: View {
                             .truncationMode(.middle)
                             .lineLimit(1)
                             .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled()
                             .minimumScaleFactor(0.5)
                             .multilineTextAlignment(.leading)
                             .padding([.leading, .trailing], 0)
