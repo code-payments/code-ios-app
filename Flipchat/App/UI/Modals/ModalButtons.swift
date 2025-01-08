@@ -28,11 +28,16 @@ public struct ModalButtons: View {
     public var body: some View {
         VStack(spacing: 10) {
             VStack(spacing: 20) {
-                ForEach(actions, id: \.title) {
+                ForEach(actions, id: \.title) { action in
                     CodeButton(
                         style: .filled,
-                        title: $0.title,
-                        action: $0.action
+                        title: action.title,
+                        action: {
+                            isPresented = false
+                            Task {
+                                action.action()
+                            }
+                        }
                     )
                 }
             }

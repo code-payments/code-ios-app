@@ -32,6 +32,8 @@ class ChatViewModel: ObservableObject {
 
     @Published var isShowingCreateAccountFromConversation: Bool = false
     
+    @Published var isShowingFindRoomModal: Bool = false
+    
     @Published var isShowingCustomize: Bool = false
     
     @Published var isShowingChangeCover: Bool = false
@@ -93,22 +95,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func startChatting() {
-        banners.show(
-            style: .notification,
-            title: nil,
-            description: nil,
-            position: .bottom,
-            actions: [
-                .standard(title: "Enter Room Number") { [weak self] in
-                    Task {
-                        try await Task.delay(milliseconds: 300)
-                        self?.showEnterRoomNumber()
-                    }
-                },
-                .standard(title: "Create New Room", action: attemptCreateChat),
-                .cancel(title: "Cancel"),
-            ]
-        )
+        isShowingFindRoomModal = true
     }
     
     func restoreTo(chatID: ChatID) {

@@ -201,6 +201,21 @@ struct ChatsScreen: View {
                 )
             }
         }
+        .sheet(isPresented: $viewModel.isShowingFindRoomModal) {
+            PartialSheet {
+                ModalButtons(
+                    isPresented: $viewModel.isShowingFindRoomModal,
+                    actions: [
+                        .init(title: "Enter Room Number") {
+                            viewModel.showEnterRoomNumber()
+                        },
+                        .init(title: "Create New Room") {
+                            viewModel.attemptCreateChat()
+                        },
+                    ]
+                )
+            }
+        }
         .onChange(of: chatController.chatsDidChange) { _, _ in
             try? chatState.reload()
         }

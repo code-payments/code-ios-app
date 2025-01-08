@@ -145,11 +145,9 @@ struct RoomDetailsScreen: View {
                         isPresented: $viewModel.isShowingCustomize,
                         actions: [
                             .init(title: "Change Room Name") {
-                                viewModel.dismissCustomize()
                                 viewModel.showChangeRoomName(existingName: detailsState.room?.room.title)
                             },
                             .init(title: "Change Cover Charge") {
-                                viewModel.dismissCustomize()
                                 viewModel.showChangeCover()
                             },
                         ]
