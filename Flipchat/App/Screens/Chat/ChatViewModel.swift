@@ -255,8 +255,12 @@ class ChatViewModel: ObservableObject {
             self.dismissChangeRoomName()
             
         } error: { error in
-            ErrorReporting.captureError(error)
-            self.showGenericError()
+            if let rpcError = error as? ErrorChangeRoomName, rpcError == .cantSet {
+                self.showInappropriateRoomNameError()
+            } else {
+                ErrorReporting.captureError(error)
+                self.showGenericError()
+            }
         }
     }
     
@@ -419,6 +423,17 @@ class ChatViewModel: ObservableObject {
             style: .error,
             title: "Something Went Wrong",
             description: "That wasn't supposed to happen. Please try again.",
+            actions: [
+                .cancel(title: Localized.Action.ok)
+            ]
+        )
+    }
+    
+    private func showInappropriateRoomNameError() {
+        banners.show(
+            style: .error,
+            title: "Inappropriate Room Name",
+            description: "Room names need to be appropriate for all ages",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
