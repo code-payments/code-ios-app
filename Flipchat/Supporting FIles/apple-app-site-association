@@ -1,34 +1,40 @@
 {
-    "applinks": {
-        "apps": [],
-        "details": [
-            {
-                "appIDs": [
-                    "S32LQ663LU.com.flipchat.app"
-                ],
-                "components": [
-                    {
-                        "/": "/login",
-                        "#": "/e=?*",
-                        "comment": "Support for login"
-                    },
-                    {
-                        "/": "/room",
-                        "#": "/r=?*",
-                        "comment": "Support for rooms"
-                    },
-                    {
-                        "/": "/user",
-                        "#": "/u=?*",
-                        "comment": "Support for users"
-                    }
-                ]
-            }
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": [
+          "S32LQ663LU.com.flipchat.app"
+        ],
+        "components": [
+          {
+            "/": "/login",
+            "#": "/e=?*",
+            "comment": "Support for login"
+          },
+          {
+            "/": "/room/*",
+            "comment": "Support for rooms"
+          },
+          {
+            "/": "/user/*",
+            "comment": "Support for users"
+          },
+          {
+            "/": "/r/*",
+            "comment": "Support for short rooms"
+          },
+          {
+            "/": "/u/*",
+            "comment": "Support for users"
+          }
         ]
-    },
-    "webcredentials": {
-        "apps": [
-            "S32LQ663LU.com.flipchat.app"
-        ]
-    }
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "S32LQ663LU.com.flipchat.app"
+    ]
+  }
 }
