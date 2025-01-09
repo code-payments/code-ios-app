@@ -95,49 +95,60 @@ struct ContainerScreen: View {
     }
     
     @ViewBuilder private func homeView(state: AuthenticatedState) -> some View {
-            NavigationStack(path: $viewModel.navigationPath) {
-                TabBarView(selection: $tabSelection, isTabBarVisible: .constant(isTabBarVisible)) {
-                    ChatsScreen(
-                        state: state,
-                        container: container
-                    )
-                    .tabBarItem(
-                        item: .rooms,
-                        selection: tabSelection
-                    )
-                    
-                    BalanceScreen(
-                        session: state.session,
-                        container: container
-                    )
-                    .tabBarItem(
-                        item: .balance,
-                        selection: tabSelection
-                    )
-                }
-                .navigationBarHidden(true)
-                .navigationBarTitle("", displayMode: .inline)
-                .navigationDestination(for: ContainerPath.self) { path in
-                    if let authenticatedState {
-                        switch path {
-                        case .chat(let chatID):
-                            ConversationScreen(
-                                chatID: chatID,
-                                state: authenticatedState,
-                                container: container
-                            )
-                            
-                        case .details(let chatID):
-                            RoomDetailsScreen(
-                                kind: .leaveRoom,
-                                chatID: chatID,
-                                viewModel: state.chatViewModel,
-                                chatController: authenticatedState.chatController
-                            )
-                        }
+        NavigationStack(path: $viewModel.navigationPath) {
+            TabBarView(selection: $tabSelection, isTabBarVisible: .constant(isTabBarVisible)) {
+                ChatsScreen(
+                    state: state,
+                    container: container
+                )
+                .tabBarItem(
+                    item: .rooms,
+                    selection: tabSelection
+                )
+                
+                BalanceScreen(
+                    session: state.session,
+                    container: container
+                )
+                .tabBarItem(
+                    item: .balance,
+                    selection: tabSelection
+                )
+            }
+            .navigationBarHidden(true)
+            .navigationBarTitle("", displayMode: .inline)
+            .navigationDestination(for: ContainerPath.self) { path in
+                if let authenticatedState {
+                    switch path {
+                    case .chat(let chatID):
+                        ConversationScreen(
+                            chatID: chatID,
+                            state: authenticatedState,
+                            container: container
+                        )
+                        
+                    case .details(let chatID):
+                        RoomDetailsScreen(
+                            kind: .leaveRoom,
+                            chatID: chatID,
+                            viewModel: state.chatViewModel,
+                            chatController: authenticatedState.chatController
+                        )
                     }
                 }
             }
+        }
+        .sheet(item: $viewModel.isShowingPreviewRoom) { preview in
+            if let state = authenticatedState {
+                PreviewRoomScreen(
+                    chat: preview.chat,
+                    members: preview.members,
+                    host: preview.host,
+                    viewModel: state.chatViewModel,
+                    isModal: true
+                )
+            }
+        }
     }
 }
 

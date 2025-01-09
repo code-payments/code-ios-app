@@ -99,6 +99,65 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         trace(.warning, components: "[BGF] Cancelling background sync.")
         BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: .bgSync)
     }
+
+    // MARK: - Deep Links -
+    
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        guard let action = container.deepLinkController.handle(open: url) else {
+            return false
+        }
+        
+        return handleAction(action: action)
+    }
+    
+    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+        guard
+            userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+            let url = userActivity.webpageURL
+        else {
+            return false
+        }
+        
+//        var urlToUse = URL(string: "https://app.flipchat.xyz/room/1")!
+        
+        guard let action = container.deepLinkController.handle(open: url) else {
+            return false
+        }
+        
+        return handleAction(action: action)
+    }
+    
+    private func handleAction(action: DeepLinkAction) -> Bool {
+        let sessionAuthenticator = container.sessionAuthenticator
+        let banners = container.banners
+        
+        func execute(action: DeepLinkAction) {
+            Task {
+                try await action.executeAction()
+            }
+        }
+        
+        if let confirmationDescription = action.confirmationDescription {
+            banners.show(
+                style: .error,
+                title: confirmationDescription.title,
+                description: confirmationDescription.description,
+                position: .bottom,
+                actionStyle: .stacked,
+                actions: [
+                    .destructive(title: confirmationDescription.confirmation) {
+                        execute(action: action)
+                    },
+                    .cancel(title: Localized.Action.cancel),
+                ]
+            )
+            
+        } else {
+            execute(action: action)
+        }
+        
+        return true
+    }
     
     // MARK: - Push Notifications -
     

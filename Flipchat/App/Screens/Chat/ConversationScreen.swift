@@ -119,15 +119,6 @@ struct ConversationScreen: View {
                         }
                     )
                 }
-                .sheet(item: $chatViewModel.isShowingPreviewRoom) { preview in
-                    PreviewRoomScreen(
-                        chat: preview.chat,
-                        members: preview.members,
-                        host: preview.host,
-                        viewModel: chatViewModel,
-                        isModal: true
-                    )
-                }
                 
                 if chatController.isRegistered && selfUser?.canSend == true {
                     if selfUser?.isMuted != true {

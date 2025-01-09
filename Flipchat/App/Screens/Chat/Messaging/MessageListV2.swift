@@ -352,6 +352,8 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 try await Task.delay(milliseconds: configuration.delay)
             }
             
+            print("[MessageListV2] Scrolling to index: \(indexPath.row), total: \(messages.count - 1)")
+            
             tableView.scrollToRow(
                 at: indexPath,
                 at: configuration.position,

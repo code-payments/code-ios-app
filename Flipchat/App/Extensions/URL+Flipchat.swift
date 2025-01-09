@@ -13,6 +13,18 @@ extension URL {
         URL(string: "https://app.flipchat.xyz/login/#/e=\(mnemonic.base58EncodedEntropy)")!
     }
     
+    static func flipchatRoom(roomNumber: RoomNumber, messageID: MessageID?) -> URL {
+        var components = URLComponents(string: "https://app.flipchat.xyz/room/\(roomNumber)")!
+        
+        if let messageID {
+            components.queryItems?.append(
+                URLQueryItem(name: "m", value: messageID.data.hexString())
+            )
+        }
+        
+        return components.url!
+    }
+    
     static var flipchatPrivacyPolicy: URL {
         URL(string: "https://flipchat.xyz/privacy")!
     }

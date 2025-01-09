@@ -32,8 +32,13 @@ class AppContainer: ObservableObject {
     
     lazy private(set) var exchange = Exchange(client: client)
     
+    lazy private(set) var deepLinkController = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
+    
     init() {
-        FirebaseApp.configure()
+        let isRunningPreviews = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        if !isRunningPreviews {
+            FirebaseApp.configure()
+        }
     }
     
 //    private func registerPushNotifications() {

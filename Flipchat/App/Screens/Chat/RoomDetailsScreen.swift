@@ -139,6 +139,20 @@ struct RoomDetailsScreen: View {
             .ignoresSafeArea(.keyboard)
             .animation(.easeInOut, value: room == nil)
             .foregroundColor(.textMain)
+            .toolbar {
+                if let room {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            ShareSheet.present(url: .flipchatRoom(roomNumber: room.room.roomNumber, messageID: nil))
+                        } label: {
+                            Image.asset(.send)
+                                .padding(.leading, 15)
+                                .padding(.trailing, 8)
+                                .padding(.vertical, 8)
+                        }
+                    }
+                }
+            }
             .sheet(isPresented: $viewModel.isShowingCustomize) {
                 PartialSheet {
                     ModalButtons(

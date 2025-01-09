@@ -11,6 +11,8 @@ import FlipchatServices
 @MainActor
 class ContainerViewModel: ObservableObject {
     
+    @Published var isShowingPreviewRoom: RoomPreview?
+    
     @Published var navigationPath: [ContainerPath] = [] {
         didSet {
             PushController.activeRoomIDs = activeRoomIDs

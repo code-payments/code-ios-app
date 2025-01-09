@@ -40,8 +40,6 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingChangeRoomName: Bool = false
     
-    @Published var isShowingPreviewRoom: RoomPreview?
-    
     // Button States
     
     @Published var buttonStateEnterRoomName: ButtonState = .normal
@@ -186,9 +184,9 @@ class ChatViewModel: ObservableObject {
                 withButtonState(state: \.buttonStatePreviewRoom, showSuccess: false) { [chatController] in
                     try await chatController.fetchGroupChat(roomNumber: roomNumber)
                     
-                } success: { (chat, members, host) in
+                } success: { [containerViewModel] (chat, members, host) in
                     if showModally {
-                        self.isShowingPreviewRoom = RoomPreview(
+                        containerViewModel?.isShowingPreviewRoom = RoomPreview(
                             chat: chat,
                             members: members,
                             host: host
@@ -206,7 +204,7 @@ class ChatViewModel: ObservableObject {
     }
     
     func dismissPreviewChatModal() {
-        isShowingPreviewRoom = nil
+        containerViewModel?.isShowingPreviewRoom = nil
     }
     
     // MARK: - Customize Chat -
@@ -367,7 +365,7 @@ class ChatViewModel: ObservableObject {
             try await Task.delay(milliseconds: 400)
             cancelJoinChatPayment()
             isShowingEnterRoomNumber = false
-            isShowingPreviewRoom = nil
+            containerViewModel?.isShowingPreviewRoom = nil
         }
     }
     
