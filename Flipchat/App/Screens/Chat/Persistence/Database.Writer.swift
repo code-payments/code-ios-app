@@ -72,7 +72,7 @@ extension Database {
             table.table.upsert(
                 table.serverID    <- room.id.uuid,
                 table.kind        <- room.kind.rawValue,
-                table.title       <- room.title.isEmpty ? nil : room.title,
+                table.title       <- room.title,
                 table.roomNumber  <- room.roomNumber,
                 table.ownerUserID <- room.ownerUser.uuid,
                 table.coverQuarks <- Int64(room.coverAmount.quarks),

@@ -17,14 +17,22 @@ extension Chat {
         public let ownerUser: UserID
         public let coverAmount: Kin
         
-        public let title: String
+        public let title: String?
         public let unreadCount: Int
         public let hasMoreUnread: Bool
         
         public let isMuted: Bool
         public let canMute: Bool
         
-        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String, unreadCount: Int, hasMoreUnread: Bool, isMuted: Bool, canMute: Bool) {
+        public var formattedTitle: String {
+            if let title {
+                return "\(roomNumber.formattedRoomNumberShort): \(title)"
+            } else {
+                return roomNumber.formattedRoomNumber
+            }
+        }
+        
+        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String?, unreadCount: Int, hasMoreUnread: Bool, isMuted: Bool, canMute: Bool) {
             self.id = id
             self.kind = kind
             self.roomNumber = roomNumber
@@ -74,7 +82,7 @@ extension Chat.Metadata {
             roomNumber: proto.roomNumber,
             ownerUser: UserID(data: proto.owner.value),
             coverAmount: Kin(quarks: proto.coverCharge.quarks),
-            title: proto.displayName,
+            title: proto.displayName.isEmpty ? nil : proto.displayName,
             unreadCount: Int(proto.numUnread),
             hasMoreUnread: proto.hasMoreUnread_p,
             isMuted: !proto.isPushEnabled,

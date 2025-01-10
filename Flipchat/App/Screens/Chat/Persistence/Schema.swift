@@ -193,12 +193,3 @@ extension UInt64: Value {
         Int64(self)
     }
 }
-
-extension BinaryInteger {
-    public var formattedRoomNumber: String {
-        "Room \(self.formattedRoomNumberShort)"
-    }
-    public var formattedRoomNumberShort: String {
-        "#\(self)"
-    }
-}

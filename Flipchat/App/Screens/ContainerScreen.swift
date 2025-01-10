@@ -129,7 +129,6 @@ struct ContainerScreen: View {
                         
                     case .details(let chatID):
                         RoomDetailsScreen(
-                            kind: .leaveRoom,
                             chatID: chatID,
                             viewModel: state.chatViewModel,
                             chatController: authenticatedState.chatController

@@ -127,7 +127,7 @@ class ChatViewModel: ObservableObject {
             position: .bottom,
             isDismissable: true,
             actions: [
-                .destructive(title: "Leave Room \(roomNumber.roomString)") {
+                .destructive(title: "Leave Room \(roomNumber.formattedRoomNumberShort)") {
                     self.leaveChat(chatID: chatID)
                 },
                 .cancel(title: "Cancel"),
@@ -504,7 +504,7 @@ extension ChatViewModel {
                 
                 // Reset
                 
-                try await Task.delay(milliseconds: 500)
+                try await Task.delay(milliseconds: 750)
                 self[keyPath: state]  = .normal
                 
                 resetEnteredRoomNumber()

@@ -475,12 +475,6 @@ public struct ChatDescription: Sendable {
 
 public typealias RoomNumber = UInt64
 
-extension RoomNumber {
-    public var roomString: String {
-        "#\(self)"
-    }
-}
-
 //// MARK: - Errors -
 
 public enum ErrorStreamChatEvents: Int, Error {

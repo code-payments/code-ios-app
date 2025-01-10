@@ -36,36 +36,14 @@ struct PreviewRoomScreen: View {
         Background(color: .backgroundMain) {
             GeometryReader { geometry in
                 VStack(spacing: 0) {
-                    AspectRatioCard {
-                        VStack {
-                            Spacer()
-                            Image(with: .brandLarge)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 50)
-                            Spacer()
-                            Text("Room \(chat.roomNumber.roomString)")
-                                .font(.appDisplaySmall)
-                            
-                            Spacer()
-                            VStack(spacing: 4) {
-                                Text("Hosted by \(host.displayName ?? "Member")")
-                                Text("\(members.count) \(members.count == 1 ? "person" : "people") here")
-                                Text("Cover Charge: ⬢ \(chat.coverAmount.formattedTruncatedKin())")
-                            }
-                            .opacity(0.8)
-                            .font(.appTextSmall)
-                            Spacer()
-                        }
-                        .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background {
-                            DeterministicGradient(data: chat.id.data)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 40)
+                    RoomCard(
+                        title: chat.formattedTitle,
+                        host: host.displayName,
+                        memberCount: members.count,
+                        cover: chat.coverAmount,
+                        avatarData: chat.id.data
+                    )
+                    .padding(.bottom, 20)
                     
                     Spacer()
                     
@@ -82,35 +60,12 @@ struct PreviewRoomScreen: View {
                 .padding(20)
             }
             .foregroundColor(.textMain)
-//            .sheet(isPresented: $viewModel.isShowingJoinPayment) {
-//                PartialSheet {
-//                    ModalPaymentConfirmation(
-//                        amount: chat.coverAmount.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
-//                        currency: .kin,
-//                        primaryAction: "Swipe to Pay",
-//                        secondaryAction: "Cancel",
-//                        paymentAction: {
-//                            try await viewModel.payAndJoinChat(
-//                                chatID: chat.id,
-//                                hostID: chat.ownerUser,
-//                                amount: chat.coverAmount
-//                            )
-//                        },
-//                        dismissAction: { viewModel.pushJoinedChat(chatID: chat.id) },
-//                        cancelAction: { viewModel.cancelJoinChatPayment() }
-//                    )
-//                }
-//            }
         }
         .if(isModal) { $0
             .wrapInNavigation {
                 viewModel.dismissPreviewChatModal()
             }
         }
-    }
-    
-    private func onAppear() {
-        
     }
 }
 

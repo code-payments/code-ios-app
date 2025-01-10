@@ -39,7 +39,6 @@ struct RoomDetailsScreen: View {
     
     @State private var detailsState: RoomDetailsState
     
-    private let kind: Kind
     private let chatID: ChatID
     
     var room: RoomDescription? {
@@ -48,8 +47,7 @@ struct RoomDetailsScreen: View {
     
     // MARK: - Init -
     
-    init(kind: Kind, chatID: ChatID, viewModel: ChatViewModel, chatController: ChatController) {
-        self.kind = kind
+    init(chatID: ChatID, viewModel: ChatViewModel, chatController: ChatController) {
         self.chatID = chatID
         self.viewModel = viewModel
         self.chatController = chatController
@@ -63,38 +61,13 @@ struct RoomDetailsScreen: View {
             GeometryReader { geometry in
                 if let room = room {
                     VStack(spacing: 0) {
-                        AspectRatioCard {
-                            VStack {
-                                Spacer()
-                                Image(with: .brandLarge)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxHeight: 50)
-                                Spacer()
-                                Text(room.room.formattedTitle)
-                                    .font(.appDisplaySmall)
-                                    .multilineTextAlignment(.center)
-                                
-                                Spacer()
-                                VStack(spacing: 4) {
-                                    if let host = room.hostDisplayName {
-                                        Text("Hosted by \(host)")
-                                    }
-                                    Text("\(room.memberCount) \(room.memberCount == 1 ? "person" : "people") here")
-                                    Text("Cover Charge: ⬢ \(room.room.cover.truncatedKinValue) Kin")
-                                }
-                                .opacity(0.8)
-                                .font(.appTextSmall)
-                                Spacer()
-                            }
-                            .padding(20)
-                            .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background {
-                                DeterministicGradient(data: room.room.serverID.data)
-                            }
-                        }
-                        .padding(20)
+                        RoomCard(
+                            title: room.room.formattedTitle,
+                            host: room.hostDisplayName,
+                            memberCount: room.memberCount,
+                            cover: room.room.cover,
+                            avatarData: room.room.serverID.data
+                        )
                     
                         Spacer()
                     
@@ -112,22 +85,13 @@ struct RoomDetailsScreen: View {
                             CodeButton(
                                 state: viewModel.buttonStateLeaveChat,
                                 style: .subtle,
-                                title: kind.titleFor(roomNumber: RoomNumber(room.room.roomNumber))
+                                title: "Leave Room \(room.room.roomNumber.formattedRoomNumberShort)"
                             ) {
                                 Task {
-                                    switch kind {
-                                    case .joinRoom:
-                                        try await viewModel.attemptJoinChat(
-                                            chatID: chatID,
-                                            hostID: UserID(uuid: room.room.ownerUserID),
-                                            amount: room.room.cover
-                                        )
-                                    case .leaveRoom:
-                                        viewModel.attemptLeaveChat(
-                                            chatID: chatID,
-                                            roomNumber: room.room.roomNumber
-                                        )
-                                    }
+                                    viewModel.attemptLeaveChat(
+                                        chatID: chatID,
+                                        roomNumber: room.room.roomNumber
+                                    )
                                 }
                             }
                         }
@@ -191,25 +155,8 @@ struct RoomDetailsScreen: View {
     }
 }
 
-extension RoomDetailsScreen {
-    enum Kind {
-        case joinRoom
-        case leaveRoom
-        
-        fileprivate func titleFor(roomNumber: RoomNumber) -> String {
-            switch self {
-            case .joinRoom:
-                return "Join Room \(roomNumber.roomString)"
-            case .leaveRoom:
-                return "Leave Room \(roomNumber.roomString)"
-            }
-        }
-    }
-}
-
 #Preview {
     RoomDetailsScreen(
-        kind: .joinRoom,
         chatID: .mock,
         viewModel: .mock,
         chatController: .mock
