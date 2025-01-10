@@ -52,7 +52,7 @@ extension Chat.Message {
 
 extension Chat.Message {
     public init(_ proto: Flipchat_Messaging_V1_Message) {
-        let (contentType, content, referenceMessageID) = Self.parseContent(proto.content)!
+        let (contentType, content, referenceMessageID) = Self.parseContent(proto.content)
         self.init(
             id: .init(data: proto.messageID.value),
             senderID: !proto.senderID.value.isEmpty ? .init(data: proto.senderID.value) : nil,
@@ -63,9 +63,9 @@ extension Chat.Message {
         )
     }
     
-    private static func parseContent(_ contents: [Flipchat_Messaging_V1_Content]) -> (ContentType, String, MessageID?)? {
+    private static func parseContent(_ contents: [Flipchat_Messaging_V1_Content]) -> (ContentType, String, MessageID?) {
         guard let type = contents[0].type else {
-            return nil
+            return (.unknown, "", nil)
         }
         
         switch type {
@@ -80,6 +80,9 @@ extension Chat.Message {
             
         case .reply(let reply):
             return (.reply, reply.replyText, ID(data: reply.originalMessageID.value))
+            
+        @unknown default:
+            return (.unknown, "", nil)
         }
     }
 }
