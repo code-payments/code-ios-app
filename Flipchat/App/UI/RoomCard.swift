@@ -39,12 +39,12 @@ struct RoomCard: View {
                 .font(.appTextSmall)
                 Spacer()
             }
+            .padding(20)
             .shadow(color: Color.black.opacity(0.2), radius: 1, y: 2)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
                 DeterministicGradient(data: avatarData)
             }
         }
-        .padding(20)
     }
 }
