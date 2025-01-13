@@ -11,6 +11,11 @@ import SQLite
 
 extension Database {
     
+    private static let excludedContentTypes: String = [
+        ContentType.announcement.rawValue,
+        ContentType.reaction.rawValue
+    ].map { "\($0)" }.joined(separator: ",")
+    
     func getRoomID(roomNumber: RoomNumber) throws -> UUID? {
         let statement = try reader.prepareRowIterator("""
         SELECT 
@@ -144,6 +149,7 @@ extension Database {
             m.content     AS mContent
         FROM
             room r
+        
         LEFT JOIN (
             SELECT
                 roomID,
@@ -155,11 +161,29 @@ extension Database {
         ) AS latestMessage
         ON
             r.serverID = latestMessage.roomID
+        
+        LEFT JOIN (
+            SELECT
+                roomID,
+                serverID,
+                contentType,
+                MAX(date) AS maxDate
+            FROM
+                message
+            WHERE 
+                contentType NOT IN (\(Self.excludedContentTypes))
+            GROUP BY
+                roomID
+        ) AS messageForOrder
+        ON
+            r.serverID = messageForOrder.roomID
+        
         LEFT JOIN message m
         ON
             latestMessage.roomID = m.roomID
             AND latestMessage.maxDate = m.date
-        ORDER BY m.date DESC;
+        
+        ORDER BY messageForOrder.serverID DESC;
         """)
         
         let rTable = RoomTable()
