@@ -222,7 +222,7 @@ struct MessageBubble: View {
             ) {
                 replyingTo.action()
             }
-            .padding(.bottom, 2)
+            .padding(.bottom, 3)
             .opacity(isBlocked ? 0.6 : 1.0)
         }
         
