@@ -28,7 +28,7 @@ extension Chat {
             if let title {
                 return "\(roomNumber.formattedRoomNumberShort): \(title)"
             } else {
-                return roomNumber.formattedRoomNumber
+                return roomNumber.formattedRoomNumberShort
             }
         }
         

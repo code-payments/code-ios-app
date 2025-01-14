@@ -25,7 +25,7 @@ struct RoomCard: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(maxHeight: 50)
                 Spacer()
-                Text("Room \(title)")
+                Text(title)
                     .font(.appDisplaySmall)
                     .multilineTextAlignment(.center)
                 

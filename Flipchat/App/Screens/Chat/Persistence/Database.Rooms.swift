@@ -249,7 +249,7 @@ struct RoomDescription: Identifiable {
             if let title {
                 return "\(roomNumber.formattedRoomNumberShort): \(title)"
             } else {
-                return roomNumber.formattedRoomNumber
+                return roomNumber.formattedRoomNumberShort
             }
         }
     }
@@ -291,7 +291,7 @@ struct RoomRow: Identifiable {
             if let title {
                 return "\(roomNumber.formattedRoomNumberShort): \(title)"
             } else {
-                return roomNumber.formattedRoomNumber
+                return roomNumber.formattedRoomNumberShort
             }
         }
     }

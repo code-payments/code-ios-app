@@ -8,9 +8,6 @@
 import Foundation
 
 extension BinaryInteger {
-    public var formattedRoomNumber: String {
-        "Room \(self.formattedRoomNumberShort)"
-    }
     public var formattedRoomNumberShort: String {
         "#\(self)"
     }
