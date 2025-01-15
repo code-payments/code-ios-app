@@ -162,6 +162,39 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
             completion(.failure(.unknown))
         }
     }
+    
+    func deleteMessage(messageID: MessageID, chatID: ChatID, owner: KeyPair, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+        
+        let request = Flipchat_Messaging_V1_SendMessageRequest.with {
+            $0.chatID  = .with { $0.value = chatID.data }
+            $0.content = [
+                .with {
+                    $0.deleted = .with {
+                        $0.originalMessageID = .with { $0.value = messageID.data }
+                    }
+                }
+            ]
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.sendMessage(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                let message = Chat.Message(response.message)
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Message: \(message.id.description)")
+                completion(.success(message))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 
     func fetchMessages(chatID: ChatID, owner: KeyPair, query: PageQuery, completion: @escaping (Result<[Chat.Message], ErrorFetchMessages>) -> Void) {
         trace(.send, components: "Chat ID: \(chatID)", "Query: \(query.description)")
@@ -250,10 +283,6 @@ public enum ErrorAdvancePointer: Int, Error {
 
 extension InterceptorFactory: Flipchat_Messaging_V1_MessagingClientInterceptorFactoryProtocol {
     func makeGetMessageInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Messaging_V1_GetMessageRequest, FlipchatAPI.Flipchat_Messaging_V1_GetMessageResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeDeleteMessageInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Messaging_V1_DeleteMessageRequest, FlipchatAPI.Flipchat_Messaging_V1_DeleteMessageResponse>] {
         makeInterceptors()
     }
     

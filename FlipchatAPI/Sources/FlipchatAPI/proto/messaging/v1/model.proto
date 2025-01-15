@@ -77,6 +77,8 @@ message Content {
         LocalizedAnnouncementContent  localized_announcement  = 2;
         ReactionContent               reaction                = 5;
         ReplyContent                  reply                   = 6;
+        TipContent                    tip                     = 7;
+        DeleteMessageContent          deleted                 = 8;
     }
 
     reserved 3; // ExchangeDataContent
@@ -125,4 +127,17 @@ message ReplyContent {
         min_len: 1
         max_len: 1024
     }];
+}
+
+message TipContent {
+    // The message ID of the message this tip is referencing
+    MessageId original_message_id = 1  [(validate.rules).message.required = true];
+
+    // The amount tipped for the message
+    common.v1.PaymentAmount tip_amount = 2 [(validate.rules).message.required = true];
+}
+
+message DeleteMessageContent {
+    // The message ID of the message that was deleted
+    MessageId original_message_id = 1  [(validate.rules).message.required = true];
 }

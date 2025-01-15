@@ -557,6 +557,10 @@ public enum ErrorChangeRoomName: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeGetMemberUpdatesInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_GetMemberUpdatesRequest, FlipchatAPI.Flipchat_Chat_V1_GetMemberUpdatesResponse>] {
+        makeInterceptors()
+    }
+    
     func makeSetDisplayNameInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_SetDisplayNameRequest, FlipchatAPI.Flipchat_Chat_V1_SetDisplayNameResponse>] {
         makeInterceptors()
     }

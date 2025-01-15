@@ -160,12 +160,12 @@ extension Database {
     
     // MARK: - Incremental Room Updates -
     
-    func updateUnreadCount(roomID: UUID, unreadCount: Int) throws {
+    func updateUnreadCount(roomID: UUID, unreadCount: Int, hasMore: Bool) throws {
         let room = RoomTable()
         try writer.run(
             room.table
                 .filter(room.serverID == roomID)
-                .update(room.unreadCount <- unreadCount)
+                .update(room.unreadCount <- unreadCount.encodingUnreadCount(hasMore: hasMore))
         )
     }
     

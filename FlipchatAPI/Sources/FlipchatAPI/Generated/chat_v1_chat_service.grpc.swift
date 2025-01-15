@@ -56,6 +56,11 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
 
+  func getMemberUpdates(
+    _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>
+
   func removeUser(
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
     callOptions: CallOptions?
@@ -248,6 +253,24 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
+    )
+  }
+
+  /// GetMemberUpdates gets member updates for a given chat
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetMemberUpdates.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getMemberUpdates(
+    _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.getMemberUpdates.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? []
     )
   }
 
@@ -445,6 +468,11 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
 
+  func makeGetMemberUpdatesCall(
+    _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>
+
   func makeRemoveUserCall(
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
     callOptions: CallOptions?
@@ -572,6 +600,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
+    )
+  }
+
+  public func makeGetMemberUpdatesCall(
+    _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.getMemberUpdates.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? []
     )
   }
 
@@ -746,6 +786,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
+  public func getMemberUpdates(
+    _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_GetMemberUpdatesResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.getMemberUpdates.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? []
+    )
+  }
+
   public func removeUser(
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
     callOptions: CallOptions? = nil
@@ -850,6 +902,9 @@ public protocol Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when invoking 'setCoverCharge'.
   func makeSetCoverChargeInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'getMemberUpdates'.
+  func makeGetMemberUpdatesInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>]
+
   /// - Returns: Interceptors to use when invoking 'removeUser'.
   func makeRemoveUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
 
@@ -879,6 +934,7 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       Flipchat_Chat_V1_ChatClientMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setDisplayName,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.getMemberUpdates,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.muteUser,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.muteChat,
@@ -933,6 +989,12 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
     public static let setCoverCharge = GRPCMethodDescriptor(
       name: "SetCoverCharge",
       path: "/flipchat.chat.v1.Chat/SetCoverCharge",
+      type: GRPCCallType.unary
+    )
+
+    public static let getMemberUpdates = GRPCMethodDescriptor(
+      name: "GetMemberUpdates",
+      path: "/flipchat.chat.v1.Chat/GetMemberUpdates",
       type: GRPCCallType.unary
     )
 
@@ -1012,6 +1074,9 @@ public protocol Flipchat_Chat_V1_ChatProvider: CallHandlerProvider {
 
   /// SetCoverCharge sets a chat's cover charge
   func setCoverCharge(request: Flipchat_Chat_V1_SetCoverChargeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetCoverChargeResponse>
+
+  /// GetMemberUpdates gets member updates for a given chat
+  func getMemberUpdates(request: Flipchat_Chat_V1_GetMemberUpdatesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_GetMemberUpdatesResponse>
 
   /// RemoveUser removes a user from a chat
   func removeUser(request: Flipchat_Chat_V1_RemoveUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_RemoveUserResponse>
@@ -1113,6 +1178,15 @@ extension Flipchat_Chat_V1_ChatProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_SetCoverChargeResponse>(),
         interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? [],
         userFunction: self.setCoverCharge(request:context:)
+      )
+
+    case "GetMemberUpdates":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_GetMemberUpdatesRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_GetMemberUpdatesResponse>(),
+        interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? [],
+        userFunction: self.getMemberUpdates(request:context:)
       )
 
     case "RemoveUser":
@@ -1238,6 +1312,12 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_SetCoverChargeResponse
 
+  /// GetMemberUpdates gets member updates for a given chat
+  func getMemberUpdates(
+    request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_GetMemberUpdatesResponse
+
   /// RemoveUser removes a user from a chat
   func removeUser(
     request: Flipchat_Chat_V1_RemoveUserRequest,
@@ -1362,6 +1442,15 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.setCoverCharge(request: $0, context: $1) }
       )
 
+    case "GetMemberUpdates":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_GetMemberUpdatesRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_GetMemberUpdatesResponse>(),
+        interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? [],
+        wrapping: { try await self.getMemberUpdates(request: $0, context: $1) }
+      )
+
     case "RemoveUser":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1447,6 +1536,10 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetCoverChargeInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
 
+  /// - Returns: Interceptors to use when handling 'getMemberUpdates'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetMemberUpdatesInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>]
+
   /// - Returns: Interceptors to use when handling 'removeUser'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeRemoveUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
@@ -1481,6 +1574,7 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       Flipchat_Chat_V1_ChatServerMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setDisplayName,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setCoverCharge,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.getMemberUpdates,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.removeUser,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.muteUser,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.muteChat,
@@ -1535,6 +1629,12 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
     public static let setCoverCharge = GRPCMethodDescriptor(
       name: "SetCoverCharge",
       path: "/flipchat.chat.v1.Chat/SetCoverCharge",
+      type: GRPCCallType.unary
+    )
+
+    public static let getMemberUpdates = GRPCMethodDescriptor(
+      name: "GetMemberUpdates",
+      path: "/flipchat.chat.v1.Chat/GetMemberUpdates",
       type: GRPCCallType.unary
     )
 

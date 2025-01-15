@@ -94,7 +94,7 @@ extension Chat.BatchUpdate.PointerUpdate {
 }
 
 extension Chat.BatchUpdate.ChatUpdate {
-    public init?(_ proto: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate) {
+    public init?(_ proto: Flipchat_Chat_V1_MetadataUpdate) {
         guard let kind = proto.kind else {
             return nil
         }
@@ -119,7 +119,7 @@ extension Chat.BatchUpdate.ChatUpdate {
 }
 
 extension Chat.BatchUpdate.MemberUpdate {
-    public init?(_ proto: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate) {
+    public init?(_ proto: Flipchat_Chat_V1_MemberUpdate) {
         guard let kind = proto.kind else {
             return nil
         }

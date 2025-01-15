@@ -229,6 +229,22 @@ public struct Flipchat_Messaging_V1_Content {
     set {type = .reply(newValue)}
   }
 
+  public var tip: Flipchat_Messaging_V1_TipContent {
+    get {
+      if case .tip(let v)? = type {return v}
+      return Flipchat_Messaging_V1_TipContent()
+    }
+    set {type = .tip(newValue)}
+  }
+
+  public var deleted: Flipchat_Messaging_V1_DeleteMessageContent {
+    get {
+      if case .deleted(let v)? = type {return v}
+      return Flipchat_Messaging_V1_DeleteMessageContent()
+    }
+    set {type = .deleted(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable {
@@ -236,6 +252,8 @@ public struct Flipchat_Messaging_V1_Content {
     case localizedAnnouncement(Flipchat_Messaging_V1_LocalizedAnnouncementContent)
     case reaction(Flipchat_Messaging_V1_ReactionContent)
     case reply(Flipchat_Messaging_V1_ReplyContent)
+    case tip(Flipchat_Messaging_V1_TipContent)
+    case deleted(Flipchat_Messaging_V1_DeleteMessageContent)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipchat_Messaging_V1_Content.OneOf_Type, rhs: Flipchat_Messaging_V1_Content.OneOf_Type) -> Bool {
@@ -257,6 +275,14 @@ public struct Flipchat_Messaging_V1_Content {
       }()
       case (.reply, .reply): return {
         guard case .reply(let l) = lhs, case .reply(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.tip, .tip): return {
+        guard case .tip(let l) = lhs, case .tip(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.deleted, .deleted): return {
+        guard case .deleted(let l) = lhs, case .deleted(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -348,6 +374,61 @@ public struct Flipchat_Messaging_V1_ReplyContent {
   fileprivate var _originalMessageID: Flipchat_Messaging_V1_MessageId? = nil
 }
 
+public struct Flipchat_Messaging_V1_TipContent {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The message ID of the message this tip is referencing
+  public var originalMessageID: Flipchat_Messaging_V1_MessageId {
+    get {return _originalMessageID ?? Flipchat_Messaging_V1_MessageId()}
+    set {_originalMessageID = newValue}
+  }
+  /// Returns true if `originalMessageID` has been explicitly set.
+  public var hasOriginalMessageID: Bool {return self._originalMessageID != nil}
+  /// Clears the value of `originalMessageID`. Subsequent reads from it will return its default value.
+  public mutating func clearOriginalMessageID() {self._originalMessageID = nil}
+
+  /// The amount tipped for the message
+  public var tipAmount: Flipchat_Common_V1_PaymentAmount {
+    get {return _tipAmount ?? Flipchat_Common_V1_PaymentAmount()}
+    set {_tipAmount = newValue}
+  }
+  /// Returns true if `tipAmount` has been explicitly set.
+  public var hasTipAmount: Bool {return self._tipAmount != nil}
+  /// Clears the value of `tipAmount`. Subsequent reads from it will return its default value.
+  public mutating func clearTipAmount() {self._tipAmount = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _originalMessageID: Flipchat_Messaging_V1_MessageId? = nil
+  fileprivate var _tipAmount: Flipchat_Common_V1_PaymentAmount? = nil
+}
+
+public struct Flipchat_Messaging_V1_DeleteMessageContent {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The message ID of the message that was deleted
+  public var originalMessageID: Flipchat_Messaging_V1_MessageId {
+    get {return _originalMessageID ?? Flipchat_Messaging_V1_MessageId()}
+    set {_originalMessageID = newValue}
+  }
+  /// Returns true if `originalMessageID` has been explicitly set.
+  public var hasOriginalMessageID: Bool {return self._originalMessageID != nil}
+  /// Clears the value of `originalMessageID`. Subsequent reads from it will return its default value.
+  public mutating func clearOriginalMessageID() {self._originalMessageID = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _originalMessageID: Flipchat_Messaging_V1_MessageId? = nil
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipchat_Messaging_V1_MessageId: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Message: @unchecked Sendable {}
@@ -360,6 +441,8 @@ extension Flipchat_Messaging_V1_TextContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_LocalizedAnnouncementContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_ReactionContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_ReplyContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_TipContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_DeleteMessageContent: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -552,6 +635,8 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
     2: .standard(proto: "localized_announcement"),
     5: .same(proto: "reaction"),
     6: .same(proto: "reply"),
+    7: .same(proto: "tip"),
+    8: .same(proto: "deleted"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -612,6 +697,32 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
           self.type = .reply(v)
         }
       }()
+      case 7: try {
+        var v: Flipchat_Messaging_V1_TipContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .tip(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .tip(v)
+        }
+      }()
+      case 8: try {
+        var v: Flipchat_Messaging_V1_DeleteMessageContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .deleted(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .deleted(v)
+        }
+      }()
       default: break
       }
     }
@@ -638,6 +749,14 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
     case .reply?: try {
       guard case .reply(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case .tip?: try {
+      guard case .tip(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    }()
+    case .deleted?: try {
+      guard case .deleted(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     }()
     case nil: break
     }
@@ -794,6 +913,84 @@ extension Flipchat_Messaging_V1_ReplyContent: SwiftProtobuf.Message, SwiftProtob
   public static func ==(lhs: Flipchat_Messaging_V1_ReplyContent, rhs: Flipchat_Messaging_V1_ReplyContent) -> Bool {
     if lhs._originalMessageID != rhs._originalMessageID {return false}
     if lhs.replyText != rhs.replyText {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_TipContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".TipContent"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "original_message_id"),
+    2: .standard(proto: "tip_amount"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._originalMessageID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._tipAmount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._originalMessageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._tipAmount {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_TipContent, rhs: Flipchat_Messaging_V1_TipContent) -> Bool {
+    if lhs._originalMessageID != rhs._originalMessageID {return false}
+    if lhs._tipAmount != rhs._tipAmount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_DeleteMessageContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DeleteMessageContent"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "original_message_id"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._originalMessageID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._originalMessageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_DeleteMessageContent, rhs: Flipchat_Messaging_V1_DeleteMessageContent) -> Bool {
+    if lhs._originalMessageID != rhs._originalMessageID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -334,6 +334,26 @@ struct ConversationScreen: View {
                 ]
             )
             
+        case .deleteMessage(let messageID, let chatID):
+            
+            // Gives the context menu time to animate
+            try await Task.delay(milliseconds: 200)
+            
+            banners.show(
+                style: .error,
+                title: "Delete Message?",
+                description: "This message will be deleted for everyone.",
+                position: .bottom,
+                actions: [
+                    .destructive(title: "Delete") {
+                        Task {
+                            try await chatController.deleteMessage(messageID: messageID, for: chatID)
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
+            
         case .reportMessage(let userID, let messageID):
             
             // Gives the context menu time to animate

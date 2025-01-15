@@ -250,7 +250,7 @@ public struct Flipchat_Chat_V1_StreamChatEventsResponse {
     public mutating func clearMetadata() {_uniqueStorage()._metadata = nil}
 
     /// MetadataUpdate contains updates to a chat metadata
-    public var metadataUpdates: [Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate] {
+    public var metadataUpdates: [Flipchat_Chat_V1_MetadataUpdate] {
       get {return _storage._metadataUpdates}
       set {_uniqueStorage()._metadataUpdates = newValue}
     }
@@ -259,8 +259,8 @@ public struct Flipchat_Chat_V1_StreamChatEventsResponse {
     ///
     /// Deprecated: Use member_updates instead. For backwards compatibility
     /// this will only contain full member refreshes.
-    public var memberUpdate: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate {
-      get {return _storage._memberUpdate ?? Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate()}
+    public var memberUpdate: Flipchat_Chat_V1_MemberUpdate {
+      get {return _storage._memberUpdate ?? Flipchat_Chat_V1_MemberUpdate()}
       set {_uniqueStorage()._memberUpdate = newValue}
     }
     /// Returns true if `memberUpdate` has been explicitly set.
@@ -269,7 +269,7 @@ public struct Flipchat_Chat_V1_StreamChatEventsResponse {
     public mutating func clearMemberUpdate() {_uniqueStorage()._memberUpdate = nil}
 
     /// MemberUpdate contains updates to the membership set.
-    public var memberUpdates: [Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate] {
+    public var memberUpdates: [Flipchat_Chat_V1_MemberUpdate] {
       get {return _storage._memberUpdates}
       set {_uniqueStorage()._memberUpdates = newValue}
     }
@@ -342,441 +342,6 @@ public struct Flipchat_Chat_V1_StreamChatEventsResponse {
     public init() {}
 
     fileprivate var _storage = _StorageClass.defaultInstance
-  }
-
-  public struct MetadataUpdate {
-    // SwiftProtobuf.Message conformance is added in an extension below. See the
-    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-    // methods supported on all messages.
-
-    public var kind: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.OneOf_Kind? = nil
-
-    public var fullRefresh: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh {
-      get {
-        if case .fullRefresh(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh()
-      }
-      set {kind = .fullRefresh(newValue)}
-    }
-
-    public var unreadCountChanged: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged {
-      get {
-        if case .unreadCountChanged(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged()
-      }
-      set {kind = .unreadCountChanged(newValue)}
-    }
-
-    public var displayNameChanged: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged {
-      get {
-        if case .displayNameChanged(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged()
-      }
-      set {kind = .displayNameChanged(newValue)}
-    }
-
-    public var coverChargeChanged: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged {
-      get {
-        if case .coverChargeChanged(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged()
-      }
-      set {kind = .coverChargeChanged(newValue)}
-    }
-
-    public var lastActivityChanged: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged {
-      get {
-        if case .lastActivityChanged(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged()
-      }
-      set {kind = .lastActivityChanged(newValue)}
-    }
-
-    public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-    public enum OneOf_Kind: Equatable {
-      case fullRefresh(Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh)
-      case unreadCountChanged(Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged)
-      case displayNameChanged(Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged)
-      case coverChargeChanged(Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged)
-      case lastActivityChanged(Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged)
-
-    #if !swift(>=4.1)
-      public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.OneOf_Kind, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.OneOf_Kind) -> Bool {
-        // The use of inline closures is to circumvent an issue where the compiler
-        // allocates stack space for every case branch when no optimizations are
-        // enabled. https://github.com/apple/swift-protobuf/issues/1034
-        switch (lhs, rhs) {
-        case (.fullRefresh, .fullRefresh): return {
-          guard case .fullRefresh(let l) = lhs, case .fullRefresh(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.unreadCountChanged, .unreadCountChanged): return {
-          guard case .unreadCountChanged(let l) = lhs, case .unreadCountChanged(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.displayNameChanged, .displayNameChanged): return {
-          guard case .displayNameChanged(let l) = lhs, case .displayNameChanged(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.coverChargeChanged, .coverChargeChanged): return {
-          guard case .coverChargeChanged(let l) = lhs, case .coverChargeChanged(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.lastActivityChanged, .lastActivityChanged): return {
-          guard case .lastActivityChanged(let l) = lhs, case .lastActivityChanged(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        default: return false
-        }
-      }
-    #endif
-    }
-
-    /// Refreshes the entire chat metadata
-    public struct FullRefresh {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var metadata: Flipchat_Chat_V1_Metadata {
-        get {return _metadata ?? Flipchat_Chat_V1_Metadata()}
-        set {_metadata = newValue}
-      }
-      /// Returns true if `metadata` has been explicitly set.
-      public var hasMetadata: Bool {return self._metadata != nil}
-      /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
-      public mutating func clearMetadata() {self._metadata = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _metadata: Flipchat_Chat_V1_Metadata? = nil
-    }
-
-    /// New message in the chat has generated a new unread count
-    public struct UnreadCountChanged {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      /// Number of (estimated) unread message
-      public var numUnread: UInt32 = 0
-
-      /// If there are more unread messages than indicated by num_unread.
-      /// If this is true, client should show num_unread+ as the unread count.
-      public var hasMoreUnread_p: Bool = false
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-    }
-
-    /// The chat display name has been updated to a new value
-    public struct DisplayNameChanged {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var newDisplayName: String = String()
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-    }
-
-    /// The chat cover charge has been updated to a new value
-    public struct CoverChargeChanged {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var newCoverCharge: Flipchat_Common_V1_PaymentAmount {
-        get {return _newCoverCharge ?? Flipchat_Common_V1_PaymentAmount()}
-        set {_newCoverCharge = newValue}
-      }
-      /// Returns true if `newCoverCharge` has been explicitly set.
-      public var hasNewCoverCharge: Bool {return self._newCoverCharge != nil}
-      /// Clears the value of `newCoverCharge`. Subsequent reads from it will return its default value.
-      public mutating func clearNewCoverCharge() {self._newCoverCharge = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _newCoverCharge: Flipchat_Common_V1_PaymentAmount? = nil
-    }
-
-    /// The last activity timestamp has changed to a newer value
-    public struct LastActivityChanged {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var newLastActivity: SwiftProtobuf.Google_Protobuf_Timestamp {
-        get {return _newLastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-        set {_newLastActivity = newValue}
-      }
-      /// Returns true if `newLastActivity` has been explicitly set.
-      public var hasNewLastActivity: Bool {return self._newLastActivity != nil}
-      /// Clears the value of `newLastActivity`. Subsequent reads from it will return its default value.
-      public mutating func clearNewLastActivity() {self._newLastActivity = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _newLastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-    }
-
-    public init() {}
-  }
-
-  public struct MemberUpdate {
-    // SwiftProtobuf.Message conformance is added in an extension below. See the
-    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-    // methods supported on all messages.
-
-    public var kind: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.OneOf_Kind? = nil
-
-    public var fullRefresh: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh {
-      get {
-        if case .fullRefresh(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh()
-      }
-      set {kind = .fullRefresh(newValue)}
-    }
-
-    public var individualRefresh: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh {
-      get {
-        if case .individualRefresh(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh()
-      }
-      set {kind = .individualRefresh(newValue)}
-    }
-
-    public var joined: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined {
-      get {
-        if case .joined(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined()
-      }
-      set {kind = .joined(newValue)}
-    }
-
-    public var left: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left {
-      get {
-        if case .left(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left()
-      }
-      set {kind = .left(newValue)}
-    }
-
-    public var removed: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed {
-      get {
-        if case .removed(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed()
-      }
-      set {kind = .removed(newValue)}
-    }
-
-    public var muted: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted {
-      get {
-        if case .muted(let v)? = kind {return v}
-        return Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted()
-      }
-      set {kind = .muted(newValue)}
-    }
-
-    public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-    public enum OneOf_Kind: Equatable {
-      case fullRefresh(Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh)
-      case individualRefresh(Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh)
-      case joined(Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined)
-      case left(Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left)
-      case removed(Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed)
-      case muted(Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted)
-
-    #if !swift(>=4.1)
-      public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.OneOf_Kind, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.OneOf_Kind) -> Bool {
-        // The use of inline closures is to circumvent an issue where the compiler
-        // allocates stack space for every case branch when no optimizations are
-        // enabled. https://github.com/apple/swift-protobuf/issues/1034
-        switch (lhs, rhs) {
-        case (.fullRefresh, .fullRefresh): return {
-          guard case .fullRefresh(let l) = lhs, case .fullRefresh(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.individualRefresh, .individualRefresh): return {
-          guard case .individualRefresh(let l) = lhs, case .individualRefresh(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.joined, .joined): return {
-          guard case .joined(let l) = lhs, case .joined(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.left, .left): return {
-          guard case .left(let l) = lhs, case .left(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.removed, .removed): return {
-          guard case .removed(let l) = lhs, case .removed(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        case (.muted, .muted): return {
-          guard case .muted(let l) = lhs, case .muted(let r) = rhs else { preconditionFailure() }
-          return l == r
-        }()
-        default: return false
-        }
-      }
-    #endif
-    }
-
-    /// Refreshes the state of the entire chat membership
-    public struct FullRefresh {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var members: [Flipchat_Chat_V1_Member] = []
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-    }
-
-    /// Refreshes the state of an individual member in the chat
-    public struct IndividualRefresh {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var member: Flipchat_Chat_V1_Member {
-        get {return _member ?? Flipchat_Chat_V1_Member()}
-        set {_member = newValue}
-      }
-      /// Returns true if `member` has been explicitly set.
-      public var hasMember: Bool {return self._member != nil}
-      /// Clears the value of `member`. Subsequent reads from it will return its default value.
-      public mutating func clearMember() {self._member = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _member: Flipchat_Chat_V1_Member? = nil
-    }
-
-    /// Member joined the chat via the JoinChat RPC
-    public struct Joined {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var member: Flipchat_Chat_V1_Member {
-        get {return _member ?? Flipchat_Chat_V1_Member()}
-        set {_member = newValue}
-      }
-      /// Returns true if `member` has been explicitly set.
-      public var hasMember: Bool {return self._member != nil}
-      /// Clears the value of `member`. Subsequent reads from it will return its default value.
-      public mutating func clearMember() {self._member = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _member: Flipchat_Chat_V1_Member? = nil
-    }
-
-    /// Member left the chat via the LeaveChat RPC
-    public struct Left {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var member: Flipchat_Common_V1_UserId {
-        get {return _member ?? Flipchat_Common_V1_UserId()}
-        set {_member = newValue}
-      }
-      /// Returns true if `member` has been explicitly set.
-      public var hasMember: Bool {return self._member != nil}
-      /// Clears the value of `member`. Subsequent reads from it will return its default value.
-      public mutating func clearMember() {self._member = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _member: Flipchat_Common_V1_UserId? = nil
-    }
-
-    /// Member was removed from the chat via the RemoveUser RPC
-    public struct Removed {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var member: Flipchat_Common_V1_UserId {
-        get {return _member ?? Flipchat_Common_V1_UserId()}
-        set {_member = newValue}
-      }
-      /// Returns true if `member` has been explicitly set.
-      public var hasMember: Bool {return self._member != nil}
-      /// Clears the value of `member`. Subsequent reads from it will return its default value.
-      public mutating func clearMember() {self._member = nil}
-
-      public var removedBy: Flipchat_Common_V1_UserId {
-        get {return _removedBy ?? Flipchat_Common_V1_UserId()}
-        set {_removedBy = newValue}
-      }
-      /// Returns true if `removedBy` has been explicitly set.
-      public var hasRemovedBy: Bool {return self._removedBy != nil}
-      /// Clears the value of `removedBy`. Subsequent reads from it will return its default value.
-      public mutating func clearRemovedBy() {self._removedBy = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _member: Flipchat_Common_V1_UserId? = nil
-      fileprivate var _removedBy: Flipchat_Common_V1_UserId? = nil
-    }
-
-    /// Member was muted in the chat via the MuteUser RPC
-    public struct Muted {
-      // SwiftProtobuf.Message conformance is added in an extension below. See the
-      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-      // methods supported on all messages.
-
-      public var member: Flipchat_Common_V1_UserId {
-        get {return _member ?? Flipchat_Common_V1_UserId()}
-        set {_member = newValue}
-      }
-      /// Returns true if `member` has been explicitly set.
-      public var hasMember: Bool {return self._member != nil}
-      /// Clears the value of `member`. Subsequent reads from it will return its default value.
-      public mutating func clearMember() {self._member = nil}
-
-      public var mutedBy: Flipchat_Common_V1_UserId {
-        get {return _mutedBy ?? Flipchat_Common_V1_UserId()}
-        set {_mutedBy = newValue}
-      }
-      /// Returns true if `mutedBy` has been explicitly set.
-      public var hasMutedBy: Bool {return self._mutedBy != nil}
-      /// Clears the value of `mutedBy`. Subsequent reads from it will return its default value.
-      public mutating func clearMutedBy() {self._mutedBy = nil}
-
-      public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-      public init() {}
-
-      fileprivate var _member: Flipchat_Common_V1_UserId? = nil
-      fileprivate var _mutedBy: Flipchat_Common_V1_UserId? = nil
-    }
-
-    public init() {}
   }
 
   public init() {}
@@ -1672,6 +1237,105 @@ extension Flipchat_Chat_V1_SetCoverChargeResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Chat_V1_GetMemberUpdatesRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var chatID: Flipchat_Common_V1_ChatId {
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  /// If not provided, a full refresh is performed. Server may also choose
+  /// to compact updates into a full or individual refresh.
+  public var pagingToken: Flipchat_Common_V1_PagingToken {
+    get {return _pagingToken ?? Flipchat_Common_V1_PagingToken()}
+    set {_pagingToken = newValue}
+  }
+  /// Returns true if `pagingToken` has been explicitly set.
+  public var hasPagingToken: Bool {return self._pagingToken != nil}
+  /// Clears the value of `pagingToken`. Subsequent reads from it will return its default value.
+  public mutating func clearPagingToken() {self._pagingToken = nil}
+
+  /// Auth is an optional field that authenticates the call, which
+  /// can be used to fill out extra information.
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _pagingToken: Flipchat_Common_V1_PagingToken? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Chat_V1_GetMemberUpdatesResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Chat_V1_GetMemberUpdatesResponse.Result = .ok
+
+  public var updates: [Flipchat_Chat_V1_MemberUpdate] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case notFound // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .notFound
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .notFound: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Chat_V1_GetMemberUpdatesResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Chat_V1_GetMemberUpdatesResponse.Result] = [
+    .ok,
+    .notFound,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Flipchat_Chat_V1_RemoveUserRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2236,6 +1900,194 @@ extension Flipchat_Chat_V1_Metadata.ChatType: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Chat_V1_MetadataUpdate {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var kind: Flipchat_Chat_V1_MetadataUpdate.OneOf_Kind? = nil
+
+  public var fullRefresh: Flipchat_Chat_V1_MetadataUpdate.FullRefresh {
+    get {
+      if case .fullRefresh(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MetadataUpdate.FullRefresh()
+    }
+    set {kind = .fullRefresh(newValue)}
+  }
+
+  public var unreadCountChanged: Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged {
+    get {
+      if case .unreadCountChanged(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged()
+    }
+    set {kind = .unreadCountChanged(newValue)}
+  }
+
+  public var displayNameChanged: Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged {
+    get {
+      if case .displayNameChanged(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged()
+    }
+    set {kind = .displayNameChanged(newValue)}
+  }
+
+  public var coverChargeChanged: Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged {
+    get {
+      if case .coverChargeChanged(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged()
+    }
+    set {kind = .coverChargeChanged(newValue)}
+  }
+
+  public var lastActivityChanged: Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged {
+    get {
+      if case .lastActivityChanged(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged()
+    }
+    set {kind = .lastActivityChanged(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Kind: Equatable {
+    case fullRefresh(Flipchat_Chat_V1_MetadataUpdate.FullRefresh)
+    case unreadCountChanged(Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged)
+    case displayNameChanged(Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged)
+    case coverChargeChanged(Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged)
+    case lastActivityChanged(Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.OneOf_Kind, rhs: Flipchat_Chat_V1_MetadataUpdate.OneOf_Kind) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.fullRefresh, .fullRefresh): return {
+        guard case .fullRefresh(let l) = lhs, case .fullRefresh(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.unreadCountChanged, .unreadCountChanged): return {
+        guard case .unreadCountChanged(let l) = lhs, case .unreadCountChanged(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.displayNameChanged, .displayNameChanged): return {
+        guard case .displayNameChanged(let l) = lhs, case .displayNameChanged(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.coverChargeChanged, .coverChargeChanged): return {
+        guard case .coverChargeChanged(let l) = lhs, case .coverChargeChanged(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.lastActivityChanged, .lastActivityChanged): return {
+        guard case .lastActivityChanged(let l) = lhs, case .lastActivityChanged(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
+      }
+    }
+  #endif
+  }
+
+  /// Refreshes the entire chat metadata
+  public struct FullRefresh {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var metadata: Flipchat_Chat_V1_Metadata {
+      get {return _metadata ?? Flipchat_Chat_V1_Metadata()}
+      set {_metadata = newValue}
+    }
+    /// Returns true if `metadata` has been explicitly set.
+    public var hasMetadata: Bool {return self._metadata != nil}
+    /// Clears the value of `metadata`. Subsequent reads from it will return its default value.
+    public mutating func clearMetadata() {self._metadata = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _metadata: Flipchat_Chat_V1_Metadata? = nil
+  }
+
+  /// New message in the chat has generated a new unread count
+  public struct UnreadCountChanged {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Number of (estimated) unread message
+    public var numUnread: UInt32 = 0
+
+    /// If there are more unread messages than indicated by num_unread.
+    /// If this is true, client should show num_unread+ as the unread count.
+    public var hasMoreUnread_p: Bool = false
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  /// The chat display name has been updated to a new value
+  public struct DisplayNameChanged {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var newDisplayName: String = String()
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  /// The chat cover charge has been updated to a new value
+  public struct CoverChargeChanged {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var newCoverCharge: Flipchat_Common_V1_PaymentAmount {
+      get {return _newCoverCharge ?? Flipchat_Common_V1_PaymentAmount()}
+      set {_newCoverCharge = newValue}
+    }
+    /// Returns true if `newCoverCharge` has been explicitly set.
+    public var hasNewCoverCharge: Bool {return self._newCoverCharge != nil}
+    /// Clears the value of `newCoverCharge`. Subsequent reads from it will return its default value.
+    public mutating func clearNewCoverCharge() {self._newCoverCharge = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _newCoverCharge: Flipchat_Common_V1_PaymentAmount? = nil
+  }
+
+  /// The last activity timestamp has changed to a newer value
+  public struct LastActivityChanged {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var newLastActivity: SwiftProtobuf.Google_Protobuf_Timestamp {
+      get {return _newLastActivity ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+      set {_newLastActivity = newValue}
+    }
+    /// Returns true if `newLastActivity` has been explicitly set.
+    public var hasNewLastActivity: Bool {return self._newLastActivity != nil}
+    /// Clears the value of `newLastActivity`. Subsequent reads from it will return its default value.
+    public mutating func clearNewLastActivity() {self._newLastActivity = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _newLastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  }
+
+  public init() {}
+}
+
 public struct Flipchat_Chat_V1_Member {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2311,6 +2163,264 @@ public struct Flipchat_Chat_V1_MemberIdentity {
   public init() {}
 }
 
+public struct Flipchat_Chat_V1_MemberUpdate {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var kind: Flipchat_Chat_V1_MemberUpdate.OneOf_Kind? = nil
+
+  public var fullRefresh: Flipchat_Chat_V1_MemberUpdate.FullRefresh {
+    get {
+      if case .fullRefresh(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MemberUpdate.FullRefresh()
+    }
+    set {kind = .fullRefresh(newValue)}
+  }
+
+  public var individualRefresh: Flipchat_Chat_V1_MemberUpdate.IndividualRefresh {
+    get {
+      if case .individualRefresh(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MemberUpdate.IndividualRefresh()
+    }
+    set {kind = .individualRefresh(newValue)}
+  }
+
+  public var joined: Flipchat_Chat_V1_MemberUpdate.Joined {
+    get {
+      if case .joined(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MemberUpdate.Joined()
+    }
+    set {kind = .joined(newValue)}
+  }
+
+  public var left: Flipchat_Chat_V1_MemberUpdate.Left {
+    get {
+      if case .left(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MemberUpdate.Left()
+    }
+    set {kind = .left(newValue)}
+  }
+
+  public var removed: Flipchat_Chat_V1_MemberUpdate.Removed {
+    get {
+      if case .removed(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MemberUpdate.Removed()
+    }
+    set {kind = .removed(newValue)}
+  }
+
+  public var muted: Flipchat_Chat_V1_MemberUpdate.Muted {
+    get {
+      if case .muted(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MemberUpdate.Muted()
+    }
+    set {kind = .muted(newValue)}
+  }
+
+  public var pagingToken: Flipchat_Common_V1_PagingToken {
+    get {return _pagingToken ?? Flipchat_Common_V1_PagingToken()}
+    set {_pagingToken = newValue}
+  }
+  /// Returns true if `pagingToken` has been explicitly set.
+  public var hasPagingToken: Bool {return self._pagingToken != nil}
+  /// Clears the value of `pagingToken`. Subsequent reads from it will return its default value.
+  public mutating func clearPagingToken() {self._pagingToken = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Kind: Equatable {
+    case fullRefresh(Flipchat_Chat_V1_MemberUpdate.FullRefresh)
+    case individualRefresh(Flipchat_Chat_V1_MemberUpdate.IndividualRefresh)
+    case joined(Flipchat_Chat_V1_MemberUpdate.Joined)
+    case left(Flipchat_Chat_V1_MemberUpdate.Left)
+    case removed(Flipchat_Chat_V1_MemberUpdate.Removed)
+    case muted(Flipchat_Chat_V1_MemberUpdate.Muted)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate.OneOf_Kind, rhs: Flipchat_Chat_V1_MemberUpdate.OneOf_Kind) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.fullRefresh, .fullRefresh): return {
+        guard case .fullRefresh(let l) = lhs, case .fullRefresh(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.individualRefresh, .individualRefresh): return {
+        guard case .individualRefresh(let l) = lhs, case .individualRefresh(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.joined, .joined): return {
+        guard case .joined(let l) = lhs, case .joined(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.left, .left): return {
+        guard case .left(let l) = lhs, case .left(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.removed, .removed): return {
+        guard case .removed(let l) = lhs, case .removed(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.muted, .muted): return {
+        guard case .muted(let l) = lhs, case .muted(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
+      }
+    }
+  #endif
+  }
+
+  /// Refreshes the state of the entire chat membership
+  public struct FullRefresh {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var members: [Flipchat_Chat_V1_Member] = []
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  /// Refreshes the state of an individual member in the chat
+  public struct IndividualRefresh {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var member: Flipchat_Chat_V1_Member {
+      get {return _member ?? Flipchat_Chat_V1_Member()}
+      set {_member = newValue}
+    }
+    /// Returns true if `member` has been explicitly set.
+    public var hasMember: Bool {return self._member != nil}
+    /// Clears the value of `member`. Subsequent reads from it will return its default value.
+    public mutating func clearMember() {self._member = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _member: Flipchat_Chat_V1_Member? = nil
+  }
+
+  /// Member joined the chat via the JoinChat RPC
+  public struct Joined {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var member: Flipchat_Chat_V1_Member {
+      get {return _member ?? Flipchat_Chat_V1_Member()}
+      set {_member = newValue}
+    }
+    /// Returns true if `member` has been explicitly set.
+    public var hasMember: Bool {return self._member != nil}
+    /// Clears the value of `member`. Subsequent reads from it will return its default value.
+    public mutating func clearMember() {self._member = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _member: Flipchat_Chat_V1_Member? = nil
+  }
+
+  /// Member left the chat via the LeaveChat RPC
+  public struct Left {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var member: Flipchat_Common_V1_UserId {
+      get {return _member ?? Flipchat_Common_V1_UserId()}
+      set {_member = newValue}
+    }
+    /// Returns true if `member` has been explicitly set.
+    public var hasMember: Bool {return self._member != nil}
+    /// Clears the value of `member`. Subsequent reads from it will return its default value.
+    public mutating func clearMember() {self._member = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _member: Flipchat_Common_V1_UserId? = nil
+  }
+
+  /// Member was removed from the chat via the RemoveUser RPC
+  public struct Removed {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var member: Flipchat_Common_V1_UserId {
+      get {return _member ?? Flipchat_Common_V1_UserId()}
+      set {_member = newValue}
+    }
+    /// Returns true if `member` has been explicitly set.
+    public var hasMember: Bool {return self._member != nil}
+    /// Clears the value of `member`. Subsequent reads from it will return its default value.
+    public mutating func clearMember() {self._member = nil}
+
+    public var removedBy: Flipchat_Common_V1_UserId {
+      get {return _removedBy ?? Flipchat_Common_V1_UserId()}
+      set {_removedBy = newValue}
+    }
+    /// Returns true if `removedBy` has been explicitly set.
+    public var hasRemovedBy: Bool {return self._removedBy != nil}
+    /// Clears the value of `removedBy`. Subsequent reads from it will return its default value.
+    public mutating func clearRemovedBy() {self._removedBy = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _member: Flipchat_Common_V1_UserId? = nil
+    fileprivate var _removedBy: Flipchat_Common_V1_UserId? = nil
+  }
+
+  /// Member was muted in the chat via the MuteUser RPC
+  public struct Muted {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var member: Flipchat_Common_V1_UserId {
+      get {return _member ?? Flipchat_Common_V1_UserId()}
+      set {_member = newValue}
+    }
+    /// Returns true if `member` has been explicitly set.
+    public var hasMember: Bool {return self._member != nil}
+    /// Clears the value of `member`. Subsequent reads from it will return its default value.
+    public mutating func clearMember() {self._member = nil}
+
+    public var mutedBy: Flipchat_Common_V1_UserId {
+      get {return _mutedBy ?? Flipchat_Common_V1_UserId()}
+      set {_mutedBy = newValue}
+    }
+    /// Returns true if `mutedBy` has been explicitly set.
+    public var hasMutedBy: Bool {return self._mutedBy != nil}
+    /// Clears the value of `mutedBy`. Subsequent reads from it will return its default value.
+    public mutating func clearMutedBy() {self._mutedBy = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _member: Flipchat_Common_V1_UserId? = nil
+    fileprivate var _mutedBy: Flipchat_Common_V1_UserId? = nil
+  }
+
+  public init() {}
+
+  fileprivate var _pagingToken: Flipchat_Common_V1_PagingToken? = nil
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipchat_Chat_V1_StreamChatEventsRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_StreamChatEventsRequest.OneOf_Type: @unchecked Sendable {}
@@ -2322,21 +2432,6 @@ extension Flipchat_Chat_V1_StreamChatEventsResponse.StreamError.Code: @unchecked
 extension Flipchat_Chat_V1_StreamChatEventsResponse.EventBatch: @unchecked Sendable {}
 extension Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate: @unchecked Sendable {}
 extension Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.OneOf_Kind: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.OneOf_Kind: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed: @unchecked Sendable {}
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted: @unchecked Sendable {}
 extension Flipchat_Chat_V1_GetChatsRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_GetChatsResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_GetChatsResponse.Result: @unchecked Sendable {}
@@ -2365,6 +2460,9 @@ extension Flipchat_Chat_V1_SetDisplayNameResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_SetCoverChargeRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_SetCoverChargeResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_SetCoverChargeResponse.Result: @unchecked Sendable {}
+extension Flipchat_Chat_V1_GetMemberUpdatesRequest: @unchecked Sendable {}
+extension Flipchat_Chat_V1_GetMemberUpdatesResponse: @unchecked Sendable {}
+extension Flipchat_Chat_V1_GetMemberUpdatesResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_RemoveUserRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_RemoveUserResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_RemoveUserResponse.Result: @unchecked Sendable {}
@@ -2382,8 +2480,23 @@ extension Flipchat_Chat_V1_ReportUserResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_ReportUserResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Metadata: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Metadata.ChatType: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate.OneOf_Kind: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate.FullRefresh: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Member: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MemberIdentity: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate.OneOf_Kind: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate.FullRefresh: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate.IndividualRefresh: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate.Joined: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate.Left: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate.Removed: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MemberUpdate.Muted: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -2676,9 +2789,9 @@ extension Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate: SwiftProtobuf.Me
   fileprivate class _StorageClass {
     var _chatID: Flipchat_Common_V1_ChatId? = nil
     var _metadata: Flipchat_Chat_V1_Metadata? = nil
-    var _metadataUpdates: [Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate] = []
-    var _memberUpdate: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate? = nil
-    var _memberUpdates: [Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate] = []
+    var _metadataUpdates: [Flipchat_Chat_V1_MetadataUpdate] = []
+    var _memberUpdate: Flipchat_Chat_V1_MemberUpdate? = nil
+    var _memberUpdates: [Flipchat_Chat_V1_MemberUpdate] = []
     var _lastMessage: Flipchat_Messaging_V1_Message? = nil
     var _pointer: Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate? = nil
     var _isTyping: Flipchat_Messaging_V1_IsTyping? = nil
@@ -2829,674 +2942,6 @@ extension Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate: Sw
   public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate) -> Bool {
     if lhs._member != rhs._member {return false}
     if lhs._pointer != rhs._pointer {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.protoMessageName + ".MetadataUpdate"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "full_refresh"),
-    2: .standard(proto: "unread_count_changed"),
-    3: .standard(proto: "display_name_changed"),
-    4: .standard(proto: "cover_charge_changed"),
-    5: .standard(proto: "last_activity_changed"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .fullRefresh(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .fullRefresh(v)
-        }
-      }()
-      case 2: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .unreadCountChanged(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .unreadCountChanged(v)
-        }
-      }()
-      case 3: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .displayNameChanged(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .displayNameChanged(v)
-        }
-      }()
-      case 4: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .coverChargeChanged(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .coverChargeChanged(v)
-        }
-      }()
-      case 5: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .lastActivityChanged(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .lastActivityChanged(v)
-        }
-      }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    switch self.kind {
-    case .fullRefresh?: try {
-      guard case .fullRefresh(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    }()
-    case .unreadCountChanged?: try {
-      guard case .unreadCountChanged(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    }()
-    case .displayNameChanged?: try {
-      guard case .displayNameChanged(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    }()
-    case .coverChargeChanged?: try {
-      guard case .coverChargeChanged(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    }()
-    case .lastActivityChanged?: try {
-      guard case .lastActivityChanged(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    }()
-    case nil: break
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate) -> Bool {
-    if lhs.kind != rhs.kind {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.protoMessageName + ".FullRefresh"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "metadata"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._metadata) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._metadata {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.FullRefresh) -> Bool {
-    if lhs._metadata != rhs._metadata {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.protoMessageName + ".UnreadCountChanged"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "num_unread"),
-    2: .standard(proto: "has_more_unread"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.numUnread) }()
-      case 2: try { try decoder.decodeSingularBoolField(value: &self.hasMoreUnread_p) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if self.numUnread != 0 {
-      try visitor.visitSingularUInt32Field(value: self.numUnread, fieldNumber: 1)
-    }
-    if self.hasMoreUnread_p != false {
-      try visitor.visitSingularBoolField(value: self.hasMoreUnread_p, fieldNumber: 2)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.UnreadCountChanged) -> Bool {
-    if lhs.numUnread != rhs.numUnread {return false}
-    if lhs.hasMoreUnread_p != rhs.hasMoreUnread_p {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.protoMessageName + ".DisplayNameChanged"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "new_display_name"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.newDisplayName) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.newDisplayName.isEmpty {
-      try visitor.visitSingularStringField(value: self.newDisplayName, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.DisplayNameChanged) -> Bool {
-    if lhs.newDisplayName != rhs.newDisplayName {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.protoMessageName + ".CoverChargeChanged"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "new_cover_charge"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._newCoverCharge) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._newCoverCharge {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.CoverChargeChanged) -> Bool {
-    if lhs._newCoverCharge != rhs._newCoverCharge {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.protoMessageName + ".LastActivityChanged"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "new_last_activity"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._newLastActivity) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._newLastActivity {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MetadataUpdate.LastActivityChanged) -> Bool {
-    if lhs._newLastActivity != rhs._newLastActivity {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.protoMessageName + ".MemberUpdate"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "full_refresh"),
-    2: .standard(proto: "individual_refresh"),
-    3: .same(proto: "joined"),
-    4: .same(proto: "left"),
-    5: .same(proto: "removed"),
-    6: .same(proto: "muted"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .fullRefresh(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .fullRefresh(v)
-        }
-      }()
-      case 2: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .individualRefresh(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .individualRefresh(v)
-        }
-      }()
-      case 3: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .joined(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .joined(v)
-        }
-      }()
-      case 4: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .left(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .left(v)
-        }
-      }()
-      case 5: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .removed(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .removed(v)
-        }
-      }()
-      case 6: try {
-        var v: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .muted(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .muted(v)
-        }
-      }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    switch self.kind {
-    case .fullRefresh?: try {
-      guard case .fullRefresh(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    }()
-    case .individualRefresh?: try {
-      guard case .individualRefresh(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    }()
-    case .joined?: try {
-      guard case .joined(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    }()
-    case .left?: try {
-      guard case .left(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    }()
-    case .removed?: try {
-      guard case .removed(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
-    }()
-    case .muted?: try {
-      guard case .muted(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
-    }()
-    case nil: break
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate) -> Bool {
-    if lhs.kind != rhs.kind {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.protoMessageName + ".FullRefresh"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "members"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.members.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.FullRefresh) -> Bool {
-    if lhs.members != rhs.members {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.protoMessageName + ".IndividualRefresh"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "member"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._member {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.IndividualRefresh) -> Bool {
-    if lhs._member != rhs._member {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.protoMessageName + ".Joined"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "member"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._member {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Joined) -> Bool {
-    if lhs._member != rhs._member {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.protoMessageName + ".Left"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "member"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._member {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Left) -> Bool {
-    if lhs._member != rhs._member {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.protoMessageName + ".Removed"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "member"),
-    2: .standard(proto: "removed_by"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._removedBy) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._member {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._removedBy {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Removed) -> Bool {
-    if lhs._member != rhs._member {return false}
-    if lhs._removedBy != rhs._removedBy {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.protoMessageName + ".Muted"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "member"),
-    2: .standard(proto: "muted_by"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._mutedBy) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._member {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._mutedBy {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted, rhs: Flipchat_Chat_V1_StreamChatEventsResponse.MemberUpdate.Muted) -> Bool {
-    if lhs._member != rhs._member {return false}
-    if lhs._mutedBy != rhs._mutedBy {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4408,6 +3853,99 @@ extension Flipchat_Chat_V1_SetCoverChargeResponse.Result: SwiftProtobuf._ProtoNa
   ]
 }
 
+extension Flipchat_Chat_V1_GetMemberUpdatesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetMemberUpdatesRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .standard(proto: "paging_token"),
+    3: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._pagingToken) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._pagingToken {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_GetMemberUpdatesRequest, rhs: Flipchat_Chat_V1_GetMemberUpdatesRequest) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._pagingToken != rhs._pagingToken {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_GetMemberUpdatesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetMemberUpdatesResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .same(proto: "updates"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.updates) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    if !self.updates.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.updates, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_GetMemberUpdatesResponse, rhs: Flipchat_Chat_V1_GetMemberUpdatesResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.updates != rhs.updates {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_GetMemberUpdatesResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "NOT_FOUND"),
+  ]
+}
+
 extension Flipchat_Chat_V1_RemoveUserRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RemoveUserRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -4934,6 +4472,308 @@ extension Flipchat_Chat_V1_Metadata.ChatType: SwiftProtobuf._ProtoNameProviding 
   ]
 }
 
+extension Flipchat_Chat_V1_MetadataUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MetadataUpdate"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "full_refresh"),
+    2: .standard(proto: "unread_count_changed"),
+    3: .standard(proto: "display_name_changed"),
+    4: .standard(proto: "cover_charge_changed"),
+    5: .standard(proto: "last_activity_changed"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipchat_Chat_V1_MetadataUpdate.FullRefresh?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .fullRefresh(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .fullRefresh(v)
+        }
+      }()
+      case 2: try {
+        var v: Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .unreadCountChanged(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .unreadCountChanged(v)
+        }
+      }()
+      case 3: try {
+        var v: Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .displayNameChanged(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .displayNameChanged(v)
+        }
+      }()
+      case 4: try {
+        var v: Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .coverChargeChanged(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .coverChargeChanged(v)
+        }
+      }()
+      case 5: try {
+        var v: Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .lastActivityChanged(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .lastActivityChanged(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.kind {
+    case .fullRefresh?: try {
+      guard case .fullRefresh(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .unreadCountChanged?: try {
+      guard case .unreadCountChanged(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .displayNameChanged?: try {
+      guard case .displayNameChanged(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .coverChargeChanged?: try {
+      guard case .coverChargeChanged(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .lastActivityChanged?: try {
+      guard case .lastActivityChanged(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate, rhs: Flipchat_Chat_V1_MetadataUpdate) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MetadataUpdate.FullRefresh: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MetadataUpdate.protoMessageName + ".FullRefresh"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "metadata"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._metadata) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._metadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.FullRefresh, rhs: Flipchat_Chat_V1_MetadataUpdate.FullRefresh) -> Bool {
+    if lhs._metadata != rhs._metadata {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MetadataUpdate.protoMessageName + ".UnreadCountChanged"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "num_unread"),
+    2: .standard(proto: "has_more_unread"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.numUnread) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.hasMoreUnread_p) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.numUnread != 0 {
+      try visitor.visitSingularUInt32Field(value: self.numUnread, fieldNumber: 1)
+    }
+    if self.hasMoreUnread_p != false {
+      try visitor.visitSingularBoolField(value: self.hasMoreUnread_p, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged, rhs: Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged) -> Bool {
+    if lhs.numUnread != rhs.numUnread {return false}
+    if lhs.hasMoreUnread_p != rhs.hasMoreUnread_p {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MetadataUpdate.protoMessageName + ".DisplayNameChanged"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "new_display_name"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.newDisplayName) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.newDisplayName.isEmpty {
+      try visitor.visitSingularStringField(value: self.newDisplayName, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged, rhs: Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged) -> Bool {
+    if lhs.newDisplayName != rhs.newDisplayName {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MetadataUpdate.protoMessageName + ".CoverChargeChanged"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "new_cover_charge"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._newCoverCharge) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._newCoverCharge {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged, rhs: Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged) -> Bool {
+    if lhs._newCoverCharge != rhs._newCoverCharge {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MetadataUpdate.protoMessageName + ".LastActivityChanged"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "new_last_activity"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._newLastActivity) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._newLastActivity {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged, rhs: Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged) -> Bool {
+    if lhs._newLastActivity != rhs._newLastActivity {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Flipchat_Chat_V1_Member: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Member"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -5039,6 +4879,378 @@ extension Flipchat_Chat_V1_MemberIdentity: SwiftProtobuf.Message, SwiftProtobuf.
   public static func ==(lhs: Flipchat_Chat_V1_MemberIdentity, rhs: Flipchat_Chat_V1_MemberIdentity) -> Bool {
     if lhs.displayName != rhs.displayName {return false}
     if lhs.profilePicURL != rhs.profilePicURL {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MemberUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MemberUpdate"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "full_refresh"),
+    2: .standard(proto: "individual_refresh"),
+    3: .same(proto: "joined"),
+    4: .same(proto: "left"),
+    5: .same(proto: "removed"),
+    6: .same(proto: "muted"),
+    1000: .standard(proto: "paging_token"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipchat_Chat_V1_MemberUpdate.FullRefresh?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .fullRefresh(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .fullRefresh(v)
+        }
+      }()
+      case 2: try {
+        var v: Flipchat_Chat_V1_MemberUpdate.IndividualRefresh?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .individualRefresh(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .individualRefresh(v)
+        }
+      }()
+      case 3: try {
+        var v: Flipchat_Chat_V1_MemberUpdate.Joined?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .joined(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .joined(v)
+        }
+      }()
+      case 4: try {
+        var v: Flipchat_Chat_V1_MemberUpdate.Left?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .left(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .left(v)
+        }
+      }()
+      case 5: try {
+        var v: Flipchat_Chat_V1_MemberUpdate.Removed?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .removed(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .removed(v)
+        }
+      }()
+      case 6: try {
+        var v: Flipchat_Chat_V1_MemberUpdate.Muted?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .muted(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .muted(v)
+        }
+      }()
+      case 1000: try { try decoder.decodeSingularMessageField(value: &self._pagingToken) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.kind {
+    case .fullRefresh?: try {
+      guard case .fullRefresh(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .individualRefresh?: try {
+      guard case .individualRefresh(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .joined?: try {
+      guard case .joined(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .left?: try {
+      guard case .left(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .removed?: try {
+      guard case .removed(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .muted?: try {
+      guard case .muted(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case nil: break
+    }
+    try { if let v = self._pagingToken {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1000)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate, rhs: Flipchat_Chat_V1_MemberUpdate) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs._pagingToken != rhs._pagingToken {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MemberUpdate.FullRefresh: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MemberUpdate.protoMessageName + ".FullRefresh"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "members"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.members) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.members.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.members, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate.FullRefresh, rhs: Flipchat_Chat_V1_MemberUpdate.FullRefresh) -> Bool {
+    if lhs.members != rhs.members {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MemberUpdate.IndividualRefresh: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MemberUpdate.protoMessageName + ".IndividualRefresh"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "member"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._member {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate.IndividualRefresh, rhs: Flipchat_Chat_V1_MemberUpdate.IndividualRefresh) -> Bool {
+    if lhs._member != rhs._member {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MemberUpdate.Joined: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MemberUpdate.protoMessageName + ".Joined"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "member"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._member {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate.Joined, rhs: Flipchat_Chat_V1_MemberUpdate.Joined) -> Bool {
+    if lhs._member != rhs._member {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MemberUpdate.Left: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MemberUpdate.protoMessageName + ".Left"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "member"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._member {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate.Left, rhs: Flipchat_Chat_V1_MemberUpdate.Left) -> Bool {
+    if lhs._member != rhs._member {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MemberUpdate.Removed: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MemberUpdate.protoMessageName + ".Removed"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "member"),
+    2: .standard(proto: "removed_by"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._removedBy) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._member {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._removedBy {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate.Removed, rhs: Flipchat_Chat_V1_MemberUpdate.Removed) -> Bool {
+    if lhs._member != rhs._member {return false}
+    if lhs._removedBy != rhs._removedBy {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MemberUpdate.Muted: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MemberUpdate.protoMessageName + ".Muted"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "member"),
+    2: .standard(proto: "muted_by"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._mutedBy) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._member {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._mutedBy {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MemberUpdate.Muted, rhs: Flipchat_Chat_V1_MemberUpdate.Muted) -> Bool {
+    if lhs._member != rhs._member {return false}
+    if lhs._mutedBy != rhs._mutedBy {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -45,11 +45,6 @@ public protocol Flipchat_Messaging_V1_MessagingClientProtocol: GRPCClient {
     _ request: Flipchat_Messaging_V1_NotifyIsTypingRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Messaging_V1_NotifyIsTypingRequest, Flipchat_Messaging_V1_NotifyIsTypingResponse>
-
-  func deleteMessage(
-    _ request: Flipchat_Messaging_V1_DeleteMessageRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Flipchat_Messaging_V1_DeleteMessageRequest, Flipchat_Messaging_V1_DeleteMessageResponse>
 }
 
 extension Flipchat_Messaging_V1_MessagingClientProtocol {
@@ -169,24 +164,6 @@ extension Flipchat_Messaging_V1_MessagingClientProtocol {
       interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? []
     )
   }
-
-  /// DeleteMessage deletes a message
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to DeleteMessage.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func deleteMessage(
-    _ request: Flipchat_Messaging_V1_DeleteMessageRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Flipchat_Messaging_V1_DeleteMessageRequest, Flipchat_Messaging_V1_DeleteMessageResponse> {
-    return self.makeUnaryCall(
-      path: Flipchat_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
-    )
-  }
 }
 
 @available(*, deprecated)
@@ -279,11 +256,6 @@ public protocol Flipchat_Messaging_V1_MessagingAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Messaging_V1_NotifyIsTypingRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Messaging_V1_NotifyIsTypingRequest, Flipchat_Messaging_V1_NotifyIsTypingResponse>
-
-  func makeDeleteMessageCall(
-    _ request: Flipchat_Messaging_V1_DeleteMessageRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Flipchat_Messaging_V1_DeleteMessageRequest, Flipchat_Messaging_V1_DeleteMessageResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -363,18 +335,6 @@ extension Flipchat_Messaging_V1_MessagingAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? []
-    )
-  }
-
-  public func makeDeleteMessageCall(
-    _ request: Flipchat_Messaging_V1_DeleteMessageRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Flipchat_Messaging_V1_DeleteMessageRequest, Flipchat_Messaging_V1_DeleteMessageResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Flipchat_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
     )
   }
 }
@@ -464,18 +424,6 @@ extension Flipchat_Messaging_V1_MessagingAsyncClientProtocol {
       interceptors: self.interceptors?.makeNotifyIsTypingInterceptors() ?? []
     )
   }
-
-  public func deleteMessage(
-    _ request: Flipchat_Messaging_V1_DeleteMessageRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Flipchat_Messaging_V1_DeleteMessageResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Flipchat_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? []
-    )
-  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -514,9 +462,6 @@ public protocol Flipchat_Messaging_V1_MessagingClientInterceptorFactoryProtocol:
 
   /// - Returns: Interceptors to use when invoking 'notifyIsTyping'.
   func makeNotifyIsTypingInterceptors() -> [ClientInterceptor<Flipchat_Messaging_V1_NotifyIsTypingRequest, Flipchat_Messaging_V1_NotifyIsTypingResponse>]
-
-  /// - Returns: Interceptors to use when invoking 'deleteMessage'.
-  func makeDeleteMessageInterceptors() -> [ClientInterceptor<Flipchat_Messaging_V1_DeleteMessageRequest, Flipchat_Messaging_V1_DeleteMessageResponse>]
 }
 
 public enum Flipchat_Messaging_V1_MessagingClientMetadata {
@@ -530,7 +475,6 @@ public enum Flipchat_Messaging_V1_MessagingClientMetadata {
       Flipchat_Messaging_V1_MessagingClientMetadata.Methods.sendMessage,
       Flipchat_Messaging_V1_MessagingClientMetadata.Methods.advancePointer,
       Flipchat_Messaging_V1_MessagingClientMetadata.Methods.notifyIsTyping,
-      Flipchat_Messaging_V1_MessagingClientMetadata.Methods.deleteMessage,
     ]
   )
 
@@ -570,12 +514,6 @@ public enum Flipchat_Messaging_V1_MessagingClientMetadata {
       path: "/flipchat.messaging.v1.Messaging/NotifyIsTyping",
       type: GRPCCallType.unary
     )
-
-    public static let deleteMessage = GRPCMethodDescriptor(
-      name: "DeleteMessage",
-      path: "/flipchat.messaging.v1.Messaging/DeleteMessage",
-      type: GRPCCallType.unary
-    )
   }
 }
 
@@ -602,9 +540,6 @@ public protocol Flipchat_Messaging_V1_MessagingProvider: CallHandlerProvider {
   ///
   /// These requests are transient, and may be dropped at any point.
   func notifyIsTyping(request: Flipchat_Messaging_V1_NotifyIsTypingRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Messaging_V1_NotifyIsTypingResponse>
-
-  /// DeleteMessage deletes a message
-  func deleteMessage(request: Flipchat_Messaging_V1_DeleteMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Messaging_V1_DeleteMessageResponse>
 }
 
 extension Flipchat_Messaging_V1_MessagingProvider {
@@ -673,15 +608,6 @@ extension Flipchat_Messaging_V1_MessagingProvider {
         userFunction: self.notifyIsTyping(request:context:)
       )
 
-    case "DeleteMessage":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Messaging_V1_DeleteMessageRequest>(),
-        responseSerializer: ProtobufSerializer<Flipchat_Messaging_V1_DeleteMessageResponse>(),
-        interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? [],
-        userFunction: self.deleteMessage(request:context:)
-      )
-
     default:
       return nil
     }
@@ -732,12 +658,6 @@ public protocol Flipchat_Messaging_V1_MessagingAsyncProvider: CallHandlerProvide
     request: Flipchat_Messaging_V1_NotifyIsTypingRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Messaging_V1_NotifyIsTypingResponse
-
-  /// DeleteMessage deletes a message
-  func deleteMessage(
-    request: Flipchat_Messaging_V1_DeleteMessageRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Flipchat_Messaging_V1_DeleteMessageResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -813,15 +733,6 @@ extension Flipchat_Messaging_V1_MessagingAsyncProvider {
         wrapping: { try await self.notifyIsTyping(request: $0, context: $1) }
       )
 
-    case "DeleteMessage":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Messaging_V1_DeleteMessageRequest>(),
-        responseSerializer: ProtobufSerializer<Flipchat_Messaging_V1_DeleteMessageResponse>(),
-        interceptors: self.interceptors?.makeDeleteMessageInterceptors() ?? [],
-        wrapping: { try await self.deleteMessage(request: $0, context: $1) }
-      )
-
     default:
       return nil
     }
@@ -853,10 +764,6 @@ public protocol Flipchat_Messaging_V1_MessagingServerInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when handling 'notifyIsTyping'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeNotifyIsTypingInterceptors() -> [ServerInterceptor<Flipchat_Messaging_V1_NotifyIsTypingRequest, Flipchat_Messaging_V1_NotifyIsTypingResponse>]
-
-  /// - Returns: Interceptors to use when handling 'deleteMessage'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeDeleteMessageInterceptors() -> [ServerInterceptor<Flipchat_Messaging_V1_DeleteMessageRequest, Flipchat_Messaging_V1_DeleteMessageResponse>]
 }
 
 public enum Flipchat_Messaging_V1_MessagingServerMetadata {
@@ -870,7 +777,6 @@ public enum Flipchat_Messaging_V1_MessagingServerMetadata {
       Flipchat_Messaging_V1_MessagingServerMetadata.Methods.sendMessage,
       Flipchat_Messaging_V1_MessagingServerMetadata.Methods.advancePointer,
       Flipchat_Messaging_V1_MessagingServerMetadata.Methods.notifyIsTyping,
-      Flipchat_Messaging_V1_MessagingServerMetadata.Methods.deleteMessage,
     ]
   )
 
@@ -908,12 +814,6 @@ public enum Flipchat_Messaging_V1_MessagingServerMetadata {
     public static let notifyIsTyping = GRPCMethodDescriptor(
       name: "NotifyIsTyping",
       path: "/flipchat.messaging.v1.Messaging/NotifyIsTyping",
-      type: GRPCCallType.unary
-    )
-
-    public static let deleteMessage = GRPCMethodDescriptor(
-      name: "DeleteMessage",
-      path: "/flipchat.messaging.v1.Messaging/DeleteMessage",
       type: GRPCCallType.unary
     )
   }

@@ -23,6 +23,12 @@ extension FlipchatClient {
         }
     }
     
+    public func deleteMessage(messageID: MessageID, chatID: ChatID, owner: KeyPair) async throws -> Chat.Message {
+        try await withCheckedThrowingContinuation { c in
+            messagingService.deleteMessage(messageID: messageID, chatID: chatID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func fetchMessages(chatID: ChatID, owner: KeyPair, query: PageQuery = .init()) async throws -> [Chat.Message] {
         try await withCheckedThrowingContinuation { c in
             messagingService.fetchMessages(chatID: chatID, owner: owner, query: query) { c.resume(with: $0) }

@@ -30,9 +30,6 @@ service Messaging {
     //
     // These requests are transient, and may be dropped at any point.
     rpc NotifyIsTyping(NotifyIsTypingRequest) returns (NotifyIsTypingResponse);
-
-    // DeleteMessage deletes a message
-    rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
 }
 
 message StreamMessagesRequest {
@@ -128,12 +125,17 @@ message SendMessageRequest {
     //  - TextContent
     //  - ReactionContent
     //  - ReplyContent
+    //  - TipContent
+    //  - DeleteMessageContent
     repeated Content content = 2 [(validate.rules).repeated = {
         min_items: 1
         max_items: 1
     }];
 
     common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+
+    // Intent ID for message contents that require a payment
+    common.v1.IntentId payment_intent = 4;
 }
 
 message SendMessageResponse {
@@ -146,6 +148,17 @@ message SendMessageResponse {
     // The chat message that was sent if the RPC was succesful, which includes
     // server-side metadata like the generated message ID and official timestamp
     Message message = 2;
+}
+
+message SendTipMessagePaymentMetadata {
+    // The chat where the message is being tipped
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    // The message that is being tipped
+    MessageId message_id = 2 [(validate.rules).message.required = true];
+
+    // The user sending the tip
+    common.v1.UserId tipper_id = 3 [(validate.rules).message.required = true];
 }
 
 message AdvancePointerRequest {
@@ -178,18 +191,5 @@ message NotifyIsTypingResponse {
     enum Result {
         OK             = 0;
         DENIED         = 1;
-    }
-}
-
-message DeleteMessageRequest {
-    MessageId message_id = 1 [(validate.rules).message.required = true];
-
-    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
-}
-message DeleteMessageResponse {
-    Result result = 1;
-    enum Result {
-        OK     = 0;
-        DENIED = 1;
     }
 }

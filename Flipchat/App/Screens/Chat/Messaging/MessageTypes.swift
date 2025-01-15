@@ -13,6 +13,7 @@ enum MessageAction {
     case copy(String)
     case muteUser(String, UserID, ChatID)
     case setUserBlocked(String, UserID, ChatID, Bool)
+    case deleteMessage(MessageID, ChatID)
     case reportMessage(UserID, MessageID)
     case reply(MessageRow)
     case linkTo(RoomNumber)
@@ -21,13 +22,13 @@ enum MessageAction {
 struct MessageDescription: Identifiable, Hashable, Equatable {
     enum Kind: Hashable, Equatable {
         case date(Date)
-        case message(MessageID, Bool, MessageRow, MessageSemanticLocation) // id, isReceived, row, location
+        case message(MessageID, Bool, MessageRow, MessageSemanticLocation, MessageDeletion?) // id, isReceived, row, location, isDeleted
         case announcement(MessageID)
         case unread
         
         var messageRow: MessageRow? {
             switch self {
-            case .message(_, _, let row, _):
+            case .message(_, _, let row, _, _):
                 return row
             case .date, .announcement, .unread:
                 return nil
@@ -39,10 +40,10 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         switch kind {
         case .date(let date):
             return "\(date.timeIntervalSince1970)"
-        case .message(let messageID, _, _, _):
-            return messageID.data.hexString()
+        case .message(let messageID, _, _, _, _):
+            return messageID.uuid.uuidString
         case .announcement(let messageID):
-            return messageID.data.hexString()
+            return messageID.uuid.uuidString
         case .unread:
             return "com.flipchat.messageList.unread"
         }
@@ -55,7 +56,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         switch kind {
         case .date, .announcement, .unread:
             return (size.width * 1.0, false)
-        case .message(_, let isReceived, _, _):
+        case .message(_, let isReceived, _, _, _):
             return (size.width * 0.8, isReceived)
         }
     }
@@ -84,6 +85,11 @@ struct MessageContainer: Identifiable, Hashable {
     
     var location: MessageSemanticLocation
     var row: MessageRow
+}
+
+struct MessageDeletion: Equatable, Hashable {
+    var senderID: UUID?
+    var isSelf: Bool
 }
 
 extension Array where Element == MessageRow {

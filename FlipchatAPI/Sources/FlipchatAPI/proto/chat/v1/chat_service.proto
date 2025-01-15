@@ -53,6 +53,9 @@ service Chat {
     // SetCoverCharge sets a chat's cover charge
     rpc SetCoverCharge(SetCoverChargeRequest) returns (SetCoverChargeResponse);
 
+    // GetMemberUpdates gets member updates for a given chat
+    rpc GetMemberUpdates(GetMemberUpdatesRequest) returns (GetMemberUpdatesResponse);
+
     // RemoveUser removes a user from a chat
     rpc RemoveUser(RemoveUserRequest) returns (RemoveUserResponse);
 
@@ -151,100 +154,6 @@ message StreamChatEventsResponse {
 
         // IsTyping indicates whether or not someone is typing in the group.
         messaging.v1.IsTyping is_typing = 6;
-    }
-
-    message MetadataUpdate {
-        oneof kind {
-            option (validate.required) = true;
-
-            FullRefresh         full_refresh          = 1;
-            UnreadCountChanged  unread_count_changed  = 2;
-            DisplayNameChanged  display_name_changed  = 3;
-            CoverChargeChanged  cover_charge_changed  = 4;
-            LastActivityChanged last_activity_changed = 5;
-        }
-
-        // Refreshes the entire chat metadata
-        message FullRefresh {
-            Metadata metadata = 1 [(validate.rules).message.required = true];
-        }
-
-        // New message in the chat has generated a new unread count
-        message UnreadCountChanged {
-            // Number of (estimated) unread message
-            uint32 num_unread = 1;
-
-            // If there are more unread messages than indicated by num_unread.
-            // If this is true, client should show num_unread+ as the unread count.
-            bool has_more_unread = 2;
-        }
-
-        // The chat display name has been updated to a new value
-        message DisplayNameChanged {
-            string new_display_name = 1 [(validate.rules).string = {
-                min_len: 1
-                max_len: 64
-            }];
-        }
-
-        // The chat cover charge has been updated to a new value
-        message CoverChargeChanged {
-            common.v1.PaymentAmount new_cover_charge = 1 [(validate.rules).message.required = true];
-        }
-
-        // The last activity timestamp has changed to a newer value
-        message LastActivityChanged {
-            google.protobuf.Timestamp new_last_activity = 1 [(validate.rules).timestamp.required = true];
-        }
-    }
-
-    message MemberUpdate {
-        oneof kind {
-            option (validate.required) = true;
-
-            FullRefresh       full_refresh       = 1;
-            IndividualRefresh individual_refresh = 2;
-            Joined            joined             = 3;
-            Left              left               = 4;
-            Removed           removed            = 5;
-            Muted             muted              = 6;
-        }
-
-        // Refreshes the state of the entire chat membership
-        message FullRefresh {
-            repeated Member members = 1 [(validate.rules).repeated = {
-                min_items: 1
-            }];
-        }
-
-        // Refreshes the state of an individual member in the chat
-        message IndividualRefresh {
-            Member member = 1 [(validate.rules).message.required = true];
-        }
-
-        // Member joined the chat via the JoinChat RPC
-        message Joined {
-            Member member = 1 [(validate.rules).message.required = true];
-        }
-
-        // Member left the chat via the LeaveChat RPC
-        message Left {
-            common.v1.UserId member = 1 [(validate.rules).message.required = true];
-        }
-
-        // Member was removed from the chat via the RemoveUser RPC
-        message Removed {
-            common.v1.UserId member = 1 [(validate.rules).message.required = true];
-
-            common.v1.UserId removed_by = 2 [(validate.rules).message.required = true];
-        }
-
-        // Member was muted in the chat via the MuteUser RPC
-        message Muted {
-            common.v1.UserId member = 1 [(validate.rules).message.required = true];
-
-            common.v1.UserId muted_by = 2 [(validate.rules).message.required = true];
-        }
     }
 }
 
@@ -412,7 +321,6 @@ message SetDisplayNameRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
     string display_name = 2 [(validate.rules).string = {
-		min_len: 1
 		max_len: 64
 	}];
 
@@ -446,6 +354,29 @@ message SetCoverChargeResponse {
         DENIED   = 1;
         CANT_SET = 2;
     }
+}
+
+message GetMemberUpdatesRequest {
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    // If not provided, a full refresh is performed. Server may also choose
+    // to compact updates into a full or individual refresh.
+    common.v1.PagingToken paging_token = 2;
+
+    // Auth is an optional field that authenticates the call, which
+    // can be used to fill out extra information.
+    common.v1.Auth auth = 3;
+}
+message GetMemberUpdatesResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        NOT_FOUND = 1;
+    }
+
+    repeated MemberUpdate updates = 2 [(validate.rules).repeated = {
+        max_items: 1024
+    }];
 }
 
 message RemoveUserRequest{
@@ -566,6 +497,50 @@ message Metadata {
     google.protobuf.Timestamp last_activity = 10;
 }
 
+message MetadataUpdate {
+    oneof kind {
+        option (validate.required) = true;
+
+        FullRefresh         full_refresh          = 1;
+        UnreadCountChanged  unread_count_changed  = 2;
+        DisplayNameChanged  display_name_changed  = 3;
+        CoverChargeChanged  cover_charge_changed  = 4;
+        LastActivityChanged last_activity_changed = 5;
+    }
+
+    // Refreshes the entire chat metadata
+    message FullRefresh {
+        Metadata metadata = 1 [(validate.rules).message.required = true];
+    }
+
+    // New message in the chat has generated a new unread count
+    message UnreadCountChanged {
+        // Number of (estimated) unread message
+        uint32 num_unread = 1;
+
+        // If there are more unread messages than indicated by num_unread.
+        // If this is true, client should show num_unread+ as the unread count.
+        bool has_more_unread = 2;
+    }
+
+    // The chat display name has been updated to a new value
+    message DisplayNameChanged {
+        string new_display_name = 1 [(validate.rules).string = {
+            max_len: 64
+        }];
+    }
+
+    // The chat cover charge has been updated to a new value
+    message CoverChargeChanged {
+        common.v1.PaymentAmount new_cover_charge = 1 [(validate.rules).message.required = true];
+    }
+
+    // The last activity timestamp has changed to a newer value
+    message LastActivityChanged {
+        google.protobuf.Timestamp new_last_activity = 1 [(validate.rules).timestamp.required = true];
+    }
+}
+
 message Member {
     common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
 
@@ -613,4 +588,55 @@ message MemberIdentity {
     string profile_pic_url = 2 [(validate.rules).string = {
         max_len: 255 // Arbitrary limit
     }];
+}
+
+message MemberUpdate {
+    oneof kind {
+        option (validate.required) = true;
+
+        FullRefresh       full_refresh       = 1;
+        IndividualRefresh individual_refresh = 2;
+        Joined            joined             = 3;
+        Left              left               = 4;
+        Removed           removed            = 5;
+        Muted             muted              = 6;
+    }
+
+    common.v1.PagingToken paging_token = 1000;
+
+    // Refreshes the state of the entire chat membership
+    message FullRefresh {
+        repeated Member members = 1 [(validate.rules).repeated = {
+            min_items: 1
+        }];
+    }
+
+    // Refreshes the state of an individual member in the chat
+    message IndividualRefresh {
+        Member member = 1 [(validate.rules).message.required = true];
+    }
+
+    // Member joined the chat via the JoinChat RPC
+    message Joined {
+        Member member = 1 [(validate.rules).message.required = true];
+    }
+
+    // Member left the chat via the LeaveChat RPC
+    message Left {
+        common.v1.UserId member = 1 [(validate.rules).message.required = true];
+    }
+
+    // Member was removed from the chat via the RemoveUser RPC
+    message Removed {
+        common.v1.UserId member = 1 [(validate.rules).message.required = true];
+
+        common.v1.UserId removed_by = 2 [(validate.rules).message.required = true];
+    }
+
+    // Member was muted in the chat via the MuteUser RPC
+    message Muted {
+        common.v1.UserId member = 1 [(validate.rules).message.required = true];
+
+        common.v1.UserId muted_by = 2 [(validate.rules).message.required = true];
+    }
 }

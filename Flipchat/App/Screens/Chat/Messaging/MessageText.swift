@@ -19,6 +19,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
     let isReceived: Bool
     let isHost: Bool
     let isBlocked: Bool
+    let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
     let location: MessageSemanticLocation
     let action: (MessageAction) -> Void
@@ -51,7 +52,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+    init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.state = state
         self.name = name
         self.avatarData = avatarData
@@ -60,6 +61,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.isReceived = isReceived
         self.isHost = isHost
         self.isBlocked = isBlocked
+        self.deletionState = deletionState
         self.replyingTo = replyingTo
         self.location = location
         self.action = action
@@ -100,6 +102,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
                     date: date,
                     isReceived: isReceived,
                     isBlocked: isBlocked,
+                    deletionState: deletionState,
                     replyingTo: replyingTo,
                     action: action,
                     location: location
@@ -122,10 +125,12 @@ struct ReplyingTo {
 struct MessageBubble: View {
     
     let state: Chat.Message.State
+    let rawText: String
     let text: String
     let date: Date
     let isReceived: Bool
     let isBlocked: Bool
+    let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
     let action: (MessageAction) -> Void
     let location: MessageSemanticLocation
@@ -139,16 +144,38 @@ struct MessageBubble: View {
         }
     }
     
-    init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+    private var messageOpacity: CGFloat {
+        isBlocked || deletionState != nil ? 0.6 : 1.0
+    }
+    
+    init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
         self.state = state
-        self.text = text
+        self.rawText = text
+        self.text = Self.adjusted(text: text, isBlocked: isBlocked, deletionState: deletionState)
         self.date = date
         self.isReceived = isReceived
         self.isBlocked = isBlocked
+        self.deletionState = deletionState
         self.replyingTo = replyingTo
         self.action = action
         self.location = location
         self.isOnlyEmoji = text.isOnlyEmoji
+    }
+    
+    static func adjusted(text: String, isBlocked: Bool, deletionState: MessageDeletion?) -> String {
+        if let deletionState {
+            if deletionState.isSelf {
+                return "Message deleted by you"
+            } else {
+                return "Message deleted by host"
+            }
+        }
+        
+        guard !isBlocked else {
+            return "Blocked message"
+        }
+        
+        return text
     }
     
     var body: some View {
@@ -214,7 +241,7 @@ struct MessageBubble: View {
     }
     
     @ViewBuilder private func content(compact: Bool, expand: Bool = false) -> some View {
-        if let replyingTo {
+        if let replyingTo, deletionState == nil {
             MessageReplyBannerCompact(
                 name: replyingTo.name,
                 content: replyingTo.content,
@@ -223,7 +250,7 @@ struct MessageBubble: View {
                 replyingTo.action()
             }
             .padding(.bottom, 3)
-            .opacity(isBlocked ? 0.6 : 1.0)
+            .opacity(messageOpacity)
         }
         
         if compact {
@@ -240,7 +267,7 @@ struct MessageBubble: View {
             .font(.appTextMessage)
 //            .font(isOnlyEmoji ? .appDisplayMedium : .appTextMessage)
             .foregroundColor(.textMain)
-            .opacity(isBlocked ? 0.6 : 1.0)
+            .opacity(messageOpacity)
             .multilineTextAlignment(.leading)
             .environment(\.openURL, OpenURLAction { url in
                 handleURL(url)
@@ -278,10 +305,6 @@ struct MessageBubble: View {
     
     private func parse(text: String) -> AttributedString {
         var string = AttributedString(text)
-        
-        guard !isBlocked else {
-            return "Blocked message"
-        }
         
         findLinks(in: text, string: &string)
         findHashtags(in: text, string: &string)
@@ -374,6 +397,7 @@ extension NSRegularExpression {
                 isReceived: true,
                 isHost: false,
                 isBlocked: false,
+                deletionState: nil,
                 replyingTo: .init(
                     name: "Bob",
 //                    content: "That's what I was trying to say before",

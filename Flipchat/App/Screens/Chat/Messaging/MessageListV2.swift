@@ -317,7 +317,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
     
     private func scrollTo(messageID: UUID) {
         let index = messages.firstIndex {
-            if case .message(let id, _, _, _) = $0.kind {
+            if case .message(let id, _, _, _, _) = $0.kind {
                 return messageID == id.uuid
             }
             return false
@@ -446,7 +446,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         case .date(let date):
             MessageTitle(text: date.formattedRelatively())
             
-        case .message(_, let isReceived, let row, let location):
+        case .message(_, let isReceived, let row, let location, let deletionState):
             let message = row.message
             let isFromSelf = message.senderID == userID.uuid
             let displayName = row.member.displayName ?? defaultMemberName
@@ -461,6 +461,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 isReceived: isReceived,
                 isHost: message.senderID == hostID.uuid,
                 isBlocked: row.member.isBlocked == true,
+                deletionState: deletionState,
                 replyingTo: replyingTo(for: row, action: action),
                 location: location,
                 action: { [weak self] messageAction in
@@ -482,6 +483,15 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 }
                 
                 Divider()
+                
+                // Allow deletes for self messages or if room host is deleting a message
+                if let senderID = message.senderID, senderID == userID.uuid, userID == hostID {
+                    Button(role: .destructive) {
+                        action(.deleteMessage(MessageID(uuid: message.serverID), chatID))
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
                 
                 if let senderID = message.senderID, senderID != userID.uuid {
                     Button(role: .destructive) {
@@ -601,7 +611,7 @@ private struct MessageRowView<Content>: View where Content: View {
         switch kind {
         case .date:
             return .center
-        case .message(_, let isReceived, _, _):
+        case .message(_, let isReceived, _, _, _):
             return isReceived ? .leading : .trailing
         case .announcement, .unread:
             return .center
@@ -612,7 +622,7 @@ private struct MessageRowView<Content>: View where Content: View {
         switch kind {
         case .date:
             return .top
-        case .message(_, let isReceived, _, _):
+        case .message(_, let isReceived, _, _, _):
             return isReceived ? .leading : .trailing
         case .announcement, .unread:
             return .bottom
@@ -641,7 +651,7 @@ private struct MessageRowView<Content>: View where Content: View {
                 case .date, .announcement, .unread:
                     content()
                     
-                case .message(_, let isReceived, _, _):
+                case .message(_, let isReceived, _, _, _):
                     if isReceived {
                         content()
                         Spacer()
@@ -686,11 +696,38 @@ struct UnreadDescription {
 }
 
 extension Array where Element == MessageRow {
-    func messageDescriptions(userID: UserID, unread: UnreadDescription?) -> (descrioptions: [MessageDescription], unreadIndex: Int?) {
+    func messageDescriptions(userID: UserID, unread: UnreadDescription?) -> (descriptions: [MessageDescription], unreadIndex: Int?) {
         var container: [MessageDescription] = []
         var unreadIndex: Int?
         
-        for dateGroup in groupByDay(userID: userID) {
+        // 1. On first pass we index all deleted IDs
+        var deletedIDs: [UUID: UserID?] = [:]
+        for description in self {
+            guard
+                description.message.contentType == .deleteMessage,
+                let referenceID = description.referenceID
+            else {
+                continue
+            }
+            
+            deletedIDs[referenceID] = ID(uuid: description.message.senderID)
+        }
+        
+        // 2. Second pass is to remove the meta messages
+        // from the main list that will go into date groups
+        let filteredMessages = filter {
+            switch $0.message.contentType {
+            case .text, .announcement, .reply:
+                return true
+            case .reaction, .tip, .deleteMessage, .unknown:
+                return false
+            }
+        }
+        
+        // 3. Third pass is to group messages by date
+        // and generate the descriptions we'll use for
+        // rendering the list of messages
+        for dateGroup in filteredMessages.groupByDay(userID: userID) {
             
             // Date
             container.append(
@@ -705,11 +742,25 @@ extension Array where Element == MessageRow {
                 let message = messageContainer.row.message
                 let isReceived = message.senderID != userID.uuid
                 
+                var deletionState: MessageDeletion?
+                if let deletionUser = deletedIDs[message.serverID] {
+                    deletionState = MessageDeletion(
+                        senderID: deletionUser?.uuid,
+                        isSelf: deletionUser == userID
+                    )
+                }
+                
                 switch message.contentType {
                 case .text, .reply:
                     container.append(
                         .init(
-                            kind: .message(ID(uuid: message.serverID), isReceived, messageContainer.row, messageContainer.location),
+                            kind: .message(
+                                ID(uuid: message.serverID),
+                                isReceived,
+                                messageContainer.row,
+                                messageContainer.location,
+                                deletionState
+                            ),
                             content: message.content
                         )
                     )
@@ -722,7 +773,7 @@ extension Array where Element == MessageRow {
                         )
                     )
                     
-                case .reaction, .unknown:
+                case .reaction, .tip, .deleteMessage, .unknown:
                     break
                 }
                 
@@ -745,8 +796,6 @@ extension Array where Element == MessageRow {
                 }
             }
         }
-        
-        let isEmpty = self.isEmpty
         
         if let lastItem = container.last, lastItem.kind == .unread {
             print("Removed unread banner, it's the last message")

@@ -320,7 +320,7 @@ class ChatController: ObservableObject {
                     print("[STREAM] Room updated (full): \(metadata.id.uuid)")
                     
                 case .unreadCount(let unreadCount, let hasMore):
-                    try $0.updateUnreadCount(roomID: chatID, unreadCount: unreadCount)
+                    try $0.updateUnreadCount(roomID: chatID, unreadCount: unreadCount, hasMore: hasMore)
                     print("[STREAM] Unread count updated: \(unreadCount)")
                     
                 case .displayName(let displayName):
@@ -402,12 +402,26 @@ class ChatController: ObservableObject {
         let userID = userID.uuid
         try database.transaction {
             try $0.insertMessages(messages: [deliveredMessage], roomID: chatID.uuid, isBatch: false)
+            
+            // TODO: This pointer update should probably be elsewhere
             try $0.insertPointer(
                 kind: .read,
                 userID: userID,
                 roomID: chatID.uuid,
                 messageID: deliveredMessage.id.uuid
             )
+        }
+    }
+    
+    func deleteMessage(messageID: MessageID, for chatID: ChatID) async throws {
+        let deliveredMessage = try await client.deleteMessage(
+            messageID: messageID,
+            chatID: chatID,
+            owner: owner
+        )
+        
+        try database.transaction {
+            try $0.insertMessages(messages: [deliveredMessage], roomID: chatID.uuid, isBatch: false)
         }
     }
     

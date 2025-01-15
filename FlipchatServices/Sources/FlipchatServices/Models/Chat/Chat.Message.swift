@@ -36,6 +36,8 @@ extension Chat.Message {
         case announcement
         case reaction
         case reply
+        case tip
+        case deleteMessage
         case unknown = -1
     }
 }
@@ -80,6 +82,12 @@ extension Chat.Message {
             
         case .reply(let reply):
             return (.reply, reply.replyText, ID(data: reply.originalMessageID.value))
+            
+        case .tip(let content):
+            return (.tip, "", ID(data: content.originalMessageID.value))
+            
+        case .deleted(let content):
+            return (.deleteMessage, "", ID(data: content.originalMessageID.value))
             
         @unknown default:
             return (.unknown, "", nil)
