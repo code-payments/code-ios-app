@@ -23,6 +23,7 @@ extension Chat {
         
         public let isMuted: Bool
         public let canMute: Bool
+        public let isOpen: Bool
         
         public var formattedTitle: String {
             if let title {
@@ -32,7 +33,7 @@ extension Chat {
             }
         }
         
-        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String?, unreadCount: Int, hasMoreUnread: Bool, isMuted: Bool, canMute: Bool) {
+        public init(id: ChatID, kind: Kind, roomNumber: RoomNumber, ownerUser: UserID, coverAmount: Kin, title: String?, unreadCount: Int, hasMoreUnread: Bool, isMuted: Bool, canMute: Bool, isOpen: Bool) {
             self.id = id
             self.kind = kind
             self.roomNumber = roomNumber
@@ -43,6 +44,7 @@ extension Chat {
             self.hasMoreUnread = hasMoreUnread
             self.isMuted = isMuted
             self.canMute = canMute
+            self.isOpen = isOpen
         }
     }
 }
@@ -86,7 +88,8 @@ extension Chat.Metadata {
             unreadCount: Int(proto.numUnread),
             hasMoreUnread: proto.hasMoreUnread_p,
             isMuted: !proto.isPushEnabled,
-            canMute: proto.canDisablePush
+            canMute: proto.canDisablePush,
+            isOpen: proto.openStatus.isCurrentlyOpen
         )
     }
 }

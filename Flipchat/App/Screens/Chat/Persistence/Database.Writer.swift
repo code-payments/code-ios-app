@@ -79,6 +79,7 @@ extension Database {
                 table.unreadCount <- room.unreadCount.encodingUnreadCount(hasMore: room.hasMoreUnread),
                 table.isMuted     <- room.isMuted,
                 table.canMute     <- room.canMute,
+                table.isOpen      <- room.isOpen,
                 
                 onConflictOf: table.serverID
             )

@@ -81,7 +81,8 @@ struct PreviewRoomScreen: View {
             unreadCount: 0,
             hasMoreUnread: false,
             isMuted: false,
-            canMute: false
+            canMute: false,
+            isOpen: true
         ),
         members: [],
         host: .init(displayName: "Bob", avatarURL: nil),

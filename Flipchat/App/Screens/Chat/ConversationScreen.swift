@@ -152,14 +152,17 @@ struct ConversationScreen: View {
                     )
                 }
                 
-                if chatController.isRegistered && selfUser?.canSend == true {
-                    if isUserMuted {
-                        mutedView()
-                        
-                    } else if !isRoomOpen && !isSelfHost {
-                        roomClosedView()
-                        
-                    } else {
+                // Bottom control
+                
+                if isUserMuted {
+                    mutedView()
+                    
+                } else if !isRoomOpen && !isSelfHost {
+                    roomClosedView()
+                    
+                } else {
+                    
+                    if chatController.isRegistered && selfUser?.canSend == true {
                         VStack(spacing: 0) {
                             if isShowingOpenClose {
                                 openCloseView(isOpen: isRoomOpen)
@@ -167,26 +170,26 @@ struct ConversationScreen: View {
                             }
                             inputView()
                         }
-                    }
-                } else {
-                    CodeButton(
-                        style: .filled,
-                        title: "Join Room: ⬢ \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
-                    ) {
-                        Task { [weak chatViewModel] in
-                            guard let roomDescription else {
-                                return
+                    } else {
+                        CodeButton(
+                            style: .filled,
+                            title: "Join Room: ⬢ \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
+                        ) {
+                            Task { [weak chatViewModel] in
+                                guard let roomDescription else {
+                                    return
+                                }
+                                
+                                try await chatViewModel?.attemptJoinChat(
+                                    chatID: ChatID(uuid: roomDescription.room.serverID),
+                                    hostID: UserID(uuid: roomDescription.room.ownerUserID),
+                                    amount: roomDescription.room.cover
+                                )
                             }
-                            
-                            try await chatViewModel?.attemptJoinChat(
-                                chatID: ChatID(uuid: roomDescription.room.serverID),
-                                hostID: UserID(uuid: roomDescription.room.ownerUserID),
-                                amount: roomDescription.room.cover
-                            )
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
                 }
             }
         }
@@ -286,7 +289,7 @@ struct ConversationScreen: View {
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, 20)
-        .frame(height: 50)
+        .frame(height: 60)
     }
     
     @ViewBuilder private func openCloseView(isOpen: Bool) -> some View {
