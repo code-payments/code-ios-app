@@ -46,6 +46,12 @@ service Chat {
     // LeaveChat leaves a given chat.
     rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
 
+    // OpenChat opens a chat up for messaging across all members
+    rpc OpenChat(OpenChatRequest) returns (OpenChatResponse);
+
+    // CloseChat closes a chat up for messaging to just the chat owner
+    rpc CloseChat(CloseChatRequest) returns (CloseChatResponse);
+
     // SetDisplayName sets a chat's display name. If the display name isn't allowed,
     // then a set of alternate suggestions may be provided
     rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
@@ -317,6 +323,34 @@ message LeaveChatResponse {
     }
 }
 
+message OpenChatRequest {
+    // The chat that is being opened
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+message OpenChatResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        DENIED = 1;
+    }
+}
+
+message CloseChatRequest {
+    /// The chat that is being closed
+    common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+message CloseChatResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        DENIED = 1;
+    }
+}
+
 message SetDisplayNameRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
@@ -495,6 +529,19 @@ message Metadata {
 
     // The timestamp of the last activity in this chat
     google.protobuf.Timestamp last_activity = 10;
+
+    // The status as to whether the room is open or closed. This may be
+    // omitted for chats where it doesn't apply. If not provided, it's
+    // safe to assume the chat is open indefinitely until otherwise provided.
+    OpenStatus open_status = 12;
+}
+
+// todo: In the future, we may add additional fields like open/closed until a timestamp, etc.
+//       For backwards compatibility, client can always refer to is_currently_open for whether
+//       a room is open right now or not for the purposes of sending messages.
+// todo: A better name for this
+message OpenStatus {
+    bool is_currently_open = 1;
 }
 
 message MetadataUpdate {
@@ -506,6 +553,7 @@ message MetadataUpdate {
         DisplayNameChanged  display_name_changed  = 3;
         CoverChargeChanged  cover_charge_changed  = 4;
         LastActivityChanged last_activity_changed = 5;
+        OpenStatusChanged   open_status_changed   = 6;
     }
 
     // Refreshes the entire chat metadata
@@ -538,6 +586,11 @@ message MetadataUpdate {
     // The last activity timestamp has changed to a newer value
     message LastActivityChanged {
         google.protobuf.Timestamp new_last_activity = 1 [(validate.rules).timestamp.required = true];
+    }
+
+    // The open status has changed to a newer value
+    message OpenStatusChanged {
+        OpenStatus new_open_status = 1 [(validate.rules).timestamp.required = true];
     }
 }
 

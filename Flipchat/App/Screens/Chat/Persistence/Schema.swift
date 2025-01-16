@@ -10,7 +10,9 @@ import FlipchatServices
 @preconcurrency import SQLite
 
 struct RoomTable: Sendable {
-    let table        = Table("room")
+    static let name = "room"
+    
+    let table        = Table(Self.name)
     let serverID     = Expression <UUID>       ("serverID")
     let kind         = Expression <Int>        ("kind")
     let title        = Expression <String?>    ("title")
@@ -21,10 +23,13 @@ struct RoomTable: Sendable {
     let isMuted      = Expression <Bool>       ("isMuted")
     let canMute      = Expression <Bool>       ("canMute")
     let isDeleted    = Expression <Bool>       ("isDeleted")
+    let isOpen       = Expression <Bool>       ("isOpen")
 }
 
 struct MessageTable: Sendable {
-    let table       = Table("message")
+    static let name = "message"
+    
+    let table       = Table(Self.name)
     let serverID    = Expression <UUID>        ("serverID")
     let roomID      = Expression <UUID>        ("roomID")
     let date        = Expression <Date>        ("date")
@@ -37,7 +42,9 @@ struct MessageTable: Sendable {
 }
 
 struct MemberTable: Sendable {
-    let table       = Table("member")
+    static let name = "member"
+    
+    let table       = Table(Self.name)
     let userID      = Expression <UUID> ("userID")
     let roomID      = Expression <UUID> ("roomID")
     let isMuted     = Expression <Bool> ("isMuted")
@@ -46,7 +53,9 @@ struct MemberTable: Sendable {
 }
 
 struct UserTable: Sendable {
-    let table       = Table("user")
+    static let name = "user"
+    
+    let table       = Table(Self.name)
     let serverID    = Expression <UUID>    ("serverID")
     let displayName = Expression <String?> ("displayName")
     let avatarURL   = Expression <URL?>    ("avatarURL")
@@ -54,7 +63,9 @@ struct UserTable: Sendable {
 }
 
 struct PointerTable: Sendable {
-    let table     = Table("pointer")
+    static let name = "pointer"
+    
+    let table     = Table(Self.name)
     let roomID    = Expression <UUID> ("roomID")
     let userID    = Expression <UUID> ("userID")
     let kind      = Expression <Int>  ("kind")
@@ -93,6 +104,7 @@ extension Database {
                 t.column(roomTable.isMuted,   defaultValue: false)
                 t.column(roomTable.canMute,   defaultValue: false)
                 t.column(roomTable.isDeleted, defaultValue: false)
+                t.column(roomTable.isOpen,    defaultValue: true)
             })
             
             try writer.run(messageTable.table.create(ifNotExists: true, withoutRowid: true) { t in

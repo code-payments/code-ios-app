@@ -170,10 +170,10 @@ public struct Flipchat_Messaging_V1_StreamMessagesResponse {
     set {type = .error(newValue)}
   }
 
-  public var messages: Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch {
+  public var messages: Flipchat_Messaging_V1_MessageBatch {
     get {
       if case .messages(let v)? = type {return v}
-      return Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch()
+      return Flipchat_Messaging_V1_MessageBatch()
     }
     set {type = .messages(newValue)}
   }
@@ -183,7 +183,7 @@ public struct Flipchat_Messaging_V1_StreamMessagesResponse {
   public enum OneOf_Type: Equatable {
     case ping(Flipchat_Common_V1_ServerPing)
     case error(Flipchat_Messaging_V1_StreamMessagesResponse.StreamError)
-    case messages(Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch)
+    case messages(Flipchat_Messaging_V1_MessageBatch)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipchat_Messaging_V1_StreamMessagesResponse.OneOf_Type, rhs: Flipchat_Messaging_V1_StreamMessagesResponse.OneOf_Type) -> Bool {
@@ -242,18 +242,6 @@ public struct Flipchat_Messaging_V1_StreamMessagesResponse {
       }
 
     }
-
-    public init() {}
-  }
-
-  public struct MessageBatch {
-    // SwiftProtobuf.Message conformance is added in an extension below. See the
-    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-    // methods supported on all messages.
-
-    public var messages: [Flipchat_Messaging_V1_Message] = []
-
-    public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public init() {}
   }
@@ -394,14 +382,24 @@ public struct Flipchat_Messaging_V1_GetMessagesRequest {
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
-  public var queryOptions: Flipchat_Common_V1_QueryOptions {
-    get {return _queryOptions ?? Flipchat_Common_V1_QueryOptions()}
-    set {_queryOptions = newValue}
+  /// If not set, defaults to an ascending query option without a page token and server-defined limit
+  public var query: Flipchat_Messaging_V1_GetMessagesRequest.OneOf_Query? = nil
+
+  public var options: Flipchat_Common_V1_QueryOptions {
+    get {
+      if case .options(let v)? = query {return v}
+      return Flipchat_Common_V1_QueryOptions()
+    }
+    set {query = .options(newValue)}
   }
-  /// Returns true if `queryOptions` has been explicitly set.
-  public var hasQueryOptions: Bool {return self._queryOptions != nil}
-  /// Clears the value of `queryOptions`. Subsequent reads from it will return its default value.
-  public mutating func clearQueryOptions() {self._queryOptions = nil}
+
+  public var messageIds: Flipchat_Messaging_V1_MessageIdBatch {
+    get {
+      if case .messageIds(let v)? = query {return v}
+      return Flipchat_Messaging_V1_MessageIdBatch()
+    }
+    set {query = .messageIds(newValue)}
+  }
 
   public var auth: Flipchat_Common_V1_Auth {
     get {return _auth ?? Flipchat_Common_V1_Auth()}
@@ -414,10 +412,34 @@ public struct Flipchat_Messaging_V1_GetMessagesRequest {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
+  /// If not set, defaults to an ascending query option without a page token and server-defined limit
+  public enum OneOf_Query: Equatable {
+    case options(Flipchat_Common_V1_QueryOptions)
+    case messageIds(Flipchat_Messaging_V1_MessageIdBatch)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipchat_Messaging_V1_GetMessagesRequest.OneOf_Query, rhs: Flipchat_Messaging_V1_GetMessagesRequest.OneOf_Query) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.options, .options): return {
+        guard case .options(let l) = lhs, case .options(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.messageIds, .messageIds): return {
+        guard case .messageIds(let l) = lhs, case .messageIds(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
+      }
+    }
+  #endif
+  }
+
   public init() {}
 
   fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
-  fileprivate var _queryOptions: Flipchat_Common_V1_QueryOptions? = nil
   fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
 }
 
@@ -825,11 +847,11 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_StreamMessagesResponse.OneOf_Type: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError.Code: @unchecked Sendable {}
-extension Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessageRequest: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessageResponse: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessageResponse.Result: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesRequest: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_GetMessagesRequest.OneOf_Query: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesResponse: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_GetMessagesResponse.Result: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_SendMessageRequest: @unchecked Sendable {}
@@ -1036,7 +1058,7 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse: SwiftProtobuf.Message, S
         }
       }()
       case 3: try {
-        var v: Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch?
+        var v: Flipchat_Messaging_V1_MessageBatch?
         var hadOneofValue = false
         if let current = self.type {
           hadOneofValue = true
@@ -1119,38 +1141,6 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse.StreamError.Code: SwiftPr
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "DENIED"),
   ]
-}
-
-extension Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipchat_Messaging_V1_StreamMessagesResponse.protoMessageName + ".MessageBatch"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "messages"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.messages) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.messages.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.messages, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch, rhs: Flipchat_Messaging_V1_StreamMessagesResponse.MessageBatch) -> Bool {
-    if lhs.messages != rhs.messages {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
 }
 
 extension Flipchat_Messaging_V1_GetMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -1255,7 +1245,8 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
   public static let protoMessageName: String = _protobuf_package + ".GetMessagesRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "chat_id"),
-    2: .standard(proto: "query_options"),
+    2: .same(proto: "options"),
+    3: .standard(proto: "message_ids"),
     5: .same(proto: "auth"),
   ]
 
@@ -1266,7 +1257,32 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._queryOptions) }()
+      case 2: try {
+        var v: Flipchat_Common_V1_QueryOptions?
+        var hadOneofValue = false
+        if let current = self.query {
+          hadOneofValue = true
+          if case .options(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.query = .options(v)
+        }
+      }()
+      case 3: try {
+        var v: Flipchat_Messaging_V1_MessageIdBatch?
+        var hadOneofValue = false
+        if let current = self.query {
+          hadOneofValue = true
+          if case .messageIds(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.query = .messageIds(v)
+        }
+      }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
@@ -1281,9 +1297,17 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
     try { if let v = self._chatID {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    try { if let v = self._queryOptions {
+    switch self.query {
+    case .options?: try {
+      guard case .options(let v)? = self.query else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
+    }()
+    case .messageIds?: try {
+      guard case .messageIds(let v)? = self.query else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case nil: break
+    }
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
@@ -1292,7 +1316,7 @@ extension Flipchat_Messaging_V1_GetMessagesRequest: SwiftProtobuf.Message, Swift
 
   public static func ==(lhs: Flipchat_Messaging_V1_GetMessagesRequest, rhs: Flipchat_Messaging_V1_GetMessagesRequest) -> Bool {
     if lhs._chatID != rhs._chatID {return false}
-    if lhs._queryOptions != rhs._queryOptions {return false}
+    if lhs.query != rhs.query {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

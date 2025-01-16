@@ -11,8 +11,6 @@ import FlipchatServices
 
 struct ConversationScreen: View {
     
-    @EnvironmentObject private var client: Client
-    @EnvironmentObject private var flipClient: FlipchatClient
     @EnvironmentObject private var banners: Banners
     @EnvironmentObject private var notificationController: NotificationController
     
@@ -26,6 +24,8 @@ struct ConversationScreen: View {
     @State private var replyMessage: MessageRow?
     
     @State private var shouldScrollOnFocus: Bool = true
+    
+    @State private var isShowingOpenClose: Bool = false
     
     @FocusState private var isEditorFocused: Bool
     
@@ -45,6 +45,22 @@ struct ConversationScreen: View {
     
     private var selfUser: MemberRow? {
         updateableUser.value
+    }
+    
+    private var isUserMuted: Bool {
+        selfUser?.isMuted == true
+    }
+    
+    private var isSelfHost: Bool {
+        roomDescription?.room.ownerUserID == userID.uuid
+    }
+    
+    private var isRoomOpen: Bool {
+        roomDescription?.room.isOpen == true
+    }
+    
+    private var canShowOpenClose: Bool {
+        isSelfHost
     }
     
     // MARK: - Init -
@@ -73,11 +89,27 @@ struct ConversationScreen: View {
     }
     
     private func didAppear() {
-        
+        setOpenClose(visible: true, animated: false)
     }
     
     private func didDisappear() {
         
+    }
+    
+    // MARK: - Actions -
+    
+    private func setOpenClose(visible: Bool, animated: Bool) {
+        func action() {
+            isShowingOpenClose = canShowOpenClose && visible
+        }
+        
+        if animated {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                action()
+            }
+        } else {
+            action()
+        }
     }
     
     // MARK: - Body -
@@ -121,15 +153,20 @@ struct ConversationScreen: View {
                 }
                 
                 if chatController.isRegistered && selfUser?.canSend == true {
-                    if selfUser?.isMuted != true {
-                        inputView()
+                    if isUserMuted {
+                        mutedView()
+                        
+                    } else if !isRoomOpen && !isSelfHost {
+                        roomClosedView()
+                        
                     } else {
-                        VStack {
-                            Text("You've been muted")
-                                .font(.appTextMedium)
-                                .foregroundStyle(Color.textSecondary)
+                        VStack(spacing: 0) {
+                            if isShowingOpenClose {
+                                openCloseView(isOpen: isRoomOpen)
+                                    .transition(.move(edge: .bottom))
+                            }
+                            inputView()
                         }
-                        .frame(height: 50)
                     }
                 } else {
                     CodeButton(
@@ -205,9 +242,8 @@ struct ConversationScreen: View {
                     Image.asset(.paperplane)
                         .resizable()
                         .frame(width: 36, height: 36, alignment: .center)
-                    //                    .padding([.bottom, .leading, .trailing], 2)
-                    //                    .padding(.top, 8)
                 }
+                .disabled(input.isEmpty)
             }
             .padding(.horizontal, 15)
             .padding(.top, 5)
@@ -222,11 +258,84 @@ struct ConversationScreen: View {
                 }
             }
             
+            setOpenClose(visible: !focused, animated: true)
+            
             // Reset to default
             Task {
                 shouldScrollOnFocus = true
             }
         }
+    }
+    
+    @ViewBuilder private func mutedView() -> some View {
+        VStack {
+            Text("You've been muted")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 50)
+    }
+    
+    @ViewBuilder private func roomClosedView() -> some View {
+        VStack {
+            Text("This room is currently closed. Only the host can message until they reopen it.")
+                .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 50)
+    }
+    
+    @ViewBuilder private func openCloseView(isOpen: Bool) -> some View {
+        HStack {
+            Text("Your room is currently \(isOpen ? "open" : "closed")")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textMain)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            
+            Spacer()
+            
+            PillButton(text: "Change") {
+                
+                let title: String
+                let description: String
+                let actionTitle: String
+                let action: () -> Void
+                
+                if isOpen {
+                    title = "Close Room Temporarily?"
+                    description = "Only you will be able to send messages until you reopen the room."
+                    actionTitle = "Close Temporarily"
+                    action = {
+                        changeRoomOpenState(open: false)
+                    }
+                } else {
+                    title = "Reopen Room?"
+                    description = "Room members will be able to send messages again"
+                    actionTitle = "Reopen Room"
+                    action = {
+                        changeRoomOpenState(open: true)
+                    }
+                }
+                
+                banners.show(
+                    style: .error,
+                    title: title,
+                    description: description,
+                    position: .bottom,
+                    actions: [
+                        .destructive(title: actionTitle, action: action),
+                        .cancel(title: "Cancel"),
+                    ]
+                )
+            }
+        }
+        .padding(.horizontal, 15)
+        .padding(.vertical, 8)
     }
     
     @ViewBuilder private func titleItem() -> some View {
@@ -399,6 +508,12 @@ struct ConversationScreen: View {
     
     private func copy(text: String) {
         UIPasteboard.general.string = text
+    }
+    
+    private func changeRoomOpenState(open: Bool) {
+        Task {
+            try await chatController.changeRoomOpenState(chatID: chatID, open: open)
+        }
     }
     
     private func sendMessage(text: String) {

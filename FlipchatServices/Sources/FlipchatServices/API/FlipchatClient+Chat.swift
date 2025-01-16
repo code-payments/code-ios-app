@@ -82,4 +82,16 @@ extension FlipchatClient {
             chatService.changeRoomName(chatID: chatID, newName: newName, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func openRoom(chatID: ChatID, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.openRoom(chatID: chatID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func closeRoom(chatID: ChatID, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.closeRoom(chatID: chatID, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

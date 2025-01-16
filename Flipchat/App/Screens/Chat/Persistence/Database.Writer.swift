@@ -187,6 +187,15 @@ extension Database {
         )
     }
     
+    func updateOpenState(roomID: UUID, isOpen: Bool) throws {
+        let room = RoomTable()
+        try writer.run(
+            room.table
+                .filter(room.serverID == roomID)
+                .update(room.isOpen <- isOpen)
+        )
+    }
+    
     // MARK: - Incremental Member Updates -
     
     func deleteMember(userID: UUID, roomID: UUID) throws {

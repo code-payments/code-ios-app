@@ -47,6 +47,7 @@ extension Database {
             r.coverQuarks,
             r.unreadCount,
             r.isDeleted,
+            r.isOpen,
 
             m.serverID    AS mServerID,
             m.roomID      AS mRoomID,
@@ -107,7 +108,8 @@ extension Database {
                     ownerUserID: row[rTable.ownerUserID],
                     cover:       Kin(quarks: row[rTable.coverQuarks])!,
                     unreadCount: row[rTable.unreadCount],
-                    isDeleted:   row[rTable.isDeleted]
+                    isDeleted:   row[rTable.isDeleted],
+                    isOpen:      row[rTable.isOpen]
                 ),
                 lastMessage: messageID == nil ? nil : .init(
                     serverID:    row[mTable.serverID.alias("mServerID")],
@@ -139,6 +141,7 @@ extension Database {
             r.isDeleted,
             r.isMuted,
             r.canMute,
+            r.isOpen,
 
             m.serverID    AS mServerID,
             m.roomID      AS mRoomID,
@@ -202,6 +205,7 @@ extension Database {
                     cover:         Kin(quarks: row[rTable.coverQuarks])!,
                     unreadCount:   unread.count,
                     hasMoreUnread: unread.hasMore,
+                    isOpen:        row[rTable.isOpen],
                     isDeleted:     row[rTable.isDeleted],
                     isMuted:       row[rTable.isMuted],
                     canMute:       row[rTable.canMute]
@@ -244,6 +248,7 @@ struct RoomDescription: Identifiable {
         let cover: Kin
         let unreadCount: Int
         let isDeleted: Bool
+        let isOpen: Bool
         
         var formattedTitle: String {
             if let title {
@@ -283,6 +288,7 @@ struct RoomRow: Identifiable {
         let cover: Kin
         let unreadCount: Int
         let hasMoreUnread: Bool
+        let isOpen: Bool
         let isDeleted: Bool
         let isMuted: Bool
         let canMute: Bool

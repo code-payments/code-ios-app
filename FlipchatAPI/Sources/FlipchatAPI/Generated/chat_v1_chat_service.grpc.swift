@@ -46,6 +46,16 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>
 
+  func openChat(
+    _ request: Flipchat_Chat_V1_OpenChatRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_OpenChatRequest, Flipchat_Chat_V1_OpenChatResponse>
+
+  func closeChat(
+    _ request: Flipchat_Chat_V1_CloseChatRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>
+
   func setDisplayName(
     _ request: Flipchat_Chat_V1_SetDisplayNameRequest,
     callOptions: CallOptions?
@@ -216,6 +226,42 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLeaveChatInterceptors() ?? []
+    )
+  }
+
+  /// OpenChat opens a chat up for messaging across all members
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to OpenChat.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func openChat(
+    _ request: Flipchat_Chat_V1_OpenChatRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_OpenChatRequest, Flipchat_Chat_V1_OpenChatResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.openChat.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeOpenChatInterceptors() ?? []
+    )
+  }
+
+  /// CloseChat closes a chat up for messaging to just the chat owner
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to CloseChat.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func closeChat(
+    _ request: Flipchat_Chat_V1_CloseChatRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.closeChat.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCloseChatInterceptors() ?? []
     )
   }
 
@@ -458,6 +504,16 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>
 
+  func makeOpenChatCall(
+    _ request: Flipchat_Chat_V1_OpenChatRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_OpenChatRequest, Flipchat_Chat_V1_OpenChatResponse>
+
+  func makeCloseChatCall(
+    _ request: Flipchat_Chat_V1_CloseChatRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>
+
   func makeSetDisplayNameCall(
     _ request: Flipchat_Chat_V1_SetDisplayNameRequest,
     callOptions: CallOptions?
@@ -576,6 +632,30 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeLeaveChatInterceptors() ?? []
+    )
+  }
+
+  public func makeOpenChatCall(
+    _ request: Flipchat_Chat_V1_OpenChatRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_OpenChatRequest, Flipchat_Chat_V1_OpenChatResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.openChat.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeOpenChatInterceptors() ?? []
+    )
+  }
+
+  public func makeCloseChatCall(
+    _ request: Flipchat_Chat_V1_CloseChatRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.closeChat.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCloseChatInterceptors() ?? []
     )
   }
 
@@ -762,6 +842,30 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
+  public func openChat(
+    _ request: Flipchat_Chat_V1_OpenChatRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_OpenChatResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.openChat.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeOpenChatInterceptors() ?? []
+    )
+  }
+
+  public func closeChat(
+    _ request: Flipchat_Chat_V1_CloseChatRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_CloseChatResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.closeChat.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCloseChatInterceptors() ?? []
+    )
+  }
+
   public func setDisplayName(
     _ request: Flipchat_Chat_V1_SetDisplayNameRequest,
     callOptions: CallOptions? = nil
@@ -896,6 +1000,12 @@ public protocol Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when invoking 'leaveChat'.
   func makeLeaveChatInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'openChat'.
+  func makeOpenChatInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_OpenChatRequest, Flipchat_Chat_V1_OpenChatResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'closeChat'.
+  func makeCloseChatInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>]
+
   /// - Returns: Interceptors to use when invoking 'setDisplayName'.
   func makeSetDisplayNameInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetDisplayNameRequest, Flipchat_Chat_V1_SetDisplayNameResponse>]
 
@@ -932,6 +1042,8 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       Flipchat_Chat_V1_ChatClientMetadata.Methods.startChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.joinChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.leaveChat,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.openChat,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.closeChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setDisplayName,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.getMemberUpdates,
@@ -977,6 +1089,18 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
     public static let leaveChat = GRPCMethodDescriptor(
       name: "LeaveChat",
       path: "/flipchat.chat.v1.Chat/LeaveChat",
+      type: GRPCCallType.unary
+    )
+
+    public static let openChat = GRPCMethodDescriptor(
+      name: "OpenChat",
+      path: "/flipchat.chat.v1.Chat/OpenChat",
+      type: GRPCCallType.unary
+    )
+
+    public static let closeChat = GRPCMethodDescriptor(
+      name: "CloseChat",
+      path: "/flipchat.chat.v1.Chat/CloseChat",
       type: GRPCCallType.unary
     )
 
@@ -1067,6 +1191,12 @@ public protocol Flipchat_Chat_V1_ChatProvider: CallHandlerProvider {
 
   /// LeaveChat leaves a given chat.
   func leaveChat(request: Flipchat_Chat_V1_LeaveChatRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_LeaveChatResponse>
+
+  /// OpenChat opens a chat up for messaging across all members
+  func openChat(request: Flipchat_Chat_V1_OpenChatRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_OpenChatResponse>
+
+  /// CloseChat closes a chat up for messaging to just the chat owner
+  func closeChat(request: Flipchat_Chat_V1_CloseChatRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_CloseChatResponse>
 
   /// SetDisplayName sets a chat's display name. If the display name isn't allowed,
   /// then a set of alternate suggestions may be provided
@@ -1160,6 +1290,24 @@ extension Flipchat_Chat_V1_ChatProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_LeaveChatResponse>(),
         interceptors: self.interceptors?.makeLeaveChatInterceptors() ?? [],
         userFunction: self.leaveChat(request:context:)
+      )
+
+    case "OpenChat":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_OpenChatRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_OpenChatResponse>(),
+        interceptors: self.interceptors?.makeOpenChatInterceptors() ?? [],
+        userFunction: self.openChat(request:context:)
+      )
+
+    case "CloseChat":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_CloseChatRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_CloseChatResponse>(),
+        interceptors: self.interceptors?.makeCloseChatInterceptors() ?? [],
+        userFunction: self.closeChat(request:context:)
       )
 
     case "SetDisplayName":
@@ -1299,6 +1447,18 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_LeaveChatResponse
 
+  /// OpenChat opens a chat up for messaging across all members
+  func openChat(
+    request: Flipchat_Chat_V1_OpenChatRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_OpenChatResponse
+
+  /// CloseChat closes a chat up for messaging to just the chat owner
+  func closeChat(
+    request: Flipchat_Chat_V1_CloseChatRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_CloseChatResponse
+
   /// SetDisplayName sets a chat's display name. If the display name isn't allowed,
   /// then a set of alternate suggestions may be provided
   func setDisplayName(
@@ -1424,6 +1584,24 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.leaveChat(request: $0, context: $1) }
       )
 
+    case "OpenChat":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_OpenChatRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_OpenChatResponse>(),
+        interceptors: self.interceptors?.makeOpenChatInterceptors() ?? [],
+        wrapping: { try await self.openChat(request: $0, context: $1) }
+      )
+
+    case "CloseChat":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_CloseChatRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_CloseChatResponse>(),
+        interceptors: self.interceptors?.makeCloseChatInterceptors() ?? [],
+        wrapping: { try await self.closeChat(request: $0, context: $1) }
+      )
+
     case "SetDisplayName":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1528,6 +1706,14 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeLeaveChatInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_LeaveChatRequest, Flipchat_Chat_V1_LeaveChatResponse>]
 
+  /// - Returns: Interceptors to use when handling 'openChat'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeOpenChatInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_OpenChatRequest, Flipchat_Chat_V1_OpenChatResponse>]
+
+  /// - Returns: Interceptors to use when handling 'closeChat'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeCloseChatInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>]
+
   /// - Returns: Interceptors to use when handling 'setDisplayName'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetDisplayNameInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetDisplayNameRequest, Flipchat_Chat_V1_SetDisplayNameResponse>]
@@ -1572,6 +1758,8 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       Flipchat_Chat_V1_ChatServerMetadata.Methods.startChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.joinChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.leaveChat,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.openChat,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.closeChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setDisplayName,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setCoverCharge,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.getMemberUpdates,
@@ -1617,6 +1805,18 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
     public static let leaveChat = GRPCMethodDescriptor(
       name: "LeaveChat",
       path: "/flipchat.chat.v1.Chat/LeaveChat",
+      type: GRPCCallType.unary
+    )
+
+    public static let openChat = GRPCMethodDescriptor(
+      name: "OpenChat",
+      path: "/flipchat.chat.v1.Chat/OpenChat",
+      type: GRPCCallType.unary
+    )
+
+    public static let closeChat = GRPCMethodDescriptor(
+      name: "CloseChat",
+      path: "/flipchat.chat.v1.Chat/CloseChat",
       type: GRPCCallType.unary
     )
 

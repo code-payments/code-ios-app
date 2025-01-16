@@ -206,7 +206,7 @@ class ChatController: ObservableObject {
                 query: PageQuery(
                     order: .desc,
                     pagingToken: earliestMessageID,
-                    pageSize: 500
+                    pageSize: 1024
                 )
             )
             
@@ -331,7 +331,12 @@ class ChatController: ObservableObject {
                     try $0.updateCoverCharge(roomID: chatID, cover: cover)
                     print("[STREAM] Cover updated: \(cover)")
                     
-                case .lastActivity(let date):
+                case .openStateChanged(let isOpen):
+                    try $0.updateOpenState(roomID: chatID, isOpen: isOpen)
+                    print("[STREAM] Room open: \(isOpen)")
+                    break
+                    
+                case .lastActivity:
                     // Ignore
                     break
                 }
@@ -603,6 +608,18 @@ class ChatController: ObservableObject {
         let chat = try await client.fetchChat(for: .chatID(chatID), owner: owner)
         
         try insert(chat: chat)
+    }
+    
+    func changeRoomOpenState(chatID: ChatID, open: Bool) async throws {
+        if open {
+            try await client.openRoom(chatID: chatID, owner: owner)
+        } else {
+            try await client.closeRoom(chatID: chatID, owner: owner)
+        }
+        
+        try database.transaction {
+            try $0.updateOpenState(roomID: chatID.uuid, isOpen: open)
+        }
     }
     
     // MARK: - Changes -

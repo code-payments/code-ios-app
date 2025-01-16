@@ -91,7 +91,7 @@ extension Flipchat_Messaging_V1_MessagingClientProtocol {
     )
   }
 
-  /// GetMessages gets the set of messages for a chat using a paged API
+  /// GetMessages gets the set of messages for a chat using a paged and batched APIs
   ///
   /// - Parameters:
   ///   - request: Request to send to GetMessages.
@@ -527,7 +527,7 @@ public protocol Flipchat_Messaging_V1_MessagingProvider: CallHandlerProvider {
   /// GetMessage gets a single message in a chat
   func getMessage(request: Flipchat_Messaging_V1_GetMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Messaging_V1_GetMessageResponse>
 
-  /// GetMessages gets the set of messages for a chat using a paged API
+  /// GetMessages gets the set of messages for a chat using a paged and batched APIs
   func getMessages(request: Flipchat_Messaging_V1_GetMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Messaging_V1_GetMessagesResponse>
 
   /// SendMessage sends a message to a chat.
@@ -633,7 +633,7 @@ public protocol Flipchat_Messaging_V1_MessagingAsyncProvider: CallHandlerProvide
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Messaging_V1_GetMessageResponse
 
-  /// GetMessages gets the set of messages for a chat using a paged API
+  /// GetMessages gets the set of messages for a chat using a paged and batched APIs
   func getMessages(
     request: Flipchat_Messaging_V1_GetMessagesRequest,
     context: GRPCAsyncServerCallContext

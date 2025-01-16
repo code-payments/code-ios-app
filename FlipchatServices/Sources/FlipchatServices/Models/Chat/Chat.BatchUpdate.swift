@@ -35,6 +35,7 @@ extension Chat {
             case displayName(String)
             case coverCharge(Kin)
             case lastActivity(Date)
+            case openStateChanged(Bool)
         }
         
         public enum MemberUpdate: Sendable {
@@ -114,6 +115,9 @@ extension Chat.BatchUpdate.ChatUpdate {
             
         case .lastActivityChanged(let update):
             self = .lastActivity(update.newLastActivity.date)
+            
+        case .openStatusChanged(let update):
+            self = .openStateChanged(update.newOpenStatus.isCurrentlyOpen)
         }
     }
 }

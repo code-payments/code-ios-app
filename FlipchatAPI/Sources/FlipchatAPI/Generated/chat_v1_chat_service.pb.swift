@@ -1049,6 +1049,174 @@ extension Flipchat_Chat_V1_LeaveChatResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Chat_V1_OpenChatRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The chat that is being opened
+  public var chatID: Flipchat_Common_V1_ChatId {
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Chat_V1_OpenChatResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Chat_V1_OpenChatResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Chat_V1_OpenChatResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Chat_V1_OpenChatResponse.Result] = [
+    .ok,
+    .denied,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Flipchat_Chat_V1_CloseChatRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  //// The chat that is being closed
+  public var chatID: Flipchat_Common_V1_ChatId {
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Chat_V1_CloseChatResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Chat_V1_CloseChatResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Chat_V1_CloseChatResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Chat_V1_CloseChatResponse.Result] = [
+    .ok,
+    .denied,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Flipchat_Chat_V1_SetDisplayNameRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1846,6 +2014,18 @@ public struct Flipchat_Chat_V1_Metadata {
   /// Clears the value of `lastActivity`. Subsequent reads from it will return its default value.
   public mutating func clearLastActivity() {self._lastActivity = nil}
 
+  /// The status as to whether the room is open or closed. This may be
+  /// omitted for chats where it doesn't apply. If not provided, it's
+  /// safe to assume the chat is open indefinitely until otherwise provided.
+  public var openStatus: Flipchat_Chat_V1_OpenStatus {
+    get {return _openStatus ?? Flipchat_Chat_V1_OpenStatus()}
+    set {_openStatus = newValue}
+  }
+  /// Returns true if `openStatus` has been explicitly set.
+  public var hasOpenStatus: Bool {return self._openStatus != nil}
+  /// Clears the value of `openStatus`. Subsequent reads from it will return its default value.
+  public mutating func clearOpenStatus() {self._openStatus = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum ChatType: SwiftProtobuf.Enum {
@@ -1885,6 +2065,7 @@ public struct Flipchat_Chat_V1_Metadata {
   fileprivate var _owner: Flipchat_Common_V1_UserId? = nil
   fileprivate var _coverCharge: Flipchat_Common_V1_PaymentAmount? = nil
   fileprivate var _lastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _openStatus: Flipchat_Chat_V1_OpenStatus? = nil
 }
 
 #if swift(>=4.2)
@@ -1899,6 +2080,22 @@ extension Flipchat_Chat_V1_Metadata.ChatType: CaseIterable {
 }
 
 #endif  // swift(>=4.2)
+
+/// todo: In the future, we may add additional fields like open/closed until a timestamp, etc.
+///       For backwards compatibility, client can always refer to is_currently_open for whether
+///       a room is open right now or not for the purposes of sending messages.
+/// todo: A better name for this
+public struct Flipchat_Chat_V1_OpenStatus {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var isCurrentlyOpen: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
 
 public struct Flipchat_Chat_V1_MetadataUpdate {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -1947,6 +2144,14 @@ public struct Flipchat_Chat_V1_MetadataUpdate {
     set {kind = .lastActivityChanged(newValue)}
   }
 
+  public var openStatusChanged: Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged {
+    get {
+      if case .openStatusChanged(let v)? = kind {return v}
+      return Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged()
+    }
+    set {kind = .openStatusChanged(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Kind: Equatable {
@@ -1955,6 +2160,7 @@ public struct Flipchat_Chat_V1_MetadataUpdate {
     case displayNameChanged(Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged)
     case coverChargeChanged(Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged)
     case lastActivityChanged(Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged)
+    case openStatusChanged(Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.OneOf_Kind, rhs: Flipchat_Chat_V1_MetadataUpdate.OneOf_Kind) -> Bool {
@@ -1980,6 +2186,10 @@ public struct Flipchat_Chat_V1_MetadataUpdate {
       }()
       case (.lastActivityChanged, .lastActivityChanged): return {
         guard case .lastActivityChanged(let l) = lhs, case .lastActivityChanged(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.openStatusChanged, .openStatusChanged): return {
+        guard case .openStatusChanged(let l) = lhs, case .openStatusChanged(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -2083,6 +2293,28 @@ public struct Flipchat_Chat_V1_MetadataUpdate {
     public init() {}
 
     fileprivate var _newLastActivity: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  }
+
+  /// The open status has changed to a newer value
+  public struct OpenStatusChanged {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var newOpenStatus: Flipchat_Chat_V1_OpenStatus {
+      get {return _newOpenStatus ?? Flipchat_Chat_V1_OpenStatus()}
+      set {_newOpenStatus = newValue}
+    }
+    /// Returns true if `newOpenStatus` has been explicitly set.
+    public var hasNewOpenStatus: Bool {return self._newOpenStatus != nil}
+    /// Clears the value of `newOpenStatus`. Subsequent reads from it will return its default value.
+    public mutating func clearNewOpenStatus() {self._newOpenStatus = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _newOpenStatus: Flipchat_Chat_V1_OpenStatus? = nil
   }
 
   public init() {}
@@ -2454,6 +2686,12 @@ extension Flipchat_Chat_V1_JoinChatPaymentMetadata: @unchecked Sendable {}
 extension Flipchat_Chat_V1_LeaveChatRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_LeaveChatResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_LeaveChatResponse.Result: @unchecked Sendable {}
+extension Flipchat_Chat_V1_OpenChatRequest: @unchecked Sendable {}
+extension Flipchat_Chat_V1_OpenChatResponse: @unchecked Sendable {}
+extension Flipchat_Chat_V1_OpenChatResponse.Result: @unchecked Sendable {}
+extension Flipchat_Chat_V1_CloseChatRequest: @unchecked Sendable {}
+extension Flipchat_Chat_V1_CloseChatResponse: @unchecked Sendable {}
+extension Flipchat_Chat_V1_CloseChatResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_SetDisplayNameRequest: @unchecked Sendable {}
 extension Flipchat_Chat_V1_SetDisplayNameResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_SetDisplayNameResponse.Result: @unchecked Sendable {}
@@ -2480,6 +2718,7 @@ extension Flipchat_Chat_V1_ReportUserResponse: @unchecked Sendable {}
 extension Flipchat_Chat_V1_ReportUserResponse.Result: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Metadata: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Metadata.ChatType: @unchecked Sendable {}
+extension Flipchat_Chat_V1_OpenStatus: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MetadataUpdate: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MetadataUpdate.OneOf_Kind: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MetadataUpdate.FullRefresh: @unchecked Sendable {}
@@ -2487,6 +2726,7 @@ extension Flipchat_Chat_V1_MetadataUpdate.UnreadCountChanged: @unchecked Sendabl
 extension Flipchat_Chat_V1_MetadataUpdate.DisplayNameChanged: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MetadataUpdate.CoverChargeChanged: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged: @unchecked Sendable {}
+extension Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged: @unchecked Sendable {}
 extension Flipchat_Chat_V1_Member: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MemberIdentity: @unchecked Sendable {}
 extension Flipchat_Chat_V1_MemberUpdate: @unchecked Sendable {}
@@ -3671,6 +3911,168 @@ extension Flipchat_Chat_V1_LeaveChatResponse.Result: SwiftProtobuf._ProtoNamePro
   ]
 }
 
+extension Flipchat_Chat_V1_OpenChatRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OpenChatRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_OpenChatRequest, rhs: Flipchat_Chat_V1_OpenChatRequest) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_OpenChatResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OpenChatResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_OpenChatResponse, rhs: Flipchat_Chat_V1_OpenChatResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_OpenChatResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+  ]
+}
+
+extension Flipchat_Chat_V1_CloseChatRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CloseChatRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_CloseChatRequest, rhs: Flipchat_Chat_V1_CloseChatRequest) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_CloseChatResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CloseChatResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_CloseChatResponse, rhs: Flipchat_Chat_V1_CloseChatResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_CloseChatResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+  ]
+}
+
 extension Flipchat_Chat_V1_SetDisplayNameRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SetDisplayNameRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -4382,6 +4784,7 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     8: .same(proto: "owner"),
     9: .standard(proto: "cover_charge"),
     10: .standard(proto: "last_activity"),
+    12: .standard(proto: "open_status"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -4401,6 +4804,7 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
       case 9: try { try decoder.decodeSingularMessageField(value: &self._coverCharge) }()
       case 10: try { try decoder.decodeSingularMessageField(value: &self._lastActivity) }()
       case 11: try { try decoder.decodeSingularBoolField(value: &self.hasMoreUnread_p) }()
+      case 12: try { try decoder.decodeSingularMessageField(value: &self._openStatus) }()
       default: break
       }
     }
@@ -4444,6 +4848,9 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if self.hasMoreUnread_p != false {
       try visitor.visitSingularBoolField(value: self.hasMoreUnread_p, fieldNumber: 11)
     }
+    try { if let v = self._openStatus {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4459,6 +4866,7 @@ extension Flipchat_Chat_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messa
     if lhs._owner != rhs._owner {return false}
     if lhs._coverCharge != rhs._coverCharge {return false}
     if lhs._lastActivity != rhs._lastActivity {return false}
+    if lhs._openStatus != rhs._openStatus {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4472,6 +4880,38 @@ extension Flipchat_Chat_V1_Metadata.ChatType: SwiftProtobuf._ProtoNameProviding 
   ]
 }
 
+extension Flipchat_Chat_V1_OpenStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".OpenStatus"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "is_currently_open"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBoolField(value: &self.isCurrentlyOpen) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.isCurrentlyOpen != false {
+      try visitor.visitSingularBoolField(value: self.isCurrentlyOpen, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_OpenStatus, rhs: Flipchat_Chat_V1_OpenStatus) -> Bool {
+    if lhs.isCurrentlyOpen != rhs.isCurrentlyOpen {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Flipchat_Chat_V1_MetadataUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MetadataUpdate"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -4480,6 +4920,7 @@ extension Flipchat_Chat_V1_MetadataUpdate: SwiftProtobuf.Message, SwiftProtobuf.
     3: .standard(proto: "display_name_changed"),
     4: .standard(proto: "cover_charge_changed"),
     5: .standard(proto: "last_activity_changed"),
+    6: .standard(proto: "open_status_changed"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -4553,6 +4994,19 @@ extension Flipchat_Chat_V1_MetadataUpdate: SwiftProtobuf.Message, SwiftProtobuf.
           self.kind = .lastActivityChanged(v)
         }
       }()
+      case 6: try {
+        var v: Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .openStatusChanged(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .openStatusChanged(v)
+        }
+      }()
       default: break
       }
     }
@@ -4583,6 +5037,10 @@ extension Flipchat_Chat_V1_MetadataUpdate: SwiftProtobuf.Message, SwiftProtobuf.
     case .lastActivityChanged?: try {
       guard case .lastActivityChanged(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
+    case .openStatusChanged?: try {
+      guard case .openStatusChanged(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
     case nil: break
     }
@@ -4769,6 +5227,42 @@ extension Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged: SwiftProtobuf.Mes
 
   public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged, rhs: Flipchat_Chat_V1_MetadataUpdate.LastActivityChanged) -> Bool {
     if lhs._newLastActivity != rhs._newLastActivity {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Chat_V1_MetadataUpdate.protoMessageName + ".OpenStatusChanged"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "new_open_status"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._newOpenStatus) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._newOpenStatus {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged, rhs: Flipchat_Chat_V1_MetadataUpdate.OpenStatusChanged) -> Bool {
+    if lhs._newOpenStatus != rhs._newOpenStatus {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

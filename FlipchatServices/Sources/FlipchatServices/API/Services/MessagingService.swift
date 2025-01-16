@@ -201,7 +201,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         
         let request = Flipchat_Messaging_V1_GetMessagesRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
-            $0.queryOptions = query.protoQueryOptions
+            $0.options = query.protoQueryOptions
             $0.auth = owner.authFor(message: $0)
         }
         

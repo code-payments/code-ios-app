@@ -118,6 +118,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
             bottom: 15,
             right: 0
         )
+//        tableView.transform = .init(rotationAngle: .pi * -1)
         
         view.addSubview(tableView)
         
@@ -402,6 +403,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath) as! MessageTableCell
+//        cell.transform = .init(rotationAngle: .pi)
         
         let message = messages[indexPath.row]
         let width = message.messageWidth(in: tableView.frame.size).width

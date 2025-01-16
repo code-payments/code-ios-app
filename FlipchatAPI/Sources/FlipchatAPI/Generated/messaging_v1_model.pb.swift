@@ -34,6 +34,18 @@ public struct Flipchat_Messaging_V1_MessageId {
   public init() {}
 }
 
+public struct Flipchat_Messaging_V1_MessageIdBatch {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var messageIds: [Flipchat_Messaging_V1_MessageId] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 /// A message in a chat
 public struct Flipchat_Messaging_V1_Message {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -82,6 +94,18 @@ public struct Flipchat_Messaging_V1_Message {
   fileprivate var _messageID: Flipchat_Messaging_V1_MessageId? = nil
   fileprivate var _senderID: Flipchat_Common_V1_UserId? = nil
   fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public struct Flipchat_Messaging_V1_MessageBatch {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var messages: [Flipchat_Messaging_V1_Message] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// Pointer in a chat indicating a user's message history state in a chat.
@@ -431,7 +455,9 @@ public struct Flipchat_Messaging_V1_DeleteMessageContent {
 
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipchat_Messaging_V1_MessageId: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_MessageIdBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Message: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_MessageBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Pointer: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Pointer.TypeEnum: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_IsTyping: @unchecked Sendable {}
@@ -476,6 +502,38 @@ extension Flipchat_Messaging_V1_MessageId: SwiftProtobuf.Message, SwiftProtobuf.
 
   public static func ==(lhs: Flipchat_Messaging_V1_MessageId, rhs: Flipchat_Messaging_V1_MessageId) -> Bool {
     if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_MessageIdBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MessageIdBatch"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "message_ids"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.messageIds) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.messageIds.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.messageIds, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_MessageIdBatch, rhs: Flipchat_Messaging_V1_MessageIdBatch) -> Bool {
+    if lhs.messageIds != rhs.messageIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -530,6 +588,38 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._senderID != rhs._senderID {return false}
     if lhs.content != rhs.content {return false}
     if lhs._ts != rhs._ts {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_MessageBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".MessageBatch"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "messages"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.messages) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.messages.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.messages, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_MessageBatch, rhs: Flipchat_Messaging_V1_MessageBatch) -> Bool {
+    if lhs.messages != rhs.messages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

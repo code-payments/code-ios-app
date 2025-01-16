@@ -448,6 +448,56 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func openRoom(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorRoomOpenClose>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)")
+        
+        let request = Flipchat_Chat_V1_OpenChatRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.openChat(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorRoomOpenClose(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func closeRoom(chatID: ChatID, owner: KeyPair, completion: @escaping (Result<(), ErrorRoomOpenClose>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)")
+        
+        let request = Flipchat_Chat_V1_CloseChatRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.closeChat(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorRoomOpenClose(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Types -
@@ -554,9 +604,23 @@ public enum ErrorChangeRoomName: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorRoomOpenClose: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeOpenChatInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_OpenChatRequest, FlipchatAPI.Flipchat_Chat_V1_OpenChatResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeCloseChatInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_CloseChatRequest, FlipchatAPI.Flipchat_Chat_V1_CloseChatResponse>] {
+        makeInterceptors()
+    }
+    
     func makeGetMemberUpdatesInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_GetMemberUpdatesRequest, FlipchatAPI.Flipchat_Chat_V1_GetMemberUpdatesResponse>] {
         makeInterceptors()
     }
