@@ -431,7 +431,7 @@ public struct BannerModifier: ViewModifier {
             case .top:
                 return .spring(dampingFraction: 0.55).speed(1.8)
             case .bottom:
-                return .spring(dampingFraction: 0.65).speed(2.0)
+                return .spring(dampingFraction: 0.65).speed(1.8)
             }
         } else {
             return .easeInOut(duration: 0.15)

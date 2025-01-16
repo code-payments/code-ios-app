@@ -302,7 +302,7 @@ struct ConversationScreen: View {
             
             Spacer()
             
-            PillButton(text: "Change") {
+            PillButton(text: isOpen ? "Change" : "Reopen") {
                 
                 let title: String
                 let description: String
@@ -326,12 +326,12 @@ struct ConversationScreen: View {
                 }
                 
                 banners.show(
-                    style: .error,
+                    style: .notification,
                     title: title,
                     description: description,
                     position: .bottom,
                     actions: [
-                        .destructive(title: actionTitle, action: action),
+                        .standard(title: actionTitle, action: action),
                         .cancel(title: "Cancel"),
                     ]
                 )
