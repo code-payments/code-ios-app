@@ -173,7 +173,7 @@ struct ConversationScreen: View {
                     } else {
                         CodeButton(
                             style: .filled,
-                            title: "Join Room: ⬢ \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
+                            title: "Pay to Chat: ⬢ \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
                         ) {
                             Task { [weak chatViewModel] in
                                 guard let roomDescription else {
@@ -283,7 +283,7 @@ struct ConversationScreen: View {
     
     @ViewBuilder private func roomClosedView() -> some View {
         VStack {
-            Text("This room is currently closed. Only the host can message until they reopen it.")
+            Text("The host has temporarily closed this room. Only they can send messages until they reopen it")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
@@ -318,7 +318,7 @@ struct ConversationScreen: View {
                     }
                 } else {
                     title = "Reopen Room?"
-                    description = "Room members will be able to send messages again"
+                    description = "People will be able to send messages again"
                     actionTitle = "Reopen Room"
                     action = {
                         changeRoomOpenState(open: true)

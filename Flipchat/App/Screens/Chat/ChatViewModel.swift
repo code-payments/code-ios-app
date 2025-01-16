@@ -349,11 +349,15 @@ class ChatViewModel: ObservableObject {
     }
     
     func watchChat(chatID: ChatID) async throws {
-        withButtonState(state: \.buttonStateWatchChat) { [chatController] in
+        buttonStateWatchChat = .loading
+        do {
             _ = try await chatController.watchRoom(chatID: chatID)
-        } success: {
-            self.pushJoinedChat(chatID: chatID)
-        } error: { error in
+            pushJoinedChat(chatID: chatID)
+            Task {
+                try await Task.delay(milliseconds: 500)
+                buttonStateWatchChat = .normal
+            }
+        } catch {
             ErrorReporting.captureError(error)
             self.showGenericError()
         }

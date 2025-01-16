@@ -50,7 +50,7 @@ struct PreviewRoomScreen: View {
                     CodeButton(
                         state: viewModel.buttonStateWatchChat,
                         style: .filled,
-                        title: "Watch Room"
+                        title: "Join Room"
                     ) {
                         Task {
                             try await viewModel.watchChat(chatID: chat.id)
