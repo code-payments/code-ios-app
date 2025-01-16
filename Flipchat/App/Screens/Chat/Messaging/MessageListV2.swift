@@ -470,57 +470,61 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                     self?.action(messageAction)
                 }
             ) {
-                Button {
-                    Task {
-                        action(.reply(row))
-                    }
-                } label: {
-                    Label("Reply", systemImage: "arrowshape.turn.up.backward.fill")
-                }
-                
-                Button {
-                    action(.copy(description.content))
-                } label: {
-                    Label("Copy Message", systemImage: "doc.on.doc")
-                }
-                
-                Divider()
-                
-                // Allow deletes for self messages or if room host is deleting a message
-                if let senderID = message.senderID, senderID == userID.uuid, userID == hostID {
-                    Button(role: .destructive) {
-                        action(.deleteMessage(MessageID(uuid: message.serverID), chatID))
+                // Don't show action for deleted messages
+                if deletionState == nil {
+                    
+                    Button {
+                        Task {
+                            action(.reply(row))
+                        }
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label("Reply", systemImage: "arrowshape.turn.up.backward.fill")
                     }
-                }
-                
-                if let senderID = message.senderID, senderID != userID.uuid {
-                    Button(role: .destructive) {
-                        action(.reportMessage(UserID(data: senderID.data), MessageID(uuid: message.serverID)))
+                    
+                    Button {
+                        action(.copy(description.content))
                     } label: {
-                        Label("Report", systemImage: "exclamationmark.shield")
+                        Label("Copy Message", systemImage: "doc.on.doc")
                     }
-                }
-                
-                // Only if the current user is a host
-                if !isFromSelf, userID == hostID, let senderID = message.senderID {
-                    Button(role: .destructive) {
-                        action(.muteUser(displayName, UserID(data: senderID.data), chatID))
-                    } label: {
-                        Label("Mute", systemImage: "speaker.slash")
+                    
+                    Divider()
+                    
+                    // Allow deletes for self messages or if room host is deleting a message
+                    if let senderID = message.senderID, senderID == userID.uuid, userID == hostID {
+                        Button(role: .destructive) {
+                            action(.deleteMessage(MessageID(uuid: message.serverID), chatID))
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
-                }
-                
-                // Only if the sender isn't self (can't block self)
-                if let senderID = message.senderID, senderID != userID.uuid {
-                    Button(role: .destructive) {
-                        action(.setUserBlocked(displayName, UserID(data: senderID.data), chatID, !(row.member.isBlocked == true)))
-                    } label: {
-                        if row.member.isBlocked == true {
-                            Label("Unblock", systemImage: "person.slash")
-                        } else {
-                            Label("Block", systemImage: "person.slash")
+                    
+                    if let senderID = message.senderID, senderID != userID.uuid {
+                        Button(role: .destructive) {
+                            action(.reportMessage(UserID(data: senderID.data), MessageID(uuid: message.serverID)))
+                        } label: {
+                            Label("Report", systemImage: "exclamationmark.shield")
+                        }
+                    }
+                    
+                    // Only if the current user is a host
+                    if !isFromSelf, userID == hostID, let senderID = message.senderID {
+                        Button(role: .destructive) {
+                            action(.muteUser(displayName, UserID(data: senderID.data), chatID))
+                        } label: {
+                            Label("Mute", systemImage: "speaker.slash")
+                        }
+                    }
+                    
+                    // Only if the sender isn't self (can't block self)
+                    if let senderID = message.senderID, senderID != userID.uuid {
+                        Button(role: .destructive) {
+                            action(.setUserBlocked(displayName, UserID(data: senderID.data), chatID, !(row.member.isBlocked == true)))
+                        } label: {
+                            if row.member.isBlocked == true {
+                                Label("Unblock", systemImage: "person.slash")
+                            } else {
+                                Label("Block", systemImage: "person.slash")
+                            }
                         }
                     }
                 }
