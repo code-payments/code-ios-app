@@ -254,7 +254,7 @@ struct ChatsScreen: View {
                     .frame(height: 23) // Ensures the same height with and without Bubble
                     
                     HStack(alignment: .top, spacing: 5) {
-                        let content = row.lastMessage?.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? "No content"
+                        let content = row.lastMessage?.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? "No messages"
                         Text(content)
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)

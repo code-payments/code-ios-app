@@ -119,8 +119,11 @@ struct MessageText<MenuItems>: View where MenuItems: View {
 struct ReplyingTo {
     let name: String
     let content: String
+    let deletion: ReferenceDeletion?
     let action: () -> Void
 }
+
+// MARK: - MessageBubble -
 
 struct MessageBubble: View {
     
@@ -136,6 +139,10 @@ struct MessageBubble: View {
     let location: MessageSemanticLocation
     let isOnlyEmoji: Bool
     
+    private var isDeleted: Bool {
+        deletionState != nil
+    }
+    
     private var spacing: CGFloat {
         if isOnlyEmoji {
             return 0
@@ -145,8 +152,18 @@ struct MessageBubble: View {
     }
     
     private var messageOpacity: CGFloat {
-        isBlocked || deletionState != nil ? 0.6 : 1.0
+        isBlocked || isDeleted ? 0.6 : 1.0
     }
+    
+    private var backgroundColor: Color {
+        guard !isDeleted else {
+            return .clear
+        }
+        
+        return isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent
+    }
+    
+    // MARK: - Init -
     
     init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
         self.state = state
@@ -162,12 +179,18 @@ struct MessageBubble: View {
         self.isOnlyEmoji = text.isOnlyEmoji
     }
     
-    static func adjusted(text: String, isBlocked: Bool, deletionState: MessageDeletion?) -> String {
+    static func adjusted(text: String, isBlocked: Bool, deletionState: DeletionState?) -> String {
         if let deletionState {
             if deletionState.isSelf {
                 return "Message deleted by you"
+            } else if deletionState.isSender {
+                var byUser = ""
+                if let name = deletionState.senderName {
+                    byUser = " by \(name)"
+                }
+                return "Message deleted\(byUser)"
             } else {
-                return "Message deleted by host"
+                return "Message deleted by admin"
             }
         }
         
@@ -178,6 +201,8 @@ struct MessageBubble: View {
         return text
     }
     
+    // MARK: - Body -
+    
     var body: some View {
         Group {
             if text.count < 10 {
@@ -186,10 +211,18 @@ struct MessageBubble: View {
                 standardBubble()
             }
         }
-        .background(isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent)
-        .clipShape(
-            cornerClip(location: location)
-        )
+        .background(backgroundColor)
+        .if(!isDeleted) { $0
+            .clipShape(
+                cornerClip(location: location)
+            )
+        }
+        .if(isDeleted) { $0
+            .overlay {
+                cornerClip(location: location)
+                    .strokeBorder(Color.backgroundMessageSent, lineWidth: 2)
+            }
+        }
     }
     
     @ViewBuilder private func compactBubble() -> some View {
@@ -241,11 +274,16 @@ struct MessageBubble: View {
     }
     
     @ViewBuilder private func content(compact: Bool, expand: Bool = false) -> some View {
-        if let replyingTo, deletionState == nil {
+        if let replyingTo, !isDeleted {
             MessageReplyBannerCompact(
                 name: replyingTo.name,
-                content: replyingTo.content,
-                expand: expand
+                content: Self.adjusted(
+                    text: replyingTo.content,
+                    isBlocked: false,
+                    deletionState: replyingTo.deletion
+                ),
+                expand: expand,
+                deleted: replyingTo.deletion != nil
             ) {
                 replyingTo.action()
             }
@@ -302,6 +340,8 @@ struct MessageBubble: View {
             return .systemAction
         }
     }
+    
+    // MARK: - Parse -
     
     private func parse(text: String) -> AttributedString {
         var string = AttributedString(text)
@@ -402,6 +442,7 @@ extension NSRegularExpression {
                     name: "Bob",
 //                    content: "That's what I was trying to say before",
                     content: "🔥",
+                    deletion: nil,
                     action: {}
                 ),
                 location: .standalone(.received),

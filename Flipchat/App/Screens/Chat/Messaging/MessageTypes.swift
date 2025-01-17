@@ -22,16 +22,25 @@ enum MessageAction {
 struct MessageDescription: Identifiable, Hashable, Equatable {
     enum Kind: Hashable, Equatable {
         case date(Date)
-        case message(MessageID, Bool, MessageRow, MessageSemanticLocation, MessageDeletion?) // id, isReceived, row, location, isDeleted
+        case message(MessageID, Bool, MessageRow, MessageSemanticLocation, MessageDeletion?, ReferenceDeletion?) // id, isReceived, row, location, messageDeletion, referenceDeletion
         case announcement(MessageID)
         case unread
         
         var messageRow: MessageRow? {
             switch self {
-            case .message(_, _, let row, _, _):
+            case .message(_, _, let row, _, _, _):
                 return row
             case .date, .announcement, .unread:
                 return nil
+            }
+        }
+        
+        var isDeleted: Bool {
+            switch self {
+            case .message(_, _, let row, _, let deletion, _):
+                return row.message.isDeleted || deletion != nil
+            case .date, .announcement, .unread:
+                return false
             }
         }
     }
@@ -40,7 +49,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         switch kind {
         case .date(let date):
             return "\(date.timeIntervalSince1970)"
-        case .message(let messageID, _, _, _, _):
+        case .message(let messageID, _, _, _, _, _):
             return messageID.uuid.uuidString
         case .announcement(let messageID):
             return messageID.uuid.uuidString
@@ -56,7 +65,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         switch kind {
         case .date, .announcement, .unread:
             return (size.width * 1.0, false)
-        case .message(_, let isReceived, _, _, _):
+        case .message(_, let isReceived, _, _, _, _):
             return (size.width * 0.8, isReceived)
         }
     }
@@ -87,10 +96,15 @@ struct MessageContainer: Identifiable, Hashable {
     var row: MessageRow
 }
 
-struct MessageDeletion: Equatable, Hashable {
+struct DeletionState: Equatable, Hashable {
     var senderID: UUID?
+    var senderName: String?
     var isSelf: Bool
+    var isSender: Bool
 }
+
+typealias MessageDeletion = DeletionState
+typealias ReferenceDeletion = DeletionState
 
 extension Array where Element == MessageRow {
     func groupByDay(userID: UserID) -> [MessageDateGroup] {

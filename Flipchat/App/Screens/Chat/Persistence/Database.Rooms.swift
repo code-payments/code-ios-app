@@ -11,13 +11,13 @@ import SQLite
 
 extension Database {
     
-    private static let excludedContentTypesForLastMessage: String = [
+    static let excludedContentTypesForJustMessages: String = [
         ContentType.announcement.rawValue,
         ContentType.reaction.rawValue,
         ContentType.deleteMessage.rawValue,
     ].map { "\($0)" }.joined(separator: ",")
     
-    private static let excludedContentTypesForSorting: String = [
+    static let excludedContentTypesForSorting: String = [
         ContentType.announcement.rawValue,
         ContentType.reaction.rawValue,
         ContentType.deleteMessage.rawValue,
@@ -76,7 +76,7 @@ extension Database {
             FROM
                 message
             WHERE 
-                contentType NOT IN (\(Self.excludedContentTypesForLastMessage))
+                isDeleted = FALSE AND contentType NOT IN (\(Self.excludedContentTypesForJustMessages))
             GROUP BY
                 roomID
         ) AS latestMessage
@@ -170,7 +170,7 @@ extension Database {
             FROM
                 message
             WHERE 
-                contentType NOT IN (\(Self.excludedContentTypesForLastMessage))
+                isDeleted = FALSE AND contentType NOT IN (\(Self.excludedContentTypesForJustMessages))
             GROUP BY
                 roomID
         ) AS latestMessage

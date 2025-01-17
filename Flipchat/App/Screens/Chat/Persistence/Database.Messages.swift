@@ -45,7 +45,8 @@ extension Database {
                     message m
                 WHERE 
                     m.roomID = "\(roomID.uuidString)" AND 
-                    m.serverID > p.messageID
+                    m.serverID > p.messageID AND
+                    contentType NOT IN (\(Self.excludedContentTypesForJustMessages))
             ) AS newUnreads
         FROM
             pointer p
@@ -79,6 +80,7 @@ extension Database {
             m.contentType,
             m.content,
             m.referenceID,
+            m.isDeleted,
 
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
@@ -126,7 +128,8 @@ extension Database {
                     state:       .init(rawValue: row[mTable.state]) ?? .sent,
                     senderID:    row[mTable.senderID],
                     contentType: row[mTable.contentType],
-                    content:     row[mTable.content]
+                    content:     row[mTable.content],
+                    isDeleted:   row[mTable.isDeleted]
                 ),
                 member: .init(
                     userID:      row[Expression<UUID?>("uServerID")],
@@ -166,6 +169,7 @@ struct MessageRow: Hashable {
         let senderID: UUID?
         let contentType: ContentType
         let content: String
+        let isDeleted: Bool
     }
     
     struct Member: Hashable {

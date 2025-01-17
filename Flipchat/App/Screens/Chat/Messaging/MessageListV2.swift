@@ -318,7 +318,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
     
     private func scrollTo(messageID: UUID) {
         let index = messages.firstIndex {
-            if case .message(let id, _, _, _, _) = $0.kind {
+            if case .message(let id, _, _, _, _, _) = $0.kind {
                 return messageID == id.uuid
             }
             return false
@@ -409,7 +409,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         let width = message.messageWidth(in: tableView.frame.size).width
         
         cell.backgroundColor = .clear
-        cell.swipeEnabled    = message.kind.messageRow != nil
+        cell.swipeEnabled    = message.kind.messageRow != nil && !message.kind.isDeleted
         cell.onSwipeToReply  = { [weak self] in
             self?.action(.reply(message.kind.messageRow!))
         }
@@ -448,7 +448,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         case .date(let date):
             MessageTitle(text: date.formattedRelatively())
             
-        case .message(_, let isReceived, let row, let location, let deletionState):
+        case .message(_, let isReceived, let row, let location, let deletionState, let referenceDeletion):
             let message = row.message
             let isFromSelf = message.senderID == userID.uuid
             let displayName = row.member.displayName ?? defaultMemberName
@@ -464,7 +464,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 isHost: message.senderID == hostID.uuid,
                 isBlocked: row.member.isBlocked == true,
                 deletionState: deletionState,
-                replyingTo: replyingTo(for: row, action: action),
+                replyingTo: replyingTo(for: row, deletion: referenceDeletion, action: action),
                 location: location,
                 action: { [weak self] messageAction in
                     self?.action(messageAction)
@@ -489,8 +489,10 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                     
                     Divider()
                     
+                    // TODO: Figure out how to apply delete message to the lastMessage in room list because we ignore delete message content types
+                    
                     // Allow deletes for self messages or if room host is deleting a message
-                    if let senderID = message.senderID, senderID == userID.uuid, userID == hostID {
+                    if let senderID = message.senderID, senderID == userID.uuid || userID == hostID {
                         Button(role: .destructive) {
                             action(.deleteMessage(MessageID(uuid: message.serverID), chatID))
                         } label: {
@@ -538,7 +540,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         }
     }
     
-    func replyingTo(for row: MessageRow, action: @escaping MessageActionHandler) -> ReplyingTo? {
+    func replyingTo(for row: MessageRow, deletion: ReferenceDeletion?, action: @escaping MessageActionHandler) -> ReplyingTo? {
         guard
             let referenceID = row.referenceID,
             let reference = row.reference
@@ -549,6 +551,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         return .init(
             name: reference.displayName ?? defaultMemberName,
             content: reference.content,
+            deletion: deletion,
             action: { [weak self] in
                 self?.scrollTo(messageID: referenceID)
             }
@@ -617,7 +620,7 @@ private struct MessageRowView<Content>: View where Content: View {
         switch kind {
         case .date:
             return .center
-        case .message(_, let isReceived, _, _, _):
+        case .message(_, let isReceived, _, _, _, _):
             return isReceived ? .leading : .trailing
         case .announcement, .unread:
             return .center
@@ -628,7 +631,7 @@ private struct MessageRowView<Content>: View where Content: View {
         switch kind {
         case .date:
             return .top
-        case .message(_, let isReceived, _, _, _):
+        case .message(_, let isReceived, _, _, _, _):
             return isReceived ? .leading : .trailing
         case .announcement, .unread:
             return .bottom
@@ -657,7 +660,7 @@ private struct MessageRowView<Content>: View where Content: View {
                 case .date, .announcement, .unread:
                     content()
                     
-                case .message(_, let isReceived, _, _, _):
+                case .message(_, let isReceived, _, _, _, _):
                     if isReceived {
                         content()
                         Spacer()
@@ -746,13 +749,27 @@ extension Array where Element == MessageRow {
             for messageContainer in dateGroup.messages {
                 
                 let message = messageContainer.row.message
+                let referenceID = messageContainer.row.referenceID
                 let isReceived = message.senderID != userID.uuid
                 
                 var deletionState: MessageDeletion?
+                var referenceDeletionState: ReferenceDeletion?
+                
                 if let deletionUser = deletedIDs[message.serverID] {
                     deletionState = MessageDeletion(
                         senderID: deletionUser?.uuid,
-                        isSelf: deletionUser == userID
+                        senderName: messageContainer.row.member.displayName,
+                        isSelf: deletionUser == userID,
+                        isSender: deletionUser?.uuid == message.senderID
+                    )
+                }
+                
+                if let referenceID, let deletionUser = deletedIDs[referenceID] {
+                    referenceDeletionState = ReferenceDeletion(
+                        senderID: deletionUser?.uuid,
+                        senderName: messageContainer.row.member.displayName,
+                        isSelf: deletionUser == userID,
+                        isSender: deletionUser?.uuid == message.senderID
                     )
                 }
                 
@@ -765,7 +782,8 @@ extension Array where Element == MessageRow {
                                 isReceived,
                                 messageContainer.row,
                                 messageContainer.location,
-                                deletionState
+                                deletionState,
+                                referenceDeletionState
                             ),
                             content: message.content
                         )

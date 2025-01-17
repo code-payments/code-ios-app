@@ -70,14 +70,16 @@ struct MessageReplyBannerCompact: View {
     let name: String
     let content: String
     let expand: Bool
+    let deleted: Bool
     let action: () -> Void
     
     // MARK: - Init -
     
-    init(name: String, content: String, expand: Bool = false, action: @escaping () -> Void) {
+    init(name: String, content: String, expand: Bool = false, deleted: Bool = false, action: @escaping () -> Void) {
         self.name = name
         self.content = content
         self.expand = expand
+        self.deleted = deleted
         self.action = action
     }
     
@@ -103,7 +105,7 @@ struct MessageReplyBannerCompact: View {
                     Text(content)
                         .lineLimit(1)
                         .font(.appTextCaption)
-                        .foregroundStyle(Color.textMain)
+                        .foregroundStyle(Color.textMain.opacity(deleted ? 0.6 : 1.0))
                         .if(expand) { $0
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }

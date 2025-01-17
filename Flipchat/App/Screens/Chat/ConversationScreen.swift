@@ -600,28 +600,28 @@ struct ConversationScreen: View {
 //        )
 //    }
 //}
-
-private func messageRow(chatID: ChatID, sender: UserID, senderName: String, reference: UUID?, referenceName: String?, referenceContent: String?, text: String) -> MessageRow {
-    .init(
-        message: .init(
-            serverID: UUID(),
-            roomID: chatID.uuid,
-            date: .now,
-            state: .delivered,
-            senderID: sender.uuid,
-            contentType: .text,
-            content: text
-        ),
-        member: .init(
-            userID: sender.uuid,
-            displayName: senderName,
-            isMuted: false,
-            isBlocked: false
-        ),
-        referenceID: reference,
-        reference: .init(
-            displayName: referenceName,
-            content: referenceContent ?? ""
-        )
-    )
-}
+//
+//private func messageRow(chatID: ChatID, sender: UserID, senderName: String, reference: UUID?, referenceName: String?, referenceContent: String?, text: String) -> MessageRow {
+//    .init(
+//        message: .init(
+//            serverID: UUID(),
+//            roomID: chatID.uuid,
+//            date: .now,
+//            state: .delivered,
+//            senderID: sender.uuid,
+//            contentType: .text,
+//            content: text
+//        ),
+//        member: .init(
+//            userID: sender.uuid,
+//            displayName: senderName,
+//            isMuted: false,
+//            isBlocked: false
+//        ),
+//        referenceID: reference,
+//        reference: .init(
+//            displayName: referenceName,
+//            content: referenceContent ?? ""
+//        )
+//    )
+//}

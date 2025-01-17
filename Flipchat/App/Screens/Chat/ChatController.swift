@@ -138,6 +138,8 @@ class ChatController: ObservableObject {
         // Hide progress for now
 //        isSyncInProgress = true
         
+        // 1. Fetch the chat list. For each of these chats
+        // we'll need to fetch messages separately
         let chats = try await client.fetchChats(owner: owner)
         var totalSynced = 0
 
@@ -146,6 +148,7 @@ class ChatController: ObservableObject {
                 group.addTask { [weak self] in
                     guard let self else { return 0 }
                     
+                    // 2. Sync the messages for each chat
                     let messages = try await syncChatAndMessages(for: chat.id)
                     
                     return messages.count
@@ -156,6 +159,11 @@ class ChatController: ObservableObject {
                 totalSynced += messageCount
             }
         }
+        
+        // 3. Global pass to update isDeleted for all
+        // messages that have been referenced in
+        // 'delete message' message types
+        try database.markMessagesDeletedIfNeeded()
         
         isSyncInProgress = false
         chatsChanged()

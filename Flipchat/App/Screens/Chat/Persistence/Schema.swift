@@ -38,6 +38,7 @@ struct MessageTable: Sendable {
     let referenceID = Expression <UUID?>       ("referenceID")
     let contentType = Expression <ContentType> ("contentType")
     let content     = Expression <String>      ("content")
+    let isDeleted   = Expression <Bool>        ("isDeleted")
     let isBatch     = Expression <Bool>        ("isBatch")
 }
 
@@ -116,7 +117,8 @@ extension Database {
                 t.column(messageTable.referenceID)
                 t.column(messageTable.contentType, defaultValue: .unknown)
                 t.column(messageTable.content)
-                t.column(messageTable.isBatch, defaultValue: false)
+                t.column(messageTable.isDeleted, defaultValue: false)
+                t.column(messageTable.isBatch,   defaultValue: false)
                 
                 t.foreignKey(messageTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
             })

@@ -208,6 +208,28 @@ extension Database {
         )
     }
     
+    // MARK: - Incremental Message Updates -
+    
+    func markMessagesDeletedIfNeeded() throws {
+        try writer.run("""
+        UPDATE message SET isDeleted = 1
+        WHERE serverID IN (
+            SELECT referenceID
+            FROM message
+            WHERE contentType = 5
+        )
+        """)
+    }
+    
+    func markMessageDeleted(messageID: UUID) throws {
+        let message = MessageTable()
+        try writer.run(
+            message.table
+                .filter(message.serverID == messageID)
+                .update(message.isDeleted <- true)
+        )
+    }
+    
     // MARK: - Private -
 
     private func insertMessage(message: Chat.Message, roomID: UUID, isBatch: Bool, into table: MessageTable) throws {
@@ -226,6 +248,10 @@ extension Database {
                 onConflictOf: table.serverID
             )
         )
+        
+        if message.contentType == .deleteMessage, let referenceID = message.referenceMessageID {
+            try markMessageDeleted(messageID: referenceID.uuid)
+        }
     }
 
     private func insertMember(member: Chat.Member, roomID: UUID, into table: MemberTable) throws {
