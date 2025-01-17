@@ -11,9 +11,16 @@ import SQLite
 
 extension Database {
     
-    private static let excludedContentTypes: String = [
+    private static let excludedContentTypesForLastMessage: String = [
         ContentType.announcement.rawValue,
-        ContentType.reaction.rawValue
+        ContentType.reaction.rawValue,
+        ContentType.deleteMessage.rawValue,
+    ].map { "\($0)" }.joined(separator: ",")
+    
+    private static let excludedContentTypesForSorting: String = [
+        ContentType.announcement.rawValue,
+        ContentType.reaction.rawValue,
+        ContentType.deleteMessage.rawValue,
     ].map { "\($0)" }.joined(separator: ",")
     
     func getRoomID(roomNumber: RoomNumber) throws -> UUID? {
@@ -61,21 +68,23 @@ extension Database {
             u.displayName AS hostDisplayName
         FROM
             room r
+        
         LEFT JOIN (
             SELECT
                 roomID,
                 MAX(date) AS maxDate
             FROM
                 message
+            WHERE 
+                contentType NOT IN (\(Self.excludedContentTypesForLastMessage))
             GROUP BY
                 roomID
         ) AS latestMessage
-        ON
-            r.serverID = latestMessage.roomID
+        ON r.serverID = latestMessage.roomID
+        
         LEFT JOIN message m
-        ON
-            latestMessage.roomID = m.roomID
-            AND latestMessage.maxDate = m.date
+        ON latestMessage.roomID = m.roomID AND latestMessage.maxDate = m.date
+        
         LEFT JOIN (
             SELECT
                 roomID,
@@ -85,12 +94,13 @@ extension Database {
             GROUP BY
                 roomID
         ) AS memberCount
-        ON
-            r.serverID = memberCount.roomID
+        ON r.serverID = memberCount.roomID
+        
         LEFT JOIN user u
-        ON
-            r.ownerUserID = u.serverID
+        ON r.ownerUserID = u.serverID
+        
         WHERE r.serverID = "\(roomID.uuidString)"
+        
         LIMIT 1;
         """)
         
@@ -159,11 +169,12 @@ extension Database {
                 MAX(date) AS maxDate
             FROM
                 message
+            WHERE 
+                contentType NOT IN (\(Self.excludedContentTypesForLastMessage))
             GROUP BY
                 roomID
         ) AS latestMessage
-        ON
-            r.serverID = latestMessage.roomID
+        ON r.serverID = latestMessage.roomID
         
         LEFT JOIN (
             SELECT
@@ -174,17 +185,15 @@ extension Database {
             FROM
                 message
             WHERE 
-                contentType NOT IN (\(Self.excludedContentTypes))
+                contentType NOT IN (\(Self.excludedContentTypesForSorting))
             GROUP BY
                 roomID
         ) AS messageForOrder
-        ON
-            r.serverID = messageForOrder.roomID
+        ON r.serverID = messageForOrder.roomID
         
-        LEFT JOIN message m
-        ON
-            latestMessage.roomID = m.roomID
-            AND latestMessage.maxDate = m.date
+        LEFT JOIN 
+            message m
+        ON latestMessage.roomID = m.roomID AND latestMessage.maxDate = m.date
         
         ORDER BY messageForOrder.serverID DESC;
         """)
