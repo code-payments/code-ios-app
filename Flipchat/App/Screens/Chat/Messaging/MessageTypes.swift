@@ -167,7 +167,7 @@ extension Array where Element == MessageRow {
 }
 
 extension View {
-    func cornerClip(smaller: Bool = false, location: MessageSemanticLocation) -> some Shape {
+    func cornerClip(smaller: Bool = false, location: MessageSemanticLocation) -> some InsettableShape {
         let m = (smaller ? 0.65 : 1.0)
         return UnevenRoundedCorners(
             tl: location.topLeftRadius     * m,
