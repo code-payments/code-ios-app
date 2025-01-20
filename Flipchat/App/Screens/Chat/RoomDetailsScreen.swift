@@ -72,26 +72,21 @@ struct RoomDetailsScreen: View {
                         Spacer()
                     
                         VStack(spacing: 10) {
+                            CodeButton(
+                                style: .filled,
+                                title: "Share Room Link"
+                            ) {
+                                ShareSheet.present(url: .flipchatRoom(roomNumber: room.room.roomNumber, messageID: nil))
+                            }
+                            
                             // Only show for room hosts
                             if viewModel.userID.uuid == room.room.ownerUserID {
                                 CodeButton(
-                                    style: .filled,
-                                    title: "Customize"
+                                    state: viewModel.buttonStateLeaveChat,
+                                    style: .subtle,
+                                    title: "Customize Room"
                                 ) {
                                     viewModel.showCustomizeRoomModal()
-                                }
-                            }
-                            
-                            CodeButton(
-                                state: viewModel.buttonStateLeaveChat,
-                                style: .subtle,
-                                title: "Leave Room \(room.room.roomNumber.formattedRoomNumberShort)"
-                            ) {
-                                Task {
-                                    viewModel.attemptLeaveChat(
-                                        chatID: chatID,
-                                        roomNumber: room.room.roomNumber
-                                    )
                                 }
                             }
                         }
@@ -107,9 +102,9 @@ struct RoomDetailsScreen: View {
                 if let room {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            ShareSheet.present(url: .flipchatRoom(roomNumber: room.room.roomNumber, messageID: nil))
+                            leaveChat()
                         } label: {
-                            Image.asset(.send)
+                            Image.asset(.logout)
                                 .padding(.leading, 15)
                                 .padding(.trailing, 8)
                                 .padding(.vertical, 8)
@@ -152,6 +147,21 @@ struct RoomDetailsScreen: View {
     
     private func onAppear() {
         
+    }
+    
+    // MARK: - Actions -
+    
+    private func leaveChat() {
+        guard let room else {
+            return
+        }
+        
+        Task {
+            viewModel.attemptLeaveChat(
+                chatID: chatID,
+                roomNumber: room.room.roomNumber
+            )
+        }
     }
 }
 
