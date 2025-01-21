@@ -218,6 +218,7 @@ struct MessageBubble: View {
             )
         }
         .if(isDeleted) { $0
+            .italic()
             .overlay {
                 cornerClip(location: location)
                     .strokeBorder(Color.backgroundMessageSent, lineWidth: 2)
