@@ -16,4 +16,6 @@ extension String {
         let indexes = compactMap { $0.unicodeScalars.first { !$0.properties.isEmojiPresentation } }
         return indexes.isEmpty
     }
+    
+    static let unicodeHex: String = "⬢"
 }

@@ -33,7 +33,7 @@ struct RoomCard: View {
                 VStack(spacing: 4) {
                     Text("Hosted by \(host ?? "Member")")
                     Text("\(memberCount) \(memberCount == 1 ? "person" : "people") here")
-                    Text("Cover Charge: ⬢ \(cover.formattedTruncatedKin())")
+                    Text("Cover Charge: \(cover.formattedTruncatedKin())")
                 }
                 .opacity(0.8)
                 .font(.appTextSmall)

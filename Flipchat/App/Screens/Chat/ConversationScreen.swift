@@ -173,7 +173,7 @@ struct ConversationScreen: View {
                     } else {
                         CodeButton(
                             style: .filled,
-                            title: "Pay to Chat: ⬢ \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
+                            title: "Pay to Chat: \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
                         ) {
                             Task { [weak chatViewModel] in
                                 guard let roomDescription else {
