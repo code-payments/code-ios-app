@@ -190,7 +190,7 @@ struct MessageBubble: View {
                 }
                 return "Message deleted\(byUser)"
             } else {
-                return "Message deleted by admin"
+                return "Message deleted by host"
             }
         }
         
