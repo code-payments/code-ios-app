@@ -190,7 +190,21 @@ class ChatController: ObservableObject {
             messages = try await syncMessagesBackwards(for: chatID)
         }
         
-        try insert(chat: description, messages: messages, silent: true)
+        let userID = userID.uuid
+        try insert(chat: description, messages: messages, silent: true) { [database] in
+            
+            // Runs in the same transaction as the above insert
+            if let mostRecentMessage = messages.first {
+                try database.insertPointer(
+                    kind: .read,
+                    userID: userID,
+                    roomID: chatID.uuid,
+                    messageID: mostRecentMessage.id.uuid
+                )
+                
+                print("[SYNC] Set pointer for room: \(mostRecentMessage.id.uuid)")
+            }
+        }
         
         return messages
     }
@@ -670,13 +684,15 @@ class ChatController: ObservableObject {
     
     // MARK: - Changes -
     
-    private func insert(chat: ChatDescription, messages: [Chat.Message]? = nil, silent: Bool = false) throws {
+    private func insert(chat: ChatDescription, messages: [Chat.Message]? = nil, silent: Bool = false, withTransaction block: (() throws -> Void)? = nil) throws {
         try database.transaction(silent: silent) {
             try $0.insertRooms(rooms: [chat.metadata])
             try $0.insertMembers(members: chat.members, roomID: chat.metadata.id.uuid)
             if let messages {
                 try $0.insertMessages(messages: messages, roomID: chat.metadata.id.uuid, isBatch: true)
             }
+            
+            try block?()
         }
     }
 }
