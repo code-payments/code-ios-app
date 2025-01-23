@@ -12,23 +12,19 @@ import FlipchatServices
 
 public struct ModalTipConfirmation: View {
     
-    @State private var selection: Int = 0
+    @State private var selection: Int = 1
     
-    public let amount: String
     public let balance: Kin
-    public let currency: CurrencyCode
     public let primaryAction: String
     public let secondaryAction: String
-    public let paymentAction: ThrowingAction
+    public let paymentAction: (Kin) async throws -> Void
     public let dismissAction: VoidAction
     public let cancelAction: VoidAction
     
     // MARK: - Init -
     
-    public init(amount: String, balance: Kin, currency: CurrencyCode, primaryAction: String, secondaryAction: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
-        self.amount = amount
+    public init(balance: Kin, primaryAction: String, secondaryAction: String, paymentAction: @escaping (Kin) async throws -> Void, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
         self.balance = balance
-        self.currency = currency
         self.primaryAction = primaryAction
         self.secondaryAction = secondaryAction
         self.paymentAction = paymentAction
@@ -42,8 +38,8 @@ public struct ModalTipConfirmation: View {
         VStack(spacing: 20) {
             KinWheelView(
                 selection: $selection,
-                max: 100,
-                width: 175
+                max: 99,
+                width: 155
             )
             
             Text("Balance: \(balance.formattedTruncatedKin())")
@@ -55,7 +51,7 @@ public struct ModalTipConfirmation: View {
                     style: .purple,
                     text: primaryAction,
                     action: {
-                        try await paymentAction()
+                        try await paymentAction(Kin(kin: selection)!)
                         try await Task.delay(milliseconds: 500)
                     },
                     completion: {
@@ -86,12 +82,10 @@ public struct ModalTipConfirmation: View {
     .sheet(isPresented: .constant(true)) {
         PartialSheet {
             ModalTipConfirmation(
-                amount: "200",
                 balance: 1000,
-                currency: .kin,
                 primaryAction: "Swipe to Tip",
                 secondaryAction: "Cancel",
-                paymentAction: { try await Task.delay(seconds: 1) },
+                paymentAction: { _ in try await Task.delay(seconds: 1) },
                 dismissAction: {},
                 cancelAction: {}
             )

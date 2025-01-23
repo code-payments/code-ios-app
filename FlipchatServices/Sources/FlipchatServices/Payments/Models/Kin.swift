@@ -95,9 +95,12 @@ extension Kin {
 // MARK: - Formatting -
 
 extension Kin {
-    public func formattedTruncatedKin(showSuffix: Bool = true) -> String {
+    public func formattedTruncatedKin(showSymbol: Bool = true, showSuffix: Bool = true) -> String {
+        let symbol = showSymbol ? "⬢ " : ""
+        let suffix = showSuffix ? " Kin" : ""
         let number = NumberFormatter.kin.string(from: truncatedKinValue)!
-        return "⬢ \(number)\(showSuffix ? " Kin" : "")"
+        
+        return "\(symbol)\(number)\(suffix)"
     }
     
     public func formattedFiat(rate: Rate, truncated: Bool = false, suffix: String?) -> String {

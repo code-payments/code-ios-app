@@ -16,6 +16,7 @@ struct ConversationScreen: View {
     
     @ObservedObject private var containerViewModel: ContainerViewModel
     @ObservedObject private var chatViewModel: ChatViewModel
+    @ObservedObject private var session: Session
     
     @State private var input: String = ""
     
@@ -27,13 +28,16 @@ struct ConversationScreen: View {
     
     @State private var isShowingOpenClose: Bool = false
     
+    @State private var tipUsers: TipUsers?
+    
+    @State private var messageTip: MessageTip?
+    
     @FocusState private var isEditorFocused: Bool
     
     private let chatID: ChatID
     private let state: AuthenticatedState
     private let container: AppContainer
     private let userID: UserID
-    private let session: Session
     private let chatController: ChatController
     
     @StateObject private var updateableRoom: Updateable<RoomDescription?>
@@ -45,6 +49,10 @@ struct ConversationScreen: View {
     
     private var selfUser: MemberRow? {
         updateableUser.value
+    }
+    
+    private var canSend: Bool {
+        selfUser?.canSend == true
     }
     
     private var isUserMuted: Bool {
@@ -162,7 +170,7 @@ struct ConversationScreen: View {
                     
                 } else {
                     
-                    if chatController.isRegistered && selfUser?.canSend == true {
+                    if chatController.isRegistered && canSend {
                         VStack(spacing: 0) {
                             if isShowingOpenClose {
                                 openCloseView(isOpen: isRoomOpen)
@@ -213,6 +221,40 @@ struct ConversationScreen: View {
             ToolbarItem(placement: .topBarTrailing) {
                 moreItem()
             }
+        }
+        .sheet(item: $messageTip) { tip in
+            PartialSheet {
+                ModalTipConfirmation(
+                    balance: session.currentBalance,
+                    primaryAction: "Swipe to Tip",
+                    secondaryAction: "Cancel",
+                    paymentAction: { kin in
+                        try await chatController.sendTip(
+                            amount: kin,
+                            chatID: chatID,
+                            messageID: tip.messageID,
+                            messageUserID: tip.userID
+                        )
+                    },
+                    dismissAction: {
+                        messageTip = nil
+                    },
+                    cancelAction: {
+                        messageTip = nil
+                    }
+                )
+            }
+        }
+        .sheet(item: $tipUsers) { tipUsers in
+            ModalTipList(
+                userTips: tipUsers.users.map {
+                    ModalTipList.UserTip(
+                        userID: $0.userID,
+                        name: $0.displayName,
+                        amount: $0.tip
+                    )
+                }
+            )
         }
     }
     
@@ -498,6 +540,22 @@ struct ConversationScreen: View {
                 showSuccess: false,
                 showModally: true
             )
+            
+        case .tip(let userID, let messageID):
+            // Can't tip yourself
+            if self.userID != userID {
+                messageTip = .init(userID: userID, messageID: messageID)
+            }
+            
+        case .showTippers(let messageID):
+            guard let users = try? chatController.getTipUsers(messageID: messageID) else {
+                return
+            }
+            
+            tipUsers = .init(
+                messageID: messageID,
+                users: users
+            )
         }
     }
     
@@ -569,6 +627,24 @@ struct ConversationScreen: View {
             ]
         )
     }
+}
+
+struct MessageTip: Identifiable {
+    public var id: Data {
+        messageID.data
+    }
+    
+    let userID: UserID
+    let messageID: MessageID
+}
+
+struct TipUsers: Identifiable {
+    public var id: Data {
+        messageID.data
+    }
+    
+    let messageID: MessageID
+    let users: [TipUser]
 }
 
 //#Preview {

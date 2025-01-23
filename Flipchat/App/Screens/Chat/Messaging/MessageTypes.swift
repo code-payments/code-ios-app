@@ -17,6 +17,8 @@ enum MessageAction {
     case reportMessage(UserID, MessageID)
     case reply(MessageRow)
     case linkTo(RoomNumber)
+    case tip(UserID, MessageID)
+    case showTippers(MessageID)
 }
 
 struct MessageDescription: Identifiable, Hashable, Equatable {

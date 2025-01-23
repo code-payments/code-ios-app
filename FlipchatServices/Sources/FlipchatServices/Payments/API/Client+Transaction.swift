@@ -83,6 +83,27 @@ extension Client {
         }
     }
     
+    public func sendTipForMessage(tipper: UserID, amount: Kin, chatID: ChatID, messageID: MessageID, organizer: Organizer, destination: PublicKey) async throws -> PublicKey {
+        let intent = try await withCheckedThrowingContinuation { c in
+            transactionService.sendTipForMessage(
+                tipper: tipper,
+                amount: amount,
+                chatID: chatID,
+                messageID: messageID,
+                organizer: organizer,
+                destination: destination,
+                completion: { c.resume(with: $0) }
+            )
+        }
+        
+        await MainActor.run {
+            trace(.warning, components: "Updating tray from message tip.")
+            organizer.set(tray: intent.resultTray)
+        }
+        
+        return intent.id
+    }
+    
     public func payForRoom(request: RoomRequest, organizer: Organizer, destination: PublicKey) async throws -> PublicKey {
         let intent = try await withCheckedThrowingContinuation { c in
             transactionService.payForRoom(

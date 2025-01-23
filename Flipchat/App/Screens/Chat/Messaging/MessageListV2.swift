@@ -453,8 +453,10 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
             let isFromSelf = message.senderID == userID.uuid
             let displayName = row.member.displayName ?? defaultMemberName
             let chatID = chatID
+            let isDeleted = deletionState != nil
             
             MessageText(
+                messageID: message.serverID,
                 state: message.state,
                 name: displayName,
                 avatarData: message.senderID?.data ?? Data([0, 0, 0, 0]),
@@ -463,6 +465,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 isReceived: isReceived,
                 isHost: message.senderID == hostID.uuid,
                 isBlocked: row.member.isBlocked == true,
+                kinTips: message.kin,
                 deletionState: deletionState,
                 replyingTo: replyingTo(for: row, deletion: referenceDeletion, action: action),
                 location: location,
@@ -471,7 +474,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 }
             ) {
                 // Don't show action for deleted messages
-                if deletionState == nil {
+                if !isDeleted {
                     
                     Button {
                         Task {
@@ -480,6 +483,20 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                     } label: {
                         Label("Reply", systemImage: "arrowshape.turn.up.backward.fill")
                     }
+                    
+                    if let senderID = message.senderID {
+                        Button {
+                            Task {
+                                action(.tip(
+                                    UserID(uuid: senderID),
+                                    MessageID(uuid: message.serverID)
+                                ))
+                            }
+                        } label: {
+                            Label("Give Tip", systemImage: "dollarsign")
+                        }
+                    }
+                    
                     
                     Button {
                         action(.copy(description.content))
@@ -529,6 +546,14 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                             }
                         }
                     }
+                }
+            }
+            .onTapGesture(count: 2) {
+                if !isDeleted, let senderID = message.senderID {
+                    action(.tip(
+                        UserID(uuid: senderID),
+                        MessageID(uuid: message.serverID)
+                    ))
                 }
             }
             

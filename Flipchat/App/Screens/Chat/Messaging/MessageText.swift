@@ -11,6 +11,7 @@ import FlipchatServices
 
 struct MessageText<MenuItems>: View where MenuItems: View {
     
+    let messageID: UUID
     let state: Chat.Message.State
     let name: String
     let avatarData: Data
@@ -19,6 +20,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
     let isReceived: Bool
     let isHost: Bool
     let isBlocked: Bool
+    let kinTips: Kin
     let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
     let location: MessageSemanticLocation
@@ -52,7 +54,8 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    init(state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+    init(messageID: UUID, state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+        self.messageID = messageID
         self.state = state
         self.name = name
         self.avatarData = avatarData
@@ -61,6 +64,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.isReceived = isReceived
         self.isHost = isHost
         self.isBlocked = isBlocked
+        self.kinTips = kinTips
         self.deletionState = deletionState
         self.replyingTo = replyingTo
         self.location = location
@@ -97,11 +101,13 @@ struct MessageText<MenuItems>: View where MenuItems: View {
                 }
                 
                 MessageBubble(
+                    messageID: messageID,
                     state: state,
                     text: text,
                     date: date,
                     isReceived: isReceived,
                     isBlocked: isBlocked,
+                    kinTips: kinTips,
                     deletionState: deletionState,
                     replyingTo: replyingTo,
                     action: action,
@@ -127,17 +133,23 @@ struct ReplyingTo {
 
 struct MessageBubble: View {
     
+    let messageID: UUID
     let state: Chat.Message.State
     let rawText: String
     let text: String
     let date: Date
     let isReceived: Bool
     let isBlocked: Bool
+    let kinTips: Kin
     let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
     let action: (MessageAction) -> Void
     let location: MessageSemanticLocation
     let isOnlyEmoji: Bool
+    
+    private var hasTips: Bool {
+        kinTips > 0
+    }
     
     private var isDeleted: Bool {
         deletionState != nil
@@ -165,13 +177,15 @@ struct MessageBubble: View {
     
     // MARK: - Init -
     
-    init(state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+    init(messageID: UUID, state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+        self.messageID = messageID
         self.state = state
         self.rawText = text
         self.text = Self.adjusted(text: text, isBlocked: isBlocked, deletionState: deletionState)
         self.date = date
         self.isReceived = isReceived
         self.isBlocked = isBlocked
+        self.kinTips = kinTips
         self.deletionState = deletionState
         self.replyingTo = replyingTo
         self.action = action
@@ -205,7 +219,7 @@ struct MessageBubble: View {
     
     var body: some View {
         Group {
-            if text.count < 10 {
+            if text.count < 10 && !hasTips {
                 compactBubble()
             } else {
                 standardBubble()
@@ -316,13 +330,30 @@ struct MessageBubble: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         
-        TimestampView(state: state, date: date, isReceived: isReceived)
-        .fixedSize(horizontal: true, vertical: false)
-        .if(expand && !compact) { $0
-            // Don't expand for compact formats
-            // because we want the text to fill
-            // all the space
-            .frame(maxWidth: .infinity, alignment: .trailing)
+        if hasTips {
+            HStack(alignment: .bottom) {
+                TipAnnotation(kin: kinTips) {
+                    action(.showTippers(MessageID(uuid: messageID)))
+                }
+                
+                if expand {
+                    Spacer()
+                }
+                
+                TimestampView(state: state, date: date, isReceived: isReceived)
+            }
+            .foregroundStyle(Color.textMain)
+            .padding(.top, 4)
+            
+        } else {
+            TimestampView(state: state, date: date, isReceived: isReceived)
+                .fixedSize(horizontal: true, vertical: false)
+                .if(expand && !compact) { $0
+                    // Don't expand for compact formats
+                    // because we want the text to fill
+                    // all the space
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
         }
     }
     
@@ -430,6 +461,7 @@ extension NSRegularExpression {
         VStack {
             Spacer()
             MessageText(
+                messageID: UUID(),
                 state: .delivered,
                 name: "Bob",
                 avatarData: Data([0,0,0,0,0,0,0,0]),
@@ -438,6 +470,7 @@ extension NSRegularExpression {
                 isReceived: true,
                 isHost: false,
                 isBlocked: false,
+                kinTips: 7,
                 deletionState: nil,
                 replyingTo: .init(
                     name: "Bob",

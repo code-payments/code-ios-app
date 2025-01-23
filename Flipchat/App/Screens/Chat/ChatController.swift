@@ -114,6 +114,10 @@ class ChatController: ObservableObject {
         try database.getMessages(roomID: chatID.uuid, pageSize: pageSize, offset: 0)
     }
     
+    func getTipUsers(messageID: MessageID) throws -> [TipUser] {
+        try database.getTipUsers(messageID: messageID.uuid)
+    }
+    
     func getPointer(userID: UserID, chatID: ChatID) throws -> MessagePointer? {
         try database.getPointer(userID: userID.uuid, roomID: chatID.uuid)
     }
@@ -412,16 +416,50 @@ class ChatController: ObservableObject {
             replyingTo: replyingTo
         )
         
-        let userID = userID.uuid
+        try insertDeliveredMessage(
+            userID: userID,
+            chatID: chatID,
+            message: deliveredMessage
+        )
+    }
+    
+    func sendTip(amount: Kin, chatID: ChatID, messageID: MessageID, messageUserID: UserID) async throws {
+        let destination = try await client.fetchPaymentDestination(userID: messageUserID)
+        
+        let intentID = try await paymentClient.sendTipForMessage(
+            tipper: userID,
+            amount: amount,
+            chatID: chatID,
+            messageID: messageID,
+            organizer: organizer,
+            destination: destination
+        )
+        
+        let deliveredMessage = try await client.sendTip(
+            chatID: chatID,
+            messageID: messageID,
+            owner: owner,
+            amount: amount,
+            intentID: intentID
+        )
+        
+        try insertDeliveredMessage(
+            userID: userID,
+            chatID: chatID,
+            message: deliveredMessage
+        )
+    }
+    
+    private func insertDeliveredMessage(userID: UserID, chatID: ChatID, message: Chat.Message) throws {
         try database.transaction {
-            try $0.insertMessages(messages: [deliveredMessage], roomID: chatID.uuid, isBatch: false)
+            try $0.insertMessages(messages: [message], roomID: chatID.uuid, isBatch: false)
             
             // TODO: This pointer update should probably be elsewhere
             try $0.insertPointer(
                 kind: .read,
-                userID: userID,
+                userID: userID.uuid,
                 roomID: chatID.uuid,
-                messageID: deliveredMessage.id.uuid
+                messageID: message.id.uuid
             )
         }
     }

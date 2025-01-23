@@ -26,7 +26,7 @@ struct KinWheelView: View {
             Text(String.unicodeHex)
                 .font(.system(size: 50))
                 .padding(.bottom, 8)
-                .padding(.leading, 20)
+                .padding(.leading, 10)
                 .foregroundStyle(.white)
             
             KinWheelPicker(
@@ -44,15 +44,15 @@ struct KinWheelPicker: UIViewRepresentable {
     @Binding var selection: Int
     
     private let items: [String]
-    private let max: Int
+    private let range: ClosedRange<Int>
     
     fileprivate let width: CGFloat
     
     init(selection: Binding<Int>, max: Int, width: CGFloat) {
         self._selection = selection
-        self.max = max
+        self.range = 1...max
         self.width = width
-        self.items = (0...max).map { "\($0)" }
+        self.items = range.map { "\($0)" }
     }
 
     func makeCoordinator() -> Coordinator {
@@ -65,12 +65,16 @@ struct KinWheelPicker: UIViewRepresentable {
         
         picker.dataSource = context.coordinator
         picker.delegate = context.coordinator
+        
+        DispatchQueue.main.async {
+            context.coordinator.pickerView(picker, didSelectRow: 0, inComponent: 0)
+        }
 
         return picker
     }
 
     func updateUIView(_ uiView: UIPickerView, context: Context) {
-        uiView.selectRow(selection, inComponent: 0, animated: false)
+        uiView.selectRow(selection - 1, inComponent: 0, animated: false)
         uiView.reloadAllComponents()
     }
 
@@ -95,7 +99,7 @@ struct KinWheelPicker: UIViewRepresentable {
         }
 
         func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
-            parent.selection = row
+            parent.selection = row + 1
         }
         
         func pickerView(_ pickerView: UIPickerView, rowHeightForComponent component: Int) -> CGFloat {

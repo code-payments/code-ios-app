@@ -136,6 +136,22 @@ extension Database {
         try messages.forEach {
             try insertMessage(message: $0, roomID: roomID, isBatch: isBatch, into: message)
         }
+        
+        try recalculateTip(for: messages)
+    }
+    
+    private func recalculateTip(for messages: [Chat.Message]) throws {
+        try messages.forEach { message in
+            guard message.contentType == .tip else {
+                return
+            }
+            
+            guard let referenceID = message.referenceMessageID?.uuid else {
+                return
+            }
+            
+            try recalculateMessageTips(messageID: referenceID)
+        }
     }
     
     func insertMembers(members: [Chat.Member], roomID: UUID) throws {
@@ -221,13 +237,26 @@ extension Database {
         """)
     }
     
-    func markMessageDeleted(messageID: UUID) throws {
+    private func markMessageDeleted(messageID: UUID) throws {
         let message = MessageTable()
         try writer.run(
             message.table
                 .filter(message.serverID == messageID)
                 .update(message.isDeleted <- true)
         )
+    }
+    
+    private func recalculateMessageTips(messageID: UUID) throws {
+        try writer.run("""
+        UPDATE message SET kin = (
+            SELECT
+                COALESCE(SUM(kin), 0)
+            FROM
+                message
+            WHERE
+                contentType = 4 AND referenceID = "\(messageID.uuidString)"
+        ) WHERE serverID = "\(messageID.uuidString)";
+        """)
     }
     
     // MARK: - Private -
@@ -243,14 +272,34 @@ extension Database {
                 table.referenceID <- message.referenceMessageID?.uuid,
                 table.contentType <- ContentType(message.contentType),
                 table.content     <- message.content,
+                table.kin         <- message.kin.quarks,
                 table.isBatch     <- isBatch,
                 
                 onConflictOf: table.serverID
             )
         )
         
-        if message.contentType == .deleteMessage, let referenceID = message.referenceMessageID {
-            try markMessageDeleted(messageID: referenceID.uuid)
+        // For any messages that have side-effects, we'll
+        // apply the side-effects here based on contentType
+        
+        switch message.contentType {
+        case .deleteMessage:
+            if let referenceID = message.referenceMessageID {
+                try markMessageDeleted(messageID: referenceID.uuid)
+            }
+            
+        case .tip:
+            // Recalculation needs to happen after all messages have been
+            // inserted, otherwise the SUM(kin) will miss any messages
+            // that haven't been inserted yet
+            break
+//            if let referenceID = message.referenceMessageID {
+//                // This might get expensive with large number of tips
+//                try recalculateMessageTips(messageID: referenceID.uuid)
+//            }
+            
+        case .text, .reply, .reaction, .announcement, .unknown:
+            break
         }
     }
 

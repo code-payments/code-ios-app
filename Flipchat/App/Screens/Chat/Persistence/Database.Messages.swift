@@ -69,6 +69,32 @@ extension Database {
         return pointers.first
     }
     
+    func getTipUsers(messageID: UUID) throws -> [TipUser] {
+        let statement = try reader.prepareRowIterator("""
+        SELECT
+            u.serverID    AS userID,
+            u.displayName AS displayName,
+            SUM(t.kin)    AS tip
+        FROM message m
+        JOIN message t
+            ON t.referenceID = m.serverID AND t.contentType = 4
+        JOIN user u
+            ON t.senderID = u.serverID
+        WHERE m.serverID = "\(messageID)"
+        GROUP BY
+            u.serverID,
+            u.displayName;
+        """)
+        
+        return try statement.map { row in
+            TipUser(
+                userID:      row[Expression<UUID>("userID")],
+                displayName: row[Expression<String>("displayName")],
+                tip:         Kin(quarks: row[Expression<UInt64>("tip")])
+            )
+        }
+    }
+    
     func getMessages(roomID: UUID, pageSize: Int, offset: Int) throws -> [MessageRow] {
         let statement = try reader.prepareRowIterator("""
         SELECT
@@ -81,10 +107,11 @@ extension Database {
             m.content,
             m.referenceID,
             m.isDeleted,
+            m.kin,
 
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
-            u.isBlocked as uIsBlocked,
+            u.isBlocked AS uIsBlocked,
             b.isMuted AS uIsMuted,
 
             r.content AS rContent,
@@ -129,7 +156,8 @@ extension Database {
                     senderID:    row[mTable.senderID],
                     contentType: row[mTable.contentType],
                     content:     row[mTable.content],
-                    isDeleted:   row[mTable.isDeleted]
+                    isDeleted:   row[mTable.isDeleted],
+                    kin:         Kin(quarks: row[mTable.kin])
                 ),
                 member: .init(
                     userID:      row[Expression<UUID?>("uServerID")],
@@ -170,6 +198,7 @@ struct MessageRow: Hashable {
         let contentType: ContentType
         let content: String
         let isDeleted: Bool
+        let kin: Kin
     }
     
     struct Member: Hashable {
@@ -183,6 +212,12 @@ struct MessageRow: Hashable {
         let displayName: String?
         let content: String
     }
+}
+
+struct TipUser {
+    let userID: UUID
+    let displayName: String
+    let tip: Kin
 }
 
 struct MessagePointer {

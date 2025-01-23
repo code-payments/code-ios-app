@@ -13,12 +13,19 @@ public struct ModalTipList: View {
     
     let userTips: [UserTip]
     
-    static let rowHeight: CGFloat = 55
+    private let tipsToShow: Int
+    
+    private var allowExpand: Bool {
+        userTips.count > tipsToShow
+    }
+    
+    private static let rowHeight: CGFloat = 55
     
     // MARK: - Init -
     
     public init(userTips: [UserTip]) {
         self.userTips = userTips
+        self.tipsToShow = min(userTips.count, 5)
     }
     
     // MARK: - Body -
@@ -50,14 +57,12 @@ public struct ModalTipList: View {
                 .scrollContentBackground(.hidden)
             }
             .listStyle(.plain)
-            .padding(.top, 10)
         }
         .presentationDetents(detents())
     }
     
     private func detents() -> Set<PresentationDetent> {
-        let tipsToShow = min(userTips.count, 5)
-        let openingHeight = CGFloat(tipsToShow) * Self.rowHeight - 10
+        let openingHeight = CGFloat(tipsToShow) * Self.rowHeight + 10
         
         var detents: Set<PresentationDetent> = []
         detents.insert(.height(openingHeight))
@@ -65,7 +70,7 @@ public struct ModalTipList: View {
         // If the number of tips exceeds the
         // initial opening count, allow the
         // user to expand the sheet
-        if userTips.count > tipsToShow {
+        if allowExpand {
             detents.insert(.large)
         }
         
@@ -91,7 +96,7 @@ extension ModalTipList {
             .init(userID: UUID(), name: "Jake",  amount: 1),
             .init(userID: UUID(), name: "Cindy", amount: 10),
             .init(userID: UUID(), name: "Kelly", amount: 15),
-//            .init(userID: UUID(), name: "Billy", amount: 35),
+            .init(userID: UUID(), name: "Billy", amount: 35),
         ])
     }
 }

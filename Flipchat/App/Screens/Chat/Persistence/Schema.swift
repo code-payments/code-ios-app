@@ -38,6 +38,7 @@ struct MessageTable: Sendable {
     let referenceID = Expression <UUID?>       ("referenceID")
     let contentType = Expression <ContentType> ("contentType")
     let content     = Expression <String>      ("content")
+    let kin         = Expression <UInt64>      ("kin") // Quarks
     let isDeleted   = Expression <Bool>        ("isDeleted")
     let isBatch     = Expression <Bool>        ("isBatch")
 }
@@ -117,6 +118,7 @@ extension Database {
                 t.column(messageTable.referenceID)
                 t.column(messageTable.contentType, defaultValue: .unknown)
                 t.column(messageTable.content)
+                t.column(messageTable.kin,       defaultValue: 0)
                 t.column(messageTable.isDeleted, defaultValue: false)
                 t.column(messageTable.isBatch,   defaultValue: false)
                 

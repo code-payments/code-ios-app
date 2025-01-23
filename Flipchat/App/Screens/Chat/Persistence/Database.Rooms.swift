@@ -15,12 +15,14 @@ extension Database {
         ContentType.announcement.rawValue,
         ContentType.reaction.rawValue,
         ContentType.deleteMessage.rawValue,
+        ContentType.tip.rawValue,
     ].map { "\($0)" }.joined(separator: ",")
     
     static let excludedContentTypesForSorting: String = [
         ContentType.announcement.rawValue,
         ContentType.reaction.rawValue,
         ContentType.deleteMessage.rawValue,
+        ContentType.tip.rawValue,
     ].map { "\($0)" }.joined(separator: ",")
     
     func getRoomID(roomNumber: RoomNumber) throws -> UUID? {
