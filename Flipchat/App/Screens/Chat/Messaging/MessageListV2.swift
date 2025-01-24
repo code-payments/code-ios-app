@@ -484,7 +484,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                         Label("Reply", systemImage: "arrowshape.turn.up.backward.fill")
                     }
                     
-                    if let senderID = message.senderID {
+                    if let senderID = message.senderID, senderID != userID.uuid {
                         Button {
                             Task {
                                 action(.tip(
