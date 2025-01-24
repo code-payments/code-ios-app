@@ -330,7 +330,7 @@ struct MessageBubble: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         
-        if hasTips {
+        if hasTips && !isDeleted {
             HStack(alignment: .bottom) {
                 TipAnnotation(kin: kinTips) {
                     action(.showTippers(MessageID(uuid: messageID)))
