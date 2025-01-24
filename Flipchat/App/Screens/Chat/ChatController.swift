@@ -46,7 +46,9 @@ class ChatController: ObservableObject {
         self.paymentClient = paymentClient
         self.organizer = organizer
         self.owner     = organizer.ownerKeyPair
-        self.database  = try! Self.initializeDatabase(userID: userID)
+        
+        let (database, isMigration) = try! Self.initializeDatabase(userID: userID)
+        self.database = database
         
         streamChatEvents()
         
@@ -54,10 +56,12 @@ class ChatController: ObservableObject {
             self?.chatsChanged()
         }
         
-        startSync()
+        startSync(isMigration: isMigration)
     }
     
-    static func initializeDatabase(userID: UserID) throws -> Database {
+    static func initializeDatabase(userID: UserID) throws -> (Database, Bool) {
+        var isMigration = false
+        
         // Currently we don't do migrations so every time
         // the user version is outdated, we'll rebuild the
         // database during sync.
@@ -67,9 +71,10 @@ class ChatController: ObservableObject {
             try Database.deleteStore(for: userID)
             trace(.failure, components: "Outdated user version, deleted database.")
             try Database.setUserVersion(version: currentVersion, userID: userID)
+            isMigration = true
         }
         
-        return try Database(url: .store(for: userID))
+        return (try Database(url: .store(for: userID)), isMigration)
     }
     
     deinit {
@@ -89,7 +94,7 @@ class ChatController: ObservableObject {
     
     func sceneDidBecomeActive() {
         streamChatEvents()
-        startSync()
+        startSync(isMigration: false)
     }
     
     func sceneDidEnterBackground() {
@@ -124,14 +129,14 @@ class ChatController: ObservableObject {
     
     // MARK: - Sync -
     
-    func startSync() {
+    func startSync(isMigration: Bool) {
         Task {
-            try await sync()
+            try await sync(showProgress: isMigration)
         }
     }
     
     @discardableResult
-    func sync() async throws -> Int {
+    func sync(showProgress: Bool = false) async throws -> Int {
         guard !isSyncInProgress else {
             print("Attempt to start sync when it's already in progress, ignoring.")
             return 0
@@ -139,8 +144,9 @@ class ChatController: ObservableObject {
         
         trace(.send)
         
-        // Hide progress for now
-//        isSyncInProgress = true
+        if showProgress {
+            isSyncInProgress = true
+        }
         
         // 1. Fetch the chat list. For each of these chats
         // we'll need to fetch messages separately
