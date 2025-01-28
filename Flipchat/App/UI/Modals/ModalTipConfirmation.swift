@@ -52,11 +52,11 @@ public struct ModalTipConfirmation: View {
                     text: primaryAction,
                     action: {
                         try await paymentAction(Kin(kin: selection)!)
-                        try await Task.delay(milliseconds: 500)
+//                        try await Task.delay(milliseconds: 500)
                     },
                     completion: {
                         dismissAction()
-                        try await Task.delay(milliseconds: 1000) // Checkmark delay
+//                        try await Task.delay(milliseconds: 1000) // Checkmark delay
                     }
                 )
                 
