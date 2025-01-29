@@ -190,25 +190,30 @@ class ChatController: ObservableObject {
         let latestBatchMessageID = try latestMessageID(for: chatID, batchOnly: true)
         
         let messages: [Chat.Message]
+        let isInitialSync: Bool
         if let latestBatchMessageID {
             messages = try await syncMessagesForward(for: chatID, from: latestBatchMessageID)
+            isInitialSync = false
         } else {
             messages = try await syncMessagesBackwards(for: chatID)
+            isInitialSync = true
         }
         
         let userID = userID.uuid
         try insert(chat: description, messages: messages, silent: true) { [database] in
-            
-            // Runs in the same transaction as the above insert
-            if let mostRecentMessage = messages.first {
-                try database.insertPointer(
-                    kind: .read,
-                    userID: userID,
-                    roomID: chatID.uuid,
-                    messageID: mostRecentMessage.id.uuid
-                )
-                
-                print("[SYNC] Set pointer for room: \(mostRecentMessage.id.uuid)")
+
+            if isInitialSync {
+                // Runs in the same transaction as the above insert
+                if let mostRecentMessage = messages.first {
+                    try database.insertPointer(
+                        kind: .read,
+                        userID: userID,
+                        roomID: chatID.uuid,
+                        messageID: mostRecentMessage.id.uuid
+                    )
+                    
+                    print("[SYNC] Set pointer for room: \(mostRecentMessage.id.uuid)")
+                }
             }
         }
         

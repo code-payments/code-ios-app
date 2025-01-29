@@ -825,33 +825,42 @@ extension Array where Element == MessageRow {
                 case .reaction, .tip, .deleteMessage, .unknown:
                     break
                 }
-                
-                // If unread description is present, we'll augment the list of
-                // messages to include an unread banner as a 'message' row. The
-                // pointer is to the last seen message so we have to insert the
-                // banner after the message itself.
-                if let unread, message.serverID == unread.messageID, unread.unread > 0 {
-                    
-                    // Index of this message in container
-                    unreadIndex = container.count
-                    
-                    let count = unread.unread
-                    container.append(
-                        .init(
-                            kind: .unread,
-                            content: "\(count) Unread Message\(count == 1 ? "" : "s")"
-                        )
-                    )
-                }
             }
         }
         
-        if let lastItem = container.last, lastItem.kind == .unread {
-            print("Removed unread banner, it's the last message")
-            unreadIndex = nil
-            container.removeLast()
+        // 4. If unread description is present, we'll augment the list of
+        // messages to include an unread banner as a 'message' row. The
+        // pointer is to the last seen message so we have to insert the
+        // banner after the message itself.
+        if let unread, unread.unread > 0 {
+            if let index = container.findLastReadMessageIndex(lastReadMessage: unread.messageID), index < container.count {
+                let description = MessageDescription(
+                    kind: .unread,
+                    content: "\(unread.unread) Unread Message\(unread.unread == 1 ? "" : "s")"
+                )
+                
+                container.insert(description, at: index)
+            }
         }
         
         return (container, unreadIndex)
+    }
+}
+
+extension Array where Element == MessageDescription {
+    func findLastReadMessageIndex(lastReadMessage: UUID) -> Int? {
+        for (index, message) in reversed().enumerated() {
+            guard let messageID = message.serverID else {
+                continue
+            }
+            
+            if lastReadMessage >= messageID, index != 0 {
+                // Add 1 at the end to insert the banner
+                // after this message, not before it
+                return count - 1 - index + 1
+            }
+        }
+        
+        return nil
     }
 }
