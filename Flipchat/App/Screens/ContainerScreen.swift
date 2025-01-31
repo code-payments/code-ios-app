@@ -129,6 +129,7 @@ struct ContainerScreen: View {
                         
                     case .details(let chatID):
                         RoomDetailsScreen(
+                            userID: authenticatedState.session.userID,
                             chatID: chatID,
                             viewModel: state.chatViewModel,
                             chatController: authenticatedState.chatController

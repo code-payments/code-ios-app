@@ -103,6 +103,10 @@ class ChatController: ObservableObject {
     
     // MARK: - Database -
     
+    func getMembers(roomID: ChatID) throws -> [MemberRow] {
+        try database.getUsers(roomID: roomID.uuid)
+    }
+    
     func getMember(userID: UserID, roomID: ChatID) throws -> MemberRow? {
         try database.getUser(userID: userID.uuid, roomID: roomID.uuid)
     }

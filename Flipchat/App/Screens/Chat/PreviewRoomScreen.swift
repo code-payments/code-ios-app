@@ -20,46 +20,50 @@ struct PreviewRoomScreen: View {
     private let host: Chat.Identity
     private let isModal: Bool
     
+    private let gridMembers: [MemberGrid.Member]
+    
     // MARK: - Init -
     
     init(chat: Chat.Metadata, members: [Chat.Member], host: Chat.Identity, viewModel: ChatViewModel, isModal: Bool) {
-        self.chat = chat
-        self.members = members
-        self.host = host
-        self.viewModel = viewModel
-        self.isModal = isModal
+        self.chat        = chat
+        self.members     = members
+        self.host        = host
+        self.viewModel   = viewModel
+        self.isModal     = isModal
+        self.gridMembers = members.map { .init(
+            id: $0.id.uuid,
+            isSpeaker: $0.hasSendPermission,
+            name: $0.identity.displayName)
+        }
     }
     
     // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
-            GeometryReader { geometry in
-                VStack(spacing: 0) {
-                    RoomCard(
-                        title: chat.formattedTitle,
-                        host: host.displayName,
-                        memberCount: members.count,
-                        cover: chat.coverAmount,
-                        avatarData: chat.id.data
-                    )
-                    .padding(.bottom, 20)
-                    
-                    Spacer()
-                    
+            VStack(spacing: 0) {
+                MemberGrid(
+                    chatName: chat.formattedTitle,
+                    avatarData: chat.id.data,
+                    members: gridMembers
+                )
+                                
+                Spacer()
+                
+                VStack {
                     CodeButton(
                         state: viewModel.buttonStateWatchChat,
                         style: .filled,
-                        title: "Join Room"
+                        title: "Start Listening"
                     ) {
                         Task {
                             try await viewModel.watchChat(chatID: chat.id)
                         }
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 5)
             }
-            .foregroundColor(.textMain)
         }
         .if(isModal) { $0
             .wrapInNavigation {

@@ -60,6 +60,15 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         }
     }
     
+    var serverID: UUID? {
+        switch kind {
+        case .message(let messageID, _, _, _, _, _):
+            return messageID.uuid
+        case .date, .announcement, .unread:
+            return nil
+        }
+    }
+    
     let kind: Kind
     let content: String
     

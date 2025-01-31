@@ -9,27 +9,6 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-@MainActor
-@Observable
-private class RoomDetailsState {
-    
-    var room: RoomDescription?
-    
-    private let chatID: ChatID
-    private let chatController: ChatController
-    
-    init(chatID: ChatID, chatController: ChatController) throws {
-        self.chatID = chatID
-        self.chatController = chatController
-        
-        room = try chatController.getRoom(chatID: chatID)
-    }
-    
-    func reload() throws {
-        room = try chatController.getRoom(chatID: chatID)
-    }
-}
-
 struct RoomDetailsScreen: View {
     
     @EnvironmentObject private var banners: Banners
@@ -37,94 +16,98 @@ struct RoomDetailsScreen: View {
     @ObservedObject private var viewModel: ChatViewModel
     @ObservedObject private var chatController: ChatController
     
-    @State private var detailsState: RoomDetailsState
+    @StateObject private var updateableRoom: Updateable<RoomDescription?>
+    @StateObject private var updateableMembers: Updateable<[MemberRow]>
     
+    private let userID: UserID
     private let chatID: ChatID
+    private let gridMembers: [MemberGrid.Member]
     
     var room: RoomDescription? {
-        detailsState.room
+        updateableRoom.value
     }
     
     // MARK: - Init -
     
-    init(chatID: ChatID, viewModel: ChatViewModel, chatController: ChatController) {
+    init(userID: UserID, chatID: ChatID, viewModel: ChatViewModel, chatController: ChatController) {
+        self.userID = userID
         self.chatID = chatID
         self.viewModel = viewModel
         self.chatController = chatController
-        self.detailsState = try! RoomDetailsState(chatID: chatID, chatController: chatController)
+        
+        let updateableRoom = Updateable {
+            try? chatController.getRoom(chatID: chatID)
+        }
+        
+        let updateableMembers = Updateable {
+            (try? chatController.getMembers(roomID: chatID)) ?? []
+        }
+        
+        self.gridMembers = updateableMembers.value.map {
+            .init(
+                id: $0.serverID,
+                isSpeaker: $0.canSend,
+                name: $0.displayName
+            )
+        }
+        
+        self._updateableRoom    = .init(wrappedValue: updateableRoom)
+        self._updateableMembers = .init(wrappedValue: updateableMembers)
     }
     
     // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
-            GeometryReader { geometry in
-                if let room = room {
-                    VStack(spacing: 0) {
-                        RoomCard(
-                            title: room.room.formattedTitle,
-                            host: room.hostDisplayName,
-                            memberCount: room.memberCount,
-                            cover: room.room.cover,
-                            avatarData: room.room.serverID.data
-                        )
-                    
-                        Spacer()
-                    
-                        VStack(spacing: 10) {
-                            CodeButton(
-                                style: .filled,
-                                title: "Share Room Link"
-                            ) {
-                                ShareSheet.present(url: .flipchatRoom(roomNumber: room.room.roomNumber, messageID: nil))
-                            }
-                            
-                            // Only show for room hosts
-                            if viewModel.userID.uuid == room.room.ownerUserID {
-                                CodeButton(
-                                    state: viewModel.buttonStateLeaveChat,
-                                    style: .subtle,
-                                    title: "Customize Room"
-                                ) {
-                                    viewModel.showCustomizeRoomModal()
-                                }
-                            }
-                        }
-                    }
-                    .padding([.top, .leading, .trailing], 20)
-                    .transition(.move(edge: .bottom))
+            VStack(spacing: 0) {
+                if let room {
+                    MemberGrid(
+                        chatName: room.room.formattedTitle,
+                        avatarData: room.room.serverID.data,
+                        members: gridMembers,
+                        shareRoomNumber: room.room.roomNumber,
+                        isClosed: !room.room.isOpen
+                    )
                 }
             }
             .ignoresSafeArea(.keyboard)
-            .animation(.easeInOut, value: room == nil)
-            .foregroundColor(.textMain)
             .toolbar {
-                if let room {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            leaveChat()
-                        } label: {
-                            Image.asset(.logout)
-                                .padding(.leading, 15)
-                                .padding(.trailing, 8)
-                                .padding(.vertical, 8)
-                        }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        viewModel.showCustomizeRoomModal()
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .padding(10)
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.isShowingCustomize) {
-                PartialSheet {
-                    ModalButtons(
-                        isPresented: $viewModel.isShowingCustomize,
-                        actions: [
-                            .init(title: "Change Room Name") {
-                                viewModel.showChangeRoomName(existingName: detailsState.room?.room.title)
-                            },
-                            .init(title: "Change Cover Charge") {
-                                viewModel.showChangeCover()
-                            },
-                        ]
-                    )
+            .buttonSheet(isPresented: $viewModel.isShowingCustomize) {
+                Action.standard(systemImage: "hexagon", title: "Change Cover Charge") {
+                    viewModel.showChangeCover()
+                }
+                
+                Action.standard(systemImage: "character.cursor.ibeam", title: "Change Room Name") {
+                    viewModel.showChangeRoomName(existingName: room?.room.title)
+                }
+                
+                // Show for hosts only
+                if let room = room?.room, room.ownerUserID == userID.uuid {
+                    Action.standard(systemImage: "powersleep", title: room.isOpen ? "Close Flipchat Temporarily" : "Open Flipchat") {
+                        viewModel.setRoomStatus(chatID: ChatID(uuid: room.serverID), open: !room.isOpen)
+                    }
+                }
+                
+                Action.destructive(systemImage: "rectangle.portrait.and.arrow.right", title: "Leave Flipchat") {
+                    guard let room else {
+                        return
+                    }
+                    
+                    Task {
+                        viewModel.attemptLeaveChat(
+                            chatID: chatID,
+                            roomNumber: room.room.roomNumber
+                        )
+                    }
                 }
             }
             .sheet(isPresented: $viewModel.isShowingChangeCover) {
@@ -139,34 +122,13 @@ struct RoomDetailsScreen: View {
                     viewModel: viewModel
                 )
             }
-            .onChange(of: chatController.chatsDidChange) { _, _ in
-                try? detailsState.reload()
-            }
-        }
-    }
-    
-    private func onAppear() {
-        
-    }
-    
-    // MARK: - Actions -
-    
-    private func leaveChat() {
-        guard let room else {
-            return
-        }
-        
-        Task {
-            viewModel.attemptLeaveChat(
-                chatID: chatID,
-                roomNumber: room.room.roomNumber
-            )
         }
     }
 }
 
 #Preview {
     RoomDetailsScreen(
+        userID: .mock,
         chatID: .mock,
         viewModel: .mock,
         chatController: .mock

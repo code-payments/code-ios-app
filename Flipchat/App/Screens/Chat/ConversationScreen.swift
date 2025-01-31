@@ -68,7 +68,7 @@ struct ConversationScreen: View {
     }
     
     private var canShowOpenClose: Bool {
-        isSelfHost
+        isSelfHost && !isRoomOpen
     }
     
     // MARK: - Init -
@@ -356,14 +356,15 @@ struct ConversationScreen: View {
                     description = "Only you will be able to send messages until you reopen the room."
                     actionTitle = "Close Temporarily"
                     action = {
-                        changeRoomOpenState(open: false)
+                        chatViewModel.setRoomStatus(chatID: chatID, open: false)
                     }
                 } else {
                     title = "Reopen Room?"
                     description = "People will be able to send messages again"
                     actionTitle = "Reopen Room"
                     action = {
-                        changeRoomOpenState(open: true)
+                        chatViewModel.setRoomStatus(chatID: chatID, open: true)
+                        setOpenClose(visible: false, animated: true)
                     }
                 }
                 
@@ -571,11 +572,11 @@ struct ConversationScreen: View {
         UIPasteboard.general.string = text
     }
     
-    private func changeRoomOpenState(open: Bool) {
-        Task {
-            try await chatController.changeRoomOpenState(chatID: chatID, open: open)
-        }
-    }
+//    private func changeRoomOpenState(open: Bool) {
+//        Task {
+//            try await chatController.changeRoomOpenState(chatID: chatID, open: open)
+//        }
+//    }
     
     private func sendMessage(text: String) {
         guard !text.isEmpty else {

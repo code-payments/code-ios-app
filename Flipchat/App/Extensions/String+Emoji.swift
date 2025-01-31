@@ -18,4 +18,8 @@ extension String {
     }
     
     static let unicodeHex: String = "⬢"
+    
+    static func formattedPeopleCount(count: Int) -> String {
+        "\(count) \(count == 1 ? "person" : "people") here"
+    }
 }

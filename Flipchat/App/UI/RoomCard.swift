@@ -32,7 +32,7 @@ struct RoomCard: View {
                 Spacer()
                 VStack(spacing: 4) {
                     Text("Hosted by \(host ?? "Member")")
-                    Text("\(memberCount) \(memberCount == 1 ? "person" : "people") here")
+                    Text(String.formattedPeopleCount(count: memberCount))
                     Text("Cover Charge: \(cover.formattedTruncatedKin())")
                 }
                 .opacity(0.8)

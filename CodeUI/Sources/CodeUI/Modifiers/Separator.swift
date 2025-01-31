@@ -14,12 +14,14 @@ public struct VSeparator: ViewModifier {
     public var position: Position
     public var weight: Weight
     public var alignment: HorizontalAlignment
+    public var insets: EdgeInsets
     
-    public init(color: Color, position: Position, weight: Weight, alignment: HorizontalAlignment) {
+    public init(color: Color, position: Position, weight: Weight, alignment: HorizontalAlignment, insets: EdgeInsets) {
         self.color     = color
         self.position  = position
         self.weight    = weight
         self.alignment = alignment
+        self.insets    = insets
     }
     
     public func body(content: Content) -> some View {
@@ -39,6 +41,8 @@ public struct VSeparator: ViewModifier {
             .fill(color)
             .frame(height: weight.pixelSize)
             .frame(maxWidth: .infinity)
+            .padding(.leading, insets.leading)
+            .padding(.trailing, insets.trailing)
     }
 }
 
@@ -140,13 +144,14 @@ private enum Screen {
 // MARK: - View -
 
 extension View {
-    public func vSeparator(color: Color, position: VSeparator.Position = .bottom, weight: VSeparator.Weight = .regular, alignment: HorizontalAlignment = .leading) -> some View {
+    public func vSeparator(color: Color, position: VSeparator.Position = .bottom, weight: VSeparator.Weight = .regular, alignment: HorizontalAlignment = .leading, insets: EdgeInsets = .zero) -> some View {
         modifier(
             VSeparator(
                 color: color,
                 position: position,
                 weight: weight,
-                alignment: alignment
+                alignment: alignment,
+                insets: insets
             )
         )
     }
@@ -161,6 +166,18 @@ extension View {
                 weight: weight,
                 alignment: alignment
             )
+        )
+    }
+}
+
+extension EdgeInsets {
+    @inlinable
+    public static func horizontal(leading: CGFloat = 0, trailing: CGFloat = 0) -> EdgeInsets {
+        EdgeInsets(
+            top: 0,
+            leading: leading,
+            bottom: 0,
+            trailing: trailing
         )
     }
 }

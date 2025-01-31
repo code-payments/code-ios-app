@@ -10,16 +10,18 @@ import SwiftUI
 
 public struct PartialSheet<T>: View where T: View {
     
+    public let background: Color
     public let content: () -> T
     
     @State private var displayHeight: CGFloat = 0
     
-    public init(@ViewBuilder content: @escaping () -> T) {
+    public init(background: Color = .backgroundMain, @ViewBuilder content: @escaping () -> T) {
+        self.background = background
         self.content = content
     }
     
     public var body: some View {
-        Background(color: .backgroundMain) {
+        Background(color: background) {
             content()
                 .overlay {
                     GeometryReader { g in

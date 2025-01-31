@@ -175,7 +175,12 @@ extension Banner {
         private init(title: String, style: Style, action: @escaping VoidAction) {
             self.title  = title
             self.style  = style
-            self.action = action
+            self.action = {
+                Task {
+                    try await Task.delay(milliseconds: 150)
+                    action()
+                }
+            }
         }
         
         public static func cancel(title: String, action: @escaping VoidAction = {}) -> Action {

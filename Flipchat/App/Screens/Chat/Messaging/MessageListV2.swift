@@ -840,6 +840,7 @@ extension Array where Element == MessageRow {
                 )
                 
                 container.insert(description, at: index)
+                unreadIndex = index
             }
         }
         

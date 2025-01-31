@@ -282,6 +282,12 @@ class ChatViewModel: ObservableObject {
         }
     }
     
+    func setRoomStatus(chatID: ChatID, open: Bool) {
+        Task {
+            try await chatController.changeRoomOpenState(chatID: chatID, open: open)
+        }
+    }
+    
     // MARK: - Create Chat -
     
     func attemptCreateChat() {
@@ -378,14 +384,23 @@ class ChatViewModel: ObservableObject {
     }
     
     private func leaveChat(chatID: ChatID) {
-        withButtonState(state: \.buttonStateLeaveChat) { [chatController] in
-            try await chatController.leaveChat(chatID: chatID)
-        } success: {
-            self.popToRoot()
-        } error: { error in
-            ErrorReporting.captureError(error)
-            self.showFailedToLeaveChatError()
+        popToRoot()
+        Task {
+            do {
+                try await chatController.leaveChat(chatID: chatID)
+            } catch {
+                ErrorReporting.captureError(error)
+                self.showFailedToLeaveChatError()
+            }
         }
+//        withButtonState(state: \.buttonStateLeaveChat) { [chatController] in
+//            try await chatController.leaveChat(chatID: chatID)
+//        } success: {
+//            self.popToRoot()
+//        } error: { error in
+//            ErrorReporting.captureError(error)
+//            self.showFailedToLeaveChatError()
+//        }
     }
     
     // MARK: - Validation -
