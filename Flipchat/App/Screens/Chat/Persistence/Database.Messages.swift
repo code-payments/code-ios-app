@@ -83,7 +83,8 @@ extension Database {
         WHERE m.serverID = "\(messageID)"
         GROUP BY
             u.serverID,
-            u.displayName;
+            u.displayName
+        ORDER BY tip DESC;
         """)
         
         return try statement.map { row in
