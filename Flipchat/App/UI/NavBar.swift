@@ -41,7 +41,12 @@ public struct NavBar<Leading, Trailing>: View where Leading: View, Trailing: Vie
                 Spacer()
                 
                 if isLoading {
-                    LoadingView(color: .textSecondary)
+                    HStack {
+                        LoadingView(color: .textSecondary)
+                        Text("Updating...")
+                            .foregroundColor(.textMain)
+                            .font(.appTextMedium)
+                    }
                 } else {
                     Text(title)
                         .padding(10)

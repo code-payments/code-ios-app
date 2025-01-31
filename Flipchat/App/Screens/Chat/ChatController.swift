@@ -46,9 +46,7 @@ class ChatController: ObservableObject {
         self.paymentClient = paymentClient
         self.organizer = organizer
         self.owner     = organizer.ownerKeyPair
-        
-        let (database, isMigration) = try! Self.initializeDatabase(userID: userID)
-        self.database = database
+        self.database  = try! Self.initializeDatabase(userID: userID)
         
         streamChatEvents()
         
@@ -56,12 +54,10 @@ class ChatController: ObservableObject {
             self?.chatsChanged()
         }
         
-        startSync(isMigration: isMigration)
+        startSync()
     }
     
-    static func initializeDatabase(userID: UserID) throws -> (Database, Bool) {
-        var isMigration = false
-        
+    static func initializeDatabase(userID: UserID) throws -> Database {
         // Currently we don't do migrations so every time
         // the user version is outdated, we'll rebuild the
         // database during sync.
@@ -71,10 +67,9 @@ class ChatController: ObservableObject {
             try Database.deleteStore(for: userID)
             trace(.failure, components: "Outdated user version, deleted database.")
             try Database.setUserVersion(version: currentVersion, userID: userID)
-            isMigration = true
         }
         
-        return (try Database(url: .store(for: userID)), isMigration)
+        return try Database(url: .store(for: userID))
     }
     
     deinit {
@@ -94,7 +89,7 @@ class ChatController: ObservableObject {
     
     func sceneDidBecomeActive() {
         streamChatEvents()
-        startSync(isMigration: false)
+        startSync()
     }
     
     func sceneDidEnterBackground() {
@@ -133,9 +128,9 @@ class ChatController: ObservableObject {
     
     // MARK: - Sync -
     
-    func startSync(isMigration: Bool) {
+    func startSync() {
         Task {
-            try await sync(showProgress: isMigration)
+            try await sync(showProgress: true)
         }
     }
     
