@@ -20,6 +20,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
     let isReceived: Bool
     let isHost: Bool
     let isBlocked: Bool
+    let hasTipFromSelf: Bool
     let kinTips: Kin
     let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
@@ -54,7 +55,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    init(messageID: UUID, state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+    init(messageID: UUID, state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, hasTipFromSelf: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.messageID = messageID
         self.state = state
         self.name = name
@@ -64,6 +65,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.isReceived = isReceived
         self.isHost = isHost
         self.isBlocked = isBlocked
+        self.hasTipFromSelf = hasTipFromSelf
         self.kinTips = kinTips
         self.deletionState = deletionState
         self.replyingTo = replyingTo
@@ -107,6 +109,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
                     date: date,
                     isReceived: isReceived,
                     isBlocked: isBlocked,
+                    hasTipFromSelf: hasTipFromSelf,
                     kinTips: kinTips,
                     deletionState: deletionState,
                     replyingTo: replyingTo,
@@ -140,6 +143,7 @@ struct MessageBubble: View {
     let date: Date
     let isReceived: Bool
     let isBlocked: Bool
+    let hasTipFromSelf: Bool
     let kinTips: Kin
     let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
@@ -177,7 +181,7 @@ struct MessageBubble: View {
     
     // MARK: - Init -
     
-    init(messageID: UUID, state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+    init(messageID: UUID, state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, hasTipFromSelf: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
         self.messageID = messageID
         self.state = state
         self.rawText = text
@@ -185,6 +189,7 @@ struct MessageBubble: View {
         self.date = date
         self.isReceived = isReceived
         self.isBlocked = isBlocked
+        self.hasTipFromSelf = hasTipFromSelf
         self.kinTips = kinTips
         self.deletionState = deletionState
         self.replyingTo = replyingTo
@@ -332,7 +337,7 @@ struct MessageBubble: View {
         
         if hasTips && !isDeleted {
             HStack(alignment: .bottom) {
-                TipAnnotation(kin: kinTips) {
+                TipAnnotation(kin: kinTips, isFilled: hasTipFromSelf) {
                     action(.showTippers(MessageID(uuid: messageID)))
                 }
                 
@@ -470,6 +475,7 @@ extension NSRegularExpression {
                 isReceived: true,
                 isHost: false,
                 isBlocked: false,
+                hasTipFromSelf: false,
                 kinTips: 7,
                 deletionState: nil,
                 replyingTo: .init(

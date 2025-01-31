@@ -131,16 +131,18 @@ extension Database {
         )
     }
 
-    func insertMessages(messages: [Chat.Message], roomID: UUID, isBatch: Bool) throws {
+    func insertMessages(messages: [Chat.Message], roomID: UUID, isBatch: Bool, currentUserID: UUID) throws {
+        let start = Date.now
         let message = MessageTable()
         try messages.forEach {
             try insertMessage(message: $0, roomID: roomID, isBatch: isBatch, into: message)
         }
         
-        try recalculateTip(for: messages)
+        try recalculateTip(for: messages, currentUserID: currentUserID)
+        print("[DATABASE] \(messages.count) Messages inserted: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) sec")
     }
     
-    private func recalculateTip(for messages: [Chat.Message]) throws {
+    private func recalculateTip(for messages: [Chat.Message], currentUserID: UUID) throws {
         try messages.forEach { message in
             guard message.contentType == .tip else {
                 return
@@ -150,7 +152,7 @@ extension Database {
                 return
             }
             
-            try recalculateMessageTips(messageID: referenceID)
+            try recalculateMessageTips(messageID: referenceID, senderID: message.senderID?.uuid, currentUserID: currentUserID)
         }
     }
     
@@ -246,7 +248,8 @@ extension Database {
         )
     }
     
-    private func recalculateMessageTips(messageID: UUID) throws {
+    private func recalculateMessageTips(messageID: UUID, senderID: UUID?, currentUserID: UUID) throws {
+        let hasTip = senderID == currentUserID ? "1" : "0"
         try writer.run("""
         UPDATE message SET kin = (
             SELECT
@@ -255,7 +258,7 @@ extension Database {
                 message
             WHERE
                 contentType = 4 AND referenceID = "\(messageID.uuidString)"
-        ) WHERE serverID = "\(messageID.uuidString)";
+        ), hasTipFromSelf = \(hasTip) WHERE serverID = "\(messageID.uuidString)";
         """)
     }
     

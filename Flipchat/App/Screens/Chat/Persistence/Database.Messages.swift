@@ -109,6 +109,7 @@ extension Database {
             m.referenceID,
             m.isDeleted,
             m.kin,
+            m.hasTipFromSelf,
 
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
@@ -158,7 +159,8 @@ extension Database {
                     contentType: row[mTable.contentType],
                     content:     row[mTable.content],
                     isDeleted:   row[mTable.isDeleted],
-                    kin:         Kin(quarks: row[mTable.kin])
+                    kin:         Kin(quarks: row[mTable.kin]),
+                    hasTipFromSelf: row[mTable.hasTipFromSelf]
                 ),
                 member: .init(
                     userID:      row[Expression<UUID?>("uServerID")],
@@ -200,6 +202,7 @@ struct MessageRow: Hashable {
         let content: String
         let isDeleted: Bool
         let kin: Kin
+        let hasTipFromSelf: Bool
     }
     
     struct Member: Hashable {

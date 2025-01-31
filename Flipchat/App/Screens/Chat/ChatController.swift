@@ -406,7 +406,7 @@ class ChatController: ObservableObject {
             
             // 3. Apply last message
             if let lastMessage = batchUpdate.lastMessage {
-                try $0.insertMessages(messages: [lastMessage], roomID: chatID, isBatch: false)
+                try $0.insertMessages(messages: [lastMessage], roomID: chatID, isBatch: false, currentUserID: userID.uuid)
                 print("[STREAM] Message: \(lastMessage.content)")
             }
         }
@@ -431,7 +431,7 @@ class ChatController: ObservableObject {
         }
         
         try database.transaction {
-            try $0.insertMessages(messages: filteredMessages, roomID: chatID.uuid, isBatch: false)
+            try $0.insertMessages(messages: filteredMessages, roomID: chatID.uuid, isBatch: false, currentUserID: userID.uuid)
         }
     }
     
@@ -481,7 +481,7 @@ class ChatController: ObservableObject {
     
     private func insertDeliveredMessage(userID: UserID, chatID: ChatID, message: Chat.Message) throws {
         try database.transaction {
-            try $0.insertMessages(messages: [message], roomID: chatID.uuid, isBatch: false)
+            try $0.insertMessages(messages: [message], roomID: chatID.uuid, isBatch: false, currentUserID: userID.uuid)
             
             // TODO: This pointer update should probably be elsewhere
             try $0.insertPointer(
@@ -501,7 +501,7 @@ class ChatController: ObservableObject {
         )
         
         try database.transaction {
-            try $0.insertMessages(messages: [deliveredMessage], roomID: chatID.uuid, isBatch: false)
+            try $0.insertMessages(messages: [deliveredMessage], roomID: chatID.uuid, isBatch: false, currentUserID: userID.uuid)
         }
     }
     
@@ -704,7 +704,7 @@ class ChatController: ObservableObject {
             try $0.insertRooms(rooms: [chat.metadata])
             try $0.insertMembers(members: chat.members, roomID: chat.metadata.id.uuid)
             if let messages {
-                try $0.insertMessages(messages: messages, roomID: chat.metadata.id.uuid, isBatch: true)
+                try $0.insertMessages(messages: messages, roomID: chat.metadata.id.uuid, isBatch: true, currentUserID: userID.uuid)
             }
             
             try block?()

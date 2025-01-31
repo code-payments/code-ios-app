@@ -41,6 +41,7 @@ struct MessageTable: Sendable {
     let kin         = Expression <UInt64>      ("kin") // Quarks
     let isDeleted   = Expression <Bool>        ("isDeleted")
     let isBatch     = Expression <Bool>        ("isBatch")
+    let hasTipFromSelf = Expression <Bool>     ("hasTipFromSelf")
 }
 
 struct MemberTable: Sendable {
@@ -121,6 +122,7 @@ extension Database {
                 t.column(messageTable.kin,       defaultValue: 0)
                 t.column(messageTable.isDeleted, defaultValue: false)
                 t.column(messageTable.isBatch,   defaultValue: false)
+                t.column(messageTable.hasTipFromSelf, defaultValue: false)
                 
                 t.foreignKey(messageTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
             })

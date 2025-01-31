@@ -12,10 +12,12 @@ import CodeUI
 struct TipAnnotation: View {
     
     private let kin: Kin
+    private let isFilled: Bool
     private let action: () -> Void
     
-    init(kin: Kin, action: @escaping () -> Void) {
+    init(kin: Kin, isFilled: Bool, action: @escaping () -> Void) {
         self.kin = kin
+        self.isFilled = isFilled
         self.action = action
     }
     
@@ -33,8 +35,15 @@ struct TipAnnotation: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 0)
-            .background(Color.actionSecondary)
-            .cornerRadius(99)
+            .background {
+                if isFilled {
+                    RoundedRectangle(cornerRadius: 99)
+                        .fill(Color.actionSecondary)
+                } else {
+                    RoundedRectangle(cornerRadius: 99)
+                        .strokeBorder(Color.actionSecondary, lineWidth: 1)
+                }
+            }
         }
     }
 }

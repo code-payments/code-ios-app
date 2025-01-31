@@ -465,6 +465,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 isReceived: isReceived,
                 isHost: message.senderID == hostID.uuid,
                 isBlocked: row.member.isBlocked == true,
+                hasTipFromSelf: message.hasTipFromSelf,
                 kinTips: message.kin,
                 deletionState: deletionState,
                 replyingTo: replyingTo(for: row, deletion: referenceDeletion, action: action),
