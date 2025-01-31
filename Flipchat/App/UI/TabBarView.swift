@@ -137,8 +137,8 @@ struct TabBarItem: Equatable, Hashable, Sendable {
     var title: String
     var asset: Asset
     
-    static let rooms   = TabBarItem(title: "Rooms",   asset: .bubble)
-    static let balance = TabBarItem(title: "Balance", asset: .kinHex)
+    static let flipchats = TabBarItem(title: "Flipchats", asset: .bubble)
+    static let balance   = TabBarItem(title: "Balance",   asset: .kinHex)
 }
 
 // MARK: - PreferenceKey -
@@ -188,7 +188,7 @@ extension View {
                     .navigationTitle("Chat")
             }
         }
-        .tabBarItem(item: .rooms, selection: selection)
+        .tabBarItem(item: .flipchats, selection: selection)
         
         Background(color: .backgroundMain) {
             NavigationStack {

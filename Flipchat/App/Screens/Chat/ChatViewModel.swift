@@ -122,12 +122,12 @@ class ChatViewModel: ObservableObject {
     func attemptLeaveChat(chatID: ChatID, roomNumber: RoomNumber) {
         banners.show(
             style: .error,
-            title: "Leave Room?",
+            title: "Leave Flipchat?",
             description: "We won't tell people you left",
             position: .bottom,
             isDismissable: true,
             actions: [
-                .destructive(title: "Leave Room \(roomNumber.formattedRoomNumberShort)") {
+                .destructive(title: "Leave Flipchat \(roomNumber.formattedRoomNumberShort)") {
                     self.leaveChat(chatID: chatID)
                 },
                 .cancel(title: "Cancel"),
@@ -427,8 +427,8 @@ class ChatViewModel: ObservableObject {
     private func showFailedToLoadRoomError() {
         banners.show(
             style: .error,
-            title: "Room Doesn't Exist Yet",
-            description: "Please try a different room number.",
+            title: "Flipchat Doesn't Exist Yet",
+            description: "Please try a different Flipchat number.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
@@ -449,8 +449,8 @@ class ChatViewModel: ObservableObject {
     private func showInappropriateRoomNameError() {
         banners.show(
             style: .error,
-            title: "Inappropriate Room Name",
-            description: "Room names need to be appropriate for all ages",
+            title: "Inappropriate Name",
+            description: "Flipchat names need to be appropriate for all ages",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]
@@ -460,8 +460,8 @@ class ChatViewModel: ObservableObject {
     private func showNotFoundError() {
         banners.show(
             style: .error,
-            title: "Room Not Found",
-            description: "This room doesn't appear to exist.",
+            title: "Flipchat Not Found",
+            description: "This Flipchat doesn't appear to exist.",
             actions: [
                 .cancel(title: Localized.Action.ok)
             ]

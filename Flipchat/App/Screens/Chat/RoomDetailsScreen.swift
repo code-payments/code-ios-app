@@ -86,7 +86,7 @@ struct RoomDetailsScreen: View {
                     viewModel.showChangeCover()
                 }
                 
-                Action.standard(systemImage: "character.cursor.ibeam", title: "Change Room Name") {
+                Action.standard(systemImage: "character.cursor.ibeam", title: "Change Flipchat Name") {
                     viewModel.showChangeRoomName(existingName: room?.room.title)
                 }
                 

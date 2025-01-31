@@ -75,7 +75,7 @@ struct ChatsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                NavBar(isLoading: chatController.isSyncInProgress, title: "Rooms") {
+                NavBar(isLoading: chatController.isSyncInProgress, title: "Flipchats") {
                     debugTapCount += 1
                     if debugTapCount >= 7 {
                         logoutAction()
@@ -124,7 +124,7 @@ struct ChatsScreen: View {
                                 }
                         }
                     } footer: {
-                        CodeButton(style: .filled, title: "Find Room") {
+                        CodeButton(style: .filled, title: "Find a Flipchat") {
                             viewModel.startChatting()
                         }
                         .listRowSeparator(.hidden)
@@ -206,10 +206,10 @@ struct ChatsScreen: View {
                 ModalButtons(
                     isPresented: $viewModel.isShowingFindRoomModal,
                     actions: [
-                        .init(title: "Enter Room Number") {
+                        .init(title: "Enter Flipchat Number") {
                             viewModel.showEnterRoomNumber()
                         },
-                        .init(title: "Create New Room") {
+                        .init(title: "Create New Flipchat") {
                             viewModel.attemptCreateChat()
                         },
                     ]

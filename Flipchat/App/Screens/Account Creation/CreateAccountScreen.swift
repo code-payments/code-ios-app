@@ -40,7 +40,7 @@ struct CreateAccountScreen: View {
                         )
                         
                         VStack(spacing: 10) {
-                            Text("Create an Account to Join Rooms")
+                            Text("Create an Account to Join Flipchats")
                                 .font(.appTextLarge)
                                 .foregroundStyle(Color.textMain)
                             Text("New accounts cost \(formattedPrice)")

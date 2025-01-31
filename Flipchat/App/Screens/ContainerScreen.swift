@@ -14,7 +14,7 @@ struct ContainerScreen: View {
     @EnvironmentObject private var container: AppContainer
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     
-    @State private var tabSelection: TabBarItem = .rooms
+    @State private var tabSelection: TabBarItem = .flipchats
     
     @ObservedObject private var viewModel: ContainerViewModel
     
@@ -39,7 +39,7 @@ struct ContainerScreen: View {
     }
     
     private func resetTabBar() {
-        tabSelection = .rooms
+        tabSelection = .flipchats
     }
     
     // MARK: - Body -
@@ -102,7 +102,7 @@ struct ContainerScreen: View {
                     container: container
                 )
                 .tabBarItem(
-                    item: .rooms,
+                    item: .flipchats,
                     selection: tabSelection
                 )
                 

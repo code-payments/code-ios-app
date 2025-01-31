@@ -33,7 +33,7 @@ struct ChangeRoomNameScreen: View {
                     Spacer()
                     
                     VStack(alignment: .leading, spacing: 15) {
-                        TextField("Room Name", text: $viewModel.enteredRoomName)
+                        TextField("Flipchat Name", text: $viewModel.enteredRoomName)
                             .focused($isFocused)
                             .font(.appDisplayMedium)
                             .frame(maxWidth: .infinity)

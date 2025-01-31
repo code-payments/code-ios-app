@@ -325,7 +325,7 @@ struct ConversationScreen: View {
     
     @ViewBuilder private func roomClosedView() -> some View {
         VStack {
-            Text("The host has temporarily closed this room. Only they can send messages until they reopen it")
+            Text("The host has temporarily closed this Flipchat. Only they can send messages until they reopen it")
                 .font(.appTextMedium)
                 .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
@@ -336,7 +336,7 @@ struct ConversationScreen: View {
     
     @ViewBuilder private func openCloseView(isOpen: Bool) -> some View {
         HStack {
-            Text("Your room is currently \(isOpen ? "open" : "closed")")
+            Text("Your Flipchat is currently \(isOpen ? "open" : "closed")")
                 .font(.appTextSmall)
                 .foregroundStyle(Color.textMain)
                 .lineLimit(1)
@@ -352,16 +352,16 @@ struct ConversationScreen: View {
                 let action: () -> Void
                 
                 if isOpen {
-                    title = "Close Room Temporarily?"
-                    description = "Only you will be able to send messages until you reopen the room."
+                    title = "Close Flipchat Temporarily?"
+                    description = "Only you will be able to send messages until you reopen your Flipchat."
                     actionTitle = "Close Temporarily"
                     action = {
                         chatViewModel.setRoomStatus(chatID: chatID, open: false)
                     }
                 } else {
-                    title = "Reopen Room?"
+                    title = "Reopen Flipchat?"
                     description = "People will be able to send messages again"
-                    actionTitle = "Reopen Room"
+                    actionTitle = "Reopen Flipchat"
                     action = {
                         chatViewModel.setRoomStatus(chatID: chatID, open: true)
                         setOpenClose(visible: false, animated: true)

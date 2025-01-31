@@ -37,7 +37,7 @@ struct EnterRoomNumberScreen: View {
                 .onAppear(perform: onAppear)
                 .foregroundColor(.textMain)
                 .padding(20)
-                .navigationBarTitle(Text("Enter Room Number"), displayMode: .inline)
+                .navigationBarTitle(Text("Join a Flipchat"), displayMode: .inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         ToolbarCloseButton(binding: $viewModel.isShowingEnterRoomNumber)
