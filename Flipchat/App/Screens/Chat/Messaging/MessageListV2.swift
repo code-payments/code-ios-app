@@ -340,6 +340,10 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
     }
     
     private func scrollTo(configuration: ScrollConfiguration) {
+        guard !messages.isEmpty else {
+            return
+        }
+        
         let indexPath: IndexPath
         switch configuration.destination {
         case .bottom:
