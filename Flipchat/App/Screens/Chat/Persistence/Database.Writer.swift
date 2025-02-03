@@ -160,8 +160,8 @@ extension Database {
         let member = MemberTable()
         let user = UserTable()
         try members.forEach {
-            try insertMember(member: $0, roomID: roomID, into: member)
             try insertUser(user: $0.identity, userID: $0.id.uuid, into: user)
+            try insertMember(member: $0, roomID: roomID, into: member)
         }
     }
     
@@ -249,7 +249,7 @@ extension Database {
     }
     
     private func recalculateMessageTips(messageID: UUID, senderID: UUID?, currentUserID: UUID) throws {
-        let hasTip = senderID == currentUserID ? "1" : "0"
+        let hasTipSQL = senderID == currentUserID ? ", hasTipFromSelf = 1" : ""
         try writer.run("""
         UPDATE message SET kin = (
             SELECT
@@ -258,7 +258,7 @@ extension Database {
                 message
             WHERE
                 contentType = 4 AND referenceID = "\(messageID.uuidString)"
-        ), hasTipFromSelf = \(hasTip) WHERE serverID = "\(messageID.uuidString)";
+        ) \(hasTipSQL) WHERE serverID = "\(messageID.uuidString)";
         """)
     }
     

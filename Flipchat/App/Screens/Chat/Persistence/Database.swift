@@ -29,8 +29,9 @@ class Database {
         self.writer = try Connection(url.path)
         
         writer.busyTimeout = 2000 // 2 sec
-        try writer.run("PRAGMA journal_mode = WAL")
-        try writer.run("PRAGMA cache_size = 10000")
+        try writer.run("PRAGMA journal_mode = WAL;")
+        try writer.run("PRAGMA cache_size = 10000;")
+        try writer.run("PRAGMA foreign_keys = ON;")
         
         self.reader = try Connection(url.path, readonly: true)
         reader.busyTimeout = 2000 // 2 Sec

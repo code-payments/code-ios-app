@@ -135,7 +135,7 @@ extension Database {
                 t.column(memberTable.canSend)
                 
                 t.primaryKey(memberTable.userID, memberTable.roomID)
-                t.foreignKey(memberTable.roomID, references: userTable.table, userTable.serverID, delete: .setNull)
+                t.foreignKey(memberTable.userID, references: userTable.table, userTable.serverID, delete: .setNull)
                 t.foreignKey(memberTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
             })
             
@@ -154,7 +154,7 @@ extension Database {
                 
                 t.primaryKey(pointerTable.userID, pointerTable.roomID)
                 t.foreignKey(pointerTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
-                t.foreignKey(pointerTable.userID, references: userTable.table, memberTable.userID, delete: .cascade)
+                t.foreignKey(pointerTable.userID, references: userTable.table, userTable.serverID, delete: .cascade)
             })
         }
     }
