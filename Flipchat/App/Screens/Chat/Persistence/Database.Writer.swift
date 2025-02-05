@@ -104,24 +104,6 @@ extension Database {
         )
     }
     
-    func setMemberMuted(userID: UUID, roomID: UUID, muted: Bool) throws {
-        let member = MemberTable()
-        try writer.run(
-            member.table
-                .filter(member.userID == userID && member.roomID == roomID)
-                .update(member.isMuted <- muted)
-        )
-    }
-    
-    func setUserBlocked(userID: UUID, blocked: Bool) throws {
-        let user = UserTable()
-        try writer.run(
-            user.table
-                .filter(user.serverID == userID)
-                .update(user.isBlocked <- blocked)
-        )
-    }
-    
     func muteRoom(roomID: UUID, muted: Bool) throws {
         let room = RoomTable()
         try writer.run(
@@ -177,7 +159,7 @@ extension Database {
         )
     }
     
-    // MARK: - Incremental Room Updates -
+    // MARK: - Incremental Room -
     
     func updateUnreadCount(roomID: UUID, unreadCount: Int, hasMore: Bool) throws {
         let room = RoomTable()
@@ -215,7 +197,7 @@ extension Database {
         )
     }
     
-    // MARK: - Incremental Member Updates -
+    // MARK: - Incremental Member -
     
     func deleteMember(userID: UUID, roomID: UUID) throws {
         let member = MemberTable()
@@ -223,6 +205,35 @@ extension Database {
             member.table
                 .filter(member.userID == userID && member.roomID == roomID)
                 .delete()
+        )
+    }
+    
+    func setMemberMuted(userID: UUID, roomID: UUID, muted: Bool) throws {
+        let member = MemberTable()
+        try writer.run(
+            member.table
+                .filter(member.userID == userID && member.roomID == roomID)
+                .update(member.isMuted <- muted)
+        )
+    }
+    
+    func setMemberCanSend(userID: UUID, roomID: UUID, canSend: Bool) throws {
+        let member = MemberTable()
+        try writer.run(
+            member.table
+                .filter(member.userID == userID && member.roomID == roomID)
+                .update(member.canSend <- canSend)
+        )
+    }
+    
+    // MARK: - Incremental User -
+    
+    func setUserBlocked(userID: UUID, blocked: Bool) throws {
+        let user = UserTable()
+        try writer.run(
+            user.table
+                .filter(user.serverID == userID)
+                .update(user.isBlocked <- blocked)
         )
     }
     
@@ -277,6 +288,7 @@ extension Database {
                 table.content     <- message.content,
                 table.kin         <- message.kin.quarks,
                 table.isBatch     <- isBatch,
+                table.offStage    <- message.offStage,
                 
                 onConflictOf: table.serverID
             )
@@ -301,7 +313,7 @@ extension Database {
 //                try recalculateMessageTips(messageID: referenceID.uuid)
 //            }
             
-        case .text, .reply, .reaction, .announcement, .unknown:
+        case .text, .reply, .reaction, .announcement, .announcementActionable, .unknown:
             break
         }
     }

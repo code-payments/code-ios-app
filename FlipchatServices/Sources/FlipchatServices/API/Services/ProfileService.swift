@@ -81,6 +81,10 @@ public enum ErrorSetDisplayName: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Profile_V1_ProfileClientInterceptorFactoryProtocol {
+    func makeLinkXAccountInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Profile_V1_LinkXAccountRequest, FlipchatAPI.Flipchat_Profile_V1_LinkXAccountResponse>] {
+        makeInterceptors()
+    }
+    
     func makeGetProfileInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Profile_V1_GetProfileRequest, FlipchatAPI.Flipchat_Profile_V1_GetProfileResponse>] {
         makeInterceptors()
     }

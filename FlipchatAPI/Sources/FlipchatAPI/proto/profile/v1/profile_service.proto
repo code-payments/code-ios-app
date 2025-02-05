@@ -14,6 +14,10 @@ service Profile {
 	rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
 
 	rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
+
+	// LinkXAccount links a X account to a user. Any existing links will
+	// be removed.
+	rpc LinkXAccount(LinkXAccountRequest) returns (LinkXAccountResponse);
 }
 
 message GetProfileRequest {
@@ -50,4 +54,26 @@ message SetDisplayNameResponse {
 		INVALID_DISPLAY_NAME = 1;
 		DENIED               = 2;
 	}
+}
+
+message LinkXAccountRequest {
+	// Twitter access token from the OAuth 2.0 flow
+	string access_token = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096 // todo: arbitrary
+    }];
+
+	common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message LinkXAccountResponse {
+	Result result = 1;
+	enum Result {
+		OK                   = 0;
+		INVALID_ACCESS_TOKEN = 1;
+		EXISTING_LINK        = 2;
+		DENIED               = 3;
+	}
+
+	XProfile x_profile = 2;
 }

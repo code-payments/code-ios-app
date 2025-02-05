@@ -21,6 +21,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
     let isHost: Bool
     let isBlocked: Bool
     let hasTipFromSelf: Bool
+    let offStage: Bool
     let kinTips: Kin
     let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
@@ -55,7 +56,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    init(messageID: UUID, state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, hasTipFromSelf: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+    init(messageID: UUID, state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, hasTipFromSelf: Bool, offStage: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
         self.messageID = messageID
         self.state = state
         self.name = name
@@ -66,6 +67,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.isHost = isHost
         self.isBlocked = isBlocked
         self.hasTipFromSelf = hasTipFromSelf
+        self.offStage = offStage
         self.kinTips = kinTips
         self.deletionState = deletionState
         self.replyingTo = replyingTo
@@ -110,6 +112,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
                     isReceived: isReceived,
                     isBlocked: isBlocked,
                     hasTipFromSelf: hasTipFromSelf,
+                    offStage: offStage,
                     kinTips: kinTips,
                     deletionState: deletionState,
                     replyingTo: replyingTo,
@@ -144,6 +147,7 @@ struct MessageBubble: View {
     let isReceived: Bool
     let isBlocked: Bool
     let hasTipFromSelf: Bool
+    let offStage: Bool
     let kinTips: Kin
     let deletionState: MessageDeletion?
     let replyingTo: ReplyingTo?
@@ -172,16 +176,12 @@ struct MessageBubble: View {
     }
     
     private var backgroundColor: Color {
-        guard !isDeleted else {
-            return .clear
-        }
-        
-        return isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent
+        isReceived ? Color.backgroundMessageReceived : Color.backgroundMessageSent
     }
     
     // MARK: - Init -
     
-    init(messageID: UUID, state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, hasTipFromSelf: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+    init(messageID: UUID, state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, hasTipFromSelf: Bool, offStage: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
         self.messageID = messageID
         self.state = state
         self.rawText = text
@@ -190,6 +190,7 @@ struct MessageBubble: View {
         self.isReceived = isReceived
         self.isBlocked = isBlocked
         self.hasTipFromSelf = hasTipFromSelf
+        self.offStage = offStage
         self.kinTips = kinTips
         self.deletionState = deletionState
         self.replyingTo = replyingTo
@@ -223,25 +224,36 @@ struct MessageBubble: View {
     // MARK: - Body -
     
     var body: some View {
-        Group {
-            if text.count < 10 && !hasTips {
-                compactBubble()
-            } else {
-                standardBubble()
-            }
+        if isDeleted {
+            bubbleContent()
+                .italic()
+                .overlay {
+                    cornerClip(location: location)
+                        .strokeBorder(Color.backgroundMessageSent, lineWidth: 2)
+                }
+            
+        } else if offStage {
+            bubbleContent()
+                .background(Color.backgroundMain)
+                .overlay {
+                    cornerClip(location: location)
+                        .strokeBorder(Color.actionSecondary, style: .init(lineWidth: 2, dash: [2, 2], dashPhase: 0))
+                }
+            
+        } else {
+            bubbleContent()
+                .background(backgroundColor)
+                .clipShape(
+                    cornerClip(location: location)
+                )
         }
-        .background(backgroundColor)
-        .if(!isDeleted) { $0
-            .clipShape(
-                cornerClip(location: location)
-            )
-        }
-        .if(isDeleted) { $0
-            .italic()
-            .overlay {
-                cornerClip(location: location)
-                    .strokeBorder(Color.backgroundMessageSent, lineWidth: 2)
-            }
+    }
+    
+    @ViewBuilder private func bubbleContent() -> some View {
+        if text.count < 10 && !hasTips {
+            compactBubble()
+        } else {
+            standardBubble()
         }
     }
     
@@ -476,6 +488,7 @@ extension NSRegularExpression {
                 isHost: false,
                 isBlocked: false,
                 hasTipFromSelf: false,
+                offStage: false,
                 kinTips: 7,
                 deletionState: nil,
                 replyingTo: .init(

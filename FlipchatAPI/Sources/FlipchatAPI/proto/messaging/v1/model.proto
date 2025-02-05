@@ -44,6 +44,10 @@ message Message {
     // Timestamp this message was generated at. This value is also encoded in
     // any time-based UUID message IDs.
     google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];
+
+    // If sender_id is provided, were they off stage at the time of sending
+    // this message
+    bool was_sender_off_stage = 5;
 }
 
 message MessageBatch {
@@ -93,6 +97,8 @@ message Content {
         ReplyContent                  reply                   = 6;
         TipContent                    tip                     = 7;
         DeleteMessageContent          deleted                 = 8;
+        ReviewContent                 review                  = 9;
+        ActionableAnnouncementContent actionable_announcement = 10;
     }
 
     reserved 3; // ExchangeDataContent
@@ -116,7 +122,35 @@ message LocalizedAnnouncementContent {
         max_len: 1024
     }];
 
-    // todo: define arguments
+    // todo: define arguments list
+    reserved 2;
+}
+
+// ActionableAnnouncementContent is like LocalizedAnnouncementContent, but
+// contains additional metadata for actions
+message ActionableAnnouncementContent {
+    string key_or_text = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 1024
+    }];
+
+    // todo: define arguments list
+    reserved 2;
+
+    // An action that can be taken by a user
+    Action action = 3 [(validate.rules).message.required = true];
+
+    message Action {
+        oneof type {
+            option (validate.required) = true;
+            
+            ShareRoomLink share_room_link = 1;
+        }
+
+        // Displays a button to share a link to a room
+        message ShareRoomLink {
+        }
+    }
 }
 
 // Emoji reaction to another message
@@ -154,4 +188,14 @@ message TipContent {
 message DeleteMessageContent {
     // The message ID of the message that was deleted
     MessageId original_message_id = 1  [(validate.rules).message.required = true];
+}
+
+message ReviewContent {
+    // The message ID of the message that is being reviewed. Currently, only
+    // off stage messages can be reviewed
+    MessageId original_message_id = 1  [(validate.rules).message.required = true];
+
+    // Whether the message has been approved. In the event of multiple reviews,
+    // the first message in the message log takes priority.
+    bool is_approved = 2;
 }

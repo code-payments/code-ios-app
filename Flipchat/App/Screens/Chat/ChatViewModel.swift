@@ -24,13 +24,15 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
-    @Published var isShowingJoinPayment: RoomDescription? = nil
+    @Published var isShowingPayForMessage: Bool = false
     
     @Published var isShowingCreatePayment: Bool = false
     
     @Published var isShowingCreateAccountFromChats: Bool = false
 
     @Published var isShowingCreateAccountFromConversation: Bool = false
+    
+    @Published var isShowingInputForPaidMessage: Bool = false
     
     @Published var isShowingFindRoomModal: Bool = false
     
@@ -313,46 +315,75 @@ class ChatViewModel: ObservableObject {
         pushChat(chatID: chatID)
     }
     
-    // MARK: - Join Chat -
+    // MARK: - Pay to Message -
     
-    func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+    func attemptPayForMessage(postAction: () -> Void) {
         guard chatController.isRegistered else {
             isShowingCreateAccountFromConversation = true
             return
         }
         
-        if chatID == hostID {
-            try await payAndJoinChat( // Payment skipped for chat hosts / owners
-                chatID: chatID,
-                hostID: hostID,
-                amount: amount
-            )
-        } else {
-            if session.hasSufficientFunds(for: amount), let description = try? chatController.getRoom(chatID: chatID) {
-                isShowingJoinPayment = description
-            } else {
-                showInsufficientFundsError()
-            }
-        }
+        isShowingInputForPaidMessage = true
+        postAction()
     }
     
-    func payAndJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
-        // We don't want to use withButtonState here because
-        // it's not desireble to show loading and success state
-        // here. Most of the time is taken up by the payment modal.
-        do {
-            _ = try await chatController.joinGroupChat(
-                chatID: chatID,
-                hostID: hostID,
-                amount: amount
-            )
-            
-        } catch {
-            ErrorReporting.captureError(error)
-            self.showGenericError()
-            throw error
-        }
+    func showMessagePayment() {
+        isShowingPayForMessage = true
     }
+    
+    func cancelMessagePayment() {
+        isShowingPayForMessage = false
+    }
+    
+    func solicitMessage(text: String, chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+        try await chatController.solicitMessage(
+            text: text,
+            chatID: chatID,
+            hostID: hostID,
+            amount: amount
+        )
+    }
+    
+    // MARK: - Join Chat -
+    
+//    func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+//        guard chatController.isRegistered else {
+//            isShowingCreateAccountFromConversation = true
+//            return
+//        }
+//        
+//        if chatID == hostID {
+//            try await payAndJoinChat( // Payment skipped for chat hosts / owners
+//                chatID: chatID,
+//                hostID: hostID,
+//                amount: amount
+//            )
+//        } else {
+//            if session.hasSufficientFunds(for: amount), let description = try? chatController.getRoom(chatID: chatID) {
+//                isShowingPayForMessage = description
+//            } else {
+//                showInsufficientFundsError()
+//            }
+//        }
+//    }
+//    
+//    func payAndJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+//        // We don't want to use withButtonState here because
+//        // it's not desireble to show loading and success state
+//        // here. Most of the time is taken up by the payment modal.
+//        do {
+//            _ = try await chatController.joinGroupChat(
+//                chatID: chatID,
+//                hostID: hostID,
+//                amount: amount
+//            )
+//            
+//        } catch {
+//            ErrorReporting.captureError(error)
+//            self.showGenericError()
+//            throw error
+//        }
+//    }
     
     func watchChat(chatID: ChatID) async throws {
         buttonStateWatchChat = .loading
@@ -373,14 +404,9 @@ class ChatViewModel: ObservableObject {
         pushChat(chatID: chatID)
         Task {
             try await Task.delay(milliseconds: 400)
-            cancelJoinChatPayment()
             isShowingEnterRoomNumber = false
             containerViewModel?.isShowingPreviewRoom = nil
         }
-    }
-    
-    func cancelJoinChatPayment() {
-        isShowingJoinPayment = nil
     }
     
     private func leaveChat(chatID: ChatID) {

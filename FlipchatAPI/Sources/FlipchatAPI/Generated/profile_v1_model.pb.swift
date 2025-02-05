@@ -25,16 +25,140 @@ public struct Flipchat_Profile_V1_UserProfile {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// DisplayName is the display name of the user (if found).
+  /// Display name is the display name of the user (if found).
   public var displayName: String = String()
+
+  /// Social profiles are links to external social accounts
+  public var socialProfiles: [Flipchat_Profile_V1_SocialProfile] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
+public struct Flipchat_Profile_V1_SocialProfile {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var type: Flipchat_Profile_V1_SocialProfile.OneOf_Type? = nil
+
+  public var x: Flipchat_Profile_V1_XProfile {
+    get {
+      if case .x(let v)? = type {return v}
+      return Flipchat_Profile_V1_XProfile()
+    }
+    set {type = .x(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Type: Equatable {
+    case x(Flipchat_Profile_V1_XProfile)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipchat_Profile_V1_SocialProfile.OneOf_Type, rhs: Flipchat_Profile_V1_SocialProfile.OneOf_Type) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.x, .x): return {
+        guard case .x(let l) = lhs, case .x(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      }
+    }
+  #endif
+  }
+
+  public init() {}
+}
+
+public struct Flipchat_Profile_V1_XProfile {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The user's ID on X
+  public var id: String = String()
+
+  /// The user's username on X
+  public var username: String = String()
+
+  /// The user's friendly name on X
+  public var name: String = String()
+
+  /// The user's description on X
+  public var description_p: String = String()
+
+  /// URL to the user's X profile picture
+  public var profilePicURL: String = String()
+
+  /// The type of X verification associated with the user
+  public var verifiedType: Flipchat_Profile_V1_XProfile.VerifiedType = .none
+
+  /// The number of followers the user has on X
+  public var followerCount: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum VerifiedType: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case none // = 0
+    case blue // = 1
+    case business // = 2
+    case government // = 3
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .none
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .none
+      case 1: self = .blue
+      case 2: self = .business
+      case 3: self = .government
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .none: return 0
+      case .blue: return 1
+      case .business: return 2
+      case .government: return 3
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Profile_V1_XProfile.VerifiedType: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Profile_V1_XProfile.VerifiedType] = [
+    .none,
+    .blue,
+    .business,
+    .government,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipchat_Profile_V1_UserProfile: @unchecked Sendable {}
+extension Flipchat_Profile_V1_SocialProfile: @unchecked Sendable {}
+extension Flipchat_Profile_V1_SocialProfile.OneOf_Type: @unchecked Sendable {}
+extension Flipchat_Profile_V1_XProfile: @unchecked Sendable {}
+extension Flipchat_Profile_V1_XProfile.VerifiedType: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -45,6 +169,7 @@ extension Flipchat_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
   public static let protoMessageName: String = _protobuf_package + ".UserProfile"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "display_name"),
+    2: .standard(proto: "social_profiles"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -54,6 +179,7 @@ extension Flipchat_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.displayName) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.socialProfiles) }()
       default: break
       }
     }
@@ -63,12 +189,141 @@ extension Flipchat_Profile_V1_UserProfile: SwiftProtobuf.Message, SwiftProtobuf.
     if !self.displayName.isEmpty {
       try visitor.visitSingularStringField(value: self.displayName, fieldNumber: 1)
     }
+    if !self.socialProfiles.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.socialProfiles, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Profile_V1_UserProfile, rhs: Flipchat_Profile_V1_UserProfile) -> Bool {
     if lhs.displayName != rhs.displayName {return false}
+    if lhs.socialProfiles != rhs.socialProfiles {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipchat_Profile_V1_SocialProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SocialProfile"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "x"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipchat_Profile_V1_XProfile?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .x(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .x(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .x(let v)? = self.type {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Profile_V1_SocialProfile, rhs: Flipchat_Profile_V1_SocialProfile) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Profile_V1_XProfile: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".XProfile"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "id"),
+    2: .same(proto: "username"),
+    3: .same(proto: "name"),
+    4: .same(proto: "description"),
+    5: .standard(proto: "profile_pic_url"),
+    6: .standard(proto: "verified_type"),
+    7: .standard(proto: "follower_count"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 4: try { try decoder.decodeSingularStringField(value: &self.description_p) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.profilePicURL) }()
+      case 6: try { try decoder.decodeSingularEnumField(value: &self.verifiedType) }()
+      case 7: try { try decoder.decodeSingularUInt32Field(value: &self.followerCount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 2)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 3)
+    }
+    if !self.description_p.isEmpty {
+      try visitor.visitSingularStringField(value: self.description_p, fieldNumber: 4)
+    }
+    if !self.profilePicURL.isEmpty {
+      try visitor.visitSingularStringField(value: self.profilePicURL, fieldNumber: 5)
+    }
+    if self.verifiedType != .none {
+      try visitor.visitSingularEnumField(value: self.verifiedType, fieldNumber: 6)
+    }
+    if self.followerCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.followerCount, fieldNumber: 7)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Profile_V1_XProfile, rhs: Flipchat_Profile_V1_XProfile) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.username != rhs.username {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.description_p != rhs.description_p {return false}
+    if lhs.profilePicURL != rhs.profilePicURL {return false}
+    if lhs.verifiedType != rhs.verifiedType {return false}
+    if lhs.followerCount != rhs.followerCount {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Profile_V1_XProfile.VerifiedType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "NONE"),
+    1: .same(proto: "BLUE"),
+    2: .same(proto: "BUSINESS"),
+    3: .same(proto: "GOVERNMENT"),
+  ]
 }

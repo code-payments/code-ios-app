@@ -83,7 +83,7 @@ extension Chat.Metadata {
             kind: .init(rawValue: proto.type.rawValue) ?? .unknown,
             roomNumber: proto.roomNumber,
             ownerUser: UserID(data: proto.owner.value),
-            coverAmount: Kin(quarks: proto.coverCharge.quarks),
+            coverAmount: Kin(quarks: proto.messagingFee.quarks),
             title: proto.displayName.isEmpty ? nil : proto.displayName,
             unreadCount: Int(proto.numUnread),
             hasMoreUnread: proto.hasMoreUnread_p,

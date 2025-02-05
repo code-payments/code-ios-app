@@ -56,6 +56,11 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>
 
+  func checkDisplayName(
+    _ request: Flipchat_Chat_V1_CheckDisplayNameRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_CheckDisplayNameRequest, Flipchat_Chat_V1_CheckDisplayNameResponse>
+
   func setDisplayName(
     _ request: Flipchat_Chat_V1_SetDisplayNameRequest,
     callOptions: CallOptions?
@@ -66,10 +71,25 @@ public protocol Flipchat_Chat_V1_ChatClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
 
+  func setMessagingFee(
+    _ request: Flipchat_Chat_V1_SetMessagingFeeRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_SetMessagingFeeRequest, Flipchat_Chat_V1_SetMessagingFeeResponse>
+
   func getMemberUpdates(
     _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>
+
+  func promoteUser(
+    _ request: Flipchat_Chat_V1_PromoteUserRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_PromoteUserRequest, Flipchat_Chat_V1_PromoteUserResponse>
+
+  func demoteUser(
+    _ request: Flipchat_Chat_V1_DemoteUserRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Chat_V1_DemoteUserRequest, Flipchat_Chat_V1_DemoteUserResponse>
 
   func removeUser(
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
@@ -265,6 +285,24 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
     )
   }
 
+  /// CheckDisplayName checks whether a chat display name passes moderation
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to CheckDisplayName.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func checkDisplayName(
+    _ request: Flipchat_Chat_V1_CheckDisplayNameRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_CheckDisplayNameRequest, Flipchat_Chat_V1_CheckDisplayNameResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.checkDisplayName.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCheckDisplayNameInterceptors() ?? []
+    )
+  }
+
   /// SetDisplayName sets a chat's display name. If the display name isn't allowed,
   /// then a set of alternate suggestions may be provided
   ///
@@ -286,6 +324,8 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
 
   /// SetCoverCharge sets a chat's cover charge
   ///
+  /// Deprecated: Use SetMessagingFee instead
+  ///
   /// - Parameters:
   ///   - request: Request to send to SetCoverCharge.
   ///   - callOptions: Call options.
@@ -299,6 +339,24 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetCoverChargeInterceptors() ?? []
+    )
+  }
+
+  /// SetMessagingFee sets a chat's messaging fee
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to SetMessagingFee.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func setMessagingFee(
+    _ request: Flipchat_Chat_V1_SetMessagingFeeRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_SetMessagingFeeRequest, Flipchat_Chat_V1_SetMessagingFeeResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setMessagingFee.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetMessagingFeeInterceptors() ?? []
     )
   }
 
@@ -317,6 +375,42 @@ extension Flipchat_Chat_V1_ChatClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? []
+    )
+  }
+
+  /// PromoteUser promotes a user to an elevated permission state
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to PromoteUser.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func promoteUser(
+    _ request: Flipchat_Chat_V1_PromoteUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_PromoteUserRequest, Flipchat_Chat_V1_PromoteUserResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.promoteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makePromoteUserInterceptors() ?? []
+    )
+  }
+
+  /// DemoteUser demotes a user to a lower permission state
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to DemoteUser.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func demoteUser(
+    _ request: Flipchat_Chat_V1_DemoteUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Chat_V1_DemoteUserRequest, Flipchat_Chat_V1_DemoteUserResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.demoteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDemoteUserInterceptors() ?? []
     )
   }
 
@@ -514,6 +608,11 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>
 
+  func makeCheckDisplayNameCall(
+    _ request: Flipchat_Chat_V1_CheckDisplayNameRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_CheckDisplayNameRequest, Flipchat_Chat_V1_CheckDisplayNameResponse>
+
   func makeSetDisplayNameCall(
     _ request: Flipchat_Chat_V1_SetDisplayNameRequest,
     callOptions: CallOptions?
@@ -524,10 +623,25 @@ public protocol Flipchat_Chat_V1_ChatAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>
 
+  func makeSetMessagingFeeCall(
+    _ request: Flipchat_Chat_V1_SetMessagingFeeRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetMessagingFeeRequest, Flipchat_Chat_V1_SetMessagingFeeResponse>
+
   func makeGetMemberUpdatesCall(
     _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>
+
+  func makePromoteUserCall(
+    _ request: Flipchat_Chat_V1_PromoteUserRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_PromoteUserRequest, Flipchat_Chat_V1_PromoteUserResponse>
+
+  func makeDemoteUserCall(
+    _ request: Flipchat_Chat_V1_DemoteUserRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_DemoteUserRequest, Flipchat_Chat_V1_DemoteUserResponse>
 
   func makeRemoveUserCall(
     _ request: Flipchat_Chat_V1_RemoveUserRequest,
@@ -659,6 +773,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
+  public func makeCheckDisplayNameCall(
+    _ request: Flipchat_Chat_V1_CheckDisplayNameRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_CheckDisplayNameRequest, Flipchat_Chat_V1_CheckDisplayNameResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.checkDisplayName.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCheckDisplayNameInterceptors() ?? []
+    )
+  }
+
   public func makeSetDisplayNameCall(
     _ request: Flipchat_Chat_V1_SetDisplayNameRequest,
     callOptions: CallOptions? = nil
@@ -683,6 +809,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
+  public func makeSetMessagingFeeCall(
+    _ request: Flipchat_Chat_V1_SetMessagingFeeRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_SetMessagingFeeRequest, Flipchat_Chat_V1_SetMessagingFeeResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setMessagingFee.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetMessagingFeeInterceptors() ?? []
+    )
+  }
+
   public func makeGetMemberUpdatesCall(
     _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
     callOptions: CallOptions? = nil
@@ -692,6 +830,30 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? []
+    )
+  }
+
+  public func makePromoteUserCall(
+    _ request: Flipchat_Chat_V1_PromoteUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_PromoteUserRequest, Flipchat_Chat_V1_PromoteUserResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.promoteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makePromoteUserInterceptors() ?? []
+    )
+  }
+
+  public func makeDemoteUserCall(
+    _ request: Flipchat_Chat_V1_DemoteUserRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Chat_V1_DemoteUserRequest, Flipchat_Chat_V1_DemoteUserResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.demoteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDemoteUserInterceptors() ?? []
     )
   }
 
@@ -866,6 +1028,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
+  public func checkDisplayName(
+    _ request: Flipchat_Chat_V1_CheckDisplayNameRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_CheckDisplayNameResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.checkDisplayName.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeCheckDisplayNameInterceptors() ?? []
+    )
+  }
+
   public func setDisplayName(
     _ request: Flipchat_Chat_V1_SetDisplayNameRequest,
     callOptions: CallOptions? = nil
@@ -890,6 +1064,18 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
     )
   }
 
+  public func setMessagingFee(
+    _ request: Flipchat_Chat_V1_SetMessagingFeeRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_SetMessagingFeeResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.setMessagingFee.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSetMessagingFeeInterceptors() ?? []
+    )
+  }
+
   public func getMemberUpdates(
     _ request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
     callOptions: CallOptions? = nil
@@ -899,6 +1085,30 @@ extension Flipchat_Chat_V1_ChatAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? []
+    )
+  }
+
+  public func promoteUser(
+    _ request: Flipchat_Chat_V1_PromoteUserRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_PromoteUserResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.promoteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makePromoteUserInterceptors() ?? []
+    )
+  }
+
+  public func demoteUser(
+    _ request: Flipchat_Chat_V1_DemoteUserRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Chat_V1_DemoteUserResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Chat_V1_ChatClientMetadata.Methods.demoteUser.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeDemoteUserInterceptors() ?? []
     )
   }
 
@@ -1006,14 +1216,26 @@ public protocol Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when invoking 'closeChat'.
   func makeCloseChatInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'checkDisplayName'.
+  func makeCheckDisplayNameInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_CheckDisplayNameRequest, Flipchat_Chat_V1_CheckDisplayNameResponse>]
+
   /// - Returns: Interceptors to use when invoking 'setDisplayName'.
   func makeSetDisplayNameInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetDisplayNameRequest, Flipchat_Chat_V1_SetDisplayNameResponse>]
 
   /// - Returns: Interceptors to use when invoking 'setCoverCharge'.
   func makeSetCoverChargeInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'setMessagingFee'.
+  func makeSetMessagingFeeInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_SetMessagingFeeRequest, Flipchat_Chat_V1_SetMessagingFeeResponse>]
+
   /// - Returns: Interceptors to use when invoking 'getMemberUpdates'.
   func makeGetMemberUpdatesInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'promoteUser'.
+  func makePromoteUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_PromoteUserRequest, Flipchat_Chat_V1_PromoteUserResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'demoteUser'.
+  func makeDemoteUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_DemoteUserRequest, Flipchat_Chat_V1_DemoteUserResponse>]
 
   /// - Returns: Interceptors to use when invoking 'removeUser'.
   func makeRemoveUserInterceptors() -> [ClientInterceptor<Flipchat_Chat_V1_RemoveUserRequest, Flipchat_Chat_V1_RemoveUserResponse>]
@@ -1044,9 +1266,13 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       Flipchat_Chat_V1_ChatClientMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.openChat,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.closeChat,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.checkDisplayName,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setDisplayName,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.setCoverCharge,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.setMessagingFee,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.getMemberUpdates,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.promoteUser,
+      Flipchat_Chat_V1_ChatClientMetadata.Methods.demoteUser,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.removeUser,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.muteUser,
       Flipchat_Chat_V1_ChatClientMetadata.Methods.muteChat,
@@ -1104,6 +1330,12 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       type: GRPCCallType.unary
     )
 
+    public static let checkDisplayName = GRPCMethodDescriptor(
+      name: "CheckDisplayName",
+      path: "/flipchat.chat.v1.Chat/CheckDisplayName",
+      type: GRPCCallType.unary
+    )
+
     public static let setDisplayName = GRPCMethodDescriptor(
       name: "SetDisplayName",
       path: "/flipchat.chat.v1.Chat/SetDisplayName",
@@ -1116,9 +1348,27 @@ public enum Flipchat_Chat_V1_ChatClientMetadata {
       type: GRPCCallType.unary
     )
 
+    public static let setMessagingFee = GRPCMethodDescriptor(
+      name: "SetMessagingFee",
+      path: "/flipchat.chat.v1.Chat/SetMessagingFee",
+      type: GRPCCallType.unary
+    )
+
     public static let getMemberUpdates = GRPCMethodDescriptor(
       name: "GetMemberUpdates",
       path: "/flipchat.chat.v1.Chat/GetMemberUpdates",
+      type: GRPCCallType.unary
+    )
+
+    public static let promoteUser = GRPCMethodDescriptor(
+      name: "PromoteUser",
+      path: "/flipchat.chat.v1.Chat/PromoteUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let demoteUser = GRPCMethodDescriptor(
+      name: "DemoteUser",
+      path: "/flipchat.chat.v1.Chat/DemoteUser",
       type: GRPCCallType.unary
     )
 
@@ -1198,15 +1448,29 @@ public protocol Flipchat_Chat_V1_ChatProvider: CallHandlerProvider {
   /// CloseChat closes a chat up for messaging to just the chat owner
   func closeChat(request: Flipchat_Chat_V1_CloseChatRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_CloseChatResponse>
 
+  /// CheckDisplayName checks whether a chat display name passes moderation
+  func checkDisplayName(request: Flipchat_Chat_V1_CheckDisplayNameRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_CheckDisplayNameResponse>
+
   /// SetDisplayName sets a chat's display name. If the display name isn't allowed,
   /// then a set of alternate suggestions may be provided
   func setDisplayName(request: Flipchat_Chat_V1_SetDisplayNameRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetDisplayNameResponse>
 
   /// SetCoverCharge sets a chat's cover charge
+  ///
+  /// Deprecated: Use SetMessagingFee instead
   func setCoverCharge(request: Flipchat_Chat_V1_SetCoverChargeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetCoverChargeResponse>
+
+  /// SetMessagingFee sets a chat's messaging fee
+  func setMessagingFee(request: Flipchat_Chat_V1_SetMessagingFeeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_SetMessagingFeeResponse>
 
   /// GetMemberUpdates gets member updates for a given chat
   func getMemberUpdates(request: Flipchat_Chat_V1_GetMemberUpdatesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_GetMemberUpdatesResponse>
+
+  /// PromoteUser promotes a user to an elevated permission state
+  func promoteUser(request: Flipchat_Chat_V1_PromoteUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_PromoteUserResponse>
+
+  /// DemoteUser demotes a user to a lower permission state
+  func demoteUser(request: Flipchat_Chat_V1_DemoteUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_DemoteUserResponse>
 
   /// RemoveUser removes a user from a chat
   func removeUser(request: Flipchat_Chat_V1_RemoveUserRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Chat_V1_RemoveUserResponse>
@@ -1310,6 +1574,15 @@ extension Flipchat_Chat_V1_ChatProvider {
         userFunction: self.closeChat(request:context:)
       )
 
+    case "CheckDisplayName":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_CheckDisplayNameRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_CheckDisplayNameResponse>(),
+        interceptors: self.interceptors?.makeCheckDisplayNameInterceptors() ?? [],
+        userFunction: self.checkDisplayName(request:context:)
+      )
+
     case "SetDisplayName":
       return UnaryServerHandler(
         context: context,
@@ -1328,6 +1601,15 @@ extension Flipchat_Chat_V1_ChatProvider {
         userFunction: self.setCoverCharge(request:context:)
       )
 
+    case "SetMessagingFee":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_SetMessagingFeeRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_SetMessagingFeeResponse>(),
+        interceptors: self.interceptors?.makeSetMessagingFeeInterceptors() ?? [],
+        userFunction: self.setMessagingFee(request:context:)
+      )
+
     case "GetMemberUpdates":
       return UnaryServerHandler(
         context: context,
@@ -1335,6 +1617,24 @@ extension Flipchat_Chat_V1_ChatProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_GetMemberUpdatesResponse>(),
         interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? [],
         userFunction: self.getMemberUpdates(request:context:)
+      )
+
+    case "PromoteUser":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_PromoteUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_PromoteUserResponse>(),
+        interceptors: self.interceptors?.makePromoteUserInterceptors() ?? [],
+        userFunction: self.promoteUser(request:context:)
+      )
+
+    case "DemoteUser":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_DemoteUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_DemoteUserResponse>(),
+        interceptors: self.interceptors?.makeDemoteUserInterceptors() ?? [],
+        userFunction: self.demoteUser(request:context:)
       )
 
     case "RemoveUser":
@@ -1459,6 +1759,12 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_CloseChatResponse
 
+  /// CheckDisplayName checks whether a chat display name passes moderation
+  func checkDisplayName(
+    request: Flipchat_Chat_V1_CheckDisplayNameRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_CheckDisplayNameResponse
+
   /// SetDisplayName sets a chat's display name. If the display name isn't allowed,
   /// then a set of alternate suggestions may be provided
   func setDisplayName(
@@ -1467,16 +1773,36 @@ public protocol Flipchat_Chat_V1_ChatAsyncProvider: CallHandlerProvider, Sendabl
   ) async throws -> Flipchat_Chat_V1_SetDisplayNameResponse
 
   /// SetCoverCharge sets a chat's cover charge
+  ///
+  /// Deprecated: Use SetMessagingFee instead
   func setCoverCharge(
     request: Flipchat_Chat_V1_SetCoverChargeRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_SetCoverChargeResponse
+
+  /// SetMessagingFee sets a chat's messaging fee
+  func setMessagingFee(
+    request: Flipchat_Chat_V1_SetMessagingFeeRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_SetMessagingFeeResponse
 
   /// GetMemberUpdates gets member updates for a given chat
   func getMemberUpdates(
     request: Flipchat_Chat_V1_GetMemberUpdatesRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Chat_V1_GetMemberUpdatesResponse
+
+  /// PromoteUser promotes a user to an elevated permission state
+  func promoteUser(
+    request: Flipchat_Chat_V1_PromoteUserRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_PromoteUserResponse
+
+  /// DemoteUser demotes a user to a lower permission state
+  func demoteUser(
+    request: Flipchat_Chat_V1_DemoteUserRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Chat_V1_DemoteUserResponse
 
   /// RemoveUser removes a user from a chat
   func removeUser(
@@ -1602,6 +1928,15 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.closeChat(request: $0, context: $1) }
       )
 
+    case "CheckDisplayName":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_CheckDisplayNameRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_CheckDisplayNameResponse>(),
+        interceptors: self.interceptors?.makeCheckDisplayNameInterceptors() ?? [],
+        wrapping: { try await self.checkDisplayName(request: $0, context: $1) }
+      )
+
     case "SetDisplayName":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1620,6 +1955,15 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         wrapping: { try await self.setCoverCharge(request: $0, context: $1) }
       )
 
+    case "SetMessagingFee":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_SetMessagingFeeRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_SetMessagingFeeResponse>(),
+        interceptors: self.interceptors?.makeSetMessagingFeeInterceptors() ?? [],
+        wrapping: { try await self.setMessagingFee(request: $0, context: $1) }
+      )
+
     case "GetMemberUpdates":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1627,6 +1971,24 @@ extension Flipchat_Chat_V1_ChatAsyncProvider {
         responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_GetMemberUpdatesResponse>(),
         interceptors: self.interceptors?.makeGetMemberUpdatesInterceptors() ?? [],
         wrapping: { try await self.getMemberUpdates(request: $0, context: $1) }
+      )
+
+    case "PromoteUser":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_PromoteUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_PromoteUserResponse>(),
+        interceptors: self.interceptors?.makePromoteUserInterceptors() ?? [],
+        wrapping: { try await self.promoteUser(request: $0, context: $1) }
+      )
+
+    case "DemoteUser":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Chat_V1_DemoteUserRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Chat_V1_DemoteUserResponse>(),
+        interceptors: self.interceptors?.makeDemoteUserInterceptors() ?? [],
+        wrapping: { try await self.demoteUser(request: $0, context: $1) }
       )
 
     case "RemoveUser":
@@ -1714,6 +2076,10 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeCloseChatInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_CloseChatRequest, Flipchat_Chat_V1_CloseChatResponse>]
 
+  /// - Returns: Interceptors to use when handling 'checkDisplayName'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeCheckDisplayNameInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_CheckDisplayNameRequest, Flipchat_Chat_V1_CheckDisplayNameResponse>]
+
   /// - Returns: Interceptors to use when handling 'setDisplayName'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetDisplayNameInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetDisplayNameRequest, Flipchat_Chat_V1_SetDisplayNameResponse>]
@@ -1722,9 +2088,21 @@ public protocol Flipchat_Chat_V1_ChatServerInterceptorFactoryProtocol: Sendable 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetCoverChargeInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetCoverChargeRequest, Flipchat_Chat_V1_SetCoverChargeResponse>]
 
+  /// - Returns: Interceptors to use when handling 'setMessagingFee'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSetMessagingFeeInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_SetMessagingFeeRequest, Flipchat_Chat_V1_SetMessagingFeeResponse>]
+
   /// - Returns: Interceptors to use when handling 'getMemberUpdates'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetMemberUpdatesInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_GetMemberUpdatesRequest, Flipchat_Chat_V1_GetMemberUpdatesResponse>]
+
+  /// - Returns: Interceptors to use when handling 'promoteUser'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makePromoteUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_PromoteUserRequest, Flipchat_Chat_V1_PromoteUserResponse>]
+
+  /// - Returns: Interceptors to use when handling 'demoteUser'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeDemoteUserInterceptors() -> [ServerInterceptor<Flipchat_Chat_V1_DemoteUserRequest, Flipchat_Chat_V1_DemoteUserResponse>]
 
   /// - Returns: Interceptors to use when handling 'removeUser'.
   ///   Defaults to calling `self.makeInterceptors()`.
@@ -1760,9 +2138,13 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       Flipchat_Chat_V1_ChatServerMetadata.Methods.leaveChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.openChat,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.closeChat,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.checkDisplayName,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setDisplayName,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.setCoverCharge,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.setMessagingFee,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.getMemberUpdates,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.promoteUser,
+      Flipchat_Chat_V1_ChatServerMetadata.Methods.demoteUser,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.removeUser,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.muteUser,
       Flipchat_Chat_V1_ChatServerMetadata.Methods.muteChat,
@@ -1820,6 +2202,12 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       type: GRPCCallType.unary
     )
 
+    public static let checkDisplayName = GRPCMethodDescriptor(
+      name: "CheckDisplayName",
+      path: "/flipchat.chat.v1.Chat/CheckDisplayName",
+      type: GRPCCallType.unary
+    )
+
     public static let setDisplayName = GRPCMethodDescriptor(
       name: "SetDisplayName",
       path: "/flipchat.chat.v1.Chat/SetDisplayName",
@@ -1832,9 +2220,27 @@ public enum Flipchat_Chat_V1_ChatServerMetadata {
       type: GRPCCallType.unary
     )
 
+    public static let setMessagingFee = GRPCMethodDescriptor(
+      name: "SetMessagingFee",
+      path: "/flipchat.chat.v1.Chat/SetMessagingFee",
+      type: GRPCCallType.unary
+    )
+
     public static let getMemberUpdates = GRPCMethodDescriptor(
       name: "GetMemberUpdates",
       path: "/flipchat.chat.v1.Chat/GetMemberUpdates",
+      type: GRPCCallType.unary
+    )
+
+    public static let promoteUser = GRPCMethodDescriptor(
+      name: "PromoteUser",
+      path: "/flipchat.chat.v1.Chat/PromoteUser",
+      type: GRPCCallType.unary
+    )
+
+    public static let demoteUser = GRPCMethodDescriptor(
+      name: "DemoteUser",
+      path: "/flipchat.chat.v1.Chat/DemoteUser",
       type: GRPCCallType.unary
     )
 

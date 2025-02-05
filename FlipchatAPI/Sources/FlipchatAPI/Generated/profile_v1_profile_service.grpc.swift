@@ -25,6 +25,11 @@ public protocol Flipchat_Profile_V1_ProfileClientProtocol: GRPCClient {
     _ request: Flipchat_Profile_V1_SetDisplayNameRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>
+
+  func linkXAccount(
+    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>
 }
 
 extension Flipchat_Profile_V1_ProfileClientProtocol {
@@ -65,6 +70,25 @@ extension Flipchat_Profile_V1_ProfileClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetDisplayNameInterceptors() ?? []
+    )
+  }
+
+  /// LinkXAccount links a X account to a user. Any existing links will
+  /// be removed.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to LinkXAccount.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func linkXAccount(
+    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? []
     )
   }
 }
@@ -140,6 +164,11 @@ public protocol Flipchat_Profile_V1_ProfileAsyncClientProtocol: GRPCClient {
     _ request: Flipchat_Profile_V1_SetDisplayNameRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>
+
+  func makeLinkXaccountCall(
+    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -175,6 +204,18 @@ extension Flipchat_Profile_V1_ProfileAsyncClientProtocol {
       interceptors: self.interceptors?.makeSetDisplayNameInterceptors() ?? []
     )
   }
+
+  public func makeLinkXaccountCall(
+    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -200,6 +241,18 @@ extension Flipchat_Profile_V1_ProfileAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSetDisplayNameInterceptors() ?? []
+    )
+  }
+
+  public func linkXAccount(
+    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Profile_V1_LinkXAccountResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? []
     )
   }
 }
@@ -228,6 +281,9 @@ public protocol Flipchat_Profile_V1_ProfileClientInterceptorFactoryProtocol: Sen
 
   /// - Returns: Interceptors to use when invoking 'setDisplayName'.
   func makeSetDisplayNameInterceptors() -> [ClientInterceptor<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'linkXAccount'.
+  func makeLinkXAccountInterceptors() -> [ClientInterceptor<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>]
 }
 
 public enum Flipchat_Profile_V1_ProfileClientMetadata {
@@ -237,6 +293,7 @@ public enum Flipchat_Profile_V1_ProfileClientMetadata {
     methods: [
       Flipchat_Profile_V1_ProfileClientMetadata.Methods.getProfile,
       Flipchat_Profile_V1_ProfileClientMetadata.Methods.setDisplayName,
+      Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount,
     ]
   )
 
@@ -252,6 +309,12 @@ public enum Flipchat_Profile_V1_ProfileClientMetadata {
       path: "/flipchat.profile.v1.Profile/SetDisplayName",
       type: GRPCCallType.unary
     )
+
+    public static let linkXAccount = GRPCMethodDescriptor(
+      name: "LinkXAccount",
+      path: "/flipchat.profile.v1.Profile/LinkXAccount",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -262,6 +325,10 @@ public protocol Flipchat_Profile_V1_ProfileProvider: CallHandlerProvider {
   func getProfile(request: Flipchat_Profile_V1_GetProfileRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Profile_V1_GetProfileResponse>
 
   func setDisplayName(request: Flipchat_Profile_V1_SetDisplayNameRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Profile_V1_SetDisplayNameResponse>
+
+  /// LinkXAccount links a X account to a user. Any existing links will
+  /// be removed.
+  func linkXAccount(request: Flipchat_Profile_V1_LinkXAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Profile_V1_LinkXAccountResponse>
 }
 
 extension Flipchat_Profile_V1_ProfileProvider {
@@ -294,6 +361,15 @@ extension Flipchat_Profile_V1_ProfileProvider {
         userFunction: self.setDisplayName(request:context:)
       )
 
+    case "LinkXAccount":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_LinkXAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_LinkXAccountResponse>(),
+        interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? [],
+        userFunction: self.linkXAccount(request:context:)
+      )
+
     default:
       return nil
     }
@@ -315,6 +391,13 @@ public protocol Flipchat_Profile_V1_ProfileAsyncProvider: CallHandlerProvider, S
     request: Flipchat_Profile_V1_SetDisplayNameRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Profile_V1_SetDisplayNameResponse
+
+  /// LinkXAccount links a X account to a user. Any existing links will
+  /// be removed.
+  func linkXAccount(
+    request: Flipchat_Profile_V1_LinkXAccountRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Profile_V1_LinkXAccountResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -354,6 +437,15 @@ extension Flipchat_Profile_V1_ProfileAsyncProvider {
         wrapping: { try await self.setDisplayName(request: $0, context: $1) }
       )
 
+    case "LinkXAccount":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_LinkXAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_LinkXAccountResponse>(),
+        interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? [],
+        wrapping: { try await self.linkXAccount(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -369,6 +461,10 @@ public protocol Flipchat_Profile_V1_ProfileServerInterceptorFactoryProtocol: Sen
   /// - Returns: Interceptors to use when handling 'setDisplayName'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetDisplayNameInterceptors() -> [ServerInterceptor<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>]
+
+  /// - Returns: Interceptors to use when handling 'linkXAccount'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeLinkXAccountInterceptors() -> [ServerInterceptor<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>]
 }
 
 public enum Flipchat_Profile_V1_ProfileServerMetadata {
@@ -378,6 +474,7 @@ public enum Flipchat_Profile_V1_ProfileServerMetadata {
     methods: [
       Flipchat_Profile_V1_ProfileServerMetadata.Methods.getProfile,
       Flipchat_Profile_V1_ProfileServerMetadata.Methods.setDisplayName,
+      Flipchat_Profile_V1_ProfileServerMetadata.Methods.linkXAccount,
     ]
   )
 
@@ -391,6 +488,12 @@ public enum Flipchat_Profile_V1_ProfileServerMetadata {
     public static let setDisplayName = GRPCMethodDescriptor(
       name: "SetDisplayName",
       path: "/flipchat.profile.v1.Profile/SetDisplayName",
+      type: GRPCCallType.unary
+    )
+
+    public static let linkXAccount = GRPCMethodDescriptor(
+      name: "LinkXAccount",
+      path: "/flipchat.profile.v1.Profile/LinkXAccount",
       type: GRPCCallType.unary
     )
   }

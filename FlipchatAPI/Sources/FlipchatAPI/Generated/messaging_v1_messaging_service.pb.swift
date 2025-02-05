@@ -517,6 +517,7 @@ public struct Flipchat_Messaging_V1_SendMessageRequest {
   ///  - ReplyContent
   ///  - TipContent
   ///  - DeleteMessageContent
+  ///  - ReviewContent
   public var content: [Flipchat_Messaging_V1_Content] = []
 
   public var auth: Flipchat_Common_V1_Auth {
@@ -611,6 +612,39 @@ extension Flipchat_Messaging_V1_SendMessageResponse.Result: CaseIterable {
 }
 
 #endif  // swift(>=4.2)
+
+public struct Flipchat_Messaging_V1_SendMessageAsListenerPaymentMetadata {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The chat where the message is being sent
+  public var chatID: Flipchat_Common_V1_ChatId {
+    get {return _chatID ?? Flipchat_Common_V1_ChatId()}
+    set {_chatID = newValue}
+  }
+  /// Returns true if `chatID` has been explicitly set.
+  public var hasChatID: Bool {return self._chatID != nil}
+  /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
+  public mutating func clearChatID() {self._chatID = nil}
+
+  /// The user sending the message
+  public var userID: Flipchat_Common_V1_UserId {
+    get {return _userID ?? Flipchat_Common_V1_UserId()}
+    set {_userID = newValue}
+  }
+  /// Returns true if `userID` has been explicitly set.
+  public var hasUserID: Bool {return self._userID != nil}
+  /// Clears the value of `userID`. Subsequent reads from it will return its default value.
+  public mutating func clearUserID() {self._userID = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _chatID: Flipchat_Common_V1_ChatId? = nil
+  fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
+}
 
 public struct Flipchat_Messaging_V1_SendTipMessagePaymentMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -857,6 +891,7 @@ extension Flipchat_Messaging_V1_GetMessagesResponse.Result: @unchecked Sendable 
 extension Flipchat_Messaging_V1_SendMessageRequest: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_SendMessageResponse: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_SendMessageResponse.Result: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_SendMessageAsListenerPaymentMetadata: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_SendTipMessagePaymentMetadata: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_AdvancePointerRequest: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_AdvancePointerResponse: @unchecked Sendable {}
@@ -1469,6 +1504,48 @@ extension Flipchat_Messaging_V1_SendMessageResponse.Result: SwiftProtobuf._Proto
     0: .same(proto: "OK"),
     1: .same(proto: "DENIED"),
   ]
+}
+
+extension Flipchat_Messaging_V1_SendMessageAsListenerPaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SendMessageAsListenerPaymentMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "chat_id"),
+    2: .standard(proto: "user_id"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._chatID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._userID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_SendMessageAsListenerPaymentMetadata, rhs: Flipchat_Messaging_V1_SendMessageAsListenerPaymentMetadata) -> Bool {
+    if lhs._chatID != rhs._chatID {return false}
+    if lhs._userID != rhs._userID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }
 
 extension Flipchat_Messaging_V1_SendTipMessagePaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

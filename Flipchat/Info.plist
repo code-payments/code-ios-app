@@ -35,7 +35,7 @@
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
 	<key>SQLiteVersion</key>
-	<integer>11</integer>
+	<integer>12</integer>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

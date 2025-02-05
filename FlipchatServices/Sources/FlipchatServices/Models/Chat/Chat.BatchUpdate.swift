@@ -45,6 +45,8 @@ extension Chat {
             case left(UserID)
             case removed(UserID)
             case muted(UserID)
+            case promoted(UserID)
+            case demoted(UserID)
         }
     }
 }
@@ -110,8 +112,8 @@ extension Chat.BatchUpdate.ChatUpdate {
         case .displayNameChanged(let update):
             self = .displayName(update.newDisplayName)
             
-        case .coverChargeChanged(let update):
-            self = .coverCharge(Kin(quarks: update.newCoverCharge.quarks))
+        case .messagingFeeChanged(let update):
+            self = .coverCharge(Kin(quarks: update.newMessagingFee.quarks))
             
         case .lastActivityChanged(let update):
             self = .lastActivity(update.newLastActivity.date)
@@ -146,6 +148,12 @@ extension Chat.BatchUpdate.MemberUpdate {
             
         case .muted(let update):
             self = .muted(UserID(data: update.member.value))
+            
+        case .promoted(let update):
+            self = .promoted(UserID(data: update.member.value))
+            
+        case .demoted(let update):
+            self = .demoted(UserID(data: update.member.value))
         }
     }
 }

@@ -182,25 +182,6 @@ struct ChatsScreen: View {
                 }
             )
         }
-        .sheet(item: $viewModel.isShowingJoinPayment) { description in
-            PartialSheet {
-                ModalPaymentConfirmation(
-                    amount: description.room.cover.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
-                    currency: .kin,
-                    primaryAction: "Swipe to Pay",
-                    secondaryAction: "Cancel",
-                    paymentAction: { [weak viewModel] in
-                        try await viewModel?.payAndJoinChat(
-                            chatID: ChatID(uuid: description.room.serverID),
-                            hostID: UserID(uuid: description.room.ownerUserID),
-                            amount: description.room.cover
-                        )
-                    },
-                    dismissAction: { viewModel.cancelJoinChatPayment() },
-                    cancelAction:  { viewModel.cancelJoinChatPayment() }
-                )
-            }
-        }
         .sheet(isPresented: $viewModel.isShowingFindRoomModal) {
             PartialSheet {
                 ModalButtons(

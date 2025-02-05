@@ -396,6 +396,14 @@ class ChatController: ObservableObject {
                 case .muted(let userID):
                     try $0.setMemberMuted(userID: userID.uuid, roomID: chatID, muted: true)
                     print("[STREAM] Member muted")
+                    
+                case .promoted(let userID):
+                    try $0.setMemberCanSend(userID: userID.uuid, roomID: chatID, canSend: true)
+                    print("[STREAM] Member \(userID.uuid) now speaker (promoted)")
+                    
+                case .demoted(let userID):
+                    try $0.setMemberCanSend(userID: userID.uuid, roomID: chatID, canSend: false)
+                    print("[STREAM] Member \(userID.uuid) now listener (demoted)")
                 }
             }
             
@@ -430,13 +438,36 @@ class ChatController: ObservableObject {
         }
     }
     
-    func sendMessage(text: String, for chatID: ChatID, replyingTo: MessageID? = nil) async throws {
-        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    func solicitMessage(text: String, chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+        let destination = try await client.fetchPaymentDestination(userID: hostID)
         
+        let intentID = try await paymentClient.payForMessage(
+            amount: amount,
+            chatID: chatID,
+            userID: userID,
+            organizer: organizer,
+            destination: destination
+        )
+        
+        let deliveredMessage = try await client.solicitMessage(
+            chatID: chatID,
+            owner: owner,
+            text: text,
+            intentID: intentID
+        )
+        
+        try insertDeliveredMessage(
+            userID: userID,
+            chatID: chatID,
+            message: deliveredMessage
+        )
+    }
+    
+    func sendMessage(text: String, for chatID: ChatID, replyingTo: MessageID? = nil) async throws {
         let deliveredMessage = try await client.sendMessage(
             chatID: chatID,
             owner: owner,
-            text: trimmedText,
+            text: text,
             replyingTo: replyingTo
         )
         

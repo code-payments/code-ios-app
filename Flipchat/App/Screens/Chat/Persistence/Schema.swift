@@ -29,19 +29,20 @@ struct RoomTable: Sendable {
 struct MessageTable: Sendable {
     static let name = "message"
     
-    let table       = Table(Self.name)
-    let serverID    = Expression <UUID>        ("serverID")
-    let roomID      = Expression <UUID>        ("roomID")
-    let date        = Expression <Date>        ("date")
-    let state       = Expression <Int>         ("state")
-    let senderID    = Expression <UUID?>       ("senderID")
-    let referenceID = Expression <UUID?>       ("referenceID")
-    let contentType = Expression <ContentType> ("contentType")
-    let content     = Expression <String>      ("content")
-    let kin         = Expression <UInt64>      ("kin") // Quarks
-    let isDeleted   = Expression <Bool>        ("isDeleted")
-    let isBatch     = Expression <Bool>        ("isBatch")
-    let hasTipFromSelf = Expression <Bool>     ("hasTipFromSelf")
+    let table          = Table(Self.name)
+    let serverID       = Expression <UUID>        ("serverID")
+    let roomID         = Expression <UUID>        ("roomID")
+    let date           = Expression <Date>        ("date")
+    let state          = Expression <Int>         ("state")
+    let senderID       = Expression <UUID?>       ("senderID")
+    let referenceID    = Expression <UUID?>       ("referenceID")
+    let contentType    = Expression <ContentType> ("contentType")
+    let content        = Expression <String>      ("content")
+    let kin            = Expression <UInt64>      ("kin") // Quarks
+    let isDeleted      = Expression <Bool>        ("isDeleted")
+    let isBatch        = Expression <Bool>        ("isBatch")
+    let hasTipFromSelf = Expression <Bool>        ("hasTipFromSelf")
+    let offStage       = Expression <Bool>        ("offStage")
 }
 
 struct MemberTable: Sendable {
@@ -119,10 +120,11 @@ extension Database {
                 t.column(messageTable.referenceID)
                 t.column(messageTable.contentType, defaultValue: .unknown)
                 t.column(messageTable.content)
-                t.column(messageTable.kin,       defaultValue: 0)
-                t.column(messageTable.isDeleted, defaultValue: false)
-                t.column(messageTable.isBatch,   defaultValue: false)
+                t.column(messageTable.kin,            defaultValue: 0)
+                t.column(messageTable.isDeleted,      defaultValue: false)
+                t.column(messageTable.isBatch,        defaultValue: false)
                 t.column(messageTable.hasTipFromSelf, defaultValue: false)
+                t.column(messageTable.offStage,       defaultValue: false)
                 
                 t.foreignKey(messageTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
             })
@@ -170,6 +172,7 @@ enum ContentType: Int, Value {
     case reply
     case tip
     case deleteMessage
+    case announcementActionable
     case unknown = -1
     
     init(_ content: Chat.Message.ContentType) {
@@ -186,6 +189,8 @@ enum ContentType: Int, Value {
             self = .tip
         case .deleteMessage:
             self = .deleteMessage
+        case .announcementActionable:
+            self = .announcementActionable
         case .unknown:
             self = .unknown
         }

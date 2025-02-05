@@ -19,8 +19,9 @@ extension Chat {
         public let contentType: ContentType
         public let content: String
         public let kin: Kin
+        public let offStage: Bool
         
-        public init(id: MessageID, senderID: UserID?, referenceMessageID: MessageID?, date: Date, contentType: ContentType, content: String, kin: Kin) {
+        public init(id: MessageID, senderID: UserID?, referenceMessageID: MessageID?, date: Date, contentType: ContentType, content: String, kin: Kin, offStage: Bool) {
             self.id = id
             self.senderID = senderID
             self.referenceMessageID = referenceMessageID
@@ -28,6 +29,7 @@ extension Chat {
             self.contentType = contentType
             self.content = content
             self.kin = kin
+            self.offStage = offStage
         }
     }
 }
@@ -40,6 +42,8 @@ extension Chat.Message {
         case reply
         case tip
         case deleteMessage
+        case announcementActionable
+//        case reviewMessage
         case unknown = -1
     }
 }
@@ -64,7 +68,8 @@ extension Chat.Message {
             date: proto.ts.date,
             contentType: contentType,
             content: content,
-            kin: kin
+            kin: kin,
+            offStage: proto.wasSenderOffStage
         )
     }
     
@@ -92,6 +97,13 @@ extension Chat.Message {
             
         case .deleted(let content):
             return (.deleteMessage, "", ID(data: content.originalMessageID.value), 0)
+            
+        case .actionableAnnouncement(let content):
+            return (.announcementActionable, content.keyOrText, nil, 0)
+            
+        case .review:
+            return (.unknown, "", nil, 0) // TODO: Support metadata in a separate table
+//            return (.reviewMessage, "", ID(data: content.originalMessageID.value), 0)
             
         @unknown default:
             return (.unknown, "", nil, 0)

@@ -613,6 +613,22 @@ public enum ErrorRoomOpenClose: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipchat_Chat_V1_ChatClientInterceptorFactoryProtocol {
+    func makeCheckDisplayNameInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_CheckDisplayNameRequest, FlipchatAPI.Flipchat_Chat_V1_CheckDisplayNameResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeSetMessagingFeeInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_SetMessagingFeeRequest, FlipchatAPI.Flipchat_Chat_V1_SetMessagingFeeResponse>] {
+        makeInterceptors()
+    }
+    
+    func makePromoteUserInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_PromoteUserRequest, FlipchatAPI.Flipchat_Chat_V1_PromoteUserResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeDemoteUserInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_DemoteUserRequest, FlipchatAPI.Flipchat_Chat_V1_DemoteUserResponse>] {
+        makeInterceptors()
+    }
+    
     func makeOpenChatInterceptors() -> [GRPC.ClientInterceptor<FlipchatAPI.Flipchat_Chat_V1_OpenChatRequest, FlipchatAPI.Flipchat_Chat_V1_OpenChatResponse>] {
         makeInterceptors()
     }

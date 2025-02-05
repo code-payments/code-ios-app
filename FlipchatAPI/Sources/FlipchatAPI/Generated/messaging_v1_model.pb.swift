@@ -87,6 +87,10 @@ public struct Flipchat_Messaging_V1_Message {
   /// Clears the value of `ts`. Subsequent reads from it will return its default value.
   public mutating func clearTs() {self._ts = nil}
 
+  /// If sender_id is provided, were they off stage at the time of sending
+  /// this message
+  public var wasSenderOffStage: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -269,6 +273,22 @@ public struct Flipchat_Messaging_V1_Content {
     set {type = .deleted(newValue)}
   }
 
+  public var review: Flipchat_Messaging_V1_ReviewContent {
+    get {
+      if case .review(let v)? = type {return v}
+      return Flipchat_Messaging_V1_ReviewContent()
+    }
+    set {type = .review(newValue)}
+  }
+
+  public var actionableAnnouncement: Flipchat_Messaging_V1_ActionableAnnouncementContent {
+    get {
+      if case .actionableAnnouncement(let v)? = type {return v}
+      return Flipchat_Messaging_V1_ActionableAnnouncementContent()
+    }
+    set {type = .actionableAnnouncement(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable {
@@ -278,6 +298,8 @@ public struct Flipchat_Messaging_V1_Content {
     case reply(Flipchat_Messaging_V1_ReplyContent)
     case tip(Flipchat_Messaging_V1_TipContent)
     case deleted(Flipchat_Messaging_V1_DeleteMessageContent)
+    case review(Flipchat_Messaging_V1_ReviewContent)
+    case actionableAnnouncement(Flipchat_Messaging_V1_ActionableAnnouncementContent)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipchat_Messaging_V1_Content.OneOf_Type, rhs: Flipchat_Messaging_V1_Content.OneOf_Type) -> Bool {
@@ -307,6 +329,14 @@ public struct Flipchat_Messaging_V1_Content {
       }()
       case (.deleted, .deleted): return {
         guard case .deleted(let l) = lhs, case .deleted(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.review, .review): return {
+        guard case .review(let l) = lhs, case .review(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.actionableAnnouncement, .actionableAnnouncement): return {
+        guard case .actionableAnnouncement(let l) = lhs, case .actionableAnnouncement(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -344,6 +374,81 @@ public struct Flipchat_Messaging_V1_LocalizedAnnouncementContent {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+/// ActionableAnnouncementContent is like LocalizedAnnouncementContent, but
+/// contains additional metadata for actions
+public struct Flipchat_Messaging_V1_ActionableAnnouncementContent {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var keyOrText: String = String()
+
+  /// An action that can be taken by a user
+  public var action: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action {
+    get {return _action ?? Flipchat_Messaging_V1_ActionableAnnouncementContent.Action()}
+    set {_action = newValue}
+  }
+  /// Returns true if `action` has been explicitly set.
+  public var hasAction: Bool {return self._action != nil}
+  /// Clears the value of `action`. Subsequent reads from it will return its default value.
+  public mutating func clearAction() {self._action = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public struct Action {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var type: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.OneOf_Type? = nil
+
+    public var shareRoomLink: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink {
+      get {
+        if case .shareRoomLink(let v)? = type {return v}
+        return Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink()
+      }
+      set {type = .shareRoomLink(newValue)}
+    }
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public enum OneOf_Type: Equatable {
+      case shareRoomLink(Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink)
+
+    #if !swift(>=4.1)
+      public static func ==(lhs: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.OneOf_Type, rhs: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.OneOf_Type) -> Bool {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch (lhs, rhs) {
+        case (.shareRoomLink, .shareRoomLink): return {
+          guard case .shareRoomLink(let l) = lhs, case .shareRoomLink(let r) = rhs else { preconditionFailure() }
+          return l == r
+        }()
+        }
+      }
+    #endif
+    }
+
+    /// Displays a button to share a link to a room
+    public struct ShareRoomLink {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+    }
+
+    public init() {}
+  }
+
+  public init() {}
+
+  fileprivate var _action: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action? = nil
 }
 
 /// Emoji reaction to another message
@@ -453,6 +558,33 @@ public struct Flipchat_Messaging_V1_DeleteMessageContent {
   fileprivate var _originalMessageID: Flipchat_Messaging_V1_MessageId? = nil
 }
 
+public struct Flipchat_Messaging_V1_ReviewContent {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The message ID of the message that is being reviewed. Currently, only
+  /// off stage messages can be reviewed
+  public var originalMessageID: Flipchat_Messaging_V1_MessageId {
+    get {return _originalMessageID ?? Flipchat_Messaging_V1_MessageId()}
+    set {_originalMessageID = newValue}
+  }
+  /// Returns true if `originalMessageID` has been explicitly set.
+  public var hasOriginalMessageID: Bool {return self._originalMessageID != nil}
+  /// Clears the value of `originalMessageID`. Subsequent reads from it will return its default value.
+  public mutating func clearOriginalMessageID() {self._originalMessageID = nil}
+
+  /// Whether the message has been approved. In the event of multiple reviews,
+  /// the first message in the message log takes priority.
+  public var isApproved: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _originalMessageID: Flipchat_Messaging_V1_MessageId? = nil
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipchat_Messaging_V1_MessageId: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_MessageIdBatch: @unchecked Sendable {}
@@ -465,10 +597,15 @@ extension Flipchat_Messaging_V1_Content: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content.OneOf_Type: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_TextContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_LocalizedAnnouncementContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_ActionableAnnouncementContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_ActionableAnnouncementContent.Action: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.OneOf_Type: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_ReactionContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_ReplyContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_TipContent: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_DeleteMessageContent: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_ReviewContent: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -546,6 +683,7 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     2: .standard(proto: "sender_id"),
     3: .same(proto: "content"),
     4: .same(proto: "ts"),
+    5: .standard(proto: "was_sender_off_stage"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -558,6 +696,7 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
       case 2: try { try decoder.decodeSingularMessageField(value: &self._senderID) }()
       case 3: try { try decoder.decodeRepeatedMessageField(value: &self.content) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.wasSenderOffStage) }()
       default: break
       }
     }
@@ -580,6 +719,9 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     try { if let v = self._ts {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
+    if self.wasSenderOffStage != false {
+      try visitor.visitSingularBoolField(value: self.wasSenderOffStage, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -588,6 +730,7 @@ extension Flipchat_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._senderID != rhs._senderID {return false}
     if lhs.content != rhs.content {return false}
     if lhs._ts != rhs._ts {return false}
+    if lhs.wasSenderOffStage != rhs.wasSenderOffStage {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -727,6 +870,8 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
     6: .same(proto: "reply"),
     7: .same(proto: "tip"),
     8: .same(proto: "deleted"),
+    9: .same(proto: "review"),
+    10: .standard(proto: "actionable_announcement"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -813,6 +958,32 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
           self.type = .deleted(v)
         }
       }()
+      case 9: try {
+        var v: Flipchat_Messaging_V1_ReviewContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .review(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .review(v)
+        }
+      }()
+      case 10: try {
+        var v: Flipchat_Messaging_V1_ActionableAnnouncementContent?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .actionableAnnouncement(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .actionableAnnouncement(v)
+        }
+      }()
       default: break
       }
     }
@@ -847,6 +1018,14 @@ extension Flipchat_Messaging_V1_Content: SwiftProtobuf.Message, SwiftProtobuf._M
     case .deleted?: try {
       guard case .deleted(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    }()
+    case .review?: try {
+      guard case .review(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    }()
+    case .actionableAnnouncement?: try {
+      guard case .actionableAnnouncement(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     }()
     case nil: break
     }
@@ -919,6 +1098,115 @@ extension Flipchat_Messaging_V1_LocalizedAnnouncementContent: SwiftProtobuf.Mess
 
   public static func ==(lhs: Flipchat_Messaging_V1_LocalizedAnnouncementContent, rhs: Flipchat_Messaging_V1_LocalizedAnnouncementContent) -> Bool {
     if lhs.keyOrText != rhs.keyOrText {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_ActionableAnnouncementContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ActionableAnnouncementContent"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "key_or_text"),
+    3: .same(proto: "action"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.keyOrText) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._action) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.keyOrText.isEmpty {
+      try visitor.visitSingularStringField(value: self.keyOrText, fieldNumber: 1)
+    }
+    try { if let v = self._action {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_ActionableAnnouncementContent, rhs: Flipchat_Messaging_V1_ActionableAnnouncementContent) -> Bool {
+    if lhs.keyOrText != rhs.keyOrText {return false}
+    if lhs._action != rhs._action {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_ActionableAnnouncementContent.Action: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Messaging_V1_ActionableAnnouncementContent.protoMessageName + ".Action"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "share_room_link"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .shareRoomLink(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .shareRoomLink(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .shareRoomLink(let v)? = self.type {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action, rhs: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.protoMessageName + ".ShareRoomLink"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let _ = try decoder.nextFieldNumber() {
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink, rhs: Flipchat_Messaging_V1_ActionableAnnouncementContent.Action.ShareRoomLink) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1081,6 +1369,48 @@ extension Flipchat_Messaging_V1_DeleteMessageContent: SwiftProtobuf.Message, Swi
 
   public static func ==(lhs: Flipchat_Messaging_V1_DeleteMessageContent, rhs: Flipchat_Messaging_V1_DeleteMessageContent) -> Bool {
     if lhs._originalMessageID != rhs._originalMessageID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_ReviewContent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReviewContent"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "original_message_id"),
+    2: .standard(proto: "is_approved"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._originalMessageID) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.isApproved) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._originalMessageID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.isApproved != false {
+      try visitor.visitSingularBoolField(value: self.isApproved, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_ReviewContent, rhs: Flipchat_Messaging_V1_ReviewContent) -> Bool {
+    if lhs._originalMessageID != rhs._originalMessageID {return false}
+    if lhs.isApproved != rhs.isApproved {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

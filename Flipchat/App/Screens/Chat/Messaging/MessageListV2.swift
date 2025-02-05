@@ -458,6 +458,7 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
             let displayName = row.member.displayName ?? defaultMemberName
             let chatID = chatID
             let isDeleted = deletionState != nil
+            let senderIsHost = message.senderID == hostID.uuid
             
             MessageText(
                 messageID: message.serverID,
@@ -467,9 +468,10 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                 text: description.content,
                 date: message.date,
                 isReceived: isReceived,
-                isHost: message.senderID == hostID.uuid,
+                isHost: senderIsHost,
                 isBlocked: row.member.isBlocked == true,
                 hasTipFromSelf: message.hasTipFromSelf,
+                offStage: message.offStage,
                 kinTips: message.kin,
                 deletionState: deletionState,
                 replyingTo: replyingTo(for: row, deletion: referenceDeletion, action: action),
@@ -565,6 +567,17 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         case .announcement:
             MessageAnnouncement(text: description.content)
             
+        case .announcementActionable:
+            let selfIsHost = state.room.room.ownerUserID == userID.uuid
+            let roomNumber = state.room.room.roomNumber
+            MessageAnnouncementActionable(
+                text: description.content,
+                actionName: "Share a Link to \(selfIsHost ? "Your" : "This") Flipchat",
+                action: {
+                    ShareSheet.present(url: .flipchatRoom(roomNumber: roomNumber, messageID: nil))
+                }
+            )
+            
         case .unread:
             MessageUnread(text: description.content)
         }
@@ -652,7 +665,7 @@ private struct MessageRowView<Content>: View where Content: View {
             return .center
         case .message(_, let isReceived, _, _, _, _):
             return isReceived ? .leading : .trailing
-        case .announcement, .unread:
+        case .announcement, .unread, .announcementActionable:
             return .center
         }
     }
@@ -663,14 +676,14 @@ private struct MessageRowView<Content>: View where Content: View {
             return .top
         case .message(_, let isReceived, _, _, _, _):
             return isReceived ? .leading : .trailing
-        case .announcement, .unread:
+        case .announcement, .unread, .announcementActionable:
             return .bottom
         }
     }
     
     private var horizontalPadding: CGFloat {
         switch kind {
-        case .date, .message, .announcement:
+        case .date, .message, .announcement, .announcementActionable:
             return 20
         case .unread:
             return 0
@@ -687,7 +700,7 @@ private struct MessageRowView<Content>: View where Content: View {
         VStack(alignment: vAlignment) {
             HStack {
                 switch kind {
-                case .date, .announcement, .unread:
+                case .date, .announcement, .unread, .announcementActionable:
                     content()
                     
                 case .message(_, let isReceived, _, _, _, _):
@@ -756,7 +769,7 @@ extension Array where Element == MessageRow {
         // from the main list that will go into date groups
         let filteredMessages = filter {
             switch $0.message.contentType {
-            case .text, .announcement, .reply:
+            case .text, .announcement, .reply, .announcementActionable:
                 return true
             case .reaction, .tip, .deleteMessage, .unknown:
                 return false
@@ -823,6 +836,14 @@ extension Array where Element == MessageRow {
                     container.append(
                         .init(
                             kind: .announcement(ID(uuid: message.serverID)),
+                            content: message.content
+                        )
+                    )
+                    
+                case .announcementActionable:
+                    container.append(
+                        .init(
+                            kind: .announcementActionable(ID(uuid: message.serverID)),
                             content: message.content
                         )
                     )

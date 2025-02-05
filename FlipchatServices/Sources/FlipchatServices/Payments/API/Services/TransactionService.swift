@@ -207,6 +207,40 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
+    func payForMessage(amount: Kin, chatID: ChatID, userID: UserID, organizer: Organizer, destination: PublicKey, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
+        trace(.send)
+        
+        do {
+            let intent = try IntentPublicTransfer(
+                organizer: organizer,
+                source: .primary,
+                destination: .external(destination),
+                amount: KinAmount(kin: amount, rate: .oneToOne),
+                extendedMetadata: try Google_Protobuf_Any(
+                    message: Flipchat_Messaging_V1_SendMessageAsListenerPaymentMetadata.with {
+                        $0.chatID = .with { $0.value = chatID.data }
+                        $0.userID = .with { $0.value = userID.data }
+                    },
+                    partial: false
+                )
+            )
+            
+            submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
+                switch result {
+                case .success(let intent):
+                    trace(.success)
+                    completion(.success(intent))
+                case .failure(let error):
+                    trace(.failure, components: "Error: \(error)")
+                    completion(.failure(error))
+                }
+            }
+            
+        } catch {
+            completion(.failure(error))
+        }
+    }
+    
     /// Same as withdraw(...) with added metadata / extendedMetadata
     func payForRoom(request: RoomRequest, organizer: Organizer, destination: PublicKey, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
         trace(.send)

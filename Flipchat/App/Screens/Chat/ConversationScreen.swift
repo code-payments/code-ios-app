@@ -59,12 +59,20 @@ struct ConversationScreen: View {
         selfUser?.isMuted == true
     }
     
+    private var roomHostID: UUID? {
+        roomDescription?.room.ownerUserID
+    }
+    
     private var isSelfHost: Bool {
-        roomDescription?.room.ownerUserID == userID.uuid
+        roomHostID == userID.uuid
     }
     
     private var isRoomOpen: Bool {
         roomDescription?.room.isOpen == true
+    }
+    
+    private var messageCost: Kin {
+        roomDescription?.room.cover ?? 0
     }
     
     private var canShowOpenClose: Bool {
@@ -146,16 +154,8 @@ struct ConversationScreen: View {
                             state: state,
                             container: container,
                             isPresenting: $chatViewModel.isShowingCreateAccountFromConversation
-                        ) { [weak chatViewModel] in
-                            guard let roomDescription else {
-                                return
-                            }
-                            
-                            try await chatViewModel?.attemptJoinChat(
-                                chatID: chatID,
-                                hostID: UserID(uuid: roomDescription.room.ownerUserID),
-                                amount: roomDescription.room.cover
-                            )
+                        ) {
+                            sendMessageAsListener()
                         }
                     )
                 }
@@ -169,8 +169,7 @@ struct ConversationScreen: View {
                     roomClosedView()
                     
                 } else {
-                    
-                    if chatController.isRegistered && canSend {
+                    if (chatController.isRegistered && canSend) || chatViewModel.isShowingInputForPaidMessage {
                         VStack(spacing: 0) {
                             if isShowingOpenClose {
                                 openCloseView(isOpen: isRoomOpen)
@@ -181,25 +180,16 @@ struct ConversationScreen: View {
                     } else {
                         CodeButton(
                             style: .filled,
-                            title: "Pay to Chat: \(roomDescription?.room.cover.formattedTruncatedKin() ?? "")"
-                        ) {
-                            Task { [weak chatViewModel] in
-                                guard let roomDescription else {
-                                    return
-                                }
-                                
-                                try await chatViewModel?.attemptJoinChat(
-                                    chatID: ChatID(uuid: roomDescription.room.serverID),
-                                    hostID: UserID(uuid: roomDescription.room.ownerUserID),
-                                    amount: roomDescription.room.cover
-                                )
-                            }
-                        }
+                            title: "Send a Message: \(messageCost.formattedTruncatedKin())",
+                            action: sendMessageAsListener
+                        )
                         .padding(.horizontal, 20)
                         .padding(.vertical, 10)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: chatViewModel.isShowingInputForPaidMessage)
         }
         .onAppear(perform: didAppear)
         .onDisappear(perform: didDisappear)
@@ -256,6 +246,21 @@ struct ConversationScreen: View {
                 }
             )
         }
+        .sheet(isPresented: $chatViewModel.isShowingPayForMessage) {
+            PartialSheet {
+                ModalPaymentConfirmation(
+                    amount: messageCost.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
+                    currency: .kin,
+                    primaryAction: "Swipe to Pay",
+                    secondaryAction: "Cancel",
+                    paymentAction: { [input] in
+                        try await solicitMessage(text: input)
+                    },
+                    dismissAction: { chatViewModel.cancelMessagePayment() },
+                    cancelAction:  { chatViewModel.cancelMessagePayment() }
+                )
+            }
+        }
     }
     
     @ViewBuilder private func inputView() -> some View {
@@ -301,6 +306,10 @@ struct ConversationScreen: View {
                     try await Task.delay(milliseconds: 250)
                     scrollToBottom(animated: true)
                 }
+            }
+            
+            if !focused && chatViewModel.isShowingInputForPaidMessage {
+                chatViewModel.isShowingInputForPaidMessage = false
             }
             
             setOpenClose(visible: !focused, animated: true)
@@ -578,6 +587,32 @@ struct ConversationScreen: View {
 //        }
 //    }
     
+    private func sendMessageAsListener() {
+        chatViewModel.attemptPayForMessage {
+            // This completion only runs when there's
+            // no other dependencies for send message
+            Task {
+                try await Task.delay(milliseconds: 200)
+                isEditorFocused = true
+            }
+        }
+    }
+    
+    private func solicitMessage(text: String) async throws {
+        guard let roomHostID else {
+            return
+        }
+        
+        try await chatViewModel.solicitMessage(
+            text: text,
+            chatID: chatID,
+            hostID: UserID(uuid: roomHostID),
+            amount: messageCost
+        )
+        
+        clearInput()
+    }
+    
     private func sendMessage(text: String) {
         guard !text.isEmpty else {
             return
@@ -590,13 +625,17 @@ struct ConversationScreen: View {
                 replyingTo: MessageID(uuid: replyMessage?.message.serverID)
             )
             
-            input = ""
-            replyMessage = nil
+            clearInput()
             
             try await Task.delay(milliseconds: 150)
             
             scrollToBottom(animated: true)
         }
+    }
+    
+    private func clearInput() {
+        input = ""
+        replyMessage = nil
     }
     
     private func scrollToBottom(animated: Bool = false) {

@@ -26,13 +26,14 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         case date(Date)
         case message(MessageID, Bool, MessageRow, MessageSemanticLocation, MessageDeletion?, ReferenceDeletion?) // id, isReceived, row, location, messageDeletion, referenceDeletion
         case announcement(MessageID)
+        case announcementActionable(MessageID)
         case unread
         
         var messageRow: MessageRow? {
             switch self {
             case .message(_, _, let row, _, _, _):
                 return row
-            case .date, .announcement, .unread:
+            case .date, .announcement, .unread, .announcementActionable:
                 return nil
             }
         }
@@ -41,7 +42,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
             switch self {
             case .message(_, _, let row, _, let deletion, _):
                 return row.message.isDeleted || deletion != nil
-            case .date, .announcement, .unread:
+            case .date, .announcement, .unread, .announcementActionable:
                 return false
             }
         }
@@ -55,6 +56,8 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
             return messageID.uuid.uuidString
         case .announcement(let messageID):
             return messageID.uuid.uuidString
+        case .announcementActionable(let messageID):
+            return messageID.uuid.uuidString
         case .unread:
             return "com.flipchat.messageList.unread"
         }
@@ -64,7 +67,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
         switch kind {
         case .message(let messageID, _, _, _, _, _):
             return messageID.uuid
-        case .date, .announcement, .unread:
+        case .date, .announcement, .unread, .announcementActionable:
             return nil
         }
     }
@@ -74,7 +77,7 @@ struct MessageDescription: Identifiable, Hashable, Equatable {
     
     func messageWidth(in size: CGSize) -> (width: CGFloat, isReceived: Bool) {
         switch kind {
-        case .date, .announcement, .unread:
+        case .date, .announcement, .unread, .announcementActionable:
             return (size.width * 1.0, false)
         case .message(_, let isReceived, _, _, _, _):
             return (size.width * 0.8, isReceived)

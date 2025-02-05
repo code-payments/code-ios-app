@@ -110,6 +110,7 @@ extension Database {
             m.isDeleted,
             m.kin,
             m.hasTipFromSelf,
+            m.offStage,
 
             u.serverID AS uServerID,
             u.displayName AS uDisplayName,
@@ -151,16 +152,17 @@ extension Database {
             let rContent = row[Expression<String?>("rContent")]
             return MessageRow(
                 message: .init(
-                    serverID:    row[mTable.serverID],
-                    roomID:      row[mTable.roomID],
-                    date:        row[mTable.date],
-                    state:       .init(rawValue: row[mTable.state]) ?? .sent,
-                    senderID:    row[mTable.senderID],
-                    contentType: row[mTable.contentType],
-                    content:     row[mTable.content],
-                    isDeleted:   row[mTable.isDeleted],
-                    kin:         Kin(quarks: row[mTable.kin]),
-                    hasTipFromSelf: row[mTable.hasTipFromSelf]
+                    serverID:       row[mTable.serverID],
+                    roomID:         row[mTable.roomID],
+                    date:           row[mTable.date],
+                    state:          .init(rawValue: row[mTable.state]) ?? .sent,
+                    senderID:       row[mTable.senderID],
+                    contentType:    row[mTable.contentType],
+                    content:        row[mTable.content],
+                    isDeleted:      row[mTable.isDeleted],
+                    kin:            Kin(quarks: row[mTable.kin]),
+                    hasTipFromSelf: row[mTable.hasTipFromSelf],
+                    offStage:       row[mTable.offStage]
                 ),
                 member: .init(
                     userID:      row[Expression<UUID?>("uServerID")],
@@ -203,6 +205,7 @@ struct MessageRow: Hashable {
         let isDeleted: Bool
         let kin: Kin
         let hasTipFromSelf: Bool
+        let offStage: Bool
     }
     
     struct Member: Hashable {
