@@ -9,25 +9,6 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-@MainActor
-@Observable
-private class ChatsState {
-    
-    var rooms: [RoomRow] = []
-    
-    private let chatController: ChatController
-    
-    init(chatController: ChatController) {
-        self.chatController = chatController
-        
-        try? reload()
-    }
-    
-    func reload() throws {
-        rooms = try chatController.getRooms()
-    }
-}
-
 struct ChatsScreen: View {
     
     @EnvironmentObject private var betaFlags: BetaFlags
@@ -41,12 +22,16 @@ struct ChatsScreen: View {
     @State private var debugTapCount: Int = 0
     @State private var isShowingSettings: Bool = false
     
-    @State private var chatState: ChatsState
+    @StateObject private var updateableRooms: Updateable<[RoomRow]>
     
     private let state: AuthenticatedState
     private let container: AppContainer
     private let flipClient: FlipchatClient
     private let client: Client
+    
+    private var rooms: [RoomRow] {
+        updateableRooms.value
+    }
     
     // MARK: - Init -
     
@@ -59,15 +44,11 @@ struct ChatsScreen: View {
         self.viewModel = state.chatViewModel
         self.flipClient = container.flipClient
         self.client = container.client
-        self.chatState = .init(chatController: state.chatController)
-    }
-    
-    private func didAppear() {
         
-    }
-    
-    private func didDisappear() {
-       
+        let chatController = state.chatController
+        self._updateableRooms = .init(wrappedValue: Updateable {
+            (try? chatController.getRooms()) ?? []
+        })
     }
     
     // MARK: - Body -
@@ -75,40 +56,11 @@ struct ChatsScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                NavBar(isLoading: chatController.isSyncInProgress, title: "Flipchats") {
-                    debugTapCount += 1
-                    if debugTapCount >= 7 {
-                        logoutAction()
-                        debugTapCount = 0
-                    }
-                    
-                } leading: {
-                    if betaFlags.accessGranted {
-                        Button {
-                            isShowingSettings = true
-                        } label: {
-                            Image.asset(.more)
-                                .padding(.vertical, 10)
-                                .padding(.leading, 20)
-                                .padding(.trailing, 30)
-                        }
-                        
-                    } else {
-                        NavBarEmptyItem()
-                    }
-                    
-                } trailing: {
-                    Button {
-                        viewModel.startChatting()
-                    } label: {
-                        Image.asset(.plusCircle)
-                            .padding(5)
-                    }
-                }
+                navigationBar()
                 
                 List {
                     Section {
-                        ForEach(chatState.rooms) { roomRow in
+                        ForEach(rooms) { roomRow in
                             row(for: roomRow)
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .cancel) {
@@ -136,12 +88,6 @@ struct ChatsScreen: View {
                     .scrollContentBackground(.hidden)
                 }
                 .listStyle(.plain)
-            }
-            .onAppear {
-                didAppear()
-            }
-            .onDisappear {
-                didDisappear()
             }
         }
         .sheet(isPresented: $viewModel.isShowingEnterRoomNumber) {
@@ -197,8 +143,38 @@ struct ChatsScreen: View {
                 )
             }
         }
-        .onChange(of: chatController.chatsDidChange) { _, _ in
-            try? chatState.reload()
+    }
+    
+    @ViewBuilder private func navigationBar() -> some View {
+        NavBar(isLoading: chatController.isSyncInProgress, title: "Flipchats") {
+            debugTapCount += 1
+            if debugTapCount >= 7 {
+                logoutAction()
+                debugTapCount = 0
+            }
+            
+        } leading: {
+            if betaFlags.accessGranted {
+                Button {
+                    isShowingSettings = true
+                } label: {
+                    Image.asset(.more)
+                        .padding(.vertical, 10)
+                        .padding(.leading, 20)
+                        .padding(.trailing, 30)
+                }
+                
+            } else {
+                NavBarEmptyItem()
+            }
+            
+        } trailing: {
+            Button {
+                viewModel.startChatting()
+            } label: {
+                Image.asset(.plusCircle)
+                    .padding(5)
+            }
         }
     }
     
