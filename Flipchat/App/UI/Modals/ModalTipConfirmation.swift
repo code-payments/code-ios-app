@@ -38,8 +38,8 @@ public struct ModalTipConfirmation: View {
         VStack(spacing: 20) {
             KinWheelView(
                 selection: $selection,
-                max: 99,
-                width: 155
+                max: 100,
+                width: 175
             )
             
             Text("Balance: \(balance.formattedTruncatedKin())")
