@@ -14,7 +14,7 @@ struct PreviewRoomScreen: View {
     @EnvironmentObject private var banners: Banners
     
     @ObservedObject private var viewModel: ChatViewModel
-
+    
     private let chat: Chat.Metadata
     private let members: [Chat.Member]
     private let host: Chat.Identity
@@ -32,7 +32,9 @@ struct PreviewRoomScreen: View {
         self.isModal     = isModal
         self.gridMembers = members.map { .init(
             id: $0.id.uuid,
+            isSelf: $0.isSelf,
             isSpeaker: $0.hasSendPermission,
+            isModerator: $0.hasModeratorPermission,
             name: $0.identity.displayName)
         }
     }

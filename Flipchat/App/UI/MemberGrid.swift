@@ -51,7 +51,7 @@ struct MemberGrid: View {
                                 editAction?()
                             } label: {
                                 VStack(spacing: 20) {
-                                    GradientAvatarView(
+                                    RoomGeneratedAvatar(
                                         data: avatarData,
                                         diameter: 100
                                     )
@@ -111,7 +111,8 @@ struct MemberGrid: View {
                             ForEach(speakers) { member in
                                 user(
                                     for: member.id.data,
-                                    name: member.name ?? "Speaker"
+                                    name: member.name ?? "Speaker",
+                                    isHost: member.isModerator
                                 )
                             }
                         }
@@ -120,7 +121,8 @@ struct MemberGrid: View {
                             ForEach(listeners) { member in
                                 user(
                                     for: member.id.data,
-                                    name: member.name ?? "Listener"
+                                    name: member.name ?? "Listener",
+                                    isHost: member.isModerator
                                 )
                             }
                         }
@@ -133,11 +135,12 @@ struct MemberGrid: View {
 
     }
     
-    @ViewBuilder private func user(for data: Data, name: String) -> some View {
+    @ViewBuilder private func user(for data: Data, name: String, isHost: Bool) -> some View {
         VStack {
-            DeterministicAvatar(
+            UserGeneratedAvatar(
                 data: data,
-                diameter: size
+                diameter: size,
+                isHost: isHost
             )
             
             Text(name)
@@ -176,7 +179,9 @@ struct MemberGrid: View {
 extension MemberGrid {
     struct Member: Identifiable {
         var id: UUID
+        var isSelf: Bool
         var isSpeaker: Bool
+        var isModerator: Bool
         var name: String?
     }
 }
@@ -184,9 +189,26 @@ extension MemberGrid {
 private extension Array where Element == MemberGrid.Member {
     func sortedByDisplayName() -> [Element] {
         return sorted { lhs, rhs in
+            
+            // Lowercase names for alphabetical comparison
             let lhsName = lhs.name?.lowercased() ?? ""
             let rhsName = rhs.name?.lowercased() ?? ""
             
+            // 1. Sort by isModerator
+            let lhsModerator = lhs.isModerator ? 0 : 1
+            let rhsModerator = rhs.isModerator ? 0 : 1
+            if lhsModerator != rhsModerator {
+                return lhsModerator < rhsModerator
+            }
+            
+            // 2. Sort by isSelf
+            let lhsSelf = lhs.isSelf ? 0 : 1
+            let rhsSelf = rhs.isSelf ? 0 : 1
+            if lhsSelf != rhsSelf {
+                return lhsSelf < rhsSelf
+            }
+            
+            // 3. Sort by displayName
             if !lhsName.isEmpty && !rhsName.isEmpty {
                 return lhsName.lexicographicallyPrecedes(rhsName)
                 

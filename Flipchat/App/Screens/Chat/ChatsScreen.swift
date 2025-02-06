@@ -184,13 +184,11 @@ struct ChatsScreen: View {
             
         } label: {
             HStack(spacing: 15) {
-                GradientAvatarView(data: row.room.serverID.data, diameter: 50)
-                    .if(row.room.ownerUserID == session.userID.uuid) { $0
-                        .overlay {
-                            Image.asset(.crown)
-                                .position(x: 5, y: 5)
-                        }
-                    }
+                RoomGeneratedAvatar(
+                    data: row.room.serverID.data,
+                    diameter: 50,
+                    isHost: row.room.ownerUserID == session.userID.uuid
+                )    
                 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 10) {

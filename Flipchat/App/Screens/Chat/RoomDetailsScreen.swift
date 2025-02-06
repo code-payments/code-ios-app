@@ -27,10 +27,13 @@ struct RoomDetailsScreen: View {
     }
     
     var gridMembers: [MemberGrid.Member] {
-        updateableMembers.value.map {
+        let userID = userID.uuid
+        return updateableMembers.value.map {
             .init(
                 id: $0.serverID,
+                isSelf: $0.serverID == userID,
                 isSpeaker: $0.canSend,
+                isModerator: $0.canModerate,
                 name: $0.displayName
             )
         }

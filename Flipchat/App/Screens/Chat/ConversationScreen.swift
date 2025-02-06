@@ -395,7 +395,7 @@ struct ConversationScreen: View {
     
     @ViewBuilder private func titleItem() -> some View {
         HStack(spacing: 10) {
-            GradientAvatarView(data: chatID.data, diameter: 30)
+            RoomGeneratedAvatar(data: chatID.data, diameter: 30)
             
             if let roomDescription = updateableRoom.value {
                 VStack(alignment: .leading, spacing: 0) {

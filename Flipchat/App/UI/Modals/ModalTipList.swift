@@ -35,7 +35,7 @@ public struct ModalTipList: View {
             List {
                 ForEach(userTips, id: \.userID) { tip in
                     HStack(spacing: 12) {
-                        GradientAvatarView(
+                        RoomGeneratedAvatar(
                             data: tip.userID.data,
                             diameter: 30
                         )

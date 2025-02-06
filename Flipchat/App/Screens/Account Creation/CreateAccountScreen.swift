@@ -34,7 +34,7 @@ struct CreateAccountScreen: View {
                     Spacer()
                     
                     VStack(spacing: 60) {
-                        DeterministicAvatar(
+                        UserGeneratedAvatar(
                             data: viewModel.owner.publicKey.data,
                             diameter: 120
                         )

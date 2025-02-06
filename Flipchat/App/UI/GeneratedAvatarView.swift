@@ -12,22 +12,25 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-public struct DeterministicAvatar: View {
+public struct UserGeneratedAvatar: View {
     
     private let foregroundColor = Color(r: 255, g: 255, b: 255).opacity(0.9)
     private let backgroundColor = Color(r: 201, g: 214, b: 222)
     
     private let data: Data
     private let diameter: CGFloat
+    private let offset: CGFloat
+    private let isHost: Bool
     
-    public init(data: Data, diameter: CGFloat) {
+    public init(data: Data, diameter: CGFloat, isHost: Bool = false) {
         self.data = SHA512.digest(SHA512.digest(data))
         self.diameter = diameter
+        self.offset = diameter * CGFloat(5.0 / 35.0) // 5/35 is a ratio 5pt offset on a 35pt avatar
+        self.isHost = isHost
     }
     
     public var body: some View {
         VStack(spacing: diameter * 0.075) {
-            
             UnevenRoundedCorners(
                 tl: diameter * 0.25,
                 bl: diameter * 0.1875,
@@ -44,7 +47,7 @@ public struct DeterministicAvatar: View {
         }
         .frame(width: diameter, height: diameter, alignment: .top)
         .background(
-            GradientAvatarView(
+            RoomGeneratedAvatar(
                 data: data,
                 diameter: diameter,
                 showIcon: false
@@ -54,6 +57,12 @@ public struct DeterministicAvatar: View {
             Circle()
         }
         .drawingGroup()
+        .if(isHost) { $0
+            .overlay {
+                Image.asset(.crown)
+                    .position(x: offset, y: offset)
+            }
+        }
     }
 }
 
@@ -95,34 +104,40 @@ public struct DeterministicGradient: View {
     }
 }
 
-public struct GradientAvatarView: View {
+public struct RoomGeneratedAvatar: View {
     
     public let data: Data
     public let hash: Data
     public let diameter: CGFloat
+    public let offset: CGFloat
+    public let isHost: Bool
     public let showIcon: Bool
     
     // MARK: - Init -
     
-    public init(data: Data, diameter: CGFloat, showIcon: Bool = true) {
+    public init(data: Data, diameter: CGFloat, isHost: Bool = false, showIcon: Bool = true) {
         self.data = data
         self.hash = SHA512.digest(data)
         self.diameter = diameter
+        self.offset = diameter * CGFloat(5.0 / 35.0) // 5/35 is a ratio 5pt offset on a 35pt avatar
+        self.isHost = isHost
         self.showIcon = showIcon
     }
     
-    public init(text: String, diameter: CGFloat, showIcon: Bool = true) {
+    public init(text: String, diameter: CGFloat, isHost: Bool = false, showIcon: Bool = true) {
         self.init(
             data: Data(text.utf8),
             diameter: diameter,
+            isHost: isHost,
             showIcon: showIcon
         )
     }
     
-    public init(uuid: UUID, diameter: CGFloat, showIcon: Bool = true) {
+    public init(uuid: UUID, diameter: CGFloat, isHost: Bool = false, showIcon: Bool = true) {
         self.init(
             text: uuid.uuidString,
             diameter: diameter,
+            isHost: isHost,
             showIcon: showIcon
         )
     }
@@ -164,6 +179,12 @@ public struct GradientAvatarView: View {
             }
         }
         .drawingGroup()
+        .if(isHost) { $0
+            .overlay {
+                Image.asset(.crown)
+                    .position(x: offset, y: offset)
+            }
+        }
     }
 }
 
@@ -284,7 +305,7 @@ private extension Comparable {
 }
 
 #Preview {
-    GradientAvatarView(
+    RoomGeneratedAvatar(
         data: Data([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]),
         diameter: 50.0
     )

@@ -80,14 +80,12 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         HStack(alignment: .top) {
             if isReceived {
                 if shouldShowAvatar {
-                    DeterministicAvatar(data: avatarData, diameter: 35)
-                        .if(isHost) { $0
-                            .overlay {
-                                Image.asset(.crown)
-                                    .position(x: 5, y: 5)
-                            }
-                        }
-                        .padding(.top, 17)
+                    UserGeneratedAvatar(
+                        data: avatarData,
+                        diameter: 35,
+                        isHost: isHost
+                    )
+                    .padding(.top, 17)
                 } else {
                     VStack {
                         
