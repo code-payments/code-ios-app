@@ -397,7 +397,7 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair, completion: @escaping (Result<(), ErrorChangeCover>) -> Void) {
+    func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair, completion: @escaping (Result<(), ErrorSetMessageFee>) -> Void) {
         trace(.send, components: "Chat ID: \(chatID.description)", "Cover: \(newCover.description)")
         
         let request = Flipchat_Chat_V1_SetCoverChargeRequest.with {
@@ -409,7 +409,33 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         let call = service.setCoverCharge(request)
         
         call.handle(on: queue) { response in
-            let error = ErrorChangeCover(rawValue: response.result.rawValue) ?? .unknown
+            let error = ErrorSetMessageFee(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func setMessageFee(chatID: ChatID, newFee: Kin, owner: KeyPair, completion: @escaping (Result<(), ErrorSetMessageFee>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)", "Cover: \(newFee.description)")
+        
+        let request = Flipchat_Chat_V1_SetMessagingFeeRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.messagingFee = .with { $0.quarks = newFee.quarks }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.setMessagingFee(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSetMessageFee(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 trace(.success)
                 completion(.success(()))
@@ -486,6 +512,60 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         
         call.handle(on: queue) { response in
             let error = ErrorRoomOpenClose(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func promoteUser(chatID: ChatID, userID: UserID, owner: KeyPair, completion: @escaping (Result<(), ErrorPromoteUser>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)")
+        
+        let request = Flipchat_Chat_V1_PromoteUserRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.userID = .with { $0.value = userID.data }
+            $0.enableSendPermission = true
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.promoteUser(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorPromoteUser(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func demoteUser(chatID: ChatID, userID: UserID, owner: KeyPair, completion: @escaping (Result<(), ErrorPromoteUser>) -> Void) {
+        trace(.send, components: "Chat ID: \(chatID.description)")
+        
+        let request = Flipchat_Chat_V1_DemoteUserRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.userID = .with { $0.value = userID.data }
+            $0.disableSendPermission = true
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.demoteUser(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorPromoteUser(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 trace(.success)
                 completion(.success(()))
@@ -590,7 +670,7 @@ public enum ErrorFetchChat: Int, Error {
     case unknown = -1
 }
 
-public enum ErrorChangeCover: Int, Error {
+public enum ErrorSetMessageFee: Int, Error {
     case ok
     case denied
     case cantSet
@@ -605,6 +685,12 @@ public enum ErrorChangeRoomName: Int, Error {
 }
 
 public enum ErrorRoomOpenClose: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+}
+
+public enum ErrorPromoteUser: Int, Error {
     case ok
     case denied
     case unknown = -1

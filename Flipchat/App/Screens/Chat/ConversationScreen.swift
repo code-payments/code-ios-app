@@ -254,7 +254,7 @@ struct ConversationScreen: View {
                     primaryAction: "Swipe to Pay",
                     secondaryAction: "Cancel",
                     paymentAction: { [input] in
-                        try await solicitMessage(text: input)
+                        solicitMessage(text: input)
                     },
                     dismissAction: { chatViewModel.cancelMessagePayment() },
                     cancelAction:  { chatViewModel.cancelMessagePayment() }
@@ -287,7 +287,7 @@ struct ConversationScreen: View {
                     .cornerRadius(20)
                 
                 Button {
-                    sendMessage(text: input)
+                    messageAction(text: input)
                 } label: {
                     Image.asset(.paperplane)
                         .resizable()
@@ -566,6 +566,44 @@ struct ConversationScreen: View {
                 messageID: messageID,
                 users: users
             )
+            
+        case .promoteUser(let name, let userID, let chatID):
+            // Gives the context menu time to animate
+            try await Task.delay(milliseconds: 200)
+            
+            banners.show(
+                style: .notification,
+                title: "Make \(name) a Speaker?",
+                description: "They will be able to message for free",
+                position: .bottom,
+                actions: [
+                    .standard(title: "Make a Speaker") {
+                        Task {
+                            try await chatController.promoteUser(userID: userID, chatID: chatID)
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
+            
+        case .demoteUser(let name, let userID, let chatID):
+            // Gives the context menu time to animate
+            try await Task.delay(milliseconds: 200)
+            
+            banners.show(
+                style: .notification,
+                title: "Remove \(name) as a Speaker?",
+                description: "They will no longer be able to message for free",
+                position: .bottom,
+                actions: [
+                    .standard(title: "Remove as Speaker") {
+                        Task {
+                            try await chatController.demoteUser(userID: userID, chatID: chatID)
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
         }
     }
     
@@ -587,6 +625,14 @@ struct ConversationScreen: View {
 //        }
 //    }
     
+    private func messageAction(text: String) {
+        if chatViewModel.isShowingInputForPaidMessage {
+            chatViewModel.showMessagePayment()
+        } else {
+            sendMessage(text: text)
+        }
+    }
+    
     private func sendMessageAsListener() {
         chatViewModel.attemptPayForMessage {
             // This completion only runs when there's
@@ -598,19 +644,25 @@ struct ConversationScreen: View {
         }
     }
     
-    private func solicitMessage(text: String) async throws {
+    private func solicitMessage(text: String) {
         guard let roomHostID else {
             return
         }
         
-        try await chatViewModel.solicitMessage(
-            text: text,
-            chatID: chatID,
-            hostID: UserID(uuid: roomHostID),
-            amount: messageCost
-        )
-        
-        clearInput()
+        Task {
+            try await chatViewModel.solicitMessage(
+                text: text,
+                chatID: chatID,
+                hostID: UserID(uuid: roomHostID),
+                amount: messageCost
+            )
+            
+            clearInput()
+            
+            try await Task.delay(milliseconds: 150)
+            
+            scrollToBottom(animated: true)
+        }
     }
     
     private func sendMessage(text: String) {

@@ -190,7 +190,7 @@ struct ChatsScreen: View {
                         .init(title: "Enter Flipchat Number") {
                             viewModel.showEnterRoomNumber()
                         },
-                        .init(title: "Create New Flipchat") {
+                        .init(title: "Create New Flipchat: \(session.startGroupCost.formattedTruncatedKin())") {
                             viewModel.attemptCreateChat()
                         },
                     ]

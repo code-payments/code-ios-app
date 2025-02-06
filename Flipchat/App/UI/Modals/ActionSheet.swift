@@ -24,7 +24,7 @@ public struct ButtonSheet: View {
     // MARK: - Body -
     
     public var body: some View {
-        PartialSheet(background: Color(white: 0.08)) {
+        PartialSheet(background: .backgroundMain) {
             VStack(spacing: 0) {
                 ForEach(actions, id: \.title) { action in
                     Button {

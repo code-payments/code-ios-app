@@ -559,7 +559,56 @@ class ChatController: ObservableObject {
         }
     }
     
-    // MARK: - Group Chat -
+    // MARK: - Users -
+    
+    func muteUser(userID: UserID, chatID: ChatID) async throws {
+        try await client.muteUser(userID: userID, chatID: chatID, owner: owner)
+        try database.transaction {
+            try $0.setMemberMuted(
+                userID: userID.uuid,
+                roomID: chatID.uuid,
+                muted: true
+            )
+        }
+    }
+    
+    func setUserBlocked(userID: UserID, blocked: Bool) async throws {
+//        try await client.blockUser(userID: userID, chatID: chatID, owner: owner)
+        try database.transaction {
+            try $0.setUserBlocked( // Not member, user
+                userID: userID.uuid,
+                blocked: blocked
+            )
+        }
+    }
+    
+    func reportMessage(userID: UserID, messageID: MessageID) async throws {
+        try await client.reportMessage(userID: userID, messageID: messageID, owner: owner)
+    }
+    
+    func promoteUser(userID: UserID, chatID: ID) async throws {
+        try await client.promoteUser(chatID: chatID, userID: userID, owner: owner)
+        try database.transaction {
+            try $0.setMemberCanSend(
+                userID: userID.uuid,
+                roomID: chatID.uuid,
+                canSend: true
+            )
+        }
+    }
+    
+    func demoteUser(userID: UserID, chatID: ID) async throws {
+        try await client.demoteUser(chatID: chatID, userID: userID, owner: owner)
+        try database.transaction {
+            try $0.setMemberCanSend(
+                userID: userID.uuid,
+                roomID: chatID.uuid,
+                canSend: false
+            )
+        }
+    }
+    
+    // MARK: - Chat -
     
     func localChatFor(roomNumber: RoomNumber) async throws -> ChatID? {
         if let id = try? database.getRoomID(roomNumber: roomNumber) {
@@ -654,27 +703,6 @@ class ChatController: ObservableObject {
         return chatID
     }
     
-    func muteUser(userID: UserID, chatID: ChatID) async throws {
-        try await client.muteUser(userID: userID, chatID: chatID, owner: owner)
-        try database.transaction {
-            try $0.setMemberMuted(
-                userID: userID.uuid,
-                roomID: chatID.uuid,
-                muted: true
-            )
-        }
-    }
-    
-    func setUserBlocked(userID: UserID, blocked: Bool) async throws {
-//        try await client.blockUser(userID: userID, chatID: chatID, owner: owner)
-        try database.transaction {
-            try $0.setUserBlocked( // Not member, user
-                userID: userID.uuid,
-                blocked: blocked
-            )
-        }
-    }
-    
     func muteChat(chatID: ChatID, muted: Bool) async throws {
         try await client.muteChat(chatID: chatID, muted: muted, owner: owner)
         try database.transaction {
@@ -683,10 +711,6 @@ class ChatController: ObservableObject {
                 muted: muted
             )
         }
-    }
-    
-    func reportMessage(userID: UserID, messageID: MessageID) async throws {
-        try await client.reportMessage(userID: userID, messageID: messageID, owner: owner)
     }
     
     func leaveChat(chatID: ChatID) async throws {

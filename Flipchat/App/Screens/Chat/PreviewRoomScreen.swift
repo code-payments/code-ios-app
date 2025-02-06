@@ -45,7 +45,9 @@ struct PreviewRoomScreen: View {
                 MemberGrid(
                     chatName: chat.formattedTitle,
                     avatarData: chat.id.data,
-                    members: gridMembers
+                    members: gridMembers,
+                    canEdit: false,
+                    editAction: nil
                 )
                                 
                 Spacer()

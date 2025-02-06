@@ -19,6 +19,8 @@ enum MessageAction {
     case linkTo(RoomNumber)
     case tip(UserID, MessageID)
     case showTippers(MessageID)
+    case promoteUser(String, UserID, ChatID)
+    case demoteUser(String, UserID, ChatID)
 }
 
 struct MessageDescription: Identifiable, Hashable, Equatable {

@@ -16,6 +16,8 @@ struct MemberGrid: View {
     let members: [Member]
     let shareRoomNumber: RoomNumber?
     let isClosed: Bool
+    let canEdit: Bool
+    let editAction: (() -> Void)?
     
     private let speakers: [Member]
     private let listeners: [Member]
@@ -24,12 +26,15 @@ struct MemberGrid: View {
     private let spacing: CGFloat = 15
     private let padding: CGFloat = 20
     
-    init(chatName: String, avatarData: Data, members: [Member], shareRoomNumber: RoomNumber? = nil, isClosed: Bool = false) {
+    init(chatName: String, avatarData: Data, members: [Member], shareRoomNumber: RoomNumber? = nil, isClosed: Bool = false, canEdit: Bool, editAction: (() -> Void)?) {
         self.chatName = chatName
         self.avatarData = avatarData
         self.members = members
         self.shareRoomNumber = shareRoomNumber
         self.isClosed = isClosed
+        self.canEdit = canEdit
+        self.editAction = editAction
+        
         self.speakers  = members.filter {  $0.isSpeaker }.sortedByDisplayName()
         self.listeners = members.filter { !$0.isSpeaker }.sortedByDisplayName()
     }
@@ -42,32 +47,48 @@ struct MemberGrid: View {
                         Spacer()
                         
                         VStack(spacing: 20) {
-                            GradientAvatarView(
-                                data: avatarData,
-                                diameter: 100
-                            )
-                            
-                            VStack(spacing: 8) {
-                                Text(chatName)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                                    .font(.appDisplaySmall)
-                                
-                                Text(String.formattedPeopleCount(count: members.count))
-                                    .font(.appTextHeading)
-                                    .foregroundStyle(Color.textSecondary)
-                                
-                                HStack {
-                                    if isClosed {
-                                        Text("This Flipchat is currently closed")
-                                            .font(.appTextCaption)
-                                            .foregroundStyle(Color.textSecondary.opacity(0.8))
-                                            .transition(.move(edge: .top).combined(with: .opacity))
+                            Button {
+                                editAction?()
+                            } label: {
+                                VStack(spacing: 20) {
+                                    GradientAvatarView(
+                                        data: avatarData,
+                                        diameter: 100
+                                    )
+                                    .if(canEdit) { $0
+                                        .overlay {
+                                            GeometryReader { g in
+                                                Image.asset(.pencil)
+                                                    .frame(width: 20, height: 20)
+                                                    .position(x: g.size.width - 10, y: 10)
+                                            }
+                                        }
+                                    }
+                                    
+                                    VStack(spacing: 8) {
+                                        Text(chatName)
+                                            .multilineTextAlignment(.center)
+                                            .lineLimit(2)
+                                            .font(.appDisplaySmall)
+                                        
+                                        Text(String.formattedPeopleCount(count: members.count))
+                                            .font(.appTextHeading)
+                                            .foregroundStyle(Color.textSecondary)
+                                        
+                                        HStack {
+                                            if isClosed {
+                                                Text("This Flipchat is currently closed")
+                                                    .font(.appTextCaption)
+                                                    .foregroundStyle(Color.textSecondary.opacity(0.8))
+                                                    .transition(.move(edge: .top).combined(with: .opacity))
+                                            }
+                                        }
+                                        .frame(height: 15)
+                                        .animation(.easeInOut(duration: 0.2), value: isClosed)
                                     }
                                 }
-                                .frame(height: 15)
-                                .animation(.easeInOut(duration: 0.2), value: isClosed)
                             }
+                            .disabled(!canEdit)
                             
                             if let shareRoomNumber {
                                 CodeButton(
@@ -86,7 +107,7 @@ struct MemberGrid: View {
                     .padding(.bottom, 10)
                     
                     LazyVGrid(columns: columns(for: g.size.width), spacing: spacing) {
-                        Section(header: title("Speakers")) {
+                        Section(header: title("\(speakers.count) Speakers")) {
                             ForEach(speakers) { member in
                                 user(
                                     for: member.id.data,
@@ -95,7 +116,7 @@ struct MemberGrid: View {
                             }
                         }
                         
-                        Section(header: title("Listeners")) {
+                        Section(header: title("\(listeners.count) Listeners")) {
                             ForEach(listeners) { member in
                                 user(
                                     for: member.id.data,
@@ -132,8 +153,8 @@ struct MemberGrid: View {
     
     private func title(_ text: String) -> some View {
         Text(text)
-            .font(.appDisplaySmall)
-            .frame(height: 55)
+            .font(.appTextLarge)
+            .frame(height: 45)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
     }

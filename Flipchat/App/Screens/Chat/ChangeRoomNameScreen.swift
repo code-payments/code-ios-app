@@ -69,7 +69,6 @@ struct ChangeRoomNameScreen: View {
             }
             .navigationBarTitle(Text(""), displayMode: .inline)
             .onAppear(perform: onAppear)
-            .interactiveDismissDisabled()
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton(action: viewModel.dismissChangeRoomName)

@@ -454,11 +454,13 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
             
         case .message(_, let isReceived, let row, let location, let deletionState, let referenceDeletion):
             let message = row.message
+            let member = row.member
             let isFromSelf = message.senderID == userID.uuid
             let displayName = row.member.displayName ?? defaultMemberName
             let chatID = chatID
             let isDeleted = deletionState != nil
             let senderIsHost = message.senderID == hostID.uuid
+            let selfIsHost = self.userID == hostID
             
             MessageText(
                 messageID: message.serverID,
@@ -482,6 +484,27 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
             ) {
                 // Don't show action for deleted messages
                 if !isDeleted {
+                    
+                    if selfIsHost, !isFromSelf, (message.offStage || member.canSend == true), let displayName = member.displayName, let userID = member.userID {
+                        
+                        if member.canSend == true {
+                            Button {
+                                action(.demoteUser(displayName, UserID(uuid: userID), chatID))
+                            } label: {
+                                Label("Remove as Speaker", systemImage: "speaker.slash")
+                            }
+                        } else {
+                            Button {
+                                action(.promoteUser(displayName, UserID(uuid: userID), chatID))
+                            } label: {
+                                Label("Make a Speaker", systemImage: "speaker.wave.2.bubble")
+                            }
+                        }
+                        
+                        Divider()
+                    }
+                    
+                    // Regular actions
                     
                     Button {
                         Task {
@@ -511,9 +534,8 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
                         Label("Copy Message", systemImage: "doc.on.doc")
                     }
                     
+                    // Destructive actions
                     Divider()
-                    
-                    // TODO: Figure out how to apply delete message to the lastMessage in room list because we ignore delete message content types
                     
                     // Allow deletes for self messages or if room host is deleting a message
                     if let senderID = message.senderID, senderID == userID.uuid || userID == hostID {

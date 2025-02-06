@@ -21,10 +21,19 @@ struct RoomDetailsScreen: View {
     
     private let userID: UserID
     private let chatID: ChatID
-    private let gridMembers: [MemberGrid.Member]
     
     var room: RoomDescription? {
         updateableRoom.value
+    }
+    
+    var gridMembers: [MemberGrid.Member] {
+        updateableMembers.value.map {
+            .init(
+                id: $0.serverID,
+                isSpeaker: $0.canSend,
+                name: $0.displayName
+            )
+        }
     }
     
     // MARK: - Init -
@@ -43,14 +52,6 @@ struct RoomDetailsScreen: View {
             (try? chatController.getMembers(roomID: chatID)) ?? []
         }
         
-        self.gridMembers = updateableMembers.value.map {
-            .init(
-                id: $0.serverID,
-                isSpeaker: $0.canSend,
-                name: $0.displayName
-            )
-        }
-        
         self._updateableRoom    = .init(wrappedValue: updateableRoom)
         self._updateableMembers = .init(wrappedValue: updateableMembers)
     }
@@ -66,7 +67,11 @@ struct RoomDetailsScreen: View {
                         avatarData: room.room.serverID.data,
                         members: gridMembers,
                         shareRoomNumber: room.room.roomNumber,
-                        isClosed: !room.room.isOpen
+                        isClosed: !room.room.isOpen,
+                        canEdit: room.room.ownerUserID == userID.uuid,
+                        editAction: {
+                            viewModel.showChangeRoomName(existingName: room.room.title)
+                        }
                     )
                 }
             }
@@ -82,16 +87,17 @@ struct RoomDetailsScreen: View {
                 }
             }
             .buttonSheet(isPresented: $viewModel.isShowingCustomize) {
-                Action.standard(systemImage: "hexagon", title: "Change Cover Charge") {
-                    viewModel.showChangeCover()
-                }
-                
-                Action.standard(systemImage: "character.cursor.ibeam", title: "Change Flipchat Name") {
-                    viewModel.showChangeRoomName(existingName: room?.room.title)
-                }
-                
                 // Show for hosts only
-                if let room = room?.room, room.ownerUserID == userID.uuid {
+                let isHost = room?.room.ownerUserID == userID.uuid
+                if isHost, let room = room?.room {
+                    Action.standard(systemImage: "hexagon", title: "Change Cover Charge") {
+                        viewModel.showChangeCover()
+                    }
+                
+//                    Action.standard(systemImage: "character.cursor.ibeam", title: "Change Flipchat Name") {
+//                        viewModel.showChangeRoomName(existingName: room?.room.title)
+//                    }
+                
                     Action.standard(systemImage: "powersleep", title: room.isOpen ? "Close Flipchat Temporarily" : "Open Flipchat") {
                         viewModel.setRoomStatus(chatID: ChatID(uuid: room.serverID), open: !room.isOpen)
                     }

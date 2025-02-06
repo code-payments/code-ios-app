@@ -112,13 +112,15 @@ extension Database {
             m.hasTipFromSelf,
             m.offStage,
 
-            u.serverID AS uServerID,
-            u.displayName AS uDisplayName,
-            u.isBlocked AS uIsBlocked,
-            b.isMuted AS uIsMuted,
+            u.serverID     AS uServerID,
+            u.displayName  AS uDisplayName,
+            u.isBlocked    AS uIsBlocked,
+            b.isMuted      AS uIsMuted,
+            b.canSend      AS uCanSend,
 
-            r.content AS rContent,
+            r.content      AS rContent,
             ru.displayName AS rDisplayName
+        
         FROM
             message m
 
@@ -168,7 +170,8 @@ extension Database {
                     userID:      row[Expression<UUID?>("uServerID")],
                     displayName: row[Expression<String?>("uDisplayName")],
                     isMuted:     row[Expression<Bool?>("uIsMuted")],
-                    isBlocked:   row[Expression<Bool?>("uIsBlocked")]
+                    isBlocked:   row[Expression<Bool?>("uIsBlocked")],
+                    canSend:     row[Expression<Bool?>("uCanSend")]
                 ),
                 referenceID: referenceID,
                 
@@ -213,6 +216,7 @@ struct MessageRow: Hashable {
         let displayName: String?
         let isMuted: Bool?
         let isBlocked: Bool?
+        let canSend: Bool?
     }
     
     struct Reference: Hashable {

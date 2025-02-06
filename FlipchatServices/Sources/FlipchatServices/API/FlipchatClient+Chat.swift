@@ -77,6 +77,12 @@ extension FlipchatClient {
         }
     }
     
+    public func setMessageFee(chatID: ChatID, newFee: Kin, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.setMessageFee(chatID: chatID, newFee: newFee, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func changeRoomName(chatID: ChatID, newName: String, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
             chatService.changeRoomName(chatID: chatID, newName: newName, owner: owner) { c.resume(with: $0) }
@@ -92,6 +98,18 @@ extension FlipchatClient {
     public func closeRoom(chatID: ChatID, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
             chatService.closeRoom(chatID: chatID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func promoteUser(chatID: ChatID, userID: UserID, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.promoteUser(chatID: chatID, userID: userID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func demoteUser(chatID: ChatID, userID: UserID, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            chatService.demoteUser(chatID: chatID, userID: userID, owner: owner) { c.resume(with: $0) }
         }
     }
 }
