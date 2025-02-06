@@ -649,6 +649,8 @@ struct ConversationScreen: View {
             return
         }
         
+        isEditorFocused = false
+        
         Task {
             try await chatViewModel.solicitMessage(
                 text: text,
