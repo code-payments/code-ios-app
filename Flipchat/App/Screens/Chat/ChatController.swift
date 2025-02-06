@@ -722,7 +722,7 @@ class ChatController: ObservableObject {
     }
     
     func changeCover(chatID: ChatID, newCover: Kin) async throws {
-        try await client.changeCover(chatID: chatID, newCover: newCover, owner: owner)
+        try await client.setMessageFee(chatID: chatID, newFee: newCover, owner: owner)
         let chat = try await client.fetchChat(for: .chatID(chatID), owner: owner)
         
         try insert(chat: chat)

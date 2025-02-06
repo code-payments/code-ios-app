@@ -397,31 +397,31 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         }
     }
     
-    func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair, completion: @escaping (Result<(), ErrorSetMessageFee>) -> Void) {
-        trace(.send, components: "Chat ID: \(chatID.description)", "Cover: \(newCover.description)")
-        
-        let request = Flipchat_Chat_V1_SetCoverChargeRequest.with {
-            $0.chatID = .with { $0.value = chatID.data }
-            $0.coverCharge = .with { $0.quarks = newCover.quarks }
-            $0.auth = owner.authFor(message: $0)
-        }
-        
-        let call = service.setCoverCharge(request)
-        
-        call.handle(on: queue) { response in
-            let error = ErrorSetMessageFee(rawValue: response.result.rawValue) ?? .unknown
-            if error == .ok {
-                trace(.success)
-                completion(.success(()))
-            } else {
-                trace(.failure, components: "Error: \(error)")
-                completion(.failure(error))
-            }
-            
-        } failure: { error in
-            completion(.failure(.unknown))
-        }
-    }
+//    func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair, completion: @escaping (Result<(), ErrorSetMessageFee>) -> Void) {
+//        trace(.send, components: "Chat ID: \(chatID.description)", "Cover: \(newCover.description)")
+//        
+//        let request = Flipchat_Chat_V1_SetCoverChargeRequest.with {
+//            $0.chatID = .with { $0.value = chatID.data }
+//            $0.coverCharge = .with { $0.quarks = newCover.quarks }
+//            $0.auth = owner.authFor(message: $0)
+//        }
+//        
+//        let call = service.setCoverCharge(request)
+//        
+//        call.handle(on: queue) { response in
+//            let error = ErrorSetMessageFee(rawValue: response.result.rawValue) ?? .unknown
+//            if error == .ok {
+//                trace(.success)
+//                completion(.success(()))
+//            } else {
+//                trace(.failure, components: "Error: \(error)")
+//                completion(.failure(error))
+//            }
+//            
+//        } failure: { error in
+//            completion(.failure(.unknown))
+//        }
+//    }
     
     func setMessageFee(chatID: ChatID, newFee: Kin, owner: KeyPair, completion: @escaping (Result<(), ErrorSetMessageFee>) -> Void) {
         trace(.send, components: "Chat ID: \(chatID.description)", "Cover: \(newFee.description)")

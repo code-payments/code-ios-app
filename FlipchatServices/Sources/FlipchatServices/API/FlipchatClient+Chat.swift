@@ -71,11 +71,11 @@ extension FlipchatClient {
         }
     }
     
-    public func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair) async throws {
-        try await withCheckedThrowingContinuation { c in
-            chatService.changeCover(chatID: chatID, newCover: newCover, owner: owner) { c.resume(with: $0) }
-        }
-    }
+//    public func changeCover(chatID: ChatID, newCover: Kin, owner: KeyPair) async throws {
+//        try await withCheckedThrowingContinuation { c in
+//            chatService.changeCover(chatID: chatID, newCover: newCover, owner: owner) { c.resume(with: $0) }
+//        }
+//    }
     
     public func setMessageFee(chatID: ChatID, newFee: Kin, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
