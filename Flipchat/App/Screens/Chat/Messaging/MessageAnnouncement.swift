@@ -26,7 +26,7 @@ public struct MessageAnnouncementActionable: View {
                 .font(.appTextSmall)
                 .foregroundColor(.textSecondary)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.bottom, 5)
                 .multilineTextAlignment(.center)
             
             CodeButton(
