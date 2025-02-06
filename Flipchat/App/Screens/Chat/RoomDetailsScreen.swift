@@ -103,7 +103,7 @@ struct RoomDetailsScreen: View {
                     }
                 }
                 
-                Action.destructive(systemImage: "rectangle.portrait.and.arrow.right", title: "Leave Flipchat") {
+                Action.standard(systemImage: "rectangle.portrait.and.arrow.right", title: "Leave Flipchat") {
                     guard let room else {
                         return
                     }
