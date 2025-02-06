@@ -18,7 +18,9 @@ class Updateable<T>: ObservableObject {
         
         let start = Date.now
         self.value = valueBlock()
-        print("[Updateable] Loading <\(T.self)>, took: \(Date.now.formattedMilliseconds(from: start))")
+        if let time = Date.now.formattedMilliseconds(from: start, threshold: 50) {
+            print("[Updateable] Loading <\(T.self)>, took: \(time)")
+        }
         
         NotificationCenter.default.addObserver(self, selector: #selector(handleDatabaseDidChange), name: .databaseDidChange, object: nil)
     }
@@ -30,7 +32,9 @@ class Updateable<T>: ObservableObject {
     @objc private func handleDatabaseDidChange() {
         let start = Date.now
         value = valueBlock()
-        print("[Updateable] Updating <\(T.self)>, took: \(Date.now.formattedMilliseconds(from: start))")
+        if let time = Date.now.formattedMilliseconds(from: start, threshold: 50) {
+            print("[Updateable] Loading <\(T.self)>, took: \(time)")
+        }
     }
 }
 
@@ -39,5 +43,17 @@ extension Date {
         let delta = timeIntervalSince(reference)
         let ms = delta * 1000
         return String(format: "%.3f ms", ms)
+    }
+    
+    func formattedMilliseconds(from reference: Date, threshold: Double) -> String? {
+        let delta = timeIntervalSince(reference)
+        let ms = delta * 1000
+        let text = String(format: "%.3f ms", ms)
+        
+        if ms >= threshold {
+            return text
+        } else {
+            return nil
+        }
     }
 }

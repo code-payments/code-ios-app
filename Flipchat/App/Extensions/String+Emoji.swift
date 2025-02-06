@@ -22,4 +22,8 @@ extension String {
     static func formattedPeopleCount(count: Int) -> String {
         "\(count) \(count == 1 ? "person" : "people") here"
     }
+    
+    static func formattedListenerCount(count: Int) -> String {
+        "\(count) \(count == 1 ? "Listener" : "Listeners")"
+    }
 }

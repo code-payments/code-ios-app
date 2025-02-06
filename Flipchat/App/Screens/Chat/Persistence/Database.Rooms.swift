@@ -93,6 +93,7 @@ extension Database {
                 COUNT(*) AS count
             FROM
                 member
+            WHERE canSend = 0
             GROUP BY
                 roomID
         ) AS memberCount

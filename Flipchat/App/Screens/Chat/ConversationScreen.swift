@@ -79,6 +79,10 @@ struct ConversationScreen: View {
         isSelfHost && !isRoomOpen
     }
     
+    private var isInputVisible: Bool {
+        (chatController.isRegistered && canSend) || chatViewModel.isShowingInputForPaidMessage
+    }
+    
     // MARK: - Init -
     
     init(chatID: ChatID, state: AuthenticatedState, container: AppContainer) {
@@ -169,7 +173,7 @@ struct ConversationScreen: View {
                     roomClosedView()
                     
                 } else {
-                    if (chatController.isRegistered && canSend) || chatViewModel.isShowingInputForPaidMessage {
+                    if isInputVisible {
                         VStack(spacing: 0) {
                             if isShowingOpenClose {
                                 openCloseView(isOpen: isRoomOpen)
@@ -405,7 +409,7 @@ struct ConversationScreen: View {
                         .font(.appTextMedium)
                         .foregroundColor(.textMain)
                     
-                    Text("\(roomDescription.memberCount) \(subtext(for: roomDescription.memberCount)) here")
+                    Text("\(roomDescription.memberCount) \(String.formattedListenerCount(count: roomDescription.memberCount))")
                         .lineLimit(1)
                         .font(.appTextHeading)
                         .foregroundColor(.textSecondary)
@@ -540,6 +544,10 @@ struct ConversationScreen: View {
             )
             
         case .reply(let messageRow):
+            if !isInputVisible {
+                sendMessageAsListener()
+            }
+            
             replyMessage = messageRow
             shouldScrollOnFocus = false
             isEditorFocused = true
@@ -604,14 +612,6 @@ struct ConversationScreen: View {
                     .cancel(title: "Cancel"),
                 ]
             )
-        }
-    }
-    
-    private func subtext(for count: Int?) -> String {
-        if count == 1 {
-            return "person"
-        } else {
-            return "people"
         }
     }
     
