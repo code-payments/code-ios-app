@@ -42,7 +42,7 @@ struct ChangeCoverScreen: View {
                 .onAppear(perform: onAppear)
                 .foregroundColor(.textMain)
                 .padding(20)
-                .navigationBarTitle(Text("Change Cover Charge"), displayMode: .inline)
+                .navigationBarTitle(Text("Change Listener Message Fee"), displayMode: .inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         ToolbarCloseButton(binding: $viewModel.isShowingChangeCover)
