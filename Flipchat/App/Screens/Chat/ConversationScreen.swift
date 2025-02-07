@@ -409,7 +409,7 @@ struct ConversationScreen: View {
                         .font(.appTextMedium)
                         .foregroundColor(.textMain)
                     
-                    Text("\(roomDescription.memberCount) \(String.formattedListenerCount(count: roomDescription.memberCount))")
+                    Text(String.formattedListenerCount(count: roomDescription.memberCount))
                         .lineLimit(1)
                         .font(.appTextHeading)
                         .foregroundColor(.textSecondary)
