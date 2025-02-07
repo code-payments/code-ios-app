@@ -576,6 +576,8 @@ struct ConversationScreen: View {
             )
             
         case .promoteUser(let name, let userID, let chatID):
+            isEditorFocused = false
+            
             // Gives the context menu time to animate
             try await Task.delay(milliseconds: 200)
             
@@ -595,6 +597,8 @@ struct ConversationScreen: View {
             )
             
         case .demoteUser(let name, let userID, let chatID):
+            isEditorFocused = false
+            
             // Gives the context menu time to animate
             try await Task.delay(milliseconds: 200)
             
