@@ -93,7 +93,7 @@ struct RoomDetailsScreen: View {
                 // Show for hosts only
                 let isHost = room?.room.ownerUserID == userID.uuid
                 if isHost, let room = room?.room {
-                    Action.standard(systemImage: "hexagon", title: "Change Listener Message Fee") {
+                    Action.standard(systemImage: "hexagon", title: "Change Audience Message Fee") {
                         viewModel.showChangeCover()
                     }
                 

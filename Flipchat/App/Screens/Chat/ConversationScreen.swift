@@ -184,7 +184,7 @@ struct ConversationScreen: View {
                     } else {
                         CodeButton(
                             style: .filled,
-                            title: "Audience Messages: \(messageCost.formattedTruncatedKin())",
+                            title: "Audience Message: \(messageCost.formattedTruncatedKin())",
                             action: sendMessageAsListener
                         )
                         .padding(.horizontal, 20)
