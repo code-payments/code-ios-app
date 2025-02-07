@@ -49,6 +49,7 @@ struct PreviewRoomScreen: View {
                     avatarData: chat.id.data,
                     members: gridMembers,
                     canEdit: false,
+                    memberAction: nil,
                     editAction: nil
                 )
                                 

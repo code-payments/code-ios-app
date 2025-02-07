@@ -72,6 +72,7 @@ struct RoomDetailsScreen: View {
                         shareRoomNumber: room.room.roomNumber,
                         isClosed: !room.room.isOpen,
                         canEdit: room.room.ownerUserID == userID.uuid,
+                        memberAction: memberAction,
                         editAction: {
                             viewModel.showChangeRoomName(existingName: room.room.title)
                         }
@@ -131,6 +132,45 @@ struct RoomDetailsScreen: View {
                     viewModel: viewModel
                 )
             }
+        }
+    }
+    
+    // MARK: - Actions -
+    
+    private func memberAction(member: MemberGrid.Member) {
+        let name = member.name ?? ""
+        let userID = UserID(uuid: member.id)
+        
+        if member.isSpeaker {
+            banners.show(
+                style: .notification,
+                title: "Remove \(name) as a Speaker?",
+                description: "They will no longer be able to message for free",
+                position: .bottom,
+                actions: [
+                    .standard(title: "Remove as Speaker") {
+                        Task {
+                            try await chatController.demoteUser(userID: userID, chatID: chatID)
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
+        } else {
+            banners.show(
+                style: .notification,
+                title: "Make \(name) a Speaker?",
+                description: "They will be able to message for free",
+                position: .bottom,
+                actions: [
+                    .standard(title: "Make a Speaker") {
+                        Task {
+                            try await chatController.promoteUser(userID: userID, chatID: chatID)
+                        }
+                    },
+                    .cancel(title: "Cancel"),
+                ]
+            )
         }
     }
 }
