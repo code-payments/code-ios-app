@@ -3581,10 +3581,10 @@
 		};
 		9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/stephencelis/SQLite.swift";
+			repositoryURL = "https://github.com/dbart01/SQLite.swift";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.15.3;
+				branch = master;
+				kind = branch;
 			};
 		};
 		9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */ = {

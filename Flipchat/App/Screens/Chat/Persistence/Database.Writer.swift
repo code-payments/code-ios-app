@@ -335,14 +335,18 @@ extension Database {
     func insertPointer(kind: Chat.Pointer.Kind, userID: UUID, roomID: UUID, messageID: UUID) throws {
         let table = PointerTable()
         try writer.run(
-            table.table.upsert(
-                table.userID    <- userID,
-                table.roomID    <- roomID,
-                table.kind      <- kind.rawValue,
-                table.messageID <- messageID,
-                
-                onConflictOf: Expression<Void>(literal: "\"userID\", \"roomID\"")
-            )
+            table.table
+                .filter(table.messageID < messageID)
+                .upsert(
+                    table.userID    <- userID,
+                    table.roomID    <- roomID,
+                    table.kind      <- kind.rawValue,
+                    table.messageID <- messageID,
+                    
+                    onConflictOf: Expression<Void>(literal: "\"userID\", \"roomID\"")
+                )
         )
+        
+        print("[POINTER] Inserting pointer: \(messageID)")
     }
 }

@@ -147,10 +147,10 @@
     {
       "identity" : "sqlite.swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/stephencelis/SQLite.swift",
+      "location" : "https://github.com/dbart01/SQLite.swift",
       "state" : {
-        "revision" : "a95fc6df17d108bd99210db5e8a9bac90fe984b8",
-        "version" : "0.15.3"
+        "branch" : "master",
+        "revision" : "6270b78df9b1eb51872753ebb85b6deda30eb77f"
       }
     },
     {
