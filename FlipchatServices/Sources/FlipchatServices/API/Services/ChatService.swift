@@ -116,7 +116,31 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
         trace(.success, components: "Owner \(owner.publicKey.base58)", "Initiating a connection...")
     }
     
-    func startGroupChat(with users: [UserID], intentID: PublicKey, owner: KeyPair, completion: @escaping (Result<ChatDescription, ErrorStartChat>) -> Void) {
+    func validateChatName(name: String, completion: @escaping (Result<Bool, ErrorValidateChatName>) -> Void) {
+        trace(.send, components: "Chat name: \(name)")
+        
+        let request = Flipchat_Chat_V1_CheckDisplayNameRequest.with {
+            $0.displayName = name
+        }
+        
+        let call = service.checkDisplayName(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorValidateChatName(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(response.isAllowed))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func startGroupChat(name: String?, users: [UserID], intentID: PublicKey, owner: KeyPair, completion: @escaping (Result<ChatDescription, ErrorStartChat>) -> Void) {
         trace(.send, components: "Users: \(users.map { "\($0.description)" }.joined(separator: ", "))")
         
         let request = Flipchat_Chat_V1_StartChatRequest.with {
@@ -126,6 +150,10 @@ class ChatService: FlipchatService<Flipchat_Chat_V1_ChatNIOClient> {
                     .with {
                         $0.value = userID.data
                     }
+                }
+                
+                if let name {
+                    $0.displayName = name
                 }
             }
             
@@ -622,6 +650,12 @@ public enum ErrorStartChat: Int, Error {
     /// USER_NOT_FOUND indicates that (one of) the target user's was not found
     case userNotFound
     
+    case unknown = -1
+}
+
+public enum ErrorValidateChatName: Int, Error {
+    case ok
+    case denied
     case unknown = -1
 }
 

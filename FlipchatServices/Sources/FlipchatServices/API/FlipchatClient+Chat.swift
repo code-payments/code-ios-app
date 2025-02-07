@@ -17,9 +17,15 @@ extension FlipchatClient {
         chatService.streamChatEvents(owner: owner, completion: completion)
     }
     
-    public func startGroupChat(with users: [UserID], intentID: PublicKey, owner: KeyPair) async throws -> ChatDescription {
+    public func validateChatName(name: String) async throws -> Bool {
         try await withCheckedThrowingContinuation { c in
-            chatService.startGroupChat(with: users, intentID: intentID, owner: owner) { c.resume(with: $0) }
+            chatService.validateChatName(name: name) { c.resume(with: $0) }
+        }
+    }
+    
+    public func startGroupChat(name: String, users: [UserID], intentID: PublicKey, owner: KeyPair) async throws -> ChatDescription {
+        try await withCheckedThrowingContinuation { c in
+            chatService.startGroupChat(name: name, users: users, intentID: intentID, owner: owner) { c.resume(with: $0) }
         }
     }
     

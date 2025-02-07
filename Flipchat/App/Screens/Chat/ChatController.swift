@@ -617,7 +617,7 @@ class ChatController: ObservableObject {
         return nil
     }
     
-    func startGroupChat(amount: Kin, destination: PublicKey) async throws -> ChatID {
+    func startGroupChat(name: String, amount: Kin, destination: PublicKey) async throws -> ChatID {
         let intentID = try await paymentClient.payForRoom(
             request: .create(userID, amount),
             organizer: organizer,
@@ -625,7 +625,8 @@ class ChatController: ObservableObject {
         )
         
         let description = try await client.startGroupChat(
-            with: [userID],
+            name: name,
+            users: [userID],
             intentID: intentID,
             owner: owner
         )

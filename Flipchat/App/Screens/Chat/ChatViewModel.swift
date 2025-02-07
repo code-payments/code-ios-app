@@ -26,6 +26,8 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingPayForMessage: Bool = false
     
+    @Published var isShowingEnterRoomName: Bool = false
+    
     @Published var isShowingCreatePayment: Bool = false
     
     @Published var isShowingCreateAccountFromChats: Bool = false
@@ -226,6 +228,10 @@ class ChatViewModel: ObservableObject {
         isShowingChangeRoomName = true
     }
     
+    func dismissEnterRoomName() {
+        isShowingEnterRoomName = false
+    }
+    
     func dismissCustomize() {
         isShowingCustomize = false
     }
@@ -299,19 +305,39 @@ class ChatViewModel: ObservableObject {
         }
         
         if session.hasSufficientFunds(for: session.userFlags.startGroupCost) {
-            isShowingCreatePayment = true
+            isShowingEnterRoomName = true
         } else {
             showInsufficientFundsError()
+        }
+    }
+    
+    func continueToRoomPayment() {
+        let roomName = enteredRoomName
+        withButtonState(state: \.buttonStateEnterRoomName) { [client] in
+            try await client.validateChatName(name: roomName)
+            
+        } success: { isValid in
+            if isValid {
+                self.dismissEnterRoomName()
+                self.isShowingCreatePayment = true
+            } else {
+                self.showInappropriateRoomNameError()
+            }
+            
+        } error: { error in
+            self.showGenericError()
         }
     }
     
     func createChat() async throws {
         let userFlags = session.userFlags
         let chatID = try await chatController.startGroupChat(
+            name: enteredRoomName,
             amount: userFlags.startGroupCost,
             destination: userFlags.feeDestination
         )
         
+        enteredRoomName = ""
         pushChat(chatID: chatID)
     }
     

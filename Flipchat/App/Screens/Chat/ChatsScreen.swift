@@ -93,6 +93,9 @@ struct ChatsScreen: View {
         .sheet(isPresented: $viewModel.isShowingEnterRoomNumber) {
             EnterRoomNumberScreen(viewModel: viewModel)
         }
+        .sheet(isPresented: $viewModel.isShowingEnterRoomName) {
+            EnterRoomNameScreen(viewModel: viewModel)
+        }
         .sheet(isPresented: $viewModel.isShowingCreatePayment) {
             PartialSheet {
                 ModalPaymentConfirmation(
