@@ -17,6 +17,7 @@ struct MemberGrid: View {
     let shareRoomNumber: RoomNumber?
     let isClosed: Bool
     let canEdit: Bool
+    let memberActionEnabled: Bool
     let memberAction: ((Member) -> Void)?
     let editAction: (() -> Void)?
     
@@ -29,13 +30,14 @@ struct MemberGrid: View {
     
     @Namespace private var namespace: Namespace.ID
     
-    init(chatName: String, avatarData: Data, members: [Member], shareRoomNumber: RoomNumber? = nil, isClosed: Bool = false, canEdit: Bool, memberAction: ((Member) -> Void)?, editAction: (() -> Void)?) {
+    init(chatName: String, avatarData: Data, members: [Member], shareRoomNumber: RoomNumber? = nil, isClosed: Bool = false, canEdit: Bool, memberActionEnabled: Bool, memberAction: ((Member) -> Void)?, editAction: (() -> Void)?) {
         self.chatName = chatName
         self.avatarData = avatarData
         self.members = members
         self.shareRoomNumber = shareRoomNumber
         self.isClosed = isClosed
         self.canEdit = canEdit
+        self.memberActionEnabled = memberActionEnabled
         self.memberAction = memberAction
         self.editAction = editAction
         
@@ -135,6 +137,7 @@ struct MemberGrid: View {
     }
     
     @ViewBuilder private func user(member: Member, defaultName: String) -> some View {
+        let actionEnabled = memberActionEnabled && !member.isSelf
         Button {
             // No action
         } label: {
@@ -155,10 +158,11 @@ struct MemberGrid: View {
             .frame(width: size)
             .aspectRatio(contentMode: .fit)
         }
+        .disabled(!actionEnabled)
         .buttonStyle(MemberGridButtonStyle())
         .simultaneousGesture(LongPressGesture().onEnded { _ in
             memberAction?(member)
-        })
+        }, isEnabled: actionEnabled)
         .matchedGeometryEffect(id: member.id, in: namespace)
 //        .transition(.move(edge: .top).combined(with: .opacity))
     }

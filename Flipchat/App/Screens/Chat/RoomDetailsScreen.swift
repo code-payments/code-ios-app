@@ -65,13 +65,15 @@ struct RoomDetailsScreen: View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
                 if let room {
+                    let isSelfHost = room.room.ownerUserID == userID.uuid
                     MemberGrid(
                         chatName: room.room.formattedTitle,
                         avatarData: room.room.serverID.data,
                         members: gridMembers,
                         shareRoomNumber: room.room.roomNumber,
                         isClosed: !room.room.isOpen,
-                        canEdit: room.room.ownerUserID == userID.uuid,
+                        canEdit: isSelfHost,
+                        memberActionEnabled: isSelfHost,
                         memberAction: memberAction,
                         editAction: {
                             viewModel.showChangeRoomName(existingName: room.room.title)
