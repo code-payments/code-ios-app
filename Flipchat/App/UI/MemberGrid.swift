@@ -133,34 +133,41 @@ struct MemberGrid: View {
     }
     
     @ViewBuilder private func user(member: Member, defaultName: String) -> some View {
-        let actionEnabled = memberActionEnabled && !member.isSelf
-        Button {
-            // No action
-        } label: {
-            VStack {
-                UserGeneratedAvatar(
-                    data: member.id.data,
-                    diameter: size,
-                    isHost: member.isModerator
-                )
-                
-                Text(member.name ?? "Speaker")
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.9)
-                    .lineLimit(2)
-                    .font(.appTextHeading)
-                    .frame(height: 30, alignment: .topLeading)
-            }
-            .frame(width: size)
-            .aspectRatio(contentMode: .fit)
+        VStack {
+            UserGeneratedAvatar(
+                data: member.id.data,
+                diameter: size,
+                isHost: member.isModerator
+            )
+            
+            Text(member.name ?? "Speaker")
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.9)
+                .lineLimit(2)
+                .font(.appTextHeading)
+                .frame(height: 30, alignment: .topLeading)
         }
-        .disabled(!actionEnabled)
-        .buttonStyle(MemberGridButtonStyle())
-        .simultaneousGesture(LongPressGesture().onEnded { _ in
-            memberAction?(member)
-        }, isEnabled: actionEnabled)
-        .matchedGeometryEffect(id: member.id, in: namespace)
+        .frame(width: size)
+        .aspectRatio(contentMode: .fit)
 //        .transition(.move(edge: .top).combined(with: .opacity))
+        .matchedGeometryEffect(id: member.id, in: namespace)
+        .onLongPressGesture {
+            memberAction?(member)
+        }
+        
+//        let actionEnabled = memberActionEnabled && !member.isSelf
+//        Button {
+//            // No action
+//        } label: {
+//            
+//        }
+//        .disabled(!actionEnabled)
+//        .buttonStyle(MemberGridButtonStyle())
+//        .simultaneousGesture(LongPressGesture().onEnded { _ in
+//            memberAction?(member)
+//        }, isEnabled: actionEnabled)
+//        .matchedGeometryEffect(id: member.id, in: namespace)
+
     }
     
     private func title(_ text: String) -> some View {
@@ -185,16 +192,16 @@ struct MemberGrid: View {
     }
 }
 
-private struct MemberGridButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white.opacity(configuration.isPressed ? 0.1 : 0.0))
-                    .padding(-8)
-            )
-    }
-}
+//private struct MemberGridButtonStyle: ButtonStyle {
+//    func makeBody(configuration: Configuration) -> some View {
+//        configuration.label
+//            .background(
+//                RoundedRectangle(cornerRadius: 8)
+//                    .fill(Color.white.opacity(configuration.isPressed ? 0.1 : 0.0))
+//                    .padding(-8)
+//            )
+//    }
+//}
 
 extension MemberGrid {
     struct Member: Identifiable, Equatable {
