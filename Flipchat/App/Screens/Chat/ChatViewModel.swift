@@ -341,6 +341,11 @@ class ChatViewModel: ObservableObject {
         pushChat(chatID: chatID)
     }
     
+    func cancelRoomPayment() {
+        enteredRoomName = ""
+        isShowingCreatePayment = false
+    }
+    
     // MARK: - Pay to Message -
     
     func attemptPayForMessage(postAction: () -> Void) {

@@ -106,8 +106,8 @@ struct ChatsScreen: View {
                     paymentAction: {
                         try await viewModel.createChat()
                     },
-                    dismissAction: { viewModel.isShowingCreatePayment = false },
-                    cancelAction: { viewModel.isShowingCreatePayment = false }
+                    dismissAction: { viewModel.cancelRoomPayment() },
+                    cancelAction: { viewModel.cancelRoomPayment() }
                 )
             }
         }
