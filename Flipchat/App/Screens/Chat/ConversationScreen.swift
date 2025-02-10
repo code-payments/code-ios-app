@@ -398,25 +398,29 @@ struct ConversationScreen: View {
     }
     
     @ViewBuilder private func titleItem() -> some View {
-        HStack(spacing: 10) {
-            RoomGeneratedAvatar(data: chatID.data, diameter: 30)
-            
-            if let roomDescription = updateableRoom.value {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(roomDescription.room.formattedTitle)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                        .font(.appTextMedium)
-                        .foregroundColor(.textMain)
-                    
-                    Text(String.formattedListenerCount(count: roomDescription.memberCount))
-                        .lineLimit(1)
-                        .font(.appTextHeading)
-                        .foregroundColor(.textSecondary)
+        Button {
+            containerViewModel.pushDetails(chatID: chatID)
+        } label: {
+            HStack(spacing: 10) {
+                RoomGeneratedAvatar(data: chatID.data, diameter: 30)
+                
+                if let roomDescription = updateableRoom.value {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(roomDescription.room.formattedTitle)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .font(.appTextMedium)
+                            .foregroundColor(.textMain)
+                        
+                        Text(String.formattedListenerCount(count: roomDescription.memberCount))
+                            .lineLimit(1)
+                            .font(.appTextHeading)
+                            .foregroundColor(.textSecondary)
+                    }
                 }
+                
+                Spacer()
             }
-            
-            Spacer()
         }
     }
     
