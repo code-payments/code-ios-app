@@ -68,7 +68,7 @@ struct EnterRoomNameScreen: View {
             .onAppear(perform: onAppear)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(action: viewModel.dismissChangeRoomName)
+                    ToolbarCloseButton(action: viewModel.cancelEnterRoomName)
                 }
             }
         }

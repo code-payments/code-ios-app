@@ -154,6 +154,10 @@ class ChatViewModel: ObservableObject {
         enteredNewCover = ""
     }
     
+    private func resetEnteredRoomName() {
+        enteredRoomName = ""
+    }
+    
     // MARK: - Preview Chat -
     
     func previewChat() {
@@ -248,7 +252,7 @@ class ChatViewModel: ObservableObject {
         isShowingChangeRoomName = false
         Task {
             try await Task.delay(milliseconds: 500)
-            enteredRoomName = ""
+            resetEnteredRoomName()
         }
     }
     
@@ -305,6 +309,7 @@ class ChatViewModel: ObservableObject {
         }
         
         if session.hasSufficientFunds(for: session.userFlags.startGroupCost) {
+            resetEnteredRoomName()
             isShowingEnterRoomName = true
         } else {
             showInsufficientFundsError()
@@ -337,12 +342,15 @@ class ChatViewModel: ObservableObject {
             destination: userFlags.feeDestination
         )
         
-        enteredRoomName = ""
+        resetEnteredRoomName()
         pushChat(chatID: chatID)
     }
     
+    func cancelEnterRoomName() {
+        isShowingEnterRoomName = false
+    }
+    
     func cancelRoomPayment() {
-        enteredRoomName = ""
         isShowingCreatePayment = false
     }
     
