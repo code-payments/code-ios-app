@@ -88,7 +88,7 @@ extension Route {
             case "login":
                 return .login
                 
-            case "room", "r":
+            case "room", "r", "id", "number":
                 guard components.count == 2 else {
                     throw Error.invalidRoomURL
                 }

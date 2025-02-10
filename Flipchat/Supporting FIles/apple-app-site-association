@@ -27,6 +27,14 @@
           {
             "/": "/u/*",
             "comment": "Support for users"
+          },
+          {
+            "/": "/id/*",
+            "comment": "Support for room ids"
+          },
+          {
+            "/": "/number/*",
+            "comment": "Support for room numbers"
           }
         ]
       }
