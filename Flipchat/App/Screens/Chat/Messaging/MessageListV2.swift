@@ -216,6 +216,10 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         Task {
             try await chatController.receiveMessages(messages: messages, for: chatID)
             try await advanceReadPointer()
+            
+            if isAroundBottom {
+                scrollTo(configuration: .init(destination: .bottom, animated: true))
+            }
         }
     }
     
@@ -251,18 +255,18 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         let (messages, unreadIndex) = rows.messageDescriptions(userID: userID, unread: unread)
         
         // Determine if we should scroll to the bottom
-        let lastNewMessageID = messages.last?.kind.messageRow?.message.serverID
-        let lastCurrentMessageID = self.messages.last?.kind.messageRow?.message.serverID
-        var shouldScroll = false
-        if
-            let lastNewMessageID,
-            let lastCurrentMessageID,
-            lastNewMessageID > lastCurrentMessageID, // Only scroll if there's newer messages
-            isAroundBottom, // Only scroll if we're close to the bottom
-            !self.messages.isEmpty // Only scroll if we're updating not initializing the list
-        {
-            shouldScroll = true
-        }
+//        let lastNewMessageID = messages.last?.kind.messageRow?.message.serverID
+//        let lastCurrentMessageID = self.messages.last?.kind.messageRow?.message.serverID
+//        var shouldScroll = false
+//        if
+//            let lastNewMessageID,
+//            let lastCurrentMessageID,
+//            lastNewMessageID > lastCurrentMessageID, // Only scroll if there's newer messages
+//            isAroundBottom, // Only scroll if we're close to the bottom
+//            !self.messages.isEmpty // Only scroll if we're updating not initializing the list
+//        {
+//            shouldScroll = true
+//        }
         
         self.messages = messages
         self.unreadBannerIndex = unreadIndex
@@ -271,9 +275,9 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
             reload()
             
             // Scroll after the table view has reloaded
-            if shouldScroll {
-                animateToBottom()
-            }
+//            if shouldScroll {
+//                animateToBottom()
+//            }
         }
     }
     
