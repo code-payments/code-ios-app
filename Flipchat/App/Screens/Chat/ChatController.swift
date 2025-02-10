@@ -11,8 +11,6 @@ import FlipchatServices
 @MainActor
 class ChatController: ObservableObject {
     
-    @Published private(set) var chatsDidChange: Int = 0
-    
     @Published private(set) var isSyncInProgress: Bool = false
     
     var isRegistered: Bool {
@@ -49,11 +47,6 @@ class ChatController: ObservableObject {
         self.database  = try! Self.initializeDatabase(userID: userID)
         
         streamChatEvents()
-        
-        database.commit = { [weak self] in
-            self?.chatsChanged()
-        }
-        
         startSync()
     }
     
@@ -74,11 +67,6 @@ class ChatController: ObservableObject {
     
     deinit {
         trace(.warning, components: "Deallocating ChatController.")
-    }
-    
-    private func chatsChanged() {
-        chatsDidChange += 1
-        print("[CHATS CHANGED]")
     }
     
     func prepareForLogout() {
@@ -147,6 +135,10 @@ class ChatController: ObservableObject {
             isSyncInProgress = true
         }
         
+        defer {
+            isSyncInProgress = false
+        }
+        
         // 1. Fetch the chat list. For each of these chats
         // we'll need to fetch messages separately
         let chats = try await client.fetchChats(owner: owner)
@@ -172,10 +164,9 @@ class ChatController: ObservableObject {
         // 3. Global pass to update isDeleted for all
         // messages that have been referenced in
         // 'delete message' message types
-        try database.markMessagesDeletedIfNeeded()
-        
-        isSyncInProgress = false
-        chatsChanged()
+        try database.transaction {
+            try $0.markMessagesDeletedIfNeeded()
+        }
 
         return totalSynced
     }
