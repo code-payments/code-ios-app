@@ -77,10 +77,6 @@ struct MemberGrid: View {
                                             .lineLimit(2)
                                             .font(.appDisplaySmall)
                                         
-                                        Text(String.formattedPeopleCount(count: members.count))
-                                            .font(.appTextHeading)
-                                            .foregroundStyle(Color.textSecondary)
-                                        
                                         HStack {
                                             if isClosed {
                                                 Text("This Flipchat is currently closed")
