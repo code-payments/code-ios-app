@@ -422,6 +422,7 @@ struct ConversationScreen: View {
                 Spacer()
             }
         }
+        .buttonStyle(.plain)
     }
     
     @ViewBuilder private func moreItem() -> some View {
