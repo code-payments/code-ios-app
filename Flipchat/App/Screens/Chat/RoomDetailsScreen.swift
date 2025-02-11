@@ -140,6 +140,11 @@ struct RoomDetailsScreen: View {
     // MARK: - Actions -
     
     private func memberAction(member: MemberGrid.Member) {
+        let isHost = room?.room.ownerUserID == userID.uuid
+        guard isHost else {
+            return
+        }
+        
         let name = member.name ?? ""
         let userID = UserID(uuid: member.id)
         
