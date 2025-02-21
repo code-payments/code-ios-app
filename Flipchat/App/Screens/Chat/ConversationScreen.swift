@@ -18,7 +18,7 @@ struct ConversationScreen: View {
     @ObservedObject private var chatViewModel: ChatViewModel
     @ObservedObject private var session: Session
     
-    @State private var input: String = ""
+    @State private var focusConfiguration: FocusConfiguration?
     
     @State private var scrollConfiguration: ScrollConfiguration?
     
@@ -28,11 +28,11 @@ struct ConversationScreen: View {
     
     @State private var isShowingOpenClose: Bool = false
     
+    @State private var listenerMessage: ListenerMessage?
+    
     @State private var tipUsers: TipUsers?
     
     @State private var messageTip: MessageTip?
-    
-    @FocusState private var isEditorFocused: Bool
     
     private let chatID: ChatID
     private let state: AuthenticatedState
@@ -81,6 +81,10 @@ struct ConversationScreen: View {
     
     private var isInputVisible: Bool {
         (chatController.isRegistered && canSend) || chatViewModel.isShowingInputForPaidMessage
+    }
+    
+    private var canType: Bool {
+        !isUserMuted && (isRoomOpen || isSelfHost) && isInputVisible
     }
     
     // MARK: - Init -
@@ -137,19 +141,25 @@ struct ConversationScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(spacing: 0) {
-                ScrollBox(color: .backgroundMain, edgePadding: 12) {
+                ScrollBox(color: .backgroundMain, ignoreEdges: [.bottom], edgePadding: 12) {
                     MessagesListController(
+                        delegate: self,
                         chatController: chatController,
                         userID: userID,
                         chatID: chatID,
+                        canType: canType,
+                        descriptionView: descriptionView,
+                        focus: $focusConfiguration,
                         scroll: $scrollConfiguration,
                         action: { action in
                             Task {
                                 try await messageAction(action: action)
                             }
                         },
-                        loadMore: {}
+                        showReply: replyMessage != nil && isInputVisible,
+                        replyView: replyView
                     )
+                    .ignoresSafeArea(.keyboard)
                 }
                 .sheet(isPresented: $chatViewModel.isShowingCreateAccountFromConversation) {
                     CreateAccountScreen(
@@ -162,35 +172,6 @@ struct ConversationScreen: View {
                             sendMessageAsListener()
                         }
                     )
-                }
-                
-                // Bottom control
-                
-                if isUserMuted {
-                    mutedView()
-                    
-                } else if !isRoomOpen && !isSelfHost {
-                    roomClosedView()
-                    
-                } else {
-                    if isInputVisible {
-                        VStack(spacing: 0) {
-                            if isShowingOpenClose {
-                                openCloseView(isOpen: isRoomOpen)
-                                    .transition(.move(edge: .bottom))
-                            }
-                            inputView()
-                        }
-                    } else {
-                        CodeButton(
-                            style: .filled,
-                            title: "Listener Message: \(messageCost.formattedTruncatedKin())",
-                            action: sendMessageAsListener
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 10)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: chatViewModel.isShowingInputForPaidMessage)
@@ -250,24 +231,46 @@ struct ConversationScreen: View {
                 }
             )
         }
-        .sheet(isPresented: $chatViewModel.isShowingPayForMessage) {
+        .sheet(item: $listenerMessage) { listenerMessage in
             PartialSheet {
                 ModalPaymentConfirmation(
                     amount: messageCost.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
                     currency: .kin,
                     primaryAction: "Swipe to Pay",
                     secondaryAction: "Cancel",
-                    paymentAction: { [input] in
-                        solicitMessage(text: input)
+                    paymentAction: {
+                        solicitMessage(text: listenerMessage.text)
                     },
-                    dismissAction: { chatViewModel.cancelMessagePayment() },
-                    cancelAction:  { chatViewModel.cancelMessagePayment() }
+                    dismissAction: { cancelMessagePayment() },
+                    cancelAction:  { cancelMessagePayment() }
                 )
             }
         }
     }
     
-    @ViewBuilder private func inputView() -> some View {
+    @ViewBuilder private func descriptionView() -> some View {
+        VStack {
+            if isUserMuted {
+                mutedView()
+                
+            } else if !isRoomOpen && !isSelfHost {
+                roomClosedView()
+                
+            } else if !isInputVisible {
+                CodeButton(
+                    style: .filledThin,
+                    title: "Listener Message: \(messageCost.formattedTruncatedKin())",
+                    action: sendMessageAsListener
+                )
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: canType)
+    }
+    
+    @ViewBuilder private func replyView() -> some View {
         VStack(alignment: .leading) {
             if let replyMessage {
                 MessageReplyBanner(
@@ -275,55 +278,85 @@ struct ConversationScreen: View {
                     content: replyMessage.message.content
                 ) {
                     self.replyMessage = nil
-                }
+                }.transition(.move(edge: .bottom))
             }
-            HStack(alignment: .bottom) {
-                conversationTextView()
-                    .focused($isEditorFocused)
-                    .font(.appTextMessage)
-                    .foregroundColor(.backgroundMain)
-                    .tint(.backgroundMain)
-                    .multilineTextAlignment(.leading)
-                    .frame(minHeight: 36, maxHeight: 95, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 5)
-                    .background(.white)
-                    .cornerRadius(20)
-                
-                Button {
-                    messageAction(text: input)
-                } label: {
-                    Image.asset(.paperplane)
-                        .resizable()
-                        .frame(width: 36, height: 36, alignment: .center)
-                }
-                .disabled(input.isEmpty)
-            }
-            .padding(.horizontal, 15)
-            .padding(.top, 5)
-            .padding(.bottom, 8)
+            
+//            if isShowingOpenClose {
+//                openCloseView(isOpen: isRoomOpen)
+//                    .transition(.move(edge: .bottom))
+//            }
         }
         .animation(.easeInOut(duration: 0.2), value: replyMessage)
-        .onChange(of: isEditorFocused) { _, focused in
-            if focused, shouldScrollOnFocus {
-                Task {
-                    try await Task.delay(milliseconds: 250)
-                    scrollToBottom(animated: true)
-                }
-            }
-            
-            if !focused && chatViewModel.isShowingInputForPaidMessage {
-                chatViewModel.isShowingInputForPaidMessage = false
-            }
-            
-            setOpenClose(visible: !focused, animated: true)
-            
-            // Reset to default
-            Task {
-                shouldScrollOnFocus = true
-            }
-        }
     }
+    
+//    @ViewBuilder private func inputView() -> some View {
+//        VStack(alignment: .leading) {
+////            if let replyMessage {
+////                MessageReplyBanner(
+////                    name: replyMessage.member.displayName ?? "Unknown",
+////                    content: replyMessage.message.content
+////                ) {
+////                    self.replyMessage = nil
+////                }
+////            }
+//            
+////            if isShowingOpenClose {
+////                openCloseView(isOpen: isRoomOpen)
+////                    .transition(.move(edge: .bottom))
+////            }
+//            
+//            HStack(alignment: .top) {
+//                TextEditor(text: $input)
+//                    .backportScrollContentBackground(.hidden)
+////                    .scrollDismissesKeyboard(.never)
+//                    .focused($isEditorFocused)
+//                    .font(.appTextMessage)
+//                    .foregroundColor(.backgroundMain)
+//                    .tint(.backgroundMain)
+//                    .multilineTextAlignment(.leading)
+//                    .frame(minHeight: 36, maxHeight: 95, alignment: .leading)
+//                    .fixedSize(horizontal: false, vertical: true)
+//                    .padding(.horizontal, 5)
+//                    .background(.white)
+//                    .cornerRadius(20)
+//                    .ignoresSafeArea(.keyboard)
+//                
+//                Button {
+//                    messageAction(text: input)
+//                } label: {
+//                    Image.asset(.paperplane)
+//                        .resizable()
+//                        .frame(width: 36, height: 36, alignment: .center)
+//                }
+//                .disabled(input.isEmpty)
+//            }
+//            .padding(.horizontal, 15)
+//            .padding(.top, 5)
+//            .padding(.bottom, 8)
+//        }
+////        .animation(.easeInOut(duration: 0.2), value: isShowingOpenClose)
+//        .onChange(of: isEditorFocused) { _, focused in
+////            if focused, shouldScrollOnFocus {
+////                Task {
+////                    try await Task.delay(milliseconds: 250)
+////                    scrollToBottom(animated: true)
+////                }
+////            }
+//            
+//            if !focused && chatViewModel.isShowingInputForPaidMessage {
+//                chatViewModel.isShowingInputForPaidMessage = false
+//            }
+//            
+//            setOpenClose(visible: !focused, animated: true)
+//            
+//            // Reset to default
+//            Task {
+//                shouldScrollOnFocus = true
+//            }
+//        }
+//        .frame(height: 50)
+//        .background(.green)
+//    }
     
     @ViewBuilder private func mutedView() -> some View {
         VStack {
@@ -438,18 +471,15 @@ struct ConversationScreen: View {
         .buttonStyle(.plain)
     }
     
-    @ViewBuilder private func conversationTextView() -> some View {
-        if #available(iOS 16.0, *) {
-            TextEditor(text: $input)
-                .backportScrollContentBackground(.hidden)
-                .scrollDismissesKeyboard(.never)
-        } else {
-            TextEditor(text: $input)
-                .backportScrollContentBackground(.hidden)
-        }
-    }
-    
     // MARK: - Actions -
+    
+    private func cancelMessagePayment() {
+        listenerMessage = nil
+        
+        // The "pay to message" button move the table view up
+        // so we need to scroll to bottom to realign the edge
+        scrollConfiguration = .init(destination: .bottom, animated: true)
+    }
     
     private func messageAction(action: MessageAction) async throws {
         switch action {
@@ -555,7 +585,7 @@ struct ConversationScreen: View {
             
             replyMessage = messageRow
             shouldScrollOnFocus = false
-            isEditorFocused = true
+            focusConfiguration = .init(focused: true)
             
         case .linkTo(let roomNumber):
             chatViewModel.previewChat(
@@ -581,7 +611,7 @@ struct ConversationScreen: View {
             )
             
         case .promoteUser(let name, let userID, let chatID):
-            isEditorFocused = false
+            focusConfiguration = .init(focused: false)
             
             // Gives the context menu time to animate
             try await Task.delay(milliseconds: 200)
@@ -602,7 +632,7 @@ struct ConversationScreen: View {
             )
             
         case .demoteUser(let name, let userID, let chatID):
-            isEditorFocused = false
+            focusConfiguration = .init(focused: false)
             
             // Gives the context menu time to animate
             try await Task.delay(milliseconds: 200)
@@ -634,11 +664,14 @@ struct ConversationScreen: View {
 //        }
 //    }
     
-    private func messageAction(text: String) {
+    private func messageAction(text: String) -> Bool {
         if chatViewModel.isShowingInputForPaidMessage {
-            chatViewModel.showMessagePayment()
+            listenerMessage = .init(text: text)
+            focusConfiguration = .init(focused: false)
+            return false
         } else {
             sendMessage(text: text)
+            return true
         }
     }
     
@@ -648,7 +681,7 @@ struct ConversationScreen: View {
             // no other dependencies for send message
             Task {
                 try await Task.delay(milliseconds: 200)
-                isEditorFocused = true
+                focusConfiguration = .init(focused: true)
             }
         }
     }
@@ -658,8 +691,6 @@ struct ConversationScreen: View {
             return
         }
         
-        isEditorFocused = false
-        
         Task {
             try await chatViewModel.solicitMessage(
                 text: text,
@@ -668,7 +699,7 @@ struct ConversationScreen: View {
                 amount: messageCost
             )
             
-            clearInput()
+//            clearInput()
             
             try await Task.delay(milliseconds: 150)
             
@@ -688,7 +719,7 @@ struct ConversationScreen: View {
                 replyingTo: MessageID(uuid: replyMessage?.message.serverID)
             )
             
-            clearInput()
+//            clearInput()
             
             try await Task.delay(milliseconds: 150)
             
@@ -696,10 +727,10 @@ struct ConversationScreen: View {
         }
     }
     
-    private func clearInput() {
-        input = ""
-        replyMessage = nil
-    }
+//    private func clearInput() {
+//        input = ""
+//        replyMessage = nil
+//    }
     
     private func scrollToBottom(animated: Bool = false) {
         scrollConfiguration = .init(destination: .bottom, animated: animated)
@@ -730,6 +761,24 @@ struct ConversationScreen: View {
             ]
         )
     }
+}
+
+extension ConversationScreen: @preconcurrency MessageListControllerDelegate {
+    func messageListControllerKeyboardDismissed() {
+        if chatViewModel.isShowingInputForPaidMessage {
+            chatViewModel.isShowingInputForPaidMessage = false
+        }
+    }
+    
+    func messageListControllerWillSendMessage(text: String) -> Bool {
+        messageAction(text: text)
+    }
+}
+
+struct ListenerMessage: Identifiable {
+    public var id: String { text }
+    
+    var text: String
 }
 
 struct MessageTip: Identifiable {

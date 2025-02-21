@@ -11,41 +11,105 @@ import CodeUI
 
 typealias MessageActionHandler = (MessageAction) -> Void
 
-struct MessagesListController: UIViewControllerRepresentable {
+protocol MessageListControllerDelegate {
+    func messageListControllerKeyboardDismissed()
+    func messageListControllerWillSendMessage(text: String) -> Bool
+}
+
+struct MessagesListController<DescriptionView, AccessoryView>: UIViewControllerRepresentable where DescriptionView: View, AccessoryView: View {
+    
+    var delegate: MessageListControllerDelegate?
     
     let chatController: ChatController
     let userID: UserID
     let chatID: ChatID
+    let canType: Bool
+    let descriptionView: () -> DescriptionView
+    let focus: Binding<FocusConfiguration?>
     let scroll: Binding<ScrollConfiguration?>
     let action: MessageActionHandler
-    let loadMore: () async throws -> Void
+    let showReply: Bool
+    let replyView: () -> AccessoryView
+    
+    init(delegate: MessageListControllerDelegate?, chatController: ChatController, userID: UserID, chatID: ChatID, canType: Bool, @ViewBuilder descriptionView: @escaping () -> DescriptionView, focus: Binding<FocusConfiguration?>, scroll: Binding<ScrollConfiguration?>, action: @escaping MessageActionHandler, showReply: Bool, @ViewBuilder replyView: @escaping () -> AccessoryView) {
+        self.delegate = delegate
+        self.chatController = chatController
+        self.userID = userID
+        self.chatID = chatID
+        self.canType = canType
+        self.descriptionView = descriptionView
+        self.focus = focus
+        self.scroll = scroll
+        self.action = action
+        self.showReply = showReply
+        self.replyView = replyView
+    }
 
-    func makeUIViewController(context: Context) -> _MessagesListController {
+    func makeUIViewController(context: Context) -> _MessagesListController<DescriptionView, AccessoryView> {
         let controller = _MessagesListController(
             chatController: chatController,
             userID: userID,
             chatID: chatID,
+            canType: canType,
+            descriptionView: descriptionView,
+            focus: focus,
             scroll: scroll,
             action: action,
-            loadMore: loadMore
+            showReply: showReply,
+            replyView: replyView
         )
+        
+        controller.delegate = delegate
         
         return controller
     }
 
-    func updateUIViewController(_ controller: _MessagesListController, context: Context) {
+    func updateUIViewController(_ controller: _MessagesListController<DescriptionView, AccessoryView>, context: Context) {
+        controller.delegate = delegate
+        controller.descriptionView = descriptionView
+        controller.replyView = replyView
+        controller.canType = canType
+        controller.showReply = showReply
+        
         controller.set(scroll: scroll)
+        controller.set(focus: focus)
     }
 }
 
 @MainActor
-class _MessagesListController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+class _MessagesListController<DescriptionView, AccessoryView>: UIViewController, UITableViewDataSource, UITableViewDelegate where DescriptionView: View, AccessoryView: View {
+    
+    var delegate: MessageListControllerDelegate?
     
     let chatController: ChatController
     let userID: UserID
     let chatID: ChatID
     let action: MessageActionHandler
-    let loadMore: () async throws -> Void
+    
+    var descriptionView: () -> DescriptionView {
+        didSet {
+            hostingDescription?.rootView = descriptionView()
+        }
+    }
+    
+    var canType: Bool {
+        didSet {
+            updateTableContentOffsetAndInsets()
+            setInput(visible: canType)
+        }
+    }
+    
+    var showReply: Bool {
+        didSet {
+            setReply(visible: showReply)
+        }
+    }
+    
+    var replyView: () -> AccessoryView {
+        didSet {
+            hostingAccessory?.rootView = replyView()
+        }
+    }
     
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let scrollButton = UIButton(type: .custom)
@@ -58,10 +122,24 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
     private var state: ConversationState!
     
     private var messages: [MessageDescription]
+    private var focus: Binding<FocusConfiguration?>?
     private var scroll: Binding<ScrollConfiguration?>?
     private var unreadBannerIndex: Int?
     
     private var stream: StreamMessagesReference?
+    
+    private var inputBar = MessageInputBar(frame: .zero)
+    private var hostingDescription: UIHostingController<DescriptionView>?
+    private var hostingAccessory: UIHostingController<AccessoryView>?
+    
+    private var lastKnownInputHeight: CGFloat?
+    private var lastKnownKeyboardHeight: CGFloat = 0
+    
+    private var accessoryShownConstraint: NSLayoutConstraint?
+    private var accessoryHiddenConstraint: NSLayoutConstraint?
+    
+    private let replyViewHeight: CGFloat = 55
+    private let descriptionViewHeight: CGFloat = 52
     
     // MARK: - Init -
     
@@ -69,17 +147,25 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         chatController: ChatController,
         userID: UserID,
         chatID: ChatID,
+        canType: Bool,
+        @ViewBuilder descriptionView: @escaping () -> DescriptionView,
+        focus: Binding<FocusConfiguration?>?,
         scroll: Binding<ScrollConfiguration?>?,
         action: @escaping MessageActionHandler,
-        loadMore: @escaping () async throws -> Void
+        showReply: Bool,
+        @ViewBuilder replyView: @escaping () -> AccessoryView
     ) {
         self.chatController = chatController
         self.userID         = userID
         self.chatID         = chatID
+        self.canType        = canType
+        self.descriptionView = descriptionView
+        self.focus          = focus
         self.messages       = []
+        self.showReply      = showReply
+        self.replyView      = replyView
         self.scroll         = scroll
         self.action         = action
-        self.loadMore       = loadMore
         
         super.init(nibName: nil, bundle: nil)
         
@@ -103,6 +189,9 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
     }
     
     private func setupViews() {
+        
+        // Table View
+        
         tableView.dataSource = self
         tableView.delegate = self
         tableView.translatesAutoresizingMaskIntoConstraints = false
@@ -111,29 +200,77 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         tableView.backgroundColor     = .clear
         tableView.allowsSelection     = false
         tableView.estimatedRowHeight  = UITableView.automaticDimension
-        tableView.keyboardDismissMode = .interactive
-        tableView.contentInset        = .init(
-            top: 10,
-            left: 0,
-            bottom: 15,
-            right: 0
-        )
-//        tableView.transform = .init(rotationAngle: .pi * -1)
-        
+        tableView.keyboardDismissMode = .interactiveWithAccessory
         view.addSubview(tableView)
+        
+        // Scroll Button
         
         scrollButton.translatesAutoresizingMaskIntoConstraints = false
         scrollButton.setImage(UIImage.asset(.scrollBottom), for: .normal)
         scrollButton.addTarget(self, action: #selector(animateToBottom), for: .touchUpInside)
         view.addSubview(scrollButton)
         
+        // Accessory hosting view
+        
+        let hostingAccessory = UIHostingController(rootView: replyView())
+        let accessoryView = hostingAccessory.view!
+        accessoryView.translatesAutoresizingMaskIntoConstraints = false
+        accessoryView.backgroundColor = .clear
+        addChild(hostingAccessory)
+        view.addSubview(accessoryView)
+        hostingAccessory.didMove(toParent: self)
+        self.hostingAccessory = hostingAccessory
+        
+        // Input hosting view
+        
+        inputBar.delegate = self
+        inputBar.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(inputBar)
+        
+        // Accessory hosting view
+        
+        let hostingDescription = UIHostingController(rootView: descriptionView())
+        let descriptionView = hostingDescription.view!
+        descriptionView.translatesAutoresizingMaskIntoConstraints = false
+        descriptionView.backgroundColor = .backgroundMain
+        addChild(hostingDescription)
+        view.addSubview(descriptionView)
+        hostingDescription.didMove(toParent: self)
+        self.hostingDescription = hostingDescription
+        
+        // Keyboard layout guide
+        
+        view.keyboardLayoutGuide.usesBottomSafeArea = false
+
+        // Constraints
+        
+        accessoryShownConstraint = accessoryView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
+        accessoryHiddenConstraint = accessoryView.topAnchor.constraint(equalTo: inputBar.topAnchor)
+        
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
+
+            accessoryView.heightAnchor.constraint(equalToConstant: replyViewHeight),
+            accessoryView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            accessoryView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            accessoryView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
+            accessoryHiddenConstraint!,
             
-            scrollButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+            inputBar.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
+            inputBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            inputBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            inputBar.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
+            
+            descriptionView.heightAnchor.constraint(equalToConstant: descriptionViewHeight),
+            descriptionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            descriptionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            descriptionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: accessoryView.topAnchor, constant: -20).setting(priority: .defaultHigh),
+            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: descriptionView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             scrollButton.widthAnchor.constraint(equalToConstant: 40),
             scrollButton.heightAnchor.constraint(equalToConstant: 40),
@@ -156,9 +293,79 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
             startStream()
         }
         
-        NotificationCenter.default.addObserver(self, selector: #selector(databaseDidChange(notification:)), name: .databaseDidChange, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(databaseDidChange(notification:)),              name: .databaseDidChange,                            object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(applicationWillEnterForeground(notification:)), name: UIApplication.willEnterForegroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(applicationDidEnterBackground(notification:)),  name: UIApplication.didEnterBackgroundNotification,  object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardFrameWillChange), name: UIWindow.keyboardWillChangeFrameNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide),        name: UIWindow.keyboardWillHideNotification,        object: nil)
+    }
+    
+    // MARK: - Keyboard Handling -
+    
+    @objc
+    private func keyboardFrameWillChange(_ notification: Notification) {
+        guard let parameters = notification.extractKeyboardParameters(in: view) else {
+            return
+        }
+        
+        // 1. Step one is to find the intersection frame of the keyboard and
+        // out scroll view to determine how much we need to scroll the content
+        
+        let contentFrame = CGRect(
+            origin: .zero,
+            size: tableView.contentSize
+        )
+        
+        let intersectionFrame: CGRect
+        
+        // If the table view content is smaller than the bounds
+        // (ie. it doesn't scroll), we'll need to find the size
+        // of the content and intersect the keyboard frame with
+        // this content frame instead of the bounds, otherwise
+        // we'll end up scrolling up empty space from the bottom
+        if contentFrame.height <= tableView.bounds.height {
+            
+            let inputHeight = computeKeyboardAccessoryHeight()
+            
+            var completeKeyboardFrame = parameters.endFrame
+            completeKeyboardFrame.origin.y -= inputHeight
+            completeKeyboardFrame.size.height += inputHeight
+            
+            let convertedContentFrame = view.convert(contentFrame, from: tableView)
+            intersectionFrame = completeKeyboardFrame.intersection(convertedContentFrame)
+        } else {
+            intersectionFrame = parameters.endFrame.intersection(view.bounds)
+        }
+        
+        // 2. Step two is to apply the height of the intersection as
+        // an offset to the content to make the content move inline
+        // with the keyboard as it slides up and changes size
+        
+        let keyboardHeight = intersectionFrame.size.height
+        guard keyboardHeight > 0 else {
+            return
+        }
+        
+        let lastHeight = lastKnownKeyboardHeight
+        
+        let delta = keyboardHeight - lastHeight
+        var offset = self.tableView.contentOffset
+        offset.y += delta
+        self.tableView.contentOffset = offset
+        
+        print("Moving up table content by: \(delta)")
+        lastKnownKeyboardHeight += delta
+    }
+    
+    @objc
+    private func keyboardWillHide(_ notification: Notification) {
+        print("Resetting last known height.")
+        lastKnownKeyboardHeight = 0
+        
+        Task {
+            delegate?.messageListControllerKeyboardDismissed()
+        }
     }
     
     // MARK: - Database Updates -
@@ -244,6 +451,28 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
         scrollTo(configuration: config)
         DispatchQueue.main.async {
             scroll.wrappedValue = nil
+        }
+    }
+    
+    func set(focus: Binding<FocusConfiguration?>?) {
+        self.focus = focus
+        
+        consumeFocus()
+    }
+    
+    private func consumeFocus() {
+        guard let focus, let config = focus.wrappedValue else {
+            return
+        }
+        
+        if config.focused {
+            _ = inputBar.becomeFirstResponder()
+        } else {
+            _ = inputBar.resignFirstResponder()
+        }
+        
+        DispatchQueue.main.async {
+            focus.wrappedValue = nil
         }
     }
     
@@ -399,7 +628,29 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
     
     private func setScrollButton(visible: Bool) {
         UIView.animate(withDuration: 0.15) {
-            self.scrollButton.alpha = self.isAroundBottom ? 0.0 : 1.0
+            self.scrollButton.alpha = visible ? 1 : 0
+        }
+    }
+    
+    private func setInput(visible: Bool) {
+        view.layoutIfNeeded()
+        
+        UIView.animate(withDuration: 0.15) {
+            self.inputBar.alpha = visible ? 1 : 0
+            self.hostingDescription?.view.alpha = visible ? 0 : 1
+            self.view.layoutIfNeeded()
+        }
+    }
+    
+    private func setReply(visible: Bool) {
+        view.layoutIfNeeded()
+        self.accessoryShownConstraint?.isActive = visible
+        self.accessoryHiddenConstraint?.isActive = !visible
+        
+        UIView.animate(withDuration: 0.25) {
+            self.hostingAccessory?.view.alpha = visible ? 1 : 0
+            self.updateTableContentOffsetAndInsets()
+            self.view.layoutIfNeeded()
         }
     }
     
@@ -411,7 +662,6 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath) as! MessageTableCell
-//        cell.transform = .init(rotationAngle: .pi)
         
         let message = messages[indexPath.row]
         let width = message.messageWidth(in: tableView.frame.size).width
@@ -628,6 +878,68 @@ class _MessagesListController: UIViewController, UITableViewDataSource, UITableV
     }
 }
 
+extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
+    func textContentHeightDidChange() {
+        updateTableContentOffsetAndInsets()
+    }
+    
+    func willSendMessage(text: String) -> Bool {
+        delegate?.messageListControllerWillSendMessage(text: text) ?? false
+    }
+    
+    private func computeKeyboardAccessoryHeight() -> CGFloat {
+        var height: CGFloat = 0
+        
+        if canType {
+            height += inputBar.frame.height
+        } else {
+            height += descriptionViewHeight
+        }
+        
+        if showReply {
+            height += replyViewHeight
+        }
+        
+        return height
+    }
+    
+    private func updateTableContentOffsetAndInsets() {
+        let height = computeKeyboardAccessoryHeight()
+        
+        // 1. Update tableview content offset first
+        if let lastKnownInputHeight {
+            let delta = height - lastKnownInputHeight
+            if delta != 0 {
+                tableView.contentOffset.y += delta
+                print("Last known: \(lastKnownInputHeight), new height: \(height), delta: \(delta)")
+            }
+        }
+        
+        // 2. Update keyboard dismiss padding
+        view.keyboardLayoutGuide.keyboardDismissPadding = height
+        
+        // 3. Update content insets and scroll insets
+        var insets: UIEdgeInsets = .init(
+            top: 0, // 10
+            left: 0,
+            bottom: 0, // 15
+            right: 0
+        )
+        
+        insets.bottom += height
+        
+        // Setting the content inset AFTER
+        // updating the contentOffset results
+        // in smoother and more predictable
+        // placement. Otherwise, we get a shift
+        
+        tableView.contentInset = insets
+        tableView.scrollIndicatorInsets = insets
+        
+        lastKnownInputHeight = height
+    }
+}
+
 // MARK: - State -
 
 @MainActor
@@ -766,6 +1078,10 @@ struct ScrollConfiguration {
         case bottom
         case row(Int)
     }
+}
+
+struct FocusConfiguration {
+    var focused: Bool
 }
 
 struct UnreadDescription {
@@ -915,5 +1231,12 @@ extension Array where Element == MessageDescription {
         }
         
         return nil
+    }
+}
+
+extension NSLayoutConstraint {
+    func setting(priority: UILayoutPriority) -> Self {
+        self.priority = priority
+        return self
     }
 }

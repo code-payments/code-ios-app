@@ -24,8 +24,6 @@ class ChatViewModel: ObservableObject {
     
     @Published var isShowingEnterRoomNumber: Bool = false
     
-    @Published var isShowingPayForMessage: Bool = false
-    
     @Published var isShowingEnterRoomName: Bool = false
     
     @Published var isShowingCreatePayment: Bool = false
@@ -364,14 +362,6 @@ class ChatViewModel: ObservableObject {
         
         isShowingInputForPaidMessage = true
         postAction()
-    }
-    
-    func showMessagePayment() {
-        isShowingPayForMessage = true
-    }
-    
-    func cancelMessagePayment() {
-        isShowingPayForMessage = false
     }
     
     func solicitMessage(text: String, chatID: ChatID, hostID: UserID, amount: Kin) async throws {
