@@ -111,6 +111,7 @@ class MessageInputBar: UIView {
             let shouldClear = delegate?.willSendMessage(text: text) ?? false
             if shouldClear {
                 textView.text = ""
+                setNeedsLayout()
             }
         }
     }
