@@ -169,7 +169,7 @@ struct ConversationScreen: View {
                             container: container,
                             isPresenting: $chatViewModel.isShowingCreateAccountFromConversation
                         ) {
-                            sendMessageAsListener()
+                            messageAsListenerAction()
                         }
                     )
                 }
@@ -232,7 +232,7 @@ struct ConversationScreen: View {
             )
         }
         .sheet(item: $listenerMessage) { listenerMessage in
-            PartialSheet {
+            PartialSheet(canDismiss: false) {
                 ModalPaymentConfirmation(
                     amount: messageCost.formattedFiat(rate: .oneToOne, truncated: true, showOfKin: true),
                     currency: .kin,
@@ -241,8 +241,8 @@ struct ConversationScreen: View {
                     paymentAction: {
                         solicitMessage(text: listenerMessage.text)
                     },
-                    dismissAction: { cancelMessagePayment() },
-                    cancelAction:  { cancelMessagePayment() }
+                    dismissAction: { dismissMessagePayment(cancelled: false) },
+                    cancelAction:  { dismissMessagePayment(cancelled: true) }
                 )
             }
         }
@@ -260,7 +260,7 @@ struct ConversationScreen: View {
                 CodeButton(
                     style: .filled,
                     title: "Listener Message: \(messageCost.formattedTruncatedKin())",
-                    action: sendMessageAsListener
+                    action: messageAsListenerAction
                 )
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
@@ -473,12 +473,17 @@ struct ConversationScreen: View {
     
     // MARK: - Actions -
     
-    private func cancelMessagePayment() {
+    private func dismissMessagePayment(cancelled: Bool) {
         listenerMessage = nil
         
         // The "pay to message" button move the table view up
         // so we need to scroll to bottom to realign the edge
         scrollConfiguration = .init(destination: .bottom, animated: true)
+        
+        if cancelled {
+            chatViewModel.isShowingInputForPaidMessage = true
+            focusConfiguration = .init(focused: true)
+        }
     }
     
     private func messageAction(action: MessageAction) async throws {
@@ -580,7 +585,7 @@ struct ConversationScreen: View {
             
         case .reply(let messageRow):
             if !isInputVisible {
-                sendMessageAsListener()
+                messageAsListenerAction()
             }
             
             replyMessage = messageRow
@@ -675,7 +680,7 @@ struct ConversationScreen: View {
         }
     }
     
-    private func sendMessageAsListener() {
+    private func messageAsListenerAction() {
         chatViewModel.attemptPayForMessage {
             // This completion only runs when there's
             // no other dependencies for send message

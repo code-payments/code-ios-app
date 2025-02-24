@@ -11,12 +11,14 @@ import SwiftUI
 public struct PartialSheet<T>: View where T: View {
     
     public let background: Color
+    public let canDismiss: Bool
     public let content: () -> T
     
     @State private var displayHeight: CGFloat = 0
     
-    public init(background: Color = .backgroundMain, @ViewBuilder content: @escaping () -> T) {
+    public init(background: Color = .backgroundMain, canDismiss: Bool = true, @ViewBuilder content: @escaping () -> T) {
         self.background = background
+        self.canDismiss = canDismiss
         self.content = content
     }
     
@@ -34,6 +36,7 @@ public struct PartialSheet<T>: View where T: View {
             displayHeight = value ?? 0
         }
         .presentationDetents([.height(displayHeight)])
+        .interactiveDismissDisabled(!canDismiss)
     }
 }
 
