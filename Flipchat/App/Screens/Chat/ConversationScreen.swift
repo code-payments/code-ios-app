@@ -84,7 +84,7 @@ struct ConversationScreen: View {
     }
     
     private var canType: Bool {
-        !isUserMuted && (isRoomOpen || isSelfHost) && isInputVisible
+        !isUserMuted && isRoomOpen && isInputVisible
     }
     
     // MARK: - Init -
@@ -253,8 +253,12 @@ struct ConversationScreen: View {
             if isUserMuted {
                 mutedView()
                 
-            } else if !isRoomOpen && !isSelfHost {
-                roomClosedView()
+            } else if !isRoomOpen {
+                if isSelfHost {
+                    openCloseView(isOpen: false)
+                } else {
+                    roomClosedView()
+                }
                 
             } else if !isInputVisible {
                 CodeButton(
