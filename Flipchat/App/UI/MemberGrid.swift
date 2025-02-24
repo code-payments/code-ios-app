@@ -140,7 +140,7 @@ struct MemberGrid: View {
                 isHost: member.isModerator
             )
             
-            Text(member.name ?? "Speaker")
+            Text(member.name ?? defaultName)
                 .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.9)
                 .lineLimit(2)
