@@ -258,7 +258,7 @@ struct ConversationScreen: View {
                 
             } else if !isInputVisible {
                 CodeButton(
-                    style: .filledThin,
+                    style: .filled,
                     title: "Listener Message: \(messageCost.formattedTruncatedKin())",
                     action: sendMessageAsListener
                 )

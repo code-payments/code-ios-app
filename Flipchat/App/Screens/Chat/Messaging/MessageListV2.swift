@@ -878,6 +878,8 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
     }
 }
 
+// MARK: - MessageInputBarDelegate -
+
 extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
     func textContentHeightDidChange() {
         updateTableContentOffsetAndInsets()
