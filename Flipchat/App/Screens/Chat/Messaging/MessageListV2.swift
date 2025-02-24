@@ -893,9 +893,9 @@ extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
         var height: CGFloat = 0
         
         if canType {
-            height += inputBar.frame.height + 15
+            height += inputBar.frame.height + 18
         } else {
-            height += descriptionViewHeight + 15
+            height += descriptionViewHeight + 18
         }
         
         if showReply {
