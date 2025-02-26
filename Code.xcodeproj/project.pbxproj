@@ -94,6 +94,7 @@
 		9A2BAFA627E1091300B4EA68 /* LinkPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2BAFA527E1091300B4EA68 /* LinkPhoneScreen.swift */; };
 		9A2D3326276389C200051E94 /* StopwatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2D3325276389C200051E94 /* StopwatchTests.swift */; };
 		9A301D1629B92E94006BA3F6 /* FlowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A301D1529B92E94006BA3F6 /* FlowController.swift */; };
+		9A340F662D6E1591003858F4 /* TwitterAPIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9A340F652D6E1591003858F4 /* TwitterAPIKit */; };
 		9A3B807A2AB37A6400002FEB /* BuyVideosScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3B80792AB37A6400002FEB /* BuyVideosScreen.swift */; };
 		9A3E945227473EC700789CF6 /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3E945127473EC700789CF6 /* LoginScreen.swift */; };
 		9A40E54B260CB485009DEF2C /* BetaFlags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A40E54A260CB485009DEF2C /* BetaFlags.swift */; };
@@ -595,6 +596,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9A9499D82CFB82A200DC219B /* SQLite in Frameworks */,
+				9A340F662D6E1591003858F4 /* TwitterAPIKit in Frameworks */,
 				9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */,
 				9A9E26B72CEA73D80021E5DD /* FirebaseMessaging in Frameworks */,
 				9A9E26B52CEA73D80021E5DD /* FirebaseInstallations in Frameworks */,
@@ -1265,6 +1267,7 @@
 				9A9E26B42CEA73D80021E5DD /* FirebaseInstallations */,
 				9A9E26B62CEA73D80021E5DD /* FirebaseMessaging */,
 				9A9499D72CFB82A200DC219B /* SQLite */,
+				9A340F652D6E1591003858F4 /* TwitterAPIKit */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -1487,6 +1490,7 @@
 				9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */,
 				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */,
+				9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -2749,7 +2753,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2794,7 +2798,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2835,7 +2839,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -2876,7 +2880,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3563,6 +3567,14 @@
 				minimumVersion = 10.24.0;
 			};
 		};
+		9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mironal/TwitterAPIKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.3;
+			};
+		};
 		9A4279CF281190E500726D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/siteline/SwiftUI-Introspect";
@@ -3622,6 +3634,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		9A340F652D6E1591003858F4 /* TwitterAPIKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */;
+			productName = TwitterAPIKit;
 		};
 		9A476D492978884700C5B5CE /* Bugsnag */ = {
 			isa = XCSwiftPackageProductDependency;

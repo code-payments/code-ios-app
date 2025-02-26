@@ -32,6 +32,11 @@
 		<key>apiKey</key>
 		<string>$(FLIPCHAT_MIXPANEL)</string>
 	</dict>
+	<key>twitter</key>
+	<dict>
+		<key>clientID</key>
+		<string>$(FLIPCHAT_TWITTER_CLIENT_ID)</string>
+	</dict>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
 	<key>SQLiteVersion</key>

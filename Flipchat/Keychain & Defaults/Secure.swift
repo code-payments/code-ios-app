@@ -17,6 +17,8 @@ enum SecureKey: String {
     case accountList    = "com.flipchat.account.list"
     case betaEnabled    = "com.flipchat.beta.enabled"
     
+    case twitterToken   = "com.flipchat.oauth.twitter"
+    
     // Code keys
     
     case codeRestricted         = "com.code.account.restricted"
