@@ -52,7 +52,8 @@ extension Flipchat_Messaging_V1_MessagingClientProtocol {
     return "flipchat.messaging.v1.Messaging"
   }
 
-  /// StreamMessages streams all messages/message states for the requested chat.
+  /// StreamMessages streams all messages/message states (eg. pointers, typing, etc)
+  /// for the requested chat.
   ///
   /// Callers should use the `send` method on the returned object to send messages
   /// to the server. The caller should send an `.end` after the final message has been sent.
@@ -521,7 +522,8 @@ public enum Flipchat_Messaging_V1_MessagingClientMetadata {
 public protocol Flipchat_Messaging_V1_MessagingProvider: CallHandlerProvider {
   var interceptors: Flipchat_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
 
-  /// StreamMessages streams all messages/message states for the requested chat.
+  /// StreamMessages streams all messages/message states (eg. pointers, typing, etc)
+  /// for the requested chat.
   func streamMessages(context: StreamingResponseCallContext<Flipchat_Messaging_V1_StreamMessagesResponse>) -> EventLoopFuture<(StreamEvent<Flipchat_Messaging_V1_StreamMessagesRequest>) -> Void>
 
   /// GetMessage gets a single message in a chat
@@ -620,7 +622,8 @@ public protocol Flipchat_Messaging_V1_MessagingAsyncProvider: CallHandlerProvide
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Flipchat_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
 
-  /// StreamMessages streams all messages/message states for the requested chat.
+  /// StreamMessages streams all messages/message states (eg. pointers, typing, etc)
+  /// for the requested chat.
   func streamMessages(
     requestStream: GRPCAsyncRequestStream<Flipchat_Messaging_V1_StreamMessagesRequest>,
     responseStream: GRPCAsyncResponseStreamWriter<Flipchat_Messaging_V1_StreamMessagesResponse>,

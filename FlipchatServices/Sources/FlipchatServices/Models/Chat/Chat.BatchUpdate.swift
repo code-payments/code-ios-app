@@ -16,17 +16,11 @@ extension Chat {
         public var chatUpdates: [ChatUpdate]
         public var lastMessage: Chat.Message?
         public var memberUpdates: [MemberUpdate]
-        public var pointerUpdate: PointerUpdate?
         public var typingUpdate: TypingUpdate?
         
         public struct TypingUpdate: Sendable {
             var userID: UserID
             var isTyping: Bool
-        }
-        
-        public struct PointerUpdate: Sendable {
-            var userID: UserID
-            var pointer: Pointer
         }
         
         public enum ChatUpdate: Sendable {
@@ -47,6 +41,7 @@ extension Chat {
             case muted(UserID)
             case promoted(UserID)
             case demoted(UserID)
+            case identityChanged(UserID, Chat.Identity)
         }
     }
 }
@@ -63,7 +58,6 @@ extension Chat.BatchUpdate {
             chatUpdates: proto.metadataUpdates.compactMap { ChatUpdate($0) },
             lastMessage: proto.hasLastMessage ? Chat.Message(proto.lastMessage) : nil,
             memberUpdates: proto.memberUpdates.compactMap { MemberUpdate($0) },
-            pointerUpdate: proto.hasPointer ? PointerUpdate(proto.pointer) : nil,
             typingUpdate: proto.hasIsTyping ? TypingUpdate(proto.isTyping) : nil
         )
     }
@@ -83,18 +77,18 @@ extension Chat.BatchUpdate.TypingUpdate {
     }
 }
 
-extension Chat.BatchUpdate.PointerUpdate {
-    public init?(_ proto: Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate) {
-        guard proto.hasMember else {
-            return nil
-        }
-        
-        self.init(
-            userID: UserID(data: proto.member.value),
-            pointer: Chat.Pointer(proto.pointer)
-        )
-    }
-}
+//extension Chat.BatchUpdate.PointerUpdate {
+//    public init?(_ proto: Flipchat_Chat_V1_StreamChatEventsResponse.ChatUpdate.PointerUpdate) {
+//        guard proto.hasMember else {
+//            return nil
+//        }
+//        
+//        self.init(
+//            userID: UserID(data: proto.member.value),
+//            pointer: Chat.Pointer(proto.pointer)
+//        )
+//    }
+//}
 
 extension Chat.BatchUpdate.ChatUpdate {
     public init?(_ proto: Flipchat_Chat_V1_MetadataUpdate) {
@@ -154,6 +148,9 @@ extension Chat.BatchUpdate.MemberUpdate {
             
         case .demoted(let update):
             self = .demoted(UserID(data: update.member.value))
+            
+        case .identityChanged(let update):
+            self = .identityChanged(UserID(data: update.member.value), Chat.Identity(update.newIdentity))
         }
     }
 }

@@ -178,12 +178,30 @@ public struct Flipchat_Messaging_V1_StreamMessagesResponse {
     set {type = .messages(newValue)}
   }
 
+  public var pointerUpdates: Flipchat_Messaging_V1_PointerUpdateBatch {
+    get {
+      if case .pointerUpdates(let v)? = type {return v}
+      return Flipchat_Messaging_V1_PointerUpdateBatch()
+    }
+    set {type = .pointerUpdates(newValue)}
+  }
+
+  public var isTypingNotifications: Flipchat_Messaging_V1_IsTypingBatch {
+    get {
+      if case .isTypingNotifications(let v)? = type {return v}
+      return Flipchat_Messaging_V1_IsTypingBatch()
+    }
+    set {type = .isTypingNotifications(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable {
     case ping(Flipchat_Common_V1_ServerPing)
     case error(Flipchat_Messaging_V1_StreamMessagesResponse.StreamError)
     case messages(Flipchat_Messaging_V1_MessageBatch)
+    case pointerUpdates(Flipchat_Messaging_V1_PointerUpdateBatch)
+    case isTypingNotifications(Flipchat_Messaging_V1_IsTypingBatch)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipchat_Messaging_V1_StreamMessagesResponse.OneOf_Type, rhs: Flipchat_Messaging_V1_StreamMessagesResponse.OneOf_Type) -> Bool {
@@ -201,6 +219,14 @@ public struct Flipchat_Messaging_V1_StreamMessagesResponse {
       }()
       case (.messages, .messages): return {
         guard case .messages(let l) = lhs, case .messages(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.pointerUpdates, .pointerUpdates): return {
+        guard case .pointerUpdates(let l) = lhs, case .pointerUpdates(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.isTypingNotifications, .isTypingNotifications): return {
+        guard case .isTypingNotifications(let l) = lhs, case .isTypingNotifications(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -801,7 +827,10 @@ public struct Flipchat_Messaging_V1_NotifyIsTypingRequest {
   /// Clears the value of `chatID`. Subsequent reads from it will return its default value.
   public mutating func clearChatID() {self._chatID = nil}
 
+  /// Deprecated: Use typing_state instead
   public var isTyping: Bool = false
+
+  public var typingState: Flipchat_Messaging_V1_TypingState = .unknownTypingState
 
   public var auth: Flipchat_Common_V1_Auth {
     get {return _auth ?? Flipchat_Common_V1_Auth()}
@@ -1058,6 +1087,8 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse: SwiftProtobuf.Message, S
     1: .same(proto: "ping"),
     2: .same(proto: "error"),
     3: .same(proto: "messages"),
+    4: .standard(proto: "pointer_updates"),
+    5: .standard(proto: "is_typing_notifications"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1105,6 +1136,32 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse: SwiftProtobuf.Message, S
           self.type = .messages(v)
         }
       }()
+      case 4: try {
+        var v: Flipchat_Messaging_V1_PointerUpdateBatch?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .pointerUpdates(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .pointerUpdates(v)
+        }
+      }()
+      case 5: try {
+        var v: Flipchat_Messaging_V1_IsTypingBatch?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .isTypingNotifications(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .isTypingNotifications(v)
+        }
+      }()
       default: break
       }
     }
@@ -1127,6 +1184,14 @@ extension Flipchat_Messaging_V1_StreamMessagesResponse: SwiftProtobuf.Message, S
     case .messages?: try {
       guard case .messages(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .pointerUpdates?: try {
+      guard case .pointerUpdates(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case .isTypingNotifications?: try {
+      guard case .isTypingNotifications(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
     case nil: break
     }
@@ -1689,6 +1754,7 @@ extension Flipchat_Messaging_V1_NotifyIsTypingRequest: SwiftProtobuf.Message, Sw
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "chat_id"),
     2: .standard(proto: "is_typing"),
+    4: .standard(proto: "typing_state"),
     3: .same(proto: "auth"),
   ]
 
@@ -1701,6 +1767,7 @@ extension Flipchat_Messaging_V1_NotifyIsTypingRequest: SwiftProtobuf.Message, Sw
       case 1: try { try decoder.decodeSingularMessageField(value: &self._chatID) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.isTyping) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 4: try { try decoder.decodeSingularEnumField(value: &self.typingState) }()
       default: break
       }
     }
@@ -1720,12 +1787,16 @@ extension Flipchat_Messaging_V1_NotifyIsTypingRequest: SwiftProtobuf.Message, Sw
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if self.typingState != .unknownTypingState {
+      try visitor.visitSingularEnumField(value: self.typingState, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Messaging_V1_NotifyIsTypingRequest, rhs: Flipchat_Messaging_V1_NotifyIsTypingRequest) -> Bool {
     if lhs._chatID != rhs._chatID {return false}
     if lhs.isTyping != rhs.isTyping {return false}
+    if lhs.typingState != rhs.typingState {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

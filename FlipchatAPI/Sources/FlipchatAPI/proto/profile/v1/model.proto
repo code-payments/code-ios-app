@@ -45,13 +45,11 @@ message XProfile {
 
     // The user's friendly name on X
     string name = 3 [(validate.rules).string = {
-        min_len: 1
         max_len: 256
     }];
 
 	// The user's description on X
 	string description = 4 [(validate.rules).string = {
-        min_len: 1
         max_len: 4096 // todo: arbitrary
     }];
 

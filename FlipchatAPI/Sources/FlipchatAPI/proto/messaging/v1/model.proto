@@ -78,12 +78,41 @@ message Pointer {
     MessageId value = 2 [(validate.rules).message.required = true];
 }
 
+message PointerUpdate {
+    common.v1.UserId member = 1 [(validate.rules).message.required = true];
+
+    messaging.v1.Pointer pointer = 2 [(validate.rules).message.required = true];
+}
+
+message PointerUpdateBatch {
+    repeated PointerUpdate pointer_updates = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024 // Arbitrary
+    }];
+}
+
 message IsTyping {
     common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
 
-    // is_typing indicates whether or not the user is typing.
-    // If false, the user has explicitly stopped typing.
+    // Deprecated: Use typing_state instead
     bool is_typing = 2;
+
+    TypingState typing_state = 3;
+}
+
+message IsTypingBatch {
+    repeated IsTyping is_typing_notifications = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024 // Arbitrary
+    }];
+}
+
+enum TypingState {
+    UNKNOWN_TYPING_STATE = 0;
+    STARTED_TYPING       = 1;
+    STILL_TYPING         = 2;
+    STOPPED_TYPING       = 3;
+    TYPING_TIMED_OUT     = 4;
 }
 
 // Content for a chat message

@@ -89,6 +89,13 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                     let error = ErrorStreamMessages(rawValue: streamError.code.rawValue) ?? .unknown
                     completion(.failure(error))
                 }
+                
+            case .pointerUpdates:
+                break
+                
+            case .isTypingNotifications(let typingBatch):
+                // TODO: Implement
+                break
             }
         }
         

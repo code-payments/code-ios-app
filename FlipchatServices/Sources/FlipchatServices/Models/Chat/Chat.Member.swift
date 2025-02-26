@@ -37,11 +37,53 @@ extension Chat {
         
         public var displayName: String?
         public var avatarURL: URL?
+        public let socialProfile: SocialProfile?
         
-        public init(displayName: String?, avatarURL: URL?) {
+        public init(displayName: String?, avatarURL: URL?, socialProfile: SocialProfile?) {
             self.displayName = displayName
             self.avatarURL = avatarURL
+            self.socialProfile = socialProfile
         }
+    }
+}
+
+extension Chat {
+    public struct SocialProfile: Equatable, Identifiable, Hashable, Sendable {
+        
+        public let kind: Kind
+        public let id: String
+        public let username: String
+        public let displayName: String
+        public let bio: String
+        public let avatarURL: URL?
+        public let verificationType: VerificationType
+        public let followerCount: Int
+        
+        public init(kind: Kind, id: String, username: String, displayName: String, bio: String, avatarURL: URL?, verificationType: VerificationType, followerCount: Int) {
+            self.kind = kind
+            self.id = id
+            self.username = username
+            self.displayName = displayName
+            self.bio = bio
+            self.avatarURL = avatarURL
+            self.verificationType = verificationType
+            self.followerCount = followerCount
+        }
+    }
+}
+
+extension Chat.SocialProfile {
+    public enum Kind: Int, Equatable, Hashable, Sendable {
+        case twitter
+    }
+}
+
+extension Chat.SocialProfile {
+    public enum VerificationType: Int, Equatable, Hashable, Sendable {
+        case none
+        case blue
+        case business
+        case government
     }
 }
 
@@ -61,11 +103,33 @@ extension Chat.Member {
     }
 }
 
+extension Chat.SocialProfile {
+    init?(_ proto: Flipchat_Profile_V1_SocialProfile?) {
+        switch proto?.type {
+        case .x(let profile):
+            self.init(
+                kind: .twitter,
+                id: profile.id,
+                username: profile.username,
+                displayName: profile.name,
+                bio: profile.description_p,
+                avatarURL: URL(string: profile.profilePicURL),
+                verificationType: VerificationType(rawValue: profile.verifiedType.rawValue) ?? .none,
+                followerCount: Int(profile.followerCount)
+            )
+            
+        case .none:
+            return nil
+        }
+    }
+}
+
 extension Chat.Identity {
     init(_ proto: Flipchat_Chat_V1_MemberIdentity) {
         self.init(
             displayName: proto.displayName.isEmpty ? nil : proto.displayName,
-            avatarURL: proto.profilePicURL.isEmpty ? nil : URL(string: proto.profilePicURL)
+            avatarURL: proto.profilePicURL.isEmpty ? nil : URL(string: proto.profilePicURL),
+            socialProfile: .init(proto.socialProfiles.first)
         )
     }
 }

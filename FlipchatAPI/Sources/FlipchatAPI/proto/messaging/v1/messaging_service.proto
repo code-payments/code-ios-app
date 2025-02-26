@@ -11,7 +11,8 @@ import "messaging/v1/model.proto";
 import "validate/validate.proto";
 
 service Messaging {
-    // StreamMessages streams all messages/message states for the requested chat.
+    // StreamMessages streams all messages/message states (eg. pointers, typing, etc)
+    // for the requested chat.
     rpc StreamMessages(stream StreamMessagesRequest) returns (stream StreamMessagesResponse);
 
     // GetMessage gets a single message in a chat
@@ -57,9 +58,11 @@ message StreamMessagesResponse {
     oneof type {
         option (validate.required) = true;
 
-        common.v1.ServerPing ping = 1;
-        StreamError error = 2;
-        MessageBatch messages = 3;
+        common.v1.ServerPing ping                    = 1;
+        StreamError          error                   = 2;
+        MessageBatch         messages                = 3;
+        PointerUpdateBatch   pointer_updates         = 4;
+        IsTypingBatch        is_typing_notifications = 5;
     }
 
     message StreamError {
@@ -187,7 +190,10 @@ message AdvancePointerResponse {
 message NotifyIsTypingRequest {
     common.v1.ChatId chat_id = 1 [(validate.rules).message.required = true];
 
+    // Deprecated: Use typing_state instead
     bool is_typing = 2;
+
+    TypingState typing_state = 4;
 
 	common.v1.Auth auth = 3 [(validate.rules).message.required = true];
 }

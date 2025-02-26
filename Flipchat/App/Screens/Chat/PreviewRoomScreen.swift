@@ -95,7 +95,11 @@ struct PreviewRoomScreen: View {
             isOpen: true
         ),
         members: [],
-        host: .init(displayName: "Bob", avatarURL: nil),
+        host: .init(
+            displayName: "Bob",
+            avatarURL: nil,
+            socialProfile: nil
+        ),
         viewModel: .mock,
         isModal: false
     )

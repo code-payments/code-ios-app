@@ -203,10 +203,10 @@ struct AccountSelectionScreen: View {
                         let owner = historicalAccount.details.account.owner
                         do {
                             let userID = try await flipClient.login(owner: owner)
-                            let displayName = try await flipClient.fetchProfile(userID: userID)
+                            let profile = try await flipClient.fetchProfile(userID: userID)
                             
                             await update(owner: owner.publicKey) {
-                                $0.displayName = displayName
+                                $0.displayName = profile.displayName
                                 $0.userID = userID
                             }
                             

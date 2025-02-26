@@ -395,6 +395,10 @@ class ChatController: ObservableObject {
                 case .demoted(let userID):
                     try $0.setMemberCanSend(userID: userID.uuid, roomID: chatID, canSend: false)
                     print("[STREAM] Member \(userID.uuid) now listener (demoted)")
+                    
+                case .identityChanged(let userID, let identity):
+                    // TODO: Implement
+                    print("[STREAM] Member \(userID.uuid) identity changed: \(identity.socialProfile?.kind.rawValue ?? -1)")
                 }
             }
             
@@ -638,10 +642,13 @@ class ChatController: ObservableObject {
             owner: owner
         )
         
+        let hostProfile = try await client.fetchProfile(userID: description.metadata.ownerUser)
+        
         let host = Chat.Identity(
-            displayName: (try? await client.fetchProfile(userID: description.metadata.ownerUser)) ?? "nobody",
-            avatarURL: nil
-        )        
+            displayName: hostProfile.displayName,
+            avatarURL: nil,
+            socialProfile: hostProfile.socialProfile
+        )
         
         return (description.metadata, description.members, host)
     }

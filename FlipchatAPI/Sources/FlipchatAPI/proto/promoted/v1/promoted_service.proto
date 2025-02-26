@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package flipchat.promoted.v1;
+
+option go_package = "github.com/code-payments/flipchat-protobuf-api/generated/go/promoted/v1;promotedpb";
+option java_package = "com.codeinc.flipchat.gen.promoted.v1";
+option objc_class_prefix = "FPBpromotedV1";
+
+import "common/v1/common.proto";
+import "validate/validate.proto";
+
+service Promoted {
+  rpc GetPromotedChats(GetPromotedChatsRequest) returns (GetPromotedChatsResponse);
+}
+
+message GetPromotedChatsRequest {
+    string topic = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 100
+    }];
+}
+
+message GetPromotedChatsResponse {
+    Result result = 1;
+    enum Result {
+        OK              = 0;
+        DENIED          = 1;
+        INVALID_REQUEST = 2;
+        UNKNOWN_TOPIC   = 3;
+    }
+
+    repeated common.v1.ChatId chats = 2;
+}
+
+

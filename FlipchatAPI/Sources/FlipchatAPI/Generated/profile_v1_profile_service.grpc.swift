@@ -26,10 +26,15 @@ public protocol Flipchat_Profile_V1_ProfileClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>
 
-  func linkXAccount(
-    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+  func linkSocialAccount(
+    _ request: Flipchat_Profile_V1_LinkSocialAccountRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>
+  ) -> UnaryCall<Flipchat_Profile_V1_LinkSocialAccountRequest, Flipchat_Profile_V1_LinkSocialAccountResponse>
+
+  func unlinkSocialAccount(
+    _ request: Flipchat_Profile_V1_UnlinkSocialAccountRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipchat_Profile_V1_UnlinkSocialAccountRequest, Flipchat_Profile_V1_UnlinkSocialAccountResponse>
 }
 
 extension Flipchat_Profile_V1_ProfileClientProtocol {
@@ -73,22 +78,39 @@ extension Flipchat_Profile_V1_ProfileClientProtocol {
     )
   }
 
-  /// LinkXAccount links a X account to a user. Any existing links will
-  /// be removed.
+  /// LinkSocialAccount links a social account to a user
   ///
   /// - Parameters:
-  ///   - request: Request to send to LinkXAccount.
+  ///   - request: Request to send to LinkSocialAccount.
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func linkXAccount(
-    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+  public func linkSocialAccount(
+    _ request: Flipchat_Profile_V1_LinkSocialAccountRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse> {
+  ) -> UnaryCall<Flipchat_Profile_V1_LinkSocialAccountRequest, Flipchat_Profile_V1_LinkSocialAccountResponse> {
     return self.makeUnaryCall(
-      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount.path,
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkSocialAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? []
+      interceptors: self.interceptors?.makeLinkSocialAccountInterceptors() ?? []
+    )
+  }
+
+  /// UnlinkSocialAccount removes a social account link from a user
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to UnlinkSocialAccount.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func unlinkSocialAccount(
+    _ request: Flipchat_Profile_V1_UnlinkSocialAccountRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipchat_Profile_V1_UnlinkSocialAccountRequest, Flipchat_Profile_V1_UnlinkSocialAccountResponse> {
+    return self.makeUnaryCall(
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.unlinkSocialAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUnlinkSocialAccountInterceptors() ?? []
     )
   }
 }
@@ -165,10 +187,15 @@ public protocol Flipchat_Profile_V1_ProfileAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>
 
-  func makeLinkXaccountCall(
-    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+  func makeLinkSocialAccountCall(
+    _ request: Flipchat_Profile_V1_LinkSocialAccountRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>
+  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_LinkSocialAccountRequest, Flipchat_Profile_V1_LinkSocialAccountResponse>
+
+  func makeUnlinkSocialAccountCall(
+    _ request: Flipchat_Profile_V1_UnlinkSocialAccountRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_UnlinkSocialAccountRequest, Flipchat_Profile_V1_UnlinkSocialAccountResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -205,15 +232,27 @@ extension Flipchat_Profile_V1_ProfileAsyncClientProtocol {
     )
   }
 
-  public func makeLinkXaccountCall(
-    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+  public func makeLinkSocialAccountCall(
+    _ request: Flipchat_Profile_V1_LinkSocialAccountRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse> {
+  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_LinkSocialAccountRequest, Flipchat_Profile_V1_LinkSocialAccountResponse> {
     return self.makeAsyncUnaryCall(
-      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount.path,
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkSocialAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? []
+      interceptors: self.interceptors?.makeLinkSocialAccountInterceptors() ?? []
+    )
+  }
+
+  public func makeUnlinkSocialAccountCall(
+    _ request: Flipchat_Profile_V1_UnlinkSocialAccountRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipchat_Profile_V1_UnlinkSocialAccountRequest, Flipchat_Profile_V1_UnlinkSocialAccountResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.unlinkSocialAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUnlinkSocialAccountInterceptors() ?? []
     )
   }
 }
@@ -244,15 +283,27 @@ extension Flipchat_Profile_V1_ProfileAsyncClientProtocol {
     )
   }
 
-  public func linkXAccount(
-    _ request: Flipchat_Profile_V1_LinkXAccountRequest,
+  public func linkSocialAccount(
+    _ request: Flipchat_Profile_V1_LinkSocialAccountRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Flipchat_Profile_V1_LinkXAccountResponse {
+  ) async throws -> Flipchat_Profile_V1_LinkSocialAccountResponse {
     return try await self.performAsyncUnaryCall(
-      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount.path,
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkSocialAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? []
+      interceptors: self.interceptors?.makeLinkSocialAccountInterceptors() ?? []
+    )
+  }
+
+  public func unlinkSocialAccount(
+    _ request: Flipchat_Profile_V1_UnlinkSocialAccountRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipchat_Profile_V1_UnlinkSocialAccountResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipchat_Profile_V1_ProfileClientMetadata.Methods.unlinkSocialAccount.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUnlinkSocialAccountInterceptors() ?? []
     )
   }
 }
@@ -282,8 +333,11 @@ public protocol Flipchat_Profile_V1_ProfileClientInterceptorFactoryProtocol: Sen
   /// - Returns: Interceptors to use when invoking 'setDisplayName'.
   func makeSetDisplayNameInterceptors() -> [ClientInterceptor<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>]
 
-  /// - Returns: Interceptors to use when invoking 'linkXAccount'.
-  func makeLinkXAccountInterceptors() -> [ClientInterceptor<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>]
+  /// - Returns: Interceptors to use when invoking 'linkSocialAccount'.
+  func makeLinkSocialAccountInterceptors() -> [ClientInterceptor<Flipchat_Profile_V1_LinkSocialAccountRequest, Flipchat_Profile_V1_LinkSocialAccountResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'unlinkSocialAccount'.
+  func makeUnlinkSocialAccountInterceptors() -> [ClientInterceptor<Flipchat_Profile_V1_UnlinkSocialAccountRequest, Flipchat_Profile_V1_UnlinkSocialAccountResponse>]
 }
 
 public enum Flipchat_Profile_V1_ProfileClientMetadata {
@@ -293,7 +347,8 @@ public enum Flipchat_Profile_V1_ProfileClientMetadata {
     methods: [
       Flipchat_Profile_V1_ProfileClientMetadata.Methods.getProfile,
       Flipchat_Profile_V1_ProfileClientMetadata.Methods.setDisplayName,
-      Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkXAccount,
+      Flipchat_Profile_V1_ProfileClientMetadata.Methods.linkSocialAccount,
+      Flipchat_Profile_V1_ProfileClientMetadata.Methods.unlinkSocialAccount,
     ]
   )
 
@@ -310,9 +365,15 @@ public enum Flipchat_Profile_V1_ProfileClientMetadata {
       type: GRPCCallType.unary
     )
 
-    public static let linkXAccount = GRPCMethodDescriptor(
-      name: "LinkXAccount",
-      path: "/flipchat.profile.v1.Profile/LinkXAccount",
+    public static let linkSocialAccount = GRPCMethodDescriptor(
+      name: "LinkSocialAccount",
+      path: "/flipchat.profile.v1.Profile/LinkSocialAccount",
+      type: GRPCCallType.unary
+    )
+
+    public static let unlinkSocialAccount = GRPCMethodDescriptor(
+      name: "UnlinkSocialAccount",
+      path: "/flipchat.profile.v1.Profile/UnlinkSocialAccount",
       type: GRPCCallType.unary
     )
   }
@@ -326,9 +387,11 @@ public protocol Flipchat_Profile_V1_ProfileProvider: CallHandlerProvider {
 
   func setDisplayName(request: Flipchat_Profile_V1_SetDisplayNameRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Profile_V1_SetDisplayNameResponse>
 
-  /// LinkXAccount links a X account to a user. Any existing links will
-  /// be removed.
-  func linkXAccount(request: Flipchat_Profile_V1_LinkXAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Profile_V1_LinkXAccountResponse>
+  /// LinkSocialAccount links a social account to a user
+  func linkSocialAccount(request: Flipchat_Profile_V1_LinkSocialAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Profile_V1_LinkSocialAccountResponse>
+
+  /// UnlinkSocialAccount removes a social account link from a user
+  func unlinkSocialAccount(request: Flipchat_Profile_V1_UnlinkSocialAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipchat_Profile_V1_UnlinkSocialAccountResponse>
 }
 
 extension Flipchat_Profile_V1_ProfileProvider {
@@ -361,13 +424,22 @@ extension Flipchat_Profile_V1_ProfileProvider {
         userFunction: self.setDisplayName(request:context:)
       )
 
-    case "LinkXAccount":
+    case "LinkSocialAccount":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_LinkXAccountRequest>(),
-        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_LinkXAccountResponse>(),
-        interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? [],
-        userFunction: self.linkXAccount(request:context:)
+        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_LinkSocialAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_LinkSocialAccountResponse>(),
+        interceptors: self.interceptors?.makeLinkSocialAccountInterceptors() ?? [],
+        userFunction: self.linkSocialAccount(request:context:)
+      )
+
+    case "UnlinkSocialAccount":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_UnlinkSocialAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_UnlinkSocialAccountResponse>(),
+        interceptors: self.interceptors?.makeUnlinkSocialAccountInterceptors() ?? [],
+        userFunction: self.unlinkSocialAccount(request:context:)
       )
 
     default:
@@ -392,12 +464,17 @@ public protocol Flipchat_Profile_V1_ProfileAsyncProvider: CallHandlerProvider, S
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipchat_Profile_V1_SetDisplayNameResponse
 
-  /// LinkXAccount links a X account to a user. Any existing links will
-  /// be removed.
-  func linkXAccount(
-    request: Flipchat_Profile_V1_LinkXAccountRequest,
+  /// LinkSocialAccount links a social account to a user
+  func linkSocialAccount(
+    request: Flipchat_Profile_V1_LinkSocialAccountRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Flipchat_Profile_V1_LinkXAccountResponse
+  ) async throws -> Flipchat_Profile_V1_LinkSocialAccountResponse
+
+  /// UnlinkSocialAccount removes a social account link from a user
+  func unlinkSocialAccount(
+    request: Flipchat_Profile_V1_UnlinkSocialAccountRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipchat_Profile_V1_UnlinkSocialAccountResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -437,13 +514,22 @@ extension Flipchat_Profile_V1_ProfileAsyncProvider {
         wrapping: { try await self.setDisplayName(request: $0, context: $1) }
       )
 
-    case "LinkXAccount":
+    case "LinkSocialAccount":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_LinkXAccountRequest>(),
-        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_LinkXAccountResponse>(),
-        interceptors: self.interceptors?.makeLinkXAccountInterceptors() ?? [],
-        wrapping: { try await self.linkXAccount(request: $0, context: $1) }
+        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_LinkSocialAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_LinkSocialAccountResponse>(),
+        interceptors: self.interceptors?.makeLinkSocialAccountInterceptors() ?? [],
+        wrapping: { try await self.linkSocialAccount(request: $0, context: $1) }
+      )
+
+    case "UnlinkSocialAccount":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipchat_Profile_V1_UnlinkSocialAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Flipchat_Profile_V1_UnlinkSocialAccountResponse>(),
+        interceptors: self.interceptors?.makeUnlinkSocialAccountInterceptors() ?? [],
+        wrapping: { try await self.unlinkSocialAccount(request: $0, context: $1) }
       )
 
     default:
@@ -462,9 +548,13 @@ public protocol Flipchat_Profile_V1_ProfileServerInterceptorFactoryProtocol: Sen
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSetDisplayNameInterceptors() -> [ServerInterceptor<Flipchat_Profile_V1_SetDisplayNameRequest, Flipchat_Profile_V1_SetDisplayNameResponse>]
 
-  /// - Returns: Interceptors to use when handling 'linkXAccount'.
+  /// - Returns: Interceptors to use when handling 'linkSocialAccount'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeLinkXAccountInterceptors() -> [ServerInterceptor<Flipchat_Profile_V1_LinkXAccountRequest, Flipchat_Profile_V1_LinkXAccountResponse>]
+  func makeLinkSocialAccountInterceptors() -> [ServerInterceptor<Flipchat_Profile_V1_LinkSocialAccountRequest, Flipchat_Profile_V1_LinkSocialAccountResponse>]
+
+  /// - Returns: Interceptors to use when handling 'unlinkSocialAccount'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeUnlinkSocialAccountInterceptors() -> [ServerInterceptor<Flipchat_Profile_V1_UnlinkSocialAccountRequest, Flipchat_Profile_V1_UnlinkSocialAccountResponse>]
 }
 
 public enum Flipchat_Profile_V1_ProfileServerMetadata {
@@ -474,7 +564,8 @@ public enum Flipchat_Profile_V1_ProfileServerMetadata {
     methods: [
       Flipchat_Profile_V1_ProfileServerMetadata.Methods.getProfile,
       Flipchat_Profile_V1_ProfileServerMetadata.Methods.setDisplayName,
-      Flipchat_Profile_V1_ProfileServerMetadata.Methods.linkXAccount,
+      Flipchat_Profile_V1_ProfileServerMetadata.Methods.linkSocialAccount,
+      Flipchat_Profile_V1_ProfileServerMetadata.Methods.unlinkSocialAccount,
     ]
   )
 
@@ -491,9 +582,15 @@ public enum Flipchat_Profile_V1_ProfileServerMetadata {
       type: GRPCCallType.unary
     )
 
-    public static let linkXAccount = GRPCMethodDescriptor(
-      name: "LinkXAccount",
-      path: "/flipchat.profile.v1.Profile/LinkXAccount",
+    public static let linkSocialAccount = GRPCMethodDescriptor(
+      name: "LinkSocialAccount",
+      path: "/flipchat.profile.v1.Profile/LinkSocialAccount",
+      type: GRPCCallType.unary
+    )
+
+    public static let unlinkSocialAccount = GRPCMethodDescriptor(
+      name: "UnlinkSocialAccount",
+      path: "/flipchat.profile.v1.Profile/UnlinkSocialAccount",
       type: GRPCCallType.unary
     )
   }

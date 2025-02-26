@@ -655,12 +655,41 @@ public struct Flipchat_Account_V1_UserFlags {
   /// Is this a fully registered account using IAP for account creation?
   public var isRegisteredAccount: Bool = false
 
+  /// Can this user call NotifyIsTyping at all?
+  public var canSendIsTypingNotifications: Bool = false
+
+  /// Can this user call NotifyIsTyping in chats where they are a listener?
+  public var canSendIsTypingNotificationsAsListener: Bool = false
+
+  /// Interval between calling NotifyIsTyping
+  public var isTypingNotificationInterval: SwiftProtobuf.Google_Protobuf_Duration {
+    get {return _isTypingNotificationInterval ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_isTypingNotificationInterval = newValue}
+  }
+  /// Returns true if `isTypingNotificationInterval` has been explicitly set.
+  public var hasIsTypingNotificationInterval: Bool {return self._isTypingNotificationInterval != nil}
+  /// Clears the value of `isTypingNotificationInterval`. Subsequent reads from it will return its default value.
+  public mutating func clearIsTypingNotificationInterval() {self._isTypingNotificationInterval = nil}
+
+  /// Client-side timeout for when they haven't seen an IsTyping event from a user.
+  /// After this timeout has elapsed, client should assume the user has stopped typing.
+  public var isTypingNotificationTimeout: SwiftProtobuf.Google_Protobuf_Duration {
+    get {return _isTypingNotificationTimeout ?? SwiftProtobuf.Google_Protobuf_Duration()}
+    set {_isTypingNotificationTimeout = newValue}
+  }
+  /// Returns true if `isTypingNotificationTimeout` has been explicitly set.
+  public var hasIsTypingNotificationTimeout: Bool {return self._isTypingNotificationTimeout != nil}
+  /// Clears the value of `isTypingNotificationTimeout`. Subsequent reads from it will return its default value.
+  public mutating func clearIsTypingNotificationTimeout() {self._isTypingNotificationTimeout = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _startGroupFee: Flipchat_Common_V1_PaymentAmount? = nil
   fileprivate var _feeDestination: Flipchat_Common_V1_PublicKey? = nil
+  fileprivate var _isTypingNotificationInterval: SwiftProtobuf.Google_Protobuf_Duration? = nil
+  fileprivate var _isTypingNotificationTimeout: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
 #if swift(>=5.5) && canImport(_Concurrency)
@@ -1250,6 +1279,10 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     2: .standard(proto: "start_group_fee"),
     3: .standard(proto: "fee_destination"),
     4: .standard(proto: "is_registered_account"),
+    5: .standard(proto: "can_send_is_typing_notifications"),
+    6: .standard(proto: "can_send_is_typing_notifications_as_listener"),
+    7: .standard(proto: "is_typing_notification_interval"),
+    8: .standard(proto: "is_typing_notification_timeout"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1262,6 +1295,10 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 2: try { try decoder.decodeSingularMessageField(value: &self._startGroupFee) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._feeDestination) }()
       case 4: try { try decoder.decodeSingularBoolField(value: &self.isRegisteredAccount) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.canSendIsTypingNotifications) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.canSendIsTypingNotificationsAsListener) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._isTypingNotificationInterval) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._isTypingNotificationTimeout) }()
       default: break
       }
     }
@@ -1284,6 +1321,18 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.isRegisteredAccount != false {
       try visitor.visitSingularBoolField(value: self.isRegisteredAccount, fieldNumber: 4)
     }
+    if self.canSendIsTypingNotifications != false {
+      try visitor.visitSingularBoolField(value: self.canSendIsTypingNotifications, fieldNumber: 5)
+    }
+    if self.canSendIsTypingNotificationsAsListener != false {
+      try visitor.visitSingularBoolField(value: self.canSendIsTypingNotificationsAsListener, fieldNumber: 6)
+    }
+    try { if let v = self._isTypingNotificationInterval {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
+    try { if let v = self._isTypingNotificationTimeout {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1292,6 +1341,10 @@ extension Flipchat_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs._startGroupFee != rhs._startGroupFee {return false}
     if lhs._feeDestination != rhs._feeDestination {return false}
     if lhs.isRegisteredAccount != rhs.isRegisteredAccount {return false}
+    if lhs.canSendIsTypingNotifications != rhs.canSendIsTypingNotifications {return false}
+    if lhs.canSendIsTypingNotificationsAsListener != rhs.canSendIsTypingNotificationsAsListener {return false}
+    if lhs._isTypingNotificationInterval != rhs._isTypingNotificationInterval {return false}
+    if lhs._isTypingNotificationTimeout != rhs._isTypingNotificationTimeout {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

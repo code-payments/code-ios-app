@@ -7,6 +7,7 @@ option java_package = "com.codeinc.flipchat.gen.account.v1";
 option objc_class_prefix = "FCPBAccountV1";
 
 import "common/v1/common.proto";
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -170,4 +171,17 @@ message UserFlags {
 
 	// Is this a fully registered account using IAP for account creation?
 	bool is_registered_account = 4;
+
+	// Can this user call NotifyIsTyping at all?
+	bool can_send_is_typing_notifications = 5;
+
+	// Can this user call NotifyIsTyping in chats where they are a listener?
+	bool can_send_is_typing_notifications_as_listener = 6;
+
+	// Interval between calling NotifyIsTyping
+	google.protobuf.Duration is_typing_notification_interval = 7;
+
+	// Client-side timeout for when they haven't seen an IsTyping event from a user.
+	// After this timeout has elapsed, client should assume the user has stopped typing.
+	google.protobuf.Duration is_typing_notification_timeout = 8;
 }

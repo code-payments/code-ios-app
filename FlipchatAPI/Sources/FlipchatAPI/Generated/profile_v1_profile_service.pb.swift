@@ -188,13 +188,19 @@ extension Flipchat_Profile_V1_SetDisplayNameResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
-public struct Flipchat_Profile_V1_LinkXAccountRequest {
+public struct Flipchat_Profile_V1_LinkSocialAccountRequest {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Twitter access token from the OAuth 2.0 flow
-  public var accessToken: String = String()
+  public var linkingToken: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken {
+    get {return _linkingToken ?? Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken()}
+    set {_linkingToken = newValue}
+  }
+  /// Returns true if `linkingToken` has been explicitly set.
+  public var hasLinkingToken: Bool {return self._linkingToken != nil}
+  /// Clears the value of `linkingToken`. Subsequent reads from it will return its default value.
+  public mutating func clearLinkingToken() {self._linkingToken = nil}
 
   public var auth: Flipchat_Common_V1_Auth {
     get {return _auth ?? Flipchat_Common_V1_Auth()}
@@ -207,33 +213,85 @@ public struct Flipchat_Profile_V1_LinkXAccountRequest {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
+  public struct LinkingToken {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var type: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.OneOf_Type? = nil
+
+    public var x: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken {
+      get {
+        if case .x(let v)? = type {return v}
+        return Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken()
+      }
+      set {type = .x(newValue)}
+    }
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public enum OneOf_Type: Equatable {
+      case x(Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken)
+
+    #if !swift(>=4.1)
+      public static func ==(lhs: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.OneOf_Type, rhs: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.OneOf_Type) -> Bool {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch (lhs, rhs) {
+        case (.x, .x): return {
+          guard case .x(let l) = lhs, case .x(let r) = rhs else { preconditionFailure() }
+          return l == r
+        }()
+        }
+      }
+    #endif
+    }
+
+    public struct XLinkingToken {
+      // SwiftProtobuf.Message conformance is added in an extension below. See the
+      // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+      // methods supported on all messages.
+
+      /// X access token from the OAuth 2.0 flow
+      public var accessToken: String = String()
+
+      public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+      public init() {}
+    }
+
+    public init() {}
+  }
+
   public init() {}
 
+  fileprivate var _linkingToken: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken? = nil
   fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
 }
 
-public struct Flipchat_Profile_V1_LinkXAccountResponse {
+public struct Flipchat_Profile_V1_LinkSocialAccountResponse {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Flipchat_Profile_V1_LinkXAccountResponse.Result = .ok
+  public var result: Flipchat_Profile_V1_LinkSocialAccountResponse.Result = .ok
 
-  public var xProfile: Flipchat_Profile_V1_XProfile {
-    get {return _xProfile ?? Flipchat_Profile_V1_XProfile()}
-    set {_xProfile = newValue}
+  public var socialProfile: Flipchat_Profile_V1_SocialProfile {
+    get {return _socialProfile ?? Flipchat_Profile_V1_SocialProfile()}
+    set {_socialProfile = newValue}
   }
-  /// Returns true if `xProfile` has been explicitly set.
-  public var hasXProfile: Bool {return self._xProfile != nil}
-  /// Clears the value of `xProfile`. Subsequent reads from it will return its default value.
-  public mutating func clearXProfile() {self._xProfile = nil}
+  /// Returns true if `socialProfile` has been explicitly set.
+  public var hasSocialProfile: Bool {return self._socialProfile != nil}
+  /// Clears the value of `socialProfile`. Subsequent reads from it will return its default value.
+  public mutating func clearSocialProfile() {self._socialProfile = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum Result: SwiftProtobuf.Enum {
     public typealias RawValue = Int
     case ok // = 0
-    case invalidAccessToken // = 1
+    case invalidLinkingToken // = 1
     case existingLink // = 2
     case denied // = 3
     case UNRECOGNIZED(Int)
@@ -245,7 +303,7 @@ public struct Flipchat_Profile_V1_LinkXAccountResponse {
     public init?(rawValue: Int) {
       switch rawValue {
       case 0: self = .ok
-      case 1: self = .invalidAccessToken
+      case 1: self = .invalidLinkingToken
       case 2: self = .existingLink
       case 3: self = .denied
       default: self = .UNRECOGNIZED(rawValue)
@@ -255,7 +313,7 @@ public struct Flipchat_Profile_V1_LinkXAccountResponse {
     public var rawValue: Int {
       switch self {
       case .ok: return 0
-      case .invalidAccessToken: return 1
+      case .invalidLinkingToken: return 1
       case .existingLink: return 2
       case .denied: return 3
       case .UNRECOGNIZED(let i): return i
@@ -266,17 +324,118 @@ public struct Flipchat_Profile_V1_LinkXAccountResponse {
 
   public init() {}
 
-  fileprivate var _xProfile: Flipchat_Profile_V1_XProfile? = nil
+  fileprivate var _socialProfile: Flipchat_Profile_V1_SocialProfile? = nil
 }
 
 #if swift(>=4.2)
 
-extension Flipchat_Profile_V1_LinkXAccountResponse.Result: CaseIterable {
+extension Flipchat_Profile_V1_LinkSocialAccountResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Flipchat_Profile_V1_LinkXAccountResponse.Result] = [
+  public static let allCases: [Flipchat_Profile_V1_LinkSocialAccountResponse.Result] = [
     .ok,
-    .invalidAccessToken,
+    .invalidLinkingToken,
     .existingLink,
+    .denied,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Flipchat_Profile_V1_UnlinkSocialAccountRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var socialIdentifier: Flipchat_Profile_V1_UnlinkSocialAccountRequest.OneOf_SocialIdentifier? = nil
+
+  public var xUserID: String {
+    get {
+      if case .xUserID(let v)? = socialIdentifier {return v}
+      return String()
+    }
+    set {socialIdentifier = .xUserID(newValue)}
+  }
+
+  public var auth: Flipchat_Common_V1_Auth {
+    get {return _auth ?? Flipchat_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_SocialIdentifier: Equatable {
+    case xUserID(String)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipchat_Profile_V1_UnlinkSocialAccountRequest.OneOf_SocialIdentifier, rhs: Flipchat_Profile_V1_UnlinkSocialAccountRequest.OneOf_SocialIdentifier) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.xUserID, .xUserID): return {
+        guard case .xUserID(let l) = lhs, case .xUserID(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      }
+    }
+  #endif
+  }
+
+  public init() {}
+
+  fileprivate var _auth: Flipchat_Common_V1_Auth? = nil
+}
+
+public struct Flipchat_Profile_V1_UnlinkSocialAccountResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipchat_Profile_V1_UnlinkSocialAccountResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Profile_V1_UnlinkSocialAccountResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Profile_V1_UnlinkSocialAccountResponse.Result] = [
+    .ok,
     .denied,
   ]
 }
@@ -290,9 +449,16 @@ extension Flipchat_Profile_V1_GetProfileResponse.Result: @unchecked Sendable {}
 extension Flipchat_Profile_V1_SetDisplayNameRequest: @unchecked Sendable {}
 extension Flipchat_Profile_V1_SetDisplayNameResponse: @unchecked Sendable {}
 extension Flipchat_Profile_V1_SetDisplayNameResponse.Result: @unchecked Sendable {}
-extension Flipchat_Profile_V1_LinkXAccountRequest: @unchecked Sendable {}
-extension Flipchat_Profile_V1_LinkXAccountResponse: @unchecked Sendable {}
-extension Flipchat_Profile_V1_LinkXAccountResponse.Result: @unchecked Sendable {}
+extension Flipchat_Profile_V1_LinkSocialAccountRequest: @unchecked Sendable {}
+extension Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken: @unchecked Sendable {}
+extension Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.OneOf_Type: @unchecked Sendable {}
+extension Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken: @unchecked Sendable {}
+extension Flipchat_Profile_V1_LinkSocialAccountResponse: @unchecked Sendable {}
+extension Flipchat_Profile_V1_LinkSocialAccountResponse.Result: @unchecked Sendable {}
+extension Flipchat_Profile_V1_UnlinkSocialAccountRequest: @unchecked Sendable {}
+extension Flipchat_Profile_V1_UnlinkSocialAccountRequest.OneOf_SocialIdentifier: @unchecked Sendable {}
+extension Flipchat_Profile_V1_UnlinkSocialAccountResponse: @unchecked Sendable {}
+extension Flipchat_Profile_V1_UnlinkSocialAccountResponse.Result: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -466,10 +632,10 @@ extension Flipchat_Profile_V1_SetDisplayNameResponse.Result: SwiftProtobuf._Prot
   ]
 }
 
-extension Flipchat_Profile_V1_LinkXAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".LinkXAccountRequest"
+extension Flipchat_Profile_V1_LinkSocialAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LinkSocialAccountRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "access_token"),
+    1: .standard(proto: "linking_token"),
     10: .same(proto: "auth"),
   ]
 
@@ -479,7 +645,7 @@ extension Flipchat_Profile_V1_LinkXAccountRequest: SwiftProtobuf.Message, SwiftP
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.accessToken) }()
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._linkingToken) }()
       case 10: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
@@ -491,28 +657,108 @@ extension Flipchat_Profile_V1_LinkXAccountRequest: SwiftProtobuf.Message, SwiftP
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    if !self.accessToken.isEmpty {
-      try visitor.visitSingularStringField(value: self.accessToken, fieldNumber: 1)
-    }
+    try { if let v = self._linkingToken {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipchat_Profile_V1_LinkXAccountRequest, rhs: Flipchat_Profile_V1_LinkXAccountRequest) -> Bool {
-    if lhs.accessToken != rhs.accessToken {return false}
+  public static func ==(lhs: Flipchat_Profile_V1_LinkSocialAccountRequest, rhs: Flipchat_Profile_V1_LinkSocialAccountRequest) -> Bool {
+    if lhs._linkingToken != rhs._linkingToken {return false}
     if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipchat_Profile_V1_LinkXAccountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".LinkXAccountResponse"
+extension Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Profile_V1_LinkSocialAccountRequest.protoMessageName + ".LinkingToken"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "x"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .x(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .x(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .x(let v)? = self.type {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken, rhs: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.protoMessageName + ".XLinkingToken"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "access_token"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.accessToken) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.accessToken.isEmpty {
+      try visitor.visitSingularStringField(value: self.accessToken, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken, rhs: Flipchat_Profile_V1_LinkSocialAccountRequest.LinkingToken.XLinkingToken) -> Bool {
+    if lhs.accessToken != rhs.accessToken {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Profile_V1_LinkSocialAccountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LinkSocialAccountResponse"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "result"),
-    2: .standard(proto: "x_profile"),
+    2: .standard(proto: "social_profile"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -522,7 +768,7 @@ extension Flipchat_Profile_V1_LinkXAccountResponse: SwiftProtobuf.Message, Swift
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._xProfile) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._socialProfile) }()
       default: break
       }
     }
@@ -536,25 +782,113 @@ extension Flipchat_Profile_V1_LinkXAccountResponse: SwiftProtobuf.Message, Swift
     if self.result != .ok {
       try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
     }
-    try { if let v = self._xProfile {
+    try { if let v = self._socialProfile {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipchat_Profile_V1_LinkXAccountResponse, rhs: Flipchat_Profile_V1_LinkXAccountResponse) -> Bool {
+  public static func ==(lhs: Flipchat_Profile_V1_LinkSocialAccountResponse, rhs: Flipchat_Profile_V1_LinkSocialAccountResponse) -> Bool {
     if lhs.result != rhs.result {return false}
-    if lhs._xProfile != rhs._xProfile {return false}
+    if lhs._socialProfile != rhs._socialProfile {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipchat_Profile_V1_LinkXAccountResponse.Result: SwiftProtobuf._ProtoNameProviding {
+extension Flipchat_Profile_V1_LinkSocialAccountResponse.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "OK"),
-    1: .same(proto: "INVALID_ACCESS_TOKEN"),
+    1: .same(proto: "INVALID_LINKING_TOKEN"),
     2: .same(proto: "EXISTING_LINK"),
     3: .same(proto: "DENIED"),
+  ]
+}
+
+extension Flipchat_Profile_V1_UnlinkSocialAccountRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnlinkSocialAccountRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "x_user_id"),
+    10: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: String?
+        try decoder.decodeSingularStringField(value: &v)
+        if let v = v {
+          if self.socialIdentifier != nil {try decoder.handleConflictingOneOf()}
+          self.socialIdentifier = .xUserID(v)
+        }
+      }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .xUserID(let v)? = self.socialIdentifier {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Profile_V1_UnlinkSocialAccountRequest, rhs: Flipchat_Profile_V1_UnlinkSocialAccountRequest) -> Bool {
+    if lhs.socialIdentifier != rhs.socialIdentifier {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Profile_V1_UnlinkSocialAccountResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UnlinkSocialAccountResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Profile_V1_UnlinkSocialAccountResponse, rhs: Flipchat_Profile_V1_UnlinkSocialAccountResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Profile_V1_UnlinkSocialAccountResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
   ]
 }

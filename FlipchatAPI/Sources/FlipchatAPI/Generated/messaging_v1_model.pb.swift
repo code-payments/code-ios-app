@@ -20,6 +20,58 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+public enum Flipchat_Messaging_V1_TypingState: SwiftProtobuf.Enum {
+  public typealias RawValue = Int
+  case unknownTypingState // = 0
+  case startedTyping // = 1
+  case stillTyping // = 2
+  case stoppedTyping // = 3
+  case typingTimedOut // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unknownTypingState
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unknownTypingState
+    case 1: self = .startedTyping
+    case 2: self = .stillTyping
+    case 3: self = .stoppedTyping
+    case 4: self = .typingTimedOut
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unknownTypingState: return 0
+    case .startedTyping: return 1
+    case .stillTyping: return 2
+    case .stoppedTyping: return 3
+    case .typingTimedOut: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+}
+
+#if swift(>=4.2)
+
+extension Flipchat_Messaging_V1_TypingState: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipchat_Messaging_V1_TypingState] = [
+    .unknownTypingState,
+    .startedTyping,
+    .stillTyping,
+    .stoppedTyping,
+    .typingTimedOut,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Flipchat_Messaging_V1_MessageId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -192,6 +244,49 @@ extension Flipchat_Messaging_V1_Pointer.TypeEnum: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Flipchat_Messaging_V1_PointerUpdate {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var member: Flipchat_Common_V1_UserId {
+    get {return _member ?? Flipchat_Common_V1_UserId()}
+    set {_member = newValue}
+  }
+  /// Returns true if `member` has been explicitly set.
+  public var hasMember: Bool {return self._member != nil}
+  /// Clears the value of `member`. Subsequent reads from it will return its default value.
+  public mutating func clearMember() {self._member = nil}
+
+  public var pointer: Flipchat_Messaging_V1_Pointer {
+    get {return _pointer ?? Flipchat_Messaging_V1_Pointer()}
+    set {_pointer = newValue}
+  }
+  /// Returns true if `pointer` has been explicitly set.
+  public var hasPointer: Bool {return self._pointer != nil}
+  /// Clears the value of `pointer`. Subsequent reads from it will return its default value.
+  public mutating func clearPointer() {self._pointer = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _member: Flipchat_Common_V1_UserId? = nil
+  fileprivate var _pointer: Flipchat_Messaging_V1_Pointer? = nil
+}
+
+public struct Flipchat_Messaging_V1_PointerUpdateBatch {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var pointerUpdates: [Flipchat_Messaging_V1_PointerUpdate] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 public struct Flipchat_Messaging_V1_IsTyping {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -206,15 +301,28 @@ public struct Flipchat_Messaging_V1_IsTyping {
   /// Clears the value of `userID`. Subsequent reads from it will return its default value.
   public mutating func clearUserID() {self._userID = nil}
 
-  /// is_typing indicates whether or not the user is typing.
-  /// If false, the user has explicitly stopped typing.
+  /// Deprecated: Use typing_state instead
   public var isTyping: Bool = false
+
+  public var typingState: Flipchat_Messaging_V1_TypingState = .unknownTypingState
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _userID: Flipchat_Common_V1_UserId? = nil
+}
+
+public struct Flipchat_Messaging_V1_IsTypingBatch {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var isTypingNotifications: [Flipchat_Messaging_V1_IsTyping] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 /// Content for a chat message
@@ -586,13 +694,17 @@ public struct Flipchat_Messaging_V1_ReviewContent {
 }
 
 #if swift(>=5.5) && canImport(_Concurrency)
+extension Flipchat_Messaging_V1_TypingState: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_MessageId: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_MessageIdBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Message: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_MessageBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Pointer: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Pointer.TypeEnum: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_PointerUpdate: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_PointerUpdateBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_IsTyping: @unchecked Sendable {}
+extension Flipchat_Messaging_V1_IsTypingBatch: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_Content.OneOf_Type: @unchecked Sendable {}
 extension Flipchat_Messaging_V1_TextContent: @unchecked Sendable {}
@@ -611,6 +723,16 @@ extension Flipchat_Messaging_V1_ReviewContent: @unchecked Sendable {}
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "flipchat.messaging.v1"
+
+extension Flipchat_Messaging_V1_TypingState: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "UNKNOWN_TYPING_STATE"),
+    1: .same(proto: "STARTED_TYPING"),
+    2: .same(proto: "STILL_TYPING"),
+    3: .same(proto: "STOPPED_TYPING"),
+    4: .same(proto: "TYPING_TIMED_OUT"),
+  ]
+}
 
 extension Flipchat_Messaging_V1_MessageId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MessageId"
@@ -819,11 +941,86 @@ extension Flipchat_Messaging_V1_Pointer.TypeEnum: SwiftProtobuf._ProtoNameProvid
   ]
 }
 
+extension Flipchat_Messaging_V1_PointerUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PointerUpdate"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "member"),
+    2: .same(proto: "pointer"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._member) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._pointer) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._member {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._pointer {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_PointerUpdate, rhs: Flipchat_Messaging_V1_PointerUpdate) -> Bool {
+    if lhs._member != rhs._member {return false}
+    if lhs._pointer != rhs._pointer {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_PointerUpdateBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PointerUpdateBatch"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "pointer_updates"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.pointerUpdates) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.pointerUpdates.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.pointerUpdates, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_PointerUpdateBatch, rhs: Flipchat_Messaging_V1_PointerUpdateBatch) -> Bool {
+    if lhs.pointerUpdates != rhs.pointerUpdates {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Flipchat_Messaging_V1_IsTyping: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".IsTyping"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "user_id"),
     2: .standard(proto: "is_typing"),
+    3: .standard(proto: "typing_state"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -834,6 +1031,7 @@ extension Flipchat_Messaging_V1_IsTyping: SwiftProtobuf.Message, SwiftProtobuf._
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.isTyping) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.typingState) }()
       default: break
       }
     }
@@ -850,12 +1048,48 @@ extension Flipchat_Messaging_V1_IsTyping: SwiftProtobuf.Message, SwiftProtobuf._
     if self.isTyping != false {
       try visitor.visitSingularBoolField(value: self.isTyping, fieldNumber: 2)
     }
+    if self.typingState != .unknownTypingState {
+      try visitor.visitSingularEnumField(value: self.typingState, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipchat_Messaging_V1_IsTyping, rhs: Flipchat_Messaging_V1_IsTyping) -> Bool {
     if lhs._userID != rhs._userID {return false}
     if lhs.isTyping != rhs.isTyping {return false}
+    if lhs.typingState != rhs.typingState {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipchat_Messaging_V1_IsTypingBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".IsTypingBatch"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "is_typing_notifications"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.isTypingNotifications) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.isTypingNotifications.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.isTypingNotifications, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipchat_Messaging_V1_IsTypingBatch, rhs: Flipchat_Messaging_V1_IsTypingBatch) -> Bool {
+    if lhs.isTypingNotifications != rhs.isTypingNotifications {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
