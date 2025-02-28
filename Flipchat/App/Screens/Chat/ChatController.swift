@@ -397,8 +397,13 @@ class ChatController: ObservableObject {
                     print("[STREAM] Member \(userID.uuid) now listener (demoted)")
                     
                 case .identityChanged(let userID, let identity):
-                    // TODO: Implement
-                    print("[STREAM] Member \(userID.uuid) identity changed: \(identity.socialProfile?.kind.rawValue ?? -1)")
+                    if let identity {
+                        try $0.insertIdentity(identity: identity, userID: userID.uuid)
+                        print("[STREAM] Member \(userID.uuid) identity added: \(identity.socialProfile?.kind.rawValue ?? -1)")
+                    } else {
+                        try $0.deleteIdentity(userID: userID.uuid)
+                        print("[STREAM] Member \(userID.uuid) identity removed.")
+                    }
                 }
             }
             

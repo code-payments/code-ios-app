@@ -225,7 +225,9 @@ struct ConversationScreen: View {
                 userTips: tipUsers.users.map {
                     ModalTipList.UserTip(
                         userID: $0.userID,
+                        avatarURL: $0.profile?.avatarURL,
                         name: $0.displayName,
+                        isHost: $0.userID == roomHostID,
                         amount: $0.tip
                     )
                 }

@@ -34,6 +34,7 @@ struct FinalizeAccountScreen: View {
                 
                 VStack(spacing: 60) {
                     UserGeneratedAvatar(
+                        url: nil,
                         data: viewModel.owner.publicKey.data,
                         diameter: 120
                     )

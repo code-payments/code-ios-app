@@ -74,16 +74,22 @@ extension Database {
         SELECT
             u.serverID    AS userID,
             u.displayName AS displayName,
-            SUM(t.kin)    AS tip
-        FROM message m
-        JOIN message t
-            ON t.referenceID = m.serverID AND t.contentType = 4
-        JOIN user u
-            ON t.senderID = u.serverID
+            SUM(t.kin)    AS tip,
+        
+            p.displayName  AS socialDisplayName,
+            p.avatarURL    AS socialAvatarURL,
+            p.verificationType AS socialVerificationType
+        
+        FROM 
+            message m
+        
+        LEFT JOIN message t ON t.referenceID = m.serverID AND t.contentType = 4
+        LEFT JOIN user u    ON t.senderID = u.serverID
+        LEFT JOIN profile p ON u.serverID = p.userID
+        
         WHERE m.serverID = "\(messageID)"
-        GROUP BY
-            u.serverID,
-            u.displayName
+        GROUP BY u.serverID, u.displayName
+        
         ORDER BY tip DESC;
         """)
         
@@ -91,7 +97,8 @@ extension Database {
             TipUser(
                 userID:      row[Expression<UUID>("userID")],
                 displayName: row[Expression<String>("displayName")],
-                tip:         Kin(quarks: row[Expression<UInt64>("tip")])
+                tip:         Kin(quarks: row[Expression<UInt64>("tip")]),
+                profile:     .init(row: row)
             )
         }
     }
@@ -119,26 +126,20 @@ extension Database {
             b.canSend      AS uCanSend,
 
             r.content      AS rContent,
-            ru.displayName AS rDisplayName
+            ru.displayName AS rDisplayName,
         
+            p.displayName  AS socialDisplayName,
+            p.avatarURL    AS socialAvatarURL,
+            p.verificationType AS socialVerificationType
+
         FROM
             message m
 
-        LEFT JOIN 
-            message r
-        ON m.referenceID = r.serverID
-
-        LEFT JOIN 
-            user ru
-        ON r.senderID = ru.serverID
-
-        LEFT JOIN
-            user u
-        ON m.senderID = u.serverID
-
-        LEFT JOIN
-            member b
-        ON m.senderID = b.userID AND m.roomID = b.roomID
+        LEFT JOIN message r ON m.referenceID = r.serverID
+        LEFT JOIN user ru   ON r.senderID = ru.serverID
+        LEFT JOIN user u    ON m.senderID = u.serverID
+        LEFT JOIN member b  ON m.senderID = b.userID AND m.roomID = b.roomID
+        LEFT JOIN profile p ON m.senderID = p.userID
 
         WHERE 
             m.roomID = "\(roomID.uuidString)"
@@ -152,6 +153,7 @@ extension Database {
             let referenceID = row[Expression<UUID?>("referenceID")]
             let rDisplayName = row[Expression<String?>("rDisplayName")]
             let rContent = row[Expression<String?>("rContent")]
+            
             return MessageRow(
                 message: .init(
                     serverID:       row[mTable.serverID],
@@ -171,7 +173,8 @@ extension Database {
                     displayName: row[Expression<String?>("uDisplayName")],
                     isMuted:     row[Expression<Bool?>("uIsMuted")],
                     isBlocked:   row[Expression<Bool?>("uIsBlocked")],
-                    canSend:     row[Expression<Bool?>("uCanSend")]
+                    canSend:     row[Expression<Bool?>("uCanSend")],
+                    profile:     .init(row: row)
                 ),
                 referenceID: referenceID,
                 
@@ -217,6 +220,7 @@ struct MessageRow: Hashable {
         let isMuted: Bool?
         let isBlocked: Bool?
         let canSend: Bool?
+        let profile: SocialProfile?
     }
     
     struct Reference: Hashable {
@@ -225,14 +229,41 @@ struct MessageRow: Hashable {
     }
 }
 
+struct SocialProfile: Hashable {
+    let displayName: String
+    let avatarURL: URL?
+    let verificationType: VerificationType
+}
+
 struct TipUser {
     let userID: UUID
     let displayName: String
     let tip: Kin
+    let profile: SocialProfile?
 }
 
 struct MessagePointer {
     let messageID: UUID
     let kind: Chat.Pointer.Kind
     let newUnreads: Int
+}
+
+// MARK: - Mapping -
+
+extension SocialProfile {
+    init?(row: RowIterator.Element) {
+        let socialDisplayName = row[Expression<String?>("socialDisplayName")]
+        let socialAvatarURL   = row[Expression<URL?>("socialAvatarURL")]
+        let verificationType  = row[Expression<VerificationType?>("socialVerificationType")]
+        
+        if let socialDisplayName {
+            self.init(
+                displayName: socialDisplayName,
+                avatarURL: socialAvatarURL,
+                verificationType: verificationType ?? .none
+            )
+        } else {
+            return nil
+        }
+    }
 }

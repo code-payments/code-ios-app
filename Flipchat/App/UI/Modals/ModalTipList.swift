@@ -33,19 +33,21 @@ public struct ModalTipList: View {
     public var body: some View {
         Background(color: .backgroundMain) {
             List {
-                ForEach(userTips, id: \.userID) { tip in
+                ForEach(userTips, id: \.userID) { userTip in
                     HStack(spacing: 12) {
-                        RoomGeneratedAvatar(
-                            data: tip.userID.data,
-                            diameter: 30
+                        UserGeneratedAvatar(
+                            url: userTip.avatarURL,
+                            data: userTip.userID.data,
+                            diameter: 30,
+                            isHost: userTip.isHost
                         )
                         
-                        Text(tip.name)
+                        Text(userTip.name)
                             .font(.appTextMedium)
                         
                         Spacer()
                         
-                        Text(tip.amount.formattedTruncatedKin(showSuffix: false))
+                        Text(userTip.amount.formattedTruncatedKin(showSuffix: false))
                             .font(.appTextLarge)
                     }
                     .foregroundStyle(Color.textMain)
@@ -81,7 +83,9 @@ public struct ModalTipList: View {
 extension ModalTipList {
     public struct UserTip {
         var userID: UUID
+        var avatarURL: URL?
         var name: String
+        var isHost: Bool
         var amount: Kin
     }
 }
@@ -90,13 +94,13 @@ extension ModalTipList {
     Background(color: .backgroundMain) {}
     .sheet(isPresented: .constant(true)) {
         ModalTipList(userTips: [
-            .init(userID: UUID(), name: "John",  amount: 5),
-            .init(userID: UUID(), name: "Lisa",  amount: 20),
-            .init(userID: UUID(), name: "Tim",   amount: 3),
-            .init(userID: UUID(), name: "Jake",  amount: 1),
-            .init(userID: UUID(), name: "Cindy", amount: 10),
-            .init(userID: UUID(), name: "Kelly", amount: 15),
-            .init(userID: UUID(), name: "Billy", amount: 35),
+            .init(
+                userID: UUID(),
+                avatarURL: nil,
+                name: "John",
+                isHost: false,
+                amount: 5
+            ),
         ])
     }
 }

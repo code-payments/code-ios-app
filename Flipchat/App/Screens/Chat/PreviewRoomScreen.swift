@@ -30,12 +30,15 @@ struct PreviewRoomScreen: View {
         self.host        = host
         self.viewModel   = viewModel
         self.isModal     = isModal
-        self.gridMembers = members.map { .init(
-            id: $0.id.uuid,
-            isSelf: $0.isSelf,
-            isSpeaker: $0.hasSendPermission,
-            isModerator: $0.hasModeratorPermission,
-            name: $0.identity.displayName)
+        self.gridMembers = members.map {
+            .init(
+                id: $0.id.uuid,
+                isSelf: $0.isSelf,
+                isSpeaker: $0.hasSendPermission,
+                isModerator: $0.hasModeratorPermission,
+                name: $0.identity.displayName,
+                avatarURL: $0.identity.socialProfile?.avatarURL
+            )
         }
     }
     

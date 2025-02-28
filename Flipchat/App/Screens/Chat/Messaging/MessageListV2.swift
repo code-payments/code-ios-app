@@ -713,22 +713,13 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
             let displayName = row.member.displayName ?? defaultMemberName
             let chatID = chatID
             let isDeleted = deletionState != nil
-            let senderIsHost = message.senderID == hostID.uuid
             let selfIsHost = self.userID == hostID
             
             MessageText(
-                messageID: message.serverID,
-                state: message.state,
-                name: displayName,
-                avatarData: message.senderID?.data ?? Data([0, 0, 0, 0]),
+                messageRow: row,
                 text: description.content,
-                date: message.date,
                 isReceived: isReceived,
-                isHost: senderIsHost,
-                isBlocked: row.member.isBlocked == true,
-                hasTipFromSelf: message.hasTipFromSelf,
-                offStage: message.offStage,
-                kinTips: message.kin,
+                hostID: hostID.uuid,
                 deletionState: deletionState,
                 replyingTo: replyingTo(for: row, deletion: referenceDeletion, action: action),
                 location: location,

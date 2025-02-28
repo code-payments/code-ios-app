@@ -34,7 +34,8 @@ struct RoomDetailsScreen: View {
                 isSelf: $0.serverID == userID,
                 isSpeaker: $0.canSend,
                 isModerator: $0.canModerate,
-                name: $0.displayName
+                name: $0.displayName,
+                avatarURL: $0.profile?.avatarURL
             )
         }
     }

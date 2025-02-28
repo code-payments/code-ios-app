@@ -135,6 +135,7 @@ struct MemberGrid: View {
     @ViewBuilder private func user(member: Member, defaultName: String) -> some View {
         VStack {
             UserGeneratedAvatar(
+                url: member.avatarURL,
                 data: member.id.data,
                 diameter: size,
                 isHost: member.isModerator
@@ -210,6 +211,7 @@ extension MemberGrid {
         var isSpeaker: Bool
         var isModerator: Bool
         var name: String?
+        var avatarURL: URL?
     }
 }
 

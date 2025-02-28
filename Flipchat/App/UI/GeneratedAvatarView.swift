@@ -17,19 +17,54 @@ public struct UserGeneratedAvatar: View {
     private let foregroundColor = Color(r: 255, g: 255, b: 255).opacity(0.9)
     private let backgroundColor = Color(r: 201, g: 214, b: 222)
     
+    private let url: URL?
     private let data: Data
     private let diameter: CGFloat
     private let offset: CGFloat
+    private let crownDiameter: CGFloat
     private let isHost: Bool
     
-    public init(data: Data, diameter: CGFloat, isHost: Bool = false) {
+    public init(url: URL?, data: Data, diameter: CGFloat, isHost: Bool = false) {
+        self.url = url
         self.data = SHA512.digest(SHA512.digest(data))
         self.diameter = diameter
-        self.offset = diameter * CGFloat(5.0 / 35.0) // 5/35 is a ratio 5pt offset on a 35pt avatar
         self.isHost = isHost
+        self.offset = diameter * CGFloat(5.0 / 35.0) // 5/35 is a ratio 5pt offset on a 35pt avatar
+        self.crownDiameter = min(20.0 / 35.0 * diameter, 20)
     }
     
     public var body: some View {
+        Group {
+            if let url {
+                AsyncImage(url: url) { phase in
+                    if case .success(let image) = phase {
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: diameter, height: diameter)
+                            .clipShape(Circle())
+                        
+                    } else {
+                        generatedAvatar()
+                    }
+                }
+            } else {
+                generatedAvatar()
+            }
+        }
+        .if(isHost) { $0
+            .overlay {
+                Image.asset(.crown)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: crownDiameter, height: crownDiameter)
+                    .position(x: offset, y: offset)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func generatedAvatar() -> some View {
         VStack(spacing: diameter * 0.075) {
             UnevenRoundedCorners(
                 tl: diameter * 0.25,
@@ -57,12 +92,6 @@ public struct UserGeneratedAvatar: View {
             Circle()
         }
         .drawingGroup()
-        .if(isHost) { $0
-            .overlay {
-                Image.asset(.crown)
-                    .position(x: offset, y: offset)
-            }
-        }
     }
 }
 

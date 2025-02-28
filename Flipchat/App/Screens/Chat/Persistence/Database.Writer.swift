@@ -67,25 +67,6 @@ extension Database {
         }
     }
 
-    private func insertRoom(room: Chat.Metadata, into table: RoomTable) throws {
-        try writer.run(
-            table.table.upsert(
-                table.serverID    <- room.id.uuid,
-                table.kind        <- room.kind.rawValue,
-                table.title       <- room.title,
-                table.roomNumber  <- room.roomNumber,
-                table.ownerUserID <- room.ownerUser.uuid,
-                table.coverQuarks <- Int64(room.coverAmount.quarks),
-                table.unreadCount <- room.unreadCount.encodingUnreadCount(hasMore: room.hasMoreUnread),
-                table.isMuted     <- room.isMuted,
-                table.canMute     <- room.canMute,
-                table.isOpen      <- room.isOpen,
-                
-                onConflictOf: table.serverID
-            )
-        )
-    }
-
     func clearUnread(roomID: UUID) throws {
         let room = RoomTable()
         try writer.run(
@@ -139,24 +120,21 @@ extension Database {
     }
     
     func insertMembers(members: [Chat.Member], roomID: UUID) throws {
-        let member = MemberTable()
-        let user = UserTable()
+        let member  = MemberTable()
+        let user    = UserTable()
+        let profile = ProfileTable()
+        
         try members.forEach {
-            try insertUser(user: $0.identity, userID: $0.id.uuid, into: user)
+            try insertIdentity(identity: $0.identity, userID: $0.id.uuid, userTable: user, profileTable: profile)
             try insertMember(member: $0, roomID: roomID, into: member)
         }
     }
     
-    private func insertUser(user: Chat.Identity, userID: UUID, into table: UserTable) throws {
-        try writer.run(
-            table.table.upsert(
-                table.serverID    <- userID,
-                table.displayName <- user.displayName,
-                table.avatarURL   <- user.avatarURL,
-                
-                onConflictOf: table.serverID
-            )
-        )
+    func insertIdentity(identity: Chat.Identity, userID: UUID) throws {
+        let user = UserTable()
+        let profile = ProfileTable()
+        
+        try insertIdentity(identity: identity, userID: userID, userTable: user, profileTable: profile)
     }
     
     // MARK: - Incremental Room -
@@ -204,6 +182,15 @@ extension Database {
         try writer.run(
             member.table
                 .filter(member.userID == userID && member.roomID == roomID)
+                .delete()
+        )
+    }
+    
+    func deleteIdentity(userID: UUID) throws {
+        let profile = ProfileTable()
+        try writer.run(
+            profile.table
+                .filter(profile.userID == userID)
                 .delete()
         )
     }
@@ -317,6 +304,41 @@ extension Database {
             break
         }
     }
+    
+    private func insertRoom(room: Chat.Metadata, into table: RoomTable) throws {
+        try writer.run(
+            table.table.upsert(
+                table.serverID    <- room.id.uuid,
+                table.kind        <- room.kind.rawValue,
+                table.title       <- room.title,
+                table.roomNumber  <- room.roomNumber,
+                table.ownerUserID <- room.ownerUser.uuid,
+                table.coverQuarks <- Int64(room.coverAmount.quarks),
+                table.unreadCount <- room.unreadCount.encodingUnreadCount(hasMore: room.hasMoreUnread),
+                table.isMuted     <- room.isMuted,
+                table.canMute     <- room.canMute,
+                table.isOpen      <- room.isOpen,
+                
+                onConflictOf: table.serverID
+            )
+        )
+    }
+    
+    private func insertIdentity(identity: Chat.Identity, userID: UUID, userTable: UserTable, profileTable: ProfileTable) throws {
+        try writer.run(
+            userTable.table.upsert(
+                userTable.serverID    <- userID,
+                userTable.displayName <- identity.displayName,
+                userTable.avatarURL   <- identity.avatarURL,
+                
+                onConflictOf: userTable.serverID
+            )
+        )
+        
+        if let socialProfile = identity.socialProfile {
+            try insertProfile(profile: socialProfile, userID: userID, into: profileTable)
+        }
+    }
 
     private func insertMember(member: Chat.Member, roomID: UUID, into table: MemberTable) throws {
         try writer.run(
@@ -328,6 +350,23 @@ extension Database {
                 table.canSend     <- member.hasSendPermission,
                 
                 onConflictOf: Expression<Void>(literal: "\"userID\", \"roomID\"")
+            )
+        )
+    }
+    
+    private func insertProfile(profile: Chat.SocialProfile, userID: UUID, into table: ProfileTable) throws {
+        try writer.run(
+            table.table.upsert(
+                table.userID           <- userID,
+                table.socialID         <- profile.id,
+                table.username         <- profile.username,
+                table.displayName      <- profile.displayName,
+                table.bio              <- profile.bio,
+                table.followerCount    <- profile.followerCount,
+                table.avatarURL        <- profile.avatarURL,
+                table.verificationType <- VerificationType(profile.verificationType),
+                
+                onConflictOf: table.userID
             )
         )
     }

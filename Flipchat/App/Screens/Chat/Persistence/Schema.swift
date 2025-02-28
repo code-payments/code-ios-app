@@ -56,6 +56,20 @@ struct MemberTable: Sendable {
     let canSend     = Expression <Bool> ("canSend")
 }
 
+struct ProfileTable: Sendable {
+    static let name = "profile"
+    
+    let table            = Table(Self.name)
+    let userID           = Expression <UUID>             ("userID")
+    let socialID         = Expression <String>           ("socialID")
+    let username         = Expression <String>           ("username")
+    let displayName      = Expression <String>           ("displayName")
+    let bio              = Expression <String>           ("bio")
+    let followerCount    = Expression <Int>              ("followerCount")
+    let avatarURL        = Expression <URL?>             ("avatarURL")
+    let verificationType = Expression <VerificationType> ("verificationType")
+}
+
 struct UserTable: Sendable {
     static let name = "user"
     
@@ -93,6 +107,7 @@ extension Database {
         let roomTable    = RoomTable()
         let messageTable = MessageTable()
         let memberTable  = MemberTable()
+        let profileTable = ProfileTable()
         let userTable    = UserTable()
         let pointerTable = PointerTable()
         
@@ -139,6 +154,19 @@ extension Database {
                 t.primaryKey(memberTable.userID, memberTable.roomID)
                 t.foreignKey(memberTable.userID, references: userTable.table, userTable.serverID, delete: .setNull)
                 t.foreignKey(memberTable.roomID, references: roomTable.table, roomTable.serverID, delete: .cascade)
+            })
+            
+            try writer.run(profileTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(profileTable.userID, primaryKey: true) // FK user.serverID
+                t.column(profileTable.socialID)
+                t.column(profileTable.username)
+                t.column(profileTable.displayName)
+                t.column(profileTable.bio)
+                t.column(profileTable.followerCount, defaultValue: 0)
+                t.column(profileTable.avatarURL)
+                t.column(profileTable.verificationType, defaultValue: VerificationType.none)
+                
+                t.foreignKey(profileTable.userID, references: userTable.table, userTable.serverID, delete: .cascade)
             })
             
             try writer.run(userTable.table.create(ifNotExists: true, withoutRowid: true) { t in
@@ -209,7 +237,35 @@ enum ContentType: Int, Value {
     }
 }
 
-extension UInt64: Value {
+public enum VerificationType: Int, Value {
+    case none
+    case blue
+    case business
+    case government
+    
+    init(_ type: Chat.SocialProfile.VerificationType) {
+        switch type {
+        case .none:       self = .none
+        case .blue:       self = .blue
+        case .business:   self = .business
+        case .government: self = .government
+        }
+    }
+    
+    public static var declaredDatatype: String {
+        Int.declaredDatatype
+    }
+
+    public static func fromDatatypeValue(_ dataValue: Int64) -> VerificationType {
+        VerificationType(rawValue: Int(dataValue)) ?? .none
+    }
+
+    public var datatypeValue: Int64 {
+        Int64(rawValue)
+    }
+}
+
+extension UInt64: @retroactive Value {
     public static var declaredDatatype: String {
         Int64.declaredDatatype
     }

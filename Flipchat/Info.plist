@@ -40,7 +40,7 @@
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
 	<key>SQLiteVersion</key>
-	<integer>12</integer>
+	<integer>13</integer>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

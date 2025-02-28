@@ -41,7 +41,7 @@ extension Chat {
             case muted(UserID)
             case promoted(UserID)
             case demoted(UserID)
-            case identityChanged(UserID, Chat.Identity)
+            case identityChanged(UserID, Chat.Identity?)
         }
     }
 }
@@ -150,7 +150,10 @@ extension Chat.BatchUpdate.MemberUpdate {
             self = .demoted(UserID(data: update.member.value))
             
         case .identityChanged(let update):
-            self = .identityChanged(UserID(data: update.member.value), Chat.Identity(update.newIdentity))
+            self = .identityChanged(
+                UserID(data: update.member.value),
+                update.hasNewIdentity ? Chat.Identity(update.newIdentity) : nil
+            )
         }
     }
 }

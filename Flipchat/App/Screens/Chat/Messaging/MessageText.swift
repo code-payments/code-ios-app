@@ -11,10 +11,13 @@ import FlipchatServices
 
 struct MessageText<MenuItems>: View where MenuItems: View {
     
+    let messageRow: MessageRow
     let messageID: UUID
+    let hostID: UUID
     let state: Chat.Message.State
     let name: String
     let avatarData: Data
+    let avatarURL: URL?
     let text: String
     let date: Date
     let isReceived: Bool
@@ -55,20 +58,37 @@ struct MessageText<MenuItems>: View where MenuItems: View {
             return 0
         }
     }
+    
+    private let defaultMemberName = "Member"
         
-    init(messageID: UUID, state: Chat.Message.State, name: String, avatarData: Data, text: String, date: Date, isReceived: Bool, isHost: Bool, isBlocked: Bool, hasTipFromSelf: Bool, offStage: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
-        self.messageID = messageID
-        self.state = state
-        self.name = name
-        self.avatarData = avatarData
+    init(messageRow: MessageRow, text: String, isReceived: Bool, hostID: UUID, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+        let message = messageRow.message
+        let member = messageRow.member
+        let senderIsHost = message.senderID == hostID
+        
+        
+        let displayName: String
+        if let socialProfile = member.profile {
+            displayName = socialProfile.displayName
+        } else { // Default to self-assigned names
+            displayName = member.displayName ?? defaultMemberName
+        }
+        
+        self.messageRow = messageRow
+        self.messageID = message.serverID
+        self.hostID = hostID
+        self.state = message.state
+        self.name = displayName
+        self.avatarData = message.senderID?.data ?? Data([0, 0, 0, 0])
+        self.avatarURL = member.profile?.avatarURL
         self.text = text
-        self.date = date
+        self.date = message.date
         self.isReceived = isReceived
-        self.isHost = isHost
-        self.isBlocked = isBlocked
-        self.hasTipFromSelf = hasTipFromSelf
-        self.offStage = offStage
-        self.kinTips = kinTips
+        self.isHost = senderIsHost
+        self.isBlocked = messageRow.member.isBlocked == true
+        self.hasTipFromSelf = message.hasTipFromSelf
+        self.offStage = message.offStage
+        self.kinTips = message.kin
         self.deletionState = deletionState
         self.replyingTo = replyingTo
         self.location = location
@@ -81,6 +101,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
             if isReceived {
                 if shouldShowAvatar {
                     UserGeneratedAvatar(
+                        url: avatarURL,
                         data: avatarData,
                         diameter: 35,
                         isHost: isHost
@@ -94,12 +115,16 @@ struct MessageText<MenuItems>: View where MenuItems: View {
                 }
             }
             
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 if shouldShowName, isReceived {
-                    Text(name)
-                        .font(.appTextCaption)
-                        .foregroundStyle(Color.textSecondary)
-                        .padding(.leading, Metrics.chatMessageRadiusSmall)
+                    HStack(spacing: 5) {
+                        Text(name)
+                            .font(.appTextCaption)
+                            .foregroundStyle(Color.textSecondary)
+                            .padding(.leading, Metrics.chatMessageRadiusSmall)
+                        
+                        verificationView()
+                    }
                 }
                 
                 MessageBubble(
@@ -123,6 +148,28 @@ struct MessageText<MenuItems>: View where MenuItems: View {
             }
         }
         .padding(.top, topPadding)
+    }
+    
+    @ViewBuilder private func verificationView() -> some View {
+        if let verification = messageRow.member.profile?.verificationType, verification != .none {
+            Group {
+                switch verification {
+                case .none:
+                    EmptyView()
+                case .blue:
+                    Image.asset(.twitterBlue)
+                        .resizable()
+                case .business:
+                    Image.asset(.twitterBlue)
+                        .resizable()
+                case .government:
+                    Image.asset(.twitterBlue)
+                        .resizable()
+                }
+            }
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 14, height: 14)
+        }
     }
 }
 
@@ -469,48 +516,4 @@ struct MessageBubble: View {
 extension NSRegularExpression {
     static let matchRoomHashtag = try! NSRegularExpression(pattern: "#(\\d+)", options: [])
     static let matchRoomSpelled = try! NSRegularExpression(pattern: "[rR]oom ?(\\d+)", options: [])
-}
-
-#Preview {
-    Background(color: .backgroundMain) {
-        VStack {
-            Spacer()
-            MessageText(
-                messageID: UUID(),
-                state: .delivered,
-                name: "Bob",
-                avatarData: Data([0,0,0,0,0,0,0,0]),
-                text: "Hey",
-                date: .now,
-                isReceived: true,
-                isHost: false,
-                isBlocked: false,
-                hasTipFromSelf: false,
-                offStage: false,
-                kinTips: 7,
-                deletionState: nil,
-                replyingTo: .init(
-                    name: "Bob",
-//                    content: "That's what I was trying to say before",
-                    content: "🔥",
-                    deletion: nil,
-                    action: {}
-                ),
-                location: .standalone(.received),
-                action: { _ in },
-                menu: {
-                    Button {
-                        /* action */
-                    } label: {
-                        Label("Copy Message", systemImage: "doc.on.doc")
-                    }
-                }
-            )
-            Rectangle()
-                .fill(.black)
-                .frame(height: 200)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(20)
-    }
 }
