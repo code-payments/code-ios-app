@@ -114,6 +114,17 @@ struct ContainerScreen: View {
                     item: .balance,
                     selection: tabSelection
                 )
+                
+                ProfileScreen(
+                    userID: state.session.userID,
+                    isSelf: true,
+                    state: state,
+                    container: container
+                )
+                .tabBarItem(
+                    item: .me,
+                    selection: tabSelection
+                )
             }
             .navigationBarHidden(true)
             .navigationBarTitle("", displayMode: .inline)

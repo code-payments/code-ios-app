@@ -121,6 +121,7 @@ public enum Asset: String, Sendable {
     case pencil
     case bubble
     case kinHex
+    case profile
     case more
     case crown
     case scrollBottom

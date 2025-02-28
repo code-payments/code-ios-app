@@ -21,4 +21,16 @@ extension FlipchatClient {
             profileService.setDisplayName(name: name, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func linkSocialAccount(token: String, owner: KeyPair) async throws -> Chat.SocialProfile {
+        try await withCheckedThrowingContinuation { c in
+            profileService.linkSocialAccount(token: token, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func unlinkSocialAccount(socialID: String, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            profileService.unlinkSocialAccount(socialID: socialID, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

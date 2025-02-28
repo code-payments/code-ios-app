@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import CodeServices
+import FlipchatServices
 import TwitterAPIKit
 import AuthenticationServices
 
@@ -15,48 +15,60 @@ class TwitterController: ObservableObject {
     
     @Published private(set) var state: State = .notAuthorized
     
-    private let clientID: String
+    private let chatController: ChatController
+    private let owner: KeyPair
+    
     private let authClient = TwitterAPIClient(.requestOAuth20WithPKCE(.publicClient))
     private let redirectURI = "flipchat://app.flipchat.xyz/oauth/x"
     private let contextProvider = GlobalContextProvider()
     
+    private let clientID: String
+    
     // MARK: - Init -
     
-    init() {
+    init(chatController: ChatController, owner: KeyPair) {
+        self.chatController = chatController
+        self.owner = owner
+        
         self.clientID = try! InfoPlist.value(for: "twitter").value(for: "clientID").string()
         
-        updateState()
+//        updateState()
     }
     
-    private func updateState() {
-        if let token = Keychain.oauthTwitterToken, !token.isExpired {
-            if !token.isExpired {
-                state = .authorized(token)
-            } else {
-                state = .expired(token)
-            }
-            
-        } else {
-            state = .notAuthorized
-        }
-    }
+//    private func updateState() {
+//        if let link = Keychain.oauthTwitterToken {
+//            let token = link.accessToken
+//            if !token.isExpired {
+//                state = .authorized(token)
+//            } else {
+//                state = .expired(token)
+//            }
+//            
+//        } else {
+//            state = .notAuthorized
+//        }
+//    }
     
     // MARK: - Auth -
     
-    func authorize() async throws -> TwitterAccessToken {
+    func authorize() async throws {
         let state = OAuthState()
         let code  = try await authorizeTwitterClient(state: state)
         let token = try await exchangeAuthorizationForAccessToken(code: code, state: state)
         
-        saveToken(token)
+//        saveToken(token)
         
-        return token
+        try await chatController.linkSocialAccount(token: token.accessToken)
     }
     
-    private func saveToken(_ token: TwitterAccessToken) {
-        Keychain.oauthTwitterToken = token
-        updateState()
+    func unlink(socialID: String) async throws {
+        try await chatController.unlinkSocialAccount(socialID: socialID)
     }
+    
+//    private func saveToken(_ token: TwitterAccessToken) {
+//        Keychain.oauthTwitterToken = AccessTokenLink.init(owner: owner.publicKey, accessToken: token)
+//        updateState()
+//    }
     
     private func authorizeTwitterClient(state: OAuthState) async throws -> String {
         /// Ref: https://developer.twitter.com/en/docs/authentication/oauth-2-0/authorization-code
@@ -133,6 +145,14 @@ class TwitterController: ObservableObject {
     }
 }
 
+// MARK: - AccessToken Box -
+
+//private struct AccessTokenLink: Equatable, Hashable, Codable {
+//    let owner: PublicKey
+//    let accessToken: TwitterAccessToken
+//    
+//}
+
 // MARK: - OAuthState -
 
 extension TwitterController {
@@ -200,7 +220,11 @@ extension TwitterAccessToken {
 
 // MARK: - Keychain -
 
-private extension Keychain {
-    @SecureCodable(.twitterToken)
-    static var oauthTwitterToken: TwitterAccessToken?
+//private extension Keychain {
+//    @SecureCodable(.twitterToken)
+//    static var oauthTwitterToken: AccessTokenLink?
+//}
+
+extension TwitterController {
+    static let mock = TwitterController(chatController: .mock, owner: .mock)
 }

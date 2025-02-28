@@ -114,6 +114,10 @@ class ChatController: ObservableObject {
         try database.getPointer(userID: userID.uuid, roomID: chatID.uuid)
     }
     
+    func getUserProfile(userID: UserID) throws -> UserProfileRow? {
+        try database.getUserProfile(userID: userID.uuid)
+    }
+    
     // MARK: - Sync -
     
     func startSync() {
@@ -401,7 +405,7 @@ class ChatController: ObservableObject {
                         try $0.insertIdentity(identity: identity, userID: userID.uuid)
                         print("[STREAM] Member \(userID.uuid) identity added: \(identity.socialProfile?.kind.rawValue ?? -1)")
                     } else {
-                        try $0.deleteIdentity(userID: userID.uuid)
+                        try $0.deleteProfile(userID: userID.uuid)
                         print("[STREAM] Member \(userID.uuid) identity removed.")
                     }
                 }
@@ -748,6 +752,22 @@ class ChatController: ObservableObject {
         
         try database.transaction {
             try $0.updateOpenState(roomID: chatID.uuid, isOpen: open)
+        }
+    }
+    
+    // MARK: - Social -
+    
+    func linkSocialAccount(token: String) async throws {
+        let profile = try await client.linkSocialAccount(token: token, owner: owner)
+        try database.transaction {
+            try $0.insertProfile(profile: profile, userID: userID.uuid)
+        }
+    }
+    
+    func unlinkSocialAccount(socialID: String) async throws {
+        try await client.unlinkSocialAccount(socialID: socialID, owner: owner)
+        try database.transaction {
+            try $0.deleteProfile(userID: userID.uuid)
         }
     }
     

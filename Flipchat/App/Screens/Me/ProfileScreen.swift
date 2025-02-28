@@ -1,0 +1,309 @@
+//
+//  ProfileScreen.swift
+//  Code
+//
+//  Created by Dima Bart on 2024-11-03.
+//
+
+import SwiftUI
+import CodeUI
+import FlipchatServices
+
+struct ProfileScreen: View {
+    
+    @EnvironmentObject var banners: Banners
+    
+    @ObservedObject private var sessionAuthenticator: SessionAuthenticator
+    @ObservedObject private var twitterController: TwitterController
+    
+    @State private var isShowingButtonSheet: Bool = false
+    
+    private let userID: UserID
+    private let isSelf: Bool
+    private let container: AppContainer
+    private let chatController: ChatController
+    
+    @StateObject private var updateableUser: Updateable<UserProfileRow?>
+    
+    private var userProfile: UserProfileRow? {
+        updateableUser.value
+//        UserProfileRow(
+//            serverID: UUID(),
+//            displayName: "dima",
+//            avatarURL: nil,
+//            profile:
+//                    .init(
+//                socialID: "123456789",
+//                username: "johnsmith",
+//                displayName: "Jonh Smith",
+//                bio: "Professional flourist that likes walks in the park and other activities and maybe long walks on the brach",
+//                followerCount: 3625,
+//                avatarURL: URL(string: "https://pbs.twimg.com/profile_images/1258717928503029761/NKN1Dd1p_400x400.jpg")!,
+//                verificationType: .none
+//            )
+//        )
+    }
+    
+    private var hasSocialProfile: Bool {
+        userProfile?.profile != nil
+    }
+    
+    private var socialID: String? {
+        userProfile?.profile?.socialID
+    }
+    
+    private var displayName: String {
+        (userProfile?.profile?.displayName ?? userProfile?.displayName) ?? ""
+    }
+    
+    private var username: String? {
+        userProfile?.profile?.username
+    }
+    
+    private var avatarURL: URL? {
+        userProfile?.profile?.avatarURL ?? userProfile?.avatarURL
+    }
+    
+    private var avatarData: Data {
+        userProfile?.serverID.data ?? Data([0, 0, 0, 0])
+    }
+    
+    private var followerCount: Int {
+        userProfile?.profile?.followerCount ?? 0
+    }
+    
+    private var bio: String? {
+        userProfile?.profile?.bio
+    }
+    
+    private var verificationType: VerificationType {
+        userProfile?.profile?.verificationType ?? .none
+    }
+    
+//    private var isTwitterLinked: Bool {
+//        if case .authorized = twitterController.state {
+//            return true
+//        } else {
+//            return false
+//        }
+//    }
+    
+    // MARK: - Init -
+    
+    init(userID: UserID, isSelf: Bool, state: AuthenticatedState, container: AppContainer) {
+        self.userID = userID
+        self.isSelf = isSelf
+        self.container = container
+        self.sessionAuthenticator = container.sessionAuthenticator
+        self.twitterController = state.twitterController
+        let chatController = state.chatController
+        
+        self._updateableUser = .init(wrappedValue: Updateable {
+            try? chatController.getUserProfile(userID: userID)
+        })
+        
+        self.chatController = chatController
+    }
+    
+    // MARK: - Body -
+    
+    var body: some View {
+        Background(color: .backgroundMain) {
+            VStack {
+                if isSelf {
+                    navigationBar()
+                }
+                
+                VStack(spacing: 20) {
+                    UserGeneratedAvatar(
+                        url: avatarURL,
+                        data: avatarData,
+                        diameter: 120
+                    )
+                    .padding(.top, 10)
+                    
+                    if isSelf {
+                        if hasSocialProfile {
+                            profileDetails()
+                        } else {
+                            nameRow()
+                            CodeButton(
+                                style: .filled,
+                                image: Image.asset(.twitter),
+                                title: "Connect Your X Account",
+                                action: connectTwitter
+                            )
+                            .padding(.top, 20)
+                        }
+                    } else {
+                        profileDetails()
+                    }
+                }
+                .padding(20)
+                
+                Spacer()
+            }
+        }
+        .buttonSheet(isPresented: $isShowingButtonSheet) {
+            if hasSocialProfile {
+                Action.standard(image: .asset(.twitter), title: "Disconnect X") {
+                    showDisconnectTwitterConfirmation()
+                }
+            }
+            
+            Action.standard(systemImage: "trash", title: "Delete My Account") {
+                showDeleteAccountConfirmation()
+            }
+        }
+    }
+    
+    @ViewBuilder private func nameRow() -> some View {
+        HStack(spacing: 10) {
+            if hasSocialProfile {
+                Image.asset(.twitter)
+            }
+            
+            Text(displayName)
+                .font(.appTextLarge)
+            
+            if hasSocialProfile {
+                verificationImage()
+                    .padding(.leading, 2) // Offset to center the displayName against the X logo
+            }
+        }
+        .foregroundStyle(Color.textMain)
+    }
+    
+    @ViewBuilder private func verificationImage() -> some View {
+        switch verificationType {
+        case .none:
+            EmptyView()
+        case .blue:
+            Image.asset(.twitterBlue)
+        case .business:
+            Image.asset(.twitterGold)
+        case .government:
+            Image.asset(.twitterGrey)
+        }
+    }
+    
+    @ViewBuilder private func profileDetails() -> some View {
+        VStack(spacing: 40) {
+            VStack {
+                nameRow()
+                
+                if hasSocialProfile {
+                    if let username {
+                        Text("@\(username)")
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
+                            .transition(transitionForSocialProfile())
+                    }
+                }
+            }
+            
+            if hasSocialProfile {
+                VStack(spacing: 8) {
+                    Text("\(followerCount.formattedAbbreviated) \(followerCount == 1 ? "follower" : "followers")")
+                    if let bio {
+                        Text(bio)
+                    }
+                }
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+                .padding(.horizontal, 30)
+                .transition(transitionForSocialProfile())
+            }
+            
+            if !isSelf && hasSocialProfile {
+                CodeButton(
+                    style: .filled,
+                    image: Image.asset(.twitter),
+                    title: "Open Profile on X",
+                    action: connectTwitter
+                )
+                .transition(transitionForSocialProfile())
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: hasSocialProfile)
+        .multilineTextAlignment(.center)
+    }
+    
+    @ViewBuilder private func navigationBar() -> some View {
+        NavBar(title: "") {} leading: {} trailing: {
+            Button {
+                isShowingButtonSheet.toggle()
+            } label: {
+                Image.asset(.more)
+                    .padding(.vertical, 10)
+                    .padding(.leading, 20)
+                    .padding(.trailing, 30)
+            }
+        }
+    }
+    
+    // MARK: - Actions -
+    
+    private func connectTwitter() {
+        Task {
+            try await twitterController.authorize()
+        }
+    }
+    
+    private func showDisconnectTwitterConfirmation() {
+        banners.show(
+            style: .error,
+            title: "Disconnect Your X Account?",
+            description: "You will no longer have a profile picture or connected X account",
+            position: .bottom,
+            actions: [
+                .destructive(title: "Disconnect Your X Account") {
+                    guard let socialID else { return }
+                    Task {
+                        try await twitterController.unlink(socialID: socialID)
+                    }
+                },
+                .cancel(title: "Cancel") {},
+            ]
+        )
+    }
+    
+    private func showDeleteAccountConfirmation() {
+        banners.show(
+            style: .error,
+            title: "Permanently Delete Account?",
+            description: "This will permanently delete your Flipchat account",
+            position: .bottom,
+            actions: [
+                .destructive(title: "Permanently Delete My Account") {
+                    sessionAuthenticator.logout()
+                },
+                .cancel(title: "Cancel") {},
+            ]
+        )
+    }
+    
+    // MARK: - Transition -
+    
+    private func transitionForSocialProfile() -> AnyTransition {
+        .move(edge: .top).combined(with: .opacity)
+    }
+}
+
+#Preview {
+//    ProfileScreen(
+//        userID: .mock,
+//        isSelf: true,
+//        state: .mock,
+//        container: .mock
+//    )
+    NavigationStack {
+        ProfileScreen(
+            userID: .mock,
+            isSelf: true,
+            state: .mock,
+            container: .mock
+        )
+    }
+    .environmentObjectsForSession()
+}

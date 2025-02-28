@@ -27,7 +27,6 @@ class AppContainer: ObservableObject {
     let betaFlags = BetaFlags.shared
     let biometrics = Biometrics()
     let notificationController = NotificationController()
-    let twitterController = TwitterController()
     
     lazy private(set) var sessionAuthenticator = SessionAuthenticator(container: self)    
     

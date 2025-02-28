@@ -152,7 +152,7 @@ extension Chat.BatchUpdate.MemberUpdate {
         case .identityChanged(let update):
             self = .identityChanged(
                 UserID(data: update.member.value),
-                update.hasNewIdentity ? Chat.Identity(update.newIdentity) : nil
+                update.newIdentity.socialProfiles.isEmpty ? nil : Chat.Identity(update.newIdentity)
             )
         }
     }

@@ -137,6 +137,11 @@ extension Database {
         try insertIdentity(identity: identity, userID: userID, userTable: user, profileTable: profile)
     }
     
+    func insertProfile(profile: Chat.SocialProfile, userID: UUID) throws {
+        let profileTable = ProfileTable()
+        try insertProfile(profile: profile, userID: userID, into: profileTable)
+    }
+    
     // MARK: - Incremental Room -
     
     func updateUnreadCount(roomID: UUID, unreadCount: Int, hasMore: Bool) throws {
@@ -186,7 +191,7 @@ extension Database {
         )
     }
     
-    func deleteIdentity(userID: UUID) throws {
+    func deleteProfile(userID: UUID) throws {
         let profile = ProfileTable()
         try writer.run(
             profile.table

@@ -1,5 +1,5 @@
 //
-//  Untitled.swift
+//  BalanceScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2024-11-03.
