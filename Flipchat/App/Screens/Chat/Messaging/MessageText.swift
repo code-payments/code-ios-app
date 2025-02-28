@@ -66,7 +66,6 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         let member = messageRow.member
         let senderIsHost = message.senderID == hostID
         
-        
         let displayName: String
         if let socialProfile = member.profile {
             displayName = socialProfile.displayName
@@ -100,13 +99,19 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         HStack(alignment: .top) {
             if isReceived {
                 if shouldShowAvatar {
-                    UserGeneratedAvatar(
-                        url: avatarURL,
-                        data: avatarData,
-                        diameter: 35,
-                        isHost: isHost
-                    )
-                    .padding(.top, 17)
+                    Button {
+                        if let userID = UserID(uuid: messageRow.member.userID) {
+                            action(.openProfile(userID))
+                        }
+                    } label: {
+                        UserGeneratedAvatar(
+                            url: avatarURL,
+                            data: avatarData,
+                            diameter: 35,
+                            isHost: isHost
+                        )
+                        .padding(.top, 17)
+                    }
                 } else {
                     VStack {
                         

@@ -34,6 +34,8 @@ struct ConversationScreen: View {
     
     @State private var messageTip: MessageTip?
     
+    @State private var userProfileID: UserID?
+    
     private let chatID: ChatID
     private let state: AuthenticatedState
     private let container: AppContainer
@@ -247,6 +249,14 @@ struct ConversationScreen: View {
                     cancelAction:  { dismissMessagePayment(cancelled: true) }
                 )
             }
+        }
+        .sheet(item: $userProfileID) { userID in
+            ProfileScreen(
+                userID: userID,
+                isSelf: self.userID == userID,
+                state: state,
+                container: container
+            )
         }
     }
     
@@ -662,6 +672,9 @@ struct ConversationScreen: View {
                     .cancel(title: "Cancel"),
                 ]
             )
+            
+        case .openProfile(let userID):
+            userProfileID = userID
         }
     }
     
@@ -808,6 +821,12 @@ struct TipUsers: Identifiable {
     
     let messageID: MessageID
     let users: [TipUser]
+}
+
+extension ID: @retroactive Identifiable {
+    public var id: Data {
+        data
+    }
 }
 
 //#Preview {

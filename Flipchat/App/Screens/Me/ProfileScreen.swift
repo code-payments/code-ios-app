@@ -110,9 +110,7 @@ struct ProfileScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack {
-                if isSelf {
-                    navigationBar()
-                }
+                navigationBar()
                 
                 VStack(spacing: 20) {
                     UserGeneratedAvatar(
@@ -220,7 +218,7 @@ struct ProfileScreen: View {
                     style: .filled,
                     image: Image.asset(.twitter),
                     title: "Open Profile on X",
-                    action: connectTwitter
+                    action: openProfile
                 )
                 .transition(transitionForSocialProfile())
             }
@@ -231,13 +229,15 @@ struct ProfileScreen: View {
     
     @ViewBuilder private func navigationBar() -> some View {
         NavBar(title: "") {} leading: {} trailing: {
-            Button {
-                isShowingButtonSheet.toggle()
-            } label: {
-                Image.asset(.more)
-                    .padding(.vertical, 10)
-                    .padding(.leading, 20)
-                    .padding(.trailing, 30)
+            if isSelf {
+                Button {
+                    isShowingButtonSheet.toggle()
+                } label: {
+                    Image.asset(.more)
+                        .padding(.vertical, 10)
+                        .padding(.leading, 20)
+                        .padding(.trailing, 30)
+                }
             }
         }
     }
@@ -248,6 +248,14 @@ struct ProfileScreen: View {
         Task {
             try await twitterController.authorize()
         }
+    }
+    
+    private func openProfile() {
+        guard let username else {
+            return
+        }
+        
+        URL.profileFor(username: username).openWithApplication()
     }
     
     private func showDisconnectTwitterConfirmation() {

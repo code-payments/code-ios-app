@@ -34,6 +34,14 @@ extension URL {
     }
 }
 
+// MARK: - X -
+
+extension URL {
+    static func profileFor(username: String) -> URL {
+        URL(string: "https://x.com/\(username)")!
+    }
+}
+
 // MARK: - Local -
 
 extension URL {

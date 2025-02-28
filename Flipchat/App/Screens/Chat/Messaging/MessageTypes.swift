@@ -21,6 +21,7 @@ enum MessageAction {
     case showTippers(MessageID)
     case promoteUser(String, UserID, ChatID)
     case demoteUser(String, UserID, ChatID)
+    case openProfile(UserID)
 }
 
 struct MessageDescription: Identifiable, Hashable, Equatable {
