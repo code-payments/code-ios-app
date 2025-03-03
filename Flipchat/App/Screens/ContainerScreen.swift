@@ -122,7 +122,7 @@ struct ContainerScreen: View {
                     container: container
                 )
                 .tabBarItem(
-                    item: .me,
+                    item: .profile,
                     selection: tabSelection
                 )
             }

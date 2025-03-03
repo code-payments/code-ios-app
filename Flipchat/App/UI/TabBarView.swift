@@ -139,7 +139,7 @@ struct TabBarItem: Equatable, Hashable, Sendable {
     
     static let flipchats = TabBarItem(title: "Flipchats", asset: .bubble)
     static let balance   = TabBarItem(title: "Balance",   asset: .kinHex)
-    static let me        = TabBarItem(title: "Me",        asset: .profile)
+    static let profile   = TabBarItem(title: "Profile",   asset: .profile)
 }
 
 // MARK: - PreferenceKey -
