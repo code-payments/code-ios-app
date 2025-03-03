@@ -12,6 +12,7 @@ import FlipchatServices
 struct ProfileScreen: View {
     
     @EnvironmentObject var banners: Banners
+    @SwiftUI.Environment(\.dismiss) var dismiss
     
     @ObservedObject private var sessionAuthenticator: SessionAuthenticator
     @ObservedObject private var twitterController: TwitterController
@@ -237,6 +238,13 @@ struct ProfileScreen: View {
                         .padding(.vertical, 10)
                         .padding(.leading, 20)
                         .padding(.trailing, 30)
+                }
+            } else {
+                Button {
+                    dismiss()
+                } label: {
+                    Image.asset(.close)
+                        .padding(20)
                 }
             }
         }
