@@ -70,7 +70,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.state = message.state
         self.name = member.resolvedDisplayName
         self.avatarData = message.senderID?.data ?? Data([0, 0, 0, 0])
-        self.avatarURL = member.profile?.avatarURL
+        self.avatarURL = member.profile?.avatar?.bigger
         self.text = text
         self.date = message.date
         self.isReceived = isReceived

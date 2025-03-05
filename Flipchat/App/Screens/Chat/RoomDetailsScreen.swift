@@ -40,7 +40,7 @@ struct RoomDetailsScreen: View {
                 isModerator: $0.canModerate,
                 verificationType: $0.profile?.verificationType ?? .none,
                 name: $0.resolvedDisplayName,
-                avatarURL: $0.profile?.avatarURL
+                avatarURL: $0.profile?.avatar?.original
             )
         }
     }

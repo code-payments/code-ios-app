@@ -164,16 +164,6 @@ struct UserProfileRow {
     }
 }
 
-struct SocialProfileFull: Hashable {
-    let socialID: String
-    let username: String
-    let displayName: String
-    let bio: String
-    let followerCount: Int
-    let avatarURL: URL?
-    let verificationType: VerificationType
-}
-
 // MARK: - Mapping -
 
 extension SocialProfileFull {

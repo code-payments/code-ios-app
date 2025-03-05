@@ -237,8 +237,44 @@ struct MessageRow: Hashable {
 
 struct SocialProfile: Hashable {
     let displayName: String
-    let avatarURL: URL?
+    let avatar: TwitterAvatar?
     let verificationType: VerificationType
+    
+    init(displayName: String, avatarURL: URL?, verificationType: VerificationType) {
+        self.displayName = displayName
+        self.verificationType = verificationType
+        
+        if let avatarURL {
+            self.avatar = TwitterAvatar(url: avatarURL)
+        } else {
+            self.avatar = nil
+        }
+    }
+}
+
+struct SocialProfileFull: Hashable {
+    let socialID: String
+    let username: String
+    let displayName: String
+    let bio: String
+    let followerCount: Int
+    let avatar: TwitterAvatar?
+    let verificationType: VerificationType
+    
+    init(socialID: String, username: String, displayName: String, bio: String, followerCount: Int, avatarURL: URL?, verificationType: VerificationType) {
+        self.socialID = socialID
+        self.username = username
+        self.displayName = displayName
+        self.bio = bio
+        self.followerCount = followerCount
+        self.verificationType = verificationType
+        
+        if let avatarURL {
+            self.avatar = TwitterAvatar(url: avatarURL)
+        } else {
+            self.avatar = nil
+        }
+    }
 }
 
 struct TipUser {
@@ -275,5 +311,71 @@ extension SocialProfile {
         } else {
             return nil
         }
+    }
+}
+
+/// Ref: https://developer.twitter.com/en/docs/twitter-api/v1/accounts-and-users/user-profile-images-and-banners
+struct TwitterAvatar: Equatable, Hashable, Codable {
+    
+    let mini: URL     //  24 x 24
+    let normal: URL   //  48 x 48
+    let bigger: URL   //  73 x 73
+    let original: URL // 400 x 400?
+    
+    // MARK: - Init -
+    
+    init(normal: URL, bigger: URL, mini: URL, original: URL) {
+        self.normal = normal
+        self.bigger = bigger
+        self.mini = mini
+        self.original = original
+    }
+    
+    init(url: URL) {
+        let suffixes: Set = [
+            "_normal",
+            "_bigger",
+            "_mini",
+            "_original",
+        ]
+        
+        var string = url.absoluteString
+        
+        suffixes.forEach { suffix in
+            string = string.replacingOccurrences(of: suffix, with: "")
+        }
+        
+        let baseURL = URL(string: string)!
+        
+        let imagePath = baseURL.lastPathComponent
+        var components = imagePath.components(separatedBy: ".")
+        if components.count == 2 {
+            components[0] = "\(components[0])"
+        }
+        
+        self.init(
+            normal:   Self.applying(suffix: "_normal", to: baseURL),
+            bigger:   Self.applying(suffix: "_bigger", to: baseURL),
+            mini:     Self.applying(suffix: "_mini",   to: baseURL),
+            original: baseURL
+        )
+    }
+    
+    private static func applying(suffix: String, to baseURL: URL) -> URL {
+        let separator = "."
+        let imagePath = baseURL.lastPathComponent
+        
+        var components = imagePath.components(separatedBy: separator)
+        if components.count == 2 {
+            components[0] = "\(components[0])\(suffix)"
+        }
+        let newImagePath = components.joined(separator: separator)
+        
+        var updatedURL = baseURL
+        
+        updatedURL.deleteLastPathComponent()
+        updatedURL.appendPathComponent(newImagePath)
+        
+        return updatedURL
     }
 }

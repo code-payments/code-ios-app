@@ -62,7 +62,7 @@ struct ProfileScreen: View {
     }
     
     private var avatarURL: URL? {
-        userProfile?.profile?.avatarURL ?? userProfile?.avatarURL
+        userProfile?.profile?.avatar?.original ?? userProfile?.avatarURL
     }
     
     private var avatarData: Data {
