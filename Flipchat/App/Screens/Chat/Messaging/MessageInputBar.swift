@@ -23,6 +23,8 @@ class MessageInputBar: UIView {
     private var heightConstraint: NSLayoutConstraint!
     private var isFirstLayout: Bool = true
     
+    fileprivate static let inputHeight: CGFloat = 35
+    
     // MARK: - Initialization
     
     override init(frame: CGRect) {
@@ -85,7 +87,7 @@ class MessageInputBar: UIView {
         sendButton.addTarget(self, action: #selector(sendAction), for: .touchUpInside)
         addSubview(sendButton)
         
-        heightConstraint = textView.heightAnchor.constraint(equalToConstant: 35)
+        heightConstraint = textView.heightAnchor.constraint(equalToConstant: Self.inputHeight)
         heightConstraint.priority = .defaultHigh
         
         NSLayoutConstraint.activate([
@@ -134,14 +136,10 @@ extension MessageInputBar: UITextViewDelegate {
 
 extension UITextView {
     var desiredHeight: CGFloat {
-        let textContainterInsets = textContainerInset
-        var usedRect = layoutManager.usedRect(for: textContainer)
-        
-        usedRect.size.height += textContainterInsets.top + textContainterInsets.bottom
-        
-        let scale  = UIScreen.main.scale
-        let height = ceil(usedRect.size.height * scale) / scale
-        print("Intrinsic height: \(height), raw: \(usedRect.size.height)")
-        return height
+        let maxWidth = bounds.width
+        let size     = sizeThatFits(CGSize(width: maxWidth, height: .greatestFiniteMagnitude))
+        let scale    = UIScreen.main.scale
+        let height   = ceil(size.height * scale) / scale
+        return max(height, MessageInputBar.inputHeight) // Minimum height
     }
 }
