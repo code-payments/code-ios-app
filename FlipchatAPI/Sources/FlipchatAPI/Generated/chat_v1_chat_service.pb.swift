@@ -1698,6 +1698,7 @@ public struct Flipchat_Chat_V1_PromoteUserResponse {
     public typealias RawValue = Int
     case ok // = 0
     case denied // = 1
+    case notRegistered // = 2
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -1708,6 +1709,7 @@ public struct Flipchat_Chat_V1_PromoteUserResponse {
       switch rawValue {
       case 0: self = .ok
       case 1: self = .denied
+      case 2: self = .notRegistered
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -1716,6 +1718,7 @@ public struct Flipchat_Chat_V1_PromoteUserResponse {
       switch self {
       case .ok: return 0
       case .denied: return 1
+      case .notRegistered: return 2
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -1732,6 +1735,7 @@ extension Flipchat_Chat_V1_PromoteUserResponse.Result: CaseIterable {
   public static let allCases: [Flipchat_Chat_V1_PromoteUserResponse.Result] = [
     .ok,
     .denied,
+    .notRegistered,
   ]
 }
 
@@ -5055,6 +5059,7 @@ extension Flipchat_Chat_V1_PromoteUserResponse.Result: SwiftProtobuf._ProtoNameP
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "OK"),
     1: .same(proto: "DENIED"),
+    2: .same(proto: "NOT_REGISTERED"),
   ]
 }
 

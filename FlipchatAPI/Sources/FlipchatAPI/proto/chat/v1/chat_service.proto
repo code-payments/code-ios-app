@@ -476,8 +476,9 @@ message PromoteUserRequest {
 message PromoteUserResponse {
     Result result = 1;
     enum Result {
-        OK       = 0;
-        DENIED   = 1;
+        OK             = 0;
+        DENIED         = 1;
+        NOT_REGISTERED = 2;
     }
 }
 

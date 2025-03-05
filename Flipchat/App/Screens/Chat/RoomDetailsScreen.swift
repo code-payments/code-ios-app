@@ -196,13 +196,31 @@ struct RoomDetailsScreen: View {
                 actions: [
                     .standard(title: "Make a Speaker") {
                         Task {
-                            try await chatController.promoteUser(userID: userID, chatID: chatID)
+                            do {
+                                try await chatController.promoteUser(userID: userID, chatID: chatID)
+                            } catch ErrorPromoteUser.notRecognized {
+                                showNoAccountError()
+                            }
                         }
                     },
                     .cancel(title: "Cancel"),
                 ]
             )
         }
+    }
+    
+    // MARK: - Errors -
+    
+    private func showNoAccountError() {
+        banners.show(
+            style: .error,
+            title: "User Hasn't Created Their Account",
+            description: "Users need to create an account before becoming a speaker. Please ask the user to create a Flipchat account.",
+            position: .top,
+            actions: [
+                .cancel(title: Localized.Action.ok),
+            ]
+        )
     }
 }
 

@@ -727,6 +727,7 @@ public enum ErrorRoomOpenClose: Int, Error {
 public enum ErrorPromoteUser: Int, Error {
     case ok
     case denied
+    case notRecognized
     case unknown = -1
 }
 
