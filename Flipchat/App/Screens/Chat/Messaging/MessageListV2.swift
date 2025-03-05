@@ -713,7 +713,7 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
             let displayName = row.member.resolvedDisplayName
             let chatID = chatID
             let isDeleted = deletionState != nil
-            let selfIsHost = self.userID == hostID
+            let selfIsHost = userID == hostID
             
             MessageText(
                 messageRow: row,
@@ -730,7 +730,7 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
                 // Don't show action for deleted messages
                 if !isDeleted {
                     
-                    if selfIsHost, !isFromSelf, (message.offStage || member.canSend == true), let userID = member.userID {
+                    if selfIsHost, !isFromSelf, let userID = member.userID {
                         
                         if member.canSend == true {
                             Button {
