@@ -17,8 +17,9 @@ struct MemberGrid: View {
     let shareRoomNumber: RoomNumber?
     let isClosed: Bool
     let canEdit: Bool
-    let memberActionEnabled: Bool
-    let memberAction: ((Member) -> Void)?
+    let longPressEnabled: Bool
+    let longPressAction: ((Member) -> Void)?
+    let avatarAction: ((Member) -> Void)?
     let editAction: (() -> Void)?
     
     private let speakers: [Member]
@@ -30,15 +31,16 @@ struct MemberGrid: View {
     
     @Namespace private var namespace: Namespace.ID
     
-    init(chatName: String, avatarData: Data, members: [Member], shareRoomNumber: RoomNumber? = nil, isClosed: Bool = false, canEdit: Bool, memberActionEnabled: Bool, memberAction: ((Member) -> Void)?, editAction: (() -> Void)?) {
+    init(chatName: String, avatarData: Data, members: [Member], shareRoomNumber: RoomNumber? = nil, isClosed: Bool = false, canEdit: Bool, longPressEnabled: Bool, longPressAction: ((Member) -> Void)?, avatarAction: ((Member) -> Void)?, editAction: (() -> Void)?) {
         self.chatName = chatName
         self.avatarData = avatarData
         self.members = members
         self.shareRoomNumber = shareRoomNumber
         self.isClosed = isClosed
         self.canEdit = canEdit
-        self.memberActionEnabled = memberActionEnabled
-        self.memberAction = memberAction
+        self.longPressEnabled = longPressEnabled
+        self.longPressAction = longPressAction
+        self.avatarAction = avatarAction
         self.editAction = editAction
         
         self.speakers  = members.filter {  $0.isSpeaker }.sortedByDisplayName()
@@ -133,30 +135,34 @@ struct MemberGrid: View {
     }
     
     @ViewBuilder private func user(member: Member, defaultName: String) -> some View {
-        VStack {
-            UserGeneratedAvatar(
-                url: member.avatarURL,
-                data: member.id.data,
-                diameter: size,
-                isHost: member.isModerator
-            )
-            
-            Text(member.name ?? defaultName)
-                .multilineTextAlignment(.center)
-                .minimumScaleFactor(0.9)
-                .lineLimit(2)
-                .font(.appTextHeading)
-                .frame(height: 30, alignment: .topLeading)
-        }
-        .frame(width: size)
-        .aspectRatio(contentMode: .fit)
-//        .transition(.move(edge: .top).combined(with: .opacity))
-        .matchedGeometryEffect(id: member.id, in: namespace)
-        .onLongPressGesture {
-            memberAction?(member)
+        Button {
+            avatarAction?(member)
+        } label: {
+            VStack {
+                UserGeneratedAvatar(
+                    url: member.avatarURL,
+                    data: member.id.data,
+                    diameter: size,
+                    isHost: member.isModerator
+                )
+                
+                MemberNameLabel(
+                    size: .small,
+                    showLogo: false,
+                    name: member.name ?? defaultName,
+                    verificationType: member.verificationType
+                )
+            }
+            .frame(width: size)
+            .aspectRatio(contentMode: .fit)
+            //        .transition(.move(edge: .top).combined(with: .opacity))
+            .matchedGeometryEffect(id: member.id, in: namespace)
+            .onLongPressGesture {
+                longPressAction?(member)
+            }
         }
         
-//        let actionEnabled = memberActionEnabled && !member.isSelf
+//        let actionEnabled = longPressEnabled && !member.isSelf
 //        Button {
 //            // No action
 //        } label: {
@@ -165,7 +171,7 @@ struct MemberGrid: View {
 //        .disabled(!actionEnabled)
 //        .buttonStyle(MemberGridButtonStyle())
 //        .simultaneousGesture(LongPressGesture().onEnded { _ in
-//            memberAction?(member)
+//            longPressAction?(member)
 //        }, isEnabled: actionEnabled)
 //        .matchedGeometryEffect(id: member.id, in: namespace)
 
@@ -210,6 +216,7 @@ extension MemberGrid {
         var isSelf: Bool
         var isSpeaker: Bool
         var isModerator: Bool
+        var verificationType: VerificationType
         var name: String?
         var avatarURL: URL?
     }

@@ -142,8 +142,8 @@ struct ContainerScreen: View {
                         RoomDetailsScreen(
                             userID: authenticatedState.session.userID,
                             chatID: chatID,
-                            viewModel: state.chatViewModel,
-                            chatController: authenticatedState.chatController
+                            state: authenticatedState,
+                            container: container
                         )
                     }
                 }

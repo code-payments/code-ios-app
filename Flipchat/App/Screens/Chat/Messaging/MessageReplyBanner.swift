@@ -11,13 +11,15 @@ import CodeUI
 struct MessageReplyBanner: View {
     
     let name: String
+    let verificationType: VerificationType
     let content: String
     let cancel: () -> Void
     
     // MARK: - Init -
     
-    init(name: String, content: String, cancel: @escaping () -> Void) {
+    init(name: String, verificationType: VerificationType, content: String, cancel: @escaping () -> Void) {
         self.name = name
+        self.verificationType = verificationType
         self.content = content
         self.cancel = cancel
     }
@@ -31,12 +33,12 @@ struct MessageReplyBanner: View {
                 .padding(.leading, 15)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(name)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(1)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain.opacity(0.8))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                MemberNameLabel(
+                    size: .medium,
+                    showLogo: false,
+                    name: name,
+                    verificationType: verificationType
+                )
                 
                 Text(content)
                     .multilineTextAlignment(.leading)

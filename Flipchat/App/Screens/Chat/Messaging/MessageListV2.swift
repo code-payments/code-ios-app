@@ -710,7 +710,7 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
             let message = row.message
             let member = row.member
             let isFromSelf = message.senderID == userID.uuid
-            let displayName = row.member.displayName ?? defaultMemberName
+            let displayName = row.member.resolvedDisplayName
             let chatID = chatID
             let isDeleted = deletionState != nil
             let selfIsHost = self.userID == hostID
@@ -730,17 +730,17 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
                 // Don't show action for deleted messages
                 if !isDeleted {
                     
-                    if selfIsHost, !isFromSelf, (message.offStage || member.canSend == true), let displayName = member.displayName, let userID = member.userID {
+                    if selfIsHost, !isFromSelf, (message.offStage || member.canSend == true), let userID = member.userID {
                         
                         if member.canSend == true {
                             Button {
-                                action(.demoteUser(displayName, UserID(uuid: userID), chatID))
+                                action(.demoteUser(member.resolvedDisplayName, UserID(uuid: userID), chatID))
                             } label: {
                                 Label("Remove as Speaker", systemImage: "speaker.slash")
                             }
                         } else {
                             Button {
-                                action(.promoteUser(displayName, UserID(uuid: userID), chatID))
+                                action(.promoteUser(member.resolvedDisplayName, UserID(uuid: userID), chatID))
                             } label: {
                                 Label("Make a Speaker", systemImage: "speaker.wave.2.bubble")
                             }
@@ -1136,7 +1136,7 @@ extension Array where Element == MessageRow {
                 if let deletionUser = deletedIDs[message.serverID] {
                     deletionState = MessageDeletion(
                         senderID: deletionUser?.uuid,
-                        senderName: messageContainer.row.member.displayName,
+                        senderName: messageContainer.row.member.resolvedDisplayName,
                         isSelf: deletionUser == userID,
                         isSender: deletionUser?.uuid == message.senderID
                     )
@@ -1145,7 +1145,7 @@ extension Array where Element == MessageRow {
                 if let referenceID, let deletionUser = deletedIDs[referenceID] {
                     referenceDeletionState = ReferenceDeletion(
                         senderID: deletionUser?.uuid,
-                        senderName: messageContainer.row.member.displayName,
+                        senderName: messageContainer.row.member.resolvedDisplayName,
                         isSelf: deletionUser == userID,
                         isSender: deletionUser?.uuid == message.senderID
                     )

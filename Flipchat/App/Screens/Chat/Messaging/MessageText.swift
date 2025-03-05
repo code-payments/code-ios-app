@@ -58,26 +58,17 @@ struct MessageText<MenuItems>: View where MenuItems: View {
             return 0
         }
     }
-    
-    private let defaultMemberName = "Member"
         
     init(messageRow: MessageRow, text: String, isReceived: Bool, hostID: UUID, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
         let message = messageRow.message
         let member = messageRow.member
         let senderIsHost = message.senderID == hostID
         
-        let displayName: String
-        if let socialProfile = member.profile {
-            displayName = socialProfile.displayName
-        } else { // Default to self-assigned names
-            displayName = member.displayName ?? defaultMemberName
-        }
-        
         self.messageRow = messageRow
         self.messageID = message.serverID
         self.hostID = hostID
         self.state = message.state
-        self.name = displayName
+        self.name = member.resolvedDisplayName
         self.avatarData = message.senderID?.data ?? Data([0, 0, 0, 0])
         self.avatarURL = member.profile?.avatarURL
         self.text = text
@@ -122,14 +113,12 @@ struct MessageText<MenuItems>: View where MenuItems: View {
             
             VStack(alignment: .leading, spacing: 4) {
                 if shouldShowName, isReceived {
-                    HStack(spacing: 5) {
-                        Text(name)
-                            .font(.appTextCaption)
-                            .foregroundStyle(Color.textSecondary)
-                            .padding(.leading, Metrics.chatMessageRadiusSmall)
-                        
-                        verificationView()
-                    }
+                    MemberNameLabel(
+                        size: .small,
+                        showLogo: false,
+                        name: name,
+                        verificationType: messageRow.member.profile?.verificationType ?? .none
+                    )
                 }
                 
                 MessageBubble(
@@ -153,28 +142,6 @@ struct MessageText<MenuItems>: View where MenuItems: View {
             }
         }
         .padding(.top, topPadding)
-    }
-    
-    @ViewBuilder private func verificationView() -> some View {
-        if let verification = messageRow.member.profile?.verificationType, verification != .none {
-            Group {
-                switch verification {
-                case .none:
-                    EmptyView()
-                case .blue:
-                    Image.asset(.twitterBlue)
-                        .resizable()
-                case .business:
-                    Image.asset(.twitterBlue)
-                        .resizable()
-                case .government:
-                    Image.asset(.twitterBlue)
-                        .resizable()
-                }
-            }
-            .aspectRatio(contentMode: .fit)
-            .frame(width: 14, height: 14)
-        }
     }
 }
 

@@ -243,7 +243,7 @@ public enum VerificationType: Int, Value {
     case business
     case government
     
-    init(_ type: Chat.SocialProfile.VerificationType) {
+    public init(_ type: Chat.SocialProfile.VerificationType) {
         switch type {
         case .none:       self = .none
         case .blue:       self = .blue

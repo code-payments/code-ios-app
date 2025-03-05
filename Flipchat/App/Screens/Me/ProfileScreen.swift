@@ -54,7 +54,7 @@ struct ProfileScreen: View {
     }
     
     private var displayName: String {
-        (userProfile?.profile?.displayName ?? userProfile?.displayName) ?? ""
+        userProfile?.resolvedDisplayName ?? ""
     }
     
     private var username: String? {
@@ -157,33 +157,12 @@ struct ProfileScreen: View {
     }
     
     @ViewBuilder private func nameRow() -> some View {
-        HStack(spacing: 10) {
-            if hasSocialProfile {
-                Image.asset(.twitter)
-            }
-            
-            Text(displayName)
-                .font(.appTextLarge)
-            
-            if hasSocialProfile {
-                verificationImage()
-                    .padding(.leading, 2) // Offset to center the displayName against the X logo
-            }
-        }
-        .foregroundStyle(Color.textMain)
-    }
-    
-    @ViewBuilder private func verificationImage() -> some View {
-        switch verificationType {
-        case .none:
-            EmptyView()
-        case .blue:
-            Image.asset(.twitterBlue)
-        case .business:
-            Image.asset(.twitterGold)
-        case .government:
-            Image.asset(.twitterGrey)
-        }
+        MemberNameLabel(
+            size: .large,
+            showLogo: true,
+            name: displayName,
+            verificationType: verificationType
+        )
     }
     
     @ViewBuilder private func profileDetails() -> some View {

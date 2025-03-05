@@ -228,7 +228,8 @@ struct ConversationScreen: View {
                     ModalTipList.UserTip(
                         userID: $0.userID,
                         avatarURL: $0.profile?.avatarURL,
-                        name: $0.displayName,
+                        name: $0.resolvedDisplayName,
+                        verificationType: $0.profile?.verificationType ?? .none,
                         isHost: $0.userID == roomHostID,
                         amount: $0.tip
                     )
@@ -290,7 +291,8 @@ struct ConversationScreen: View {
         VStack(alignment: .leading) {
             if let replyMessage {
                 MessageReplyBanner(
-                    name: replyMessage.member.displayName ?? "Unknown",
+                    name: replyMessage.member.resolvedDisplayName,
+                    verificationType: replyMessage.member.profile?.verificationType ?? .none,
                     content: replyMessage.message.content
                 ) {
                     self.replyMessage = nil

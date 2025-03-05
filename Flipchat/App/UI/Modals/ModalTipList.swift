@@ -42,8 +42,12 @@ public struct ModalTipList: View {
                             isHost: userTip.isHost
                         )
                         
-                        Text(userTip.name)
-                            .font(.appTextMedium)
+                        MemberNameLabel(
+                            size: .medium,
+                            showLogo: false,
+                            name: userTip.name,
+                            verificationType: userTip.verificationType
+                        )
                         
                         Spacer()
                         
@@ -85,6 +89,7 @@ extension ModalTipList {
         var userID: UUID
         var avatarURL: URL?
         var name: String
+        var verificationType: VerificationType
         var isHost: Bool
         var amount: Kin
     }
@@ -98,6 +103,7 @@ extension ModalTipList {
                 userID: UUID(),
                 avatarURL: nil,
                 name: "John",
+                verificationType: .none,
                 isHost: false,
                 amount: 5
             ),

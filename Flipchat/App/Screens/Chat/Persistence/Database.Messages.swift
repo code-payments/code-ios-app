@@ -96,7 +96,7 @@ extension Database {
         return try statement.map { row in
             TipUser(
                 userID:      row[Expression<UUID>("userID")],
-                displayName: row[Expression<String>("displayName")],
+                displayName: row[Expression<String?>("displayName")],
                 tip:         Kin(quarks: row[Expression<UInt64>("tip")]),
                 profile:     .init(row: row)
             )
@@ -193,6 +193,8 @@ extension Database {
 
 // MARK: - Types -
 
+let defaultMemberName = "Member"
+
 struct MessageRow: Hashable {
     
     let message: Message
@@ -221,6 +223,10 @@ struct MessageRow: Hashable {
         let isBlocked: Bool?
         let canSend: Bool?
         let profile: SocialProfile?
+        
+        var resolvedDisplayName: String {
+            (profile?.displayName ?? displayName) ?? defaultMemberName
+        }
     }
     
     struct Reference: Hashable {
@@ -237,9 +243,13 @@ struct SocialProfile: Hashable {
 
 struct TipUser {
     let userID: UUID
-    let displayName: String
+    let displayName: String?
     let tip: Kin
     let profile: SocialProfile?
+    
+    var resolvedDisplayName: String {
+        (profile?.displayName ?? displayName) ?? defaultMemberName
+    }
 }
 
 struct MessagePointer {

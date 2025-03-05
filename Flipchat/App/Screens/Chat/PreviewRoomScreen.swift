@@ -36,6 +36,7 @@ struct PreviewRoomScreen: View {
                 isSelf: $0.isSelf,
                 isSpeaker: $0.hasSendPermission,
                 isModerator: $0.hasModeratorPermission,
+                verificationType: VerificationType($0.identity.socialProfile?.verificationType ?? .none),
                 name: $0.identity.displayName,
                 avatarURL: $0.identity.socialProfile?.avatarURL
             )
@@ -52,8 +53,9 @@ struct PreviewRoomScreen: View {
                     avatarData: chat.id.data,
                     members: gridMembers,
                     canEdit: false,
-                    memberActionEnabled: false,
-                    memberAction: nil,
+                    longPressEnabled: false,
+                    longPressAction: nil,
+                    avatarAction: nil,
                     editAction: nil
                 )
                                 

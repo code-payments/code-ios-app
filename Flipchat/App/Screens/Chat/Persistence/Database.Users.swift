@@ -147,6 +147,10 @@ struct MemberRow {
     let canModerate: Bool
     let canSend: Bool
     let profile: SocialProfile?
+    
+    var resolvedDisplayName: String {
+        (profile?.displayName ?? displayName) ?? defaultMemberName
+    }
 }
 
 struct UserProfileRow {
@@ -154,6 +158,10 @@ struct UserProfileRow {
     let displayName: String?
     let avatarURL: URL?
     let profile: SocialProfileFull?
+    
+    var resolvedDisplayName: String {
+        (profile?.displayName ?? displayName) ?? defaultMemberName
+    }
 }
 
 struct SocialProfileFull: Hashable {

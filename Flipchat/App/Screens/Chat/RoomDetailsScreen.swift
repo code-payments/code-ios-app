@@ -19,8 +19,12 @@ struct RoomDetailsScreen: View {
     @StateObject private var updateableRoom: Updateable<RoomDescription?>
     @StateObject private var updateableMembers: Updateable<[MemberRow]>
     
+    @State private var selectedProfile: MemberGrid.Member?
+    
     private let userID: UserID
     private let chatID: ChatID
+    private let state: AuthenticatedState
+    private let container: AppContainer
     
     var room: RoomDescription? {
         updateableRoom.value
@@ -34,7 +38,8 @@ struct RoomDetailsScreen: View {
                 isSelf: $0.serverID == userID,
                 isSpeaker: $0.canSend,
                 isModerator: $0.canModerate,
-                name: $0.displayName,
+                verificationType: $0.profile?.verificationType ?? .none,
+                name: $0.resolvedDisplayName,
                 avatarURL: $0.profile?.avatarURL
             )
         }
@@ -42,11 +47,13 @@ struct RoomDetailsScreen: View {
     
     // MARK: - Init -
     
-    init(userID: UserID, chatID: ChatID, viewModel: ChatViewModel, chatController: ChatController) {
+    init(userID: UserID, chatID: ChatID, state: AuthenticatedState, container: AppContainer) {
         self.userID = userID
         self.chatID = chatID
-        self.viewModel = viewModel
-        self.chatController = chatController
+        self.state = state
+        self.container = container
+        self.viewModel = state.chatViewModel
+        let chatController = state.chatController
         
         let updateableRoom = Updateable {
             try? chatController.getRoom(chatID: chatID)
@@ -58,6 +65,8 @@ struct RoomDetailsScreen: View {
         
         self._updateableRoom    = .init(wrappedValue: updateableRoom)
         self._updateableMembers = .init(wrappedValue: updateableMembers)
+        
+        self.chatController = chatController
     }
     
     // MARK: - Body -
@@ -74,8 +83,9 @@ struct RoomDetailsScreen: View {
                         shareRoomNumber: room.room.roomNumber,
                         isClosed: !room.room.isOpen,
                         canEdit: isSelfHost,
-                        memberActionEnabled: isSelfHost,
-                        memberAction: memberAction,
+                        longPressEnabled: isSelfHost,
+                        longPressAction: longPressAction,
+                        avatarAction: avatarAction,
                         editAction: {
                             viewModel.showChangeRoomName(existingName: room.room.title)
                         }
@@ -135,12 +145,25 @@ struct RoomDetailsScreen: View {
                     viewModel: viewModel
                 )
             }
+            .sheet(item: $selectedProfile) { member in
+                let memberID = UserID(uuid: member.id)
+                ProfileScreen(
+                    userID: memberID,
+                    isSelf: self.userID == memberID,
+                    state: state,
+                    container: container
+                )
+            }
         }
     }
     
     // MARK: - Actions -
     
-    private func memberAction(member: MemberGrid.Member) {
+    private func avatarAction(member: MemberGrid.Member) {
+        selectedProfile = member
+    }
+    
+    private func longPressAction(member: MemberGrid.Member) {
         let isHost = room?.room.ownerUserID == userID.uuid
         guard isHost else {
             return
@@ -187,7 +210,7 @@ struct RoomDetailsScreen: View {
     RoomDetailsScreen(
         userID: .mock,
         chatID: .mock,
-        viewModel: .mock,
-        chatController: .mock
+        state: .mock,
+        container: .mock
     )
 }
