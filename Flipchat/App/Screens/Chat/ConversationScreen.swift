@@ -725,7 +725,7 @@ struct ConversationScreen: View {
                 amount: messageCost
             )
             
-//            clearInput()
+            resetInput()
             
             try await Task.delay(milliseconds: 150)
             
@@ -745,7 +745,7 @@ struct ConversationScreen: View {
                 replyingTo: MessageID(uuid: replyMessage?.message.serverID)
             )
             
-//            clearInput()
+            resetInput()
             
             try await Task.delay(milliseconds: 150)
             
@@ -753,10 +753,9 @@ struct ConversationScreen: View {
         }
     }
     
-//    private func clearInput() {
-//        input = ""
-//        replyMessage = nil
-//    }
+    private func resetInput() {
+        replyMessage = nil
+    }
     
     private func scrollToBottom(animated: Bool = false) {
         scrollConfiguration = .init(destination: .bottom, animated: animated)
