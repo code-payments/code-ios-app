@@ -148,6 +148,7 @@
 		9A8B265A2C10F156009FB349 /* TooltipViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26592C10F156009FB349 /* TooltipViewModel.swift */; };
 		9A8B265F2C18AC74009FB349 /* BiometricsAuthScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */; };
 		9A8B26612C1A32BC009FB349 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26602C1A32BB009FB349 /* Preferences.swift */; };
+		9A8D9A3F2D78C2E200E755B9 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 9A8D9A3E2D78C2E200E755B9 /* Kingfisher */; };
 		9A8DB71627D50D4800E2E883 /* CodeGrindApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DB71527D50D4800E2E883 /* CodeGrindApp.swift */; };
 		9A8DB71827D50D4800E2E883 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DB71727D50D4800E2E883 /* ContentView.swift */; };
 		9A8DB71A27D50D4A00E2E883 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9A8DB71927D50D4A00E2E883 /* Assets.xcassets */; };
@@ -599,6 +600,7 @@
 				9A340F662D6E1591003858F4 /* TwitterAPIKit in Frameworks */,
 				9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */,
 				9A9E26B72CEA73D80021E5DD /* FirebaseMessaging in Frameworks */,
+				9A8D9A3F2D78C2E200E755B9 /* Kingfisher in Frameworks */,
 				9A9E26B52CEA73D80021E5DD /* FirebaseInstallations in Frameworks */,
 				9A6AB53D2CDFE0A60038DBB8 /* SwiftUIIntrospect in Frameworks */,
 				9A91F3AE2CB6FC2E0018CE65 /* Bugsnag in Frameworks */,
@@ -1268,6 +1270,7 @@
 				9A9E26B62CEA73D80021E5DD /* FirebaseMessaging */,
 				9A9499D72CFB82A200DC219B /* SQLite */,
 				9A340F652D6E1591003858F4 /* TwitterAPIKit */,
+				9A8D9A3E2D78C2E200E755B9 /* Kingfisher */,
 			);
 			productName = Flipchat;
 			productReference = 9A9970A32CA33145006BDE08 /* Flipchat.app */;
@@ -1491,6 +1494,7 @@
 				9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */,
 				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */,
 				9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */,
+				9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -3591,6 +3595,14 @@
 				kind = branch;
 			};
 		};
+		9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/onevcat/Kingfisher";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.3.0;
+			};
+		};
 		9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/dbart01/SQLite.swift";
@@ -3653,6 +3665,11 @@
 		9A6BFF1B2B76991A00E04EB7 /* CodeServices */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeServices;
+		};
+		9A8D9A3E2D78C2E200E755B9 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
 		};
 		9A8DB72627D5130200E2E883 /* CodeServices */ = {
 			isa = XCSwiftPackageProductDependency;

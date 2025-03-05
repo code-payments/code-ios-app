@@ -11,6 +11,7 @@ import CommonCrypto
 import SwiftUI
 import CodeUI
 import FlipchatServices
+import Kingfisher
 
 public struct UserGeneratedAvatar: View {
     
@@ -36,18 +37,12 @@ public struct UserGeneratedAvatar: View {
     public var body: some View {
         Group {
             if let url {
-                AsyncImage(url: url) { phase in
-                    if case .success(let image) = phase {
-                        image
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: diameter, height: diameter)
-                            .clipShape(Circle())
-                        
-                    } else {
-                        generatedAvatar()
-                    }
-                }
+                KFImage(url)
+                    .placeholder { generatedAvatar() }
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: diameter, height: diameter)
+                    .clipShape(Circle())
             } else {
                 generatedAvatar()
             }
