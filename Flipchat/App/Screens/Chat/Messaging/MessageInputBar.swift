@@ -17,7 +17,7 @@ class MessageInputBar: UIView {
     
     weak var delegate: MessageInputBarDelegate?
     
-    private let textView = ExpandingTextView()
+    private let textView = UITextView()
     private let sendButton = UIButton(type: .custom)
     
     private var heightConstraint: NSLayoutConstraint!
@@ -60,6 +60,7 @@ class MessageInputBar: UIView {
     private func setupViews() {
         backgroundColor = .backgroundMain
         
+        textView.isSelectable = true
         textView.showsVerticalScrollIndicator = false
         textView.showsHorizontalScrollIndicator = false
         textView.backgroundColor = .white
@@ -70,7 +71,6 @@ class MessageInputBar: UIView {
         textView.font = .appTextMessage
         textView.textColor = .backgroundMain
         textView.tintColor = .backgroundMain
-        textView.textContainerInset = .zero
         textView.textContainerInset = .init(
             top: 8,
             left: 10,
@@ -78,7 +78,6 @@ class MessageInputBar: UIView {
             right: 10
         )
         textView.textContainer.lineFragmentPadding = 0
-        textView.backgroundColor = .white
         addSubview(textView)
         
         sendButton.setImage(.asset(.paperplane), for: .normal)
@@ -133,7 +132,7 @@ extension MessageInputBar: UITextViewDelegate {
 
 // MARK: - ExpandingTextView -
 
-class ExpandingTextView: UITextView {
+extension UITextView {
     var desiredHeight: CGFloat {
         let textContainterInsets = textContainerInset
         var usedRect = layoutManager.usedRect(for: textContainer)
