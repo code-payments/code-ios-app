@@ -159,7 +159,7 @@ struct ProfileScreen: View {
     @ViewBuilder private func nameRow() -> some View {
         MemberNameLabel(
             size: .large,
-            showLogo: true,
+            showLogo: hasSocialProfile,
             name: displayName,
             verificationType: verificationType
         )
