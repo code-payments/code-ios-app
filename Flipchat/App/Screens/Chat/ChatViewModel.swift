@@ -364,15 +364,6 @@ class ChatViewModel: ObservableObject {
         postAction()
     }
     
-    func solicitMessage(text: String, chatID: ChatID, hostID: UserID, amount: Kin) async throws {
-        try await chatController.solicitMessage(
-            text: text,
-            chatID: chatID,
-            hostID: hostID,
-            amount: amount
-        )
-    }
-    
     // MARK: - Join Chat -
     
 //    func attemptJoinChat(chatID: ChatID, hostID: UserID, amount: Kin) async throws {

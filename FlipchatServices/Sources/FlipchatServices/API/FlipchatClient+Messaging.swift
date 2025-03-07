@@ -17,9 +17,9 @@ extension FlipchatClient {
         messagingService.streamMessages(chatID: chatID, from: messageID, owner: owner, completion: completion)
     }
     
-    public func solicitMessage(chatID: ChatID, owner: KeyPair, text: String, intentID: PublicKey) async throws -> Chat.Message {
+    public func solicitMessage(chatID: ChatID, owner: KeyPair, text: String, replyingTo: MessageID? = nil, intentID: PublicKey) async throws -> Chat.Message {
         try await withCheckedThrowingContinuation { c in
-            messagingService.sendMessage(chatID: chatID, owner: owner, text: text, replyingTo: nil, intentID: intentID) { c.resume(with: $0) }
+            messagingService.sendMessage(chatID: chatID, owner: owner, text: text, replyingTo: replyingTo, intentID: intentID) { c.resume(with: $0) }
         }
     }
     

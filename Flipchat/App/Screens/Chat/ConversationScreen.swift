@@ -718,11 +718,12 @@ struct ConversationScreen: View {
         }
         
         Task {
-            try await chatViewModel.solicitMessage(
+            try await chatController.solicitMessage(
                 text: text,
                 chatID: chatID,
                 hostID: UserID(uuid: roomHostID),
-                amount: messageCost
+                amount: messageCost,
+                replyingTo: MessageID(uuid: replyMessage?.message.serverID)
             )
             
             resetInput()

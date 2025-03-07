@@ -442,7 +442,7 @@ class ChatController: ObservableObject {
         }
     }
     
-    func solicitMessage(text: String, chatID: ChatID, hostID: UserID, amount: Kin) async throws {
+    func solicitMessage(text: String, chatID: ChatID, hostID: UserID, amount: Kin, replyingTo: MessageID?) async throws {
         let destination = try await client.fetchPaymentDestination(userID: hostID)
         
         let intentID = try await paymentClient.payForMessage(
@@ -457,6 +457,7 @@ class ChatController: ObservableObject {
             chatID: chatID,
             owner: owner,
             text: text,
+            replyingTo: replyingTo,
             intentID: intentID
         )
         
@@ -467,7 +468,7 @@ class ChatController: ObservableObject {
         )
     }
     
-    func sendMessage(text: String, for chatID: ChatID, replyingTo: MessageID? = nil) async throws {
+    func sendMessage(text: String, for chatID: ChatID, replyingTo: MessageID?) async throws {
         let deliveredMessage = try await client.sendMessage(
             chatID: chatID,
             owner: owner,
