@@ -16,7 +16,7 @@ protocol MessageListControllerDelegate {
     func messageListControllerWillSendMessage(text: String) -> Bool
 }
 
-struct MessagesListController<DescriptionView, AccessoryView>: UIViewControllerRepresentable where DescriptionView: View, AccessoryView: View {
+struct MessagesListController<BottomView, ReplyView>: UIViewControllerRepresentable where BottomView: View, ReplyView: View {
     
     var delegate: MessageListControllerDelegate?
     
@@ -24,20 +24,20 @@ struct MessagesListController<DescriptionView, AccessoryView>: UIViewControllerR
     let userID: UserID
     let chatID: ChatID
     let canType: Bool
-    let descriptionView: () -> DescriptionView
+    let bottomControlView: () -> BottomView
     let focus: Binding<FocusConfiguration?>
     let scroll: Binding<ScrollConfiguration?>
     let action: MessageActionHandler
     let showReply: Bool
-    let replyView: () -> AccessoryView
+    let replyView: () -> ReplyView
     
-    init(delegate: MessageListControllerDelegate?, chatController: ChatController, userID: UserID, chatID: ChatID, canType: Bool, @ViewBuilder descriptionView: @escaping () -> DescriptionView, focus: Binding<FocusConfiguration?>, scroll: Binding<ScrollConfiguration?>, action: @escaping MessageActionHandler, showReply: Bool, @ViewBuilder replyView: @escaping () -> AccessoryView) {
+    init(delegate: MessageListControllerDelegate?, chatController: ChatController, userID: UserID, chatID: ChatID, canType: Bool, @ViewBuilder bottomControlView: @escaping () -> BottomView, focus: Binding<FocusConfiguration?>, scroll: Binding<ScrollConfiguration?>, action: @escaping MessageActionHandler, showReply: Bool, @ViewBuilder replyView: @escaping () -> ReplyView) {
         self.delegate = delegate
         self.chatController = chatController
         self.userID = userID
         self.chatID = chatID
         self.canType = canType
-        self.descriptionView = descriptionView
+        self.bottomControlView = bottomControlView
         self.focus = focus
         self.scroll = scroll
         self.action = action
@@ -45,13 +45,13 @@ struct MessagesListController<DescriptionView, AccessoryView>: UIViewControllerR
         self.replyView = replyView
     }
 
-    func makeUIViewController(context: Context) -> _MessagesListController<DescriptionView, AccessoryView> {
+    func makeUIViewController(context: Context) -> _MessagesListController<BottomView, ReplyView> {
         let controller = _MessagesListController(
             chatController: chatController,
             userID: userID,
             chatID: chatID,
             canType: canType,
-            descriptionView: descriptionView,
+            bottomControlView: bottomControlView,
             focus: focus,
             scroll: scroll,
             action: action,
@@ -64,9 +64,9 @@ struct MessagesListController<DescriptionView, AccessoryView>: UIViewControllerR
         return controller
     }
 
-    func updateUIViewController(_ controller: _MessagesListController<DescriptionView, AccessoryView>, context: Context) {
+    func updateUIViewController(_ controller: _MessagesListController<BottomView, ReplyView>, context: Context) {
         controller.delegate = delegate
-        controller.descriptionView = descriptionView
+        controller.bottomControlView = bottomControlView
         controller.replyView = replyView
         controller.canType = canType
         controller.showReply = showReply
@@ -77,7 +77,7 @@ struct MessagesListController<DescriptionView, AccessoryView>: UIViewControllerR
 }
 
 @MainActor
-class _MessagesListController<DescriptionView, AccessoryView>: UIViewController, UITableViewDataSource, UITableViewDelegate where DescriptionView: View, AccessoryView: View {
+class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableViewDataSource, UITableViewDelegate where BottomView: View, ReplyView: View {
     
     var delegate: MessageListControllerDelegate?
     
@@ -86,9 +86,9 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
     let chatID: ChatID
     let action: MessageActionHandler
     
-    var descriptionView: () -> DescriptionView {
+    var bottomControlView: () -> BottomView {
         didSet {
-            hostingDescription?.rootView = descriptionView()
+            hostedBottomControl?.rootView = bottomControlView()
         }
     }
     
@@ -105,9 +105,9 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
         }
     }
     
-    var replyView: () -> AccessoryView {
+    var replyView: () -> ReplyView {
         didSet {
-            hostingAccessory?.rootView = replyView()
+            hostedReplyView?.rootView = replyView()
         }
     }
     
@@ -129,8 +129,9 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
     private var stream: StreamMessagesReference?
     
     private var inputBar = MessageInputBar(frame: .zero)
-    private var hostingDescription: UIHostingController<DescriptionView>?
-    private var hostingAccessory: UIHostingController<AccessoryView>?
+    private var hostedBottomControl: UIHostingController<BottomView>?
+    private var hostedReplyView: UIHostingController<ReplyView>?
+    private var hostedTypingView: UIHostingController<TypingIndicatorView>?
     
     private var lastKnownInputHeight: CGFloat?
     private var lastKnownKeyboardHeight: CGFloat = 0
@@ -148,18 +149,18 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
         userID: UserID,
         chatID: ChatID,
         canType: Bool,
-        @ViewBuilder descriptionView: @escaping () -> DescriptionView,
+        @ViewBuilder bottomControlView: @escaping () -> BottomView,
         focus: Binding<FocusConfiguration?>?,
         scroll: Binding<ScrollConfiguration?>?,
         action: @escaping MessageActionHandler,
         showReply: Bool,
-        @ViewBuilder replyView: @escaping () -> AccessoryView
+        @ViewBuilder replyView: @escaping () -> ReplyView
     ) {
         self.chatController = chatController
         self.userID         = userID
         self.chatID         = chatID
         self.canType        = canType
-        self.descriptionView = descriptionView
+        self.bottomControlView = bottomControlView
         self.focus          = focus
         self.messages       = []
         self.showReply      = showReply
@@ -212,14 +213,14 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
         
         // Accessory hosting view
         
-        let hostingAccessory = UIHostingController(rootView: replyView())
-        let accessoryView = hostingAccessory.view!
-        accessoryView.translatesAutoresizingMaskIntoConstraints = false
-        accessoryView.backgroundColor = .clear
-        addChild(hostingAccessory)
-        view.addSubview(accessoryView)
-        hostingAccessory.didMove(toParent: self)
-        self.hostingAccessory = hostingAccessory
+        let hostedReplyView = UIHostingController(rootView: replyView())
+        let replyView = hostedReplyView.view!
+        replyView.translatesAutoresizingMaskIntoConstraints = false
+        replyView.backgroundColor = .clear
+        addChild(hostedReplyView)
+        view.addSubview(replyView)
+        hostedReplyView.didMove(toParent: self)
+        self.hostedReplyView = hostedReplyView
         
         // Input hosting view
         
@@ -229,14 +230,14 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
         
         // Accessory hosting view
         
-        let hostingDescription = UIHostingController(rootView: descriptionView())
-        let descriptionView = hostingDescription.view!
-        descriptionView.translatesAutoresizingMaskIntoConstraints = false
-        descriptionView.backgroundColor = .backgroundMain
-        addChild(hostingDescription)
-        view.addSubview(descriptionView)
-        hostingDescription.didMove(toParent: self)
-        self.hostingDescription = hostingDescription
+        let hostedBottomControl = UIHostingController(rootView: bottomControlView())
+        let bottomControlView = hostedBottomControl.view!
+        bottomControlView.translatesAutoresizingMaskIntoConstraints = false
+        bottomControlView.backgroundColor = .backgroundMain
+        addChild(hostedBottomControl)
+        view.addSubview(bottomControlView)
+        hostedBottomControl.didMove(toParent: self)
+        self.hostedBottomControl = hostedBottomControl
         
         // Keyboard layout guide
         
@@ -244,8 +245,8 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
 
         // Constraints
         
-        accessoryShownConstraint = accessoryView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
-        accessoryHiddenConstraint = accessoryView.topAnchor.constraint(equalTo: inputBar.topAnchor)
+        accessoryShownConstraint = replyView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
+        accessoryHiddenConstraint = replyView.topAnchor.constraint(equalTo: inputBar.topAnchor)
         
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -253,10 +254,10 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
             tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
 
-            accessoryView.heightAnchor.constraint(equalToConstant: replyViewHeight),
-            accessoryView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            accessoryView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            accessoryView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
+            replyView.heightAnchor.constraint(equalToConstant: replyViewHeight),
+            replyView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            replyView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            replyView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
             accessoryHiddenConstraint!,
             
             inputBar.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
@@ -264,13 +265,13 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
             inputBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             inputBar.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
             
-            descriptionView.heightAnchor.constraint(equalToConstant: descriptionViewHeight),
-            descriptionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            descriptionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            descriptionView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            bottomControlView.heightAnchor.constraint(equalToConstant: descriptionViewHeight),
+            bottomControlView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bottomControlView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bottomControlView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
-            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: accessoryView.topAnchor, constant: -20).setting(priority: .defaultHigh),
-            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: descriptionView.topAnchor, constant: -20).setting(priority: .defaultHigh),
+            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: replyView.topAnchor, constant: -20).setting(priority: .defaultHigh),
+            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: bottomControlView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             scrollButton.widthAnchor.constraint(equalToConstant: 40),
             scrollButton.heightAnchor.constraint(equalToConstant: 40),
@@ -637,7 +638,7 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
         
         UIView.animate(withDuration: 0.15) {
             self.inputBar.alpha = visible ? 1 : 0
-            self.hostingDescription?.view.alpha = visible ? 0 : 1
+            self.hostedBottomControl?.view.alpha = visible ? 0 : 1
             self.view.layoutIfNeeded()
         }
     }
@@ -648,7 +649,7 @@ class _MessagesListController<DescriptionView, AccessoryView>: UIViewController,
         self.accessoryHiddenConstraint?.isActive = !visible
         
         UIView.animate(withDuration: 0.25) {
-            self.hostingAccessory?.view.alpha = visible ? 1 : 0
+            self.hostedReplyView?.view.alpha = visible ? 1 : 0
             self.updateTableContentOffsetAndInsets()
             self.view.layoutIfNeeded()
         }

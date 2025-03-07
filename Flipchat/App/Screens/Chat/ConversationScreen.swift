@@ -150,7 +150,7 @@ struct ConversationScreen: View {
                         userID: userID,
                         chatID: chatID,
                         canType: canType,
-                        descriptionView: descriptionView,
+                        bottomControlView: descriptionView,
                         focus: $focusConfiguration,
                         scroll: $scrollConfiguration,
                         action: { action in
