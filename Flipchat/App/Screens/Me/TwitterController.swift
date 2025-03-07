@@ -201,7 +201,7 @@ extension TwitterController {
 
 private class GlobalContextProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        UIApplication.shared.keyWindow!
+        UIApplication.shared.appDelegate.window!
     }
 }
 
