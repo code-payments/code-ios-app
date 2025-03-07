@@ -131,7 +131,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     private var inputBar = MessageInputBar(frame: .zero)
     private var hostedBottomControl: UIHostingController<BottomView>?
     private var hostedReplyView: UIHostingController<ReplyView>?
-    private var hostedTypingView: UIHostingController<TypingIndicatorView>?
     
     private var lastKnownInputHeight: CGFloat?
     private var lastKnownKeyboardHeight: CGFloat = 0
