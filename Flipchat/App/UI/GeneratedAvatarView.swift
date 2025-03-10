@@ -86,7 +86,7 @@ public struct UserGeneratedAvatar: View {
         .mask {
             Circle()
         }
-        .drawingGroup()
+//        .drawingGroup()
     }
 }
 
@@ -202,7 +202,7 @@ public struct RoomGeneratedAvatar: View {
                 }
             }
         }
-        .drawingGroup()
+//        .drawingGroup()
         .if(isHost) { $0
             .overlay {
                 Image.asset(.crown)

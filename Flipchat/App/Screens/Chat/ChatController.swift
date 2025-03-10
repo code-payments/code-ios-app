@@ -118,6 +118,10 @@ class ChatController: ObservableObject {
         try database.getUserProfile(userID: userID.uuid)
     }
     
+    func getTypingProfiles(in ids: [UUID]) throws -> [TypingProfile] {
+        try database.getTypingProfiles(userIDs: ids)
+    }
+    
     // MARK: - Sync -
     
     func startSync() {
@@ -423,11 +427,15 @@ class ChatController: ObservableObject {
     
     // MARK: - Message Stream -
     
-    func streamMessages(chatID: ChatID, messageID: MessageID?, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+    func streamMessages(chatID: ChatID, messageID: MessageID?, completion: @escaping (Result<StreamUpdate, ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
         client.streamMessages(chatID: chatID, from: messageID, owner: owner, completion: completion)
     }
     
     // MARK: - Messages -
+    
+    func sendTyping(state: TypingState, chatID: ChatID) async throws {
+        try await client.sendTypingState(state: state, chatID: chatID, owner: owner)
+    }
     
     func receiveMessages(messages: [Chat.Message], for chatID: ChatID) async throws {
         let filteredMessages = messages.filter {

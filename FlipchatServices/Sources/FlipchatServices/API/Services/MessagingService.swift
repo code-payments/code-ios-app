@@ -15,7 +15,7 @@ import SwiftProtobuf
 @MainActor
 class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient> {
         
-    func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+    func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, completion: @escaping (Result<StreamUpdate, ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
         trace(.open, components: "Chat \(chatID.description)", "Message ID: \(messageID?.description ?? "nil")", "Opening message stream.")
         
         let streamReference = StreamMessagesReference()
@@ -48,7 +48,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         return streamReference
     }
     
-    private func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, assigningTo reference: StreamMessagesReference, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) {
+    private func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, assigningTo reference: StreamMessagesReference, completion: @escaping (Result<StreamUpdate, ErrorStreamMessages>) -> Void) {
         let queue = self.queue
         
         reference.cancel()
@@ -65,7 +65,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 let messages = messageBatch.messages.compactMap { Chat.Message($0) }
                 queue.async {
                     trace(.receive, components: "Chat \(chatID.description)", "Received \(messages.count) events.")
-                    completion(.success(messages))
+                    completion(.success(.messages(messages)))
                 }
                 
             case .ping(let ping):
@@ -94,8 +94,17 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
                 break
                 
             case .isTypingNotifications(let typingBatch):
-                // TODO: Implement
-                break
+                let typingUsers = typingBatch.isTypingNotifications.map {
+                    TypingUser(
+                        userID: UserID(data: $0.userID.value),
+                        typingState: .init($0.typingState)
+                    )
+                }
+                
+                queue.async {
+                    trace(.receive, components: "Typing users: \(typingUsers.count)")
+                    completion(.success(.typingUsers(typingUsers)))
+                }
             }
         }
         
@@ -273,7 +282,7 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
     }
     
     func advanceReadPointer(chatID: ChatID, to messageID: MessageID, owner: KeyPair, completion: @escaping (Result<Void, ErrorAdvancePointer>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Message ID: \(chatID.data.hexEncodedString())")
+        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Chat ID: \(chatID.data.hexEncodedString())")
         
         let request = Flipchat_Messaging_V1_AdvancePointerRequest.with {
             $0.chatID = .with { $0.value = chatID.data }
@@ -298,6 +307,84 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
             
         } failure: { error in
             completion(.failure(.unknown))
+        }
+    }
+    
+    func sendTypingState(state: TypingState, chatID: ChatID, owner: KeyPair, completion: @escaping (Result<Void, ErrorSendTypingState>) -> Void) {
+        trace(.send, components: "State: \(state)", "Chat ID: \(chatID.data.hexEncodedString())")
+        
+        let request = Flipchat_Messaging_V1_NotifyIsTypingRequest.with {
+            $0.chatID = .with { $0.value = chatID.data }
+            $0.typingState = state.grpcState
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.notifyIsTyping(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSendTypingState(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success, components: "State: \(state)")
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+}
+
+// MARK: - Types -
+
+public enum StreamUpdate {
+    case messages([Chat.Message])
+    case typingUsers([TypingUser])
+}
+
+public struct TypingUser: Sendable {
+    public let userID: UserID
+    public let typingState: TypingState
+}
+
+public enum TypingState: Sendable {
+    case unknown
+    case started
+    case stillTyping
+    case stopped
+    case timedOut
+    
+    init(_ proto: Flipchat_Messaging_V1_TypingState) {
+        switch proto {
+        case .unknownTypingState:
+            self = .unknown
+        case .startedTyping:
+            self = .started
+        case .stillTyping:
+            self = .stillTyping
+        case .stoppedTyping:
+            self = .stopped
+        case .typingTimedOut:
+            self = .timedOut
+        case .UNRECOGNIZED(let int):
+            self = .unknown
+        }
+    }
+    
+    var grpcState: Flipchat_Messaging_V1_TypingState {
+        switch self {
+        case .unknown:
+            return .unknownTypingState
+        case .started:
+            return .startedTyping
+        case .stillTyping:
+            return .stillTyping
+        case .stopped:
+            return .stoppedTyping
+        case .timedOut:
+            return .typingTimedOut
         }
     }
 }
@@ -325,6 +412,12 @@ public enum ErrorAdvancePointer: Int, Error {
     case ok
     case denied
     case messageNotFound
+    case unknown = -1
+}
+
+public enum ErrorSendTypingState: Int, Error {
+    case ok
+    case denied
     case unknown = -1
 }
 

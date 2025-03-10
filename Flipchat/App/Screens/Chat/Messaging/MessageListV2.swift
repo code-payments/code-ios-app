@@ -101,7 +101,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     
     var showReply: Bool {
         didSet {
-            setReply(visible: showReply)
+            setVisible(isTyping: isTypingVisible, isReplying: showReply)
         }
     }
     
@@ -131,15 +131,36 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     private var inputBar = MessageInputBar(frame: .zero)
     private var hostedBottomControl: UIHostingController<BottomView>?
     private var hostedReplyView: UIHostingController<ReplyView>?
+    private var hostedTypingView: UIHostingController<TypingIndicatorView>?
     
     private var lastKnownInputHeight: CGFloat?
     private var lastKnownKeyboardHeight: CGFloat = 0
     
-    private var accessoryShownConstraint: NSLayoutConstraint?
-    private var accessoryHiddenConstraint: NSLayoutConstraint?
+    private var replyShownConstraint: NSLayoutConstraint?
+    private var replyHiddenConstraint: NSLayoutConstraint?
     
+    private var typingShownOnInputConstraint: NSLayoutConstraint?
+    private var typingShownOnReplyConstraint: NSLayoutConstraint?
+    private var typingHiddenConstraint: NSLayoutConstraint?
+    
+    private let typingViewHeight: CGFloat = 50
     private let replyViewHeight: CGFloat = 55
     private let descriptionViewHeight: CGFloat = 52
+    
+    private var typingPoller: Poller?
+    
+    private var isTyping: Bool = false
+    
+    private var isTypingVisible: Bool {
+        !typingUsers.isEmpty
+    }
+    
+    private var typingUsers: [IndexedTypingUser] = [] {
+        didSet {
+            hostedTypingView?.rootView = TypingIndicatorView(typingUsers: typingUsers)
+            setVisible(isTyping: isTypingVisible, isReplying: showReply)
+        }
+    }
     
     // MARK: - Init -
     
@@ -182,7 +203,11 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     required init?(coder: NSCoder) { fatalError() }
     
     deinit {
-        DispatchQueue.main.async { [stream] in
+        DispatchQueue.main.async { [stream, chatController, chatID] in
+            Task {
+                try await chatController.sendTyping(state: .stopped, chatID: chatID)
+            }
+            
             trace(.warning, components: "Destroying conversation stream...")
             stream?.destroy()
         }
@@ -208,9 +233,20 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         scrollButton.translatesAutoresizingMaskIntoConstraints = false
         scrollButton.setImage(UIImage.asset(.scrollBottom), for: .normal)
         scrollButton.addTarget(self, action: #selector(animateToBottom), for: .touchUpInside)
+        
+        // Typing view
+        
+        let hostedTypingView = UIHostingController(rootView: TypingIndicatorView(typingUsers: []))
+        let typingView = hostedTypingView.view!
+        typingView.translatesAutoresizingMaskIntoConstraints = false
+        typingView.backgroundColor = .clear
+        addChild(hostedTypingView)
+        view.addSubview(typingView)
+        hostedTypingView.didMove(toParent: self)
+        self.hostedTypingView = hostedTypingView
         view.addSubview(scrollButton)
         
-        // Accessory hosting view
+        // Reply view
         
         let hostedReplyView = UIHostingController(rootView: replyView())
         let replyView = hostedReplyView.view!
@@ -227,7 +263,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         inputBar.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(inputBar)
         
-        // Accessory hosting view
+        // Bottom control view
         
         let hostedBottomControl = UIHostingController(rootView: bottomControlView())
         let bottomControlView = hostedBottomControl.view!
@@ -244,8 +280,12 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
 
         // Constraints
         
-        accessoryShownConstraint = replyView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
-        accessoryHiddenConstraint = replyView.topAnchor.constraint(equalTo: inputBar.topAnchor)
+        replyShownConstraint = replyView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
+        replyHiddenConstraint = replyView.topAnchor.constraint(equalTo: inputBar.topAnchor)
+        
+        typingShownOnInputConstraint = typingView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
+        typingShownOnReplyConstraint = typingView.bottomAnchor.constraint(equalTo: replyView.topAnchor)
+        typingHiddenConstraint = typingView.topAnchor.constraint(equalTo: inputBar.topAnchor)
         
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -253,11 +293,17 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             tableView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
 
-            replyView.heightAnchor.constraint(equalToConstant: replyViewHeight),
+            replyView.heightAnchor.constraint(equalToConstant: replyViewHeight).setting(priority: .defaultHigh),
+            replyView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
             replyView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             replyView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            replyView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
-            accessoryHiddenConstraint!,
+            replyHiddenConstraint!,
+            
+            typingView.heightAnchor.constraint(equalToConstant: typingViewHeight).setting(priority: .defaultHigh),
+            typingView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
+            typingView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            typingView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            typingHiddenConstraint!,
             
             inputBar.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
             inputBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -269,6 +315,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             bottomControlView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomControlView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
+            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: typingView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: replyView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: bottomControlView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
@@ -376,10 +423,14 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     
     @objc private func applicationWillEnterForeground(notification: Notification) {
         startStream()
+        if isTyping {
+            setIsTyping(typing: true)
+        }
     }
     
     @objc private func applicationDidEnterBackground(notification: Notification) {
         destroyStream()
+        setIsTyping(typing: false)
     }
     
     // MARK: - Requests -
@@ -410,8 +461,14 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         
         stream = chatController.streamMessages(chatID: chatID, messageID: messageID) { [weak self] result in
             switch result {
-            case .success(let messages):
-                self?.streamMessages(messages: messages)
+            case .success(let update):
+                switch update {
+                case .messages(let messages):
+                    self?.streamMessages(messages: messages)
+                    
+                case .typingUsers(let typingUsers):
+                    self?.streamTypingUsers(users: typingUsers)
+                }
 
             case .failure:
                 self?.destroyStream()
@@ -426,6 +483,50 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             
             if isAroundBottom {
                 scrollTo(configuration: .init(destination: .bottom, animated: true))
+            }
+        }
+    }
+    
+    private func streamTypingUsers(users: [TypingUser]) {
+        Task {
+            
+            var usersStillTyping: Set<UUID> = []
+            var usersToRemove: Set<UUID> = []
+            
+            for user in users {
+                guard user.userID != self.userID else {
+                    // Ignore self
+                    continue
+                }
+                
+                let id = user.userID.uuid
+                
+                switch user.typingState {
+                case .unknown, .stopped, .timedOut:
+                    usersToRemove.insert(id)
+                    
+                case .started, .stillTyping:
+                    usersStillTyping.insert(id)
+                }
+            }
+            
+            var updatedUsers = typingUsers
+            
+            // Remove users that stopped typing
+            updatedUsers = updatedUsers.filter { !usersToRemove.contains($0.id) }
+
+            updatedUsers.forEach {
+                usersStillTyping.insert($0.id)
+            }
+            
+            let profiles = try chatController.getTypingProfiles(in: Array(usersStillTyping))
+            let count = profiles.count
+            typingUsers = profiles.enumerated().map { index, profile in
+                IndexedTypingUser(
+                    id: profile.serverID,
+                    index: count - index - 1,
+                    avatarURL: profile.socialAvatar?.bigger ?? profile.avatarURL
+                )
             }
         }
     }
@@ -642,13 +743,32 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         }
     }
     
-    private func setReply(visible: Bool) {
+    private func setVisible(isTyping: Bool, isReplying: Bool) {
         view.layoutIfNeeded()
-        self.accessoryShownConstraint?.isActive = visible
-        self.accessoryHiddenConstraint?.isActive = !visible
+        
+        self.typingHiddenConstraint?.isActive = !isTyping
+        if showReply {
+            self.typingShownOnReplyConstraint?.isActive = isTyping
+            self.typingShownOnInputConstraint?.isActive = false
+        } else {
+            self.typingShownOnReplyConstraint?.isActive = false
+            self.typingShownOnInputConstraint?.isActive = isTyping
+        }
+        
+        // Has to come after we update the typing view
+        // constraints, otherwise it'll hang
+        self.replyHiddenConstraint?.isActive = !isReplying
+        self.replyShownConstraint?.isActive = isReplying
         
         UIView.animate(withDuration: 0.25) {
-            self.hostedReplyView?.view.alpha = visible ? 1 : 0
+            let state: CGFloat = isTyping ? 1 : 0
+            
+            // Typing
+            self.hostedTypingView?.view.alpha = state
+            
+            // Reply
+            self.hostedReplyView?.view.alpha = isReplying ? 1 : 0
+            
             self.updateTableContentOffsetAndInsets()
             self.view.layoutIfNeeded()
         }
@@ -872,6 +992,38 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
 // MARK: - MessageInputBarDelegate -
 
 extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
+    func inputTextDidChange(text: String) {
+        Task {
+            if text.isEmpty {
+                setIsTyping(typing: false)
+            } else if !isTyping {
+                setIsTyping(typing: true)
+            }
+        }
+    }
+    
+    func setIsTyping(typing: Bool) {
+        if typing {
+            isTyping = true
+            sendTypingUpdate(state: .started)
+            
+            typingPoller = Poller(seconds: 3) { [weak self] in
+                self?.sendTypingUpdate(state: .stillTyping)
+            }
+            
+        } else {
+            isTyping = false
+            typingPoller = nil
+            sendTypingUpdate(state: .stopped)
+        }
+    }
+    
+    private func sendTypingUpdate(state: TypingState) {
+        Task {
+            try await chatController.sendTyping(state: state, chatID: chatID)
+        }
+    }
+    
     func textContentHeightDidChange() {
         updateTableContentOffsetAndInsets()
     }
@@ -891,6 +1043,10 @@ extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
         
         if showReply {
             height += replyViewHeight
+        }
+        
+        if !typingUsers.isEmpty {
+            height += typingViewHeight
         }
         
         return height

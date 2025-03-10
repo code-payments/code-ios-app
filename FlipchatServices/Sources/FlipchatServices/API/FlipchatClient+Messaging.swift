@@ -13,7 +13,7 @@ public typealias StreamMessagesReference = BidirectionalStreamReference<Flipchat
 
 extension FlipchatClient {
     
-    public func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, completion: @escaping (Result<[Chat.Message], ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
+    public func streamMessages(chatID: ChatID, from messageID: MessageID?, owner: KeyPair, completion: @escaping (Result<StreamUpdate, ErrorStreamMessages>) -> Void) -> StreamMessagesReference {
         messagingService.streamMessages(chatID: chatID, from: messageID, owner: owner, completion: completion)
     }
     
@@ -50,6 +50,12 @@ extension FlipchatClient {
     public func advanceReadPointer(chatID: ChatID, to messageID: MessageID, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
             messagingService.advanceReadPointer(chatID: chatID, to: messageID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func sendTypingState(state: TypingState, chatID: ChatID, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            messagingService.sendTypingState(state: state, chatID: chatID, owner: owner) { c.resume(with: $0) }
         }
     }
 }

@@ -135,6 +135,42 @@ extension Database {
         
         return profiles.first
     }
+    
+    func getTypingProfiles(userIDs: [UUID]) throws -> [TypingProfile] {
+        let usersQuery = userIDs.map { "\"\($0.uuidString)\"" }.joined(separator: ", ")
+        let statement = try reader.prepareRowIterator("""
+        SELECT
+            u.serverID,
+            u.avatarURL,
+            p.avatarURL        AS socialAvatarURL,
+            p.verificationType AS socialVerificationType
+            
+        FROM
+            user u
+
+        LEFT JOIN profile p ON u.serverID = p.userID
+
+        WHERE
+            serverID IN(\(usersQuery))
+        ORDER BY
+            socialVerificationType DESC, serverID DESC;
+        """)
+        
+        let uTable = UserTable()
+        
+        let typingUsers = try statement.compactMap { row in
+            let socialAvatarURL  = row[Expression<URL?>("socialAvatarURL")]
+            let verificationType = row[Expression<VerificationType?>("socialVerificationType")]
+            return TypingProfile(
+                serverID:         row[uTable.serverID],
+                avatarURL:        row[uTable.avatarURL],
+                socialAvatar:     socialAvatarURL,
+                verificationType: verificationType ?? .none
+            )
+        }
+        
+        return typingUsers
+    }
 }
 
 // MARK: - Types -
@@ -161,6 +197,25 @@ struct UserProfileRow {
     
     var resolvedDisplayName: String {
         (profile?.displayName ?? displayName) ?? defaultMemberName
+    }
+}
+
+struct TypingProfile {
+    let serverID: UUID
+    let avatarURL: URL?
+    let socialAvatar: TwitterAvatar?
+    let verificationType: VerificationType
+    
+    init(serverID: UUID, avatarURL: URL?, socialAvatar: URL?, verificationType: VerificationType) {
+        self.serverID = serverID
+        self.avatarURL = avatarURL
+        self.verificationType = verificationType
+        
+        if let socialAvatar {
+            self.socialAvatar = TwitterAvatar(url: socialAvatar)
+        } else {
+            self.socialAvatar = nil
+        }
     }
 }
 

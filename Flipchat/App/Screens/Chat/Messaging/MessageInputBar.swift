@@ -11,6 +11,7 @@ import CodeUI
 protocol MessageInputBarDelegate: AnyObject {
     func textContentHeightDidChange()
     func willSendMessage(text: String) -> Bool
+    func inputTextDidChange(text: String)
 }
 
 class MessageInputBar: UIView {
@@ -128,6 +129,7 @@ class MessageInputBar: UIView {
 
 extension MessageInputBar: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
+        delegate?.inputTextDidChange(text: textView.text)
         self.setNeedsLayout()
     }
 }
