@@ -142,6 +142,8 @@ extension Database {
         SELECT
             u.serverID,
             u.avatarURL,
+        
+            p.displayName      AS socialDisplayName,
             p.avatarURL        AS socialAvatarURL,
             p.verificationType AS socialVerificationType
             
@@ -159,13 +161,10 @@ extension Database {
         let uTable = UserTable()
         
         let typingUsers = try statement.compactMap { row in
-            let socialAvatarURL  = row[Expression<URL?>("socialAvatarURL")]
-            let verificationType = row[Expression<VerificationType?>("socialVerificationType")]
-            return TypingProfile(
-                serverID:         row[uTable.serverID],
-                avatarURL:        row[uTable.avatarURL],
-                socialAvatar:     socialAvatarURL,
-                verificationType: verificationType ?? .none
+            TypingProfile(
+                serverID:      row[uTable.serverID],
+                avatarURL:     row[uTable.avatarURL],
+                socialProfile: .init(row: row)
             )
         }
         
@@ -203,19 +202,12 @@ struct UserProfileRow {
 struct TypingProfile {
     let serverID: UUID
     let avatarURL: URL?
-    let socialAvatar: TwitterAvatar?
-    let verificationType: VerificationType
+    let socialProfile: SocialProfile?
     
-    init(serverID: UUID, avatarURL: URL?, socialAvatar: URL?, verificationType: VerificationType) {
+    init(serverID: UUID, avatarURL: URL?, socialProfile: SocialProfile?) {
         self.serverID = serverID
         self.avatarURL = avatarURL
-        self.verificationType = verificationType
-        
-        if let socialAvatar {
-            self.socialAvatar = TwitterAvatar(url: socialAvatar)
-        } else {
-            self.socialAvatar = nil
-        }
+        self.socialProfile = socialProfile
     }
 }
 

@@ -19,7 +19,7 @@ struct TypingIndicatorView: View {
     var typingUsers: [IndexedTypingUser]
     
     var body: some View {
-        HStack {
+        HStack(alignment: .center) {
             AvatarStackView(
                 diameter: 35,
                 typingUsers: typingUsers
@@ -30,7 +30,7 @@ struct TypingIndicatorView: View {
             Spacer()
         }
         .padding(.horizontal, 20)
-        .frame(height: 50)
+        .frame(height: 50, alignment: .center)
         .background(Color.backgroundMain)
     }
 }
@@ -91,39 +91,56 @@ struct AvatarStackView: View {
 }
 
 struct DotsView: View {
-    
-    @State private var isAnimating: Bool = false
+    @State private var animationPhase: Int = 0 // 0: off, 1-3: dot states
+    @State private var timer: Timer? = nil
     
     var body: some View {
         HStack(spacing: 10) {
-            Dot(isAnimating: $isAnimating)
-                .animation(animation(delay: 0.3), value: isAnimating)
-            Dot(isAnimating: $isAnimating)
-                .animation(animation(delay: 0.6), value: isAnimating)
-            Dot(isAnimating: $isAnimating)
-                .animation(animation(delay: 0.9), value: isAnimating)
+            ForEach(0..<3) { index in
+                Dot(isAnimating: animationPhase > index)
+                    .animation(.easeInOut(duration: 0.6), value: animationPhase)
+            }
         }
         .frame(width: 40, height: 5)
         .padding(15)
         .background(Color.backgroundMessageReceived)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(cornerClip(location: .standalone(.received)))
         .onAppear {
-            withAnimation(.easeInOut(duration: 0.8)) {
-                isAnimating = true
-            }
+            startAnimation()
+        }
+        .onDisappear {
+            stopAnimation()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            startAnimation()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            stopAnimation()
         }
     }
     
-    private func animation(delay: TimeInterval) -> Animation {
-        .easeInOut(duration: 0.9)
-        .repeatForever(autoreverses: true)
-        .delay(delay)
+    private func startAnimation() {
+        stopAnimation()
+        animationPhase = 0
+        timer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true, block: updatePhase)
+    }
+    
+    nonisolated
+    private func updatePhase(timer: Timer) {
+        Task { @MainActor in
+            animationPhase = (animationPhase + 1) % 4 // Cycle 0-3
+        }
+    }
+    
+    private func stopAnimation() {
+        timer?.invalidate()
+        timer = nil
+        animationPhase = 0
     }
 }
 
 private struct Dot: View {
-    
-    @Binding var isAnimating: Bool
+    let isAnimating: Bool
     
     var body: some View {
         Circle()

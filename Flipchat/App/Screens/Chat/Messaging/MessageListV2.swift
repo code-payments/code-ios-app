@@ -101,7 +101,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     
     var showReply: Bool {
         didSet {
-            setVisible(isTyping: isTypingVisible, isReplying: showReply)
+            setReplyVisible(visible: showReply)
         }
     }
     
@@ -131,7 +131,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     private var inputBar = MessageInputBar(frame: .zero)
     private var hostedBottomControl: UIHostingController<BottomView>?
     private var hostedReplyView: UIHostingController<ReplyView>?
-    private var hostedTypingView: UIHostingController<TypingIndicatorView>?
     
     private var lastKnownInputHeight: CGFloat?
     private var lastKnownKeyboardHeight: CGFloat = 0
@@ -139,11 +138,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     private var replyShownConstraint: NSLayoutConstraint?
     private var replyHiddenConstraint: NSLayoutConstraint?
     
-    private var typingShownOnInputConstraint: NSLayoutConstraint?
-    private var typingShownOnReplyConstraint: NSLayoutConstraint?
-    private var typingHiddenConstraint: NSLayoutConstraint?
-    
-    private let typingViewHeight: CGFloat = 50
     private let replyViewHeight: CGFloat = 55
     private let descriptionViewHeight: CGFloat = 52
     
@@ -157,8 +151,11 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     
     private var typingUsers: [IndexedTypingUser] = [] {
         didSet {
-            hostedTypingView?.rootView = TypingIndicatorView(typingUsers: typingUsers)
-            setVisible(isTyping: isTypingVisible, isReplying: showReply)
+            if !typingUsers.isEmpty {
+                showTypingIndicator(visible: true)
+            } else {
+                showTypingIndicator(visible: false)
+            }
         }
     }
     
@@ -220,7 +217,8 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         tableView.dataSource = self
         tableView.delegate = self
         tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.register(MessageTableCell.self, forCellReuseIdentifier: "cell")
+        tableView.register(MessageTableCell.self, forCellReuseIdentifier: .messageCell)
+        tableView.register(MessageTableCell.self, forCellReuseIdentifier: .typingCell)
         tableView.separatorStyle      = .none
         tableView.backgroundColor     = .clear
         tableView.allowsSelection     = false
@@ -233,17 +231,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         scrollButton.translatesAutoresizingMaskIntoConstraints = false
         scrollButton.setImage(UIImage.asset(.scrollBottom), for: .normal)
         scrollButton.addTarget(self, action: #selector(animateToBottom), for: .touchUpInside)
-        
-        // Typing view
-        
-        let hostedTypingView = UIHostingController(rootView: TypingIndicatorView(typingUsers: []))
-        let typingView = hostedTypingView.view!
-        typingView.translatesAutoresizingMaskIntoConstraints = false
-        typingView.backgroundColor = .clear
-        addChild(hostedTypingView)
-        view.addSubview(typingView)
-        hostedTypingView.didMove(toParent: self)
-        self.hostedTypingView = hostedTypingView
         view.addSubview(scrollButton)
         
         // Reply view
@@ -283,10 +270,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         replyShownConstraint = replyView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
         replyHiddenConstraint = replyView.topAnchor.constraint(equalTo: inputBar.topAnchor)
         
-        typingShownOnInputConstraint = typingView.bottomAnchor.constraint(equalTo: inputBar.topAnchor)
-        typingShownOnReplyConstraint = typingView.bottomAnchor.constraint(equalTo: replyView.topAnchor)
-        typingHiddenConstraint = typingView.topAnchor.constraint(equalTo: inputBar.topAnchor)
-        
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
@@ -299,12 +282,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             replyView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             replyHiddenConstraint!,
             
-            typingView.heightAnchor.constraint(equalToConstant: typingViewHeight).setting(priority: .defaultHigh),
-            typingView.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
-            typingView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            typingView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            typingHiddenConstraint!,
-            
             inputBar.topAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor, constant: 150),
             inputBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             inputBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -315,7 +292,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             bottomControlView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomControlView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
-            scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: typingView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: replyView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.bottomAnchor.constraint(lessThanOrEqualTo: bottomControlView.topAnchor, constant: -20).setting(priority: .defaultHigh),
             scrollButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
@@ -525,7 +501,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
                 IndexedTypingUser(
                     id: profile.serverID,
                     index: count - index - 1,
-                    avatarURL: profile.socialAvatar?.bigger ?? profile.avatarURL
+                    avatarURL: profile.socialProfile?.avatar?.bigger ?? profile.avatarURL
                 )
             }
         }
@@ -584,30 +560,11 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         
         let (messages, unreadIndex) = rows.messageDescriptions(userID: userID, unread: unread)
         
-        // Determine if we should scroll to the bottom
-//        let lastNewMessageID = messages.last?.kind.messageRow?.message.serverID
-//        let lastCurrentMessageID = self.messages.last?.kind.messageRow?.message.serverID
-//        var shouldScroll = false
-//        if
-//            let lastNewMessageID,
-//            let lastCurrentMessageID,
-//            lastNewMessageID > lastCurrentMessageID, // Only scroll if there's newer messages
-//            isAroundBottom, // Only scroll if we're close to the bottom
-//            !self.messages.isEmpty // Only scroll if we're updating not initializing the list
-//        {
-//            shouldScroll = true
-//        }
-        
         self.messages = messages
         self.unreadBannerIndex = unreadIndex
         
         if isViewLoaded {
             reload()
-            
-            // Scroll after the table view has reloaded
-//            if shouldScroll {
-//                animateToBottom()
-//            }
         }
     }
     
@@ -707,7 +664,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         let height        = scrollView.frame.height
         let contentHeight = scrollView.contentSize.height
         let offsetY       = scrollView.contentOffset.y - scrollView.contentInset.bottom - scrollView.safeAreaInsets.bottom
-        let threshold     = contentHeight - height - height / 2
+        let threshold     = contentHeight - height - 100// - height / 2
         
         if offsetY >= threshold {
             isAroundBottom = true
@@ -743,31 +700,42 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         }
     }
     
-    private func setVisible(isTyping: Bool, isReplying: Bool) {
-        view.layoutIfNeeded()
+    private func showTypingIndicator(visible: Bool) {
+        let indexPath = IndexPath(row: messages.count, section: 0)
         
-        self.typingHiddenConstraint?.isActive = !isTyping
-        if showReply {
-            self.typingShownOnReplyConstraint?.isActive = isTyping
-            self.typingShownOnInputConstraint?.isActive = false
+        let rows = tableView.numberOfRows(inSection: 0)
+        var didInsert: Bool = false
+        
+        tableView.beginUpdates()
+        if visible {
+            if rows == messages.count {
+                didInsert = true
+                tableView.insertRows(at: [indexPath], with: .fade)
+            }
         } else {
-            self.typingShownOnReplyConstraint?.isActive = false
-            self.typingShownOnInputConstraint?.isActive = isTyping
+            if rows > messages.count {
+                tableView.deleteRows(at: [indexPath], with: .fade)
+            }
         }
+        tableView.endUpdates()
         
-        // Has to come after we update the typing view
-        // constraints, otherwise it'll hang
-        self.replyHiddenConstraint?.isActive = !isReplying
-        self.replyShownConstraint?.isActive = isReplying
+        if didInsert && isAroundBottom {
+            tableView.scrollToRow(
+                at: indexPath,
+                at: .bottom,
+                animated: true
+            )
+        }
+    }
+    
+    private func setReplyVisible(visible: Bool) {
+        view.layoutIfNeeded()
+
+        self.replyHiddenConstraint?.isActive = !visible
+        self.replyShownConstraint?.isActive = visible
         
         UIView.animate(withDuration: 0.25) {
-            let state: CGFloat = isTyping ? 1 : 0
-            
-            // Typing
-            self.hostedTypingView?.view.alpha = state
-            
-            // Reply
-            self.hostedReplyView?.view.alpha = isReplying ? 1 : 0
+            self.hostedReplyView?.view.alpha = visible ? 1 : 0
             
             self.updateTableContentOffsetAndInsets()
             self.view.layoutIfNeeded()
@@ -777,13 +745,34 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     // MARK: - UITableViewDataSource -
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        messages.count
+        var count = messages.count
+        
+        if isTypingVisible {
+            count += 1
+        }
+        
+        return count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath) as! MessageTableCell
-        
-        let message = messages[indexPath.row]
+        switch indexPath.row {
+        case 0..<messages.count: // Messages
+            let cell = tableView.dequeueReusableCell(withIdentifier: .messageCell, for: indexPath) as! MessageTableCell
+            return configureMessageCell(cell: cell, index: indexPath.row)
+            
+        case messages.count: // Typing indicator
+            let cell = tableView.dequeueReusableCell(withIdentifier: .typingCell, for: indexPath) as! MessageTableCell
+            return configureTypingCell(cell: cell)
+            
+        default:
+            // Shouldn't ever hit this
+            fatalError()
+//            return cell
+        }
+    }
+    
+    private func configureMessageCell(cell: MessageTableCell, index: Int) -> MessageTableCell {
+        let message = messages[index]
         let width = message.messageWidth(in: tableView.frame.size).width
         
         cell.backgroundColor = .clear
@@ -806,11 +795,20 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         .margins(.vertical, 2)
         .margins(.horizontal, 0)
 
-        // Load more when reaching the last cell
-//            if indexPath.row == messages.count - 1 {
-//                list.loadMore()
-//            }
-
+        return cell
+    }
+    
+    private func configureTypingCell(cell: MessageTableCell) -> MessageTableCell {
+        cell.backgroundColor = .clear
+        cell.swipeEnabled    = false
+        
+        cell.contentConfiguration = UIHostingConfiguration {
+            TypingIndicatorView(typingUsers: typingUsers)
+        }
+        .minSize(width: 0, height: 20)
+        .margins(.vertical, 2)
+        .margins(.horizontal, 0)
+        
         return cell
     }
 
@@ -1029,7 +1027,11 @@ extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
     }
     
     func willSendMessage(text: String) -> Bool {
-        delegate?.messageListControllerWillSendMessage(text: text) ?? false
+        let didSend = delegate?.messageListControllerWillSendMessage(text: text) ?? false
+        
+        setIsTyping(typing: false)
+        
+        return didSend
     }
     
     private func computeKeyboardAccessoryHeight() -> CGFloat {
@@ -1045,9 +1047,9 @@ extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
             height += replyViewHeight
         }
         
-        if !typingUsers.isEmpty {
-            height += typingViewHeight
-        }
+//        if !typingUsers.isEmpty {
+//            height += typingViewHeight
+//        }
         
         return height
     }
@@ -1388,4 +1390,9 @@ extension NSLayoutConstraint {
         self.priority = priority
         return self
     }
+}
+
+private extension String {
+    static let messageCell = "messageCell"
+    static let typingCell  = "typingCell"
 }
