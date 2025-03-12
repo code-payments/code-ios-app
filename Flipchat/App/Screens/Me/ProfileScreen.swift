@@ -12,7 +12,7 @@ import FlipchatServices
 struct ProfileScreen: View {
     
     @EnvironmentObject var banners: Banners
-    @SwiftUI.Environment(\.dismiss) var dismiss
+    @Environment(\.dismiss) var dismiss
     
     @ObservedObject private var sessionAuthenticator: SessionAuthenticator
     @ObservedObject private var twitterController: TwitterController

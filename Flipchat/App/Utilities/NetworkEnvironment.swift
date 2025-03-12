@@ -1,5 +1,5 @@
 //
-//  Environment.swift
+//  NetworkEnvironment.swift
 //  Code
 //
 //  Created by Dima Bart on 2021-04-07.
@@ -8,12 +8,12 @@
 import Foundation
 import FlipchatServices
 
-enum Environment {
+enum NetworkEnvironment {
     case dev
     case prod
 }
 
-extension Environment {
+extension NetworkEnvironment {
     
     enum Variable: String {
         case mixpanel      = "MIXPANEL"
@@ -34,7 +34,7 @@ extension Environment {
 
 // MARK: - Kin -
 
-extension Environment {
+extension NetworkEnvironment {
     var network: Network {
         switch self {
         case .dev:
@@ -47,7 +47,7 @@ extension Environment {
 
 // MARK: - ASCII -
 
-extension Environment {
+extension NetworkEnvironment {
     var asciiDescription: String {
         switch self {
         case .dev:
@@ -73,10 +73,10 @@ extension Environment {
 
 // MARK: - Current -
 
-extension Environment {
+extension NetworkEnvironment {
     #if CODEDEV
     static let current: Environment = .dev
     #else
-    static let current: Environment = .prod
+    static let current: NetworkEnvironment = .prod
     #endif
 }

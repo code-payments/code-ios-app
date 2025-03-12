@@ -11,7 +11,7 @@
 //@main
 //struct FlipchatApp: App {
 //    
-//    @SwiftUI.Environment(\.scenePhase) private var scenePhase
+//    @Environment(\.scenePhase) private var scenePhase
 //    
 //    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
 //    

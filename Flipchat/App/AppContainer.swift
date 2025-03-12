@@ -13,13 +13,13 @@ import Firebase
 class AppContainer: ObservableObject {
     
     let client = Client(
-        network: Environment.current.network,
+        network: NetworkEnvironment.current.network,
         context: Client.Context(kreIndex: KRE.index),
         queue: .main
     )
     
     let flipClient = FlipchatClient(
-        network: Environment.current.network,
+        network: NetworkEnvironment.current.network,
         queue: .main
     )
     

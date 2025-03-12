@@ -16,7 +16,11 @@ struct IndexedTypingUser: Equatable, Identifiable {
 
 struct TypingIndicatorView: View {
     
-    var typingUsers: [IndexedTypingUser]
+    @Environment(TypingController.self) var typingController
+    
+    var typingUsers: [IndexedTypingUser] {
+        typingController.typingUsers
+    }
     
     var body: some View {
         HStack(alignment: .center) {

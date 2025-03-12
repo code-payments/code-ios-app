@@ -141,6 +141,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     private let replyViewHeight: CGFloat = 55
     private let descriptionViewHeight: CGFloat = 52
     
+    private let typingController = TypingController()
     private var typingPoller: Poller?
     
     private var isTyping: Bool = false
@@ -149,9 +150,10 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         !typingUsers.isEmpty
     }
     
-    private var typingUsers: [IndexedTypingUser] = [] {
+    private var typingUsers: [TypingProfile] = [] {
         didSet {
-            if !typingUsers.isEmpty {
+            typingController.setProfiles(typingUsers)
+            if isTypingVisible {
                 showTypingIndicator(visible: true)
             } else {
                 showTypingIndicator(visible: false)
@@ -489,21 +491,26 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             var updatedUsers = typingUsers
             
             // Remove users that stopped typing
-            updatedUsers = updatedUsers.filter { !usersToRemove.contains($0.id) }
+            updatedUsers = updatedUsers.filter { !usersToRemove.contains($0.serverID) }
 
             updatedUsers.forEach {
-                usersStillTyping.insert($0.id)
+                usersStillTyping.insert($0.serverID)
             }
             
-            let profiles = try chatController.getTypingProfiles(in: Array(usersStillTyping))
-            let count = profiles.count
-            typingUsers = profiles.enumerated().map { index, profile in
-                IndexedTypingUser(
-                    id: profile.serverID,
-                    index: count - index - 1,
-                    avatarURL: profile.socialProfile?.avatar?.bigger ?? profile.avatarURL
-                )
+            if !usersStillTyping.isEmpty {
+                let profiles = try chatController.getTypingProfiles(in: Array(usersStillTyping))
+                typingUsers = profiles
+            } else {
+                typingUsers = []
             }
+//            let count = profiles.count
+//            typingUsers = profiles.enumerated().map { index, profile in
+//                IndexedTypingUser(
+//                    id: profile.serverID,
+//                    index: count - index - 1,
+//                    avatarURL: profile.socialProfile?.avatar?.bigger ?? profile.avatarURL
+//                )
+//            }
         }
     }
     
@@ -803,7 +810,8 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         cell.swipeEnabled    = false
         
         cell.contentConfiguration = UIHostingConfiguration {
-            TypingIndicatorView(typingUsers: typingUsers)
+            TypingIndicatorView()
+                .environment(typingController)
         }
         .minSize(width: 0, height: 20)
         .margins(.vertical, 2)
