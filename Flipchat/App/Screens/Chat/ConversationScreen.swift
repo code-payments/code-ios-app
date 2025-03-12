@@ -726,7 +726,8 @@ struct ConversationScreen: View {
                 replyingTo: MessageID(uuid: replyMessage?.message.serverID)
             )
             
-            resetInput()
+            resetReply()
+            focusConfiguration = .init(clearInput: true)
             
             try await Task.delay(milliseconds: 150)
             
@@ -746,7 +747,7 @@ struct ConversationScreen: View {
                 replyingTo: MessageID(uuid: replyMessage?.message.serverID)
             )
             
-            resetInput()
+            resetReply()
             
             try await Task.delay(milliseconds: 150)
             
@@ -754,7 +755,7 @@ struct ConversationScreen: View {
         }
     }
     
-    private func resetInput() {
+    private func resetReply() {
         replyMessage = nil
     }
     

@@ -549,10 +549,16 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             return
         }
         
-        if config.focused {
-            _ = inputBar.becomeFirstResponder()
-        } else {
-            _ = inputBar.resignFirstResponder()
+        if let focused = config.focused {
+            if focused {
+                _ = inputBar.becomeFirstResponder()
+            } else {
+                _ = inputBar.resignFirstResponder()
+            }
+        }
+        
+        if let clearInput = config.clearInput, clearInput {
+            inputBar.clearText()
         }
         
         DispatchQueue.main.async {
@@ -1240,7 +1246,13 @@ struct ScrollConfiguration {
 }
 
 struct FocusConfiguration {
-    var focused: Bool
+    var focused: Bool?
+    var clearInput: Bool?
+    
+    init(focused: Bool? = nil, clearInput: Bool? = nil) {
+        self.focused = focused
+        self.clearInput = clearInput
+    }
 }
 
 struct UnreadDescription {

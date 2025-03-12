@@ -112,10 +112,14 @@ class MessageInputBar: UIView {
         Task {
             let shouldClear = delegate?.willSendMessage(text: text) ?? false
             if shouldClear {
-                textView.text = ""
-                setNeedsLayout()
+                clearText()
             }
         }
+    }
+    
+    func clearText() {
+        textView.text = ""
+        setNeedsLayout()
     }
     
     override func becomeFirstResponder() -> Bool {
