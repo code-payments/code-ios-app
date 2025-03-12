@@ -44,7 +44,7 @@ struct AvatarStackView: View {
     let diameter: CGFloat
     let typingUsers: [IndexedTypingUser]
     
-    private let max: Int = 5
+    private let max: Int = 10
     
     init(diameter: CGFloat, typingUsers: [IndexedTypingUser]) {
         self.diameter = diameter
@@ -67,11 +67,11 @@ struct AvatarStackView: View {
                 .zIndex(Double(user.index))
             }
             
-            if currentCount > max {
-                moreView()
-                    .transition(transition())
-                    .zIndex(0)
-            }
+//            if currentCount > max {
+//                moreView()
+//                    .transition(transition())
+//                    .zIndex(0)
+//            }
         }
         .animation(.spring(duration: 0.3), value: typingUsers)
     }
