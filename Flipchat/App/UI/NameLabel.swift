@@ -59,9 +59,9 @@ extension MemberNameLabel {
         
         fileprivate func horizontalSpacing() -> CGFloat {
             switch self {
-            case .small:   return 4
-            case .medium:  return 6
-            case .large:   return 8
+            case .small:   return 2
+            case .medium:  return 4
+            case .large:   return 6
             }
         }
         

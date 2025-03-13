@@ -991,7 +991,8 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         }
         
         return .init(
-            name: reference.displayName ?? defaultMemberName,
+            name: reference.resolvedDisplayName,
+            verificationType: reference.profile?.verificationType ?? .none,
             content: reference.content,
             deletion: deletion,
             action: { [weak self] in

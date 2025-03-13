@@ -125,21 +125,25 @@ extension Database {
             b.isMuted      AS uIsMuted,
             b.canSend      AS uCanSend,
 
-            r.content      AS rContent,
-            ru.displayName AS rDisplayName,
-        
-            p.displayName  AS socialDisplayName,
-            p.avatarURL    AS socialAvatarURL,
+            r.content           AS rContent,
+            ru.displayName      AS rDisplayName,
+            rp.displayName      AS rSocialDisplayName,
+            rp.avatarURL        AS rSocialAvatarURL,
+            rp.verificationType AS rSocialVerificationType,
+
+            p.displayName      AS socialDisplayName,
+            p.avatarURL        AS socialAvatarURL,
             p.verificationType AS socialVerificationType
 
         FROM
             message m
 
-        LEFT JOIN message r ON m.referenceID = r.serverID
-        LEFT JOIN user ru   ON r.senderID = ru.serverID
-        LEFT JOIN user u    ON m.senderID = u.serverID
-        LEFT JOIN member b  ON m.senderID = b.userID AND m.roomID = b.roomID
-        LEFT JOIN profile p ON m.senderID = p.userID
+        LEFT JOIN message r  ON m.referenceID = r.serverID
+        LEFT JOIN user ru    ON r.senderID    = ru.serverID
+        LEFT JOIN user u     ON m.senderID    = u.serverID
+        LEFT JOIN member b   ON m.senderID    = b.userID AND m.roomID = b.roomID
+        LEFT JOIN profile p  ON m.senderID    = p.userID
+        LEFT JOIN profile rp ON r.senderID    = rp.userID
 
         WHERE 
             m.roomID = "\(roomID.uuidString)"
@@ -182,7 +186,8 @@ extension Database {
                 // local version of the reference exists
                 reference: rContent == nil ? nil : .init(
                     displayName: rDisplayName,
-                    content: rContent!
+                    content: rContent!,
+                    profile: .init(rowForReference: row)
                 )
             )
         }
@@ -232,6 +237,11 @@ struct MessageRow: Hashable {
     struct Reference: Hashable {
         let displayName: String?
         let content: String
+        let profile: SocialProfile?
+        
+        var resolvedDisplayName: String {
+            (profile?.displayName ?? displayName) ?? defaultMemberName
+        }
     }
 }
 
@@ -301,6 +311,22 @@ extension SocialProfile {
         let socialDisplayName = row[Expression<String?>("socialDisplayName")]
         let socialAvatarURL   = row[Expression<URL?>("socialAvatarURL")]
         let verificationType  = row[Expression<VerificationType?>("socialVerificationType")]
+        
+        if let socialDisplayName {
+            self.init(
+                displayName: socialDisplayName,
+                avatarURL: socialAvatarURL,
+                verificationType: verificationType ?? .none
+            )
+        } else {
+            return nil
+        }
+    }
+    
+    init?(rowForReference: RowIterator.Element) {
+        let socialDisplayName = rowForReference[Expression<String?>("rSocialDisplayName")]
+        let socialAvatarURL   = rowForReference[Expression<URL?>("rSocialAvatarURL")]
+        let verificationType  = rowForReference[Expression<VerificationType?>("rSocialVerificationType")]
         
         if let socialDisplayName {
             self.init(

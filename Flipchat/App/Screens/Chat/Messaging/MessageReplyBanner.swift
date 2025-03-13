@@ -70,6 +70,7 @@ struct MessageReplyBannerCompact: View {
     static let height: CGFloat = 50
     
     let name: String
+    let verificationType: VerificationType
     let content: String
     let expand: Bool
     let deleted: Bool
@@ -77,8 +78,9 @@ struct MessageReplyBannerCompact: View {
     
     // MARK: - Init -
     
-    init(name: String, content: String, expand: Bool = false, deleted: Bool = false, action: @escaping () -> Void) {
+    init(name: String, verificationType: VerificationType, content: String, expand: Bool = false, deleted: Bool = false, action: @escaping () -> Void) {
         self.name = name
+        self.verificationType = verificationType
         self.content = content
         self.expand = expand
         self.deleted = deleted
@@ -96,13 +98,16 @@ struct MessageReplyBannerCompact: View {
                     .frame(maxHeight: .infinity)
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name)
-                        .lineLimit(1)
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textMain.opacity(0.8))
-                        .if(expand) { $0
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
+                    MemberNameLabel(
+                        size: .medium,
+                        showLogo: false,
+                        name: name,
+                        verificationType: verificationType
+                    )
+                    .foregroundStyle(Color.textMain.opacity(0.8))
+                    .if(expand) { $0
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     
                     Text(content)
                         .lineLimit(1)
@@ -127,6 +132,7 @@ struct MessageReplyBannerCompact: View {
             Spacer()
             MessageReplyBannerCompact(
                 name: "KinShip",
+                verificationType: .blue,
                 content: "Yeah, that's what I was thinking too but I couldn't find it",
                 expand: true,
                 action: {}

@@ -147,6 +147,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
 
 struct ReplyingTo {
     let name: String
+    let verificationType: VerificationType
     let content: String
     let deletion: ReferenceDeletion?
     let action: () -> Void
@@ -326,6 +327,7 @@ struct MessageBubble: View {
         if let replyingTo, !isDeleted {
             MessageReplyBannerCompact(
                 name: replyingTo.name,
+                verificationType: replyingTo.verificationType,
                 content: Self.adjusted(
                     text: replyingTo.content,
                     isBlocked: false,
