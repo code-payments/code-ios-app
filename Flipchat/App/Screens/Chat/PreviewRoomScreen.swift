@@ -38,7 +38,7 @@ struct PreviewRoomScreen: View {
                 isModerator: $0.hasModeratorPermission,
                 verificationType: VerificationType($0.identity.socialProfile?.verificationType ?? .none),
                 name: $0.identity.displayName,
-                avatarURL: $0.identity.socialProfile?.avatarURL
+                avatarURL: TwitterAvatar(url: $0.identity.socialProfile?.avatarURL)?.bigger
             )
         }
     }

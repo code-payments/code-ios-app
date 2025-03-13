@@ -127,6 +127,7 @@ struct MemberGrid: View {
                     .animation(.easeInOut(duration: 0.3), value: speakers)
                     .animation(.easeInOut(duration: 0.3), value: listeners)
                     .padding(.horizontal, padding)
+                    .padding(.bottom, 10)
                 }
             }
         }

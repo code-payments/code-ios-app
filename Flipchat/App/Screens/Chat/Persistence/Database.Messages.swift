@@ -357,6 +357,14 @@ struct TwitterAvatar: Equatable, Hashable, Codable {
         self.original = original
     }
     
+    init?(url: URL?) {
+        guard let url else {
+            return nil
+        }
+        
+        self.init(url: url)
+    }
+    
     init(url: URL) {
         let suffixes: Set = [
             "_normal",
