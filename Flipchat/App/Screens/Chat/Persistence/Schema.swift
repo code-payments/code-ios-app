@@ -194,14 +194,14 @@ extension Database {
 
 enum ContentType: Int, Value {
     
-    case text
-    case announcement
-    case reaction
-    case reply
-    case tip
-    case deleteMessage
-    case announcementActionable
-    case unknown = -1
+    case /* 0 */ text
+    case /* 1 */ announcement
+    case /* 2 */ reaction
+    case /* 3 */ reply
+    case /* 4 */ tip
+    case /* 5 */ deleteMessage
+    case /* 6 */ announcementActionable
+    case /* 1 */ unknown = -1
     
     init(_ content: Chat.Message.ContentType) {
         switch content {
