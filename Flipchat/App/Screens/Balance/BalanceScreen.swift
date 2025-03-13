@@ -15,14 +15,12 @@ struct BalanceScreen: View {
     @ObservedObject private var session: Session
     
     private let container: AppContainer
-    private let sessionAuthenticator: SessionAuthenticator
     
     // MARK: - Init -
     
     init(session: Session, container: AppContainer) {
         self.session = session
         self.container = container
-        self.sessionAuthenticator = container.sessionAuthenticator
     }
     
     // MARK: - Body -
@@ -43,25 +41,6 @@ struct BalanceScreen: View {
                 .foregroundStyle(Color.textMain)
                 
                 Spacer()
-                
-                CodeButton(
-                    style: .subtle,
-                    title: "Delete My Account"
-                ) {
-                    banners.show(
-                        style: .error,
-                        title: "Permanently Delete Account?",
-                        description: "This will permanently delete your Flipchat account",
-                        position: .bottom,
-                        actions: [
-                            .destructive(title: "Permanently Delete My Account") {
-                                sessionAuthenticator.logout()
-                            },
-                            .cancel(title: "Cancel") {},
-                        ]
-                    )
-                }
-                .padding(.bottom, 40)
             }
         }
     }
