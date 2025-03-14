@@ -210,38 +210,3 @@ struct TypingProfile {
         self.socialProfile = socialProfile
     }
 }
-
-// MARK: - Mapping -
-
-extension SocialProfileFull {
-    init?(row: RowIterator.Element) {
-        let socialID            = row[Expression<String?>("socialID")]
-        let socialUsername      = row[Expression<String?>("socialUsername")]
-        let socialDisplayName   = row[Expression<String?>("socialDisplayName")]
-        let socialBio           = row[Expression<String?>("socialBio")]
-        let socialFollowerCount = row[Expression<Int?>("socialFollowerCount")]
-        let socialAvatarURL     = row[Expression<URL?>("socialAvatarURL")]
-        let verificationType    = row[Expression<VerificationType?>("socialVerificationType")]
-        
-        if
-            let socialID,
-            let socialDisplayName,
-            let socialUsername,
-            let socialBio,
-            let socialFollowerCount
-        {
-            self.init(
-                socialID: socialID,
-                username: socialUsername,
-                displayName: socialDisplayName,
-                bio: socialBio,
-                followerCount: socialFollowerCount,
-                avatarURL: socialAvatarURL,
-                verificationType: verificationType ?? .none
-            )
-        } else {
-            return nil
-        }
-    }
-}
-
