@@ -144,6 +144,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     private let typingController = TypingController()
     private var typingPoller: Poller?
     
+    private var isSwipingBack: Bool = false
     private var isTyping: Bool = false
     
     private var isTypingVisible: Bool {
@@ -323,7 +324,25 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         NotificationCenter.default.addObserver(self, selector: #selector(applicationDidEnterBackground(notification:)),  name: UIApplication.didEnterBackgroundNotification,  object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(keyboardFrameWillChange), name: UIWindow.keyboardWillChangeFrameNotification, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide),        name: UIWindow.keyboardWillHideNotification,        object: nil)
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        navigationController?.interactivePopGestureRecognizer?.addTarget(self, action: #selector(handleSwipeBackGesture(_:)))
+    }
+    
+    // MARK: - Swipe Back -
+    
+    @objc func handleSwipeBackGesture(_ gesture: UIScreenEdgePanGestureRecognizer) {
+        switch gesture.state {
+        case .began:
+            isSwipingBack = true
+        case .ended:
+            isSwipingBack = false
+        default:
+            break
+        }
     }
     
     // MARK: - Keyboard Handling -
@@ -381,16 +400,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         
         print("Moving up table content by: \(delta)")
         lastKnownKeyboardHeight += delta
-    }
-    
-    @objc
-    private func keyboardWillHide(_ notification: Notification) {
-        print("Resetting last known height.")
-        lastKnownKeyboardHeight = 0
-        
-        Task {
-            delegate?.messageListControllerKeyboardDismissed()
-        }
     }
     
     // MARK: - Database Updates -
@@ -1005,6 +1014,23 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
 // MARK: - MessageInputBarDelegate -
 
 extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
+    func didResignFirstResponder() {
+        // We need to know if the keyboard is being dismissed by
+        // the system or if it's user-invoked dismissal. If it
+        // wasn't the user, we'll leave the knownHeight intact
+        // so that future keyboardDidChange notifications will
+        // always subtract the last known height.
+        if !isSwipingBack {
+            
+            lastKnownKeyboardHeight = 0
+            print("Resetting last known height.")
+            
+            Task {
+                delegate?.messageListControllerKeyboardDismissed()
+            }
+        }
+    }
+    
     func inputTextDidChange(text: String) {
         Task {
             if text.isEmpty {

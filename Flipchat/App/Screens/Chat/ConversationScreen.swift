@@ -28,6 +28,8 @@ struct ConversationScreen: View {
     
     @State private var isShowingOpenClose: Bool = false
     
+    @State private var isShowingInputForPaidMessage: Bool = false
+    
     @State private var listenerMessage: ListenerMessage?
     
     @State private var tipUsers: TipUsers?
@@ -82,7 +84,7 @@ struct ConversationScreen: View {
     }
     
     private var isInputVisible: Bool {
-        (chatController.isRegistered && canSend) || chatViewModel.isShowingInputForPaidMessage
+        (chatController.isRegistered && canSend) || isShowingInputForPaidMessage
     }
     
     private var canType: Bool {
@@ -176,7 +178,7 @@ struct ConversationScreen: View {
                     )
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: chatViewModel.isShowingInputForPaidMessage)
+            .animation(.easeInOut(duration: 0.2), value: isShowingInputForPaidMessage)
         }
         .onAppear(perform: didAppear)
         .onDisappear(perform: didDisappear)
@@ -450,7 +452,7 @@ struct ConversationScreen: View {
     
     @ViewBuilder private func titleItem() -> some View {
         Button {
-            containerViewModel.pushDetails(chatID: chatID)
+            showChatDetails()
         } label: {
             HStack(spacing: 10) {
                 RoomGeneratedAvatar(data: chatID.data, diameter: 30)
@@ -478,7 +480,7 @@ struct ConversationScreen: View {
     
     @ViewBuilder private func moreItem() -> some View {
         Button {
-            containerViewModel.pushDetails(chatID: chatID)
+            showChatDetails()
         } label: {
             Image.asset(.more)
                 .padding(.vertical, 10)
@@ -491,6 +493,15 @@ struct ConversationScreen: View {
     
     // MARK: - Actions -
     
+    private func dismissKeyboardFocus() {
+        focusConfiguration = .init(focused: false)
+    }
+    
+    private func showChatDetails() {
+        dismissKeyboardFocus()
+        containerViewModel.pushDetails(chatID: chatID)
+    }
+    
     private func dismissMessagePayment(cancelled: Bool) {
         listenerMessage = nil
         
@@ -499,7 +510,7 @@ struct ConversationScreen: View {
         scrollConfiguration = .init(destination: .bottom, animated: true)
         
         if cancelled {
-            chatViewModel.isShowingInputForPaidMessage = true
+            isShowingInputForPaidMessage = true
             focusConfiguration = .init(focused: true)
         }
     }
@@ -634,7 +645,7 @@ struct ConversationScreen: View {
             )
             
         case .promoteUser(let name, let userID, let chatID):
-            focusConfiguration = .init(focused: false)
+            dismissKeyboardFocus()
             
             // Gives the context menu time to animate
             try await Task.delay(milliseconds: 200)
@@ -655,7 +666,7 @@ struct ConversationScreen: View {
             )
             
         case .demoteUser(let name, let userID, let chatID):
-            focusConfiguration = .init(focused: false)
+            dismissKeyboardFocus()
             
             // Gives the context menu time to animate
             try await Task.delay(milliseconds: 200)
@@ -676,6 +687,7 @@ struct ConversationScreen: View {
             )
             
         case .openProfile(let userID):
+            dismissKeyboardFocus()
             userProfileID = userID
         }
     }
@@ -691,9 +703,9 @@ struct ConversationScreen: View {
 //    }
     
     private func messageAction(text: String) -> Bool {
-        if chatViewModel.isShowingInputForPaidMessage {
+        if isShowingInputForPaidMessage {
             listenerMessage = .init(text: text)
-            focusConfiguration = .init(focused: false)
+            dismissKeyboardFocus()
             return false
         } else {
             sendMessage(text: text)
@@ -703,6 +715,8 @@ struct ConversationScreen: View {
     
     private func messageAsListenerAction() {
         chatViewModel.attemptPayForMessage {
+            isShowingInputForPaidMessage = true
+            
             // This completion only runs when there's
             // no other dependencies for send message
             Task {
@@ -792,8 +806,8 @@ struct ConversationScreen: View {
 
 extension ConversationScreen: @preconcurrency MessageListControllerDelegate {
     func messageListControllerKeyboardDismissed() {
-        if chatViewModel.isShowingInputForPaidMessage {
-            chatViewModel.isShowingInputForPaidMessage = false
+        if isShowingInputForPaidMessage {
+            isShowingInputForPaidMessage = false
         }
     }
     

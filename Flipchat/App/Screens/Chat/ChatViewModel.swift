@@ -32,8 +32,6 @@ class ChatViewModel: ObservableObject {
 
     @Published var isShowingCreateAccountFromConversation: Bool = false
     
-    @Published var isShowingInputForPaidMessage: Bool = false
-    
     @Published var isShowingFindRoomModal: Bool = false
     
     @Published var isShowingCustomize: Bool = false
@@ -360,7 +358,6 @@ class ChatViewModel: ObservableObject {
             return
         }
         
-        isShowingInputForPaidMessage = true
         postAction()
     }
     

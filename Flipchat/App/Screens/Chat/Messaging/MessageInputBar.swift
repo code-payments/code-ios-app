@@ -12,13 +12,14 @@ protocol MessageInputBarDelegate: AnyObject {
     func textContentHeightDidChange()
     func willSendMessage(text: String) -> Bool
     func inputTextDidChange(text: String)
+    func didResignFirstResponder()
 }
 
 class MessageInputBar: UIView {
     
     weak var delegate: MessageInputBarDelegate?
     
-    private let textView = UITextView()
+    private let textView = InputTextView()
     private let sendButton = UIButton(type: .custom)
     
     private var heightConstraint: NSLayoutConstraint!
@@ -63,6 +64,7 @@ class MessageInputBar: UIView {
     private func setupViews() {
         backgroundColor = .backgroundMain
         
+        textView.inputBarDelegate = self
         textView.isSelectable = true
         textView.showsVerticalScrollIndicator = false
         textView.showsHorizontalScrollIndicator = false
@@ -138,6 +140,12 @@ extension MessageInputBar: UITextViewDelegate {
     }
 }
 
+extension MessageInputBar: @preconcurrency InputTextViewDelegate {
+    func textViewDidResignFirstResponder(didResign: Bool) {
+        delegate?.didResignFirstResponder()
+    }
+}
+
 // MARK: - ExpandingTextView -
 
 extension UITextView {
@@ -147,5 +155,22 @@ extension UITextView {
         let scale    = UIScreen.main.scale
         let height   = ceil(size.height * scale) / scale
         return max(height, MessageInputBar.inputHeight) // Minimum height
+    }
+}
+
+// MARK: - InputTextView -
+
+private protocol InputTextViewDelegate: AnyObject {
+    func textViewDidResignFirstResponder(didResign: Bool)
+}
+
+private class InputTextView: UITextView {
+    
+    weak var inputBarDelegate: InputTextViewDelegate?
+    
+    override func resignFirstResponder() -> Bool {
+        let didResign = super.resignFirstResponder()
+        inputBarDelegate?.textViewDidResignFirstResponder(didResign: didResign)
+        return didResign
     }
 }
