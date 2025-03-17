@@ -77,7 +77,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.isHost = senderIsHost
         self.isBlocked = messageRow.member.isBlocked == true
         self.hasTipFromSelf = message.hasTipFromSelf
-        self.offStage = message.offStage
+        self.offStage = member.canSend == false && message.offStage
         self.kinTips = message.kin
         self.deletionState = deletionState
         self.replyingTo = replyingTo
