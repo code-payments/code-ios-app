@@ -227,25 +227,31 @@ private extension Array where Element == MemberGrid.Member {
     func sortedByDisplayName() -> [Element] {
         return sorted { lhs, rhs in
             
-            // Lowercase names for alphabetical comparison
-            let lhsName = lhs.name?.lowercased() ?? ""
-            let rhsName = rhs.name?.lowercased() ?? ""
+            // 1. Sort by verificationType (highest first)
+            let lhsVerification = lhs.verificationType.rawValue
+            let rhsVerification = rhs.verificationType.rawValue
+            if lhsVerification != rhsVerification {
+                return lhsVerification > rhsVerification
+            }
             
-            // 1. Sort by isModerator
+            // 2. Sort by isModerator
             let lhsModerator = lhs.isModerator ? 0 : 1
             let rhsModerator = rhs.isModerator ? 0 : 1
             if lhsModerator != rhsModerator {
                 return lhsModerator < rhsModerator
             }
             
-            // 2. Sort by isSelf
+            // 3. Sort by isSelf
             let lhsSelf = lhs.isSelf ? 0 : 1
             let rhsSelf = rhs.isSelf ? 0 : 1
             if lhsSelf != rhsSelf {
                 return lhsSelf < rhsSelf
             }
             
-            // 3. Sort by displayName
+            // 4. Sort by displayName
+            let lhsName = lhs.name?.lowercased() ?? ""
+            let rhsName = rhs.name?.lowercased() ?? ""
+            
             if !lhsName.isEmpty && !rhsName.isEmpty {
                 return lhsName.lexicographicallyPrecedes(rhsName)
                 
