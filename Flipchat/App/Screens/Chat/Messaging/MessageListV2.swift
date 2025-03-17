@@ -139,7 +139,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     private var replyHiddenConstraint: NSLayoutConstraint?
     
     private let replyViewHeight: CGFloat = 55
-    private let descriptionViewHeight: CGFloat = 52
+    private let bottomControlHeight: CGFloat = 55
     
     private let typingController = TypingController()
     private var typingPoller: Poller?
@@ -290,7 +290,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             inputBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             inputBar.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
             
-            bottomControlView.heightAnchor.constraint(equalToConstant: descriptionViewHeight),
+            bottomControlView.heightAnchor.constraint(equalToConstant: bottomControlHeight),
             bottomControlView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bottomControlView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             bottomControlView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -1081,7 +1081,7 @@ extension _MessagesListController: @preconcurrency MessageInputBarDelegate {
         if canType {
             height += inputBar.frame.height + 18
         } else {
-            height += descriptionViewHeight + 18
+            height += bottomControlHeight + 15
         }
         
         if showReply {

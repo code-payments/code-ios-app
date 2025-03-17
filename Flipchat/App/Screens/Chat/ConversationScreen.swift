@@ -277,12 +277,12 @@ struct ConversationScreen: View {
                 
             } else if !isInputVisible {
                 CodeButton(
-                    style: .filled,
+                    style: .filledMedium,
                     title: "Listener Message: \(messageCost.formattedTruncatedKin())",
                     action: messageAsListenerAction
                 )
                 .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .padding(.vertical, 0)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

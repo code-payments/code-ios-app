@@ -43,7 +43,7 @@ public struct CodeButton: View {
     public var body: some View {
         Group {
             switch style {
-            case .bordered, .filled, .filledThin:
+            case .bordered, .filled, .filledMedium, .filledThin:
                 button()
                     .buttonStyle(CustomStyle(style: style, isDisabled: isDisabled()))
                 
@@ -110,7 +110,7 @@ public struct CodeButton: View {
         switch style {
         case .bordered:
             return .textMain
-        case .filled, .filledThin, .subtle:
+        case .filled, .filledMedium, .filledThin, .subtle:
             return .textSecondary
         }
     }
@@ -119,6 +119,8 @@ public struct CodeButton: View {
         switch style {
         case .filledThin:
             return Metrics.buttonHeightThin
+        case .filledMedium:
+            return 55
         case .bordered, .filled, .subtle:
             return Metrics.buttonHeight
         }
@@ -131,6 +133,7 @@ extension CodeButton {
     public enum Style {
         case bordered
         case filled
+        case filledMedium
         case filledThin
         case subtle
     }
@@ -162,7 +165,7 @@ private extension CodeButton {
                         .stroke(Color.textMain, lineWidth: Metrics.buttonLineWidth)
                 }
                 
-            case .filled, .filledThin:
+            case .filled, .filledMedium, .filledThin:
                 if isDisabled {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(Color.actionDisabled)
@@ -185,7 +188,7 @@ private extension CodeButton {
                     return .textMain
                 }
                 
-            case .filled, .filledThin:
+            case .filled, .filledMedium, .filledThin:
                 if isDisabled {
                     return .textActionDisabled
                 } else {
