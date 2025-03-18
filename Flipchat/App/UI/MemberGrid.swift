@@ -217,6 +217,7 @@ extension MemberGrid {
         var isSelf: Bool
         var isSpeaker: Bool
         var isModerator: Bool
+        var hasProfile: Bool
         var verificationType: VerificationType
         var name: String?
         var avatarURL: URL?
@@ -232,6 +233,13 @@ private extension Array where Element == MemberGrid.Member {
             let rhsVerification = rhs.verificationType.rawValue
             if lhsVerification != rhsVerification {
                 return lhsVerification > rhsVerification
+            }
+            
+            // 2. Sort by hasProfile (true first)
+            let lhsHasProfile = lhs.hasProfile ? 0 : 1
+            let rhsHasProfile = rhs.hasProfile ? 0 : 1
+            if lhsHasProfile != rhsHasProfile {
+                return lhsHasProfile < rhsHasProfile
             }
             
             // 2. Sort by isModerator

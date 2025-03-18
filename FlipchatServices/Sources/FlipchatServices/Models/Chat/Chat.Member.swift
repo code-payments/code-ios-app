@@ -39,6 +39,10 @@ extension Chat {
         public var avatarURL: URL?
         public let socialProfile: SocialProfile?
         
+        public var resolvedDisplayName: String? {
+            socialProfile?.displayName ?? displayName 
+        }
+        
         public init(displayName: String?, avatarURL: URL?, socialProfile: SocialProfile?) {
             self.displayName = displayName
             self.avatarURL = avatarURL

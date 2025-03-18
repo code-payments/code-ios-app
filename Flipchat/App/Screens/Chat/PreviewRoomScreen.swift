@@ -36,9 +36,10 @@ struct PreviewRoomScreen: View {
                 isSelf: $0.isSelf,
                 isSpeaker: $0.hasSendPermission,
                 isModerator: $0.hasModeratorPermission,
+                hasProfile: $0.identity.socialProfile != nil,
                 verificationType: VerificationType($0.identity.socialProfile?.verificationType ?? .none),
-                name: $0.identity.displayName,
-                avatarURL: TwitterAvatar(url: $0.identity.socialProfile?.avatarURL)?.bigger
+                name: $0.identity.resolvedDisplayName,
+                avatarURL: TwitterAvatar(url: $0.identity.socialProfile?.avatarURL)?.original
             )
         }
     }
