@@ -143,6 +143,7 @@
 		9A7FF8A1269DD5CD0090B457 /* ChatController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7FF8A0269DD5CD0090B457 /* ChatController.swift */; };
 		9A8162872C90A9E900392088 /* EnterUsernameScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */; };
 		9A829A4028A57852005F4F87 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A829A3F28A57852005F4F87 /* AppContainer.swift */; };
+		9A83DCCE2D8A653D00E38B84 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9A83DCCD2D8A653D00E38B84 /* SQLite */; };
 		9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672027345419005F1113 /* SessionAuthenticator.swift */; };
 		9A88672427359B56005F1113 /* NotificationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672327359B56005F1113 /* NotificationController.swift */; };
 		9A8B265A2C10F156009FB349 /* TooltipViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26592C10F156009FB349 /* TooltipViewModel.swift */; };
@@ -342,6 +343,15 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9A83DCC22D8A650500E38B84 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -465,6 +475,7 @@
 		9A7FF8A0269DD5CD0090B457 /* ChatController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatController.swift; sourceTree = "<group>"; };
 		9A8162862C90A9E900392088 /* EnterUsernameScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterUsernameScreen.swift; sourceTree = "<group>"; };
 		9A829A3F28A57852005F4F87 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		9A83DCC42D8A650500E38B84 /* EmojiGenerator */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = EmojiGenerator; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A88672027345419005F1113 /* SessionAuthenticator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionAuthenticator.swift; sourceTree = "<group>"; };
 		9A88672327359B56005F1113 /* NotificationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationController.swift; sourceTree = "<group>"; };
 		9A8B26592C10F156009FB349 /* TooltipViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooltipViewModel.swift; sourceTree = "<group>"; };
@@ -568,6 +579,7 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		9A83DCC52D8A650600E38B84 /* EmojiGenerator */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = EmojiGenerator; sourceTree = "<group>"; };
 		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9A91F2A22CB5C17A0018CE65 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
 		9A9970B52CA33147006BDE08 /* FlipchatTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatTests; sourceTree = "<group>"; };
 		9A9970BF2CA33147006BDE08 /* FlipchatUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatUITests; sourceTree = "<group>"; };
@@ -580,6 +592,14 @@
 			files = (
 				9AA47D3D2B76A8C900F1B9B7 /* CodeAPI in Frameworks */,
 				9A6BFF1C2B76991A00E04EB7 /* CodeServices in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A83DCC12D8A650500E38B84 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A83DCCE2D8A653D00E38B84 /* SQLite in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1044,6 +1064,7 @@
 				9A9970A42CA33145006BDE08 /* Flipchat */,
 				9A9970B52CA33147006BDE08 /* FlipchatTests */,
 				9A9970BF2CA33147006BDE08 /* FlipchatUITests */,
+				9A83DCC52D8A650600E38B84 /* EmojiGenerator */,
 				9AED1101258BE1310088D902 /* Products */,
 				9A1654C42678FB60000A135E /* Frameworks */,
 			);
@@ -1060,6 +1081,7 @@
 				9A9970A32CA33145006BDE08 /* Flipchat.app */,
 				9A9970B22CA33147006BDE08 /* FlipchatTests.xctest */,
 				9A9970BC2CA33147006BDE08 /* FlipchatUITests.xctest */,
+				9A83DCC42D8A650500E38B84 /* EmojiGenerator */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1215,6 +1237,29 @@
 			productName = CodePushExtension;
 			productReference = 9A6BFF0D2B75667600E04EB7 /* CodePushExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		9A83DCC32D8A650500E38B84 /* EmojiGenerator */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A83DCC82D8A650600E38B84 /* Build configuration list for PBXNativeTarget "EmojiGenerator" */;
+			buildPhases = (
+				9A83DCC02D8A650500E38B84 /* Sources */,
+				9A83DCC12D8A650500E38B84 /* Frameworks */,
+				9A83DCC22D8A650500E38B84 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				9A83DCC52D8A650600E38B84 /* EmojiGenerator */,
+			);
+			name = EmojiGenerator;
+			packageProductDependencies = (
+				9A83DCCD2D8A653D00E38B84 /* SQLite */,
+			);
+			productName = EmojiGenerator;
+			productReference = 9A83DCC42D8A650500E38B84 /* EmojiGenerator */;
+			productType = "com.apple.product-type.tool";
 		};
 		9A8DB71227D50D4800E2E883 /* CodeGrind */ = {
 			isa = PBXNativeTarget;
@@ -1401,7 +1446,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastSwiftUpdateCheck = 1600;
+				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
 					9A6BFF0C2B75667600E04EB7 = {
@@ -1409,6 +1454,9 @@
 					};
 					9A7C3F4228DCEF65007DA414 = {
 						CreatedOnToolsVersion = 14.0;
+					};
+					9A83DCC32D8A650500E38B84 = {
+						CreatedOnToolsVersion = 16.2;
 					};
 					9A8DB71227D50D4800E2E883 = {
 						CreatedOnToolsVersion = 13.2.1;
@@ -1518,6 +1566,7 @@
 				9A9970BB2CA33147006BDE08 /* FlipchatUITests */,
 				9A91F4CA2CC014E20018CE65 /* FlipchatServiceGen */,
 				9A2554442CE50E30003B207D /* FlipchatPaymentsGen */,
+				9A83DCC32D8A650500E38B84 /* EmojiGenerator */,
 			);
 		};
 /* End PBXProject section */
@@ -1781,6 +1830,13 @@
 				9AA47D422B76AB1C00F1B9B7 /* Chat+Extensions.swift in Sources */,
 				9AEABBF62B76D27F00667DA4 /* String+Padding.swift in Sources */,
 				9AEABBF42B76CF0A00667DA4 /* NotificationModifier.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A83DCC02D8A650500E38B84 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2600,6 +2656,80 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
+		};
+		9A83DCC92D8A650600E38B84 /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Development;
+		};
+		9A83DCCA2D8A650600E38B84 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		9A83DCCB2D8A650600E38B84 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		9A83DCCC2D8A650600E38B84 /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.2;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = "Release Development";
 		};
 		9A8DB71F27D50D4A00E2E883 /* Development */ = {
 			isa = XCBuildConfiguration;
@@ -3442,6 +3572,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		9A83DCC82D8A650600E38B84 /* Build configuration list for PBXNativeTarget "EmojiGenerator" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A83DCC92D8A650600E38B84 /* Development */,
+				9A83DCCA2D8A650600E38B84 /* Debug */,
+				9A83DCCB2D8A650600E38B84 /* Release */,
+				9A83DCCC2D8A650600E38B84 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		9A8DB72327D50D4A00E2E883 /* Build configuration list for PBXNativeTarget "CodeGrind" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -3665,6 +3806,11 @@
 		9A6BFF1B2B76991A00E04EB7 /* CodeServices */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeServices;
+		};
+		9A83DCCD2D8A653D00E38B84 /* SQLite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
+			productName = SQLite;
 		};
 		9A8D9A3E2D78C2E200E755B9 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
