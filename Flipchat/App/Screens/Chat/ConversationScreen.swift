@@ -38,6 +38,8 @@ struct ConversationScreen: View {
     
     @State private var userProfileID: UserID?
     
+    @State private var actionSheetMessageDescription: MessageActionDescription?
+    
     private let chatID: ChatID
     private let state: AuthenticatedState
     private let container: AppContainer
@@ -261,6 +263,91 @@ struct ConversationScreen: View {
                 container: container
             )
         }
+        .buttonSheet(item: $actionSheetMessageDescription) { description in
+            if description.showSpeakerAction {
+                if description.canSenderSend {
+                    Action.standard(
+                        systemImage: "speaker.slash",
+                        title: "Remove as Speaker",
+                        action: { try await speakerAction(canSend: description.canSenderSend, description) }
+                    )
+                } else {
+                    Action.standard(
+                        systemImage: "speaker.wave.2.bubble",
+                        title: "Make a Speaker",
+                        action: { try await speakerAction(canSend: description.canSenderSend, description) }
+                    )
+                }
+            }
+            
+            Action.standard(
+                systemImage: "arrowshape.turn.up.backward.fill",
+                title: "Reply",
+                action: { replyAction(description.messageRow) }
+            )
+            
+            if description.showTipAction {
+                Action.standard(
+                    systemImage: "dollarsign",
+                    title: "Give Tip",
+                    action: { tipAction(description) }
+                )
+            }
+            
+            Action.standard(
+                systemImage: "doc.on.doc",
+                title: "Copy Message",
+                action: { copyAction(description) }
+            )
+            
+            // ------- Destructive Actions
+            
+            if description.showDeleteAction {
+                Action.destructive(
+                    systemImage: "trash",
+                    title: "Delete",
+                    action: { try await deleteAction(description) }
+                )
+            }
+            
+            if description.showReportAction {
+                Action.destructive(
+                    systemImage: "exclamationmark.shield",
+                    title: "Report",
+                    action: { try await reportAction(description) }
+                )
+            }
+            
+            if description.showMuteAction {
+                Action.destructive(
+                    systemImage: "speaker.slash",
+                    title: "Mute",
+                    action: { try await muteAction(description) }
+                )
+            }
+            
+            if description.showBlockAction {
+                if description.isSenderBlocked {
+                    Action.destructive(
+                        systemImage: "person.slash",
+                        title: "Unblock",
+                        action: { try await blockAction(blocked: description.isSenderBlocked, description) }
+                    )
+                } else {
+                    Action.destructive(
+                        systemImage: "person.slash",
+                        title: "Block",
+                        action: { try await blockAction(blocked: description.isSenderBlocked, description) }
+                    )
+                }
+            }
+        }
+//        .sheet(item: $actionSheetMessageID) { tip in
+//            EmojiGrid { emoji in
+//                print("Did select emoji")
+//                actionSheetMessageID = nil
+//            }
+//        }
     }
     
     @ViewBuilder private func descriptionView() -> some View {
@@ -308,75 +395,6 @@ struct ConversationScreen: View {
         }
         .animation(.easeInOut(duration: 0.2), value: replyMessage)
     }
-    
-//    @ViewBuilder private func inputView() -> some View {
-//        VStack(alignment: .leading) {
-////            if let replyMessage {
-////                MessageReplyBanner(
-////                    name: replyMessage.member.displayName ?? "Unknown",
-////                    content: replyMessage.message.content
-////                ) {
-////                    self.replyMessage = nil
-////                }
-////            }
-//            
-////            if isShowingOpenClose {
-////                openCloseView(isOpen: isRoomOpen)
-////                    .transition(.move(edge: .bottom))
-////            }
-//            
-//            HStack(alignment: .top) {
-//                TextEditor(text: $input)
-//                    .backportScrollContentBackground(.hidden)
-////                    .scrollDismissesKeyboard(.never)
-//                    .focused($isEditorFocused)
-//                    .font(.appTextMessage)
-//                    .foregroundColor(.backgroundMain)
-//                    .tint(.backgroundMain)
-//                    .multilineTextAlignment(.leading)
-//                    .frame(minHeight: 36, maxHeight: 95, alignment: .leading)
-//                    .fixedSize(horizontal: false, vertical: true)
-//                    .padding(.horizontal, 5)
-//                    .background(.white)
-//                    .cornerRadius(20)
-//                    .ignoresSafeArea(.keyboard)
-//                
-//                Button {
-//                    messageAction(text: input)
-//                } label: {
-//                    Image.asset(.paperplane)
-//                        .resizable()
-//                        .frame(width: 36, height: 36, alignment: .center)
-//                }
-//                .disabled(input.isEmpty)
-//            }
-//            .padding(.horizontal, 15)
-//            .padding(.top, 5)
-//            .padding(.bottom, 8)
-//        }
-////        .animation(.easeInOut(duration: 0.2), value: isShowingOpenClose)
-//        .onChange(of: isEditorFocused) { _, focused in
-////            if focused, shouldScrollOnFocus {
-////                Task {
-////                    try await Task.delay(milliseconds: 250)
-////                    scrollToBottom(animated: true)
-////                }
-////            }
-//            
-//            if !focused && chatViewModel.isShowingInputForPaidMessage {
-//                chatViewModel.isShowingInputForPaidMessage = false
-//            }
-//            
-//            setOpenClose(visible: !focused, animated: true)
-//            
-//            // Reset to default
-//            Task {
-//                shouldScrollOnFocus = true
-//            }
-//        }
-//        .frame(height: 50)
-//        .background(.green)
-//    }
     
     @ViewBuilder private func mutedView() -> some View {
         VStack {
@@ -515,111 +533,162 @@ struct ConversationScreen: View {
         }
     }
     
+    private func speakerAction(canSend: Bool, _ description: MessageActionDescription) async throws {
+        dismissKeyboardFocus()
+        
+        // Gives the context menu time to animate
+        try await Task.delay(milliseconds: 200)
+        
+        let title: String
+        let desc: String
+        let action: String
+        
+        if description.canSenderSend {
+            title  = "Remove \(description.senderDisplayName) as a Speaker?"
+            desc   = "They will no longer be able to message for free"
+            action = "Remove as Speaker"
+        } else {
+            title  = "Make \(description.senderDisplayName) a Speaker?"
+            desc   = "They will be able to message for free"
+            action = "Make a Speaker"
+        }
+        
+        banners.show(
+            style: .notification,
+            title: title,
+            description: desc,
+            position: .bottom,
+            actions: [
+                .standard(title: action) {
+                    Task {
+                        if description.canSenderSend {
+                            try await chatController.demoteUser(userID: description.senderID, chatID: chatID)
+                        } else {
+                            try await chatController.promoteUser(userID: description.senderID, chatID: chatID)
+                        }
+                    }
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
+    }
+    
+    private func copyAction(_ description: MessageActionDescription) {
+        copy(text: description.messageText)
+    }
+    
+    private func replyAction(_ row: MessageRow) {
+        if !isInputVisible {
+            messageAsListenerAction()
+        }
+        
+        replyMessage = row
+        shouldScrollOnFocus = false
+        focusConfiguration = .init(focused: true)
+    }
+    
+    private func tipAction(_ description: MessageActionDescription) {
+        if !description.isFromSelf {
+            messageTip = .init(userID: description.senderID, messageID: description.messageID)
+        }
+    }
+    
+    private func deleteAction(_ description: MessageActionDescription) async throws {
+        // Gives the context menu time to animate
+        try await Task.delay(milliseconds: 200)
+        
+        banners.show(
+            style: .error,
+            title: "Delete Message?",
+            description: "This message will be deleted for everyone.",
+            position: .bottom,
+            actions: [
+                .destructive(title: "Delete") {
+                    Task {
+                        try await chatController.deleteMessage(messageID: description.messageID, for: chatID)
+                    }
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
+    }
+    
+    private func reportAction(_ description: MessageActionDescription) async throws {
+        // Gives the context menu time to animate
+        try await Task.delay(milliseconds: 200)
+        
+        banners.show(
+            style: .error,
+            title: "Report Message?",
+            description: "This message will be forwarded to Flipchat. This contact will not be notified",
+            position: .bottom,
+            actions: [
+                .destructive(title: "Report") {
+                    Task {
+                        try await chatController.reportMessage(userID: description.senderID, messageID: description.messageID)
+                        showReportSuccess()
+                    }
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
+    }
+    
+    private func muteAction(_ description: MessageActionDescription) async throws {
+        // Gives the context menu time to animate
+        try await Task.delay(milliseconds: 200)
+        
+        banners.show(
+            style: .error,
+            title: "Mute \(description.senderDisplayName)?",
+            description: "They will remain in the chat but will not be able to send messages",
+            position: .bottom,
+            actions: [
+                .destructive(title: "Mute") {
+                    Task {
+                        try await chatController.muteUser(userID: userID, chatID: chatID)
+                    }
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
+    }
+    
+    private func blockAction(blocked: Bool, _ description: MessageActionDescription) async throws {
+        // Gives the context menu time to animate
+        try await Task.delay(milliseconds: 200)
+        
+        let title: String
+        let desc: String
+        
+        if description.isSenderBlocked {
+            title = "Unblock \(description.senderDisplayName)?"
+            desc  = "All messages from this user will be visible again"
+        } else {
+            title = "Block \(description.senderDisplayName)?"
+            desc  = "All messages from this user will be hidden"
+        }
+        
+        banners.show(
+            style: .error,
+            title: title,
+            description: desc,
+            position: .bottom,
+            actions: [
+                .destructive(title: title) {
+                    Task {
+                        try await chatController.setUserBlocked(userID: description.senderID, blocked: !description.isSenderBlocked)
+                    }
+                },
+                .cancel(title: "Cancel"),
+            ]
+        )
+    }
+    
     private func messageAction(action: MessageAction) async throws {
         switch action {
-        case .copy(let text):
-            copy(text: text)
-            
-        case .muteUser(let name, let userID, let chatID):
-            
-            // Gives the context menu time to animate
-            try await Task.delay(milliseconds: 200)
-            
-            banners.show(
-                style: .error,
-                title: "Mute \(name)?",
-                description: "They will remain in the chat but will not be able to send messages",
-                position: .bottom,
-                actions: [
-                    .destructive(title: "Mute") {
-                        Task {
-                            try await chatController.muteUser(userID: userID, chatID: chatID)
-                        }
-                    },
-                    .cancel(title: "Cancel"),
-                ]
-            )
-            
-        case .setUserBlocked(let name, let userID, _, let isBlocked):
-            
-            // Gives the context menu time to animate
-            try await Task.delay(milliseconds: 200)
-            
-            let title: String
-            let description: String
-            
-            if isBlocked {
-                title = "Block \(name)?"
-                description = "All messages from this user will be hidden"
-            } else {
-                title = "Unblock \(name)?"
-                description = "All messages from this user will be visible again"
-            }
-            
-            banners.show(
-                style: .error,
-                title: title,
-                description: description,
-                position: .bottom,
-                actions: [
-                    .destructive(title: title) {
-                        Task {
-                            try await chatController.setUserBlocked(userID: userID, blocked: isBlocked)
-                        }
-                    },
-                    .cancel(title: "Cancel"),
-                ]
-            )
-            
-        case .deleteMessage(let messageID, let chatID):
-            
-            // Gives the context menu time to animate
-            try await Task.delay(milliseconds: 200)
-            
-            banners.show(
-                style: .error,
-                title: "Delete Message?",
-                description: "This message will be deleted for everyone.",
-                position: .bottom,
-                actions: [
-                    .destructive(title: "Delete") {
-                        Task {
-                            try await chatController.deleteMessage(messageID: messageID, for: chatID)
-                        }
-                    },
-                    .cancel(title: "Cancel"),
-                ]
-            )
-            
-        case .reportMessage(let userID, let messageID):
-            
-            // Gives the context menu time to animate
-            try await Task.delay(milliseconds: 200)
-            
-            banners.show(
-                style: .error,
-                title: "Report Message?",
-                description: "This message will be forwarded to Flipchat. This contact will not be notified",
-                position: .bottom,
-                actions: [
-                    .destructive(title: "Report") {
-                        Task {
-                            try await chatController.reportMessage(userID: userID, messageID: messageID)
-                            showReportSuccess()
-                        }
-                    },
-                    .cancel(title: "Cancel"),
-                ]
-            )
-            
         case .reply(let messageRow):
-            if !isInputVisible {
-                messageAsListenerAction()
-            }
-            
-            replyMessage = messageRow
-            shouldScrollOnFocus = false
-            focusConfiguration = .init(focused: true)
+            replyAction(messageRow)
             
         case .linkTo(let roomNumber):
             chatViewModel.previewChat(
@@ -644,48 +713,6 @@ struct ConversationScreen: View {
                 users: users
             )
             
-        case .promoteUser(let name, let userID, let chatID):
-            dismissKeyboardFocus()
-            
-            // Gives the context menu time to animate
-            try await Task.delay(milliseconds: 200)
-            
-            banners.show(
-                style: .notification,
-                title: "Make \(name) a Speaker?",
-                description: "They will be able to message for free",
-                position: .bottom,
-                actions: [
-                    .standard(title: "Make a Speaker") {
-                        Task {
-                            try await chatController.promoteUser(userID: userID, chatID: chatID)
-                        }
-                    },
-                    .cancel(title: "Cancel"),
-                ]
-            )
-            
-        case .demoteUser(let name, let userID, let chatID):
-            dismissKeyboardFocus()
-            
-            // Gives the context menu time to animate
-            try await Task.delay(milliseconds: 200)
-            
-            banners.show(
-                style: .notification,
-                title: "Remove \(name) as a Speaker?",
-                description: "They will no longer be able to message for free",
-                position: .bottom,
-                actions: [
-                    .standard(title: "Remove as Speaker") {
-                        Task {
-                            try await chatController.demoteUser(userID: userID, chatID: chatID)
-                        }
-                    },
-                    .cancel(title: "Cancel"),
-                ]
-            )
-            
         case .openProfile(let userID):
             dismissKeyboardFocus()
             userProfileID = userID
@@ -702,7 +729,7 @@ struct ConversationScreen: View {
 //        }
 //    }
     
-    private func messageAction(text: String) -> Bool {
+    private func sendMessageAction(text: String) -> Bool {
         if isShowingInputForPaidMessage {
             listenerMessage = .init(text: text)
             dismissKeyboardFocus()
@@ -812,7 +839,12 @@ extension ConversationScreen: @preconcurrency MessageListControllerDelegate {
     }
     
     func messageListControllerWillSendMessage(text: String) -> Bool {
-        messageAction(text: text)
+        sendMessageAction(text: text)
+    }
+    
+    func messageListControllerWillShowActionSheet(description: MessageActionDescription) {
+        actionSheetMessageDescription = description
+        Feedback.buttonTap()
     }
 }
 

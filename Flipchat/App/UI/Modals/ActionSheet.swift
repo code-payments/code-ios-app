@@ -10,15 +10,19 @@ import CodeUI
 
 public struct ButtonSheet: View {
     
-    @Binding public var isPresented: Bool
-    
+    public let dismissHandler: () -> Void
     public let actions: [Action]
     
     // MARK: - Init -
     
-    public init(isPresented: Binding<Bool>, @ActionBuilder actions: () -> [Action]) {
-        self._isPresented = isPresented
+    public init(dismissHandler: @escaping () -> Void, @ActionBuilder actions: () -> [Action]) {
+        self.dismissHandler = dismissHandler
         self.actions = actions()
+    }
+    
+    public init<T>(item: T, dismissHandler: @escaping () -> Void, @ActionBuilder actions: (T) -> [Action]) where T: Identifiable {
+        self.dismissHandler = dismissHandler
+        self.actions = actions(item)
     }
     
     // MARK: - Body -
@@ -28,7 +32,7 @@ public struct ButtonSheet: View {
             VStack(spacing: 0) {
                 ForEach(actions, id: \.title) { action in
                     Button {
-                        isPresented = false
+                        dismissHandler()
                         Task {
                             try await action.action()
                         }
@@ -116,11 +120,15 @@ public struct Action {
 
 extension View {
     func buttonSheet(isPresented: Binding<Bool>, @ActionBuilder actions: @escaping () -> [Action]) -> some View {
-        self.modifier(ButtonSheetModifier(isPresented: isPresented, actions: actions))
+        self.modifier(ButtonSheetModifierBoolean(isPresented: isPresented, actions: actions))
+    }
+    
+    func buttonSheet<T>(item: Binding<T?>, @ActionBuilder actions: @escaping (T) -> [Action]) -> some View where T: Identifiable {
+        self.modifier(ButtonSheetModifierItem(item: item, actions: actions))
     }
 }
 
-private struct ButtonSheetModifier: ViewModifier {
+private struct ButtonSheetModifierBoolean: ViewModifier {
     
     private let isPresented: Binding<Bool>
     private let actions: () -> [Action]
@@ -133,10 +141,41 @@ private struct ButtonSheetModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: isPresented) {
-                ButtonSheet(isPresented: isPresented, actions: actions)
+                ButtonSheet(dismissHandler: dismiss, actions: actions)
             }
     }
+    
+    private func dismiss() {
+        isPresented.wrappedValue = false
+    }
 }
+
+private struct ButtonSheetModifierItem<T>: ViewModifier where T: Identifiable {
+    
+    private let item: Binding<T?>
+    private let actions: (T) -> [Action]
+    
+    init(item: Binding<T?>, actions: @escaping (T) -> [Action]) {
+        self.item = item
+        self.actions = actions
+    }
+    
+    func body(content: Content) -> some View {
+        content
+            .sheet(item: item) { item in
+                ButtonSheet(
+                    item: item,
+                    dismissHandler: dismiss,
+                    actions: actions
+                )
+            }
+    }
+    
+    private func dismiss() {
+        item.wrappedValue = nil
+    }
+}
+
 
 @resultBuilder
 public enum ActionBuilder {

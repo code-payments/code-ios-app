@@ -14,6 +14,7 @@ typealias MessageActionHandler = (MessageAction) -> Void
 protocol MessageListControllerDelegate {
     func messageListControllerKeyboardDismissed()
     func messageListControllerWillSendMessage(text: String) -> Bool
+    func messageListControllerWillShowActionSheet(description: MessageActionDescription)
 }
 
 struct MessagesListController<BottomView, ReplyView>: UIViewControllerRepresentable where BottomView: View, ReplyView: View {
@@ -227,6 +228,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         tableView.allowsSelection     = false
         tableView.estimatedRowHeight  = UITableView.automaticDimension
         tableView.keyboardDismissMode = .interactiveWithAccessory
+        tableView.delaysContentTouches = false
         view.addSubview(tableView)
         
         // Scroll Button
@@ -852,7 +854,6 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             let member = row.member
             let isFromSelf = message.senderID == userID.uuid
             let displayName = row.member.resolvedDisplayName
-            let chatID = chatID
             let isDeleted = deletionState != nil
             let selfIsHost = userID == hostID
             
@@ -867,102 +868,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
                 action: { [weak self] messageAction in
                     self?.action(messageAction)
                 }
-            ) {
-                // Don't show action for deleted messages
-                if !isDeleted {
-                    
-                    if selfIsHost, !isFromSelf, let userID = member.userID {
-                        
-                        if member.canSend == true {
-                            Button {
-                                action(.demoteUser(member.resolvedDisplayName, UserID(uuid: userID), chatID))
-                            } label: {
-                                Label("Remove as Speaker", systemImage: "speaker.slash")
-                            }
-                        } else {
-                            Button {
-                                action(.promoteUser(member.resolvedDisplayName, UserID(uuid: userID), chatID))
-                            } label: {
-                                Label("Make a Speaker", systemImage: "speaker.wave.2.bubble")
-                            }
-                        }
-                        
-                        Divider()
-                    }
-                    
-                    // Regular actions
-                    
-                    Button {
-                        Task {
-                            action(.reply(row))
-                        }
-                    } label: {
-                        Label("Reply", systemImage: "arrowshape.turn.up.backward.fill")
-                    }
-                    
-                    if let senderID = message.senderID, senderID != userID.uuid {
-                        Button {
-                            Task {
-                                action(.tip(
-                                    UserID(uuid: senderID),
-                                    MessageID(uuid: message.serverID)
-                                ))
-                            }
-                        } label: {
-                            Label("Give Tip", systemImage: "dollarsign")
-                        }
-                    }
-                    
-                    
-                    Button {
-                        action(.copy(description.content))
-                    } label: {
-                        Label("Copy Message", systemImage: "doc.on.doc")
-                    }
-                    
-                    // Destructive actions
-                    Divider()
-                    
-                    // Allow deletes for self messages or if room host is deleting a message
-                    if let senderID = message.senderID, senderID == userID.uuid || userID == hostID {
-                        Button(role: .destructive) {
-                            action(.deleteMessage(MessageID(uuid: message.serverID), chatID))
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                    
-                    if let senderID = message.senderID, senderID != userID.uuid {
-                        Button(role: .destructive) {
-                            action(.reportMessage(UserID(data: senderID.data), MessageID(uuid: message.serverID)))
-                        } label: {
-                            Label("Report", systemImage: "exclamationmark.shield")
-                        }
-                    }
-                    
-                    // Only if the current user is a host
-                    if !isFromSelf, userID == hostID, let senderID = message.senderID {
-                        Button(role: .destructive) {
-                            action(.muteUser(displayName, UserID(data: senderID.data), chatID))
-                        } label: {
-                            Label("Mute", systemImage: "speaker.slash")
-                        }
-                    }
-                    
-                    // Only if the sender isn't self (can't block self)
-                    if let senderID = message.senderID, senderID != userID.uuid {
-                        Button(role: .destructive) {
-                            action(.setUserBlocked(displayName, UserID(data: senderID.data), chatID, !(row.member.isBlocked == true)))
-                        } label: {
-                            if row.member.isBlocked == true {
-                                Label("Unblock", systemImage: "person.slash")
-                            } else {
-                                Label("Block", systemImage: "person.slash")
-                            }
-                        }
-                    }
-                }
-            }
+            )
             .onTapGesture(count: 2) {
                 if !isDeleted, let senderID = message.senderID {
                     action(.tip(
@@ -971,6 +877,37 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
                     ))
                 }
             }
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.35).onEnded { _ in
+                guard !isDeleted else {
+                    // No actions for deleted messages
+                    return
+                }
+                
+                guard let senderID = member.userID else {
+                    return
+                }
+                
+                let action = MessageActionDescription(
+                    messageID:         MessageID(uuid: message.serverID),
+                    senderID:          UserID(uuid: senderID),
+                    messageRow:        row,
+                    senderDisplayName: displayName,
+                    messageText:       description.content,
+                    showDeleteAction:  selfIsHost || isFromSelf,
+                    showSpeakerAction: selfIsHost && !isFromSelf,
+                    showMuteAction:    selfIsHost && !isFromSelf,
+                    showTipAction:     !isFromSelf,
+                    showReportAction:  !isFromSelf,
+                    showBlockAction:   !isFromSelf,
+                    isFromSelf:        isFromSelf,
+                    isMessageDeleted:  isDeleted,
+                    isSenderBlocked:   member.isBlocked == true,
+                    canSenderSend:     member.canSend == true
+                )
+                
+                _ = self.inputBar.resignFirstResponder()
+                self.delegate?.messageListControllerWillShowActionSheet(description: action)
+            })
             
         case .announcement:
             MessageAnnouncement(text: description.content)

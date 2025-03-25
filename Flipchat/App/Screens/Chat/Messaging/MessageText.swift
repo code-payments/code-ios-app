@@ -9,7 +9,7 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-struct MessageText<MenuItems>: View where MenuItems: View {
+struct MessageText: View {
     
     let messageRow: MessageRow
     let messageID: UUID
@@ -30,7 +30,6 @@ struct MessageText<MenuItems>: View where MenuItems: View {
     let replyingTo: ReplyingTo?
     let location: MessageSemanticLocation
     let action: (MessageAction) -> Void
-    let menu: () -> MenuItems
     
     private var shouldShowName: Bool {
         switch location {
@@ -59,7 +58,7 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         }
     }
         
-    init(messageRow: MessageRow, text: String, isReceived: Bool, hostID: UUID, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void, @ViewBuilder menu: @escaping () -> MenuItems) {
+    init(messageRow: MessageRow, text: String, isReceived: Bool, hostID: UUID, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void) {
         let message = messageRow.message
         let member = messageRow.member
         let senderIsHost = message.senderID == hostID
@@ -83,7 +82,6 @@ struct MessageText<MenuItems>: View where MenuItems: View {
         self.replyingTo = replyingTo
         self.location = location
         self.action = action
-        self.menu = menu
     }
     
     var body: some View {
@@ -136,9 +134,6 @@ struct MessageText<MenuItems>: View where MenuItems: View {
                     action: action,
                     location: location
                 )
-                .contextMenu {
-                    menu()
-                }
             }
         }
         .padding(.top, topPadding)
