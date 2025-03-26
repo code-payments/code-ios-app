@@ -877,7 +877,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
                     ))
                 }
             }
-            .simultaneousGesture(LongPressGesture(minimumDuration: 0.35).onEnded { _ in
+            .simultaneousGesture(LongPressGesture(minimumDuration: 0.35).onEnded { [weak self] _ in
                 guard !isDeleted else {
                     // No actions for deleted messages
                     return
@@ -905,8 +905,8 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
                     canSenderSend:     member.canSend == true
                 )
                 
-                _ = self.inputBar.resignFirstResponder()
-                self.delegate?.messageListControllerWillShowActionSheet(description: action)
+                _ = self?.inputBar.resignFirstResponder()
+                self?.delegate?.messageListControllerWillShowActionSheet(description: action)
             })
             
         case .announcement:
