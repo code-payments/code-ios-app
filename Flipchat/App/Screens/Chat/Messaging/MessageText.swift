@@ -12,6 +12,7 @@ import FlipchatServices
 struct MessageText: View {
     
     let messageRow: MessageRow
+    let reactions: [MessageReaction]
     let messageID: UUID
     let hostID: UUID
     let state: Chat.Message.State
@@ -58,12 +59,13 @@ struct MessageText: View {
         }
     }
         
-    init(messageRow: MessageRow, text: String, isReceived: Bool, hostID: UUID, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void) {
+    init(messageRow: MessageRow, reactions: [MessageReaction], text: String, isReceived: Bool, hostID: UUID, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, location: MessageSemanticLocation, action: @escaping (MessageAction) -> Void) {
         let message = messageRow.message
         let member = messageRow.member
         let senderIsHost = message.senderID == hostID
         
         self.messageRow = messageRow
+        self.reactions = reactions
         self.messageID = message.serverID
         self.hostID = hostID
         self.state = message.state
@@ -122,6 +124,7 @@ struct MessageText: View {
                 MessageBubble(
                     messageID: messageID,
                     state: state,
+                    reactions: reactions,
                     text: text,
                     date: date,
                     isReceived: isReceived,
@@ -154,6 +157,7 @@ struct MessageBubble: View {
     
     let messageID: UUID
     let state: Chat.Message.State
+    let reactions: [MessageReaction]
     let rawText: String
     let text: String
     let date: Date
@@ -170,6 +174,14 @@ struct MessageBubble: View {
     
     private var hasTips: Bool {
         kinTips > 0
+    }
+    
+    private var hasReactions: Bool {
+        !reactions.isEmpty
+    }
+    
+    private var hasTipsOrReactions: Bool {
+        hasTips || !reactions.isEmpty
     }
     
     private var isDeleted: Bool {
@@ -194,9 +206,10 @@ struct MessageBubble: View {
     
     // MARK: - Init -
     
-    init(messageID: UUID, state: Chat.Message.State, text: String, date: Date, isReceived: Bool, isBlocked: Bool, hasTipFromSelf: Bool, offStage: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
+    init(messageID: UUID, state: Chat.Message.State, reactions: [MessageReaction], text: String, date: Date, isReceived: Bool, isBlocked: Bool, hasTipFromSelf: Bool, offStage: Bool, kinTips: Kin, deletionState: MessageDeletion?, replyingTo: ReplyingTo?, action: @escaping (MessageAction) -> Void, location: MessageSemanticLocation) {
         self.messageID = messageID
         self.state = state
+        self.reactions = reactions
         self.rawText = text
         self.text = Self.adjusted(text: text, isBlocked: isBlocked, deletionState: deletionState)
         self.date = date
@@ -263,7 +276,7 @@ struct MessageBubble: View {
     }
     
     @ViewBuilder private func bubbleContent() -> some View {
-        if text.count < 10 && !hasTips {
+        if text.count < 10 && !hasTipsOrReactions {
             compactBubble()
         } else {
             standardBubble()
@@ -361,20 +374,40 @@ struct MessageBubble: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         
-        if hasTips && !isDeleted {
-            HStack(alignment: .bottom) {
-                TipAnnotation(kin: kinTips, isFilled: hasTipFromSelf) {
-                    action(.showTippers(MessageID(uuid: messageID)))
-                }
-                
-                if expand {
-                    Spacer()
+        if hasTipsOrReactions && !isDeleted {
+            VStack(alignment: .trailing) {
+                WrappingHStack(alignment: .bottomLeading, fitContentWidth: !expand) {
+                    if hasTips {
+                        TipAnnotation(kin: kinTips, isFilled: hasTipFromSelf) {
+                            action(.showTippers(MessageID(uuid: messageID)))
+                        }
+                    }
+                    
+                    ForEach(reactions, id: \.emoji) { reaction in
+                        ReactionAnnotation(emoji: reaction.emoji, count: reaction.count, isFilled: reaction.currentUserReacted) {
+                            action(.reaction(MessageID(uuid: messageID), reaction))
+                        }
+                    }
                 }
                 
                 TimestampView(state: state, date: date, isReceived: isReceived)
             }
             .foregroundStyle(Color.textMain)
             .padding(.top, 4)
+            
+//            HStack(alignment: .bottom) {
+//                TipAnnotation(kin: kinTips, isFilled: hasTipFromSelf) {
+//                    action(.showTippers(MessageID(uuid: messageID)))
+//                }
+//                
+//                if expand {
+//                    Spacer()
+//                }
+//                
+//                TimestampView(state: state, date: date, isReceived: isReceived)
+//            }
+//            .foregroundStyle(Color.textMain)
+//            .padding(.top, 4)
             
         } else {
             TimestampView(state: state, date: date, isReceived: isReceived)

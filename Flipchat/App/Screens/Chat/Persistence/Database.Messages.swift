@@ -103,6 +103,34 @@ extension Database {
         }
     }
     
+    func getMessageReactions(messageID: UUID, currentUserID: UUID) throws -> [MessageReaction] {
+        let statement = try reader.prepareRowIterator("""
+        SELECT
+            m.content   AS emoji,
+            COUNT(*)    AS reactionCount,
+            MIN(m.date) AS firstReactionDate,
+            MAX(CASE WHEN m.senderID = "\(currentUserID)" THEN m.serverID ELSE NULL END) AS userReactionID
+        FROM
+            message m
+        WHERE
+            m.contentType = 2 AND
+            m.referenceID = "\(messageID)" AND
+            m.isDeleted = 0
+        GROUP BY
+            m.content
+        ORDER BY
+            firstReactionDate ASC;
+        """)
+        
+        return try statement.map { row in
+            MessageReaction(
+                emoji:      row[Expression<String>("emoji")],
+                count:      row[Expression<Int>("reactionCount")],
+                reactionID: row[Expression<UUID?>("userReactionID")]
+            )
+        }
+    }
+    
     func getMessages(roomID: UUID, pageSize: Int, offset: Int) throws -> [MessageRow] {
         let statement = try reader.prepareRowIterator("""
         SELECT

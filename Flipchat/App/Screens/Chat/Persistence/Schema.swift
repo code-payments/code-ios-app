@@ -187,6 +187,23 @@ extension Database {
                 t.foreignKey(pointerTable.userID, references: userTable.table, userTable.serverID, delete: .cascade)
             })
         }
+        
+        try createIndexesIfNeeded()
+    }
+    
+    private func createIndexesIfNeeded() throws {
+        try writer.transaction {
+            try writer.run("""
+            CREATE INDEX IF NOT EXISTS index_reactions ON message (
+                serverID,
+                date,
+                senderID,
+                referenceID,
+                content,
+                isDeleted
+            ) WHERE contentType = 2;
+            """)
+        }
     }
 }
 

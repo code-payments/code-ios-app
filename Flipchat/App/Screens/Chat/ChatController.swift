@@ -102,6 +102,14 @@ class ChatController: ObservableObject {
         try database.getRoom(roomID: chatID.uuid)
     }
     
+    func getMessageReactions(messageID: MessageID) throws -> [MessageReaction] {
+        
+        let start = Date.now
+        let reactions = try database.getMessageReactions(messageID: messageID.uuid, currentUserID: userID.uuid)
+        print("Message reactions fetched in: \(Date.now.formattedMilliseconds(from: start))")
+        return reactions
+    }
+    
     func getMessages(chatID: ChatID, pageSize: Int = 1024) throws -> [MessageRow] {
         try database.getMessages(roomID: chatID.uuid, pageSize: pageSize, offset: 0)
     }
@@ -482,6 +490,21 @@ class ChatController: ObservableObject {
             owner: owner,
             text: text,
             replyingTo: replyingTo
+        )
+        
+        try insertDeliveredMessage(
+            userID: userID,
+            chatID: chatID,
+            message: deliveredMessage
+        )
+    }
+    
+    func sendReaction(text: String, for chatID: ChatID, reactingTo messageID: MessageID) async throws {
+        let deliveredMessage = try await client.sendReaction(
+            chatID: chatID,
+            owner: owner,
+            reaction: text,
+            reactingTo: messageID
         )
         
         try insertDeliveredMessage(

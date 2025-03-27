@@ -186,6 +186,41 @@ class MessagingService: FlipchatService<Flipchat_Messaging_V1_MessagingNIOClient
         }
     }
     
+    func sendReaction(chatID: ChatID, owner: KeyPair, reaction: String, reactingTo messageID: MessageID, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+        
+        let request = Flipchat_Messaging_V1_SendMessageRequest.with {
+            $0.chatID  = .with { $0.value = chatID.data }
+            $0.content = [
+                .with {
+                    $0.reaction = .with {
+                        $0.emoji = reaction
+                        $0.originalMessageID = .with { $0.value = messageID.data }
+                    }
+                }
+            ]
+            
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.sendMessage(request)
+        
+        call.handle(on: queue) { response in
+            let error = ErrorSendMessage(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                let message = Chat.Message(response.message)
+                trace(.success, components: "Owner: \(owner.publicKey.base58)", "Message: \(message.id.description)")
+                completion(.success(message))
+            } else {
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
     func sendTip(chatID: ChatID, messageID: MessageID, owner: KeyPair, amount: Kin, intentID: PublicKey, completion: @escaping (Result<Chat.Message, ErrorSendMessage>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         

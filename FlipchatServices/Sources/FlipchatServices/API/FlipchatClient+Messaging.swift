@@ -29,6 +29,12 @@ extension FlipchatClient {
         }
     }
     
+    public func sendReaction(chatID: ChatID, owner: KeyPair, reaction: String, reactingTo messageID: MessageID) async throws -> Chat.Message {
+        try await withCheckedThrowingContinuation { c in
+            messagingService.sendReaction(chatID: chatID, owner: owner, reaction: reaction, reactingTo: messageID) { c.resume(with: $0) }
+        }
+    }
+    
     public func sendTip(chatID: ChatID, messageID: MessageID, owner: KeyPair, amount: Kin, intentID: PublicKey) async throws -> Chat.Message {
         try await withCheckedThrowingContinuation { c in
             messagingService.sendTip(chatID: chatID, messageID: messageID, owner: owner, amount: amount, intentID: intentID) { c.resume(with: $0) }

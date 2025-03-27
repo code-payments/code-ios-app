@@ -40,6 +40,8 @@ struct ConversationScreen: View {
     
     @State private var actionSheetMessageDescription: MessageActionDescription?
     
+    @State private var emojiGridMessageDescription: MessageActionDescription?
+    
     private let chatID: ChatID
     private let state: AuthenticatedState
     private let container: AppContainer
@@ -263,7 +265,12 @@ struct ConversationScreen: View {
                 container: container
             )
         }
-        .buttonSheet(item: $actionSheetMessageDescription) { description in
+        .sheet(item: $emojiGridMessageDescription) { description in
+            EmojiGrid { emoji in
+                sendReactionAction(emoji: emoji.symbol, description: description)
+            }
+        }
+        .buttonSheet(item: $actionSheetMessageDescription, emojiBuilder: emojiBuilder) { description in
             if description.showSpeakerAction {
                 if description.canSenderSend {
                     Action.standard(
@@ -342,12 +349,21 @@ struct ConversationScreen: View {
                 }
             }
         }
-//        .sheet(item: $actionSheetMessageID) { tip in
-//            EmojiGrid { emoji in
-//                print("Did select emoji")
-//                actionSheetMessageID = nil
-//            }
-//        }
+    }
+    
+    private func emojiBuilder(description: MessageActionDescription) -> EmojiDescription {
+        // TODO: Fetch the most used emoji and combine with defaults
+        EmojiDescription(
+            emoji: ["🙌", "👍", "🔥", "🙏", "✅", "😅"],
+            action: { kind in
+                switch kind {
+                case .emoji(let emoji):
+                    sendReactionAction(emoji: emoji, description: description)
+                case .more:
+                    showEmojiGrid(description: description)
+                }
+            }
+        )
     }
     
     @ViewBuilder private func descriptionView() -> some View {
@@ -604,9 +620,7 @@ struct ConversationScreen: View {
             position: .bottom,
             actions: [
                 .destructive(title: "Delete") {
-                    Task {
-                        try await chatController.deleteMessage(messageID: description.messageID, for: chatID)
-                    }
+                    deleteMessage(messageID: description.messageID)
                 },
                 .cancel(title: "Cancel"),
             ]
@@ -716,6 +730,13 @@ struct ConversationScreen: View {
         case .openProfile(let userID):
             dismissKeyboardFocus()
             userProfileID = userID
+            
+        case .reaction(let messageID, let reaction):
+            if let reactionID = reaction.reactionID {
+                deleteMessage(messageID: MessageID(uuid: reactionID))
+            } else {
+                sendReaction(emoji: reaction.emoji, reactingTo: messageID)
+            }
         }
     }
     
@@ -728,17 +749,6 @@ struct ConversationScreen: View {
 //            try await chatController.changeRoomOpenState(chatID: chatID, open: open)
 //        }
 //    }
-    
-    private func sendMessageAction(text: String) -> Bool {
-        if isShowingInputForPaidMessage {
-            listenerMessage = .init(text: text)
-            dismissKeyboardFocus()
-            return false
-        } else {
-            sendMessage(text: text)
-            return true
-        }
-    }
     
     private func messageAsListenerAction() {
         chatViewModel.attemptPayForMessage {
@@ -776,6 +786,50 @@ struct ConversationScreen: View {
         }
     }
     
+    private func sendMessageAction(text: String) -> Bool {
+        if isShowingInputForPaidMessage {
+            listenerMessage = .init(text: text)
+            dismissKeyboardFocus()
+            return false
+        } else {
+            sendMessage(text: text)
+            return true
+        }
+    }
+    
+    private func sendReactionAction(emoji: String, description: MessageActionDescription) {
+        dismissEmojiSheets()
+        sendReaction(emoji: emoji, reactingTo: description.messageID)
+    }
+    
+    private func showEmojiGrid(description: MessageActionDescription) {
+        dismissEmojiSheets()
+        emojiGridMessageDescription = description
+    }
+    
+    private func dismissEmojiSheets() {
+        actionSheetMessageDescription = nil
+        emojiGridMessageDescription = nil
+    }
+    
+    private func sendReaction(emoji: String, reactingTo messageID: MessageID) {
+        guard !emoji.isEmpty else {
+            return
+        }
+        
+        Task {
+            let reactions = try chatController.getMessageReactions(messageID: messageID)
+            let index = reactions.firstIndex { $0.emoji == emoji }
+            if index == nil {
+                try await chatController.sendReaction(
+                    text: emoji,
+                    for: chatID,
+                    reactingTo: messageID
+                )
+            }
+        }
+    }
+    
     private func sendMessage(text: String) {
         guard !text.isEmpty else {
             return
@@ -793,6 +847,12 @@ struct ConversationScreen: View {
             try await Task.delay(milliseconds: 150)
             
             scrollToBottom(animated: true)
+        }
+    }
+    
+    private func deleteMessage(messageID: MessageID) {
+        Task {
+            try await chatController.deleteMessage(messageID: messageID, for: chatID)
         }
     }
     

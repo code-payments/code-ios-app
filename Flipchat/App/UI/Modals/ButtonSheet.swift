@@ -1,5 +1,5 @@
 //
-//  ActionSheet.swift
+//  ButtonSheet.swift
 //  Code
 //
 //  Created by Dima Bart on 2025-01-29.
@@ -8,19 +8,32 @@
 import SwiftUI
 import CodeUI
 
+public struct EmojiDescription {
+    public var emoji: [String]
+    public var action: (Action) -> Void
+    
+    public enum Action {
+        case emoji(String)
+        case more
+    }
+}
+
 public struct ButtonSheet: View {
     
+    public let emojiDescription: EmojiDescription?
     public let dismissHandler: () -> Void
     public let actions: [Action]
     
     // MARK: - Init -
     
     public init(dismissHandler: @escaping () -> Void, @ActionBuilder actions: () -> [Action]) {
+        self.emojiDescription = nil
         self.dismissHandler = dismissHandler
         self.actions = actions()
     }
     
-    public init<T>(item: T, dismissHandler: @escaping () -> Void, @ActionBuilder actions: (T) -> [Action]) where T: Identifiable {
+    public init<T>(item: T, dismissHandler: @escaping () -> Void, emojiBuilder: ((T) -> EmojiDescription)? = nil, @ActionBuilder actions: (T) -> [Action]) where T: Identifiable {
+        self.emojiDescription = emojiBuilder?(item)
         self.dismissHandler = dismissHandler
         self.actions = actions(item)
     }
@@ -30,6 +43,22 @@ public struct ButtonSheet: View {
     public var body: some View {
         PartialSheet(background: .backgroundMain) {
             VStack(spacing: 0) {
+                if let emojiDescription {
+                    GeometryReader { g in
+                        HStack(spacing: 0) {
+                            ForEach(emojiDescription.emoji, id: \.self) { emoji in
+                                emojiView(description: emojiDescription, emoji: emoji, g: g)
+                            }
+                            
+                            addEmojiView(description: emojiDescription, g: g)
+                        }
+                        .offset(y: 10)
+                    }
+                    .frame(height: 64)
+                    .padding(.horizontal, 10)
+                    .vSeparator(color: .rowSeparator)
+                }
+                
                 ForEach(actions, id: \.title) { action in
                     Button {
                         dismissHandler()
@@ -60,6 +89,34 @@ public struct ButtonSheet: View {
         }
     }
     
+    @ViewBuilder private func emojiView(description: EmojiDescription, emoji: String, g: GeometryProxy) -> some View {
+        let adjustedWidth = g.dimensionForEmoji()
+        
+        Button {
+            description.action(.emoji(emoji))
+        } label: {
+            Text(emoji)
+                .frame(width: adjustedWidth, height: adjustedWidth, alignment: .center)
+                .background(Color.backgroundMessageReceived)
+                .clipShape(Circle())
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
+    @ViewBuilder private func addEmojiView(description: EmojiDescription, g: GeometryProxy) -> some View {
+        let adjustedWidth = g.dimensionForEmoji()
+        
+        Button {
+            description.action(.more)
+        } label: {
+            HStack {}
+                .frame(width: adjustedWidth, height: adjustedWidth, alignment: .center)
+                .background(Color.backgroundMessageReceived)
+                .clipShape(Circle())
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
     private func foregroundColor(for action: Action) -> Color {
         switch action.style {
         case .standard:
@@ -67,6 +124,19 @@ public struct ButtonSheet: View {
         case .destructive:
             return .textError
         }
+    }
+}
+
+private extension GeometryProxy {
+    func dimensionForEmoji() -> CGFloat {
+        let defaultDimension: CGFloat = 44
+        let count: CGFloat = 7
+        let spacing: CGFloat = 5
+        let totalSpacing: CGFloat = (count + 1) * spacing
+        let emojiWidthThatFits = (self.size.width - totalSpacing) / count
+        let adjustedWidth = min(defaultDimension, emojiWidthThatFits)
+        
+        return adjustedWidth
     }
 }
 
@@ -120,11 +190,18 @@ public struct Action {
 
 extension View {
     func buttonSheet(isPresented: Binding<Bool>, @ActionBuilder actions: @escaping () -> [Action]) -> some View {
-        self.modifier(ButtonSheetModifierBoolean(isPresented: isPresented, actions: actions))
+        self.modifier(ButtonSheetModifierBoolean(
+            isPresented: isPresented,
+            actions: actions
+        ))
     }
     
-    func buttonSheet<T>(item: Binding<T?>, @ActionBuilder actions: @escaping (T) -> [Action]) -> some View where T: Identifiable {
-        self.modifier(ButtonSheetModifierItem(item: item, actions: actions))
+    func buttonSheet<T>(item: Binding<T?>, emojiBuilder: ((T) -> EmojiDescription)? = nil, @ActionBuilder actions: @escaping (T) -> [Action]) -> some View where T: Identifiable {
+        self.modifier(ButtonSheetModifierItem(
+            item: item,
+            emojiBuilder: emojiBuilder,
+            actions: actions
+        ))
     }
 }
 
@@ -153,10 +230,12 @@ private struct ButtonSheetModifierBoolean: ViewModifier {
 private struct ButtonSheetModifierItem<T>: ViewModifier where T: Identifiable {
     
     private let item: Binding<T?>
+    private let emojiBuilder: ((T) -> EmojiDescription)?
     private let actions: (T) -> [Action]
     
-    init(item: Binding<T?>, actions: @escaping (T) -> [Action]) {
+    init(item: Binding<T?>, emojiBuilder: ((T) -> EmojiDescription)? = nil, actions: @escaping (T) -> [Action]) {
         self.item = item
+        self.emojiBuilder = emojiBuilder
         self.actions = actions
     }
     
@@ -166,6 +245,7 @@ private struct ButtonSheetModifierItem<T>: ViewModifier where T: Identifiable {
                 ButtonSheet(
                     item: item,
                     dismissHandler: dismiss,
+                    emojiBuilder: emojiBuilder,
                     actions: actions
                 )
             }

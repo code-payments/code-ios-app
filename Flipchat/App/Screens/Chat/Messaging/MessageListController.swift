@@ -799,6 +799,13 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         let message = messages[index]
         let width = message.messageWidth(in: tableView.frame.size).width
         
+        let reactions: [MessageReaction]
+        if case .message(let messageID, _, _, _, _, _) = message.kind {
+            reactions = try! chatController.getMessageReactions(messageID: messageID)
+        } else {
+            reactions = []
+        }
+        
         cell.backgroundColor = .clear
         cell.swipeEnabled    = message.kind.messageRow != nil && !message.kind.isDeleted
         cell.onSwipeToReply  = { [weak self] in
@@ -808,6 +815,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
         cell.contentConfiguration = UIHostingConfiguration {
             let row = row(
                 for: message,
+                reactions: reactions,
                 userID: userID,
                 hostID: UserID(uuid: state.room.room.ownerUserID),
                 action: action
@@ -844,7 +852,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
     }
     
     @ViewBuilder
-    private func row(for description: MessageDescription, userID: UserID, hostID: UserID, action: @escaping MessageActionHandler) -> some View {
+    private func row(for description: MessageDescription, reactions: [MessageReaction], userID: UserID, hostID: UserID, action: @escaping MessageActionHandler) -> some View {
         switch description.kind {
         case .date(let date):
             MessageTitle(text: date.formattedRelatively())
@@ -859,6 +867,7 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             
             MessageText(
                 messageRow: row,
+                reactions: reactions,
                 text: description.content,
                 isReceived: isReceived,
                 hostID: hostID.uuid,
