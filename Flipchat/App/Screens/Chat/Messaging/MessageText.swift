@@ -380,12 +380,16 @@ struct MessageBubble: View {
                     if hasTips {
                         TipAnnotation(kin: kinTips, isFilled: hasTipFromSelf) {
                             action(.showTippers(MessageID(uuid: messageID)))
+                        } longPress: {
+                            action(.showTippers(MessageID(uuid: messageID)))
                         }
                     }
                     
                     ForEach(reactions, id: \.emoji) { reaction in
                         ReactionAnnotation(emoji: reaction.emoji, count: reaction.count, isFilled: reaction.currentUserReacted) {
                             action(.reaction(MessageID(uuid: messageID), reaction))
+                        } longPress: {
+                            action(.showReactions(MessageID(uuid: messageID)))
                         }
                     }
                 }

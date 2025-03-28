@@ -812,6 +812,62 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             self?.action(.reply(message.kind.messageRow!))
         }
         
+        cell.onDoubleTap = { [weak self] in
+            guard case .message(_, _, let row, _, let deletionState, _) = message.kind else { return }
+            let isDeleted = deletionState != nil
+            
+            if !isDeleted, let senderID = row.message.senderID {
+                self?.action(.tip(
+                    UserID(uuid: senderID),
+                    MessageID(uuid: row.message.serverID)
+                ))
+            }
+        }
+        
+        cell.onLongPress = { [weak self, state, userID] in
+            guard case .message(_, _, let row, _, let deletionState, _) = message.kind else { return }
+            guard let state else { return }
+            
+            let hostID = UserID(uuid: state.room.room.ownerUserID)
+            
+            let message = row.message
+            let member = row.member
+            let isFromSelf = message.senderID == userID.uuid
+            let displayName = row.member.resolvedDisplayName
+            let isDeleted = deletionState != nil
+            let selfIsHost = userID == hostID
+            
+            guard !isDeleted else {
+                // No actions for deleted messages
+                return
+            }
+            
+            guard let senderID = member.userID else {
+                return
+            }
+            
+            let action = MessageActionDescription(
+                messageID:         MessageID(uuid: message.serverID),
+                senderID:          UserID(uuid: senderID),
+                messageRow:        row,
+                senderDisplayName: displayName,
+                messageText:       message.content,
+                showDeleteAction:  selfIsHost || isFromSelf,
+                showSpeakerAction: selfIsHost && !isFromSelf,
+                showMuteAction:    selfIsHost && !isFromSelf,
+                showTipAction:     !isFromSelf,
+                showReportAction:  !isFromSelf,
+                showBlockAction:   !isFromSelf,
+                isFromSelf:        isFromSelf,
+                isMessageDeleted:  isDeleted,
+                isSenderBlocked:   member.isBlocked == true,
+                canSenderSend:     member.canSend == true
+            )
+            
+            _ = self?.inputBar.resignFirstResponder()
+            self?.delegate?.messageListControllerWillShowActionSheet(description: action)
+        }
+        
         cell.contentConfiguration = UIHostingConfiguration {
             let row = row(
                 for: message,
@@ -858,12 +914,12 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
             MessageTitle(text: date.formattedRelatively())
             
         case .message(_, let isReceived, let row, let location, let deletionState, let referenceDeletion):
-            let message = row.message
-            let member = row.member
-            let isFromSelf = message.senderID == userID.uuid
-            let displayName = row.member.resolvedDisplayName
-            let isDeleted = deletionState != nil
-            let selfIsHost = userID == hostID
+//            let message = row.message
+//            let member = row.member
+//            let isFromSelf = message.senderID == userID.uuid
+//            let displayName = row.member.resolvedDisplayName
+//            let isDeleted = deletionState != nil
+//            let selfIsHost = userID == hostID
             
             MessageText(
                 messageRow: row,
@@ -878,45 +934,45 @@ class _MessagesListController<BottomView, ReplyView>: UIViewController, UITableV
                     self?.action(messageAction)
                 }
             )
-            .onTapGesture(count: 2) {
-                if !isDeleted, let senderID = message.senderID {
-                    action(.tip(
-                        UserID(uuid: senderID),
-                        MessageID(uuid: message.serverID)
-                    ))
-                }
-            }
-            .simultaneousGesture(LongPressGesture(minimumDuration: 0.35).onEnded { [weak self] _ in
-                guard !isDeleted else {
-                    // No actions for deleted messages
-                    return
-                }
-                
-                guard let senderID = member.userID else {
-                    return
-                }
-                
-                let action = MessageActionDescription(
-                    messageID:         MessageID(uuid: message.serverID),
-                    senderID:          UserID(uuid: senderID),
-                    messageRow:        row,
-                    senderDisplayName: displayName,
-                    messageText:       description.content,
-                    showDeleteAction:  selfIsHost || isFromSelf,
-                    showSpeakerAction: selfIsHost && !isFromSelf,
-                    showMuteAction:    selfIsHost && !isFromSelf,
-                    showTipAction:     !isFromSelf,
-                    showReportAction:  !isFromSelf,
-                    showBlockAction:   !isFromSelf,
-                    isFromSelf:        isFromSelf,
-                    isMessageDeleted:  isDeleted,
-                    isSenderBlocked:   member.isBlocked == true,
-                    canSenderSend:     member.canSend == true
-                )
-                
-                _ = self?.inputBar.resignFirstResponder()
-                self?.delegate?.messageListControllerWillShowActionSheet(description: action)
-            })
+//            .onTapGesture(count: 2) {
+//                if !isDeleted, let senderID = message.senderID {
+//                    action(.tip(
+//                        UserID(uuid: senderID),
+//                        MessageID(uuid: message.serverID)
+//                    ))
+//                }
+//            }
+//            .gesture(LongPressGesture(minimumDuration: 0.35).onEnded { [weak self] _ in
+//                guard !isDeleted else {
+//                    // No actions for deleted messages
+//                    return
+//                }
+//                
+//                guard let senderID = member.userID else {
+//                    return
+//                }
+//                
+//                let action = MessageActionDescription(
+//                    messageID:         MessageID(uuid: message.serverID),
+//                    senderID:          UserID(uuid: senderID),
+//                    messageRow:        row,
+//                    senderDisplayName: displayName,
+//                    messageText:       description.content,
+//                    showDeleteAction:  selfIsHost || isFromSelf,
+//                    showSpeakerAction: selfIsHost && !isFromSelf,
+//                    showMuteAction:    selfIsHost && !isFromSelf,
+//                    showTipAction:     !isFromSelf,
+//                    showReportAction:  !isFromSelf,
+//                    showBlockAction:   !isFromSelf,
+//                    isFromSelf:        isFromSelf,
+//                    isMessageDeleted:  isDeleted,
+//                    isSenderBlocked:   member.isBlocked == true,
+//                    canSenderSend:     member.canSend == true
+//                )
+//                
+//                _ = self?.inputBar.resignFirstResponder()
+//                self?.delegate?.messageListControllerWillShowActionSheet(description: action)
+//            })
             
         case .announcement:
             MessageAnnouncement(text: description.content)

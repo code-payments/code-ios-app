@@ -13,6 +13,7 @@ import FlipchatServices
 public struct NavBar<Leading, Trailing>: View where Leading: View, Trailing: View {
     
     public let isLoading: Bool
+    public let alignment: VerticalAlignment
     public let title: String
     public let titleAction: () -> Void
     public let leading: () -> Leading
@@ -20,12 +21,14 @@ public struct NavBar<Leading, Trailing>: View where Leading: View, Trailing: Vie
     
     public init(
         isLoading: Bool = false,
+        alignment: VerticalAlignment = .center,
         title: String,
         titleAction: @escaping () -> Void = {},
         @ViewBuilder leading: @escaping () -> Leading = { NavBarEmptyItem() },
         @ViewBuilder trailing: @escaping () -> Trailing = { NavBarEmptyItem() }
     ) {
         self.isLoading = isLoading
+        self.alignment = alignment
         self.title = title
         self.titleAction = titleAction
         self.leading = leading
@@ -34,7 +37,7 @@ public struct NavBar<Leading, Trailing>: View where Leading: View, Trailing: Vie
     
     public var body: some View {
         ZStack(alignment: .top) {
-            HStack {
+            HStack(alignment: alignment) {
                 leading()
                     .frame(width: 44, height: 44)
                 
@@ -49,7 +52,6 @@ public struct NavBar<Leading, Trailing>: View where Leading: View, Trailing: Vie
                     }
                 } else {
                     Text(title)
-                        .padding(10)
                         .foregroundColor(.textMain)
                         .font(.appTitle)
                         .onTapGesture {

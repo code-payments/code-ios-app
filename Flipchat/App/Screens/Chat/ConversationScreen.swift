@@ -32,7 +32,7 @@ struct ConversationScreen: View {
     
     @State private var listenerMessage: ListenerMessage?
     
-    @State private var tipUsers: TipUsers?
+    @State private var userReactions: Reactions?
     
     @State private var messageTip: MessageTip?
     
@@ -228,19 +228,8 @@ struct ConversationScreen: View {
                 )
             }
         }
-        .sheet(item: $tipUsers) { tipUsers in
-            ModalTipList(
-                userTips: tipUsers.users.map {
-                    ModalTipList.UserTip(
-                        userID: $0.userID,
-                        avatarURL: $0.profile?.avatar?.bigger,
-                        name: $0.resolvedDisplayName,
-                        verificationType: $0.profile?.verificationType ?? .none,
-                        isHost: $0.userID == roomHostID,
-                        amount: $0.tip
-                    )
-                }
-            )
+        .sheet(item: $userReactions) { reactions in
+            ModalTipList(userReactions: reactions.reactions)
         }
         .sheet(item: $listenerMessage) { listenerMessage in
             PartialSheet(canDismiss: false) {
@@ -352,9 +341,16 @@ struct ConversationScreen: View {
     }
     
     private func emojiBuilder(description: MessageActionDescription) -> EmojiDescription {
-        // TODO: Fetch the most used emoji and combine with defaults
-        EmojiDescription(
-            emoji: ["🙌", "👍", "🔥", "🙏", "✅", "😅"],
+        let defaultSet: [String] = ["😂", "❤️", "👍", "😮", "😢", "🔥"]
+        let frequentEmoji = (try? chatController.getFrequentEmoji(userID: userID, threshold: 2))?.map { $0.emoji } ?? []
+        
+        let combinedSet = (frequentEmoji + defaultSet)
+            .uniqued()
+            .prefix(defaultSet.count)
+            .map { $0 }
+        
+        return EmojiDescription(
+            emoji: combinedSet,
             action: { kind in
                 switch kind {
                 case .emoji(let emoji):
@@ -717,14 +713,35 @@ struct ConversationScreen: View {
                 messageTip = .init(userID: userID, messageID: messageID)
             }
             
-        case .showTippers(let messageID):
-            guard let users = try? chatController.getTipUsers(messageID: messageID) else {
-                return
+        case .showTippers(let messageID), .showReactions(let messageID):
+            let tippers = (try? chatController.getTipUsers(messageID: messageID)) ?? []
+            let reactionUsers = (try? chatController.getReactionUsers(messageID: messageID)) ?? []
+
+            let tips = tippers.map {
+                ModalTipList.UserReaction(
+                    kind: .tip($0.tip),
+                    userID: $0.userID,
+                    avatarURL: $0.profile?.avatar?.bigger,
+                    name: $0.resolvedDisplayName,
+                    verificationType: $0.profile?.verificationType ?? .none,
+                    isHost: $0.userID == roomHostID
+                )
             }
             
-            tipUsers = .init(
+            let reactions = reactionUsers.map {
+                ModalTipList.UserReaction(
+                    kind: .reactions($0.reactions),
+                    userID: $0.userID,
+                    avatarURL: $0.profile?.avatar?.bigger,
+                    name: $0.resolvedDisplayName,
+                    verificationType: $0.profile?.verificationType ?? .none,
+                    isHost: $0.userID == roomHostID
+                )
+            }
+            
+            userReactions = Reactions(
                 messageID: messageID,
-                users: users
+                reactions: tips + reactions
             )
             
         case .openProfile(let userID):
@@ -819,7 +836,7 @@ struct ConversationScreen: View {
         
         Task {
             let reactions = try chatController.getMessageReactions(messageID: messageID)
-            let index = reactions.firstIndex { $0.emoji == emoji }
+            let index = reactions.firstIndex { $0.currentUserReacted && $0.emoji == emoji }
             if index == nil {
                 try await chatController.sendReaction(
                     text: emoji,
@@ -908,6 +925,13 @@ extension ConversationScreen: @preconcurrency MessageListControllerDelegate {
     }
 }
 
+extension Sequence where Element: Hashable {
+    func uniqued() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
+    }
+}
+
 struct ListenerMessage: Identifiable {
     public var id: String { text }
     
@@ -923,13 +947,13 @@ struct MessageTip: Identifiable {
     let messageID: MessageID
 }
 
-struct TipUsers: Identifiable {
+struct Reactions: Identifiable {
     public var id: Data {
         messageID.data
     }
     
     let messageID: MessageID
-    let users: [TipUser]
+    let reactions: [ModalTipList.UserReaction]
 }
 
 extension ID: @retroactive Identifiable {

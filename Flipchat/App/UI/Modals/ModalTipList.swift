@@ -9,66 +9,78 @@ import SwiftUI
 import CodeUI
 import FlipchatServices
 
-public struct ModalTipList: View {
+struct ModalTipList: View {
     
-    let userTips: [UserTip]
+    let userReactions: [UserReaction]
     
     private let tipsToShow: Int
     
     private var allowExpand: Bool {
-        userTips.count > tipsToShow
+        userReactions.count > tipsToShow
     }
     
     private static let rowHeight: CGFloat = 55
     
     // MARK: - Init -
     
-    public init(userTips: [UserTip]) {
-        self.userTips = userTips
-        self.tipsToShow = min(userTips.count, 5)
+    init(userReactions: [UserReaction]) {
+        self.userReactions = userReactions
+        self.tipsToShow = min(userReactions.count, 5)
     }
     
     // MARK: - Body -
     
-    public var body: some View {
+    var body: some View {
         Background(color: .backgroundMain) {
-            List {
-                ForEach(userTips, id: \.userID) { userTip in
-                    HStack(spacing: 12) {
-                        UserGeneratedAvatar(
-                            url: userTip.avatarURL,
-                            data: userTip.userID.data,
-                            diameter: 30,
-                            isHost: userTip.isHost
-                        )
-                        
-                        MemberNameLabel(
-                            size: .medium,
-                            showLogo: false,
-                            name: userTip.name,
-                            verificationType: userTip.verificationType
-                        )
-                        
-                        Spacer()
-                        
-                        Text(userTip.amount.formattedTruncatedKin(showSuffix: false))
-                            .font(.appTextLarge)
+            VStack {
+                NavBar(alignment: .bottom, title: "Reactions")
+                List {
+                    ForEach(userReactions) { userTip in
+                        HStack(spacing: 12) {
+                            UserGeneratedAvatar(
+                                url: userTip.avatarURL,
+                                data: userTip.userID.data,
+                                diameter: 30,
+                                isHost: userTip.isHost
+                            )
+                            
+                            MemberNameLabel(
+                                size: .medium,
+                                showLogo: false,
+                                name: userTip.name,
+                                verificationType: userTip.verificationType
+                            )
+                            
+                            Spacer()
+                            
+                            switch userTip.kind {
+                            case .tip(let amount):
+                                Text(amount.formattedTruncatedKin(showSuffix: false))
+                                    .font(.appTextLarge)
+                                
+                            case .reactions(let emojis):
+                                Text(emojis.joined(separator: " "))
+                                    .lineLimit(1)
+                                    .font(.appTextMedium)
+                            }
+                            
+                        }
+                        .foregroundStyle(Color.textMain)
+                        .frame(height: Self.rowHeight)
                     }
-                    .foregroundStyle(Color.textMain)
-                    .frame(height: Self.rowHeight)
+                    .listRowSeparatorTint(.rowSeparator)
+                    .listRowBackground(Color.backgroundMain)
+                    .listRowInsets(.init(top: 0, leading: 20, bottom: 0, trailing: 20))
+                    .scrollContentBackground(.hidden)
                 }
-                .listRowSeparatorTint(.rowSeparator)
-                .listRowBackground(Color.backgroundMain)
-                .listRowInsets(.init(top: 0, leading: 20, bottom: 0, trailing: 20))
-                .scrollContentBackground(.hidden)
+                .listStyle(.plain)
             }
-            .listStyle(.plain)
         }
         .presentationDetents(detents())
     }
     
     private func detents() -> Set<PresentationDetent> {
-        let openingHeight = CGFloat(tipsToShow) * Self.rowHeight + 10
+        let openingHeight = CGFloat(tipsToShow) * Self.rowHeight + 10 + 44 // 44pt nav bar
         
         var detents: Set<PresentationDetent> = []
         detents.insert(.height(openingHeight))
@@ -85,27 +97,41 @@ public struct ModalTipList: View {
 }
 
 extension ModalTipList {
-    public struct UserTip {
+    struct UserReaction: Identifiable {
+        var kind: Kind
         var userID: UUID
         var avatarURL: URL?
         var name: String
         var verificationType: VerificationType
         var isHost: Bool
-        var amount: Kin
+        
+        var id: String {
+            switch kind {
+            case .tip:
+                "t:\(userID)"
+            case .reactions:
+                "r:\(userID)"
+            }
+        }
+        
+        enum Kind {
+            case tip(Kin)
+            case reactions([String])
+        }
     }
 }
 
 #Preview {
     Background(color: .backgroundMain) {}
     .sheet(isPresented: .constant(true)) {
-        ModalTipList(userTips: [
+        ModalTipList(userReactions: [
             .init(
+                kind: .tip(10),
                 userID: UUID(),
                 avatarURL: nil,
                 name: "John",
                 verificationType: .none,
-                isHost: false,
-                amount: 5
+                isHost: false
             ),
         ])
     }

@@ -11,6 +11,8 @@ import CodeUI
 class MessageTableCell: UITableViewCell {
     
     private var panGesture: UIPanGestureRecognizer!
+    private var longPressGesture: UILongPressGestureRecognizer!
+    private var doubleTapGesture: UITapGestureRecognizer!
     
     private var startCenter: CGPoint = .zero
     private var didTap: Bool = false
@@ -26,6 +28,8 @@ class MessageTableCell: UITableViewCell {
     }
     
     var onSwipeToReply: (() -> Void)?
+    var onLongPress: (() -> Void)?
+    var onDoubleTap: (() -> Void)?
     
     private let arrowImageView: UIImageView = {
         let imageView = UIImageView()
@@ -53,6 +57,14 @@ class MessageTableCell: UITableViewCell {
         panGesture.delegate = self
         addGestureRecognizer(panGesture)
         
+        longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
+        longPressGesture.minimumPressDuration = 0.3
+        addGestureRecognizer(longPressGesture)
+        
+        doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
+        doubleTapGesture.numberOfTapsRequired = 2
+        addGestureRecognizer(doubleTapGesture)
+        
         addSubview(arrowImageView)
         
         NSLayoutConstraint.activate([
@@ -64,6 +76,18 @@ class MessageTableCell: UITableViewCell {
     }
     
     // MARK: - Drag -
+    
+    @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        if gesture.state == .began {
+            onLongPress?()
+        }
+    }
+    
+    @objc private func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+        if gesture.state == .ended {
+            onDoubleTap?()
+        }
+    }
     
     @objc private func handlePanGesture(_ gesture: UIPanGestureRecognizer) {
         let translation = gesture.translation(in: gesture.view)

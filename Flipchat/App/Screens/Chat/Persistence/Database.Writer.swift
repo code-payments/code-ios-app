@@ -85,6 +85,15 @@ extension Database {
         )
     }
     
+    func deleteMessage(messageID: UUID) throws {
+        let message = MessageTable()
+        try writer.run(
+            message.table
+                .filter(message.serverID == messageID)
+                .delete()
+        )
+    }
+    
     func muteRoom(roomID: UUID, muted: Bool) throws {
         let room = RoomTable()
         try writer.run(

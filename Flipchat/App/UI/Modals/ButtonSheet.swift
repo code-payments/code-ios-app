@@ -109,10 +109,14 @@ public struct ButtonSheet: View {
         Button {
             description.action(.more)
         } label: {
-            HStack {}
-                .frame(width: adjustedWidth, height: adjustedWidth, alignment: .center)
-                .background(Color.backgroundMessageReceived)
-                .clipShape(Circle())
+            HStack {
+                Image.asset(.moreEmoji)
+                    .padding(.leading, 2)
+                    .padding(.bottom, 2)
+            }
+            .frame(width: adjustedWidth, height: adjustedWidth, alignment: .center)
+            .background(Color.backgroundMessageReceived)
+            .clipShape(Circle())
         }
         .frame(maxWidth: .infinity)
     }

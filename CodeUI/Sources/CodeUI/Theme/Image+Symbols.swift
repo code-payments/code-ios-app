@@ -123,6 +123,7 @@ public enum Asset: String, Sendable {
     case kinHex
     case profile
     case more
+    case moreEmoji
     case crown
     case scrollBottom
     

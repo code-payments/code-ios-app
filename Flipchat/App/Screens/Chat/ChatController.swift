@@ -118,6 +118,14 @@ class ChatController: ObservableObject {
         try database.getTipUsers(messageID: messageID.uuid)
     }
     
+    func getFrequentEmoji(userID: UserID, threshold: Int) throws -> [FrequentEmoji] {
+        try database.getFrequentEmoji(userID: userID.uuid, threshold: threshold)
+    }
+    
+    func getReactionUsers(messageID: MessageID) throws -> [ReactionUser] {
+        try database.getReactionUsers(messageID: messageID.uuid)
+    }
+    
     func getPointer(userID: UserID, chatID: ChatID) throws -> MessagePointer? {
         try database.getPointer(userID: userID.uuid, roomID: chatID.uuid)
     }

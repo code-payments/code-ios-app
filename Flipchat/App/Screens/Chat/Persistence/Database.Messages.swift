@@ -72,25 +72,27 @@ extension Database {
     func getTipUsers(messageID: UUID) throws -> [TipUser] {
         let statement = try reader.prepareRowIterator("""
         SELECT
-            u.serverID    AS userID,
-            u.displayName AS displayName,
-            SUM(t.kin)    AS tip,
+            u.serverID         AS userID,
+            u.displayName      AS displayName,
+            SUM(t.kin)         AS tip,
         
-            p.displayName  AS socialDisplayName,
-            p.avatarURL    AS socialAvatarURL,
+            p.displayName      AS socialDisplayName,
+            p.avatarURL        AS socialAvatarURL,
             p.verificationType AS socialVerificationType
         
         FROM 
             message m
         
-        LEFT JOIN message t ON t.referenceID = m.serverID AND t.contentType = 4
+        INNER JOIN message t ON t.referenceID = m.serverID AND t.contentType = 4
         LEFT JOIN user u    ON t.senderID = u.serverID
         LEFT JOIN profile p ON u.serverID = p.userID
         
-        WHERE m.serverID = "\(messageID)"
-        GROUP BY u.serverID, u.displayName
-        
-        ORDER BY tip DESC;
+        WHERE 
+            m.serverID = "\(messageID)"
+        GROUP BY 
+            u.serverID, u.displayName
+        ORDER BY 
+            tip DESC;
         """)
         
         return try statement.map { row in
@@ -98,6 +100,69 @@ extension Database {
                 userID:      row[Expression<UUID>("userID")],
                 displayName: row[Expression<String?>("displayName")],
                 tip:         Kin(quarks: row[Expression<UInt64>("tip")]),
+                profile:     .init(row: row)
+            )
+        }
+    }
+    
+    func getFrequentEmoji(userID: UUID, threshold: Int) throws -> [FrequentEmoji] {
+        let statement = try reader.prepareRowIterator("""
+         SELECT
+             m.content AS emoji,
+             COUNT(*) AS usageCount
+         FROM
+             message m
+         WHERE
+             m.senderID = "\(userID)"
+             AND m.contentType = 2
+             AND m.isDeleted = 0
+         GROUP BY
+             m.content
+         HAVING
+             COUNT(*) >= \(threshold)
+         ORDER BY
+             COUNT(*) DESC, MAX(m.date) DESC
+         LIMIT 6;
+        """)
+        
+        return try statement.map { row in
+            FrequentEmoji(
+                emoji: row[Expression<String>("emoji")],
+                count: row[Expression<Int>("usageCount")]
+            )
+        }
+    }
+    
+    func getReactionUsers(messageID: UUID) throws -> [ReactionUser] {
+        let statement = try reader.prepareRowIterator("""
+         SELECT
+            u.serverID         AS userID,
+            u.displayName      AS displayName,
+            GROUP_CONCAT(r.content, ',') AS reactions,
+        
+            p.displayName      AS socialDisplayName,
+            p.avatarURL        AS socialAvatarURL,
+            p.verificationType AS socialVerificationType
+        FROM 
+            message m
+        
+        INNER JOIN message r ON r.referenceID = m.serverID AND r.contentType = 2
+        LEFT JOIN user u    ON r.senderID = u.serverID
+        LEFT JOIN profile p ON u.serverID = p.userID
+        
+        WHERE 
+            m.serverID = "\(messageID)"
+        GROUP BY 
+            u.serverID, u.displayName
+        ORDER BY 
+            p.verificationType DESC, MIN(r.date) ASC;
+        """)
+        
+        return try statement.map { row in
+            ReactionUser(
+                userID:      row[Expression<UUID>("userID")],
+                displayName: row[Expression<String?>("displayName")],
+                reactions:   row[Expression<String>("reactions")],
                 profile:     .init(row: row)
             )
         }
@@ -174,7 +239,8 @@ extension Database {
         LEFT JOIN profile rp ON r.senderID    = rp.userID
 
         WHERE 
-            m.roomID = "\(roomID.uuidString)"
+            m.roomID = "\(roomID.uuidString)" AND
+            m.contentType != 2
         ORDER BY m.serverID DESC
         LIMIT \(pageSize) OFFSET \(offset);
         """)

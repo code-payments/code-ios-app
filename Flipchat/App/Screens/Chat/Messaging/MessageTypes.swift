@@ -16,6 +16,7 @@ enum MessageAction {
     case showTippers(MessageID)
     case openProfile(UserID)
     case reaction(MessageID, MessageReaction)
+    case showReactions(MessageID)
 }
 
 struct MessageDescription: Identifiable, Hashable, Equatable {

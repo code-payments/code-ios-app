@@ -14,11 +14,13 @@ struct TipAnnotation: View {
     private let kin: Kin
     private let isFilled: Bool
     private let action: () -> Void
+    private let longPress: () -> Void
     
-    init(kin: Kin, isFilled: Bool, action: @escaping () -> Void) {
+    init(kin: Kin, isFilled: Bool, action: @escaping () -> Void, longPress: @escaping () -> Void) {
         self.kin = kin
         self.isFilled = isFilled
         self.action = action
+        self.longPress = longPress
     }
     
     var body: some View {
@@ -44,6 +46,9 @@ struct TipAnnotation: View {
                         .strokeBorder(Color.actionSecondary, lineWidth: 1)
                 }
             }
+            .highPriorityGesture(LongPressGesture(minimumDuration: 0.2).onEnded { _ in
+                longPress()
+            })
         }
     }
 }
@@ -54,12 +59,14 @@ struct ReactionAnnotation: View {
     private let count: Int
     private let isFilled: Bool
     private let action: () -> Void
+    private let longPress: () -> Void
     
-    init(emoji: String, count: Int, isFilled: Bool, action: @escaping () -> Void) {
+    init(emoji: String, count: Int, isFilled: Bool, action: @escaping () -> Void, longPress: @escaping () -> Void) {
         self.emoji = emoji
         self.count = count
         self.isFilled = isFilled
         self.action = action
+        self.longPress = longPress
     }
     
     var body: some View {
@@ -85,6 +92,9 @@ struct ReactionAnnotation: View {
                         .strokeBorder(Color.actionSecondary, lineWidth: 1)
                 }
             }
+            .highPriorityGesture(LongPressGesture(minimumDuration: 0.2).onEnded { _ in
+                longPress()
+            })
         }
     }
 }
