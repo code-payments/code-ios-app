@@ -26,6 +26,22 @@ elif [[ "$APP" == "flipchatPayments" ]]; then
     GENERATED_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/Generated"
     PULL_REPO="code-payments/code-protobuf-api"
     PULL_BRANCH="fc"
+
+elif [[ "$APP" == "flipcashCore" ]]; then
+    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core"
+    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto"
+    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto_deps"
+    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/Generated"
+    PULL_REPO="code-payments/code-protobuf-api"
+    PULL_BRANCH="vm"
+
+elif [[ "$APP" == "flipcashPayments" ]]; then
+    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments"
+    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/proto"
+    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/proto_deps"
+    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/Generated"
+    PULL_REPO="code-payments/code-protobuf-api"
+    PULL_BRANCH="vm"
     
 elif [[ "$APP" == "code" ]]; then
     PROTOS_ROOT_DIR="../CodeAPI/Sources/CodeAPI"
@@ -34,6 +50,7 @@ elif [[ "$APP" == "code" ]]; then
     GENERATED_DIR="../CodeAPI/Sources/CodeAPI/Generated"
     PULL_REPO="code-payments/code-protobuf-api"
     PULL_BRANCH="main"
+    
 else
     echo "error: Unknown app type '$APP'. Use 'code' or 'flipchat'."
     exit 1

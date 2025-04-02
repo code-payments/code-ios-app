@@ -40,6 +40,17 @@
 			name = FlipchatServiceGen;
 			productName = CodeServiceGen;
 		};
+		9ABDD1972D9D7CBF006B6CDA /* FlipcashGen */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 9ABDD1992D9D7CBF006B6CDA /* Build configuration list for PBXAggregateTarget "FlipcashGen" */;
+			buildPhases = (
+				9ABDD1982D9D7CBF006B6CDA /* Generate Flipchat Services */,
+			);
+			dependencies = (
+			);
+			name = FlipcashGen;
+			productName = CodeServiceGen;
+		};
 		9AEB5FD225CDD4B8004B3680 /* CodeServiceGen */ = {
 			isa = PBXAggregateTarget;
 			buildConfigurationList = 9AEB5FD325CDD4B8004B3680 /* Build configuration list for PBXAggregateTarget "CodeServiceGen" */;
@@ -542,6 +553,7 @@
 		9AB7C58425E440A40007B3D5 /* Exchange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exchange.swift; sourceTree = "<group>"; };
 		9AB7C59725E59F6F0007B3D5 /* String+Decimal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Decimal.swift"; sourceTree = "<group>"; };
 		9AB7C5C625E7F8730007B3D5 /* BillState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillState.swift; sourceTree = "<group>"; };
+		9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashAPI; sourceTree = "<group>"; };
 		9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9ACC074E28342BF1001F0081 /* Guards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Guards.swift; sourceTree = "<group>"; };
 		9ACFA003261DFDA6007F97B4 /* Environment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Environment.swift; sourceTree = "<group>"; };
@@ -1201,6 +1213,7 @@
 				9A91F4D12CC01FA60018CE65 /* FlipchatServices */,
 				9A2554432CE50D8E003B207D /* FlipchatPaymentsAPI */,
 				9A43F0102D9C357900CE8817 /* FlipcashCore */,
+				9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1701,6 +1714,7 @@
 				9A516F792D9B12E800AF478B /* Flipcash */,
 				9A516F882D9B12EA00AF478B /* FlipcashTests */,
 				9A516F922D9B12EA00AF478B /* FlipcashUITests */,
+				9ABDD1972D9D7CBF006B6CDA /* FlipcashGen */,
 			);
 		};
 /* End PBXProject section */
@@ -1931,6 +1945,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$SOURCE_ROOT/Flipchat/Supporting Files/GoogleService-Info.plist\" \"FCG_\"\n";
+		};
+		9ABDD1982D9D7CBF006B6CDA /* Generate Flipchat Services */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Flipchat Services";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n#./run -a flipcashCore     # -s 1 # skips pull, only runs generation\n./run -a flipcashPayments # -s 1 # skips pull, only runs generation\n";
 		};
 		9AEB5FDB25CDD4CB004B3680 /* Generate Code Services */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -3787,6 +3820,38 @@
 			};
 			name = "Release Development";
 		};
+		9ABDD19A2D9D7CBF006B6CDA /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Development;
+		};
+		9ABDD19B2D9D7CBF006B6CDA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		9ABDD19C2D9D7CBF006B6CDA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		9ABDD19D2D9D7CBF006B6CDA /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = "Release Development";
+		};
 		9AEB5FD425CDD4B8004B3680 /* Development */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -4215,6 +4280,17 @@
 				9A9970D02CA33147006BDE08 /* Debug */,
 				9A9970D12CA33147006BDE08 /* Release */,
 				9A9970D22CA33147006BDE08 /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9ABDD1992D9D7CBF006B6CDA /* Build configuration list for PBXAggregateTarget "FlipcashGen" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9ABDD19A2D9D7CBF006B6CDA /* Development */,
+				9ABDD19B2D9D7CBF006B6CDA /* Debug */,
+				9ABDD19C2D9D7CBF006B6CDA /* Release */,
+				9ABDD19D2D9D7CBF006B6CDA /* Release Development */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

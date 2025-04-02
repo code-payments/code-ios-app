@@ -18,8 +18,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/karwa/swift-url", from: "0.4.2"),
         .package(path: "../CodeCurves"),
-//        .package(path: "../FlipcashAPI"),
-//        .package(path: "../FlipcashPaymentsAPI"),
+        .package(path: "../FlipcashAPI"),
     ],
     targets: [
         .target(
@@ -28,8 +27,7 @@ let package = Package(
                 .product(name: "CodeCurves", package: "CodeCurves"),
                 .product(name: "WebURL", package: "swift-url"),
                 .product(name: "WebURLFoundationExtras", package: "swift-url"),
-//                .product(name: "FlipcashAPI", package: "FlipcashAPI"),
-//                .product(name: "FlipcashPaymentsAPI", package: "FlipcashPaymentsAPI"),
+                .product(name: "FlipcashAPI", package: "FlipcashAPI"),
             ]
         ),
         .testTarget(
@@ -38,23 +36,3 @@ let package = Package(
         ),
     ]
 )
-
-//let package = Package(
-//    name: "FlipcashCore",
-//    products: [
-//        // Products define the executables and libraries a package produces, making them visible to other packages.
-//        .library(
-//            name: "FlipcashCore",
-//            targets: ["FlipcashCore"]),
-//    ],
-//    targets: [
-//        // Targets are the basic building blocks of a package, defining a module or a test suite.
-//        // Targets can depend on other targets in this package and products from dependencies.
-//        .target(
-//            name: "FlipcashCore"),
-//        .testTarget(
-//            name: "FlipcashCoreTests",
-//            dependencies: ["FlipcashCore"]
-//        ),
-//    ]
-//)
