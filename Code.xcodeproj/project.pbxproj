@@ -211,6 +211,7 @@
 		9AB7C58525E440A40007B3D5 /* Exchange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C58425E440A40007B3D5 /* Exchange.swift */; };
 		9AB7C59825E59F700007B3D5 /* String+Decimal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C59725E59F6F0007B3D5 /* String+Decimal.swift */; };
 		9AB7C5C725E7F8730007B3D5 /* BillState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C5C625E7F8730007B3D5 /* BillState.swift */; };
+		9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
 		9AC784B22BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9ACC074F28342BF1001F0081 /* Guards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC074E28342BF1001F0081 /* Guards.swift */; };
@@ -611,6 +612,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1283,6 +1285,7 @@
 			);
 			name = Flipcash;
 			packageProductDependencies = (
+				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -4463,6 +4466,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseInstallations;
+		};
+		9ABDD1942D9D7B61006B6CDA /* FlipcashCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlipcashCore;
 		};
 		9ACE172A27E6287D00ACA047 /* Mixpanel */ = {
 			isa = XCSwiftPackageProductDependency;
