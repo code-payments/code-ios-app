@@ -263,6 +263,20 @@
 			remoteGlobalIDString = 9AD5D7BF25F26CC3007388AE;
 			remoteInfo = CodeScanner;
 		};
+		9A516F8A2D9B12EA00AF478B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9A516F792D9B12E800AF478B;
+			remoteInfo = Flipcash;
+		};
+		9A516F942D9B12EA00AF478B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9A516F792D9B12E800AF478B;
+			remoteInfo = Flipcash;
+		};
 		9A6BFF122B75667700E04EB7 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
@@ -399,10 +413,14 @@
 		9A4283BB2A02B5B100792BFD /* ShareCashItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCashItem.swift; sourceTree = "<group>"; };
 		9A4283BD2A02B9F200792BFD /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		9A4283C02A055C5400792BFD /* GiftCardVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiftCardVault.swift; sourceTree = "<group>"; };
+		9A43F0102D9C357900CE8817 /* FlipcashCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashCore; sourceTree = "<group>"; };
 		9A44E6852D08061200922066 /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		9A476D4B2978892600C5B5CE /* ErrorReporting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorReporting.swift; sourceTree = "<group>"; };
 		9A48D93828512E7800EA9AA4 /* PermissionScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionScreen.swift; sourceTree = "<group>"; };
 		9A4F3D06298D99930089C0FB /* BucketScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BucketScreen.swift; sourceTree = "<group>"; };
+		9A516F7A2D9B12E900AF478B /* Flipcash.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flipcash.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipcashTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlipcashUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A557D9C28A6BB2F00A58BB1 /* PushController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushController.swift; sourceTree = "<group>"; };
 		9A557D9F28AC34A300A58BB1 /* Reachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reachability.swift; sourceTree = "<group>"; };
 		9A57221825EE92BC00B243FC /* SettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreen.swift; sourceTree = "<group>"; };
@@ -579,6 +597,9 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		9A516F7B2D9B12E900AF478B /* Flipcash */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Flipcash; sourceTree = "<group>"; };
+		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashTests; sourceTree = "<group>"; };
+		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashUITests; sourceTree = "<group>"; };
 		9A83DCC52D8A650600E38B84 /* EmojiGenerator */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = EmojiGenerator; sourceTree = "<group>"; };
 		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9A91F2A22CB5C17A0018CE65 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
 		9A9970B52CA33147006BDE08 /* FlipchatTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatTests; sourceTree = "<group>"; };
@@ -586,6 +607,27 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		9A516F772D9B12E800AF478B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A516F862D9B12EA00AF478B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A516F902D9B12EA00AF478B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9A6BFF0A2B75667600E04EB7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -1065,6 +1107,9 @@
 				9A9970B52CA33147006BDE08 /* FlipchatTests */,
 				9A9970BF2CA33147006BDE08 /* FlipchatUITests */,
 				9A83DCC52D8A650600E38B84 /* EmojiGenerator */,
+				9A516F7B2D9B12E900AF478B /* Flipcash */,
+				9A516F8C2D9B12EA00AF478B /* FlipcashTests */,
+				9A516F962D9B12EA00AF478B /* FlipcashUITests */,
 				9AED1101258BE1310088D902 /* Products */,
 				9A1654C42678FB60000A135E /* Frameworks */,
 			);
@@ -1082,6 +1127,9 @@
 				9A9970B22CA33147006BDE08 /* FlipchatTests.xctest */,
 				9A9970BC2CA33147006BDE08 /* FlipchatUITests.xctest */,
 				9A83DCC42D8A650500E38B84 /* EmojiGenerator */,
+				9A516F7A2D9B12E900AF478B /* Flipcash.app */,
+				9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */,
+				9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1150,6 +1198,7 @@
 				9A91F4C72CC0142C0018CE65 /* FlipchatAPI */,
 				9A91F4D12CC01FA60018CE65 /* FlipchatServices */,
 				9A2554432CE50D8E003B207D /* FlipchatPaymentsAPI */,
+				9A43F0102D9C357900CE8817 /* FlipcashCore */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1217,6 +1266,74 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		9A516F792D9B12E800AF478B /* Flipcash */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A516F9B2D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "Flipcash" */;
+			buildPhases = (
+				9A516F762D9B12E800AF478B /* Sources */,
+				9A516F772D9B12E800AF478B /* Frameworks */,
+				9A516F782D9B12E800AF478B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				9A516F7B2D9B12E900AF478B /* Flipcash */,
+			);
+			name = Flipcash;
+			packageProductDependencies = (
+			);
+			productName = Flipcash;
+			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9A516F882D9B12EA00AF478B /* FlipcashTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A516FA02D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "FlipcashTests" */;
+			buildPhases = (
+				9A516F852D9B12EA00AF478B /* Sources */,
+				9A516F862D9B12EA00AF478B /* Frameworks */,
+				9A516F872D9B12EA00AF478B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9A516F8B2D9B12EA00AF478B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9A516F8C2D9B12EA00AF478B /* FlipcashTests */,
+			);
+			name = FlipcashTests;
+			packageProductDependencies = (
+			);
+			productName = FlipcashTests;
+			productReference = 9A516F892D9B12EA00AF478B /* FlipcashTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		9A516F922D9B12EA00AF478B /* FlipcashUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A516FA52D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "FlipcashUITests" */;
+			buildPhases = (
+				9A516F8F2D9B12EA00AF478B /* Sources */,
+				9A516F902D9B12EA00AF478B /* Frameworks */,
+				9A516F912D9B12EA00AF478B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9A516F952D9B12EA00AF478B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				9A516F962D9B12EA00AF478B /* FlipcashUITests */,
+			);
+			name = FlipcashUITests;
+			packageProductDependencies = (
+			);
+			productName = FlipcashUITests;
+			productReference = 9A516F932D9B12EA00AF478B /* FlipcashUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		9A6BFF0C2B75667600E04EB7 /* CodePushExtension */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A6BFF152B75667700E04EB7 /* Build configuration list for PBXNativeTarget "CodePushExtension" */;
@@ -1449,6 +1566,17 @@
 				LastSwiftUpdateCheck = 1620;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
+					9A516F792D9B12E800AF478B = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					9A516F882D9B12EA00AF478B = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 9A516F792D9B12E800AF478B;
+					};
+					9A516F922D9B12EA00AF478B = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 9A516F792D9B12E800AF478B;
+					};
 					9A6BFF0C2B75667600E04EB7 = {
 						CreatedOnToolsVersion = 15.2;
 					};
@@ -1567,6 +1695,9 @@
 				9A91F4CA2CC014E20018CE65 /* FlipchatServiceGen */,
 				9A2554442CE50E30003B207D /* FlipchatPaymentsGen */,
 				9A83DCC32D8A650500E38B84 /* EmojiGenerator */,
+				9A516F792D9B12E800AF478B /* Flipcash */,
+				9A516F882D9B12EA00AF478B /* FlipcashTests */,
+				9A516F922D9B12EA00AF478B /* FlipcashUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -1589,6 +1720,27 @@
 /* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
+		9A516F782D9B12E800AF478B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A516F872D9B12EA00AF478B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A516F912D9B12EA00AF478B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9A6BFF0B2B75667600E04EB7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1818,6 +1970,27 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		9A516F762D9B12E800AF478B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A516F852D9B12EA00AF478B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A516F8F2D9B12EA00AF478B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9A6BFF092B75667600E04EB7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -2038,6 +2211,16 @@
 			isa = PBXTargetDependency;
 			name = CodeScanner;
 			targetProxy = 9A1EBC6B2624719F003F8B19 /* PBXContainerItemProxy */;
+		};
+		9A516F8B2D9B12EA00AF478B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9A516F792D9B12E800AF478B /* Flipcash */;
+			targetProxy = 9A516F8A2D9B12EA00AF478B /* PBXContainerItemProxy */;
+		};
+		9A516F952D9B12EA00AF478B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9A516F792D9B12E800AF478B /* Flipcash */;
+			targetProxy = 9A516F942D9B12EA00AF478B /* PBXContainerItemProxy */;
 		};
 		9A6BFF132B75667700E04EB7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2488,6 +2671,368 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = "Release Development";
+		};
+		9A516F9C2D9B12EA00AF478B /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 100;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipcash;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Development;
+		};
+		9A516F9D2D9B12EA00AF478B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 100;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipcash;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9A516F9E2D9B12EA00AF478B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 100;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipcash;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9A516F9F2D9B12EA00AF478B /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 100;
+				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.Flipcash;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release Development";
+		};
+		9A516FA12D9B12EA00AF478B /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipcash.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipcash";
+			};
+			name = Development;
+		};
+		9A516FA22D9B12EA00AF478B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipcash.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipcash";
+			};
+			name = Debug;
+		};
+		9A516FA32D9B12EA00AF478B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipcash.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipcash";
+			};
+			name = Release;
+		};
+		9A516FA42D9B12EA00AF478B /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Flipcash.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Flipcash";
+			};
+			name = "Release Development";
+		};
+		9A516FA62D9B12EA00AF478B /* Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipcash;
+			};
+			name = Development;
+		};
+		9A516FA72D9B12EA00AF478B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipcash;
+			};
+			name = Debug;
+		};
+		9A516FA82D9B12EA00AF478B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipcash;
+			};
+			name = Release;
+		};
+		9A516FA92D9B12EA00AF478B /* Release Development */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 83VHY3GSWL;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.code.FlipcashUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Flipcash;
 			};
 			name = "Release Development";
 		};
@@ -3546,6 +4091,39 @@
 				9A2554482CE50E30003B207D /* Debug */,
 				9A2554492CE50E30003B207D /* Release */,
 				9A25544A2CE50E30003B207D /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9A516F9B2D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "Flipcash" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A516F9C2D9B12EA00AF478B /* Development */,
+				9A516F9D2D9B12EA00AF478B /* Debug */,
+				9A516F9E2D9B12EA00AF478B /* Release */,
+				9A516F9F2D9B12EA00AF478B /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9A516FA02D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "FlipcashTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A516FA12D9B12EA00AF478B /* Development */,
+				9A516FA22D9B12EA00AF478B /* Debug */,
+				9A516FA32D9B12EA00AF478B /* Release */,
+				9A516FA42D9B12EA00AF478B /* Release Development */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9A516FA52D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "FlipcashUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A516FA62D9B12EA00AF478B /* Development */,
+				9A516FA72D9B12EA00AF478B /* Debug */,
+				9A516FA82D9B12EA00AF478B /* Release */,
+				9A516FA92D9B12EA00AF478B /* Release Development */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

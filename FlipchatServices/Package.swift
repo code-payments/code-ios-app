@@ -30,7 +30,6 @@ let package = Package(
                 .product(name: "FlipchatAPI", package: "FlipchatAPI"),
                 .product(name: "FlipchatPaymentsAPI", package: "FlipchatPaymentsAPI"),
             ]
-//            ,exclude: ["Payments/API/Client+Chat.swift"]
         ),
         .testTarget(
             name: "FlipchatServicesTests",
