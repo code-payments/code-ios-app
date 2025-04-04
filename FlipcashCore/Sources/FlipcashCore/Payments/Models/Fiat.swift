@@ -13,6 +13,14 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     public let quarks: UInt64
     public let currencyCode: CurrencyCode
     
+    public var decimalValue: Decimal {
+        quarks.toFiat
+    }
+    
+    public var doubleValue: Double {
+        decimalValue.doubleValue
+    }
+    
     // MARK: - Init -
     
     public init(quarks: UInt64, currencyCode: CurrencyCode) {

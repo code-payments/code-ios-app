@@ -7,7 +7,7 @@
 //
 
 import Foundation
-//import FlipchatPaymentsAPI
+import FlipcashAPI
 
 public struct Limits: Codable, Equatable, Hashable, Sendable {
     
@@ -87,48 +87,48 @@ public struct SendLimit: Codable, Equatable, Hashable, Sendable {
 
 // MARK: - Proto -
 
-//extension Limits {
-//    init(sinceDate: Date, fetchDate: Date, sendLimits: [String: Code_Transaction_V2_SendLimit], buyLimits: [String: Code_Transaction_V2_BuyModuleLimit], deposits: Code_Transaction_V2_DepositLimit) {
-//        
-//        let sendDict = sendLimits.mapValues {
-//            SendLimit(
-//                nextTransaction: Decimal(Double($0.nextTransaction)),
-//                maxPerTransaction: Decimal(Double($0.maxPerTransaction)),
-//                maxPerDay: Decimal(Double($0.maxPerDay))
-//            )
-//            
-//        }
-//        
-//        var sendContainer: [CurrencyCode: SendLimit] = [:]
-//        sendDict.forEach { code, limit in
-//            if let currency = CurrencyCode(currencyCode: code) {
-//                sendContainer[currency] = limit
-//            }
-//        }
-//        
-//        let buyDict = buyLimits.mapValues {
-//            BuyLimit(
-//                max: Decimal(Double($0.maxPerTransaction)),
-//                min: Decimal(Double($0.minPerTransaction))
-//            )
-//        }
-//        
-//        var buyContainer: [CurrencyCode: BuyLimit] = [:]
-//        buyDict.forEach { code, limit in
-//            if let currency = CurrencyCode(currencyCode: code) {
-//                buyContainer[currency] = limit
-//            }
-//        }
-//        
-//        self.init(
-//            sinceDate: sinceDate,
-//            fetchDate: fetchDate,
-//            sendLimits: sendContainer,
-//            buyLimits: buyContainer,
-//            maxDeposit: Kin(quarks: deposits.maxQuarks)
-//        )
-//    }
-//}
+extension Limits {
+    init(sinceDate: Date, fetchDate: Date, sendLimits: [String: Code_Transaction_V2_SendLimit], buyLimits: [String: Code_Transaction_V2_BuyModuleLimit], deposits: Code_Transaction_V2_DepositLimit) {
+        
+        let sendDict = sendLimits.mapValues {
+            SendLimit(
+                nextTransaction: Decimal(Double($0.nextTransaction)),
+                maxPerTransaction: Decimal(Double($0.maxPerTransaction)),
+                maxPerDay: Decimal(Double($0.maxPerDay))
+            )
+            
+        }
+        
+        var sendContainer: [CurrencyCode: SendLimit] = [:]
+        sendDict.forEach { code, limit in
+            if let currency = CurrencyCode(currencyCode: code) {
+                sendContainer[currency] = limit
+            }
+        }
+        
+        let buyDict = buyLimits.mapValues {
+            BuyLimit(
+                max: Decimal(Double($0.maxPerTransaction)),
+                min: Decimal(Double($0.minPerTransaction))
+            )
+        }
+        
+        var buyContainer: [CurrencyCode: BuyLimit] = [:]
+        buyDict.forEach { code, limit in
+            if let currency = CurrencyCode(currencyCode: code) {
+                buyContainer[currency] = limit
+            }
+        }
+        
+        self.init(
+            sinceDate: sinceDate,
+            fetchDate: fetchDate,
+            sendLimits: sendContainer,
+            buyLimits: buyContainer,
+            maxDeposit: Fiat(quarks: deposits.maxQuarks, currencyCode: .usd)
+        )
+    }
+}
 
 extension Limits {
     public static let empty = Limits(

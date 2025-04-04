@@ -19,9 +19,9 @@ public enum IntentMetadata: Equatable, Sendable {
 
 public struct PaymentMetadata: Equatable, Sendable {
     
-    public let amount: Fiat
+    public let amount: FiatAmount
     
-    init(amount: Fiat) {
+    init(amount: FiatAmount) {
         self.amount = amount
     }
 }
