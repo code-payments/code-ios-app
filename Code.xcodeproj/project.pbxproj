@@ -223,6 +223,7 @@
 		9AB7C59825E59F700007B3D5 /* String+Decimal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C59725E59F6F0007B3D5 /* String+Decimal.swift */; };
 		9AB7C5C725E7F8730007B3D5 /* BillState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C5C625E7F8730007B3D5 /* BillState.swift */; };
 		9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
+		9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AC011172DA4320F0030298E /* FlipcashUI */; };
 		9AC784B22BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9ACC074F28342BF1001F0081 /* Guards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC074E28342BF1001F0081 /* Guards.swift */; };
@@ -392,6 +393,7 @@
 		9A093D6C25D5C1EF000E7DD9 /* Secure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secure.swift; sourceTree = "<group>"; };
 		9A093DA325DD724E000E7DD9 /* ReceiveTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiveTransaction.swift; sourceTree = "<group>"; };
 		9A093DAA25DDAD0C000E7DD9 /* SendTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendTransaction.swift; sourceTree = "<group>"; };
+		9A0C7F8E2DA0379A0018C7CB /* FlipcashUI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashUI; sourceTree = "<group>"; };
 		9A0F082B2BBC4B5400C65489 /* ModalTipConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalTipConfirmation.swift; sourceTree = "<group>"; };
 		9A0F082D2BBC753D00C65489 /* ModalInsufficientFunds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalInsufficientFunds.swift; sourceTree = "<group>"; };
 		9A0F082E2BBC753D00C65489 /* ModalLoginConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalLoginConfirmation.swift; sourceTree = "<group>"; };
@@ -624,6 +626,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
 				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1214,6 +1217,7 @@
 				9A2554432CE50D8E003B207D /* FlipchatPaymentsAPI */,
 				9A43F0102D9C357900CE8817 /* FlipcashCore */,
 				9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */,
+				9A0C7F8E2DA0379A0018C7CB /* FlipcashUI */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1299,6 +1303,7 @@
 			name = Flipcash;
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
+				9AC011172DA4320F0030298E /* FlipcashUI */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -4546,6 +4551,10 @@
 		9ABDD1942D9D7B61006B6CDA /* FlipcashCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlipcashCore;
+		};
+		9AC011172DA4320F0030298E /* FlipcashUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlipcashUI;
 		};
 		9ACE172A27E6287D00ACA047 /* Mixpanel */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -6,8 +6,12 @@
 //
 
 import Foundation
+import FlipcashCore
 
+@MainActor
 class Container {
+    
+    let client = Client(network: .mainNet)
     
     // MARK: - Init -
     

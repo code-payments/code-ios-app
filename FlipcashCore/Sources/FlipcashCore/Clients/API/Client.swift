@@ -25,9 +25,9 @@ public class Client: ObservableObject {
     
     // MARK: - Init -
     
-    public init(network: Network, queue: DispatchQueue = .main) {
+    public init(network: Network) {
         self.network = network
-        self.queue   = queue
+        self.queue   = .main
         self.channel = ClientConnection.appConnection(
             host: network.hostForPayments,
             port: network.port

@@ -18,7 +18,7 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
         
         let call = service.getAllRates(Code_Currency_V1_GetAllRatesRequest())
         call.handle(on: queue) { response in
-            var rates = response.rates.compactMap { key, value in
+            let rates = response.rates.compactMap { key, value in
                 Rate(
                     fx: Decimal(value),
                     currencyCode: key
