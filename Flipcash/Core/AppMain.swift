@@ -6,12 +6,24 @@
 //
 
 import SwiftUI
+import FlipcashUI
 
 @main
 struct AppMain: App {
+    
+    let container = Container()
+    
+    // MARK: - Init -
+    
+    init() {
+        FontBook.registerApplicationFonts()
+    }
+    
+    // MARK: - Body -
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ScanScreen(container: container)
         }
     }
 }

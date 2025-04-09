@@ -6,15 +6,16 @@
 //  Copyright © 2021 Code Inc. All rights reserved.
 //
 
-import Foundation
+import SwiftUI
 import AVKit
 
 @MainActor
-public class CameraAuthorizer: ObservableObject {
+@Observable
+public class CameraAuthorizer {
     
-    @Published public var status: AVAuthorizationStatus = .notDetermined
+    public var status: AVAuthorizationStatus = .notDetermined
     
-    private let mediaType = AVMediaType.video
+    private static let mediaType = AVMediaType.video
     
     // MARK: - Init -
     
@@ -25,13 +26,12 @@ public class CameraAuthorizer: ObservableObject {
     // MARK: - Authorize -
     
     public func authorize(completion: ((AVAuthorizationStatus) -> Void)? = nil) {
-        let status = AVCaptureDevice.authorizationStatus(for: mediaType)
+        let status = AVCaptureDevice.authorizationStatus(for: Self.mediaType)
         if status != .authorized {
-            AVCaptureDevice.requestAccess(for: mediaType) { requested in
-                Task { @MainActor in
-                    self.updateStatus()
-                    completion?(self.status)
-                }
+            Task {
+                await AVCaptureDevice.requestAccess(for: Self.mediaType)
+                updateStatus()
+                completion?(self.status)
             }
         } else {
             completion?(status)
@@ -39,6 +39,6 @@ public class CameraAuthorizer: ObservableObject {
     }
     
     private func updateStatus() {
-        status = AVCaptureDevice.authorizationStatus(for: mediaType)
+        status = AVCaptureDevice.authorizationStatus(for: Self.mediaType)
     }
 }

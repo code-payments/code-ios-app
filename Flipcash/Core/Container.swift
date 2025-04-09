@@ -6,12 +6,15 @@
 //
 
 import Foundation
+import FlipcashUI
 import FlipcashCore
 
 @MainActor
 class Container {
     
     let client = Client(network: .mainNet)
+    
+    let cameraSession = CameraSession<CodeExtractor>()
     
     // MARK: - Init -
     
