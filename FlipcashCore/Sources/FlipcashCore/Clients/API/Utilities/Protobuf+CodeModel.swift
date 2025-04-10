@@ -57,56 +57,21 @@ extension ID {
     }
 }
 
-extension IntentMetadata {
-    init?(_ metadata: Code_Transaction_V2_Metadata) {
-        guard let type = metadata.type else {
-            return nil
-        }
-        
-        switch type {
-        case .openAccounts:
-            self = .openAccounts
-            
-        case .receivePaymentsPublicly(let meta):
-            guard let metadata = Self.paymentMetadata(for: meta.exchangeData) else {
-                return nil
-            }
-            
-            self = .receivePaymentsPublicly(metadata)
-            
-        case .sendPublicPayment(let meta):
-            guard let metadata = Self.paymentMetadata(for: meta.exchangeData) else {
-                return nil
-            }
-            
-            self = .sendPublicPayment(metadata)
-        }
-    }
-    
-    private static func paymentMetadata(for exchangeData: Code_Transaction_V2_ExchangeData) -> PaymentMetadata? {
-        guard let amount = exchangeData.fiat else {
-            return nil
-        }
-        
-        return PaymentMetadata(amount: amount)
-    }
-}
-
-extension Code_Transaction_V2_ExchangeData {
-    var fiat: FiatAmount? {
-        guard let currency = CurrencyCode(currencyCode: currency) else {
-            return nil
-        }
-        
-        return FiatAmount(
-            fiat: Fiat(
-                quarks: quarks,
-                currencyCode: .usd
-            ),
-            rate: Rate(
-                fx: Decimal(exchangeRate),
-                currency: currency
-            )
-        )
-    }
-}
+//extension Code_Transaction_V2_ExchangeData {
+//    var fiat: FiatAmount? {
+//        guard let currency = try? CurrencyCode(currencyCode: currency) else {
+//            return nil
+//        }
+//        
+//        return FiatAmount(
+//            fiat: Fiat(
+//                quarks: quarks,
+//                currencyCode: .usd
+//            ),
+//            rate: Rate(
+//                fx: Decimal(exchangeRate),
+//                currency: currency
+//            )
+//        )
+//    }
+//}

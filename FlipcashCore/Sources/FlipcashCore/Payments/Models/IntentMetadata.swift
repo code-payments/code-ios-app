@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import FlipcashAPI
 
 public enum IntentMetadata: Equatable, Sendable {
     case openAccounts
@@ -17,11 +18,36 @@ public enum IntentMetadata: Equatable, Sendable {
     case upgradePrivacy
 }
 
-public struct PaymentMetadata: Equatable, Sendable {
-    
-    public let amount: FiatAmount
-    
-    init(amount: FiatAmount) {
-        self.amount = amount
+// MARK: - Errors -
+
+extension IntentMetadata {
+    enum Error: Swift.Error {
+        case unsupportedMetadataType
+    }
+}
+
+// MARK: - Proto -
+
+extension IntentMetadata {
+    init(_ metadata: Code_Transaction_V2_Metadata) throws {
+        guard let type = metadata.type else {
+            throw Error.unsupportedMetadataType
+        }
+        
+        switch type {
+        case .openAccounts:
+            self = .openAccounts
+            
+        case .receivePaymentsPublicly(let meta):
+            
+            self = .receivePaymentsPublicly(PaymentMetadata(
+                exchangedFiat: try ExchangedFiat(meta.exchangeData)
+            ))
+            
+        case .sendPublicPayment(let meta):
+            self = .sendPublicPayment(PaymentMetadata(
+                exchangedFiat: try ExchangedFiat(meta.exchangeData)
+            ))
+        }
     }
 }

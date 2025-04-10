@@ -10,7 +10,6 @@ import Foundation
 
 public struct AccountCluster: Equatable, Codable, Hashable, Sendable {
     
-    public let index: Int
     public let authority: DerivedKey
     public let timelock: TimelockDerivedAccounts
     
@@ -22,8 +21,7 @@ public struct AccountCluster: Equatable, Codable, Hashable, Sendable {
         timelock.vault.publicKey
     }
     
-    init(index: Int = 0, authority: DerivedKey) {
-        self.index     = index
+    public init(authority: DerivedKey) {
         self.authority = authority
         self.timelock  = TimelockDerivedAccounts(owner: authority.keyPair.publicKey)
     }

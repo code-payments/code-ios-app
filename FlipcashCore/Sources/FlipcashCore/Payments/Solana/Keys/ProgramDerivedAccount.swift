@@ -61,7 +61,7 @@ extension PublicKey {
             program: TimelockProgram.address,
             seeds:
                 Data("timelock_state".utf8),
-                PublicKey.kinMint.data,
+                Mint.usdc.data,
                 PublicKey.timeAuthority.data,
                 owner.data,
                 lockout.bytes.data

@@ -167,8 +167,12 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Se
     
     // MARK: - Init -
     
-    public init?(currencyCode: String) {
-        self.init(rawValue: currencyCode.lowercased())
+    public init(currencyCode: String) throws {
+        if let currency = CurrencyCode(rawValue: currencyCode.lowercased()) {
+            self = currency
+        } else {
+            throw Error.notFound
+        }
     }
     
     // MARK: - Local -
@@ -192,6 +196,16 @@ public enum CurrencyCode: String, CaseIterable, Codable, Equatable, Hashable, Se
     }
 }
 
+// MARK: - Error -
+
+extension CurrencyCode {
+    enum Error: Swift.Error {
+        case notFound
+    }
+}
+
+// MARK: - Lookup Table -
+
 extension CurrencyCode {
     
     private static let lookupTable: [CurrencyCode: Set<String>] = {
@@ -201,7 +215,7 @@ extension CurrencyCode {
             
             guard
                 let currencyCode = locale.currency?.identifier,
-                let currency = CurrencyCode(currencyCode: currencyCode),
+                let currency = try? CurrencyCode(currencyCode: currencyCode),
                 let symbol = locale.currencySymbol
             else {
                 return

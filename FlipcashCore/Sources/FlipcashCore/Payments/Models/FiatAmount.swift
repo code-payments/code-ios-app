@@ -19,17 +19,17 @@ public struct FiatAmount: Equatable, Hashable, Codable, Sendable {
         self.rate = rate
     }
 
-    public init?(stringAmount: String, currency: CurrencyCode, rate: Rate) {
-        guard let amount = NumberFormatter.decimal(from: stringAmount), amount > 0 else {
-            return nil
+    public init(stringAmount: String, currency: CurrencyCode, rate: Rate) throws {
+        guard let amount = NumberFormatter.decimal(from: stringAmount) else {
+            throw Error.failedToParse
         }
         
-        guard let fiat = Fiat(fiat: amount, currencyCode: currency) else {
-            return nil
+        guard amount > 0 else {
+            throw Error.invalidNegativeAmount
         }
 
         self.init(
-            fiat: fiat,
+            fiat: try Fiat(fiat: amount, currencyCode: currency),
             rate: rate
         )
     }
@@ -41,5 +41,14 @@ public struct FiatAmount: Equatable, Hashable, Codable, Sendable {
             fiat: fiat,
             rate: rate
         )
+    }
+}
+
+// MARK: - Errors -
+
+extension FiatAmount {
+    enum Error: Swift.Error {
+        case failedToParse
+        case invalidNegativeAmount
     }
 }

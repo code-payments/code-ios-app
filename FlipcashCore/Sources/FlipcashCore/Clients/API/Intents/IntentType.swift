@@ -33,11 +33,7 @@ extension IntentType {
             throw IntentError.invalidParameterCount
         }
         
-        try parameters.enumerated().forEach { index, parameter in
-            guard actions[index].id == parameter.actionID else {
-                throw IntentError.actionParameterMismatch
-            }
-            
+        parameters.enumerated().forEach { index, parameter in
             actionGroup.actions[index].serverParameter = parameter
         }
     }

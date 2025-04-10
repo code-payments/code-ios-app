@@ -20,38 +20,23 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Account Creation -
     
-//    func createAccounts(with organizer: Organizer, completion: @escaping (Result<IntentCreateAccounts, Error>) -> Void) {
-//        trace(.send)
-//        
-//        let intent = IntentCreateAccounts(
-//            organizer: organizer
-//        )
-//        
-//        let device = DCDevice.current
-//        if device.isSupported {
-//            device.generateToken { token, error in
-//                trace(.warning, components: "Device token: \(token?.base64EncodedString() ?? "n/a")")
-//                self.submit(
-//                    intent: intent,
-//                    owner: organizer.tray.owner.cluster.authority.keyPair,
-//                    deviceToken: token
-//                ) { result in
-//                    switch result {
-//                    case .success(let intent):
-//                        trace(.success)
-//                        completion(.success(intent))
-//                        
-//                    case .failure(let error):
-//                        trace(.failure, components: "Error: \(error)")
-//                        completion(.failure(error))
-//                    }
-//                }
-//            }
-//            
-//        } else {
-//            completion(.failure(ErrorSubmitIntent.deviceTokenUnavailable))
-//        }
-//    }
+    func createAccounts(with owner: AccountCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        trace(.send)
+        
+        let intent = IntentCreateAccount(owner: owner)
+        
+        submit(intent: intent, owner: owner.authority.keyPair) { result in
+            switch result {
+            case .success(let intent):
+                trace(.success)
+                completion(.success(()))
+                
+            case .failure(let error):
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+        }
+    }
     
     // MARK: - Transfer -
     
@@ -325,14 +310,14 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 return
             }
             
-            guard let metadata = IntentMetadata(response.metadata) else {
+            do {
+                let metadata = try IntentMetadata(response.metadata)
+                trace(.success, components: "Intent Successful: \(intentID.base58)")
+                completion(.success(metadata))
+            } catch {
                 trace(.failure, components: "Failed to parse metadata: \(response.metadata)")
                 completion(.failure(.failedToParse))
-                return
             }
-            
-            trace(.success, components: "Intent Successful: \(intentID.base58)")
-            completion(.success(metadata))
             
         } failure: { error in
             completion(.failure(.unknown))

@@ -10,7 +10,7 @@ import Foundation
 import FlipcashAPI
 import SwiftProtobuf
 
-class IntentTransfer: IntentType {
+final class IntentTransfer: IntentType {
     
     let id: PublicKey
     let sourceCluster: AccountCluster

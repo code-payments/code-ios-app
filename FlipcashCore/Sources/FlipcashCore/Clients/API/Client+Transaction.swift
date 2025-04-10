@@ -11,12 +11,12 @@ import Combine
 
 extension Client {
  
-//    public func createAccounts(with organizer: Organizer) async throws {
-//        _ = try await withCheckedThrowingContinuation { c in
-//            transactionService.createAccounts(with: organizer) { c.resume(with: $0) }
-//        }
-//    }
-//    
+    public func createAccounts(with owner: AccountCluster) async throws {
+        _ = try await withCheckedThrowingContinuation { c in
+            transactionService.createAccounts(with: owner) { c.resume(with: $0) }
+        }
+    }
+    
 //    public func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool, tipAccount: TipAccount?, chatID: ChatID?) async throws {
 //        let intent = try await withCheckedThrowingContinuation { c in
 //            transactionService.transfer(

@@ -1,0 +1,54 @@
+//
+//  ExchangedFiat.swift
+//  FlipcashCore
+//
+//  Created by Dima Bart on 2025-04-10.
+//
+
+import Foundation
+import FlipcashAPI
+
+public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
+    
+    public let usdc: Fiat
+    public let converted: Fiat
+    public let rate: Rate
+    
+    public init(usdc: Fiat, converted: Fiat, rate: Rate) {
+        assert(usdc.currencyCode == .usd, "ExchangeFiat usdc must be in USD")
+        
+        self.usdc = usdc
+        self.converted = converted
+        self.rate = rate
+    }
+}
+
+// MARK: - Proto -
+
+extension ExchangedFiat {
+    init(_ proto: Code_Transaction_V2_ExchangeData) throws {
+        let currency = try CurrencyCode(currencyCode: proto.currency)
+        
+        self.init(
+            usdc: Fiat(
+                quarks: proto.quarks,
+                currencyCode: .usd
+            ),
+            converted: try Fiat(
+                fiat: Decimal(proto.nativeAmount),
+                currencyCode: currency
+            ),
+            rate: Rate(
+                fx: Decimal(proto.exchangeRate),
+                currency: currency
+            )
+        )
+    }
+}
+
+extension ExchangedFiat {
+    enum Error: Swift.Error {
+        case invalidCurrency
+        case invalidNativeAmount
+    }
+}

@@ -18,12 +18,11 @@ public struct Rate: Codable, Equatable, Hashable, Sendable {
         self.currency = currency
     }
     
-    public init?(fx: Decimal, currencyCode: String) {
-        guard let currency = CurrencyCode(currencyCode: currencyCode) else {
-            return nil
-        }
-        
-        self.init(fx: fx, currency: currency)
+    public init(fx: Decimal, currencyCode: String) throws {
+        self.init(
+            fx: fx,
+            currency: try CurrencyCode(currencyCode: currencyCode)
+        )
     }
 }
 

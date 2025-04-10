@@ -28,9 +28,9 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         self.currencyCode = currencyCode
     }
     
-    public init?(fiat: Decimal, currencyCode: CurrencyCode) {
+    public init(fiat: Decimal, currencyCode: CurrencyCode) throws {
         guard fiat >= 0 else {
-            return nil
+            throw Error.invalidNegativeValue
         }
         
         self.init(
@@ -39,9 +39,9 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
-    public init?(fiat: Int, currencyCode: CurrencyCode) {
+    public init(fiat: Int, currencyCode: CurrencyCode) throws {
         guard fiat >= 0 else {
-            return nil
+            throw Error.invalidNegativeValue
         }
         
         self.init(
@@ -57,9 +57,9 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
-    public init?(quarks: Int64, currencyCode: CurrencyCode) {
+    public init(quarks: Int64, currencyCode: CurrencyCode) throws {
         guard quarks >= 0 else {
-            return nil
+            throw Error.invalidNegativeValue
         }
         
         self.init(
@@ -67,14 +67,22 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
             currencyCode: currencyCode
         )
     }
-}
-
-extension Fiat {
+    
+    // MARK: - Fee -
+    
     public func calculateFee(bps: Int) -> Fiat {
         Fiat(
             quarks: quarks * UInt64(bps) / 10_000,
             currencyCode: currencyCode
         )
+    }
+}
+
+// MARK: - Errors -
+
+extension Fiat {
+    enum Error: Swift.Error {
+        case invalidNegativeValue
     }
 }
 
@@ -106,10 +114,10 @@ extension Fiat: CustomStringConvertible, CustomDebugStringConvertible {
 
 extension Fiat {
     public func converting(to rate: Rate) -> Fiat {
-        Fiat(
+        try! Fiat(
             fiat: Decimal(quarks).toFiat * rate.fx,
             currencyCode: rate.currency
-        )!
+        )
     }
 }
 
@@ -123,7 +131,7 @@ extension Fiat: ExpressibleByIntegerLiteral {
 
 extension Fiat: ExpressibleByFloatLiteral {
     public init(floatLiteral value: FloatLiteralType) {
-        self.init(fiat: Decimal(value), currencyCode: .usd)!
+        try! self.init(fiat: Decimal(value), currencyCode: .usd)
     }
 }
 

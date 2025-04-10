@@ -84,3 +84,16 @@ extension Derive.Path {
         }
     }
 }
+
+// MARK: - Derivations -
+
+extension Derive.Path {
+    
+    public static func primary() -> Derive.Path {
+        Derive.Path("m/44'/501'/0'/0'")!
+    }
+    
+    public static func relationship(domain: String) -> Derive.Path {
+        Derive.Path("m/44'/501'/0'/0'/0'/0", password: domain)!
+    }
+}

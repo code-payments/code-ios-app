@@ -101,7 +101,7 @@ extension Limits {
         
         var sendContainer: [CurrencyCode: SendLimit] = [:]
         sendDict.forEach { code, limit in
-            if let currency = CurrencyCode(currencyCode: code) {
+            if let currency = try? CurrencyCode(currencyCode: code) {
                 sendContainer[currency] = limit
             }
         }
@@ -115,7 +115,7 @@ extension Limits {
         
         var buyContainer: [CurrencyCode: BuyLimit] = [:]
         buyDict.forEach { code, limit in
-            if let currency = CurrencyCode(currencyCode: code) {
+            if let currency = try? CurrencyCode(currencyCode: code) {
                 buyContainer[currency] = limit
             }
         }
