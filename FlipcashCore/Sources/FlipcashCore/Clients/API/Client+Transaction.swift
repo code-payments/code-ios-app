@@ -17,7 +17,15 @@ extension Client {
         }
     }
     
-//    public func transfer(amount: KinAmount, fee: Kin, additionalFees: [Fee], organizer: Organizer, rendezvous: PublicKey, destination: PublicKey, isWithdrawal: Bool, tipAccount: TipAccount?, chatID: ChatID?) async throws {
+    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey) async throws {
+        _ = try await withCheckedThrowingContinuation { c in
+            transactionService.transfer(
+                exchangedFiat: exchangedFiat,
+                sourceCluster: owner,
+                destination: destination,
+                owner: owner.authority.keyPair
+            ) { c.resume(with: $0) }
+        }
 //        let intent = try await withCheckedThrowingContinuation { c in
 //            transactionService.transfer(
 //                amount: amount,
@@ -35,8 +43,8 @@ extension Client {
 //        await MainActor.run {
 //            organizer.set(tray: intent.resultTray)
 //        }
-//    }
-//    
+    }
+    
 //    public func withdraw(amount: KinAmount, organizer: Organizer, destination: PublicKey) async throws {
 //        let intent = try await withCheckedThrowingContinuation { c in
 //            transactionService.withdraw(

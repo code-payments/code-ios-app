@@ -8,8 +8,14 @@
 
 import Foundation
 
-//extension Client {
-//    
+extension Client {
+    
+    public func fetchBalance(owner: KeyPair) async throws -> Fiat {
+        try await withCheckedThrowingContinuation { c in
+            accountService.fetchBalance(owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
 //    public func fetchIsCodeAccount(owner: KeyPair) async throws -> Bool {
 //        try await withCheckedThrowingContinuation { c in
 //            accountService.fetchIsCodeAccount(owner: owner) { c.resume(with: $0) }
@@ -27,4 +33,4 @@ import Foundation
 //            accountService.linkAdditionalAccounts(owner: owner, linkedAccount: linkedAccount) { c.resume(with: $0) }
 //        }
 //    }
-//}
+}

@@ -28,31 +28,31 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         self.currencyCode = currencyCode
     }
     
-    public init(fiat: Decimal, currencyCode: CurrencyCode) throws {
-        guard fiat >= 0 else {
+    public init(fiatDecimal: Decimal, currencyCode: CurrencyCode) throws {
+        guard fiatDecimal >= 0 else {
             throw Error.invalidNegativeValue
         }
         
         self.init(
-            quarks: fiat.toQuarks,
+            quarks: fiatDecimal.toQuarks,
             currencyCode: currencyCode
         )
     }
     
-    public init(fiat: Int, currencyCode: CurrencyCode) throws {
-        guard fiat >= 0 else {
+    public init(fiatInt: Int, currencyCode: CurrencyCode) throws {
+        guard fiatInt >= 0 else {
             throw Error.invalidNegativeValue
         }
         
         self.init(
-            fiat: UInt64(fiat),
+            fiatUnsigned: UInt64(fiatInt),
             currencyCode: currencyCode
         )
     }
     
-    public init(fiat: UInt64, currencyCode: CurrencyCode) {
+    public init(fiatUnsigned: UInt64, currencyCode: CurrencyCode) {
         self.init(
-            quarks: fiat.toQuarks,
+            quarks: fiatUnsigned.toQuarks,
             currencyCode: currencyCode
         )
     }
@@ -115,7 +115,7 @@ extension Fiat: CustomStringConvertible, CustomDebugStringConvertible {
 extension Fiat {
     public func converting(to rate: Rate) -> Fiat {
         try! Fiat(
-            fiat: Decimal(quarks).toFiat * rate.fx,
+            fiatDecimal: Decimal(quarks).toFiat * rate.fx,
             currencyCode: rate.currency
         )
     }
@@ -125,13 +125,13 @@ extension Fiat {
 
 extension Fiat: ExpressibleByIntegerLiteral {
     public init(integerLiteral value: UInt64) {
-        self.init(fiat: value, currencyCode: .usd)
+        self.init(fiatUnsigned: value, currencyCode: .usd)
     }
 }
 
 extension Fiat: ExpressibleByFloatLiteral {
     public init(floatLiteral value: FloatLiteralType) {
-        try! self.init(fiat: Decimal(value), currencyCode: .usd)
+        try! self.init(fiatDecimal: Decimal(value), currencyCode: .usd)
     }
 }
 
@@ -185,7 +185,10 @@ private extension Decimal {
     static let multiplier: Decimal = 1_000_000
     
     var toQuarks: UInt64 {
-        NSDecimalNumber(decimal: self * .multiplier).uint64Value
+        var quarks = self * .multiplier
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &quarks, 0, .plain)
+        return NSDecimalNumber(decimal: rounded).uint64Value
     }
     
     var toFiat: Decimal {

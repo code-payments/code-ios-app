@@ -27,7 +27,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         
         submit(intent: intent, owner: owner.authority.keyPair) { result in
             switch result {
-            case .success(let intent):
+            case .success(_):
                 trace(.success)
                 completion(.success(()))
                 
@@ -40,20 +40,20 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Transfer -
     
-    func transfer(amount: FiatAmount, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<IntentTransfer, Error>) -> Void) {
+    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         let intent = IntentTransfer(
             sourceCluster: sourceCluster,
             destination: destination,
-            amount: amount
+            exchangedFiat: exchangedFiat
         )
         
         submit(intent: intent, owner: owner) { result in
             switch result {
-            case .success(let intent):
+            case .success(_):
                 trace(.success)
-                completion(.success(intent))
+                completion(.success(()))
                 
             case .failure(let error):
                 trace(.failure, components: "Error: \(error)")

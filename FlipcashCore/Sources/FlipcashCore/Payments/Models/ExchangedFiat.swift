@@ -14,7 +14,27 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     public let converted: Fiat
     public let rate: Rate
     
-    public init(usdc: Fiat, converted: Fiat, rate: Rate) {
+    public init(converted: Fiat, rate: Rate) throws {
+        assert(converted.currencyCode == rate.currency, "Rate currency must match Fiat currency")
+        
+        if converted.currencyCode == .usd {
+            self.init(usdc: converted, converted: converted, rate: .oneToOne)
+        } else {
+            let equivalentUSD = converted.decimalValue / rate.fx
+            let usdc = try Fiat(
+                fiatDecimal: equivalentUSD,
+                currencyCode: .usd
+            )
+            
+            self.init(
+                usdc: usdc,
+                converted: converted,
+                rate: rate
+            )
+        }
+    }
+    
+    private init(usdc: Fiat, converted: Fiat, rate: Rate) {
         assert(usdc.currencyCode == .usd, "ExchangeFiat usdc must be in USD")
         
         self.usdc = usdc
@@ -35,7 +55,7 @@ extension ExchangedFiat {
                 currencyCode: .usd
             ),
             converted: try Fiat(
-                fiat: Decimal(proto.nativeAmount),
+                fiatDecimal: Decimal(proto.nativeAmount),
                 currencyCode: currency
             ),
             rate: Rate(
