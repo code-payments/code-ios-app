@@ -122,49 +122,40 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - AirDrop -
     
-//    func airdrop(type: AirdropType, owner: KeyPair, completion: @escaping (Result<PaymentMetadata, ErrorAirdrop>) -> Void) {
-//        trace(.send)
-//        
-//        let request = Code_Transaction_V2_AirdropRequest.with {
-//            $0.airdropType = type.grpcType
-//            $0.owner = owner.publicKey.codeAccountID
-//            $0.signature = $0.sign(with: owner)
-//        }
-//        
-//        let call = service.airdrop(request)
-//        call.handle(on: queue) { response in
-//            
-//            let result = ErrorAirdrop(rawValue: response.result.rawValue) ?? .unknown
-//            
-//            guard result == .ok else {
-//                trace(.failure, components: "Error: \(result)")
-//                completion(.failure(result))
-//                return
-//            }
-//            
-//            guard let currency = CurrencyCode(currencyCode: response.exchangeData.currency) else {
-//                trace(.failure, components: "Failed to parse currency.")
-//                completion(.failure(.unknown))
-//                return
-//            }
-//            
-//            let amount = KinAmount(
-//                kin: Kin(quarks: response.exchangeData.quarks),
-//                rate: Rate(
-//                    fx: Decimal(response.exchangeData.exchangeRate),
-//                    currency: currency
-//                )
-//            )
-//            
-//            let metadata = PaymentMetadata(amount: amount)
-//            
-//            trace(.success, components: "Received: \(amount.kin.formattedFiat(rate: amount.rate, suffix: nil))")
-//            completion(.success(metadata))
-//            
-//        } failure: { error in
-//            completion(.failure(.unknown))
-//        }
-//    }
+    func airdrop(type: AirdropType, owner: KeyPair, completion: @escaping (Result<PaymentMetadata, ErrorAirdrop>) -> Void) {
+        trace(.send)
+        
+        let request = Code_Transaction_V2_AirdropRequest.with {
+            $0.airdropType = type.grpcType
+            $0.owner = owner.publicKey.codeAccountID
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.airdrop(request)
+        call.handle(on: queue) { response in
+            
+            let result = ErrorAirdrop(rawValue: response.result.rawValue) ?? .unknown
+            
+            guard result == .ok else {
+                trace(.failure, components: "Error: \(result)")
+                completion(.failure(result))
+                return
+            }
+            
+            do {
+                let exchangedFiat = try ExchangedFiat(response.exchangeData)
+                let metadata = PaymentMetadata(exchangedFiat: exchangedFiat)
+                trace(.success, components: "Received: USD \(exchangedFiat.usdc.formatted(suffix: nil))")
+                completion(.success(metadata))
+            } catch {
+                trace(.failure, components: "Failed to parse metadata.")
+                completion(.failure(.unknown))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
     
     // MARK: - Submit -
     

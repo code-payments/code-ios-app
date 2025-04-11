@@ -76,13 +76,13 @@ extension Client {
 //    }
 //    
 //    // MARK: - AirDrop -
-//    
-//    public func airdrop(type: AirdropType, owner: KeyPair) async throws -> PaymentMetadata {
-//        try await withCheckedThrowingContinuation { c in
-//            transactionService.airdrop(type: type, owner: owner) { c.resume(with: $0) }
-//        }
-//    }
-//    
+    
+    public func airdrop(type: AirdropType, owner: KeyPair) async throws -> PaymentMetadata {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.airdrop(type: type, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
 //    // MARK: - Status -
 //    
 //    public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {
