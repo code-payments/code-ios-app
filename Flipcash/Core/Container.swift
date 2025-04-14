@@ -12,13 +12,18 @@ import FlipcashCore
 @MainActor
 class Container {
     
-    let client = Client(network: .mainNet)
+    let client: Client
+    let database: Database
+    
+    lazy var ratesController = RatesController(container: self)
     
     let cameraSession = CameraSession<CodeExtractor>()
     
     // MARK: - Init -
     
     init() {
+        self.client = Client(network: .mainNet)
+        self.database = try! Database(url: .dataStore())
         
     }
 }

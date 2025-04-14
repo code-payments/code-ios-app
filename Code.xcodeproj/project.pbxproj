@@ -235,6 +235,7 @@
 		9ACFA30E2A4B3C0B0057A5DF /* SavedLoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA30D2A4B3C0B0057A5DF /* SavedLoginScreen.swift */; };
 		9ACFA3102A4B48280057A5DF /* AccountContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA30F2A4B48280057A5DF /* AccountContainer.swift */; };
 		9AD0A44E261B961B008CFD69 /* WithdrawAmountScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD0A44D261B961B008CFD69 /* WithdrawAmountScreen.swift */; };
+		9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9AD1265D2DA98ADC0048141F /* SQLite */; };
 		9AD5D72F25F13A18007388AE /* BalanceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D72E25F13A18007388AE /* BalanceScreen.swift */; };
 		9AD5D85825F26E4C007388AE /* CodeScanner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5D84C25F26E3C007388AE /* CodeScanner.framework */; };
 		9AD5E64C25F2BF3E007388AE /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E64B25F2BF3E007388AE /* opencv2.framework */; };
@@ -635,6 +636,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */,
 				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
 				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
@@ -1315,6 +1317,7 @@
 			packageProductDependencies = (
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
 				9AC011172DA4320F0030298E /* FlipcashUI */,
+				9AD1265D2DA98ADC0048141F /* SQLite */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -4591,6 +4594,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
 			productName = Mixpanel;
+		};
+		9AD1265D2DA98ADC0048141F /* SQLite */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
+			productName = SQLite;
 		};
 		9AEABBEE2B76CD4100667DA4 /* CodeUI */ = {
 			isa = XCSwiftPackageProductDependency;

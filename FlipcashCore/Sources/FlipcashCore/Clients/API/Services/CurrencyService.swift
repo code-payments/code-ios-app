@@ -13,7 +13,7 @@ import NIO
 
 class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
     
-    func fetchExchangeRates(completion: @escaping (Result<([Rate], Date), Error>) -> Void) {
+    func fetchExchangeRates(completion: @escaping (Result<RatesSnapshot, Error>) -> Void) {
 //        trace(.send)
         
         let call = service.getAllRates(Code_Currency_V1_GetAllRatesRequest())
@@ -25,14 +25,28 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
                 )
             }
             
+            let snapshot = RatesSnapshot(
+                date: response.asOf.date,
+                rates: rates
+            )
+            
 //            trace(.success, components: "\(rates.count) rates")
-            completion(.success((rates, response.asOf.date)))
+            completion(.success(snapshot))
             
         } failure: { error in
             completion(.failure(error))
         }
     }
 }
+
+// MARK: - Types -
+
+public struct RatesSnapshot: Sendable {
+    public let date: Date
+    public let rates: [Rate]
+}
+
+// MARK: - Errors -
 
 public enum ErrorRateHistory: Int, Error {
     case ok

@@ -8,11 +8,11 @@
 
 import Foundation
 
-//extension Client {
-//    
-//    public func fetchExchangeRates() async throws -> ([Rate], Date) {
-//        try await withCheckedThrowingContinuation { c in
-//            currencyService.fetchExchangeRates { c.resume(with: $0) }
-//        }
-//    }
-//}
+extension Client {
+    
+    public func fetchExchangeRates() async throws -> RatesSnapshot {
+        try await withCheckedThrowingContinuation { c in
+            currencyService.fetchExchangeRates { c.resume(with: $0) }
+        }
+    }
+}
