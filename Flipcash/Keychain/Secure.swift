@@ -9,28 +9,28 @@ import Foundation
 import FlipcashCore
 
 enum SecureKey: String {
+    case keyAccount         = "com.flipcash.account.key"
+    case historicalAccounts = "com.flipcash.account.list"
+    case currentUser        = "com.flipcash.user.current"
 //    case restricted = "com.code.account.restricted"
-    case keyAccount = "com.code.account.key"
-//    case historicalAccounts = "com.code.account.list"
 //    case giftCardAccounts = "com.code.giftCard.list"
-//    case currentUser = "com.code.user.current"
+    
 //    case rates = "com.code.exchange.rates"
 //    case debugOptions = "com.code.debug.options"
 }
 
-@MainActor
 @propertyWrapper
 struct SecureData {
     
     var wrappedValue: Data? {
         get {
-            return Keychain.secure.data(for: key.rawValue)
+            return Keychain.data(for: key.rawValue)
         }
         set {
             if let newValue = newValue {
-                Keychain.secure.set(newValue, for: key.rawValue)
+                Keychain.set(newValue, for: key.rawValue)
             } else {
-                Keychain.secure.delete(key.rawValue)
+                Keychain.delete(key.rawValue)
             }
         }
     }
@@ -42,19 +42,18 @@ struct SecureData {
     }
 }
 
-@MainActor
 @propertyWrapper
 struct SecureString {
     
     var wrappedValue: String? {
         get {
-            return Keychain.secure.string(for: key.rawValue)
+            return Keychain.string(for: key.rawValue)
         }
         set {
             if let newValue = newValue {
-                Keychain.secure.set(newValue, for: key.rawValue)
+                Keychain.set(newValue, for: key.rawValue)
             } else {
-                Keychain.secure.delete(key.rawValue)
+                Keychain.delete(key.rawValue)
             }
         }
     }
@@ -66,19 +65,18 @@ struct SecureString {
     }
 }
 
-@MainActor
 @propertyWrapper
 struct SecureCodable<T> where T: Codable {
     
     var wrappedValue: T? {
         get {
-            decode(Keychain.secure.data(for: key.rawValue))
+            decode(Keychain.data(for: key.rawValue))
         }
         set {
             if let newValue = encode(newValue) {
-                Keychain.secure.set(newValue, for: key.rawValue, useSynchronization: sync)
+                Keychain.set(newValue, for: key.rawValue, useSynchronization: sync)
             } else {
-                Keychain.secure.delete(key.rawValue)
+                Keychain.delete(key.rawValue)
             }
         }
     }
@@ -115,6 +113,6 @@ struct SecureCodable<T> where T: Codable {
     }
 }
 
-private extension Keychain {
-    static let secure = Keychain()
-}
+//private extension Keychain {
+//    static let secure = Keychain()
+//}

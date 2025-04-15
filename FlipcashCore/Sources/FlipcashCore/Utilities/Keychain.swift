@@ -8,7 +8,6 @@
 import Foundation
 import Security
 
-@MainActor
 public class Keychain {
     
     // MARK: - Init -
@@ -18,12 +17,12 @@ public class Keychain {
     // MARK: - Setters -
     
     @discardableResult
-    public func set(_ string: String, for key: String) -> Bool {
+    public static func set(_ string: String, for key: String) -> Bool {
         set(Data(string.utf8), for: key)
     }
     
     @discardableResult
-    public func set(_ data: Data, for key: String, useSynchronization: Bool = false) -> Bool {
+    public static func set(_ data: Data, for key: String, useSynchronization: Bool = false) -> Bool {
         let query = Query(
             .service("Flipcash (\(key))"),
             .account(key),
@@ -42,14 +41,14 @@ public class Keychain {
     
     // MARK: - Getters -
     
-    public func string(for key: String) -> String? {
+    public static func string(for key: String) -> String? {
         if let data = data(for: key) {
             return String(data: data, encoding: .utf8)
         }
         return nil
     }
     
-    public func data(for key: String, migrateIfNeeded: Bool = true) -> Data? {
+    public static func data(for key: String, migrateIfNeeded: Bool = true) -> Data? {
         let query = Query(
             .account(key),
             .matchLimit(.one),
@@ -64,7 +63,7 @@ public class Keychain {
     // MARK: - Delete -
     
     @discardableResult
-    public func delete(_ key: String) -> Bool {
+    public static func delete(_ key: String) -> Bool {
         let query = Query(
             .account(key),
             .class(.genericPassword),
@@ -76,7 +75,7 @@ public class Keychain {
     
     // MARK: - Security -
     
-    private func copyMatching(query: Query) -> Data? {
+    private static func copyMatching(query: Query) -> Data? {
         var result: AnyObject?
         let status = SecItemCopyMatching(query.dictionary, &result)
         if status == errSecSuccess {
@@ -91,7 +90,7 @@ public class Keychain {
         return nil
     }
     
-    private func addItem(query: Query) -> Bool {
+    private static func addItem(query: Query) -> Bool {
         let status = SecItemAdd(query.dictionary, nil)
         if status != errSecSuccess {
             if let error = SecCopyErrorMessageString(status, nil) {

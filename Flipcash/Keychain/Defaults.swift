@@ -13,15 +13,12 @@ enum DefaultsKey: String {
 //    case localCurrency      = "com.code.currency.localCurrency"
 //    case recentCurrencies   = "com.code.currency.recentCurrencies"
 //    case localCurrencyAdded = "com.code.currency.localCurrencyAdded"
-//    
-//    case launchCount = "com.code.launchCount"
-//    
+    
 //    case betaFlags = "com.code.debug.preferences"
 //    
 //    case twitterUser    = "com.code.social.twitterUser"
 //    case hasSeenTipCard = "com.code.social.hasSeenTipCard"
-//    
-//    case wasLoggedIn     = "com.code.state.wasLoggedIn"
+    
 //    case wasPromptedPush = "com.code.state.wasPromptedForPush"
 //    
 //    case tooltipLogo = "com.code.tooltip.logo"
@@ -29,6 +26,9 @@ enum DefaultsKey: String {
     // Settings
     
 //    case biometricsEnabled = "com.code.biometrics.enabled"
+    
+    case wasLoggedIn = "com.flipcash.state.wasLoggedIn"
+    case launchCount = "com.flipcash.state.launchCount"
     
     case cameraAutoStartDisabled = "com.flipcash.camera.autoStartDisabled"
     case cameraEnabledState      = "com.flipcash.camera.cameraEnabledState"
