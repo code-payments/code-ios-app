@@ -91,29 +91,29 @@ extension Client {
         }
     }
     
-//    // MARK: - Status -
-//    
-//    public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {
-//        for i in 0..<maxAttempts {
-//            do {
-//                let delay = 50 * (i / 10)
-//                if delay > 0 {
-//                    try await Task.delay(milliseconds: delay)
-//                }
-//                trace(.poll, components: "Delay: \(delay)ms", "Intent ID \(i): \(intentID.base58)")
-//                return try await fetchIntentMetadata(owner: owner, intentID: intentID)
-//            } catch {}
-//        }
-//        
-//        throw ClientError.pollLimitReached
-//    }
-//    
-//    func fetchIntentMetadata(owner: KeyPair, intentID: PublicKey) async throws -> IntentMetadata {
-//        try await withCheckedThrowingContinuation { c in
-//            transactionService.fetchIntentMetadata(owner: owner, intentID: intentID) { c.resume(with: $0) }
-//        }
-//    }
-//    
+    // MARK: - Status -
+    
+    public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {
+        for i in 0..<maxAttempts {
+            do {
+                let delay = 50 * (i / 10)
+                if delay > 0 {
+                    try await Task.delay(milliseconds: delay)
+                }
+                trace(.poll, components: "Delay: \(delay)ms", "Intent ID \(i): \(intentID.base58)")
+                return try await fetchIntentMetadata(owner: owner, intentID: intentID)
+            } catch {}
+        }
+        
+        throw ClientError.pollLimitReached
+    }
+    
+    func fetchIntentMetadata(owner: KeyPair, intentID: PublicKey) async throws -> IntentMetadata {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.fetchIntentMetadata(owner: owner, intentID: intentID) { c.resume(with: $0) }
+        }
+    }
+    
 //    // MARK: - Limits -
 //    
 //    public func fetchTransactionLimits(owner: KeyPair, since date: Date) async throws -> Limits {
@@ -129,4 +129,10 @@ extension Client {
 //            transactionService.fetchDestinationMetadata(destination: destination) { c.resume(with: $0) }
 //        }
 //    }
+}
+
+// MARK: - Error -
+
+public enum ClientError: Error {
+    case pollLimitReached
 }

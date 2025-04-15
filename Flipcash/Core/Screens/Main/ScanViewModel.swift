@@ -15,6 +15,8 @@ class ScanViewModel: ObservableObject {
     
     let cameraSession: CameraSession<CodeExtractor>
     
+    private let client: Client
+    
     @Published var billState: BillState = .default()
     @Published var presentationState: PresentationState = .hidden(.slide)
     
@@ -27,10 +29,14 @@ class ScanViewModel: ObservableObject {
         billState.bill == nil
     }
     
+    private var scanOperation: ScanCashOperation?
+    
     // MARK: - Init -
     
     init(container: Container) {
         self.cameraSession = container.cameraSession
+        self.client = container.client
+        
         registerCodeExtractorObserver()
     }
     
@@ -84,5 +90,39 @@ class ScanViewModel: ObservableObject {
     
     private func didScanCash(_ payload: CashCode.Payload) {
         print("Scanned: \(payload.fiat!.formatted(suffix: nil)) \(payload.fiat!.currencyCode)")
+        
+        // TODO: Replace with actual account public key
+        let owner = KeyPair.generate()!
+        
+        guard scanOperation == nil else {
+            return
+        }
+        
+        let operation = ScanCashOperation(
+            client: client,
+            owner: owner,
+            payload: payload
+        )
+        
+        scanOperation = operation
+        Task {
+            defer {
+                scanOperation = nil
+            }
+            
+            do {
+                let metadata = try await operation.start()
+                // TODO: self.showBill(metadata)
+                
+            } catch ScanCashOperation.Error.noOpenStreamForRendezvous {
+                // Do not remove the nonce from received pool
+//                showCashExpiredError()
+                
+            } catch {
+                scannedRendezvous.remove(payload.rendezvous.publicKey)
+            }
+            
+            // Update balance
+        }
     }
 }

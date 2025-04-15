@@ -11,11 +11,8 @@ import FlipcashAPI
 
 public enum IntentMetadata: Equatable, Sendable {
     case openAccounts
-    case sendPrivatePayment(PaymentMetadata)
-    case sendPublicPayment(PaymentMetadata)
-    case receivePaymentsPrivately
-    case receivePaymentsPublicly(PaymentMetadata)
-    case upgradePrivacy
+    case sendPayment(PaymentMetadata)
+    case receivePayment(PaymentMetadata)
 }
 
 // MARK: - Errors -
@@ -39,13 +36,12 @@ extension IntentMetadata {
             self = .openAccounts
             
         case .receivePaymentsPublicly(let meta):
-            
-            self = .receivePaymentsPublicly(PaymentMetadata(
+            self = .receivePayment(PaymentMetadata(
                 exchangedFiat: try ExchangedFiat(meta.exchangeData)
             ))
             
         case .sendPublicPayment(let meta):
-            self = .sendPublicPayment(PaymentMetadata(
+            self = .sendPayment(PaymentMetadata(
                 exchangedFiat: try ExchangedFiat(meta.exchangeData)
             ))
         }

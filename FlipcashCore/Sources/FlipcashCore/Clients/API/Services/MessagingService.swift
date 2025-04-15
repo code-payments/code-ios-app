@@ -81,7 +81,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
 //        reference.stream = stream
 //    }
     
-    func openMessageStream(rendezvous: KeyPair, completion: @Sendable @escaping (Result<PaymentRequest, Error>) -> Void) -> AnyCancellable {
+    func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<PaymentRequest, Error>) -> Void) -> AnyCancellable {
         trace(.open, components: "Rendezvous: \(rendezvous.publicKey.base58)")
         
         let request = Code_Messaging_V1_OpenMessageStreamRequest.with {
@@ -97,7 +97,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
-    private func openMessageStream(assigningTo reference: StreamReference<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>, request: Code_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @Sendable @escaping (Result<PaymentRequest, Error>) -> Void) {
+    private func openMessageStream(assigningTo reference: StreamReference<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>, request: Code_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<PaymentRequest, Error>) -> Void) {
         let queue = self.queue
         let stream = service.openMessageStream(request) { [weak self] response in
             
@@ -109,7 +109,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
             
             let paymentRequests = response.messages.compactMap { try? StreamMessage($0).paymentRequest }
             
-            queue.async {
+            Task { @MainActor in
                 if let paymentRequest = paymentRequests.first {
                     var components = [
                         "Recipient: \(paymentRequest.account.base58)",
