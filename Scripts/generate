@@ -3,6 +3,7 @@
 CURRENT_DIR=$(pwd)
 PROTO_DIR="$1"
 OUTPUT_DIR="$2"
+PREFIX="$3"
 
 if [ ! -d "$PROTO_DIR" ]
 then
@@ -39,4 +40,13 @@ do
         --swift_opt=Visibility=Public \
         --swift_opt=FileNaming=PathToUnderscores \
         --swift_out="$OUTPUT_DIR"
+done
+
+# Rename generated files to include the custom prefix
+find "$OUTPUT_DIR" -type f -name "*.swift" | while read GENERATED_FILE
+do
+    BASENAME=$(basename "$GENERATED_FILE")
+    NEW_NAME="${PREFIX}${BASENAME}"
+    mv "$GENERATED_FILE" "$OUTPUT_DIR/$NEW_NAME"
+    echo "Renamed $BASENAME to $NEW_NAME"
 done

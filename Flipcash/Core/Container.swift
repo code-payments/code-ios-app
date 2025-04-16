@@ -14,6 +14,7 @@ class Container {
     
     let client: Client
     let database: Database
+    let accountManager: AccountManager
     
     lazy var ratesController = RatesController(container: self)
     
@@ -22,8 +23,11 @@ class Container {
     // MARK: - Init -
     
     init() {
-        self.client = Client(network: .mainNet)
-        self.database = try! Database(url: .dataStore())
+        self.client         = Client(network: .mainNet)
+        self.database       = try! Database(url: .dataStore())
+        self.accountManager = AccountManager()
+        
+        _ = ratesController
         
     }
 }

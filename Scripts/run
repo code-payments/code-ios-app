@@ -18,6 +18,7 @@ if [[ "$APP" == "flipchat" ]]; then
     GENERATED_DIR="../FlipchatAPI/Sources/FlipchatAPI/Generated"
     PULL_REPO="code-payments/flipchat-protobuf-api"
     PULL_BRANCH="main"
+    PREFIX=""
 
 elif [[ "$APP" == "flipchatPayments" ]]; then
     PROTOS_ROOT_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI"
@@ -26,22 +27,25 @@ elif [[ "$APP" == "flipchatPayments" ]]; then
     GENERATED_DIR="../FlipchatPaymentsAPI/Sources/FlipchatPaymentsAPI/Generated"
     PULL_REPO="code-payments/code-protobuf-api"
     PULL_BRANCH="fc"
+    PREFIX=""
 
 elif [[ "$APP" == "flipcashCore" ]]; then
-    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core"
-    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto"
-    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/proto_deps"
-    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Core/Generated"
-    PULL_REPO="code-payments/code-protobuf-api"
-    PULL_BRANCH="vm"
+    PROTOS_ROOT_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI"
+    PROTOS_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI/proto"
+    DEPS_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI/proto_deps"
+    GENERATED_DIR="../FlipcashCoreAPI/Sources/FlipcashCoreAPI/Generated"
+    PULL_REPO="code-payments/flipcash-protobuf-api"
+    PULL_BRANCH="main"
+    PREFIX=""
 
 elif [[ "$APP" == "flipcashPayments" ]]; then
-    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments"
-    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/proto"
-    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/proto_deps"
-    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Payments/Generated"
+    PROTOS_ROOT_DIR="../FlipcashAPI/Sources/FlipcashAPI"
+    PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/proto"
+    DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/proto_deps"
+    GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Generated"
     PULL_REPO="code-payments/code-protobuf-api"
-    PULL_BRANCH="vm"
+    PULL_BRANCH="main"
+    PREFIX=""
     
 elif [[ "$APP" == "code" ]]; then
     PROTOS_ROOT_DIR="../CodeAPI/Sources/CodeAPI"
@@ -50,6 +54,7 @@ elif [[ "$APP" == "code" ]]; then
     GENERATED_DIR="../CodeAPI/Sources/CodeAPI/Generated"
     PULL_REPO="code-payments/code-protobuf-api"
     PULL_BRANCH="main"
+    PREFIX=""
     
 else
     echo "error: Unknown app type '$APP'. Use 'code' or 'flipchat'."
@@ -73,4 +78,4 @@ fi
 rm -rf $GENERATED_DIR
 mkdir -p $GENERATED_DIR
 
-./generate $PROTOS_DIR $GENERATED_DIR
+./generate $PROTOS_DIR $GENERATED_DIR $PREFIX

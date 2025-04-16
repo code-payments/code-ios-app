@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package flipcash.push.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/push/v1;pushpb";
+option java_package = "com.codeinc.flipcash.gen.push.v1";
+option objc_class_prefix = "FPBPushV1";
+
+import "common/v1/common.proto";
+import "validate/validate.proto";
+
+service Push {
+    // AddToken adds a push token associated with a user.
+    rpc AddToken(AddTokenRequest) returns (AddTokenResponse);
+
+    // DeleteTokens removes all push tokens within an app install for a user
+    rpc DeleteTokens(DeleteTokensRequest) returns (DeleteTokensResponse);
+}
+
+enum TokenType {
+    UNKNOWN = 0;
+    // FCM registration token for an Android device
+    FCM_ANDROID = 1;
+    // FCM registration token or an iOS device
+    FCM_APNS = 2;
+}
+
+message AddTokenRequest {
+    TokenType token_type = 1 [(validate.rules).enum = {in: [1,2]}];
+
+    string push_token = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 4096
+    }];
+
+    common.v1.AppInstallId app_install = 3 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 4 [(validate.rules).message.required = true];
+}
+
+message AddTokenResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        INVALID_PUSH_TOKEN = 1;
+    }
+}
+
+message DeleteTokensRequest {
+    common.v1.AppInstallId app_install = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message DeleteTokensResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+    }
+}

@@ -19,6 +19,7 @@ let package = Package(
         .package(url: "https://github.com/karwa/swift-url", from: "0.4.2"),
         .package(path: "../CodeCurves"),
         .package(path: "../FlipcashAPI"),
+        .package(path: "../FlipcashCoreAPI"),
     ],
     targets: [
         .target(
@@ -28,6 +29,7 @@ let package = Package(
                 .product(name: "WebURL", package: "swift-url"),
                 .product(name: "WebURLFoundationExtras", package: "swift-url"),
                 .product(name: "FlipcashAPI", package: "FlipcashAPI"),
+                .product(name: "FlipcashCoreAPI", package: "FlipcashCoreAPI"),
             ]
         ),
         .testTarget(

@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package flipcash.common.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/common/v1;commonpb";
+option java_package = "com.codeinc.flipcash.gen.common.v1";
+option objc_class_prefix = "FPBCommonV1";
+
+import "validate/validate.proto";
+
+message PublicKey {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+message Signature {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 64
+        max_len: 64
+    }];
+}
+
+// Auth provides an authentication information for RPCs/messages.
+//
+// Currently, only a single form is supported, but it may be useful in
+// the future to rely on session tokens instead.
+message Auth {
+    oneof kind {
+        option (validate.required) = true;
+
+        // KeyPair uses pub key cryptography to verify.
+        KeyPair key_pair = 1;
+    }
+
+    // KeyPair uses a keypair to verify a message.
+    //
+    // The signature should be of the encapsulating proto message,
+    // _without_ the Auth section being set.
+    message KeyPair {
+        PublicKey pub_key = 1 [(validate.rules).message.required = true];
+        Signature signature = 2 [(validate.rules).message.required = true];
+    }
+}
+
+message UserId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 1
+        max_len: 32
+    }];
+}
+
+// AppInstallId is a unque ID tied to a client app installation. It does not
+// identify a device. Value should remain private and not be shared across
+// installs.
+message AppInstallId {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256 // todo: What's a reasonable size
+    }];
+}
+
+enum Platform {
+    UNKNOWN = 0;
+    APPLE   = 1;
+    GOOGLE  = 2;
+}
+
+// PaymentAmount defines an amount of USDC with currency exchange data
+message PaymentAmount {
+    // ISO 4217 alpha-3 currency code the payment was made in
+    string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3,4}$" }];
+
+    // The amount in the native currency that was paid
+    double native_amount = 2 [(validate.rules).double.gt = 0];
+
+    // The amount in quarks of USDC that was paid
+    uint64 quarks = 3 [(validate.rules).uint64.gt = 0];
+}

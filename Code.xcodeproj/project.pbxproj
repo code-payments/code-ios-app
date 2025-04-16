@@ -569,6 +569,7 @@
 		9AD5D72E25F13A18007388AE /* BalanceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceScreen.swift; sourceTree = "<group>"; };
 		9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = CodeScanner.xcodeproj; path = CodeScanner/CodeScanner.xcodeproj; sourceTree = "<group>"; };
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
+		9AD855432DB01563002FA9CE /* FlipcashCoreAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashCoreAPI; sourceTree = "<group>"; };
 		9AD87C7E2BC04A3B00F33A08 /* ConnectXScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectXScreen.swift; sourceTree = "<group>"; };
 		9AE0834128EC8E7D00350407 /* DeleteAccountScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteAccountScreen.swift; sourceTree = "<group>"; };
 		9AE0834428EC918800350407 /* DeleteAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteAccountViewModel.swift; sourceTree = "<group>"; };
@@ -1231,6 +1232,7 @@
 				9A43F0102D9C357900CE8817 /* FlipcashCore */,
 				9ABDD1962D9D7C2E006B6CDA /* FlipcashAPI */,
 				9A0C7F8E2DA0379A0018C7CB /* FlipcashUI */,
+				9AD855432DB01563002FA9CE /* FlipcashCoreAPI */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1982,7 +1984,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n#./run -a flipcashCore     # -s 1 # skips pull, only runs generation\n./run -a flipcashPayments # -s 1 # skips pull, only runs generation\n";
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./run -a flipcashCore     # -s 1 # skips pull, only runs generation\n./run -a flipcashPayments # -s 1 # skips pull, only runs generation\n";
 		};
 		9AEB5FDB25CDD4CB004B3680 /* Generate Code Services */ = {
 			isa = PBXShellScriptBuildPhase;

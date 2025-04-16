@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package flipcash.activity.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/activity/v1;activitypb";
+option java_package = "com.codeinc.flipcash.gen.activity.v1";
+option objc_class_prefix = "FPBActivityV1";
+
+import "activity/v1/model.proto";
+import "common/v1/common.proto";
+import "validate/validate.proto";
+
+service ActivityFeed {
+    // GetLatestNotifications gets the latest N notifications in a user's
+    // activity feed. Results will be ordered by descending timestamp.
+    rpc GetLatestNotifications(GetLatestNotificationsRequest) returns (GetLatestNotificationsResponse);
+}
+
+message GetLatestNotificationsRequest {
+    // The activity feed to fetch notifications from
+    ActivityFeedType type = 1 [(validate.rules).enum.in = 1];
+
+    // Maximum number of notifications to return. If <= 0, the server default is used
+    int32 max_items = 2 [(validate.rules).int32.lte = 1024];
+
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+
+message GetLatestNotificationsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        DENIED = 1;
+    }
+
+    repeated Notification notifications = 2 [(validate.rules).repeated = {
+        max_items: 1024
+    }];
+}

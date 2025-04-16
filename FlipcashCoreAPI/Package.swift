@@ -4,15 +4,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "FlipcashAPI",
+    name: "FlipcashCoreAPI",
     platforms: [
         .iOS(.v17),
         .macOS(.v14),
     ],
     products: [
         .library(
-            name: "FlipcashAPI",
-            targets: ["FlipcashAPI"]
+            name: "FlipcashCoreAPI",
+            targets: ["FlipcashCoreAPI"]
         ),
     ],
     dependencies: [
@@ -20,7 +20,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "FlipcashAPI",
+            name: "FlipcashCoreAPI",
             dependencies: [
                 .product(name: "GRPC", package: "grpc-swift"),
             ],
