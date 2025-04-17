@@ -11,7 +11,7 @@ import FlipcashCore
 enum SecureKey: String {
     case keyAccount         = "com.flipcash.account.key"
     case historicalAccounts = "com.flipcash.account.list"
-    case currentUser        = "com.flipcash.user.current"
+    case currentUserAccount = "com.flipcash.account.userAccount"
 //    case restricted = "com.code.account.restricted"
 //    case giftCardAccounts = "com.code.giftCard.list"
     

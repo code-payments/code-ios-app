@@ -14,7 +14,7 @@ final class SessionAuthenticator: ObservableObject {
     
     let accountManager: AccountManager
     
-    @Published private(set) var inProgress: Bool = false
+    @Published private(set) var loginButtonState: ButtonState = .normal
     @Published private(set) var isUnlocked: Bool = false
     @Published private(set) var state: AuthenticationState = .migrating
     
@@ -28,12 +28,14 @@ final class SessionAuthenticator: ObservableObject {
     
     private let container: Container
     private let client: Client
+    private let flipClient: FlipClient
     
     // MARK: - Init -
     
     init(container: Container) {
         self.container      = container
         self.client         = container.client
+        self.flipClient     = container.flipClient
         self.accountManager = container.accountManager
         
         // Update launch state.
@@ -45,52 +47,27 @@ final class SessionAuthenticator: ObservableObject {
         UserDefaults.launchCount = (UserDefaults.launchCount ?? 0) + 1
         trace(.note, components: "Launch count: \(UserDefaults.launchCount!)")
         
-        initializeState { mnemonic in // Migration
-            Task {
-                do {
-                    self.completeLogin(with: try await self.initialize(using: mnemonic))
-                } catch {
-//                    Analytics.userMigrationFailed()
-                    self.state = .loggedOut
-                }
-            }
+        initializeState { userAccount in
+            let initializedAccount = InitializedAccount(
+                keyAccount: userAccount.keyAccount,
+                userID: userAccount.userID
+            )
             
-        } didAuthenticate: { keyAccount, user in
-            self.completeLogin(with: InitializedAccount(keyAccount: keyAccount, user: user))
+            self.completeLogin(with: initializedAccount)
         }
     }
     
-    private func initializeState(count: Int = 0, migration: @escaping (MnemonicPhrase) -> Void, didAuthenticate: @escaping (KeyAccount, User) -> Void) {
+    private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void) {
         trace(.warning)
         
-        // The most important Keychain item is the key account
-        // because it's the only thing we can't derive. If the
-        // the user is missing we'll transition into a 'migration'
-        // and fetch the latest user data from the server.
-        let (keyAccount, user) = accountManager.fetchCurrent()
-        
-        if let keyAccount = keyAccount {
-            if let user = user {
-                didAuthenticate(keyAccount, user)
-                
-                if count > 0 {
-                    trace(.failure, components: "Logged in after \(count) retries")
-                    Task {
-                        // Mixpanel isn't initialized yet
-                        try await Task.delay(seconds: 1)
-//                        Analytics.loginByRetry(count: count)
-                    }
-                }
-                
-            } else {
-                state = .migrating
-                migration(keyAccount.mnemonic)
-            }
+        let userAccount = accountManager.fetchCurrentUserAccount()
+        if let userAccount = userAccount {
+            didAuthenticate(userAccount)
             
             // Inserting a new version of this key account
             // will update the `lastSeen` date and the
             // device name that is currently using it.
-            accountManager.upsert(account: keyAccount)
+            accountManager.upsert(keyAccount: userAccount.keyAccount)
             
         } else {
             
@@ -116,7 +93,6 @@ final class SessionAuthenticator: ObservableObject {
                             let nextCount = count + 1
                             initializeState(
                                 count: nextCount,
-                                migration: migration,
                                 didAuthenticate: didAuthenticate
                             )
                             
@@ -141,7 +117,7 @@ final class SessionAuthenticator: ObservableObject {
         let session = Session(
             container: container,
             owner: initializedAccount.owner,
-            user: initializedAccount.user
+            userID: initializedAccount.userID
         )
         
 //        session.delegate = self
@@ -149,71 +125,64 @@ final class SessionAuthenticator: ObservableObject {
         return session
     }
     
+    // MARK: - Actions -
+    
+    func createAccountAction() {
+        
+    }
+    
     // MARK: - Login -
     
-    func initialize(using mnemonic: MnemonicPhrase) async throws -> InitializedAccount {
-        inProgress = true
+    func initialize(using mnemonic: MnemonicPhrase, isRegistration: Bool) async throws -> InitializedAccount {
+        loginButtonState = .loading
         defer {
-            inProgress = false
+            loginButtonState = .normal
         }
         
-//        let owner      = mnemonic.solanaKeyPair()
-//        let organizer  = Organizer(mnemonic: mnemonic)
-//        let keyAccount = KeyAccount(
-//            mnemonic: mnemonic,
-//            derivedKey: DerivedKey(
-//                path: .solana,
-//                keyPair: owner
-//            )
-//        )
-//        
-//        do {
-//            let phoneLink = try await client.fetchAssociatedPhoneNumber(owner: owner)
-//            let user      = try await client.fetchUser(phone: phoneLink.phone, owner: owner)
-//            
-//            // Check if this is an existing account that will only
-//            // need login or a brand new account that requires
-//            // creation before it can be used
-//            do {
-//                let accounts = try await client.fetchAccountInfos(owner: owner)
-//                
-//                // If primary vault exists, it's an existing user
-//                guard accounts[organizer.primaryVault] != nil else {
-//                    throw Error.primaryAccountNotFound
-//                }
-//                
-//            } catch ErrorFetchAccountInfos.notFound {
-//                try await client.createAccounts(with: organizer)
-//                
-//            }
-//            
-//            accountManager.set(
-//                account: keyAccount,
-//                user: user
-//            )
-//            
-//            trace(.note, components: "Owner: \(organizer.ownerKeyPair.publicKey)")
-//            
-//            return InitializedAccount(
-//                keyAccount: keyAccount,
-//                user: user
-//            )
-//            
-//        } catch {
-////            ErrorReporting.captureError(error)
-//            throw error
-//        }
-        
-        return InitializedAccount(
-            keyAccount: .init(
-                mnemonic: mnemonic,
-                derivedKey: .derive(
-                    using: .solana,
-                    mnemonic: mnemonic
-                )
-            ),
-            user: .mock
+        let derivedKey: DerivedKey = .derive(
+            using: .primary(),
+            mnemonic: mnemonic
         )
+        
+        let keyAccount = KeyAccount(
+            mnemonic: mnemonic,
+            derivedKey: derivedKey
+        )
+        
+        let cluster = AccountCluster(authority: derivedKey)
+        
+        do {
+            let userID: UserID
+            let userFlags: UserFlags
+            
+            if isRegistration {
+                // 1. Create VM accounts first
+                try await client.createAccounts(with: cluster)
+                
+                // 2. Register accounts with flipcash
+                userID    = try await flipClient.register(owner: keyAccount.owner)
+                userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: keyAccount.owner)
+            } else {
+                userID    = try await flipClient.login(owner: keyAccount.owner)
+                userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: keyAccount.owner)
+            }
+            
+            accountManager.set(
+                keyAccount: keyAccount,
+                userID: userID
+            )
+            
+            trace(.note, components: "Owner: \(keyAccount.ownerPublicKey)")
+            
+            return InitializedAccount(
+                keyAccount: keyAccount,
+                userID: userID
+            )
+            
+        } catch {
+//            ErrorReporting.captureError(error)
+            throw error
+        }
     }
     
     func completeLogin(with initializedAccount: InitializedAccount) {
@@ -305,6 +274,15 @@ extension SessionAuthenticator {
         case migrating
         case pending
         case loggedIn(Session)
+        
+        var intValue: Int {
+            switch self {
+            case .loggedOut: return 0
+            case .migrating: return 1
+            case .pending:   return 2
+            case .loggedIn:  return 3
+            }
+        }
     }
 }
 
@@ -314,12 +292,12 @@ struct InitializedAccount {
     
     let keyAccount: KeyAccount
     let owner: AccountCluster
-    let user: User
+    let userID: UserID
     
-    fileprivate init(keyAccount: KeyAccount, user: User) {
+    fileprivate init(keyAccount: KeyAccount, userID: UserID) {
         self.keyAccount = keyAccount
         self.owner = .init(authority: .derive(using: .primary(), mnemonic: keyAccount.mnemonic))
-        self.user = user
+        self.userID = userID
     }
 }
 

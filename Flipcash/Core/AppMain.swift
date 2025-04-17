@@ -23,7 +23,8 @@ struct AppMain: App {
     
     var body: some Scene {
         WindowGroup {
-            ScanScreen(container: container)
+            ContainerScreen(container: container)
+                .injectingEnvironment(from: container)
         }
     }
 }

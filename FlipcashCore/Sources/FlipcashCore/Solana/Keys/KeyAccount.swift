@@ -34,7 +34,7 @@ extension KeyAccount {
 // MARK: - Derivation Paths -
 
 extension Derive.Path {
-    public static let solana  = Derive.Path("m/44'/501'/0'/0'")!
+    public static let solana = Derive.Path("m/44'/501'/0'/0'")!
 }
 
 // MARK: - Mock -

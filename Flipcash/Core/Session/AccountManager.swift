@@ -15,7 +15,7 @@ class AccountManager {
         Keychain.historicalAccounts?.count ?? 0
     }
     
-    private var currentAccount: KeyAccount? {
+    private var currentKeyAccount: KeyAccount? {
         get {
             Keychain.keyAccount
         }
@@ -24,12 +24,12 @@ class AccountManager {
         }
     }
     
-    private var currentUser: User? {
+    private var currentUserAccount: UserAccount? {
         get {
-            Keychain.user
+            Keychain.userAccount
         }
         set {
-            Keychain.user = newValue
+            Keychain.userAccount = newValue
         }
     }
     
@@ -47,22 +47,25 @@ class AccountManager {
         }
     }
     
-    func fetchCurrent() -> (account: KeyAccount?, user: User?) {
-        (currentAccount, currentUser)
+    func fetchCurrentUserAccount() -> UserAccount? {
+        currentUserAccount
     }
     
-    func set(account: KeyAccount, user: User) {
-        currentAccount = account
-        currentUser = user
+    func set(keyAccount: KeyAccount, userID: UserID) {
+        currentKeyAccount = keyAccount
+        currentUserAccount = UserAccount(
+            userID: userID,
+            keyAccount: keyAccount
+        )
         
-        upsert(account: account)
+        upsert(keyAccount: keyAccount)
     }
     
-    func upsert(account: KeyAccount) {
-        let key = account.ownerPublicKey.base58
+    func upsert(keyAccount: KeyAccount) {
+        let key = keyAccount.ownerPublicKey.base58
         
         let newDescription = AccountDescription(
-            account: account,
+            account: keyAccount,
             creationDate: Date()
         )
         
@@ -96,8 +99,8 @@ class AccountManager {
     }
     
     func resetForLogout() {
-        currentAccount = nil
-        currentUser = nil
+        currentKeyAccount = nil
+        currentUserAccount = nil
     }
     
     func nuke() {
@@ -122,8 +125,8 @@ private extension Keychain {
     @SecureCodable(.keyAccount)
     static var keyAccount: KeyAccount?
     
-    @SecureCodable(.currentUser)
-    static var user: User?
+    @SecureCodable(.currentUserAccount)
+    static var userAccount: UserAccount?
     
     @SecureCodable(.historicalAccounts, sync: true)
     static var historicalAccounts: [String: AccountDescription]?

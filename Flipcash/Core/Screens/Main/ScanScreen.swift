@@ -46,8 +46,8 @@ struct ScanScreen: View {
     
     // MARK: - Init -
     
-    init(container: Container) {
-        _viewModel = .init(wrappedValue: ScanViewModel(container: container))
+    init(container: Container, session: Session) {
+        _viewModel = .init(wrappedValue: ScanViewModel(container: container, session: session))
     }
     
     // MARK: - Body -

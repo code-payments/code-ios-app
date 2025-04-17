@@ -18,16 +18,16 @@ protocol SessionDelegate: AnyObject {
 class Session: ObservableObject {
 
     let owner: AccountCluster
-    let user: User
+    let userID: UserID
     
     private let container: Container
     
     // MARK: - Init -
     
-    init(container: Container, owner: AccountCluster, user: User) {
+    init(container: Container, owner: AccountCluster, userID: UserID) {
         self.container = container
         self.owner     = owner
-        self.user      = user
+        self.userID    = userID
     }
     
     func prepareForLogout() {
