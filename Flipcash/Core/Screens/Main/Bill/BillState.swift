@@ -14,18 +14,16 @@ struct BillState {
     var bill: Bill?
     var shouldShowToast: Bool
     var toast: Toast?
-    var valuation: Valuation?
     
     var primaryAction: PrimaryAction?
     var secondaryAction: SecondaryAction?
     
     var hideBillButtons: Bool
     
-    init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, valuation: Valuation? = nil, primaryAction: PrimaryAction? = nil, secondaryAction: SecondaryAction? = nil, hideBillButtons: Bool = false) {
+    init(bill: Bill?, shouldShowDeposit: Bool = false, toast: Toast? = nil, primaryAction: PrimaryAction? = nil, secondaryAction: SecondaryAction? = nil, hideBillButtons: Bool = false) {
         self.bill                = bill
         self.shouldShowToast     = shouldShowDeposit
         self.toast               = toast
-        self.valuation           = valuation
         self.primaryAction       = primaryAction
         self.secondaryAction     = secondaryAction
         self.hideBillButtons     = hideBillButtons
@@ -128,34 +126,12 @@ extension BillState {
 extension BillState {
     enum Bill: Equatable {
         
-        case cash(Metadata)
+        case cash(CashCode.Payload)
         
         var canSwipeToDismiss: Bool {
             switch self {
             case .cash: return true
             }
-        }
-        
-        var metadata: Metadata {
-            switch self {
-            case .cash(let m): return m
-            }
-        }
-    }
-}
-
-extension BillState {
-    struct Metadata: Equatable {
-        var fiat: Fiat
-        var cashCodeData: Data
-        
-        init(fiat: Fiat, cashCodeData: Data? = nil) {
-            self.fiat = fiat
-            self.cashCodeData = cashCodeData ?? CashCode.Payload(
-                kind: .cash,
-                fiat: fiat,
-                nonce: .nonce
-            ).codeData()
         }
     }
 }

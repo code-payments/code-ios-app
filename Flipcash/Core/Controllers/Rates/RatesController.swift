@@ -11,6 +11,9 @@ import FlipcashCore
 @MainActor
 class RatesController: ObservableObject {
     
+    @Published var entryCurrency: CurrencyCode   = .usd
+    @Published var balanceCurrency: CurrencyCode = .usd
+    
     private let client: Client
     private let database: Database
     
@@ -36,7 +39,11 @@ class RatesController: ObservableObject {
     private func fetchExchangeRates() async throws {
         let snapshot = try await client.fetchExchangeRates()
         try database.insert(snapshot: snapshot)
-//        cache(rates: rates, for: date)
-//        set(rates: rates, date: date)
+    }
+    
+    // MARK: - Rates -
+    
+    func rate(for currency: CurrencyCode) -> Rate? {
+        try? database.rate(for: currency)
     }
 }

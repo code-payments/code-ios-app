@@ -40,10 +40,11 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Transfer -
     
-    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         let intent = IntentTransfer(
+            rendezvous: rendezvous,
             sourceCluster: sourceCluster,
             destination: destination,
             exchangedFiat: exchangedFiat
@@ -122,7 +123,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - AirDrop -
     
-    func airdrop(type: AirdropType, owner: KeyPair, completion: @escaping (Result<PaymentMetadata, ErrorAirdrop>) -> Void) {
+    func airdrop(type: AirdropType, owner: KeyPair, completion: @Sendable @escaping (Result<PaymentMetadata, ErrorAirdrop>) -> Void) {
         trace(.send)
         
         let request = Code_Transaction_V2_AirdropRequest.with {
@@ -285,7 +286,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Status -
     
-    func fetchIntentMetadata(owner: KeyPair, intentID: PublicKey, completion: @escaping (Result<IntentMetadata, ErrorFetchIntentMetadata>) -> Void) {
+    func fetchIntentMetadata(owner: KeyPair, intentID: PublicKey, completion: @Sendable @escaping (Result<IntentMetadata, ErrorFetchIntentMetadata>) -> Void) {
         let request = Code_Transaction_V2_GetIntentMetadataRequest.with {
             $0.intentID  = intentID.codeIntentID
             $0.owner     = owner.publicKey.solanaAccountID
@@ -356,7 +357,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Withdrawals -
     
-    func fetchDestinationMetadata(destination: PublicKey, completion: @escaping (Result<DestinationMetadata, Never>) -> Void) {
+    func fetchDestinationMetadata(destination: PublicKey, completion: @Sendable @escaping (Result<DestinationMetadata, Never>) -> Void) {
         trace(.send, components: "Destination: \(destination.base58)")
         
         let request = Code_Transaction_V2_CanWithdrawToAccountRequest.with {

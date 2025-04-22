@@ -12,12 +12,12 @@ import FlipcashCore
 class ScanCashOperation {
     
     private let client: Client
-    private let owner: KeyPair
+    private let owner: AccountCluster
     private let payload: CashCode.Payload
     
     // MARK: - Init -
     
-    init(client: Client, owner: KeyPair, payload: CashCode.Payload) {
+    init(client: Client, owner: AccountCluster, payload: CashCode.Payload) {
         self.client  = client
         self.owner   = owner
         self.payload = payload
@@ -26,7 +26,7 @@ class ScanCashOperation {
     func start() async throws -> PaymentMetadata {
         do {
             let isStreamOpen = try await client.sendRequestToGrabBill(
-                destination: owner.publicKey,
+                destination: owner.vaultPublicKey,
                 rendezvous: payload.rendezvous
             )
             
@@ -35,7 +35,7 @@ class ScanCashOperation {
             }
             
             let metadata = try await client.pollIntentMetadata(
-                owner: owner,
+                owner: owner.authority.keyPair,
                 intentID: payload.rendezvous.publicKey
             )
             

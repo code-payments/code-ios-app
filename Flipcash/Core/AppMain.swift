@@ -25,6 +25,7 @@ struct AppMain: App {
         WindowGroup {
             ContainerScreen(container: container)
                 .injectingEnvironment(from: container)
+                .colorScheme(.dark)
         }
     }
 }

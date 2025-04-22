@@ -37,6 +37,7 @@ class Container {
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
             .environmentObject(sessionAuthenticator)
+            .environmentObject(ratesController)
     }
 }
 

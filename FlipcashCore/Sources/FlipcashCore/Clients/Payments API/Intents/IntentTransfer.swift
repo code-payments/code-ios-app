@@ -20,8 +20,8 @@ final class IntentTransfer: IntentType {
     
     var actionGroup: ActionGroup
     
-    init(sourceCluster: AccountCluster, destination: PublicKey, exchangedFiat: ExchangedFiat, extendedMetadata: Google_Protobuf_Any? = nil) {
-        self.id               = PublicKey.generate()!
+    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, exchangedFiat: ExchangedFiat, extendedMetadata: Google_Protobuf_Any? = nil) {
+        self.id               = rendezvous
         self.sourceCluster    = sourceCluster
         self.exchangedFiat    = exchangedFiat
         self.extendedMetadata = extendedMetadata

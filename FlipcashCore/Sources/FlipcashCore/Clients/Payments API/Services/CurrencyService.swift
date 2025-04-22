@@ -13,7 +13,7 @@ import NIO
 
 class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
     
-    func fetchExchangeRates(completion: @escaping (Result<RatesSnapshot, Error>) -> Void) {
+    func fetchExchangeRates(completion: @Sendable @escaping (Result<RatesSnapshot, Error>) -> Void) {
 //        trace(.send)
         
         let call = service.getAllRates(Code_Currency_V1_GetAllRatesRequest())
@@ -30,7 +30,7 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
                 rates: rates
             )
             
-//            trace(.success, components: "\(rates.count) rates")
+            trace(.success, components: "\(rates.count) rates")
             completion(.success(snapshot))
             
         } failure: { error in

@@ -14,7 +14,7 @@ import SwiftProtobuf
 
 class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
     
-    func register(owner: KeyPair, completion: @escaping (Result<UserID, ErrorRegisterAccount>) -> Void) {
+    func register(owner: KeyPair, completion: @Sendable @escaping (Result<UserID, ErrorRegisterAccount>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Flipcash_Account_V1_RegisterRequest.with {
@@ -39,7 +39,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         }
     }
     
-    func login(owner: KeyPair, completion: @escaping (Result<UserID, ErrorLoginAccount>) -> Void) {
+    func login(owner: KeyPair, completion: @Sendable @escaping (Result<UserID, ErrorLoginAccount>) -> Void) {
         trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Flipcash_Account_V1_LoginRequest.with {
@@ -64,7 +64,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         }
     }
     
-    func fetchUserFlags(userID: UserID, owner: KeyPair, completion: @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
+    func fetchUserFlags(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
         trace(.send, components: "UserID: \(userID)")
         
         let request = Flipcash_Account_V1_GetUserFlagsRequest.with {

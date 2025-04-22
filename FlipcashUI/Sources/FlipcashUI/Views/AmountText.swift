@@ -13,14 +13,16 @@ public struct AmountText: View {
     
     private let flagStyle: Flag.Style
     private let content: String
-    public let showChevron: Bool
+    private let showChevron: Bool
+    private let canScale: Bool
     
     // MARK: - Init -
     
-    public init(flagStyle: Flag.Style, content: String, showChevron: Bool = false) {
-        self.flagStyle = flagStyle
-        self.content  = content
+    public init(flagStyle: Flag.Style, content: String, showChevron: Bool = false, canScale: Bool = true) {
+        self.flagStyle   = flagStyle
+        self.content     = content
         self.showChevron = showChevron
+        self.canScale    = canScale
     }
     
     public var body: some View {
@@ -34,7 +36,7 @@ public struct AmountText: View {
             }
             Text(content)
                 .lineLimit(1)
-                .minimumScaleFactor(0.3)
+                .minimumScaleFactor(canScale ? 0.3 : 1.0)
         }
     }
 }

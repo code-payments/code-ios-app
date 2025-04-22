@@ -21,6 +21,8 @@ class ScanViewModel: ObservableObject {
     @Published var billState: BillState = .default()
     @Published var presentationState: PresentationState = .hidden(.slide)
     
+    @Published var valuation: BillValuation? = nil
+    
     private var isTransactionInProgress: Bool = false
     
     private var scannedRendezvous: Set<PublicKey> = []
@@ -31,6 +33,7 @@ class ScanViewModel: ObservableObject {
     }
     
     private var scanOperation: ScanCashOperation?
+    private var sendOperation: SendCashOperation?
     
     // MARK: - Init -
     
@@ -91,10 +94,7 @@ class ScanViewModel: ObservableObject {
     }
     
     private func didScanCash(_ payload: CashCode.Payload) {
-        print("Scanned: \(payload.fiat!.formatted(suffix: nil)) \(payload.fiat!.currencyCode)")
-        
-        // TODO: Replace with actual account public key
-        let owner = KeyPair.generate()!
+        print("Scanned: \(payload.fiat.formatted(suffix: nil)) \(payload.fiat.currencyCode)")
         
         guard scanOperation == nil else {
             return
@@ -102,7 +102,7 @@ class ScanViewModel: ObservableObject {
         
         let operation = ScanCashOperation(
             client: client,
-            owner: owner,
+            owner: session.owner,
             payload: payload
         )
         
@@ -114,7 +114,11 @@ class ScanViewModel: ObservableObject {
             
             do {
                 let metadata = try await operation.start()
-                // TODO: self.showBill(metadata)
+                showCashBill(.init(
+                    kind: .cash,
+                    exchangedFiat: metadata.exchangedFiat,
+                    received: true
+                ))
                 
             } catch ScanCashOperation.Error.noOpenStreamForRendezvous {
                 // Do not remove the nonce from received pool
@@ -125,6 +129,70 @@ class ScanViewModel: ObservableObject {
             }
             
             // Update balance
+        }
+    }
+    
+    // MARK: - Cash -
+    
+    func showCashBill(_ billDescription: BillDescription) {
+        let operation = SendCashOperation(
+            client: client,
+            owner: session.owner,
+            exchangedFiat: billDescription.exchangedFiat
+        )
+        
+        if billDescription.received {
+            valuation = BillValuation(
+                rendezvous: operation.payload.rendezvous.publicKey,
+                exchangedFiat: billDescription.exchangedFiat
+            )
+        }
+        
+        sendOperation = operation
+        presentationState = .visible(billDescription.received ? .pop : .slide)
+        billState = .init(
+            bill: .cash(operation.payload),
+            primaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
+                self?.dismissCashBill(style: .slide)
+            },
+        )
+        
+        operation.start { [weak self] result in
+            switch result {
+            case .success(let success):
+                self?.dismissCashBill(style: .pop)
+                
+            case .failure(let failure):
+                self?.dismissCashBill(style: .slide)
+            }
+        }
+    }
+    
+    func dismissCashBill(style: PresentationState.Style) {
+        
+        // TODO: Show toast if needed
+        
+        sendOperation = nil
+        presentationState = .hidden(style)
+        billState = .default()
+        valuation = nil
+    }
+}
+
+extension ScanViewModel {
+    struct BillDescription {
+        enum Kind {
+            case cash
+        }
+        
+        let kind: Kind
+        let exchangedFiat: ExchangedFiat
+        let received: Bool
+        
+        init(kind: Kind, exchangedFiat: ExchangedFiat, received: Bool) {
+            self.kind = kind
+            self.exchangedFiat = exchangedFiat
+            self.received = received
         }
     }
 }

@@ -16,6 +16,7 @@ struct ScanScreen: View {
 //    @State private var preferences = Preferences()
     
     @State private var isShowingSettings: Bool = false
+    @State private var isShowingGive: Bool = false
     
     private var toast: String? {
         if let toast = viewModel.billState.toast {
@@ -58,14 +59,6 @@ struct ScanScreen: View {
             if cameraAuthorized {
 //                if preferences.cameraEnabled {
                     cameraViewport()
-                    .onTapGesture(count: 2) {
-                        viewModel.billState = BillState(bill:
-                            .cash(
-                                .init(fiat: 5)
-                            )
-                        )
-                        viewModel.presentationState = .visible(.slide)
-                    }
 //                }
             }
             
@@ -90,11 +83,26 @@ struct ScanScreen: View {
                 interfaceView()
                     .zIndex(1)
                     .transition(.opacity)
+            } else {
+                billActions()
+                    .zIndex(1)
+                    .transition(.opacity)
             }
 //            modalView()
         }
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .ignoresSafeArea(.keyboard)
+        .sheet(item: $viewModel.valuation) { valuation in
+            PartialSheet(background: .backgroundMain, canAccessBackground: true) {
+                ModalCashReceived(
+                    title: "You received",
+                    fiat: valuation.exchangedFiat.converted,
+                    actionTitle: "Put in Wallet",
+                    dismissAction: dismissBill
+                )
+            }
+            .interactiveDismissDisabled()
+        }
     }
     
     @ViewBuilder private func cameraViewport() -> some View {
@@ -115,7 +123,7 @@ struct ScanScreen: View {
             centerOffset: CGSize(width: 0, height: -30),
             preferredCanvasSize: preferredCanvasSize(),
             bill: viewModel.billState.bill,
-            action: billAction,
+            action: nil,
             dismissHandler: dismissBill
         )
         .allowsHitTesting(viewModel.presentationState.isPresenting)
@@ -180,6 +188,26 @@ struct ScanScreen: View {
         }
     }
     
+    @ViewBuilder private func billActions() -> some View {
+        VStack {
+            Spacer()
+            
+            HStack(alignment: .center, spacing: 30) {
+                if let primaryAction = viewModel.billState.primaryAction {
+                    CapsuleButton(
+                        state: .normal,
+                        asset: primaryAction.asset,
+                        title: primaryAction.title
+                    ) {
+                        Task {
+                            try await primaryAction.action()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     @ViewBuilder private func topBar() -> some View {
         HStack(alignment: .top) {
             Spacer()
@@ -209,20 +237,25 @@ struct ScanScreen: View {
     @ViewBuilder private func bottomBar() -> some View {
         HStack(alignment: .bottom) {
             LargeButton(
-                title: "Send",
-                image: .asset(.hex),
+                title: "Give",
+                image: .asset(.tipcard),
                 spacing: 12,
                 maxWidth: 80,
                 maxHeight: 80,
                 fullWidth: true,
-                aligment: .bottom
-            ) {
-                
+                aligment: .bottom,
+                binding: $isShowingGive
+            )
+            .sheet(isPresented: $isShowingGive) {
+                GiveScreen(
+                    isPresented: $isShowingGive,
+                    scanViewModel: viewModel
+                )
             }
             
             LargeButton(
-                title: "Receive",
-                image: .asset(.tipcard),
+                title: "Send",
+                image: .asset(.hex),
                 spacing: 12,
                 maxWidth: 80,
                 maxHeight: 80,
@@ -241,7 +274,6 @@ struct ScanScreen: View {
                     maxWidth: 80,
                     maxHeight: 80,
                     fullWidth: true,
-                    badge: 0,//chatController.unreadCount,
                     aligment: .bottom
                 ) {
                     
@@ -253,13 +285,8 @@ struct ScanScreen: View {
     
     // MARK: - Actions -
     
-    private func billAction() {
-//        isPresentingBillExchange.toggle()
-    }
-    
     private func dismissBill() {
-        viewModel.billState.bill = nil
-        viewModel.presentationState = .hidden(.slide)
+        viewModel.dismissCashBill(style: .slide)
 //        if let action = session.billState.secondaryAction {
 //            action.action()
 //        }

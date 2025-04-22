@@ -145,7 +145,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         reference.stream = stream
     }
     
-    func fetchMessages(rendezvous: KeyPair, completion: @escaping (Result<[StreamMessage], Error>) -> Void) {
+    func fetchMessages(rendezvous: KeyPair, completion: @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
         trace(.send, components: "Rendezvous: \(rendezvous.publicKey.base58)")
         
         let request = Code_Messaging_V1_PollMessagesRequest.with {
@@ -165,7 +165,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
-    func acknowledge(messages: [StreamMessage], rendezvous: PublicKey, completion: @escaping (Result<Void, Error>) -> Void) {
+    func acknowledge(messages: [StreamMessage], rendezvous: PublicKey, completion: @Sendable @escaping (Result<Void, Error>) -> Void) {
         let ids = messages.map { $0.id }
         
         let stringsIDs = ids.map { "Message ID: \($0.data.hexEncodedString())" }
@@ -208,7 +208,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         return rendezvous.verify(signature: signature, data: messageData)
     }
     
-    func sendRequestToGrabBill(destination: PublicKey, rendezvous: KeyPair, completion: @escaping (Result<Bool, Error>) -> Void) {
+    func sendRequestToGrabBill(destination: PublicKey, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         trace(.send, components:
             "Destination: \(destination.base58)",
             "Rendezvous: \(rendezvous.publicKey.base58)"
@@ -223,7 +223,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         )
     }
     
-    func codeScanned(rendezvous: KeyPair, completion: @escaping (Result<Bool, Error>) -> Void) {
+    func codeScanned(rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         trace(.send, components: "Rendezvous: \(rendezvous.publicKey.base58)")
         
         let message: Code_Messaging_V1_Message = .with {
@@ -239,7 +239,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         )
     }
     
-    private func sendRendezvousMessage(message: Code_Messaging_V1_Message, rendezvous: KeyPair, completion: @escaping (Result<Bool, Error>) -> Void) {
+    private func sendRendezvousMessage(message: Code_Messaging_V1_Message, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         let request = Code_Messaging_V1_SendMessageRequest.with {
             $0.message = message
             $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey

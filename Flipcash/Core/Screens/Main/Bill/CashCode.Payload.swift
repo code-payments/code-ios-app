@@ -38,11 +38,11 @@ extension CashCode {
             }
         }
         
-        var fiat: Fiat? {
-            if case .fiat(let fiat) = value {
+        var fiat: Fiat {
+            switch value {
+            case .fiat(let fiat):
                 return fiat
             }
-            return nil
         }
     }
 }

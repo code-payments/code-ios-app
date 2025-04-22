@@ -17,13 +17,14 @@ extension Client {
         }
     }
     
-    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey) async throws {
+    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 exchangedFiat: exchangedFiat,
                 sourceCluster: owner,
                 destination: destination,
-                owner: owner.authority.keyPair
+                owner: owner.authority.keyPair,
+                rendezvous: rendezvous
             ) { c.resume(with: $0) }
         }
 //        let intent = try await withCheckedThrowingContinuation { c in

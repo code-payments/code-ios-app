@@ -12,22 +12,23 @@ import Combine
 @MainActor
 class SendCashOperation {
     
+    let payload: CashCode.Payload
+    
     private let client: Client
     private let owner: AccountCluster
-    private let exchangeFiat: ExchangedFiat
-    private let payload: CashCode.Payload
+    private let exchangedFiat: ExchangedFiat
     
     private var messageStream: AnyCancellable? = nil
     
     // MARK: - Init -
     
-    init(client: Client, owner: AccountCluster, exchangeFiat: ExchangedFiat) {
+    init(client: Client, owner: AccountCluster, exchangedFiat: ExchangedFiat) {
         self.client       = client
         self.owner        = owner
-        self.exchangeFiat = exchangeFiat
+        self.exchangedFiat = exchangedFiat
         self.payload      = .init(
             kind: .cash,
-            fiat: exchangeFiat.usdc,
+            fiat: exchangedFiat.usdc,
             nonce: .nonce
         )
     }
@@ -38,62 +39,74 @@ class SendCashOperation {
         messageStream = nil
     }
     
-    func start() async throws {
+    func start(completion: @escaping (Result<Void, Swift.Error>) -> Void) {
         let rendezvous = payload.rendezvous
-        let paymentMetadata = try await waitForPaymentMetadata()
+        let exchangedFiat = exchangedFiat
+        let owner = owner
         
-        // 1. Validate that destination hasn't been tampered with by
-        // verifying the signature matches one that has been signed
-        // with the rendezvous key.
-        
-        let isValid = client.verifyRequestToGrabBill(
-            destination: paymentMetadata.account,
-            rendezvous: rendezvous.publicKey,
-            signature: paymentMetadata.signature
-        )
-        
-        guard isValid else {
-            let error = Error.invalidPaymentDestinationSignature
-//            ErrorReporting.capturePayment(
-//                error: error,
-//                rendezvous: rendezvous.publicKey,
-//                tray: tray,
-//                amount: amount,
-//                reason: "Request signature verification failed"
-//            )
-            throw error
-        }
-        
-        // 2. Send the funds to destination
-        
-        do {
-            try await client.transfer(
-                exchangedFiat: exchangeFiat,
-                owner: owner,
-                destination: paymentMetadata.account
-            )
+        messageStream = self.client.openMessageStream(rendezvous: self.payload.rendezvous) { [weak self] result in
+            guard let self = self else { return }
             
-            _ = try await client.pollIntentMetadata(
-                owner: owner.authority.keyPair,
-                intentID: rendezvous.publicKey
-            )
-            
-        } catch {
-//            ErrorReporting.capture(error)
-            throw error
+            switch result {
+            case .success(let paymentMetadata):
+                
+                // 1. Validate that destination hasn't been tampered with by
+                // verifying the signature matches one that has been signed
+                // with the rendezvous key.
+                
+                let isValid = client.verifyRequestToGrabBill(
+                    destination: paymentMetadata.account,
+                    rendezvous: rendezvous.publicKey,
+                    signature: paymentMetadata.signature
+                )
+                
+                guard isValid else {
+                    let error: Error = Error.invalidPaymentDestinationSignature
+//                    ErrorReporting.capturePayment(
+//                        error: error,
+//                        rendezvous: rendezvous.publicKey,
+//                        tray: tray,
+//                        amount: amount,
+//                        reason: "Request signature verification failed"
+//                    )
+                    completion(.failure(error))
+                    return
+                }
+                
+                // 2. Send the funds to destination
+                
+                Task {
+                    do {
+                        try await self.client.transfer(
+                            exchangedFiat: exchangedFiat,
+                            owner: owner,
+                            destination: paymentMetadata.account,
+                            rendezvous: rendezvous.publicKey
+                        )
+                        
+                        _ = try await self.client.pollIntentMetadata(
+                            owner: owner.authority.keyPair,
+                            intentID: rendezvous.publicKey
+                        )
+                        
+                        completion(.success(()))
+                        
+                    } catch {
+//                        ErrorReporting.capture(error)
+                        completion(.failure(error))
+                    }
+                }
+                
+            case .failure(let error):
+                completion(.failure(error))
+            }
         }
     }
     
-    private func waitForPaymentMetadata() async throws -> PaymentRequest {
-        try await withCheckedThrowingContinuation { c in
-            messageStream = client.openMessageStream(rendezvous: payload.rendezvous) { [weak self] in
-                if self?.messageStream != nil {
-                    c.resume(with: $0)
-                    self?.messageStream?.cancel()
-                    self?.messageStream = nil
-                }
-            }
-        }
+    private func invalidateMessageStream() {
+        trace(.warning, components: "Closed message stream")
+        messageStream?.cancel()
+        messageStream = nil
     }
 }
 
