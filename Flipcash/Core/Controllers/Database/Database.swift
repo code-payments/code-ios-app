@@ -57,6 +57,8 @@ class Database {
         }
     }
     
+    // MARK: - Transaction -
+    
     /// Always inline this function to ensure that captureError
     /// captures the function in which this was called, otherwise
     /// it will always captured in transaction {}
@@ -101,11 +103,51 @@ class Database {
         }
 //        print("[DB TX]: \(Date.now.timeIntervalSince1970 - start.timeIntervalSince1970) seconds")
     }
+    
+    // MARK: - Versioning -
+    
+    static func deleteStore() throws {
+        let url = URL.dataStore()
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+            try FileManager.default.removeItem(at: .storeSHM())
+            try FileManager.default.removeItem(at: .storeWAL())
+        }
+    }
+    
+    static func setUserVersion(version: Int) throws {
+        try "\(version)".write(
+            to: .versionFile(),
+            atomically: true,
+            encoding: .utf8
+        )
+    }
+    
+    static func userVersion() throws -> Int? {
+        let versionString = try String(
+            contentsOf: .versionFile(),
+            encoding: .utf8
+        )
+        
+        return Int(versionString.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
 }
 
 extension URL {
     static func dataStore() -> URL {
         URL.applicationSupportDirectory.appendingPathComponent("flipcash.sqlite")
+    }
+    
+    static func storeWAL() -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("flipcash.sqlite-wal")
+    }
+    
+    static func storeSHM() -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("flipcash.sqlite-shm")
+    }
+    
+    static func versionFile() -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("flipcash.version")
     }
 }
 

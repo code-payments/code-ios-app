@@ -27,11 +27,26 @@ class Container {
     init() {
         self.client         = Client(network: .mainNet)
         self.flipClient     = FlipClient(network: .mainNet)
-        self.database       = try! Database(url: .dataStore())
+        self.database       = try! Self.initializeDatabase()
         self.accountManager = AccountManager()
         
         _ = ratesController
         _ = sessionAuthenticator
+    }
+    
+    static func initializeDatabase() throws -> Database {
+        // Currently we don't do migrations so every time
+        // the user version is outdated, we'll rebuild the
+        // database during sync.
+        let userVersion = (try? Database.userVersion()) ?? 0
+        let currentVersion = try InfoPlist.value(for: "SQLiteVersion").integer()
+        if currentVersion > userVersion {
+            try Database.deleteStore()
+            trace(.failure, components: "Outdated user version, deleted database.")
+            try Database.setUserVersion(version: currentVersion)
+        }
+        
+        return try Database(url: .dataStore())
     }
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

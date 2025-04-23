@@ -4,5 +4,7 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user&apos;s phone.</string>
+    <key>SQLiteVersion</key>
+    <integer>1</integer>
 </dict>
 </plist>

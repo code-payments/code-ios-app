@@ -12,11 +12,20 @@ public enum InfoPlist {
     public enum Value {
         
         case string(String)
+        case integer(Int)
         case dictionary([String: Any])
         case array([Any])
         
         public func string() throws -> String {
             guard case .string(let value) = self else {
+                throw InfoPlist.Error.invalidType
+            }
+            
+            return value
+        }
+        
+        public func integer() throws -> Int {
+            guard case .integer(let value) = self else {
                 throw InfoPlist.Error.invalidType
             }
             
@@ -43,6 +52,9 @@ public enum InfoPlist {
             if let string = genericValue as? String {
                 self = .string(string)
                 
+            } else if let integer = genericValue as? Int {
+                self = .integer(integer)
+                
             } else if let dictionary = genericValue as? [String: Any] {
                 self = .dictionary(dictionary)
                 
@@ -56,7 +68,7 @@ public enum InfoPlist {
         
         public func value(for key: String, bundle: Bundle? = nil) throws -> Value {
             switch self {
-            case .array, .string:
+            case .array, .string, .integer:
                 throw Error.invalidType
                 
             case .dictionary(let dictionary):
@@ -67,10 +79,6 @@ public enum InfoPlist {
                 return try Value(genericValue: value)
             }
         }
-    }
-    
-    public static func bundleIdentifier(bundle: Bundle? = nil) throws -> String? {
-        try value(for: "CFBundleIdentifier", bundle: bundle).string()
     }
     
     public static func value(for key: String, bundle: Bundle? = nil) throws -> Value {
