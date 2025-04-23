@@ -167,7 +167,7 @@ extension Code_Transaction_V2_TransactionClientProtocol {
     )
   }
 
-  /// Airdrop airdrops Kin to the requesting account
+  /// Airdrop airdrops core mint tokens to the requesting account
   ///
   /// - Parameters:
   ///   - request: Request to send to Airdrop.
@@ -203,8 +203,8 @@ extension Code_Transaction_V2_TransactionClientProtocol {
   ///   4. Dynamic swap instruction
   ///   5. SwapValidator::PostSwap
   ///
-  /// Note: Currently limited to swapping USDC to Kin.
-  /// Note: Kin is deposited into the token account derived from the VM deposit PDA of the owner account.
+  /// Note: Currently limited to swapping USDC to core mint tokens.
+  /// Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
   ///
   /// Callers should use the `send` method on the returned object to send messages
   /// to the server. The caller should send an `.end` after the final message has been sent.
@@ -226,7 +226,7 @@ extension Code_Transaction_V2_TransactionClientProtocol {
   }
 
   /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-  /// onramp to purchase crypto for use in Code.
+  /// onramp to purchase core mint tokens for use in Code.
   ///
   /// - Parameters:
   ///   - request: Request to send to DeclareFiatOnrampPurchaseAttempt.
@@ -695,7 +695,7 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   /// The RPC indicates if a withdrawal is possible, and how it should be performed.
   func canWithdrawToAccount(request: Code_Transaction_V2_CanWithdrawToAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_CanWithdrawToAccountResponse>
 
-  /// Airdrop airdrops Kin to the requesting account
+  /// Airdrop airdrops core mint tokens to the requesting account
   func airdrop(request: Code_Transaction_V2_AirdropRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_AirdropResponse>
 
   /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
@@ -716,12 +716,12 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   ///   4. Dynamic swap instruction
   ///   5. SwapValidator::PostSwap
   ///
-  /// Note: Currently limited to swapping USDC to Kin.
-  /// Note: Kin is deposited into the token account derived from the VM deposit PDA of the owner account.
+  /// Note: Currently limited to swapping USDC to core mint tokens.
+  /// Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
   func swap(context: StreamingResponseCallContext<Code_Transaction_V2_SwapResponse>) -> EventLoopFuture<(StreamEvent<Code_Transaction_V2_SwapRequest>) -> Void>
 
   /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-  /// onramp to purchase crypto for use in Code.
+  /// onramp to purchase core mint tokens for use in Code.
   func declareFiatOnrampPurchaseAttempt(request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
 }
 
@@ -872,7 +872,7 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Transaction_V2_CanWithdrawToAccountResponse
 
-  /// Airdrop airdrops Kin to the requesting account
+  /// Airdrop airdrops core mint tokens to the requesting account
   func airdrop(
     request: Code_Transaction_V2_AirdropRequest,
     context: GRPCAsyncServerCallContext
@@ -896,8 +896,8 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
   ///   4. Dynamic swap instruction
   ///   5. SwapValidator::PostSwap
   ///
-  /// Note: Currently limited to swapping USDC to Kin.
-  /// Note: Kin is deposited into the token account derived from the VM deposit PDA of the owner account.
+  /// Note: Currently limited to swapping USDC to core mint tokens.
+  /// Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
   func swap(
     requestStream: GRPCAsyncRequestStream<Code_Transaction_V2_SwapRequest>,
     responseStream: GRPCAsyncResponseStreamWriter<Code_Transaction_V2_SwapResponse>,
@@ -905,7 +905,7 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
   ) async throws
 
   /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-  /// onramp to purchase crypto for use in Code.
+  /// onramp to purchase core mint tokens for use in Code.
   func declareFiatOnrampPurchaseAttempt(
     request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
     context: GRPCAsyncServerCallContext

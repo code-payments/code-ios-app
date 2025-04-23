@@ -718,7 +718,7 @@ public struct Code_Transaction_V2_AirdropRequest {
   /// The type of airdrop to claim
   public var airdropType: Code_Transaction_V2_AirdropType = .unknown
 
-  /// The owner account to airdrop Kin to
+  /// The owner account to airdrop core mint tokens to
   public var owner: Code_Common_V1_SolanaAccountId {
     get {return _owner ?? Code_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
@@ -755,7 +755,7 @@ public struct Code_Transaction_V2_AirdropResponse {
 
   public var result: Code_Transaction_V2_AirdropResponse.Result = .ok
 
-  /// Exchange data for the amount of Kin airdropped when successful
+  /// Exchange data for the amount of core mint tokens airdropped when successful
   public var exchangeData: Code_Transaction_V2_ExchangeData {
     get {return _exchangeData ?? Code_Transaction_V2_ExchangeData()}
     set {_exchangeData = newValue}
@@ -1409,7 +1409,7 @@ public struct Code_Transaction_V2_Metadata {
 }
 
 /// Open a set of accounts. Currently, clients should only use this for new users
-/// to open all required accounts up front (buckets, incoming, and outgoing).
+/// to open all required accounts up front..
 ///
 /// Action Spec:
 ///
@@ -1427,9 +1427,19 @@ public struct Code_Transaction_V2_OpenAccountsMetadata {
 
 /// Send a payment to a destination account publicly.
 ///
-/// Action Spec:
+/// Action Spec (Payment, Withdrawal):
 ///
 /// actions = [NoPrivacyTransferAction(PRIMARY, destination, ExchangeData.Quarks)]
+///
+/// Action Spec (Remote Send):
+///
+/// actions = [
+///   OpenAccountAction(REMOTE_SEND_GIFT_CARD),
+///   NoPrivacyTransferAction(PRIMARY, REMOTE_SEND_GIFT_CARD, ExchangeData.Quarks),
+///   NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, ExchangeData.Quarks),
+/// ]
+///
+/// todo: Possibly use a different action type for deferred closing?
 public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1446,8 +1456,7 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
-  /// The destination token account to send funds to. This cannot be a Code
-  /// temporary account.
+  /// The destination token account to send funds to.
   public var destination: Code_Common_V1_SolanaAccountId {
     get {return _destination ?? Code_Common_V1_SolanaAccountId()}
     set {_destination = newValue}
@@ -1470,6 +1479,9 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   /// Is the payment a withdrawal?
   public var isWithdrawal: Bool = false
 
+  /// Is the payment going to a new gift card? Note is_withdrawal must be false.
+  public var isRemoteSend: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1480,15 +1492,11 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
 }
 
 /// Receive funds into a user-owned account publicly. All use cases of this intent
-/// close the account, so all funds must be moved. Use this intent to receive payments
-/// from an account not owned by a user's 12 words into a temporary incoming account,
-/// which will guarantee privacy upgradeability.
+/// close the account, so all funds must be moved.
 ///
 /// Action Spec (Remote Send):
 ///
-/// actions = [NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, TEMPORARY_INCOMING[latest_index], quarks)]
-///
-/// TODO: This requires a new implementation for the VM
+/// actions = [NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, quarks)]
 public struct Code_Transaction_V2_ReceivePaymentsPubliclyMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -1504,7 +1512,7 @@ public struct Code_Transaction_V2_ReceivePaymentsPubliclyMetadata {
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
-  /// The exact amount of Kin in quarks being received
+  /// The exact amount of core mint quarks being received
   public var quarks: UInt64 = 0
 
   /// Is the receipt of funds from a remote send gift card? Currently, this is
@@ -1726,7 +1734,7 @@ public struct Code_Transaction_V2_NoPrivacyTransferAction {
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
-  /// The Kin quark amount to transfer
+  /// The core mint quark amount to transfer
   public var amount: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -1774,7 +1782,7 @@ public struct Code_Transaction_V2_NoPrivacyWithdrawAction {
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
-  /// The intended Kin quark amount to withdraw
+  /// The intended core mint quark amount to withdraw
   public var amount: UInt64 = 0
 
   /// Whether the account is closed afterwards. This is always true, since there
@@ -1819,7 +1827,7 @@ public struct Code_Transaction_V2_FeePaymentAction {
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
-  /// The Kin quark amount to transfer
+  /// The core mint quark amount to transfer
   public var amount: UInt64 = 0
 
   /// The destination where the fee payment is being made for fees outside of
@@ -2270,7 +2278,7 @@ extension Code_Transaction_V2_DeniedErrorDetails.Code: CaseIterable {
 
 #endif  // swift(>=4.2)
 
-/// ExchangeData defines an amount of Kin with currency exchange data
+/// ExchangeData defines an amount of crypto with currency exchange data
 public struct Code_Transaction_V2_ExchangeData {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -2318,7 +2326,7 @@ public struct Code_Transaction_V2_AdditionalFeePayment {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Destination Kin token account where the fee payment will be made
+  /// Destination token account where the fee payment will be made
   public var destination: Code_Common_V1_SolanaAccountId {
     get {return _destination ?? Code_Common_V1_SolanaAccountId()}
     set {_destination = newValue}
@@ -3880,6 +3888,7 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
     1: .same(proto: "destination"),
     2: .standard(proto: "exchange_data"),
     3: .standard(proto: "is_withdrawal"),
+    5: .standard(proto: "is_remote_send"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3892,6 +3901,7 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
       case 2: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isWithdrawal) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._source) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.isRemoteSend) }()
       default: break
       }
     }
@@ -3914,6 +3924,9 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
     try { if let v = self._source {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
+    if self.isRemoteSend != false {
+      try visitor.visitSingularBoolField(value: self.isRemoteSend, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3922,6 +3935,7 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
     if lhs._destination != rhs._destination {return false}
     if lhs._exchangeData != rhs._exchangeData {return false}
     if lhs.isWithdrawal != rhs.isWithdrawal {return false}
+    if lhs.isRemoteSend != rhs.isRemoteSend {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

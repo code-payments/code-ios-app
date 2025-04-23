@@ -42,6 +42,7 @@ message Notification {
         WelcomeBonusNotificationMetadata welcome_bonus = 5;
         GaveUsdcNotificationMetadata     gave_usdc     = 6;
         ReceivedUsdcNotificationMetadata received_usdc = 7;
+        WithdrewUsdcNotificationMetadata withdrew_usdc = 8;
     }
 }
 
@@ -52,6 +53,9 @@ message GaveUsdcNotificationMetadata {
 }
 
 message ReceivedUsdcNotificationMetadata {
+}
+
+message WithdrewUsdcNotificationMetadata {
 }
 
 // ActivityFeedType enables multiple activity feeds, where notifications may be

@@ -22,6 +22,8 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 
 /// AccountType associates a type to an account, which infers how an account is used
 /// within the Code ecosystem.
+///
+/// todo: Deprecate legacy accounts (temporary, buckets, legacy primary, relationship)
 public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   public typealias RawValue = Int
   case unknown // = 0

@@ -58,7 +58,7 @@ service Transaction {
     // The RPC indicates if a withdrawal is possible, and how it should be performed.
     rpc CanWithdrawToAccount(CanWithdrawToAccountRequest) returns (CanWithdrawToAccountResponse);
 
-    // Airdrop airdrops Kin to the requesting account
+    // Airdrop airdrops core mint tokens to the requesting account
     rpc Airdrop(AirdropRequest) returns (AirdropResponse);
 
     // Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
@@ -79,12 +79,12 @@ service Transaction {
     //   4. Dynamic swap instruction
     //   5. SwapValidator::PostSwap
     //
-    // Note: Currently limited to swapping USDC to Kin.
-    // Note: Kin is deposited into the token account derived from the VM deposit PDA of the owner account.
+    // Note: Currently limited to swapping USDC to core mint tokens.
+    // Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
     rpc Swap(stream SwapRequest) returns (stream SwapResponse);
 
     // DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-    // onramp to purchase crypto for use in Code.
+    // onramp to purchase core mint tokens for use in Code.
     rpc DeclareFiatOnrampPurchaseAttempt(DeclareFiatOnrampPurchaseAttemptRequest) returns (DeclareFiatOnrampPurchaseAttemptResponse);
 }
 
@@ -280,7 +280,7 @@ message AirdropRequest {
         not_in: [0, 1] // UNKNOWN, GIVE_FIRST_CRYPTO
     }];
 
-    // The owner account to airdrop Kin to
+    // The owner account to airdrop core mint tokens to
     common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
 
     // The signature is of serialize(AirdropRequest) without this field set
@@ -299,7 +299,7 @@ message AirdropResponse {
         ALREADY_CLAIMED = 2;
     }
 
-    // Exchange data for the amount of Kin airdropped when successful
+    // Exchange data for the amount of core mint tokens airdropped when successful
     ExchangeData exchange_data = 2;
 }
 
@@ -474,7 +474,7 @@ message Metadata {
 }
 
 // Open a set of accounts. Currently, clients should only use this for new users
-// to open all required accounts up front (buckets, incoming, and outgoing).
+// to open all required accounts up front..
 //
 // Action Spec:
 //
@@ -486,16 +486,25 @@ message OpenAccountsMetadata {
 
 // Send a payment to a destination account publicly.
 //
-// Action Spec:
+// Action Spec (Payment, Withdrawal):
 //
 // actions = [NoPrivacyTransferAction(PRIMARY, destination, ExchangeData.Quarks)]
+//
+// Action Spec (Remote Send):
+//
+// actions = [
+//   OpenAccountAction(REMOTE_SEND_GIFT_CARD),
+//   NoPrivacyTransferAction(PRIMARY, REMOTE_SEND_GIFT_CARD, ExchangeData.Quarks),
+//   NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, ExchangeData.Quarks),
+// ]
+//
+// todo: Possibly use a different action type for deferred closing?
 message SendPublicPaymentMetadata {
     // The primary account where funds will be sent from. The primary account is assumed if this
     // field is not set for backwards compatibility with old clients.
     common.v1.SolanaAccountId source = 4;
 
-    // The destination token account to send funds to. This cannot be a Code
-    // temporary account.
+    // The destination token account to send funds to.
     common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
 
     // The exchange data of total funds being sent to the destination
@@ -503,23 +512,22 @@ message SendPublicPaymentMetadata {
 
     // Is the payment a withdrawal?
     bool is_withdrawal = 3;
+
+    // Is the payment going to a new gift card? Note is_withdrawal must be false.
+    bool is_remote_send = 5;
 }
 
 // Receive funds into a user-owned account publicly. All use cases of this intent
-// close the account, so all funds must be moved. Use this intent to receive payments
-// from an account not owned by a user's 12 words into a temporary incoming account,
-// which will guarantee privacy upgradeability.
+// close the account, so all funds must be moved.
 //
 // Action Spec (Remote Send):
 //
-// actions = [NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, TEMPORARY_INCOMING[latest_index], quarks)]
-//
-// TODO: This requires a new implementation for the VM
+// actions = [NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, quarks)]
 message ReceivePaymentsPubliclyMetadata {
     // The remote send gift card to receive funds from
     common.v1.SolanaAccountId source = 1 [(validate.rules).message.required = true];
 
-    // The exact amount of Kin in quarks being received
+    // The exact amount of core mint quarks being received
     uint64 quarks = 2 [(validate.rules).uint64.gt = 0];
 
     // Is the receipt of funds from a remote send gift card? Currently, this is
@@ -603,7 +611,7 @@ message NoPrivacyTransferAction {
     // The destination account where funds are transferred to
     common.v1.SolanaAccountId destination = 3 [(validate.rules).message.required = true];
 
-    // The Kin quark amount to transfer
+    // The core mint quark amount to transfer
     uint64 amount = 4 [(validate.rules).uint64.gt = 0];
 }
 
@@ -618,7 +626,7 @@ message NoPrivacyWithdrawAction {
     // The destination account where funds are transferred to
     common.v1.SolanaAccountId destination = 3 [(validate.rules).message.required = true];
 
-    // The intended Kin quark amount to withdraw
+    // The intended core mint quark amount to withdraw
     uint64 amount = 4 [(validate.rules).uint64.gt = 0];
 
     // Whether the account is closed afterwards. This is always true, since there
@@ -641,7 +649,7 @@ message FeePaymentAction {
     // The source account where funds are transferred from
     common.v1.SolanaAccountId source = 2 [(validate.rules).message.required = true];
 
-    // The Kin quark amount to transfer
+    // The core mint quark amount to transfer
     uint64 amount = 3 [(validate.rules).uint64.gt = 0];
 
     // The destination where the fee payment is being made for fees outside of
@@ -771,7 +779,7 @@ message DeniedErrorDetails {
 //
 
 
-// ExchangeData defines an amount of Kin with currency exchange data
+// ExchangeData defines an amount of crypto with currency exchange data
 message ExchangeData {
     // ISO 4217 alpha-3 currency code.
     string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3,4}$" }];
@@ -799,7 +807,7 @@ message ExchangeDataWithoutRate {
 }
 
 message AdditionalFeePayment {
-    // Destination Kin token account where the fee payment will be made
+    // Destination token account where the fee payment will be made
     common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
 
     // Fee percentage, in basis points, of the total quark amount of a payment.

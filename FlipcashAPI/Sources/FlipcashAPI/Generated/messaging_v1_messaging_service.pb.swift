@@ -430,7 +430,8 @@ public struct Code_Messaging_V1_RequestToGrabBill {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Requestor is the Kin token account on Solana to which a payment should be sent.
+  /// Requestor is the virtual core mint token account on the VM to which a
+  /// payment should be sent.
   public var requestorAccount: Code_Common_V1_SolanaAccountId {
     get {return _requestorAccount ?? Code_Common_V1_SolanaAccountId()}
     set {_requestorAccount = newValue}
@@ -456,7 +457,8 @@ public struct Code_Messaging_V1_RequestToReceiveBill {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Requestor is the Kin token account on Solana to which a payment should be sent.
+  /// Requestor is the virtual core mint token account on the VM to which a
+  /// payment should be sent.
   public var requestorAccount: Code_Common_V1_SolanaAccountId {
     get {return _requestorAccount ?? Code_Common_V1_SolanaAccountId()}
     set {_requestorAccount = newValue}
@@ -469,10 +471,10 @@ public struct Code_Messaging_V1_RequestToReceiveBill {
   /// The exchange data for the requested bill value.
   public var exchangeData: Code_Messaging_V1_RequestToReceiveBill.OneOf_ExchangeData? = nil
 
-  /// An exact amount of Kin. Payment is guaranteed to transfer the specified
+  /// An exact amount of core mint tokens. Payment is guaranteed to transfer the specified
   /// quarks in the requested currency and exchange rate.
   ///
-  /// Only supports Kin. Use exchange_data.partial for fiat amounts.
+  /// Only supports the core mint account. Use exchange_data.partial for fiat amounts.
   public var exact: Code_Transaction_V2_ExchangeData {
     get {
       if case .exact(let v)? = exchangeData {return v}
@@ -481,11 +483,11 @@ public struct Code_Messaging_V1_RequestToReceiveBill {
     set {exchangeData = .exact(newValue)}
   }
 
-  /// Fiat amount request. The amount of Kin is determined at time of payment
-  /// with a recent exchange rate provided by the paying client and validatd
-  /// by server.
+  /// Fiat amount request. The amount of core mint tokens are determined at
+  /// time of payment with a recent exchange rate provided by the paying client
+  /// and validated by server.
   ///
-  /// Only supports fiat amounts. Use exchange_data.exact for Kin.
+  /// Only supports fiat amounts. Use exchange_data.exact for the core mint account.
   public var partial: Code_Transaction_V2_ExchangeDataWithoutRate {
     get {
       if case .partial(let v)? = exchangeData {return v}
@@ -544,16 +546,16 @@ public struct Code_Messaging_V1_RequestToReceiveBill {
 
   /// The exchange data for the requested bill value.
   public enum OneOf_ExchangeData: Equatable {
-    /// An exact amount of Kin. Payment is guaranteed to transfer the specified
+    /// An exact amount of core mint tokens. Payment is guaranteed to transfer the specified
     /// quarks in the requested currency and exchange rate.
     ///
-    /// Only supports Kin. Use exchange_data.partial for fiat amounts.
+    /// Only supports the core mint account. Use exchange_data.partial for fiat amounts.
     case exact(Code_Transaction_V2_ExchangeData)
-    /// Fiat amount request. The amount of Kin is determined at time of payment
-    /// with a recent exchange rate provided by the paying client and validatd
-    /// by server.
+    /// Fiat amount request. The amount of core mint tokens are determined at
+    /// time of payment with a recent exchange rate provided by the paying client
+    /// and validated by server.
     ///
-    /// Only supports fiat amounts. Use exchange_data.exact for Kin.
+    /// Only supports fiat amounts. Use exchange_data.exact for the core mint account.
     case partial(Code_Transaction_V2_ExchangeDataWithoutRate)
 
   #if !swift(>=4.1)
@@ -696,45 +698,6 @@ public struct Code_Messaging_V1_WebhookCalled {
   fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
-/// Client has received an aidrop from server
-///
-/// This message type is only initiated by server.
-public struct Code_Messaging_V1_AirdropReceived {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The type of airdrop received
-  public var airdropType: Code_Transaction_V2_AirdropType = .unknown
-
-  /// Exchange data relating to the amount of Kin and fiat value of the airdrop
-  public var exchangeData: Code_Transaction_V2_ExchangeData {
-    get {return _exchangeData ?? Code_Transaction_V2_ExchangeData()}
-    set {_exchangeData = newValue}
-  }
-  /// Returns true if `exchangeData` has been explicitly set.
-  public var hasExchangeData: Bool {return self._exchangeData != nil}
-  /// Clears the value of `exchangeData`. Subsequent reads from it will return its default value.
-  public mutating func clearExchangeData() {self._exchangeData = nil}
-
-  /// Time the airdrop was received
-  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_timestamp = newValue}
-  }
-  /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
-  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
-  public mutating func clearTimestamp() {self._timestamp = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
-  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-}
-
 public struct Code_Messaging_V1_Message {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -818,14 +781,6 @@ public struct Code_Messaging_V1_Message {
     set {kind = .webhookCalled(newValue)}
   }
 
-  public var airdropReceived: Code_Messaging_V1_AirdropReceived {
-    get {
-      if case .airdropReceived(let v)? = kind {return v}
-      return Code_Messaging_V1_AirdropReceived()
-    }
-    set {kind = .airdropReceived(newValue)}
-  }
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Next field number is 13
@@ -836,7 +791,6 @@ public struct Code_Messaging_V1_Message {
     case clientRejectedPayment(Code_Messaging_V1_ClientRejectedPayment)
     case intentSubmitted(Code_Messaging_V1_IntentSubmitted)
     case webhookCalled(Code_Messaging_V1_WebhookCalled)
-    case airdropReceived(Code_Messaging_V1_AirdropReceived)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Code_Messaging_V1_Message.OneOf_Kind, rhs: Code_Messaging_V1_Message.OneOf_Kind) -> Bool {
@@ -866,10 +820,6 @@ public struct Code_Messaging_V1_Message {
       }()
       case (.webhookCalled, .webhookCalled): return {
         guard case .webhookCalled(let l) = lhs, case .webhookCalled(let r) = rhs else { preconditionFailure() }
-        return l == r
-      }()
-      case (.airdropReceived, .airdropReceived): return {
-        guard case .airdropReceived(let l) = lhs, case .airdropReceived(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -908,7 +858,6 @@ extension Code_Messaging_V1_CodeScanned: @unchecked Sendable {}
 extension Code_Messaging_V1_ClientRejectedPayment: @unchecked Sendable {}
 extension Code_Messaging_V1_IntentSubmitted: @unchecked Sendable {}
 extension Code_Messaging_V1_WebhookCalled: @unchecked Sendable {}
-extension Code_Messaging_V1_AirdropReceived: @unchecked Sendable {}
 extension Code_Messaging_V1_Message: @unchecked Sendable {}
 extension Code_Messaging_V1_Message.OneOf_Kind: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
@@ -1738,54 +1687,6 @@ extension Code_Messaging_V1_WebhookCalled: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Code_Messaging_V1_AirdropReceived: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".AirdropReceived"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .standard(proto: "airdrop_type"),
-    2: .standard(proto: "exchange_data"),
-    3: .same(proto: "timestamp"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.airdropType) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.airdropType != .unknown {
-      try visitor.visitSingularEnumField(value: self.airdropType, fieldNumber: 1)
-    }
-    try { if let v = self._exchangeData {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try { if let v = self._timestamp {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Messaging_V1_AirdropReceived, rhs: Code_Messaging_V1_AirdropReceived) -> Bool {
-    if lhs.airdropType != rhs.airdropType {return false}
-    if lhs._exchangeData != rhs._exchangeData {return false}
-    if lhs._timestamp != rhs._timestamp {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
 extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Message"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -1797,7 +1698,6 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
     7: .standard(proto: "client_rejected_payment"),
     8: .standard(proto: "intent_submitted"),
     9: .standard(proto: "webhook_called"),
-    4: .standard(proto: "airdrop_received"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1821,19 +1721,6 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
         }
       }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._sendMessageRequestSignature) }()
-      case 4: try {
-        var v: Code_Messaging_V1_AirdropReceived?
-        var hadOneofValue = false
-        if let current = self.kind {
-          hadOneofValue = true
-          if case .airdropReceived(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.kind = .airdropReceived(v)
-        }
-      }()
       case 5: try {
         var v: Code_Messaging_V1_RequestToReceiveBill?
         var hadOneofValue = false
@@ -1919,10 +1806,6 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
     switch self.kind {
-    case .airdropReceived?: try {
-      guard case .airdropReceived(let v)? = self.kind else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
-    }()
     case .requestToReceiveBill?: try {
       guard case .requestToReceiveBill(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)

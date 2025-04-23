@@ -12,6 +12,8 @@ import "validate/validate.proto";
 
 // AccountType associates a type to an account, which infers how an account is used
 // within the Code ecosystem.
+//
+// todo: Deprecate legacy accounts (temporary, buckets, legacy primary, relationship)
 enum AccountType {
     UNKNOWN                  = 0;
     PRIMARY                  = 1;

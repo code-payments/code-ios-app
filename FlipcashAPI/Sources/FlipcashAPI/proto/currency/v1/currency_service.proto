@@ -10,7 +10,8 @@ import "validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 service Currency {
-    // GetAllRates returns the exchange rates for Kin against all available currencies
+    // GetAllRates returns the exchange rates for the core mint token against all
+    // available currencies
     rpc GetAllRates(GetAllRatesRequest) returns (GetAllRatesResponse);
 }
 
@@ -33,7 +34,8 @@ message GetAllRatesResponse {
     // The time the exchange rates were observed
     google.protobuf.Timestamp as_of = 2 [(validate.rules).timestamp.required = true];
 
-    // The price of 1 Kin in different currencies, keyed on 3- or 4- letter lowercase currency code.
+    // The price of 1 core mint token in different currencies, keyed on 3- or 4-
+    // letter lowercase currency code.
     map<string, double> rates = 3 [(validate.rules).map.keys.string = {
         pattern: "^[a-z]{3,4}$"
     }];

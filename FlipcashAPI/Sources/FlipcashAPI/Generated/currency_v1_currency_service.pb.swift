@@ -61,7 +61,8 @@ public struct Code_Currency_V1_GetAllRatesResponse {
   /// Clears the value of `asOf`. Subsequent reads from it will return its default value.
   public mutating func clearAsOf() {self._asOf = nil}
 
-  /// The price of 1 Kin in different currencies, keyed on 3- or 4- letter lowercase currency code.
+  /// The price of 1 core mint token in different currencies, keyed on 3- or 4-
+  /// letter lowercase currency code.
   public var rates: Dictionary<String,Double> = [:]
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()

@@ -27,7 +27,8 @@ extension Code_Currency_V1_CurrencyClientProtocol {
     return "code.currency.v1.Currency"
   }
 
-  /// GetAllRates returns the exchange rates for Kin against all available currencies
+  /// GetAllRates returns the exchange rates for the core mint token against all
+  /// available currencies
   ///
   /// - Parameters:
   ///   - request: Request to send to GetAllRates.
@@ -197,7 +198,8 @@ public enum Code_Currency_V1_CurrencyClientMetadata {
 public protocol Code_Currency_V1_CurrencyProvider: CallHandlerProvider {
   var interceptors: Code_Currency_V1_CurrencyServerInterceptorFactoryProtocol? { get }
 
-  /// GetAllRates returns the exchange rates for Kin against all available currencies
+  /// GetAllRates returns the exchange rates for the core mint token against all
+  /// available currencies
   func getAllRates(request: Code_Currency_V1_GetAllRatesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Currency_V1_GetAllRatesResponse>
 }
 
@@ -234,7 +236,8 @@ public protocol Code_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Sen
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Code_Currency_V1_CurrencyServerInterceptorFactoryProtocol? { get }
 
-  /// GetAllRates returns the exchange rates for Kin against all available currencies
+  /// GetAllRates returns the exchange rates for the core mint token against all
+  /// available currencies
   func getAllRates(
     request: Code_Currency_V1_GetAllRatesRequest,
     context: GRPCAsyncServerCallContext
