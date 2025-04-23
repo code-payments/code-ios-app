@@ -11,7 +11,6 @@ import FlipcashAPI
 public struct StreamMessage: Sendable {
     public enum Kind: Sendable {
         case paymentRequest(PaymentRequest)
-        case airdrop(Airdrop)
     }
     
     public let id: ID
@@ -43,14 +42,6 @@ extension StreamMessage {
             return nil
         }
     }
-    
-    public var airdrop: Airdrop? {
-        if case .airdrop(let airdrop) = kind {
-            return airdrop
-        } else {
-            return nil
-        }
-    }
 }
 
 // MARK: - Proto -
@@ -71,15 +62,6 @@ extension StreamMessage {
             
             self.kind = .paymentRequest(
                 PaymentRequest(account: account, signature: signature)
-            )
-            
-        case .airdropReceived(let airdrop):
-            self.kind = .airdrop(
-                Airdrop(
-                    type: try AirdropType(airdrop.airdropType),
-                    date: airdrop.timestamp.date,
-                    exchangedFiat: try ExchangedFiat(airdrop.exchangeData)
-                )
             )
             
         default:

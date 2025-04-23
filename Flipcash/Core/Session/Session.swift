@@ -20,6 +20,10 @@ class Session: ObservableObject {
     let owner: AccountCluster
     let userID: UserID
     
+    var ownerKeyPair: KeyPair {
+        owner.authority.keyPair
+    }
+    
     private let container: Container
     
     // MARK: - Init -

@@ -20,6 +20,7 @@ public class FlipClient: ObservableObject {
     public let queue: DispatchQueue
     
     internal let accountService: AccountService
+    internal let activityService: ActivityService
     
     // MARK: - Init -
     
@@ -31,7 +32,8 @@ public class FlipClient: ObservableObject {
             port: network.port
         )
         
-        self.accountService = AccountService(channel: channel, queue: queue)
+        self.accountService  = AccountService(channel: channel, queue: queue)
+        self.activityService = ActivityService(channel: channel, queue: queue)
     }
     
     deinit {

@@ -113,16 +113,19 @@ final class SessionAuthenticator: ObservableObject {
     
     // MARK: - Session -
     
-    private func createSessionContainer(container: Container, initializedAccount: InitializedAccount) -> Session {
+    private func createSessionContainer(container: Container, initializedAccount: InitializedAccount) -> SessionContainer {
         let session = Session(
             container: container,
             owner: initializedAccount.owner,
             userID: initializedAccount.userID
         )
         
-//        session.delegate = self
+        let historyController = HistoryController(container: container, session: session)
         
-        return session
+        return SessionContainer(
+            session: session,
+            historyController: historyController
+        )
     }
     
     // MARK: - Actions -
@@ -202,15 +205,15 @@ final class SessionAuthenticator: ObservableObject {
     }
     
     func deleteAndLogout() {
-        if case .loggedIn(let session) = state {
-            accountManager.delete(ownerPublicKey: session.owner.authorityPublicKey)
+        if case .loggedIn(let container) = state {
+            accountManager.delete(ownerPublicKey: container.session.owner.authorityPublicKey)
             logout()
         }
     }
     
     func logout() {
-        if case .loggedIn(let session) = state {
-            session.prepareForLogout()
+        if case .loggedIn(let container) = state {
+            container.session.prepareForLogout()
         }
         
         accountManager.resetForLogout()
@@ -220,6 +223,13 @@ final class SessionAuthenticator: ObservableObject {
         
         trace(.note, components: "Logged out")
     }
+}
+
+// MARK: - SessionContainer -
+
+struct SessionContainer {
+    let session: Session
+    let historyController: HistoryController
 }
 
 // MARK: - UserDefaults -
@@ -273,7 +283,7 @@ extension SessionAuthenticator {
         case loggedOut
         case migrating
         case pending
-        case loggedIn(Session)
+        case loggedIn(SessionContainer)
         
         var intValue: Int {
             switch self {

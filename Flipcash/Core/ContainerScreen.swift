@@ -31,9 +31,10 @@ struct ContainerScreen: View {
                 }
                 .transition(.opacity)
                 
-            case .loggedIn(let session):
-                ScanScreen(container: container, session: session)
-                    .environmentObject(session)
+            case .loggedIn(let sessionContainer):
+                ScanScreen(container: container, session: sessionContainer.session)
+                    .environmentObject(sessionContainer.session)
+                    .environmentObject(sessionContainer.historyController)
                     .transition(.opacity)
             }
         }

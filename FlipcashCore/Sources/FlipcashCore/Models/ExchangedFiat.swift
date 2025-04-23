@@ -7,6 +7,7 @@
 
 import Foundation
 import FlipcashAPI
+import FlipcashCoreAPI
 
 public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     
@@ -32,6 +33,17 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 rate: rate
             )
         }
+    }
+    
+    private init(usdc: Fiat, converted: Fiat) {
+        self.init(
+            usdc: usdc,
+            converted: converted,
+            rate: Rate(
+                fx: converted.decimalValue / usdc.decimalValue,
+                currency: converted.currencyCode
+            )
+        )
     }
     
     private init(usdc: Fiat, converted: Fiat, rate: Rate) {
@@ -62,6 +74,22 @@ extension ExchangedFiat {
                 fx: Decimal(proto.exchangeRate),
                 currency: currency
             )
+        )
+    }
+    
+    init(_ proto: Flipcash_Common_V1_PaymentAmount) throws {
+        let currency = try CurrencyCode(currencyCode: proto.currency)
+        
+        self.init(
+            usdc: Fiat(
+                quarks: proto.quarks,
+                currencyCode: .usd
+            ),
+            converted: try Fiat(
+                fiatDecimal: Decimal(proto.nativeAmount),
+                currencyCode: currency
+            )
+            // Rate is auto-calculated based on converted / usdc
         )
     }
 }
