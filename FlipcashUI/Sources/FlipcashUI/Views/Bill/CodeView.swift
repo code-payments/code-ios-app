@@ -26,12 +26,15 @@ public struct CodeView: View {
                     ZStack {
                         Circle()
                             .fill(Color.white)
-                        Image.symbol(.code)
+                        Image.asset(.flipcashLogo)
+                            .renderingMode(.template)
                             .interpolation(.high)
                             .resizable()
+                            .aspectRatio(contentMode: .fit)
                             .scaleEffect(0.6)
-                            .font(.default(size: 150))
+//                            .font(.default(size: 150))
                             .foregroundColor(.black)
+                            .padding(.leading, 6)
                     }
                     .compositingGroup()
                     .luminanceToAlpha()

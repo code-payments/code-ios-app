@@ -76,7 +76,8 @@ public struct BillView: View {
     
     // MARK: - Body -
     
-    let billColor = Color(r: 44, g: 42, b: 65)
+//    let billColor = Color(r: 44, g: 42, b: 65)
+    let billColor = Color(r: 0, g: 70, b: 2)
     
     public var body: some View {
         GeometryReader { geometry in
@@ -192,7 +193,7 @@ public struct BillView: View {
                         HStack {
                             // Mint
                             Text(Mint.usdc.base58)
-                                .foregroundColor(.textMain.opacity(0.6))
+                                .foregroundColor(.textMain.opacity(0.2))
                                 .font(geometry.mintFont)
                             Spacer()
                         }
@@ -200,11 +201,11 @@ public struct BillView: View {
                         
                         HStack {
                             VStack {
-                                Image.asset(.codeBrand)
+                                Image.asset(.flipcashBrand)
                                     .resizable()
                                     .renderingMode(.template)
                                     .aspectRatio(contentMode: .fit)
-                                    .foregroundColor(.textMain.opacity(0.6))
+                                    .foregroundColor(.textMain.opacity(0.2))
                                     .frame(width: geometry.brandWidth)
                                 Spacer()
                             }
@@ -253,7 +254,7 @@ struct LineView: View {
         HStack(spacing: spacing) {
             ForEach(0..<count, id: \.self) { _ in
                 Rectangle()
-                    .fill(Color.white.opacity(0.5))
+                    .fill(Color.white.opacity(0.2))
                     .frame(width: 1)
                     .rotationEffect(.degrees(-18), anchor: .top)
             }
