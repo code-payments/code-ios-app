@@ -146,7 +146,7 @@ public struct BillView: View {
                         VStack {
                             HStack {
                                 Spacer()
-                                KinText(string)
+                                AmountText(flagStyle: fiat.currencyCode.flagStyle, content: string)
                                     .foregroundColor(.textMain)
                                     .font(geometry.valueFont)
                                     .shadow(color: Color.black.opacity(0.2), radius: 4, x: 2, y: 2)
@@ -163,7 +163,7 @@ public struct BillView: View {
                         VStack {
                             Spacer()
                             HStack {
-                                KinText(string)
+                                AmountText(flagStyle: fiat.currencyCode.flagStyle, content: string)
                                     .foregroundColor(.textMain)
                                     .font(geometry.valueFont)
                                     .shadow(color: Color.black.opacity(0.2), radius: 4, x: 2, y: 2)
