@@ -19,7 +19,7 @@ struct ScanScreen: View {
     @State private var isShowingGive: Bool = false
     
     private var toast: String? {
-        if let toast = viewModel.billState.toast {
+        if let toast = viewModel.toast {
             let formatted = toast.amount.formatted(suffix: nil)
             if toast.isDeposit {
                 return "+\(formatted)"
@@ -88,7 +88,6 @@ struct ScanScreen: View {
                     .zIndex(1)
                     .transition(.opacity)
             }
-//            modalView()
         }
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .ignoresSafeArea(.keyboard)

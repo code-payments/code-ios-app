@@ -29,7 +29,7 @@ class RatesController: ObservableObject {
     }
     
     private func registerPoller() {
-        poller = Poller(seconds: 60, fireImmediately: true) { [weak self] in
+        poller = Poller(seconds: 55, fireImmediately: true) { [weak self] in
             Task {
                 try await self?.fetchExchangeRates()
             }

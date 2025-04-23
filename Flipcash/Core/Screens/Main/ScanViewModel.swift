@@ -22,6 +22,7 @@ class ScanViewModel: ObservableObject {
     @Published var presentationState: PresentationState = .hidden(.slide)
     
     @Published var valuation: BillValuation? = nil
+    @Published var toast: Toast? = nil
     
     private var isTransactionInProgress: Bool = false
     
@@ -161,6 +162,10 @@ class ScanViewModel: ObservableObject {
             switch result {
             case .success(let success):
                 self?.dismissCashBill(style: .pop)
+                self?.showToast(
+                    fiat: billDescription.exchangedFiat.converted,
+                    isDeposit: false
+                )
                 
             case .failure(let failure):
                 self?.dismissCashBill(style: .slide)
@@ -169,13 +174,33 @@ class ScanViewModel: ObservableObject {
     }
     
     func dismissCashBill(style: PresentationState.Style) {
-        
-        // TODO: Show toast if needed
+        if billState.shouldShowToast, let valuation = valuation {
+            showToast(
+                fiat: valuation.exchangedFiat.converted,
+                isDeposit: true
+            )
+        }
         
         sendOperation = nil
         presentationState = .hidden(style)
         billState = .default()
         valuation = nil
+    }
+    
+    // MARK: - Toast -
+    
+    private func showToast(fiat: Fiat, isDeposit: Bool, autoDismiss: Bool = true) {
+        toast = .init(
+            amount: fiat,
+            isDeposit: isDeposit
+        )
+        
+        if autoDismiss {
+            Task {
+                try await Task.delay(seconds: 3)
+                toast = nil
+            }
+        }
     }
 }
 

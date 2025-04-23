@@ -41,9 +41,9 @@ public struct ToastContainer<Content>: View where Content: View {
                         .offset(x: 0, y: 20)
                         .combined(with: .opacity.animation(.easeOutFastest))
                     )
-                    .animation(.springFaster)
                 }
             }
+            .animation(.springFaster, value: toast)
             .frame(width: 1, alignment: .center)
             content()
         }
