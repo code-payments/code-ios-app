@@ -16,6 +16,8 @@ protocol SessionDelegate: AnyObject {
 
 @MainActor
 class Session: ObservableObject {
+    
+    @Published private(set) var balance: Fiat = 0
 
     let owner: AccountCluster
     let userID: UserID
@@ -25,16 +27,41 @@ class Session: ObservableObject {
     }
     
     private let container: Container
+    private let client: Client
+    private var poller: Poller!
     
     // MARK: - Init -
     
     init(container: Container, owner: AccountCluster, userID: UserID) {
         self.container = container
+        self.client    = container.client
         self.owner     = owner
         self.userID    = userID
+        
+        registerPoller()
     }
     
     func prepareForLogout() {
         
+    }
+    
+    // MARK: - Poller -
+    
+    private func registerPoller() {
+        poller = Poller(seconds: 10, fireImmediately: true) { [weak self] in
+            Task {
+                try await self?.poll()
+            }
+        }
+    }
+    
+    private func poll() async throws {
+        try await fetchBalance()
+    }
+    
+    // MARK: - Balance -
+    
+    private func fetchBalance() async throws {
+        balance = try await client.fetchBalance(owner: ownerKeyPair)
     }
 }

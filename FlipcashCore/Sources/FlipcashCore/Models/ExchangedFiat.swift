@@ -35,6 +35,17 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         }
     }
     
+    public init(usdc: Fiat, rate: Rate) throws {
+        self.init(
+            usdc: usdc,
+            converted: try Fiat(
+                fiatDecimal: usdc.decimalValue * rate.fx,
+                currencyCode: rate.currency
+            ),
+            rate: rate
+        )
+    }
+    
     private init(usdc: Fiat, converted: Fiat) {
         self.init(
             usdc: usdc,

@@ -12,23 +12,29 @@ import FlipcashCore
 public struct AmountText: View {
     
     private let flagStyle: Flag.Style
+    private let flagSize: Flag.Size
     private let content: String
     private let showChevron: Bool
     private let canScale: Bool
     
     // MARK: - Init -
     
-    public init(flagStyle: Flag.Style, content: String, showChevron: Bool = false, canScale: Bool = true) {
+    public init(flagStyle: Flag.Style, flagSize: Flag.Size = .regular, content: String, showChevron: Bool = false, canScale: Bool = true) {
         self.flagStyle   = flagStyle
+        self.flagSize    = flagSize
         self.content     = content
         self.showChevron = showChevron
         self.canScale    = canScale
     }
     
     public var body: some View {
-        HStack(spacing: 15) {
+        HStack(spacing: horizontalSpacing()) {
             HStack(spacing: 5) {
-                Flag(style: flagStyle)
+                Flag(
+                    style: flagStyle,
+                    size: flagSize
+                )
+                
                 if showChevron {
                     Image.system(.chevronDown)
                         .font(.default(size: 12, weight: .bold))
@@ -37,6 +43,17 @@ public struct AmountText: View {
             Text(content)
                 .lineLimit(1)
                 .minimumScaleFactor(canScale ? 0.3 : 1.0)
+        }
+    }
+    
+    private func horizontalSpacing() -> CGFloat {
+        switch flagSize {
+        case .small:
+            return 8
+        case .regular:
+            return 15
+        case .none:
+            return 15
         }
     }
 }

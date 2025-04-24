@@ -15,6 +15,7 @@ struct ScanScreen: View {
     @State private var cameraAuthorizer = CameraAuthorizer()
 //    @State private var preferences = Preferences()
     
+    @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var isShowingGive: Bool = false
     
@@ -273,10 +274,12 @@ struct ScanScreen: View {
                     maxWidth: 80,
                     maxHeight: 80,
                     fullWidth: true,
-                    aligment: .bottom
-                ) {
-                    
-                }
+                    aligment: .bottom,
+                    binding: $isShowingBalance
+                )
+            }
+            .sheet(isPresented: $isShowingBalance) {
+                BalanceScreen(isPresented: $isShowingBalance)
             }
         }
         .padding(.bottom, 10)

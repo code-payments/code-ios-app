@@ -12,7 +12,7 @@ import FlipcashCore
 class RatesController: ObservableObject {
     
     @Published var entryCurrency: CurrencyCode   = .usd
-    @Published var balanceCurrency: CurrencyCode = .usd
+    @Published var balanceCurrency: CurrencyCode = .cad
     
     private let client: Client
     private let database: Database
@@ -28,20 +28,31 @@ class RatesController: ObservableObject {
         registerPoller()
     }
     
+    // MARK: - Poller -
+    
     private func registerPoller() {
         poller = Poller(seconds: 55, fireImmediately: true) { [weak self] in
             Task {
-                try await self?.fetchExchangeRates()
+                try await self?.poll()
             }
         }
     }
+    
+    private func poll() async throws {
+        try await fetchExchangeRates()
+    }
+    
+    // MARK: - Rates -
+    
     
     private func fetchExchangeRates() async throws {
         let snapshot = try await client.fetchExchangeRates()
         try database.insert(snapshot: snapshot)
     }
     
-    // MARK: - Rates -
+    func rateForBalanceCurrency() -> Rate {
+        rate(for: balanceCurrency) ?? .oneToOne
+    }
     
     func rate(for currency: CurrencyCode) -> Rate? {
         try? database.rate(for: currency)
