@@ -89,6 +89,14 @@ extension Fiat {
 // MARK: - Formatting -
 
 extension Fiat {
+    public func formattedWithSuffixIfNeeded() -> String {
+        if currencyCode == .usd {
+            formatted(suffix: nil)
+        } else {
+            formatted(suffix: " of USD")
+        }
+    }
+    
     public func formatted(suffix: String?) -> String {
         NumberFormatter.fiat(
             currency: currencyCode,

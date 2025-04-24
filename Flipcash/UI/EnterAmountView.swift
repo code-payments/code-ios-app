@@ -11,6 +11,7 @@ import FlipcashCore
 
 public struct EnterAmountView: View {
     
+    @EnvironmentObject var session: Session
     @EnvironmentObject var rateController: RatesController
     
     @Binding public var enteredAmount: String
@@ -19,6 +20,10 @@ public struct EnterAmountView: View {
     private let mode: Mode
     private let actionEnabled: (String) -> Bool
     private let action: () -> Void
+    
+    private var convertedEntryFiat: Fiat {
+        session.exchangedEntryBalance.converted
+    }
     
     // MARK: - Init -
     
@@ -55,7 +60,7 @@ public struct EnterAmountView: View {
                     .foregroundColor(.textMain)
                 }
                 
-                Text("Enter an amount")
+                Text("Enter up to \(convertedEntryFiat.formatted(suffix: nil))")
                     .fixedSize()
                     .foregroundColor(.textSecondary)
                     .font(.appTextMedium)

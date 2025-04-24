@@ -14,16 +14,16 @@ extension Color {
     public static let mainAccent          = Color(r: 255, g: 255, b: 255)
     
     public static let textMain            = Color(r: 255, g: 255, b: 255)
-    public static let textSecondary       = Color(r: 115, g: 121, b: 160)
+    public static let textSecondary       = Color(r: 118, g: 128, b: 122)
     public static let textAction          = Color(r: 15,  g: 12,  b: 31)
-    public static let textActionDisabled  = Color(r: 48,  g: 45,  b: 63)
+    public static let textActionDisabled  = Color(r: 72,  g: 84,  b: 77)
     public static let textGoogle          = Color(r: 47,  g: 22,  b: 175)
     public static let textError           = Color(r: 255, g: 131, b: 131)
     public static let textSuccess         = Color(r: 73 , g: 213, b: 23)
     public static let textWarning         = Color(r: 255, g: 243, b: 131)
     
     public static let action              = Color(r: 255, g: 255, b: 255)
-    public static let actionDisabled      = Color(r: 27,  g: 25,  b: 41)
+    public static let actionDisabled      = Color(r: 23,  g: 39,  b: 29)
     
     public static let bannerDark          = Color(r: 15,  g: 12,  b: 31)
     public static let bannerError         = Color(r: 188, g: 52,  b: 52)
@@ -32,7 +32,7 @@ extension Color {
     
     public static let button              = Color(r: 28,  g: 24,  b: 52)
     
-    public static let backgroundMain      = Color(r: 15,  g: 12,  b: 31)
+    public static let backgroundMain      = Color(r: 0,   g: 26,  b: 12)
     public static let backgroundAction    = Color(r: 255, g: 255, b: 255)
     public static let backgroundRow       = Color(r: 17,  g: 20,  b: 42)
     public static let rowSeparator        = Color(r: 255, g: 255, b: 255, o: 0.1)

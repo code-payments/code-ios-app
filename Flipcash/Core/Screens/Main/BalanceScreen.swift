@@ -21,14 +21,11 @@ struct BalanceScreen: View {
         historyController.activities
     }
     
-    private var exchangedBalance: ExchangedFiat {
-        try! ExchangedFiat(
-            usdc: session.balance,
-            rate: ratesController.rateForBalanceCurrency()
-        )
-    }
-    
     private let proportion: CGFloat = 0.3
+    
+    private var convertedFiat: Fiat {
+        session.exchangedBalance.converted
+    }
     
     // MARK: - Init -
     
@@ -79,16 +76,18 @@ struct BalanceScreen: View {
                     Spacer()
                     
                     AmountText(
-                        flagStyle: ratesController.balanceCurrency.flagStyle,
-                        content: exchangedBalance.converted.formatted(suffix: " of USD")
+                        flagStyle: convertedFiat.currencyCode.flagStyle,
+                        content: convertedFiat.formattedWithSuffixIfNeeded()
                     )
                     .font(.appDisplayMedium)
                     .foregroundStyle(Color.textMain)
                     .frame(maxWidth: .infinity)
                     
-                    Text("Your balance is held in US dollars")
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
+                    if convertedFiat.currencyCode != .usd {                    
+                        Text("Your balance is held in US dollars")
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
+                    }
                     
                     Spacer()
                 }
@@ -120,9 +119,11 @@ struct BalanceScreen: View {
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textSecondary)
                 Spacer()
-                Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
+                if activity.exchangedFiat.converted.currencyCode != .usd {
+                    Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textSecondary)
+                }
             }
         }
         .listRowBackground(Color.clear)

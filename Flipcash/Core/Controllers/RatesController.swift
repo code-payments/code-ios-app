@@ -12,7 +12,7 @@ import FlipcashCore
 class RatesController: ObservableObject {
     
     @Published var entryCurrency: CurrencyCode   = .usd
-    @Published var balanceCurrency: CurrencyCode = .cad
+    @Published var balanceCurrency: CurrencyCode = .usd
     
     private let client: Client
     private let database: Database
@@ -52,6 +52,10 @@ class RatesController: ObservableObject {
     
     func rateForBalanceCurrency() -> Rate {
         rate(for: balanceCurrency) ?? .oneToOne
+    }
+    
+    func rateForEntryCurrency() -> Rate {
+        rate(for: entryCurrency) ?? .oneToOne
     }
     
     func rate(for currency: CurrencyCode) -> Rate? {

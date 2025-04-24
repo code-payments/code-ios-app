@@ -26,17 +26,34 @@ class Session: ObservableObject {
         owner.authority.keyPair
     }
     
+    var exchangedBalance: ExchangedFiat {
+        try! ExchangedFiat(
+            usdc: balance,
+            rate: ratesController.rateForBalanceCurrency()
+        )
+    }
+    
+    var exchangedEntryBalance: ExchangedFiat {
+        try! ExchangedFiat(
+            usdc: balance,
+            rate: ratesController.rateForEntryCurrency()
+        )
+    }
+    
     private let container: Container
     private let client: Client
+    private let ratesController: RatesController
+    
     private var poller: Poller!
     
     // MARK: - Init -
     
     init(container: Container, owner: AccountCluster, userID: UserID) {
-        self.container = container
-        self.client    = container.client
-        self.owner     = owner
-        self.userID    = userID
+        self.container       = container
+        self.client          = container.client
+        self.ratesController = container.ratesController
+        self.owner           = owner
+        self.userID          = userID
         
         registerPoller()
     }
