@@ -89,27 +89,28 @@ extension UIColor {
     public static let mainAccent          = UIColor(r: 255, g: 255, b: 255)
     
     public static let textMain            = UIColor(r: 255, g: 255, b: 255)
-    public static let textSecondary       = UIColor(r: 115, g: 121, b: 160)
+    public static let textSecondary       = UIColor(r: 118, g: 128, b: 122)
     public static let textAction          = UIColor(r: 15,  g: 12,  b: 31)
-    public static let textActionDisabled  = UIColor(r: 48,  g: 45,  b: 63)
+    public static let textActionDisabled  = UIColor(r: 72,  g: 84,  b: 77)
     public static let textGoogle          = UIColor(r: 47,  g: 22,  b: 175)
     public static let textError           = UIColor(r: 255, g: 131, b: 131)
     public static let textSuccess         = UIColor(r: 73 , g: 213, b: 23)
     public static let textWarning         = UIColor(r: 255, g: 243, b: 131)
     
     public static let action              = UIColor(r: 255, g: 255, b: 255)
-    public static let actionDisabled      = UIColor(r: 27,  g: 25,  b: 41)
+    public static let actionDisabled      = UIColor(r: 23,  g: 39,  b: 29)
     
-    public static let bannerError         = UIColor(r: 218, g: 77,  b: 77)
+    public static let bannerDark          = UIColor(r: 15,  g: 12,  b: 31)
+    public static let bannerError         = UIColor(r: 188, g: 52,  b: 52)
     public static let bannerInfo          = UIColor(r: 86 , g: 92,  b: 134)
     public static let bannerWarning       = UIColor(r: 241, g: 171, b: 31)
     
     public static let button              = UIColor(r: 28,  g: 24,  b: 52)
     
-    public static let backgroundMain      = UIColor(r: 15,  g: 12,  b: 31)
+    public static let backgroundMain      = UIColor(r: 0,   g: 26,  b: 12)
     public static let backgroundAction    = UIColor(r: 255, g: 255, b: 255)
     public static let backgroundRow       = UIColor(r: 17,  g: 20,  b: 42)
-    public static let rowSeparator        = UIColor(r: 255, g: 255, b: 255, o: 0.12)
+    public static let rowSeparator        = UIColor(r: 255, g: 255, b: 255, o: 0.1)
     
     public static let checkmarkBackground = UIColor(r: 115, g: 121, b: 160)
     

@@ -50,7 +50,7 @@ struct BalanceScreen: View {
                                 header(geometry: g)
                                     .textCase(.none)
                             }
-                            .listSectionSeparator(.hidden)
+//                            .listSectionSeparator(.hidden)
                             .listRowInsets(EdgeInsets())
                             .listRowSeparatorTint(Color.rowSeparator)
                         }
