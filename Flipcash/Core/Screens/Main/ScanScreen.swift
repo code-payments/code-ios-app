@@ -255,7 +255,7 @@ struct ScanScreen: View {
             
             LargeButton(
                 title: "Send",
-                image: .asset(.hex),
+                image: .asset(.airplane),
                 spacing: 12,
                 maxWidth: 80,
                 maxHeight: 80,
