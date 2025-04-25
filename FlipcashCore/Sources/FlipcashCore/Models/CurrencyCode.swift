@@ -449,7 +449,11 @@ extension CurrencyCode {
 
 // MARK: - CurrencyDescription -
 
-public struct CurrencyDescription: Codable, Equatable, Hashable {
+public struct CurrencyDescription: Codable, Equatable, Hashable, Identifiable {
+    
+    public var id: String {
+        currency.rawValue
+    }
     
     public let currency: CurrencyCode
     public let localizedName: String
@@ -465,13 +469,5 @@ extension Array where Element == CurrencyDescription {
         sorted { lhs, rhs in
             lhs.localizedName.localizedCompare(rhs.localizedName) == .orderedAscending
         }
-    }
-}
-
-// MARK: - Identifiable -
-
-extension CurrencyDescription: Identifiable {
-    public var id: String {
-        currency.rawValue
     }
 }

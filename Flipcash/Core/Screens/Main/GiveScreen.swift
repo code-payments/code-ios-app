@@ -15,11 +15,12 @@ struct GiveScreen: View {
     
     @ObservedObject private var viewModel: ScanViewModel
     
-    @State private var enteredAmount: String = ""
-    @State private var actionState: ButtonState = .normal
-    
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
+    
+    @State private var enteredAmount: String = ""
+    @State private var actionState: ButtonState = .normal
+    @State private var isShowingCurrencySelection: Bool = false
     
     private var isSendEnabled: Bool {
         true
@@ -69,10 +70,18 @@ struct GiveScreen: View {
                     actionEnabled: { _ in
                         enteredFiat != nil
                     },
-                    action: showBill
+                    action: showBill,
+                    currencySelectionAction: showCurrencySelection
                 )
                 .foregroundColor(.textMain)
                 .padding(20)
+                .sheet(isPresented: $isShowingCurrencySelection) {
+                    CurrencySelectionScreen(
+                        isPresented: $isShowingCurrencySelection,
+                        kind: .entry,
+                        ratesController: ratesController
+                    )
+                }
             }
             .navigationBarTitle(Text("Give"), displayMode: .inline)
             .toolbar {
@@ -102,5 +111,9 @@ struct GiveScreen: View {
                 )
             )
         }
+    }
+    
+    private func showCurrencySelection() {
+        isShowingCurrencySelection.toggle()
     }
 }

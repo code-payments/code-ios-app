@@ -17,6 +17,8 @@ struct BalanceScreen: View {
     @EnvironmentObject var ratesController: RatesController
     @EnvironmentObject var historyController: HistoryController
     
+    @State private var isShowingCurrencySelection: Bool = false
+    
     private var activities: [Activity] {
         historyController.activities
     }
@@ -70,32 +72,43 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func header(geometry: GeometryProxy) -> some View {
-        VStack {
-            GeometryReader { g in
-                VStack {
-                    Spacer()
-                    
-                    AmountText(
-                        flagStyle: convertedFiat.currencyCode.flagStyle,
-                        content: convertedFiat.formattedWithSuffixIfNeeded()
-                    )
-                    .font(.appDisplayMedium)
-                    .foregroundStyle(Color.textMain)
-                    .frame(maxWidth: .infinity)
-                    
-                    if convertedFiat.currencyCode != .usd {                    
-                        Text("Your balance is held in US dollars")
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
+        Button {
+            isShowingCurrencySelection.toggle()
+        } label: {
+            VStack {
+                GeometryReader { g in
+                    VStack {
+                        Spacer()
+                        
+                        AmountText(
+                            flagStyle: convertedFiat.currencyCode.flagStyle,
+                            content: convertedFiat.formattedWithSuffixIfNeeded(),
+                            showChevron: true
+                        )
+                        .font(.appDisplayMedium)
+                        .foregroundStyle(Color.textMain)
+                        .frame(maxWidth: .infinity)
+                        
+                        if convertedFiat.currencyCode != .usd {
+                            Text("Your balance is held in US dollars")
+                                .font(.appTextSmall)
+                                .foregroundStyle(Color.textSecondary)
+                        }
+                        
+                        Spacer()
                     }
-                    
-                    Spacer()
+                    .offset(x: 0, y: max(0, (g.globalMinY - 100) * -proportion))
                 }
-                .offset(x: 0, y: max(0, (g.globalMinY - 100) * -proportion))
             }
+            .frame(height: geometry.globalHeight * proportion)
         }
-        .frame(height: geometry.globalHeight * proportion)
-        .padding(0)
+        .sheet(isPresented: $isShowingCurrencySelection) {
+            CurrencySelectionScreen(
+                isPresented: $isShowingCurrencySelection,
+                kind: .balance,
+                ratesController: ratesController
+            )
+        }
     }
     
     @ViewBuilder private func row(activity: Activity) -> some View {

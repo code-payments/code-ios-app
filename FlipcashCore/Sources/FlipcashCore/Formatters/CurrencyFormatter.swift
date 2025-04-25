@@ -48,6 +48,7 @@ extension NumberFormatter {
     
     public static func fiat(currency: CurrencyCode, minimumFractionDigits: Int = 2, truncated: Bool = false, suffix: String? = nil) -> NumberFormatter {
         let f = NumberFormatter()
+        f.locale = .current
         f.numberStyle = .currency
         f.minimumFractionDigits = minimumFractionDigits
         f.maximumFractionDigits = minimumFractionDigits

@@ -27,6 +27,7 @@ struct AppMain: App {
             ContainerScreen(container: container)
                 .injectingEnvironment(from: container)
                 .colorScheme(.dark)
+                .tint(Color.textMain)
         }
     }
     

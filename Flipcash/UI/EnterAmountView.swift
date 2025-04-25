@@ -20,6 +20,7 @@ public struct EnterAmountView: View {
     private let mode: Mode
     private let actionEnabled: (String) -> Bool
     private let action: () -> Void
+    private let currencySelectionAction: (() -> Void)?
     
     private var convertedEntryFiat: Fiat {
         session.exchangedEntryBalance.converted
@@ -32,13 +33,15 @@ public struct EnterAmountView: View {
         enteredAmount: Binding<String>,
         actionState: Binding<ButtonState>,
         actionEnabled: @escaping (String) -> Bool,
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        currencySelectionAction: (() -> Void)? = nil
     ) {
-        self.mode           = mode
-        self._enteredAmount = enteredAmount
-        self._actionState   = actionState
-        self.actionEnabled  = actionEnabled
-        self.action         = action
+        self.mode                    = mode
+        self._enteredAmount          = enteredAmount
+        self._actionState            = actionState
+        self.actionEnabled           = actionEnabled
+        self.action                  = action
+        self.currencySelectionAction = currencySelectionAction
     }
     
     // MARK: - Body -
@@ -47,30 +50,30 @@ public struct EnterAmountView: View {
         VStack(alignment: .center) {
             Spacer()
             
-            VStack(spacing: 5) {
-                HStack(spacing: 15) {
-                    AmountField(
-                        content: $enteredAmount,
-                        defaultValue: mode.defaultValue,
-                        prefix: .flagStyle(rateController.entryCurrency.flagStyle),
-                        formatter: mode.formatter(with: rateController.entryCurrency),
-                        suffix: nil,
-                        showChevron: false
-                    )
-                    .foregroundColor(.textMain)
+            Button {
+                currencySelectionAction?()
+            } label: {
+                VStack(spacing: 5) {
+                    HStack(spacing: 15) {
+                        AmountField(
+                            content: $enteredAmount,
+                            defaultValue: mode.defaultValue,
+                            prefix: .flagStyle(rateController.entryCurrency.flagStyle),
+                            formatter: mode.formatter(with: rateController.entryCurrency),
+                            suffix: nil,
+                            showChevron: currencySelectionAction != nil
+                        )
+                        .foregroundColor(.textMain)
+                    }
+                    
+                    Text("Enter up to \(convertedEntryFiat.formatted(suffix: nil))")
+                        .fixedSize()
+                        .foregroundColor(.textSecondary)
+                        .font(.appTextMedium)
                 }
-                
-                Text("Enter up to \(convertedEntryFiat.formatted(suffix: nil))")
-                    .fixedSize()
-                    .foregroundColor(.textSecondary)
-                    .font(.appTextMedium)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
-            .contextMenu(ContextMenu {
-                Button(action: copy) {
-                    Label("Copy", systemImage: SystemSymbol.doc.rawValue)
-                }
-            })
+            .disabled(currencySelectionAction == nil)
             
             Spacer()
             
@@ -93,12 +96,6 @@ public struct EnterAmountView: View {
             )
             .padding(.top, 10)
         }
-    }
-    
-    // MARK: - Copy / Paste -
-    
-    private func copy() {
-        UIPasteboard.general.string = enteredAmount
     }
 }
 

@@ -2,9 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSCameraUsageDescription</key>
-	<string>Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user&apos;s phone.</string>
-    <key>SQLiteVersion</key>
-    <integer>1</integer>
+	<key>SQLiteVersion</key>
+	<integer>1</integer>
 </dict>
 </plist>

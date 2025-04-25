@@ -25,8 +25,6 @@ class Database {
     init(url: URL) throws {
         self.storeURL = url
         
-        try Self.createApplicationSupportIfNeeded()
-        
         self.writer = try Connection(url.path)
         
         writer.busyTimeout = 2000 // 2 sec
@@ -46,15 +44,6 @@ class Database {
 //        reader.trace { sql in
 //            print("[READER]: \(sql)")
 //        }
-    }
-    
-    static private func createApplicationSupportIfNeeded() throws {
-        if !FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.path) {
-            try FileManager.default.createDirectory(
-                at: .applicationSupportDirectory,
-                withIntermediateDirectories: false
-            )
-        }
     }
     
     // MARK: - Transaction -
@@ -107,16 +96,21 @@ class Database {
     // MARK: - Versioning -
     
     static func deleteStore() throws {
-        let url = URL.dataStore()
-        if FileManager.default.fileExists(atPath: url.path) {
-            try FileManager.default.removeItem(at: url)
-            try FileManager.default.removeItem(at: .storeSHM())
-            try FileManager.default.removeItem(at: .storeWAL())
+        let urlsToRemove: [URL] = [
+            .dataStore(),
+            .storeSHM(),
+            .storeWAL(),
+        ]
+        
+        try urlsToRemove.forEach {
+            if FileManager.default.fileExists(atPath: $0.path) {
+                try FileManager.default.removeItem(at: $0)
+            }
         }
     }
     
     static func setUserVersion(version: Int) throws {
-        try "\(version)".write(
+        try! "\(version)".write(
             to: .versionFile(),
             atomically: true,
             encoding: .utf8

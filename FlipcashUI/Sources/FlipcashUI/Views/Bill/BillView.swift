@@ -76,7 +76,6 @@ public struct BillView: View {
     
     // MARK: - Body -
     
-//    let billColor = Color(r: 44, g: 42, b: 65)
     let billColor = Color(r: 0, g: 70, b: 2)
     
     public var body: some View {

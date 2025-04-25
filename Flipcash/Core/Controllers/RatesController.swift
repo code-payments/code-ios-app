@@ -11,8 +11,17 @@ import FlipcashCore
 @MainActor
 class RatesController: ObservableObject {
     
-    @Published var entryCurrency: CurrencyCode   = .usd
-    @Published var balanceCurrency: CurrencyCode = .usd
+    @Published var entryCurrency: CurrencyCode = .usd {
+        willSet {
+            LocalDefaults.entryCurrency = newValue
+        }
+    }
+    
+    @Published var balanceCurrency: CurrencyCode = .usd {
+        willSet {
+            LocalDefaults.balanceCurrency = newValue
+        }
+    }
     
     private let client: Client
     private let database: Database
@@ -22,8 +31,19 @@ class RatesController: ObservableObject {
     // MARK: - Init -
     
     init(container: Container) {
-        self.client = container.client
+        self.client   = container.client
         self.database = container.database
+        
+        if LocalDefaults.entryCurrency == nil {
+            LocalDefaults.entryCurrency = .local() ?? .usd
+        }
+        
+        if LocalDefaults.balanceCurrency == nil {
+            LocalDefaults.balanceCurrency = .local() ?? .usd
+        }
+        
+        entryCurrency   = LocalDefaults.entryCurrency!
+        balanceCurrency = LocalDefaults.balanceCurrency!
         
         registerPoller()
     }
@@ -61,4 +81,14 @@ class RatesController: ObservableObject {
     func rate(for currency: CurrencyCode) -> Rate? {
         try? database.rate(for: currency)
     }
+}
+
+// MARK: - LocalDefaults -
+
+private enum LocalDefaults {
+    @Defaults(.entryCurrency)
+    static var entryCurrency: CurrencyCode?
+    
+    @Defaults(.balanceCurrency)
+    static var balanceCurrency: CurrencyCode?
 }

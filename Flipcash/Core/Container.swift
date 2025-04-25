@@ -25,6 +25,8 @@ class Container {
     // MARK: - Init -
     
     init() {
+        try? Self.createApplicationSupportIfNeeded()
+        
         self.client         = Client(network: .mainNet)
         self.flipClient     = FlipClient(network: .mainNet)
         self.database       = try! Self.initializeDatabase()
@@ -34,7 +36,7 @@ class Container {
         _ = sessionAuthenticator
     }
     
-    static func initializeDatabase() throws -> Database {
+    private static func initializeDatabase() throws -> Database {
         // Currently we don't do migrations so every time
         // the user version is outdated, we'll rebuild the
         // database during sync.
@@ -47,6 +49,15 @@ class Container {
         }
         
         return try Database(url: .dataStore())
+    }
+    
+    private static func createApplicationSupportIfNeeded() throws {
+        if !FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.path) {
+            try FileManager.default.createDirectory(
+                at: .applicationSupportDirectory,
+                withIntermediateDirectories: false
+            )
+        }
     }
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {

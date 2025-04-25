@@ -90,6 +90,7 @@ struct ScanScreen: View {
                     .transition(.opacity)
             }
         }
+        .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .ignoresSafeArea(.keyboard)
         .sheet(item: $viewModel.valuation) { valuation in
@@ -146,7 +147,7 @@ struct ScanScreen: View {
         let goToSettings = directToSettingsForCamera == true
         VStack(spacing: 40) {
             Text(goToSettings ? "You need to turn on Camera in Settings to scan Codes" : "Flipcash enables you to receive USDC by pointing your camera at the digital bill on another user's phone")
-                .frame(maxWidth: 240)
+                .frame(maxWidth: 260)
                 .multilineTextAlignment(.center)
             
             BubbleButton(text: goToSettings ? "Open Settings" : "Next") {
