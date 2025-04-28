@@ -71,7 +71,8 @@ class AccountManager {
         
         if var historicalAccounts = Keychain.historicalAccounts {
             if var oldDescription = historicalAccounts[key] {
-                oldDescription.markSeen()
+                oldDescription.lastSeen = .now
+                oldDescription.deletionDate = nil // Undelete
                 historicalAccounts[key] = oldDescription
             } else {
                 historicalAccounts[key] = newDescription
@@ -86,13 +87,17 @@ class AccountManager {
         }
     }
     
-    func delete(ownerPublicKey: PublicKey) {
+    func setDeleted(ownerPublicKey: PublicKey, deleted: Bool) {
         let key = ownerPublicKey.base58
         if
             var historicalAccounts = Keychain.historicalAccounts,
             var accountDescription = historicalAccounts[key]
         {
-            accountDescription.markDeleted()
+            if deleted {
+                accountDescription.deletionDate = .now
+            } else {
+                accountDescription.deletionDate = nil
+            }
             historicalAccounts[key] = accountDescription
             Keychain.historicalAccounts = historicalAccounts
         }
@@ -148,14 +153,6 @@ struct AccountDescription: Codable, Hashable, Equatable, Sendable {
         self.creationDate = creationDate
         self.deletionDate = deletionDate
         self.lastSeen = .now
-    }
-    
-    mutating fileprivate func markSeen() {
-        lastSeen = .now
-    }
-    
-    mutating fileprivate func markDeleted() {
-        deletionDate = .now
     }
     
     // MARK: - Hashable & Equatable -

@@ -12,7 +12,7 @@ import Combine
 import GRPC
 
 final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
-    func fetchBalance(owner: KeyPair, completion: @Sendable @escaping (Result<Fiat, ErrorFetchAccountInfos>) -> Void) {
+    func fetchBalance(owner: KeyPair, completion: @Sendable @escaping (Result<Fiat, ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
@@ -37,7 +37,7 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
 
 // MARK: - Errors -
 
-public enum ErrorFetchAccountInfos: Int, Error, Equatable, Sendable {
+public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
     case ok
     case notFound
     case unknown = -1

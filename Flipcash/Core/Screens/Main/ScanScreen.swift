@@ -10,6 +10,8 @@ import FlipcashUI
 
 struct ScanScreen: View {
     
+    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    
     @StateObject private var viewModel: ScanViewModel
     
     @State private var cameraAuthorizer = CameraAuthorizer()
@@ -215,9 +217,10 @@ struct ScanScreen: View {
             
             RoundButton(
                 asset: .hamburger,
-                size: .regular,
-                binding: $isShowingSettings
-            )
+                size: .regular
+            ) {
+                sessionAuthenticator.logout()
+            }
 //            .sheet(isPresented: $isPresentingSettings) { [unowned session] in
 //                SettingsScreen(
 //                    session: session,

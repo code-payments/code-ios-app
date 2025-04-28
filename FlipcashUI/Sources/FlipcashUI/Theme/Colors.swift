@@ -8,7 +8,6 @@
 
 import SwiftUI
 import FlipcashCore
-import SwiftUI
 
 extension Color {
     public static let mainAccent          = Color(r: 255, g: 255, b: 255)
@@ -34,7 +33,7 @@ extension Color {
     
     public static let backgroundMain      = Color(r: 0,   g: 26,  b: 12)
     public static let backgroundAction    = Color(r: 255, g: 255, b: 255)
-    public static let backgroundRow       = Color(r: 17,  g: 20,  b: 42)
+    public static let backgroundRow       = Color(r: 7,   g: 31,  b: 16)
     public static let rowSeparator        = Color(r: 255, g: 255, b: 255, o: 0.1)
     
     public static let checkmarkBackground = Color(r: 115, g: 121, b: 160)

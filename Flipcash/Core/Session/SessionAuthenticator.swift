@@ -71,9 +71,9 @@ final class SessionAuthenticator: ObservableObject {
             
         } else {
             
-            if !accountManager.fetchHistorical().isEmpty {
-                state = .pending
-            } else {
+//            if !accountManager.fetchHistorical().isEmpty {
+//                state = .pending
+//            } else {
                 state = .loggedOut
                 
                 // Only attempt to recover if there was an
@@ -107,7 +107,7 @@ final class SessionAuthenticator: ObservableObject {
 //                        Analytics.unintentialLogout()
                     }
                 }
-            }
+//            }
         }
     }
     
@@ -131,7 +131,27 @@ final class SessionAuthenticator: ObservableObject {
     // MARK: - Actions -
     
     func createAccountAction() {
-        
+        let mnemonic = MnemonicPhrase.generate(.words12)
+        Task {
+            loginButtonState = .loading
+            defer {
+                loginButtonState = .normal
+            }
+            let account  = try await initialize(
+                using: mnemonic,
+                isRegistration: true
+            )
+            
+            // Prevent server race condition for airdrop
+            try await Task.delay(seconds: 1)
+            
+            _ = try await client.airdrop(
+                type: .getFirstCrypto,
+                owner: account.keyAccount.derivedKey.keyPair
+            )
+            
+            completeLogin(with: account)
+        }
     }
     
     // MARK: - Login -
@@ -206,7 +226,10 @@ final class SessionAuthenticator: ObservableObject {
     
     func deleteAndLogout() {
         if case .loggedIn(let container) = state {
-            accountManager.delete(ownerPublicKey: container.session.owner.authorityPublicKey)
+            accountManager.setDeleted(
+                ownerPublicKey: container.session.owner.authorityPublicKey,
+                deleted: true
+            )
             logout()
         }
     }

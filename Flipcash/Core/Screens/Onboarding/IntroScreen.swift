@@ -11,21 +11,24 @@ import FlipcashCore
 
 struct IntroScreen: View {
     
+    @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    
+    @State private var path: [IntroNavigationPath] = []
+    
+    @State private var isShowingLogin          = false
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
-    
-    private let sessionAuthenticator: SessionAuthenticator
     
     // MARK: - Init -
     
     init(container: Container) {
-        self.sessionAuthenticator = container.sessionAuthenticator
+        
     }
     
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Background(color: .backgroundMain) {
                 VStack {
                     VStack(spacing: 10) {
@@ -48,7 +51,9 @@ struct IntroScreen: View {
                             CodeButton(
                                 style: .subtle,
                                 title: "Log In",
-                                action: {}
+                                action: {
+                                    path = [.login]
+                                }
                             )
                         }
                     }
@@ -97,9 +102,21 @@ struct IntroScreen: View {
             .ignoresSafeArea(.keyboard)
             .navigationBarTitle("")
             .navigationBarHidden(true)
+            .navigationDestination(for: IntroNavigationPath.self) { path in
+                switch path {
+                case .login:
+                    LoginScreen()
+                }
+            }
         }
         .navigationViewStyle(.stack)
     }
+}
+
+// MARK: - Path -
+
+private enum IntroNavigationPath {
+    case login
 }
 
 // MARK: - Previews -
