@@ -592,6 +592,10 @@ public enum ErrorDeclareFiatOnramp: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol {
+    func makeVoidGiftCardInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_VoidGiftCardRequest, FlipcashAPI.Code_Transaction_V2_VoidGiftCardResponse>] {
+        makeInterceptors()
+    }
+    
     func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>] {
         makeInterceptors()
     }

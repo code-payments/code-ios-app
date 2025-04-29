@@ -1342,6 +1342,118 @@ extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result: C
 
 #endif  // swift(>=4.2)
 
+public struct Code_Transaction_V2_VoidGiftCardRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The owner account that issued the gift card account
+  public var owner: Code_Common_V1_SolanaAccountId {
+    get {return _owner ?? Code_Common_V1_SolanaAccountId()}
+    set {_owner = newValue}
+  }
+  /// Returns true if `owner` has been explicitly set.
+  public var hasOwner: Bool {return self._owner != nil}
+  /// Clears the value of `owner`. Subsequent reads from it will return its default value.
+  public mutating func clearOwner() {self._owner = nil}
+
+  /// The vault of the gift card account to void
+  public var giftCardVault: Code_Common_V1_SolanaAccountId {
+    get {return _giftCardVault ?? Code_Common_V1_SolanaAccountId()}
+    set {_giftCardVault = newValue}
+  }
+  /// Returns true if `giftCardVault` has been explicitly set.
+  public var hasGiftCardVault: Bool {return self._giftCardVault != nil}
+  /// Clears the value of `giftCardVault`. Subsequent reads from it will return its default value.
+  public mutating func clearGiftCardVault() {self._giftCardVault = nil}
+
+  /// The signature is of serialize(VoidGiftCardRequest) without this field set using
+  /// the private key of the owner account. This provides an authentication mechanism
+  /// to the RPC.
+  public var signature: Code_Common_V1_Signature {
+    get {return _signature ?? Code_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _giftCardVault: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _signature: Code_Common_V1_Signature? = nil
+}
+
+public struct Code_Transaction_V2_VoidGiftCardResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_Transaction_V2_VoidGiftCardResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+
+    /// The owner account didn't issue the gift card accoun
+    case denied // = 1
+
+    /// A different owner account than the issuer claimed the gift card
+    case claimedByOtherUser // = 2
+
+    /// The gift card doesn't exist
+    case notFound // = 3
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      case 2: self = .claimedByOtherUser
+      case 3: self = .notFound
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .claimedByOtherUser: return 2
+      case .notFound: return 3
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Transaction_V2_VoidGiftCardResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Code_Transaction_V2_VoidGiftCardResponse.Result] = [
+    .ok,
+    .denied,
+    .claimedByOtherUser,
+    .notFound,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 /// Metadata describes the high-level details of an intent
 public struct Code_Transaction_V2_Metadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -1518,12 +1630,6 @@ public struct Code_Transaction_V2_ReceivePaymentsPubliclyMetadata {
   /// Is the receipt of funds from a remote send gift card? Currently, this is
   /// the only use case for this intent and validation enforces the flag to true.
   public var isRemoteSend: Bool = false
-
-  /// If is_remote_send is true, is the gift card being voided? The user owner
-  /// account's 12 words that issued the gift card may only set this flag to true.
-  /// Functionally, this doesn't affect the intent, but rather if we decide to show
-  /// it in a user-friendly payment history.
-  public var isIssuerVoidingGiftCard: Bool = false
 
   /// If is_remote_send is true, the original exchange data that was provided as
   /// part of creating the gift card account. This is purely a server-provided value.
@@ -2453,6 +2559,9 @@ extension Code_Transaction_V2_SwapResponse.Error.Code: @unchecked Sendable {}
 extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest: @unchecked Sendable {}
 extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse: @unchecked Sendable {}
 extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result: @unchecked Sendable {}
+extension Code_Transaction_V2_VoidGiftCardRequest: @unchecked Sendable {}
+extension Code_Transaction_V2_VoidGiftCardResponse: @unchecked Sendable {}
+extension Code_Transaction_V2_VoidGiftCardResponse.Result: @unchecked Sendable {}
 extension Code_Transaction_V2_Metadata: @unchecked Sendable {}
 extension Code_Transaction_V2_Metadata.OneOf_Type: @unchecked Sendable {}
 extension Code_Transaction_V2_OpenAccountsMetadata: @unchecked Sendable {}
@@ -3779,6 +3888,95 @@ extension Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse.Result: S
   ]
 }
 
+extension Code_Transaction_V2_VoidGiftCardRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VoidGiftCardRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "owner"),
+    2: .standard(proto: "gift_card_vault"),
+    3: .same(proto: "signature"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._giftCardVault) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._owner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._giftCardVault {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_VoidGiftCardRequest, rhs: Code_Transaction_V2_VoidGiftCardRequest) -> Bool {
+    if lhs._owner != rhs._owner {return false}
+    if lhs._giftCardVault != rhs._giftCardVault {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_VoidGiftCardResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VoidGiftCardResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_VoidGiftCardResponse, rhs: Code_Transaction_V2_VoidGiftCardResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_VoidGiftCardResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+    2: .same(proto: "CLAIMED_BY_OTHER_USER"),
+    3: .same(proto: "NOT_FOUND"),
+  ]
+}
+
 extension Code_Transaction_V2_Metadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Metadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -3952,7 +4150,6 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
     1: .same(proto: "source"),
     2: .same(proto: "quarks"),
     3: .standard(proto: "is_remote_send"),
-    4: .standard(proto: "is_issuer_voiding_gift_card"),
     5: .standard(proto: "exchange_data"),
   ]
 
@@ -3965,7 +4162,6 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
       case 1: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       case 2: try { try decoder.decodeSingularUInt64Field(value: &self.quarks) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isRemoteSend) }()
-      case 4: try { try decoder.decodeSingularBoolField(value: &self.isIssuerVoidingGiftCard) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
       default: break
       }
@@ -3986,9 +4182,6 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
     if self.isRemoteSend != false {
       try visitor.visitSingularBoolField(value: self.isRemoteSend, fieldNumber: 3)
     }
-    if self.isIssuerVoidingGiftCard != false {
-      try visitor.visitSingularBoolField(value: self.isIssuerVoidingGiftCard, fieldNumber: 4)
-    }
     try { if let v = self._exchangeData {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
@@ -3999,7 +4192,6 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
     if lhs._source != rhs._source {return false}
     if lhs.quarks != rhs.quarks {return false}
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
-    if lhs.isIssuerVoidingGiftCard != rhs.isIssuerVoidingGiftCard {return false}
     if lhs._exchangeData != rhs._exchangeData {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

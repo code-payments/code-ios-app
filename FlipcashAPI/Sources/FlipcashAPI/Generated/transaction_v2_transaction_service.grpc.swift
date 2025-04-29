@@ -50,6 +50,11 @@ public protocol Code_Transaction_V2_TransactionClientProtocol: GRPCClient {
     _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
+
+  func voidGiftCard(
+    _ request: Code_Transaction_V2_VoidGiftCardRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>
 }
 
 extension Code_Transaction_V2_TransactionClientProtocol {
@@ -243,6 +248,29 @@ extension Code_Transaction_V2_TransactionClientProtocol {
       interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
     )
   }
+
+  /// VoidGiftCard voids a gift card account by returning the funds to the funds back
+  /// to the issuer via the auto-return action if it hasn't been claimed or already
+  /// returned.
+  ///
+  /// Note: The RPC is idempotent. If the user already claimed/voided the gift card, or
+  ///       it is close to or is auto-returned, then OK will be returned.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to VoidGiftCard.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func voidGiftCard(
+    _ request: Code_Transaction_V2_VoidGiftCardRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse> {
+    return self.makeUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.voidGiftCard.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? []
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -339,6 +367,11 @@ public protocol Code_Transaction_V2_TransactionAsyncClientProtocol: GRPCClient {
     _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
+
+  func makeVoidGiftCardCall(
+    _ request: Code_Transaction_V2_VoidGiftCardRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -428,6 +461,18 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
+    )
+  }
+
+  public func makeVoidGiftCardCall(
+    _ request: Code_Transaction_V2_VoidGiftCardRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.voidGiftCard.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? []
     )
   }
 }
@@ -541,6 +586,18 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
     )
   }
+
+  public func voidGiftCard(
+    _ request: Code_Transaction_V2_VoidGiftCardRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Transaction_V2_VoidGiftCardResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.voidGiftCard.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -582,6 +639,9 @@ public protocol Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol:
 
   /// - Returns: Interceptors to use when invoking 'declareFiatOnrampPurchaseAttempt'.
   func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [ClientInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'voidGiftCard'.
+  func makeVoidGiftCardInterceptors() -> [ClientInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionClientMetadata {
@@ -596,6 +656,7 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       Code_Transaction_V2_TransactionClientMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionClientMetadata.Methods.swap,
       Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt,
+      Code_Transaction_V2_TransactionClientMetadata.Methods.voidGiftCard,
     ]
   )
 
@@ -639,6 +700,12 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
     public static let declareFiatOnrampPurchaseAttempt = GRPCMethodDescriptor(
       name: "DeclareFiatOnrampPurchaseAttempt",
       path: "/code.transaction.v2.Transaction/DeclareFiatOnrampPurchaseAttempt",
+      type: GRPCCallType.unary
+    )
+
+    public static let voidGiftCard = GRPCMethodDescriptor(
+      name: "VoidGiftCard",
+      path: "/code.transaction.v2.Transaction/VoidGiftCard",
       type: GRPCCallType.unary
     )
   }
@@ -723,6 +790,14 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
   /// onramp to purchase core mint tokens for use in Code.
   func declareFiatOnrampPurchaseAttempt(request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
+
+  /// VoidGiftCard voids a gift card account by returning the funds to the funds back
+  /// to the issuer via the auto-return action if it hasn't been claimed or already
+  /// returned.
+  ///
+  /// Note: The RPC is idempotent. If the user already claimed/voided the gift card, or
+  ///       it is close to or is auto-returned, then OK will be returned.
+  func voidGiftCard(request: Code_Transaction_V2_VoidGiftCardRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_VoidGiftCardResponse>
 }
 
 extension Code_Transaction_V2_TransactionProvider {
@@ -798,6 +873,15 @@ extension Code_Transaction_V2_TransactionProvider {
         responseSerializer: ProtobufSerializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>(),
         interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? [],
         userFunction: self.declareFiatOnrampPurchaseAttempt(request:context:)
+      )
+
+    case "VoidGiftCard":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_VoidGiftCardRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_VoidGiftCardResponse>(),
+        interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? [],
+        userFunction: self.voidGiftCard(request:context:)
       )
 
     default:
@@ -910,6 +994,17 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
     request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse
+
+  /// VoidGiftCard voids a gift card account by returning the funds to the funds back
+  /// to the issuer via the auto-return action if it hasn't been claimed or already
+  /// returned.
+  ///
+  /// Note: The RPC is idempotent. If the user already claimed/voided the gift card, or
+  ///       it is close to or is auto-returned, then OK will be returned.
+  func voidGiftCard(
+    request: Code_Transaction_V2_VoidGiftCardRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Transaction_V2_VoidGiftCardResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -994,6 +1089,15 @@ extension Code_Transaction_V2_TransactionAsyncProvider {
         wrapping: { try await self.declareFiatOnrampPurchaseAttempt(request: $0, context: $1) }
       )
 
+    case "VoidGiftCard":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_VoidGiftCardRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_VoidGiftCardResponse>(),
+        interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? [],
+        wrapping: { try await self.voidGiftCard(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -1029,6 +1133,10 @@ public protocol Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when handling 'declareFiatOnrampPurchaseAttempt'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [ServerInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>]
+
+  /// - Returns: Interceptors to use when handling 'voidGiftCard'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeVoidGiftCardInterceptors() -> [ServerInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionServerMetadata {
@@ -1043,6 +1151,7 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       Code_Transaction_V2_TransactionServerMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionServerMetadata.Methods.swap,
       Code_Transaction_V2_TransactionServerMetadata.Methods.declareFiatOnrampPurchaseAttempt,
+      Code_Transaction_V2_TransactionServerMetadata.Methods.voidGiftCard,
     ]
   )
 
@@ -1086,6 +1195,12 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
     public static let declareFiatOnrampPurchaseAttempt = GRPCMethodDescriptor(
       name: "DeclareFiatOnrampPurchaseAttempt",
       path: "/code.transaction.v2.Transaction/DeclareFiatOnrampPurchaseAttempt",
+      type: GRPCCallType.unary
+    )
+
+    public static let voidGiftCard = GRPCMethodDescriptor(
+      name: "VoidGiftCard",
+      path: "/code.transaction.v2.Transaction/VoidGiftCard",
       type: GRPCCallType.unary
     )
   }
