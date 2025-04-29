@@ -64,9 +64,7 @@ extension Flipcash_Activity_V1_ActivityFeedType: CaseIterable {
 
 #endif  // swift(>=4.2)
 
-/// The ID of the notification, which is guaranteed to be consistent for grouped
-/// events. Updates to a notification with the same ID should result in re-ordering
-/// within the activity feed using the latest content.
+/// The ID of the notification
 public struct Flipcash_Activity_V1_NotificationId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -153,6 +151,14 @@ public struct Flipcash_Activity_V1_Notification {
     set {additionalMetadata = .withdrewUsdc(newValue)}
   }
 
+  public var sentUsdc: Flipcash_Activity_V1_SentUsdcNotificationMetadata {
+    get {
+      if case .sentUsdc(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_SentUsdcNotificationMetadata()
+    }
+    set {additionalMetadata = .sentUsdc(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Additional metadata for this notification specific to the notification
@@ -161,6 +167,7 @@ public struct Flipcash_Activity_V1_Notification {
     case gaveUsdc(Flipcash_Activity_V1_GaveUsdcNotificationMetadata)
     case receivedUsdc(Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata)
     case withdrewUsdc(Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata)
+    case sentUsdc(Flipcash_Activity_V1_SentUsdcNotificationMetadata)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata, rhs: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata) -> Bool {
@@ -182,6 +189,10 @@ public struct Flipcash_Activity_V1_Notification {
       }()
       case (.withdrewUsdc, .withdrewUsdc): return {
         guard case .withdrewUsdc(let l) = lhs, case .withdrewUsdc(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.sentUsdc, .sentUsdc): return {
+        guard case .sentUsdc(let l) = lhs, case .sentUsdc(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -237,6 +248,31 @@ public struct Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata {
   public init() {}
 }
 
+public struct Flipcash_Activity_V1_SentUsdcNotificationMetadata {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The vault of the gift card account that was created for the cash link
+  public var vault: Flipcash_Common_V1_PublicKey {
+    get {return _vault ?? Flipcash_Common_V1_PublicKey()}
+    set {_vault = newValue}
+  }
+  /// Returns true if `vault` has been explicitly set.
+  public var hasVault: Bool {return self._vault != nil}
+  /// Clears the value of `vault`. Subsequent reads from it will return its default value.
+  public mutating func clearVault() {self._vault = nil}
+
+  /// Whether the cancel action can be initiated by the user
+  public var canInitiateCancelAction: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _vault: Flipcash_Common_V1_PublicKey? = nil
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipcash_Activity_V1_ActivityFeedType: @unchecked Sendable {}
 extension Flipcash_Activity_V1_NotificationId: @unchecked Sendable {}
@@ -246,6 +282,7 @@ extension Flipcash_Activity_V1_WelcomeBonusNotificationMetadata: @unchecked Send
 extension Flipcash_Activity_V1_GaveUsdcNotificationMetadata: @unchecked Sendable {}
 extension Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata: @unchecked Sendable {}
 extension Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_SentUsdcNotificationMetadata: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -302,6 +339,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     6: .standard(proto: "gave_usdc"),
     7: .standard(proto: "received_usdc"),
     8: .standard(proto: "withdrew_usdc"),
+    9: .standard(proto: "sent_usdc"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -366,6 +404,19 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .withdrewUsdc(v)
         }
       }()
+      case 9: try {
+        var v: Flipcash_Activity_V1_SentUsdcNotificationMetadata?
+        var hadOneofValue = false
+        if let current = self.additionalMetadata {
+          hadOneofValue = true
+          if case .sentUsdc(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.additionalMetadata = .sentUsdc(v)
+        }
+      }()
       default: break
       }
     }
@@ -404,6 +455,10 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     case .withdrewUsdc?: try {
       guard case .withdrewUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    }()
+    case .sentUsdc?: try {
+      guard case .sentUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     }()
     case nil: break
     }
@@ -492,6 +547,48 @@ extension Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata: SwiftProtobuf.M
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_SentUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SentUsdcNotificationMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "vault"),
+    2: .standard(proto: "can_initiate_cancel_action"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._vault) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.canInitiateCancelAction) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._vault {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.canInitiateCancelAction != false {
+      try visitor.visitSingularBoolField(value: self.canInitiateCancelAction, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_SentUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_SentUsdcNotificationMetadata) -> Bool {
+    if lhs._vault != rhs._vault {return false}
+    if lhs.canInitiateCancelAction != rhs.canInitiateCancelAction {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

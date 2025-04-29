@@ -21,6 +21,7 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
         case gave
         case received
         case withdrew
+        case cashLink
         case unknown
     }
 }
@@ -49,6 +50,9 @@ extension Activity.Kind {
                 self = .received
             case .withdrewUsdc:
                 self = .withdrew
+            case .sentUsdc:
+                // TODO: Add cash link metadata
+                self = .cashLink
             }
             
         } else {

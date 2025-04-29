@@ -389,15 +389,6 @@ public struct Code_Account_V1_TokenAccountInfo {
     set {_uniqueStorage()._blockchainState = newValue}
   }
 
-  /// For temporary incoming accounts only. Flag indicates whether client must
-  /// actively try rotating it by issuing a ReceivePaymentsPrivately intent. In
-  /// general, clients should wait as long as possible until this flag is true
-  /// or requiring the funds to send their next payment.
-  public var mustRotate: Bool {
-    get {return _storage._mustRotate}
-    set {_uniqueStorage()._mustRotate = newValue}
-  }
-
   /// Whether an account is claimed. This only applies to relevant account types
   /// (eg. REMOTE_SEND_GIFT_CARD).
   public var claimState: Code_Account_V1_TokenAccountInfo.ClaimState {
@@ -976,7 +967,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     7: .same(proto: "balance"),
     8: .standard(proto: "management_state"),
     9: .standard(proto: "blockchain_state"),
-    10: .standard(proto: "must_rotate"),
     11: .standard(proto: "claim_state"),
     12: .standard(proto: "original_exchange_data"),
     13: .same(proto: "mint"),
@@ -993,7 +983,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     var _balance: UInt64 = 0
     var _managementState: Code_Account_V1_TokenAccountInfo.ManagementState = .unknown
     var _blockchainState: Code_Account_V1_TokenAccountInfo.BlockchainState = .unknown
-    var _mustRotate: Bool = false
     var _claimState: Code_Account_V1_TokenAccountInfo.ClaimState = .unknown
     var _originalExchangeData: Code_Transaction_V2_ExchangeData? = nil
     var _mint: Code_Common_V1_SolanaAccountId? = nil
@@ -1021,7 +1010,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       _balance = source._balance
       _managementState = source._managementState
       _blockchainState = source._blockchainState
-      _mustRotate = source._mustRotate
       _claimState = source._claimState
       _originalExchangeData = source._originalExchangeData
       _mint = source._mint
@@ -1053,7 +1041,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         case 7: try { try decoder.decodeSingularUInt64Field(value: &_storage._balance) }()
         case 8: try { try decoder.decodeSingularEnumField(value: &_storage._managementState) }()
         case 9: try { try decoder.decodeSingularEnumField(value: &_storage._blockchainState) }()
-        case 10: try { try decoder.decodeSingularBoolField(value: &_storage._mustRotate) }()
         case 11: try { try decoder.decodeSingularEnumField(value: &_storage._claimState) }()
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._originalExchangeData) }()
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._mint) }()
@@ -1097,9 +1084,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       if _storage._blockchainState != .unknown {
         try visitor.visitSingularEnumField(value: _storage._blockchainState, fieldNumber: 9)
       }
-      if _storage._mustRotate != false {
-        try visitor.visitSingularBoolField(value: _storage._mustRotate, fieldNumber: 10)
-      }
       if _storage._claimState != .unknown {
         try visitor.visitSingularEnumField(value: _storage._claimState, fieldNumber: 11)
       }
@@ -1130,7 +1114,6 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         if _storage._balance != rhs_storage._balance {return false}
         if _storage._managementState != rhs_storage._managementState {return false}
         if _storage._blockchainState != rhs_storage._blockchainState {return false}
-        if _storage._mustRotate != rhs_storage._mustRotate {return false}
         if _storage._claimState != rhs_storage._claimState {return false}
         if _storage._originalExchangeData != rhs_storage._originalExchangeData {return false}
         if _storage._mint != rhs_storage._mint {return false}

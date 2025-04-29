@@ -58,6 +58,10 @@ public enum ErrorFetchTransactionHistory: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Activity_V1_ActivityFeedClientInterceptorFactoryProtocol {
+    func makeGetPagedNotificationsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Activity_V1_GetPagedNotificationsRequest, FlipcashCoreAPI.Flipcash_Activity_V1_GetPagedNotificationsResponse>] {
+        makeInterceptors()
+    }
+    
     func makeGetLatestNotificationsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Activity_V1_GetLatestNotificationsRequest, FlipcashCoreAPI.Flipcash_Activity_V1_GetLatestNotificationsResponse>] {
         makeInterceptors()
     }

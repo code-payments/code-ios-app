@@ -1436,7 +1436,7 @@ public struct Code_Transaction_V2_OpenAccountsMetadata {
 /// actions = [
 ///   OpenAccountAction(REMOTE_SEND_GIFT_CARD),
 ///   NoPrivacyTransferAction(PRIMARY, REMOTE_SEND_GIFT_CARD, ExchangeData.Quarks),
-///   NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, ExchangeData.Quarks),
+///   NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, ExchangeData.Quarks, is_auto_return=true),
 /// ]
 ///
 /// todo: Possibly use a different action type for deferred closing?
@@ -1788,6 +1788,11 @@ public struct Code_Transaction_V2_NoPrivacyWithdrawAction {
   /// Whether the account is closed afterwards. This is always true, since there
   /// are no current se cases to leave it open.
   public var shouldClose: Bool = false
+
+  /// Whether this action is for an auto-return, which client allows server to defer
+  /// scheduling at its own discretion to return funds back to the owner (to their primary
+  /// account) that funded source.
+  public var isAutoReturn: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -4241,6 +4246,7 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
     3: .same(proto: "destination"),
     4: .same(proto: "amount"),
     5: .standard(proto: "should_close"),
+    6: .standard(proto: "is_auto_return"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -4254,6 +4260,7 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
       case 3: try { try decoder.decodeSingularMessageField(value: &self._destination) }()
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.amount) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.shouldClose) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.isAutoReturn) }()
       default: break
       }
     }
@@ -4279,6 +4286,9 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
     if self.shouldClose != false {
       try visitor.visitSingularBoolField(value: self.shouldClose, fieldNumber: 5)
     }
+    if self.isAutoReturn != false {
+      try visitor.visitSingularBoolField(value: self.isAutoReturn, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4288,6 +4298,7 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
     if lhs._destination != rhs._destination {return false}
     if lhs.amount != rhs.amount {return false}
     if lhs.shouldClose != rhs.shouldClose {return false}
+    if lhs.isAutoReturn != rhs.isAutoReturn {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

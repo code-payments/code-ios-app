@@ -495,7 +495,7 @@ message OpenAccountsMetadata {
 // actions = [
 //   OpenAccountAction(REMOTE_SEND_GIFT_CARD),
 //   NoPrivacyTransferAction(PRIMARY, REMOTE_SEND_GIFT_CARD, ExchangeData.Quarks),
-//   NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, ExchangeData.Quarks),
+//   NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, ExchangeData.Quarks, is_auto_return=true),
 // ]
 //
 // todo: Possibly use a different action type for deferred closing?
@@ -632,6 +632,11 @@ message NoPrivacyWithdrawAction {
     // Whether the account is closed afterwards. This is always true, since there
     // are no current se cases to leave it open.
     bool should_close = 5 [(validate.rules).bool.const = true];
+
+    // Whether this action is for an auto-return, which client allows server to defer
+    // scheduling at its own discretion to return funds back to the owner (to their primary
+    // account) that funded source.
+    bool is_auto_return = 6;
 }
 
 // Compact message signature required

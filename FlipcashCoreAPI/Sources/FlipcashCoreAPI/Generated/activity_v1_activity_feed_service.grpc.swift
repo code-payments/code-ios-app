@@ -20,6 +20,11 @@ public protocol Flipcash_Activity_V1_ActivityFeedClientProtocol: GRPCClient {
     _ request: Flipcash_Activity_V1_GetLatestNotificationsRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipcash_Activity_V1_GetLatestNotificationsRequest, Flipcash_Activity_V1_GetLatestNotificationsResponse>
+
+  func getPagedNotifications(
+    _ request: Flipcash_Activity_V1_GetPagedNotificationsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse>
 }
 
 extension Flipcash_Activity_V1_ActivityFeedClientProtocol {
@@ -43,6 +48,24 @@ extension Flipcash_Activity_V1_ActivityFeedClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetLatestNotificationsInterceptors() ?? []
+    )
+  }
+
+  /// GetPagedNotifications gets all notifications using a paging API.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetPagedNotifications.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getPagedNotifications(
+    _ request: Flipcash_Activity_V1_GetPagedNotificationsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Activity_V1_ActivityFeedClientMetadata.Methods.getPagedNotifications.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPagedNotificationsInterceptors() ?? []
     )
   }
 }
@@ -113,6 +136,11 @@ public protocol Flipcash_Activity_V1_ActivityFeedAsyncClientProtocol: GRPCClient
     _ request: Flipcash_Activity_V1_GetLatestNotificationsRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipcash_Activity_V1_GetLatestNotificationsRequest, Flipcash_Activity_V1_GetLatestNotificationsResponse>
+
+  func makeGetPagedNotificationsCall(
+    _ request: Flipcash_Activity_V1_GetPagedNotificationsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -136,6 +164,18 @@ extension Flipcash_Activity_V1_ActivityFeedAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetLatestNotificationsInterceptors() ?? []
     )
   }
+
+  public func makeGetPagedNotificationsCall(
+    _ request: Flipcash_Activity_V1_GetPagedNotificationsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Activity_V1_ActivityFeedClientMetadata.Methods.getPagedNotifications.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPagedNotificationsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -149,6 +189,18 @@ extension Flipcash_Activity_V1_ActivityFeedAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetLatestNotificationsInterceptors() ?? []
+    )
+  }
+
+  public func getPagedNotifications(
+    _ request: Flipcash_Activity_V1_GetPagedNotificationsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Activity_V1_GetPagedNotificationsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Activity_V1_ActivityFeedClientMetadata.Methods.getPagedNotifications.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPagedNotificationsInterceptors() ?? []
     )
   }
 }
@@ -174,6 +226,9 @@ public protocol Flipcash_Activity_V1_ActivityFeedClientInterceptorFactoryProtoco
 
   /// - Returns: Interceptors to use when invoking 'getLatestNotifications'.
   func makeGetLatestNotificationsInterceptors() -> [ClientInterceptor<Flipcash_Activity_V1_GetLatestNotificationsRequest, Flipcash_Activity_V1_GetLatestNotificationsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getPagedNotifications'.
+  func makeGetPagedNotificationsInterceptors() -> [ClientInterceptor<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse>]
 }
 
 public enum Flipcash_Activity_V1_ActivityFeedClientMetadata {
@@ -182,6 +237,7 @@ public enum Flipcash_Activity_V1_ActivityFeedClientMetadata {
     fullName: "flipcash.activity.v1.ActivityFeed",
     methods: [
       Flipcash_Activity_V1_ActivityFeedClientMetadata.Methods.getLatestNotifications,
+      Flipcash_Activity_V1_ActivityFeedClientMetadata.Methods.getPagedNotifications,
     ]
   )
 
@@ -189,6 +245,12 @@ public enum Flipcash_Activity_V1_ActivityFeedClientMetadata {
     public static let getLatestNotifications = GRPCMethodDescriptor(
       name: "GetLatestNotifications",
       path: "/flipcash.activity.v1.ActivityFeed/GetLatestNotifications",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPagedNotifications = GRPCMethodDescriptor(
+      name: "GetPagedNotifications",
+      path: "/flipcash.activity.v1.ActivityFeed/GetPagedNotifications",
       type: GRPCCallType.unary
     )
   }
@@ -201,6 +263,9 @@ public protocol Flipcash_Activity_V1_ActivityFeedProvider: CallHandlerProvider {
   /// GetLatestNotifications gets the latest N notifications in a user's
   /// activity feed. Results will be ordered by descending timestamp.
   func getLatestNotifications(request: Flipcash_Activity_V1_GetLatestNotificationsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Activity_V1_GetLatestNotificationsResponse>
+
+  /// GetPagedNotifications gets all notifications using a paging API.
+  func getPagedNotifications(request: Flipcash_Activity_V1_GetPagedNotificationsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Activity_V1_GetPagedNotificationsResponse>
 }
 
 extension Flipcash_Activity_V1_ActivityFeedProvider {
@@ -224,6 +289,15 @@ extension Flipcash_Activity_V1_ActivityFeedProvider {
         userFunction: self.getLatestNotifications(request:context:)
       )
 
+    case "GetPagedNotifications":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Activity_V1_GetPagedNotificationsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Activity_V1_GetPagedNotificationsResponse>(),
+        interceptors: self.interceptors?.makeGetPagedNotificationsInterceptors() ?? [],
+        userFunction: self.getPagedNotifications(request:context:)
+      )
+
     default:
       return nil
     }
@@ -242,6 +316,12 @@ public protocol Flipcash_Activity_V1_ActivityFeedAsyncProvider: CallHandlerProvi
     request: Flipcash_Activity_V1_GetLatestNotificationsRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Activity_V1_GetLatestNotificationsResponse
+
+  /// GetPagedNotifications gets all notifications using a paging API.
+  func getPagedNotifications(
+    request: Flipcash_Activity_V1_GetPagedNotificationsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Activity_V1_GetPagedNotificationsResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -272,6 +352,15 @@ extension Flipcash_Activity_V1_ActivityFeedAsyncProvider {
         wrapping: { try await self.getLatestNotifications(request: $0, context: $1) }
       )
 
+    case "GetPagedNotifications":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Activity_V1_GetPagedNotificationsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Activity_V1_GetPagedNotificationsResponse>(),
+        interceptors: self.interceptors?.makeGetPagedNotificationsInterceptors() ?? [],
+        wrapping: { try await self.getPagedNotifications(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -283,6 +372,10 @@ public protocol Flipcash_Activity_V1_ActivityFeedServerInterceptorFactoryProtoco
   /// - Returns: Interceptors to use when handling 'getLatestNotifications'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetLatestNotificationsInterceptors() -> [ServerInterceptor<Flipcash_Activity_V1_GetLatestNotificationsRequest, Flipcash_Activity_V1_GetLatestNotificationsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getPagedNotifications'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetPagedNotificationsInterceptors() -> [ServerInterceptor<Flipcash_Activity_V1_GetPagedNotificationsRequest, Flipcash_Activity_V1_GetPagedNotificationsResponse>]
 }
 
 public enum Flipcash_Activity_V1_ActivityFeedServerMetadata {
@@ -291,6 +384,7 @@ public enum Flipcash_Activity_V1_ActivityFeedServerMetadata {
     fullName: "flipcash.activity.v1.ActivityFeed",
     methods: [
       Flipcash_Activity_V1_ActivityFeedServerMetadata.Methods.getLatestNotifications,
+      Flipcash_Activity_V1_ActivityFeedServerMetadata.Methods.getPagedNotifications,
     ]
   )
 
@@ -298,6 +392,12 @@ public enum Flipcash_Activity_V1_ActivityFeedServerMetadata {
     public static let getLatestNotifications = GRPCMethodDescriptor(
       name: "GetLatestNotifications",
       path: "/flipcash.activity.v1.ActivityFeed/GetLatestNotifications",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPagedNotifications = GRPCMethodDescriptor(
+      name: "GetPagedNotifications",
+      path: "/flipcash.activity.v1.ActivityFeed/GetPagedNotifications",
       type: GRPCCallType.unary
     )
   }

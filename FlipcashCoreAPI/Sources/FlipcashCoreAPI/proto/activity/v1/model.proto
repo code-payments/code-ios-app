@@ -10,9 +10,7 @@ import "common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
-// The ID of the notification, which is guaranteed to be consistent for grouped
-// events. Updates to a notification with the same ID should result in re-ordering
-// within the activity feed using the latest content.
+// The ID of the notification
 message NotificationId {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 32
@@ -43,6 +41,7 @@ message Notification {
         GaveUsdcNotificationMetadata     gave_usdc     = 6;
         ReceivedUsdcNotificationMetadata received_usdc = 7;
         WithdrewUsdcNotificationMetadata withdrew_usdc = 8;
+        SentUsdcNotificationMetadata     sent_usdc     = 9;
     }
 }
 
@@ -56,6 +55,14 @@ message ReceivedUsdcNotificationMetadata {
 }
 
 message WithdrewUsdcNotificationMetadata {
+}
+
+message SentUsdcNotificationMetadata {
+    // The vault of the gift card account that was created for the cash link
+    common.v1.PublicKey vault = 1 [(validate.rules).message.required = true];
+
+    // Whether the cancel action can be initiated by the user
+    bool can_initiate_cancel_action = 2;
 }
 
 // ActivityFeedType enables multiple activity feeds, where notifications may be

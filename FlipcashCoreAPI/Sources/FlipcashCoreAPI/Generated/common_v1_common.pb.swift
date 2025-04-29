@@ -214,6 +214,90 @@ public struct Flipcash_Common_V1_PaymentAmount {
   public init() {}
 }
 
+public struct Flipcash_Common_V1_PagingToken {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var value: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Flipcash_Common_V1_QueryOptions {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// PageSize limits the maximum page size of a response.
+  ///
+  /// Server may choose to return less items. If <= 0,
+  /// server may select an arbitrary default page size.
+  public var pageSize: Int32 = 0
+
+  /// PagingToken is a token that can be extracted from the
+  /// identifier of a collection.
+  public var pagingToken: Flipcash_Common_V1_PagingToken {
+    get {return _pagingToken ?? Flipcash_Common_V1_PagingToken()}
+    set {_pagingToken = newValue}
+  }
+  /// Returns true if `pagingToken` has been explicitly set.
+  public var hasPagingToken: Bool {return self._pagingToken != nil}
+  /// Clears the value of `pagingToken`. Subsequent reads from it will return its default value.
+  public mutating func clearPagingToken() {self._pagingToken = nil}
+
+  /// Order is the order of elements, if applicable.
+  public var order: Flipcash_Common_V1_QueryOptions.Order = .asc
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Order: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case asc // = 0
+    case desc // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .asc
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .asc
+      case 1: self = .desc
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .asc: return 0
+      case .desc: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+
+  fileprivate var _pagingToken: Flipcash_Common_V1_PagingToken? = nil
+}
+
+#if swift(>=4.2)
+
+extension Flipcash_Common_V1_QueryOptions.Order: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Common_V1_QueryOptions.Order] = [
+    .asc,
+    .desc,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipcash_Common_V1_Platform: @unchecked Sendable {}
 extension Flipcash_Common_V1_PublicKey: @unchecked Sendable {}
@@ -224,6 +308,9 @@ extension Flipcash_Common_V1_Auth.KeyPair: @unchecked Sendable {}
 extension Flipcash_Common_V1_UserId: @unchecked Sendable {}
 extension Flipcash_Common_V1_AppInstallId: @unchecked Sendable {}
 extension Flipcash_Common_V1_PaymentAmount: @unchecked Sendable {}
+extension Flipcash_Common_V1_PagingToken: @unchecked Sendable {}
+extension Flipcash_Common_V1_QueryOptions: @unchecked Sendable {}
+extension Flipcash_Common_V1_QueryOptions.Order: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -498,4 +585,91 @@ extension Flipcash_Common_V1_PaymentAmount: SwiftProtobuf.Message, SwiftProtobuf
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipcash_Common_V1_PagingToken: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PagingToken"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "value"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularBytesField(value: &self.value) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.value.isEmpty {
+      try visitor.visitSingularBytesField(value: self.value, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_PagingToken, rhs: Flipcash_Common_V1_PagingToken) -> Bool {
+    if lhs.value != rhs.value {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_QueryOptions: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".QueryOptions"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "page_size"),
+    2: .standard(proto: "paging_token"),
+    3: .same(proto: "order"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.pageSize) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._pagingToken) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.order) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.pageSize != 0 {
+      try visitor.visitSingularInt32Field(value: self.pageSize, fieldNumber: 1)
+    }
+    try { if let v = self._pagingToken {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.order != .asc {
+      try visitor.visitSingularEnumField(value: self.order, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_QueryOptions, rhs: Flipcash_Common_V1_QueryOptions) -> Bool {
+    if lhs.pageSize != rhs.pageSize {return false}
+    if lhs._pagingToken != rhs._pagingToken {return false}
+    if lhs.order != rhs.order {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_QueryOptions.Order: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "ASC"),
+    1: .same(proto: "DESC"),
+  ]
 }

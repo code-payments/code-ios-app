@@ -14,6 +14,9 @@ service ActivityFeed {
     // GetLatestNotifications gets the latest N notifications in a user's
     // activity feed. Results will be ordered by descending timestamp.
     rpc GetLatestNotifications(GetLatestNotificationsRequest) returns (GetLatestNotificationsResponse);
+
+    // GetPagedNotifications gets all notifications using a paging API.
+    rpc GetPagedNotifications(GetPagedNotificationsRequest) returns (GetPagedNotificationsResponse);
 }
 
 message GetLatestNotificationsRequest {
@@ -27,6 +30,27 @@ message GetLatestNotificationsRequest {
 }
 
 message GetLatestNotificationsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        DENIED = 1;
+    }
+
+    repeated Notification notifications = 2 [(validate.rules).repeated = {
+        max_items: 1024
+    }];
+}
+
+message GetPagedNotificationsRequest {
+    // The activity feed to fetch notifications from
+    ActivityFeedType type = 1 [(validate.rules).enum.in = 1];
+
+    common.v1.QueryOptions query_options = 2 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+
+message GetPagedNotificationsResponse {
     Result result = 1;
     enum Result {
         OK = 0;
