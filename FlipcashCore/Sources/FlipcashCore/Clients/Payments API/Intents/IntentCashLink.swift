@@ -10,37 +10,52 @@ import Foundation
 import FlipcashAPI
 import SwiftProtobuf
 
-final class IntentTransfer: IntentType {
+final class IntentCashLink: IntentType {
     
     let id: PublicKey
     let sourceCluster: AccountCluster
-    let destination: PublicKey
+    let giftCard: GiftCardCluster
     let exchangedFiat: ExchangedFiat
     let extendedMetadata: Google_Protobuf_Any?
     
     var actionGroup: ActionGroup
     
-    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, exchangedFiat: ExchangedFiat, extendedMetadata: Google_Protobuf_Any? = nil) {
+    init(rendezvous: PublicKey, sourceCluster: AccountCluster, giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat, extendedMetadata: Google_Protobuf_Any? = nil) {
         self.id               = rendezvous
         self.sourceCluster    = sourceCluster
+        self.giftCard         = giftCard
         self.exchangedFiat    = exchangedFiat
         self.extendedMetadata = extendedMetadata
-        self.destination      = destination
         
-        let transfer = ActionTransfer(
-            kind: .transfer,
-            amount: exchangedFiat.usdc,
-            sourceCluster: sourceCluster,
-            destination: destination
+        let openGiftCardAction = ActionOpenAccount(
+            owner: giftCard.cluster
         )
         
-        self.actionGroup = ActionGroup(actions: [transfer])
+        let transferAction = ActionTransfer(
+            kind: .cashLink(.init(isAutoReturn: false)),
+            amount: exchangedFiat.usdc,
+            sourceCluster: sourceCluster,
+            destination: giftCard.cluster.vaultPublicKey
+        )
+        
+        let autoReturnAction = ActionTransfer(
+            kind: .cashLink(.init(isAutoReturn: true)),
+            amount: exchangedFiat.usdc,
+            sourceCluster: giftCard.cluster,
+            destination: sourceCluster.vaultPublicKey
+        )
+        
+        self.actionGroup = ActionGroup(actions: [
+            openGiftCardAction,
+            transferAction,
+            autoReturnAction,
+        ])
     }
 }
 
 // MARK: - Errors -
 
-extension IntentTransfer {
+extension IntentCashLink {
     enum Error: Swift.Error {
         case balanceMismatch
     }
@@ -48,12 +63,12 @@ extension IntentTransfer {
 
 // MARK: - Proto -
 
-extension IntentTransfer {
+extension IntentCashLink {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.sendPublicPayment = .with {
                 $0.source       = sourceCluster.vaultPublicKey.solanaAccountID
-                $0.destination  = destination.solanaAccountID
+                $0.destination  = giftCard.cluster.vaultPublicKey.solanaAccountID
                 $0.exchangeData = .with {
                     $0.quarks       = exchangedFiat.usdc.quarks
                     $0.currency     = exchangedFiat.converted.currencyCode.rawValue
@@ -61,7 +76,7 @@ extension IntentTransfer {
                     $0.nativeAmount = exchangedFiat.converted.doubleValue
                 }
                 $0.isWithdrawal = false
-                $0.isRemoteSend = false
+                $0.isRemoteSend = true
             }
         }
     }

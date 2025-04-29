@@ -27,23 +27,18 @@ extension Client {
                 rendezvous: rendezvous
             ) { c.resume(with: $0) }
         }
-//        let intent = try await withCheckedThrowingContinuation { c in
-//            transactionService.transfer(
-//                amount: amount,
-//                fee: fee,
-//                additionalFees: additionalFees,
-//                organizer: organizer,
-//                rendezvous: rendezvous,
-//                destination: destination,
-//                isWithdrawal: isWithdrawal,
-//                chatID: chatID,
-//                completion: { c.resume(with: $0) }
-//            )
-//        }
-//        
-//        await MainActor.run {
-//            organizer.set(tray: intent.resultTray)
-//        }
+    }
+    
+    public func sendCashLink(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, giftCard: GiftCardCluster, owner: KeyPair, rendezvous: PublicKey) async throws {
+        _ = try await withCheckedThrowingContinuation { c in
+            transactionService.sendCashLink(
+                exchangedFiat: exchangedFiat,
+                sourceCluster: sourceCluster,
+                giftCard: giftCard,
+                owner: owner,
+                rendezvous: rendezvous
+            ) { c.resume(with: $0) }
+        }
     }
     
 //    public func withdraw(amount: KinAmount, organizer: Organizer, destination: PublicKey) async throws {

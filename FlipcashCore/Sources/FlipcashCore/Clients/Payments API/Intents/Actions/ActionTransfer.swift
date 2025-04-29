@@ -68,6 +68,11 @@ extension ActionTransfer {
     enum Kind {
         case transfer
         case withdraw
+        case cashLink(CashLinkConfiguration)
+    }
+    
+    struct CashLinkConfiguration {
+        let isAutoReturn: Bool
     }
 }
 
@@ -88,11 +93,22 @@ extension ActionTransfer {
                 
             case .withdraw:
                 $0.noPrivacyWithdraw = .with {
-                    $0.authority   = sourceCluster.authorityPublicKey.solanaAccountID
-                    $0.source      = source.solanaAccountID
-                    $0.destination = destination.solanaAccountID
-                    $0.amount      = amount.quarks
-                    $0.shouldClose = false
+                    $0.authority    = sourceCluster.authorityPublicKey.solanaAccountID
+                    $0.source       = source.solanaAccountID
+                    $0.destination  = destination.solanaAccountID
+                    $0.amount       = amount.quarks
+                    $0.shouldClose  = false
+                    $0.isAutoReturn = false
+                }
+                
+            case .cashLink(let configuration):
+                $0.noPrivacyWithdraw = .with {
+                    $0.authority    = sourceCluster.authorityPublicKey.solanaAccountID
+                    $0.source       = source.solanaAccountID
+                    $0.destination  = destination.solanaAccountID
+                    $0.amount       = amount.quarks
+                    $0.shouldClose  = false
+                    $0.isAutoReturn = configuration.isAutoReturn
                 }
             }
         }

@@ -63,6 +63,29 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
+    func sendCashLink(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, giftCard: GiftCardCluster, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        trace(.send)
+        
+        let intent = IntentCashLink(
+            rendezvous: rendezvous,
+            sourceCluster: sourceCluster,
+            giftCard: giftCard,
+            exchangedFiat: exchangedFiat
+        )
+        
+        submit(intent: intent, owner: owner) { result in
+            switch result {
+            case .success(_):
+                trace(.success)
+                completion(.success(()))
+                
+            case .failure(let error):
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+        }
+    }
+    
 //    func withdraw(amount: KinAmount, organizer: Organizer, destination: PublicKey, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
 //        trace(.send)
 //        
