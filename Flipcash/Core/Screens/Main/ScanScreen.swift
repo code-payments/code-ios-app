@@ -53,10 +53,15 @@ struct ScanScreen: View {
     
     // MARK: - Init -
     
-    init(container: Container, session: Session) {
+    init(container: Container, sessionContainer: SessionContainer) {
         self.container = container
-        self.session = session
-        _viewModel = .init(wrappedValue: ScanViewModel(container: container, session: session))
+        self.session   = sessionContainer.session
+        _viewModel     = .init(
+            wrappedValue: ScanViewModel(
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
     }
     
     // MARK: - Body -

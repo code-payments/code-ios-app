@@ -28,7 +28,7 @@ class SendCashOperation {
         self.exchangedFiat = exchangedFiat
         self.payload      = .init(
             kind: .cash,
-            fiat: exchangedFiat.usdc,
+            fiat: exchangedFiat.converted,
             nonce: .nonce
         )
     }

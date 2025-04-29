@@ -16,6 +16,7 @@ class ScanViewModel: ObservableObject {
     let cameraSession: CameraSession<CodeExtractor>
     
     private let session: Session
+    private let historyController: HistoryController
     private let client: Client
     
     @Published var billState: BillState = .default()
@@ -38,8 +39,9 @@ class ScanViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, session: Session) {
-        self.session = session
+    init(container: Container, sessionContainer: SessionContainer) {
+        self.session = sessionContainer.session
+        self.historyController = sessionContainer.historyController
         self.cameraSession = container.cameraSession
         self.client = container.client
         

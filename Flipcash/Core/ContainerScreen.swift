@@ -32,10 +32,13 @@ struct ContainerScreen: View {
                 .transition(.opacity)
                 
             case .loggedIn(let sessionContainer):
-                ScanScreen(container: container, session: sessionContainer.session)
-                    .environmentObject(sessionContainer.session)
-                    .environmentObject(sessionContainer.historyController)
-                    .transition(.opacity)
+                ScanScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+                .environmentObject(sessionContainer.session)
+                .environmentObject(sessionContainer.historyController)
+                .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.state.intValue)
