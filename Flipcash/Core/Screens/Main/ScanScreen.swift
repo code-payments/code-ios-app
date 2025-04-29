@@ -48,9 +48,14 @@ struct ScanScreen: View {
         }
     }
     
+    private let container: Container
+    private let session: Session
+    
     // MARK: - Init -
     
     init(container: Container, session: Session) {
+        self.container = container
+        self.session = session
         _viewModel = .init(wrappedValue: ScanViewModel(container: container, session: session))
     }
     
@@ -217,15 +222,15 @@ struct ScanScreen: View {
             
             RoundButton(
                 asset: .hamburger,
-                size: .regular
-            ) {
-                sessionAuthenticator.logout()
-            }
-//            .sheet(isPresented: $isPresentingSettings) { [unowned session] in
-//                SettingsScreen(
-//                    session: session,
-//                    isPresented: $isPresentingSettings
-//                )
+                size: .regular,
+                binding: $isShowingSettings
+            )
+            .sheet(isPresented: $isShowingSettings) {
+                SettingsScreen(
+                    isPresented: $isShowingSettings,
+                    container: container,
+                    session: session
+                )
 //                .environmentObject(betaFlags)
 //                .environmentObject(client)
 //                .environmentObject(exchange)
@@ -233,7 +238,7 @@ struct ScanScreen: View {
 //                .environmentObject(betaFlags)
 //                .environmentObject(bannerController)
 //                .environmentObject(biometrics)
-//            }
+            }
         }
         .padding(.horizontal, 20)
     }

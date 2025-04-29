@@ -224,6 +224,24 @@ final class SessionAuthenticator: ObservableObject {
 //        Analytics.setIdentity(initializedAccount.user)
     }
     
+    func switchAccount(to account: AccountDescription) {
+        Task {
+            loginButtonState = .loading
+            // State is changed back to .normal
+            // within initialize()
+            
+            logout()
+            try await Task.delay(seconds: 1)
+        
+            completeLogin(
+                with: try await initialize(
+                    using: account.account.mnemonic,
+                    isRegistration: false
+                )
+            )
+        }
+    }
+    
     func deleteAndLogout() {
         if case .loggedIn(let container) = state {
             accountManager.setDeleted(

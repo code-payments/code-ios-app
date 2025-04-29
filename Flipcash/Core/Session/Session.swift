@@ -82,3 +82,13 @@ class Session: ObservableObject {
         balance = try await client.fetchBalance(owner: ownerKeyPair)
     }
 }
+
+// MARK: - Mock -
+
+extension Session {
+    static let mock = Session(
+        container: .mock,
+        owner: .init(authority: .derive(using: .primary(), mnemonic: .mock)),
+        userID: UUID()
+    )
+}
