@@ -136,6 +136,34 @@ class ScanViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Cash Link -
+    
+    func showCashLinkBill(exchangedFiat: ExchangedFiat) {
+        let operation = SendCashOperation(
+            client: client,
+            owner: session.owner,
+            exchangedFiat: exchangedFiat
+        )
+        
+        let payload = operation.payload
+        
+        sendOperation     = operation
+        presentationState = .visible(.slide)
+        billState         = .init(
+            bill: .cash(payload)
+        )
+        
+        let giftCard = GiftCardCluster()
+        let item = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
+        
+        ShareSheet.present(activityItem: item) { [weak self] isCompleted in
+            self?.dismissCashBill(style: .slide)
+            if isCompleted {
+                // TODO: Send funds to gift card
+            }
+        }
+    }
+    
     // MARK: - Cash -
     
     func showCashBill(_ billDescription: BillDescription) {
@@ -152,9 +180,9 @@ class ScanViewModel: ObservableObject {
             )
         }
         
-        sendOperation = operation
+        sendOperation     = operation
         presentationState = .visible(billDescription.received ? .pop : .slide)
-        billState = .init(
+        billState         = .init(
             bill: .cash(operation.payload),
             primaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
                 self?.dismissCashBill(style: .slide)

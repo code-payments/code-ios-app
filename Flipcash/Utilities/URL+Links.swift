@@ -13,7 +13,7 @@ extension URL {
         URL(string: "https://app.flipcash.com/login/#/e=\(mnemonic.base58EncodedEntropy)")!
     }
     
-    static func send(with mnemonic: MnemonicPhrase) -> URL {
+    static func cashLink(with mnemonic: MnemonicPhrase) -> URL {
         URL(string: "https://send.flipcash.com/c/#/e=\(mnemonic.base58EncodedEntropy)")!
     }
     

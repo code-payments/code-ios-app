@@ -22,6 +22,8 @@ struct GiveScreen: View {
     @State private var actionState: ButtonState = .normal
     @State private var isShowingCurrencySelection: Bool = false
     
+    private let kind: Kind
+    
     private var isSendEnabled: Bool {
         true
     }
@@ -53,9 +55,10 @@ struct GiveScreen: View {
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, scanViewModel: ScanViewModel) {
+    init(isPresented: Binding<Bool>, kind: Kind, scanViewModel: ScanViewModel) {
         self._isPresented = isPresented
-        self.viewModel = scanViewModel
+        self.kind         = kind
+        self.viewModel    = scanViewModel
     }
     
     // MARK: - Body -
@@ -103,17 +106,31 @@ struct GiveScreen: View {
         
         Task {
             try await Task.delay(milliseconds: 50)
-            viewModel.showCashBill(
-                .init(
-                    kind: .cash,
-                    exchangedFiat: exchangedFiat,
-                    received: false
+            
+            switch kind {
+            case .cash:
+                viewModel.showCashBill(
+                    .init(
+                        kind: .cash,
+                        exchangedFiat: exchangedFiat,
+                        received: false
+                    )
                 )
-            )
+                
+            case .cashLink:
+                viewModel.showCashLinkBill(exchangedFiat: exchangedFiat)
+            }
         }
     }
     
     private func showCurrencySelection() {
         isShowingCurrencySelection.toggle()
+    }
+}
+
+extension GiveScreen {
+    enum Kind {
+        case cash
+        case cashLink
     }
 }

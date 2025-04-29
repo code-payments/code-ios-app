@@ -20,6 +20,7 @@ struct ScanScreen: View {
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var isShowingGive: Bool = false
+    @State private var isShowingSend: Bool = false
     
     private var toast: String? {
         if let toast = viewModel.toast {
@@ -263,6 +264,7 @@ struct ScanScreen: View {
             .sheet(isPresented: $isShowingGive) {
                 GiveScreen(
                     isPresented: $isShowingGive,
+                    kind: .cash,
                     scanViewModel: viewModel
                 )
             }
@@ -275,9 +277,15 @@ struct ScanScreen: View {
                 maxHeight: 80,
                 fullWidth: true,
                 badgeInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 5),
-                aligment: .bottom
-            ) {
-                
+                aligment: .bottom,
+                binding: $isShowingSend
+            )
+            .sheet(isPresented: $isShowingSend) {
+                GiveScreen(
+                    isPresented: $isShowingSend,
+                    kind: .cashLink,
+                    scanViewModel: viewModel
+                )
             }
             
             ToastContainer(toast: toast) {
