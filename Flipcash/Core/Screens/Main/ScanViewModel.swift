@@ -105,6 +105,7 @@ class ScanViewModel: ObservableObject {
         
         let operation = ScanCashOperation(
             client: client,
+            historyController: historyController,
             owner: session.owner,
             payload: payload
         )

@@ -35,6 +35,12 @@ struct BalanceScreen: View {
         self._isPresented = isPresented
     }
     
+    // MARK: - Lifecycle -
+    
+    private func onAppear() {
+        historyController.refreshHistory()
+    }
+    
     // MARK: - Body -
     
     var body: some View {
@@ -68,6 +74,7 @@ struct BalanceScreen: View {
                     }
                 }
             }
+            .onAppear(perform: onAppear)
         }
     }
     
