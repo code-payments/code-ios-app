@@ -2,13 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>SQLiteVersion</key>
-	<integer>1</integer>
-	<key>UIBackgroundModes</key>
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>fetch</string>
-		<string>remote-notification</string>
-		<string>processing</string>
+		<string>applinks:send.flipcash.com</string>
+		<string>applinks:jump.flipcash.com</string>
 	</array>
 </dict>
 </plist>
