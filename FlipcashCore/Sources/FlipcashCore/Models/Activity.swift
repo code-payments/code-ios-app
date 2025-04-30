@@ -9,19 +9,22 @@ import Foundation
 import FlipcashCoreAPI
 
 public struct Activity: Identifiable, Sendable, Equatable, Hashable {
-    
     public let id: ID
     public let title: String
     public let exchangedFiat: ExchangedFiat
     public let date: Date
     public let kind: Kind
-    
-    public enum Kind: Sendable {
+}
+
+// MARK: - Kind -
+
+extension Activity {
+    public enum Kind: Sendable, Equatable, Hashable {
         case welcomeBonus
         case gave
         case received
         case withdrew
-        case cashLink
+        case cashLink(CashLinkMetadata)
         case unknown
     }
 }
@@ -50,9 +53,8 @@ extension Activity.Kind {
                 self = .received
             case .withdrewUsdc:
                 self = .withdrew
-            case .sentUsdc:
-                // TODO: Add cash link metadata
-                self = .cashLink
+            case .sentUsdc(let metadata):
+                self = .cashLink(.init(metadata))
             }
             
         } else {

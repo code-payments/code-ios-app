@@ -29,57 +29,24 @@ extension Client {
         }
     }
     
-    public func sendCashLink(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, giftCard: GiftCardCluster, owner: KeyPair, rendezvous: PublicKey) async throws {
+    public func sendCashLink(exchangedFiat: ExchangedFiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.sendCashLink(
                 exchangedFiat: exchangedFiat,
-                sourceCluster: sourceCluster,
+                ownerCluster: ownerCluster,
                 giftCard: giftCard,
-                owner: owner,
                 rendezvous: rendezvous
             ) { c.resume(with: $0) }
         }
     }
     
-//    public func withdraw(amount: KinAmount, organizer: Organizer, destination: PublicKey) async throws {
-//        let intent = try await withCheckedThrowingContinuation { c in
-//            transactionService.withdraw(
-//                amount: amount,
-//                organizer: organizer,
-//                destination: destination,
-//                completion: { c.resume(with: $0) }
-//            )
-//        }
-//        
-//        await MainActor.run {
-//            trace(.warning, components: "Updating tray from withdraw.")
-//            organizer.set(tray: intent.resultTray)
-//        }
-//    }
-//    
-//    // MARK: - Remote Send -
-//    
-//    public func sendRemotely(amount: KinAmount, organizer: Organizer, rendezvous: PublicKey, giftCard: GiftCardAccount) async throws {
-//        let intent = try await withCheckedThrowingContinuation { c in
-//            transactionService.sendRemotely(amount: amount, organizer: organizer, rendezvous: rendezvous, giftCard: giftCard) { c.resume(with: $0) }
-//        }
-//        
-//        await MainActor.run {
-//            organizer.set(tray: intent.resultTray)
-//        }
-//    }
-//    
-//    public func receiveRemotely(amount: Kin, organizer: Organizer, giftCard: GiftCardAccount, isVoiding: Bool) async throws {
-//        let intent = try await withCheckedThrowingContinuation { c in
-//            transactionService.receiveRemotely(amount: amount, organizer: organizer, giftCard: giftCard, isVoiding: isVoiding) { c.resume(with: $0) }
-//        }
-//        
-//        await MainActor.run {
-//            organizer.set(tray: intent.resultTray)
-//        }
-//    }
-//    
-//    // MARK: - AirDrop -
+    public func voidCashLink(giftCardVault: PublicKey, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.voidCashLink(giftCardVault: giftCardVault, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    // MARK: - AirDrop -
     
     public func airdrop(type: AirdropType, owner: KeyPair) async throws -> PaymentMetadata {
         try await withCheckedThrowingContinuation { c in

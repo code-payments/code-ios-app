@@ -21,7 +21,10 @@ final class IntentCreateAccount: IntentType {
         self.owner = owner
         
         self.actionGroup = ActionGroup(actions: [
-            ActionOpenAccount(owner: owner)
+            ActionOpenAccount(
+                kind: .primary,
+                cluster: owner
+            )
         ])
     }
 }

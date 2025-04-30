@@ -28,18 +28,18 @@ final class IntentCashLink: IntentType {
         self.extendedMetadata = extendedMetadata
         
         let openGiftCardAction = ActionOpenAccount(
-            owner: giftCard.cluster
+            kind: .giftCard,
+            cluster: giftCard.cluster
         )
         
         let transferAction = ActionTransfer(
-            kind: .cashLink(.init(isAutoReturn: false)),
             amount: exchangedFiat.usdc,
             sourceCluster: sourceCluster,
             destination: giftCard.cluster.vaultPublicKey
         )
         
-        let autoReturnAction = ActionTransfer(
-            kind: .cashLink(.init(isAutoReturn: true)),
+        let autoReturnAction = ActionWithdraw(
+            kind: .cashLinkWithdraw(.init(isAutoReturn: true)),
             amount: exchangedFiat.usdc,
             sourceCluster: giftCard.cluster,
             destination: sourceCluster.vaultPublicKey

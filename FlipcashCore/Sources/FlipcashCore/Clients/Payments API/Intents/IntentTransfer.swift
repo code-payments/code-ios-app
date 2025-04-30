@@ -28,7 +28,6 @@ final class IntentTransfer: IntentType {
         self.destination      = destination
         
         let transfer = ActionTransfer(
-            kind: .transfer,
             amount: exchangedFiat.usdc,
             sourceCluster: sourceCluster,
             destination: destination

@@ -63,17 +63,17 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    func sendCashLink(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, giftCard: GiftCardCluster, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send)
+    func sendCashLink(exchangedFiat: ExchangedFiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(exchangedFiat.usdc.formatted(suffix: " USDC"))")
         
         let intent = IntentCashLink(
             rendezvous: rendezvous,
-            sourceCluster: sourceCluster,
+            sourceCluster: ownerCluster,
             giftCard: giftCard,
             exchangedFiat: exchangedFiat
         )
         
-        submit(intent: intent, owner: owner) { result in
+        submit(intent: intent, owner: ownerCluster.authority.keyPair) { result in
             switch result {
             case .success(_):
                 trace(.success)
@@ -86,63 +86,28 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-//    func withdraw(amount: KinAmount, organizer: Organizer, destination: PublicKey, completion: @escaping (Result<IntentPublicTransfer, Error>) -> Void) {
-//        trace(.send)
-//        
-//        do {
-//            let intent = try IntentPublicTransfer(
-//                organizer: organizer,
-//                source: .primary,
-//                destination: .external(destination),
-//                amount: amount
-//            )
-//            
-//            submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
-//                switch result {
-//                case .success(let intent):
-//                    trace(.success)
-//                    completion(.success(intent))
-//                    
-//                case .failure(let error):
-//                    trace(.failure, components: "Error: \(error)")
-//                    completion(.failure(error))
-//                }
-//            }
-//            
-//        } catch {
-//            completion(.failure(error))
-//        }
-//    }
-    
-    // MARK: - Remote Send -
-    
-//    func sendRemotely(amount: KinAmount, organizer: Organizer, rendezvous: PublicKey, giftCard: GiftCardAccount, completion: @escaping (Result<IntentRemoteSend, Error>) -> Void) {
-//        trace(.send)
-//        
-//        do {
-//            let intent = try IntentRemoteSend(
-//                rendezvous: rendezvous,
-//                organizer: organizer,
-//                giftCard: giftCard,
-//                amount: amount
-//            )
-//            
-//            submit(intent: intent, owner: organizer.tray.owner.cluster.authority.keyPair) { result in
-//                switch result {
-//                case .success(let intent):
-//                    trace(.success)
-//                    completion(.success(intent))
-//                    
-//                case .failure(let error):
-//                    trace(.failure, components: "Error: \(error)")
-//                    completion(.failure(error))
-//                }
-//            }
-//            
-//        } catch {
-//            completion(.failure(error))
-//        }
-//    }
+    func voidCashLink(giftCardVault: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorVoidGiftCard>) -> Void) {
+        trace(.send, components: "Gift card: \(giftCardVault.base58)")
+        
+        let request = Code_Transaction_V2_VoidGiftCardRequest.with {
+            $0.giftCardVault = giftCardVault.solanaAccountID
+            $0.owner = owner.publicKey.solanaAccountID
+            $0.signature = $0.sign(with: owner)
+        }
+        
+        let call = service.voidGiftCard(request)
+        call.handle(on: queue) { response in
+            let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                completion(.success(()))
+            } else {
+                completion(.failure(error))
+            }
+            
+        } failure: { _ in
+            completion(.failure(.unknown))
+        }
+    }
     
     // MARK: - AirDrop -
     
@@ -159,7 +124,6 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         call.handle(on: queue) { response in
             
             let result = ErrorAirdrop(rawValue: response.result.rawValue) ?? .unknown
-            
             guard result == .ok else {
                 trace(.failure, components: "Error: \(result)")
                 completion(.failure(result))
@@ -245,7 +209,6 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                             "Action index: \(signatureDetails.actionID)",
                             "Invalid signature: \(Signature(signatureDetails.providedSignature.value)?.base58 ?? "nil")",
                             "Transaction bytes: \(signatureDetails.expectedTransaction.value.hexEncodedString())",
-                            "Transaction expected: \(SolanaTransaction(data: signatureDetails.expectedTransaction.value)!)",
                         ]
                     default:
                         return []
@@ -543,6 +506,14 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     }
 }
 
+public enum ErrorVoidGiftCard: Int, Error {
+    case ok
+    case denied
+    case claimed
+    case notFound
+    case unknown = -1
+}
+
 public enum ErrorFetchIntentMetadata: Int, Error {
     case ok
     case notFound
@@ -555,37 +526,10 @@ public enum ErrorFetchLimits: Int, Error {
     case unknown = -1
 }
 
-public enum ErrorPaymentHistory: Int, Error {
-    case ok
-    case notFound
-    case unknown = -1
-}
-
-public enum ErrorDestinationMetadata: Int, Error {
-    case ok
-    case notFound
-    case unknown = -1
-}
-
-public enum ErrorFetchUpgradeableIntets: Int, Error {
-    case ok
-    case notFound
-    case unknown = -1
-    case deserializationFailure = -2
-}
-
 public enum ErrorAirdrop: Int, Error {
     case ok
     case unavailable
     case alreadyClaimed
-    case unknown = -1
-}
-
-public enum ErrorDeclareFiatOnramp: Int, Error {
-    case ok
-    case invalidOwner /// The owner account is not valid (ie. it isn't a Code account)
-    case unsupportedCurrency /// The currency isn't supported
-    case amountExceedsMaximum /// The amount specified exceeds limits
     case unknown = -1
 }
 
@@ -616,10 +560,6 @@ extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFa
         makeInterceptors()
     }
     
-//    func makeGetPrioritizedIntentsForPrivacyUpgradeInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeRequest, Code_Transaction_V2_GetPrioritizedIntentsForPrivacyUpgradeResponse>] {
-//        makeInterceptors()
-//    }
-    
     func makeGetLimitsInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetLimitsRequest, Code_Transaction_V2_GetLimitsResponse>] {
         makeInterceptors()
     }
@@ -627,10 +567,6 @@ extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFa
     func makeSubmitIntentInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_SubmitIntentRequest, Code_Transaction_V2_SubmitIntentResponse>] {
         makeInterceptors()
     }
-    
-//    func makeGetPrivacyUpgradeStatusInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetPrivacyUpgradeStatusRequest, Code_Transaction_V2_GetPrivacyUpgradeStatusResponse>] {
-//        makeInterceptors()
-//    }
 }
 
 // MARK: - GRPCClientType -

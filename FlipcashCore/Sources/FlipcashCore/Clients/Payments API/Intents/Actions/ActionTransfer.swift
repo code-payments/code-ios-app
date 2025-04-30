@@ -15,7 +15,6 @@ struct ActionTransfer: ActionType {
     var serverParameter: ServerParameter?
     var signer: KeyPair?
     
-    let kind: Kind
     let amount: Fiat
     let sourceCluster: AccountCluster
     let source: PublicKey
@@ -23,11 +22,10 @@ struct ActionTransfer: ActionType {
 
     static let configCountRequirement: Int = 1
     
-    init(kind: Kind, amount: Fiat, sourceCluster: AccountCluster, destination: PublicKey) {
+    init(amount: Fiat, sourceCluster: AccountCluster, destination: PublicKey) {
         self.id = 0
         self.signer = sourceCluster.authority.keyPair
         
-        self.kind          = kind
         self.amount        = amount
         self.sourceCluster = sourceCluster
         self.source        = sourceCluster.vaultPublicKey
@@ -62,54 +60,17 @@ extension ActionTransfer {
     }
 }
 
-// MARK: - Kind -
-
-extension ActionTransfer {
-    enum Kind {
-        case transfer
-        case withdraw
-        case cashLink(CashLinkConfiguration)
-    }
-    
-    struct CashLinkConfiguration {
-        let isAutoReturn: Bool
-    }
-}
-
 // MARK: - Proto -
 
 extension ActionTransfer {
     func action() -> Code_Transaction_V2_Action {
         .with {
             $0.id = UInt32(id)
-            switch kind {
-            case .transfer:
-                $0.noPrivacyTransfer = .with {
-                    $0.authority   = sourceCluster.authorityPublicKey.solanaAccountID
-                    $0.source      = source.solanaAccountID
-                    $0.destination = destination.solanaAccountID
-                    $0.amount      = amount.quarks
-                }
-                
-            case .withdraw:
-                $0.noPrivacyWithdraw = .with {
-                    $0.authority    = sourceCluster.authorityPublicKey.solanaAccountID
-                    $0.source       = source.solanaAccountID
-                    $0.destination  = destination.solanaAccountID
-                    $0.amount       = amount.quarks
-                    $0.shouldClose  = false
-                    $0.isAutoReturn = false
-                }
-                
-            case .cashLink(let configuration):
-                $0.noPrivacyWithdraw = .with {
-                    $0.authority    = sourceCluster.authorityPublicKey.solanaAccountID
-                    $0.source       = source.solanaAccountID
-                    $0.destination  = destination.solanaAccountID
-                    $0.amount       = amount.quarks
-                    $0.shouldClose  = false
-                    $0.isAutoReturn = configuration.isAutoReturn
-                }
+            $0.noPrivacyTransfer = .with {
+                $0.authority   = sourceCluster.authorityPublicKey.solanaAccountID
+                $0.source      = source.solanaAccountID
+                $0.destination = destination.solanaAccountID
+                $0.amount      = amount.quarks
             }
         }
     }

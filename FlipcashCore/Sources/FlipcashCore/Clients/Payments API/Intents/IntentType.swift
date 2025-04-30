@@ -107,7 +107,10 @@ extension ActionGroup: CustomStringConvertible, CustomDebugStringConvertible {
     var debugDescription: String {
         actions.map { action in
             if let transfer = action as? ActionTransfer {
-                return "\(transfer.amount) -> \(transfer.destination.base58) (\(transfer.kind))"
+                return "Transfer: \(transfer.amount) -> \(transfer.destination.base58)"
+                
+            } else if let transfer = action as? ActionWithdraw {
+                return "Withdraw: \(transfer.amount) -> \(transfer.destination.base58) (\(transfer.kind))"
                 
             } else {
                 return "Unknown action"

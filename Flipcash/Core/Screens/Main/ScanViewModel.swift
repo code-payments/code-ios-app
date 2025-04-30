@@ -153,13 +153,27 @@ class ScanViewModel: ObservableObject {
             bill: .cash(payload)
         )
         
+        let owner    = session.owner
         let giftCard = GiftCardCluster()
-        let item = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
+        let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
         
         ShareSheet.present(activityItem: item) { [weak self] isCompleted in
-            self?.dismissCashBill(style: .slide)
+            guard let self = self else { return }
+            
+            self.dismissCashBill(style: .slide)
             if isCompleted {
-                // TODO: Send funds to gift card
+                Task {
+                    do {
+                        try await self.client.sendCashLink(
+                            exchangedFiat: exchangedFiat,
+                            ownerCluster: owner,
+                            giftCard: giftCard,
+                            rendezvous: payload.rendezvous.publicKey
+                        )
+                    } catch {
+                        // TODO: Show error
+                    }
+                }
             }
         }
     }
