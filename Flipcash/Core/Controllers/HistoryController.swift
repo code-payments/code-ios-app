@@ -15,14 +15,14 @@ class HistoryController: ObservableObject {
     
     private let client: FlipClient
     private let database: Database
-    private let session: Session
+    private let owner: AccountCluster
     
     // MARK: - Init -
     
-    init(container: Container, session: Session) {
+    init(container: Container, owner: AccountCluster) {
         self.client   = container.flipClient
         self.database = container.database
-        self.session  = session
+        self.owner    = owner
         
         refreshHistory()
     }
@@ -36,8 +36,12 @@ class HistoryController: ObservableObject {
     }
     
     private func fetchHistory() async throws {
-        let activities = try await client.fetchTransactionHistory(owner: session.ownerKeyPair)
+        let activities = try await client.fetchTransactionHistory(owner: owner.authority.keyPair)
         trace(.success, components: "Fetched \(activities.count) activities")
         self.activities = activities
     }
+}
+
+extension HistoryController {
+    static let mock = HistoryController(container: .mock, owner: .mock)
 }

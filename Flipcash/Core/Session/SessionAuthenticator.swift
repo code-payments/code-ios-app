@@ -114,13 +114,14 @@ final class SessionAuthenticator: ObservableObject {
     // MARK: - Session -
     
     private func createSessionContainer(container: Container, initializedAccount: InitializedAccount) -> SessionContainer {
+        
+        let historyController = HistoryController(container: container, owner: initializedAccount.owner)
         let session = Session(
             container: container,
+            historyController: historyController,
             owner: initializedAccount.owner,
             userID: initializedAccount.userID
         )
-        
-        let historyController = HistoryController(container: container, session: session)
         
         return SessionContainer(
             session: session,

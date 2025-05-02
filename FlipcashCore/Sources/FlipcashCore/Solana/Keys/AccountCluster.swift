@@ -26,3 +26,7 @@ public struct AccountCluster: Equatable, Codable, Hashable, Sendable {
         self.timelock  = TimelockDerivedAccounts(owner: authority.keyPair.publicKey)
     }
 }
+
+extension AccountCluster {
+    public static let mock = AccountCluster(authority: .derive(using: .primary(), mnemonic: .mock))
+}

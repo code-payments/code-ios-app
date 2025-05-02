@@ -12,6 +12,8 @@ struct ScanScreen: View {
     
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     
+    @ObservedObject private var session: Session
+    
     @StateObject private var viewModel: ScanViewModel
     
     @State private var cameraAuthorizer = CameraAuthorizer()
@@ -23,7 +25,7 @@ struct ScanScreen: View {
     @State private var isShowingSend: Bool = false
     
     private var toast: String? {
-        if let toast = viewModel.toast {
+        if let toast = session.toast {
             let formatted = toast.amount.formatted(suffix: nil)
             if toast.isDeposit {
                 return "+\(formatted)"
@@ -50,7 +52,6 @@ struct ScanScreen: View {
     }
     
     private let container: Container
-    private let session: Session
     
     // MARK: - Init -
     
@@ -68,7 +69,7 @@ struct ScanScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        let showControls = viewModel.billState.bill == nil
+        let showControls = session.billState.bill == nil
         ZStack {
             if cameraAuthorized {
 //                if preferences.cameraEnabled {
@@ -106,7 +107,7 @@ struct ScanScreen: View {
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .ignoresSafeArea(.keyboard)
-        .sheet(item: $viewModel.valuation) { valuation in
+        .sheet(item: $session.valuation) { valuation in
             PartialSheet(background: .backgroundMain, canAccessBackground: true) {
                 ModalCashReceived(
                     title: "You received",
@@ -133,14 +134,14 @@ struct ScanScreen: View {
     
     @ViewBuilder private func billView() -> some View {
         BillCanvas(
-            state: viewModel.presentationState,
+            state: session.presentationState,
             centerOffset: CGSize(width: 0, height: -30),
             preferredCanvasSize: preferredCanvasSize(),
-            bill: viewModel.billState.bill,
+            bill: session.billState.bill,
             action: nil,
             dismissHandler: dismissBill
         )
-        .allowsHitTesting(viewModel.presentationState.isPresenting)
+        .allowsHitTesting(session.presentationState.isPresenting)
         .edgesIgnoringSafeArea(.all)
 //        .onChange(of: notificationController.willResignActive) { [weak session] _ in
 //            session?.willResignActive()
@@ -207,7 +208,7 @@ struct ScanScreen: View {
             Spacer()
             
             HStack(alignment: .center, spacing: 30) {
-                if let primaryAction = viewModel.billState.primaryAction {
+                if let primaryAction = session.billState.primaryAction {
                     CapsuleButton(
                         state: .normal,
                         asset: primaryAction.asset,
@@ -264,8 +265,7 @@ struct ScanScreen: View {
             .sheet(isPresented: $isShowingGive) {
                 GiveScreen(
                     isPresented: $isShowingGive,
-                    kind: .cash,
-                    scanViewModel: viewModel
+                    kind: .cash
                 )
             }
             
@@ -283,8 +283,7 @@ struct ScanScreen: View {
             .sheet(isPresented: $isShowingSend) {
                 GiveScreen(
                     isPresented: $isShowingSend,
-                    kind: .cashLink,
-                    scanViewModel: viewModel
+                    kind: .cashLink
                 )
             }
             
@@ -310,7 +309,7 @@ struct ScanScreen: View {
     // MARK: - Actions -
     
     private func dismissBill() {
-        viewModel.dismissCashBill(style: .slide)
+        session.dismissCashBill(style: .slide)
 //        if let action = session.billState.secondaryAction {
 //            action.action()
 //        }

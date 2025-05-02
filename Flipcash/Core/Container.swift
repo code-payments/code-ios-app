@@ -17,8 +17,9 @@ class Container {
     let database: Database
     let accountManager: AccountManager
     
-    lazy var ratesController = RatesController(container: self)
+    lazy var ratesController      = RatesController(container: self)
     lazy var sessionAuthenticator = SessionAuthenticator(container: self)
+    lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
     
     let cameraSession = CameraSession<CodeExtractor>()
     

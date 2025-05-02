@@ -28,6 +28,14 @@ struct AppMain: App {
                 .injectingEnvironment(from: container)
                 .colorScheme(.dark)
                 .tint(Color.textMain)
+                .onOpenURL(perform: openURL)
+        }
+    }
+    
+    private func openURL(url: URL) {
+        let action = container.deepLinkController.handle(open: url)
+        Task {
+            try await action?.executeAction()
         }
     }
     

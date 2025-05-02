@@ -1,5 +1,5 @@
 //
-//  IntentTransfer.swift
+//  IntentSendCashLink.swift
 //  FlipchatServices
 //
 //  Created by Dima Bart.
@@ -10,22 +10,20 @@ import Foundation
 import FlipcashAPI
 import SwiftProtobuf
 
-final class IntentCashLink: IntentType {
+final class IntentSendCashLink: IntentType {
     
     let id: PublicKey
     let sourceCluster: AccountCluster
     let giftCard: GiftCardCluster
     let exchangedFiat: ExchangedFiat
-    let extendedMetadata: Google_Protobuf_Any?
     
     var actionGroup: ActionGroup
     
-    init(rendezvous: PublicKey, sourceCluster: AccountCluster, giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat, extendedMetadata: Google_Protobuf_Any? = nil) {
+    init(rendezvous: PublicKey, sourceCluster: AccountCluster, giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat) {
         self.id               = rendezvous
         self.sourceCluster    = sourceCluster
         self.giftCard         = giftCard
         self.exchangedFiat    = exchangedFiat
-        self.extendedMetadata = extendedMetadata
         
         let openGiftCardAction = ActionOpenAccount(
             kind: .giftCard,
@@ -53,17 +51,9 @@ final class IntentCashLink: IntentType {
     }
 }
 
-// MARK: - Errors -
-
-extension IntentCashLink {
-    enum Error: Swift.Error {
-        case balanceMismatch
-    }
-}
-
 // MARK: - Proto -
 
-extension IntentCashLink {
+extension IntentSendCashLink {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
             $0.sendPublicPayment = .with {

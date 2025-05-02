@@ -12,8 +12,8 @@ import Combine
 import GRPC
 
 final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
-    func fetchBalance(owner: KeyPair, completion: @Sendable @escaping (Result<Fiat, ErrorFetchBalance>) -> Void) {
-//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+    func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, completion: @Sendable @escaping (Result<AccountInfo, ErrorFetchBalance>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.solanaAccountID
@@ -22,15 +22,47 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
         
         let call = service.getTokenAccountInfos(request)
         call.handle(on: queue) { response in
-            if let account = response.tokenAccountInfos.filter({ $0.value.accountType == .primary }).first {
-                let balance = Fiat(quarks: account.value.balance, currencyCode: .usd)
-                completion(.success(balance))
+            
+            let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                let account = response.tokenAccountInfos.compactMap {
+                    if $0.value.accountType == type.proto, let account = try? AccountInfo($0.value) {
+                        return account
+                    } else {
+                        return nil
+                    }
+                }.first
+                
+                if let account {
+//                    let balance = Fiat(quarks: account.value.balance, currencyCode: .usd)
+                    trace(.success, components: "Balance: \(account.fiat.formatted(suffix: " USD"))")
+                    completion(.success(account))
+                } else {
+                    trace(.failure, components: "Account not in list of accounts returned: \(response.tokenAccountInfos)")
+                    completion(.failure(error))
+                }
+                
             } else {
-                completion(.failure(.notFound))
+                trace(.failure, components: "Owner: \(owner.publicKey.base58)")
+                completion(.failure(error))
             }
             
         } failure: { error in
             completion(.failure(.unknown))
+        }
+    }
+}
+
+// MARK: - Types -
+
+public enum AccountInfoType: Sendable {
+    case primary
+    case giftCard
+    
+    fileprivate var proto: Code_Common_V1_AccountType {
+        switch self {
+        case .primary:  return .primary
+        case .giftCard: return .remoteSendGiftCard
         }
     }
 }
@@ -40,7 +72,9 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
 public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
     case ok
     case notFound
-    case unknown = -1
+    case unknown          = -1
+    case accountNotInList = -2
+    case parseFailed      = -3
 }
 
 // MARK: - Interceptors -

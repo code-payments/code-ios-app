@@ -180,9 +180,9 @@ struct AccountSelectionScreen: View {
                     group.addTask {
                         let owner = historicalAccount.details.account.owner
                         do {
-                            let balance = try await client.fetchBalance(owner: owner)
+                            let info = try await client.fetchAccountInfo(type: .primary, owner: owner)
                             await update(owner: owner.publicKey) {
-                                $0.setBalance(balance)
+                                $0.setBalance(info.fiat)
                             }
                             
                         } catch ErrorFetchBalance.notFound {

@@ -13,8 +13,6 @@ struct GiveScreen: View {
     
     @Binding var isPresented: Bool
     
-    @ObservedObject private var viewModel: ScanViewModel
-    
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
     
@@ -55,10 +53,9 @@ struct GiveScreen: View {
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, kind: Kind, scanViewModel: ScanViewModel) {
+    init(isPresented: Binding<Bool>, kind: Kind) {
         self._isPresented = isPresented
         self.kind         = kind
-        self.viewModel    = scanViewModel
     }
     
     // MARK: - Body -
@@ -109,7 +106,7 @@ struct GiveScreen: View {
             
             switch kind {
             case .cash:
-                viewModel.showCashBill(
+                session.showCashBill(
                     .init(
                         kind: .cash,
                         exchangedFiat: exchangedFiat,
@@ -118,7 +115,7 @@ struct GiveScreen: View {
                 )
                 
             case .cashLink:
-                viewModel.showCashLinkBill(exchangedFiat: exchangedFiat)
+                session.showCashLinkBillWithShareSheet(exchangedFiat: exchangedFiat)
             }
         }
     }
