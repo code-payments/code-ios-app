@@ -17,6 +17,9 @@ service ActivityFeed {
 
     // GetPagedNotifications gets all notifications using a paging API.
     rpc GetPagedNotifications(GetPagedNotificationsRequest) returns (GetPagedNotificationsResponse);
+
+    // GetBatchNotifications gets a batch of notifications by ID.
+    rpc GetBatchNotifications(GetBatchNotificationsRequest) returns (GetBatchNotificationsResponse);
 }
 
 message GetLatestNotificationsRequest {
@@ -55,6 +58,28 @@ message GetPagedNotificationsResponse {
     enum Result {
         OK = 0;
         DENIED = 1;
+    }
+
+    repeated Notification notifications = 2 [(validate.rules).repeated = {
+        max_items: 1024
+    }];
+}
+
+message GetBatchNotificationsRequest {
+    repeated NotificationId ids = 1 [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024
+    }];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message GetBatchNotificationsResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        DENIED = 1;
+        NOT_FOUND = 2;
     }
 
     repeated Notification notifications = 2 [(validate.rules).repeated = {

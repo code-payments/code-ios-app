@@ -35,13 +35,17 @@ message Notification {
     // The timestamp of this notification
     google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];
 
+    // The state of this notification
+    NotificationState state = 10 [(validate.rules).enum.not_in = 0];
+
     // Additional metadata for this notification specific to the notification
     oneof additional_metadata {
-        WelcomeBonusNotificationMetadata welcome_bonus = 5;
-        GaveUsdcNotificationMetadata     gave_usdc     = 6;
-        ReceivedUsdcNotificationMetadata received_usdc = 7;
-        WithdrewUsdcNotificationMetadata withdrew_usdc = 8;
-        SentUsdcNotificationMetadata     sent_usdc     = 9;
+        WelcomeBonusNotificationMetadata  welcome_bonus  = 5;
+        GaveUsdcNotificationMetadata      gave_usdc      = 6;
+        ReceivedUsdcNotificationMetadata  received_usdc  = 7;
+        WithdrewUsdcNotificationMetadata  withdrew_usdc  = 8;
+        SentUsdcNotificationMetadata      sent_usdc      = 9;
+        DepositedUsdcNotificationMetadata deposited_usdc = 11;
     }
 }
 
@@ -65,9 +69,22 @@ message SentUsdcNotificationMetadata {
     bool can_initiate_cancel_action = 2;
 }
 
+message DepositedUsdcNotificationMetadata {
+}
+
 // ActivityFeedType enables multiple activity feeds, where notifications may be
 // split across different parts of the app
 enum ActivityFeedType {
     UNKNOWN             = 0;
     TRANSACTION_HISTORY = 1; // Activity feed displayed under the Balance tab
+}
+
+// NotificationState determines the mutability of a notification, and whether
+// client should attempt to refetch state.
+enum NotificationState {
+    NOTIFICATION_STATE_UNKNOWN   = 0;
+    // Notification state will change based on some app action in the future
+    NOTIFICATION_STATE_PENDING   = 1;
+    // Notification state will not change
+    NOTIFICATION_STATE_COMPLETED = 2;
 }
