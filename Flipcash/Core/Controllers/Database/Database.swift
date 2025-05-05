@@ -95,11 +95,11 @@ class Database {
     
     // MARK: - Versioning -
     
-    static func deleteStore() throws {
+    static func deleteStore(owner: PublicKey) throws {
         let urlsToRemove: [URL] = [
-            .dataStore(),
-            .storeSHM(),
-            .storeWAL(),
+            .dataStore(owner: owner),
+            .storeSHM(owner: owner),
+            .storeWAL(owner: owner),
         ]
         
         try urlsToRemove.forEach {
@@ -109,17 +109,17 @@ class Database {
         }
     }
     
-    static func setUserVersion(version: Int) throws {
+    static func setUserVersion(version: Int, owner: PublicKey) throws {
         try! "\(version)".write(
-            to: .versionFile(),
+            to: .versionFile(owner: owner),
             atomically: true,
             encoding: .utf8
         )
     }
     
-    static func userVersion() throws -> Int? {
+    static func userVersion(owner: PublicKey) throws -> Int? {
         let versionString = try String(
-            contentsOf: .versionFile(),
+            contentsOf: .versionFile(owner: owner),
             encoding: .utf8
         )
         
@@ -128,23 +128,27 @@ class Database {
 }
 
 extension URL {
-    static func dataStore() -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash.sqlite")
+    static func dataStore(owner: PublicKey) -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite")
     }
     
-    static func storeWAL() -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash.sqlite-wal")
+    static func storeWAL(owner: PublicKey) -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-wal")
     }
     
-    static func storeSHM() -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash.sqlite-shm")
+    static func storeSHM(owner: PublicKey) -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58).sqlite-shm")
     }
     
-    static func versionFile() -> URL {
-        URL.applicationSupportDirectory.appendingPathComponent("flipcash.version")
+    static func versionFile(owner: PublicKey) -> URL {
+        URL.applicationSupportDirectory.appendingPathComponent("flipcash-\(owner.base58)version")
     }
 }
 
 extension Notification.Name {
     static let databaseDidChange = Notification.Name("databaseDidChange")
+}
+
+extension Database {
+    static let mock = try! Database(url: .temporaryDirectory.appendingPathComponent("mock.sqlite"))
 }

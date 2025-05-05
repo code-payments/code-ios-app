@@ -36,8 +36,7 @@ struct ContainerScreen: View {
                     container: container,
                     sessionContainer: sessionContainer
                 )
-                .environmentObject(sessionContainer.session)
-                .environmentObject(sessionContainer.historyController)
+                .injectingEnvironment(from: sessionContainer)
                 .transition(.opacity)
             }
         }

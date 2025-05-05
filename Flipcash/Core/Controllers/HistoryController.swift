@@ -23,9 +23,9 @@ class HistoryController: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, owner: AccountCluster) {
+    init(container: Container, database: Database, owner: AccountCluster) {
         self.client   = container.flipClient
-        self.database = container.database
+        self.database = database
         self.owner    = owner
         
         sync()
@@ -94,5 +94,5 @@ class HistoryController: ObservableObject {
 }
 
 extension HistoryController {
-    static let mock = HistoryController(container: .mock, owner: .mock)
+    static let mock = HistoryController(container: .mock, database: .mock, owner: .mock)
 }

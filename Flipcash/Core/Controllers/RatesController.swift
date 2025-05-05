@@ -30,9 +30,9 @@ class RatesController: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container) {
+    init(container: Container, database: Database) {
         self.client   = container.client
-        self.database = container.database
+        self.database = database
         
         if LocalDefaults.entryCurrency == nil {
             LocalDefaults.entryCurrency = .local() ?? .usd
@@ -91,4 +91,8 @@ private enum LocalDefaults {
     
     @Defaults(.balanceCurrency)
     static var balanceCurrency: CurrencyCode?
+}
+
+extension RatesController {
+    static let mock = RatesController(container: .mock, database: .mock)
 }

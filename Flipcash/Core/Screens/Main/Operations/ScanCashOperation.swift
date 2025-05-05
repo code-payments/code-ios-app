@@ -42,7 +42,7 @@ class ScanCashOperation {
             )
             
             if case .sendPayment(let paymentMetadata) = metadata {
-                historyController.refreshHistory()
+                historyController.sync()
                 return paymentMetadata
             }
             

@@ -41,7 +41,7 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                         return nil
                     }
                 }
-                trace(.success, components: activities.map { $0.id.base58 })
+                trace(.success, components: "Fetched \(activities.count) activities")
                 completion(.success(activities))
             } else {
                 trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
@@ -73,7 +73,7 @@ class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
                         return nil
                     }
                 }
-                trace(.success, components: activities.map { $0.id.base58 })
+                trace(.success, components: "Fetched \(activities.count) activities")
                 completion(.success(activities))
             } else {
                 trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")

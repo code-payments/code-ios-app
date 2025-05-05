@@ -62,10 +62,10 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, historyController: HistoryController, owner: AccountCluster, userID: UserID) {
+    init(container: Container, historyController: HistoryController, ratesController: RatesController, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
-        self.ratesController   = container.ratesController
+        self.ratesController   = ratesController
         self.historyController = historyController
         self.owner             = owner
         self.userID            = userID
@@ -324,6 +324,7 @@ extension Session {
     static let mock = Session(
         container: .mock,
         historyController: .mock,
+        ratesController: .mock,
         owner: .init(authority: .derive(using: .primary(), mnemonic: .mock)),
         userID: UUID()
     )

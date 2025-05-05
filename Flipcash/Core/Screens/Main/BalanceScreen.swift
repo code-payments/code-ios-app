@@ -35,9 +35,9 @@ struct BalanceScreen: View {
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, container: Container) {
+    init(isPresented: Binding<Bool>, container: Container, database: Database) {
         self._isPresented = isPresented
-        let database      = container.database
+        let database      = database
         self.database     = database
         
         self._updateableActivities = .init(wrappedValue: Updateable {
@@ -48,7 +48,7 @@ struct BalanceScreen: View {
     // MARK: - Lifecycle -
     
     private func onAppear() {
-        historyController.refreshHistory()
+        historyController.sync()
     }
     
     // MARK: - Body -
@@ -172,10 +172,4 @@ extension GeometryProxy {
     var globalHeight: CGFloat {
         frame(in: .global).height
     }
-}
-
-// MARK: - Preview -
-
-#Preview {
-    BalanceScreen(isPresented: .constant(true), container: .mock)
 }

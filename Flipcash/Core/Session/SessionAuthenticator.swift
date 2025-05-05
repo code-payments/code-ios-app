@@ -5,7 +5,7 @@
 //  Created by Dima Bart on 2021-11-04.
 //
 
-import Foundation
+import SwiftUI
 import FlipcashCore
 import FlipcashUI
 
@@ -114,19 +114,64 @@ final class SessionAuthenticator: ObservableObject {
     // MARK: - Session -
     
     private func createSessionContainer(container: Container, initializedAccount: InitializedAccount) -> SessionContainer {
+        let owner = initializedAccount.owner
+        let ownerPublicKey = owner.authority.keyPair.publicKey
         
-        let historyController = HistoryController(container: container, owner: initializedAccount.owner)
+        let database = try! initializeDatabase(owner: ownerPublicKey)
+        
+        let historyController = HistoryController(
+            container: container,
+            database: database,
+            owner: owner
+        )
+        
+        let ratesController = RatesController(
+            container: container,
+            database: database
+        )
+        
         let session = Session(
             container: container,
             historyController: historyController,
-            owner: initializedAccount.owner,
+            ratesController: ratesController,
+            owner: owner,
             userID: initializedAccount.userID
         )
         
         return SessionContainer(
             session: session,
+            database: database,
+            ratesController: ratesController,
             historyController: historyController
         )
+    }
+    
+    // MARK: - Database -
+    
+    private func initializeDatabase(owner: PublicKey) throws -> Database {
+        try createApplicationSupportIfNeeded()
+        
+        // Currently we don't do migrations so every time
+        // the user version is outdated, we'll rebuild the
+        // database during sync.
+        let userVersion = (try? Database.userVersion(owner: owner)) ?? 0
+        let currentVersion = try InfoPlist.value(for: "SQLiteVersion").integer()
+        if currentVersion > userVersion {
+            try Database.deleteStore(owner: owner)
+            trace(.failure, components: "Outdated user version, deleted database.")
+            try Database.setUserVersion(version: currentVersion, owner: owner)
+        }
+        
+        return try Database(url: .dataStore(owner: owner))
+    }
+    
+    private func createApplicationSupportIfNeeded() throws {
+        if !FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.path) {
+            try FileManager.default.createDirectory(
+                at: .applicationSupportDirectory,
+                withIntermediateDirectories: false
+            )
+        }
     }
     
     // MARK: - Actions -
@@ -270,8 +315,24 @@ final class SessionAuthenticator: ObservableObject {
 // MARK: - SessionContainer -
 
 struct SessionContainer {
+    
     let session: Session
+    let database: Database
+    let ratesController: RatesController
     let historyController: HistoryController
+    
+    fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
+        view
+            .environmentObject(session)
+            .environmentObject(ratesController)
+            .environmentObject(historyController)
+    }
+}
+
+extension View {
+    func injectingEnvironment(from sessionContainer: SessionContainer) -> some View {
+        sessionContainer.injectingEnvironment(into: self)
+    }
 }
 
 // MARK: - UserDefaults -

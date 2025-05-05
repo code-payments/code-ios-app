@@ -52,13 +52,16 @@ struct ScanScreen: View {
     }
     
     private let container: Container
+    private let sessionContainer: SessionContainer
     
     // MARK: - Init -
     
     init(container: Container, sessionContainer: SessionContainer) {
-        self.container = container
-        self.session   = sessionContainer.session
-        _viewModel     = .init(
+        self.container        = container
+        self.sessionContainer = sessionContainer
+        self.session          = sessionContainer.session
+        
+        _viewModel = .init(
             wrappedValue: ScanViewModel(
                 container: container,
                 sessionContainer: sessionContainer
@@ -300,7 +303,11 @@ struct ScanScreen: View {
                 )
             }
             .sheet(isPresented: $isShowingBalance) {
-                BalanceScreen(isPresented: $isShowingBalance, container: container)
+                BalanceScreen(
+                    isPresented: $isShowingBalance,
+                    container: container,
+                    database: sessionContainer.database
+                )
             }
         }
         .padding(.bottom, 10)
