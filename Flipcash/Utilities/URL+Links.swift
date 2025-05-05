@@ -26,7 +26,7 @@ extension URL {
     }
     
     static var privacyPolicy: URL {
-        URL(string: "https://app.getcode.com/privacy-policy")!
+        URL(string: "https://www.flipcash.com/privacy")!
     }
     
     static var termsOfService: URL {
