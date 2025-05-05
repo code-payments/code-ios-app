@@ -300,7 +300,7 @@ struct ScanScreen: View {
                 )
             }
             .sheet(isPresented: $isShowingBalance) {
-                BalanceScreen(isPresented: $isShowingBalance)
+                BalanceScreen(isPresented: $isShowingBalance, container: container)
             }
         }
         .padding(.bottom, 10)

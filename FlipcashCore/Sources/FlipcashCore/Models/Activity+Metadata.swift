@@ -12,6 +12,11 @@ extension Activity {
     public struct CashLinkMetadata: Sendable, Equatable, Hashable {
         public let vault: PublicKey
         public let canCancel: Bool
+        
+        public init(vault: PublicKey, canCancel: Bool) {
+            self.vault = vault
+            self.canCancel = canCancel
+        }
     }
 }
 

@@ -11,11 +11,15 @@ import FlipcashCore
 @MainActor
 class HistoryController: ObservableObject {
     
-    @Published var activities: [Activity] = []
+//    @Published var activities: [Activity] = []
     
     private let client: FlipClient
     private let database: Database
     private let owner: AccountCluster
+    
+    private var ownerKeyPair: KeyPair {
+        owner.authority.keyPair
+    }
     
     // MARK: - Init -
     
@@ -24,21 +28,68 @@ class HistoryController: ObservableObject {
         self.database = container.database
         self.owner    = owner
         
-        refreshHistory()
+        sync()
     }
     
     // MARK: - Fetch -
     
-    func refreshHistory() {
+    func sync() {
         Task {
-            try await fetchHistory()
+            try await syncDeltaHistory()
+            try await syncPendingActivities()
         }
     }
     
-    private func fetchHistory() async throws {
-        let activities = try await client.fetchTransactionHistory(owner: owner.authority.keyPair)
-        trace(.success, components: "Fetched \(activities.count) activities")
-        self.activities = activities
+    private func syncDeltaHistory() async throws {
+        let latestID = try database.getLatestActivityID()
+        try await syncHistory(since: latestID)
+    }
+    
+    private func syncPendingActivities() async throws {
+        let pendingIDs = try database.getPendingActivityIDs()
+        if !pendingIDs.isEmpty {
+            let activities = try await client.fetchTransactionHistoryItemsByID(owner: ownerKeyPair, ids: pendingIDs)
+            try database.transaction {
+                try $0.insertActivities(activities: activities)
+            }
+            
+            trace(.success, components: "Inserted \(activities.count) pending activities")
+        } else {
+            trace(.note, components: "No pending activities")
+        }
+    }
+    
+    private func syncHistory(since id: PublicKey? = nil) async throws {
+        let pageSize = 1024
+        var cursor: PublicKey? = id
+        
+        var container: [Activity] = []
+        
+        var hasMore = true
+        while hasMore {
+            let activities = try await client.fetchTransactionHistory(
+                owner: ownerKeyPair,
+                pageSize: pageSize,
+                since: cursor
+            )
+            
+            if !activities.isEmpty {
+                container.append(contentsOf: activities)
+                cursor = activities.last!.id
+            }
+            
+            hasMore = activities.count == pageSize
+        }
+
+        if !container.isEmpty {
+            try database.transaction {
+                try $0.insertActivities(activities: container)
+            }
+            
+            trace(.success, components: "Inserted \(container.count) activities")
+        } else {
+            trace(.success, components: "No new activities")
+        }
     }
 }
 

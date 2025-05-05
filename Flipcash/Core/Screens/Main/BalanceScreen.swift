@@ -19,8 +19,10 @@ struct BalanceScreen: View {
     
     @State private var isShowingCurrencySelection: Bool = false
     
+    @StateObject private var updateableActivities: Updateable<[Activity]>
+    
     private var activities: [Activity] {
-        historyController.activities
+        updateableActivities.value
     }
     
     private let proportion: CGFloat = 0.3
@@ -29,10 +31,18 @@ struct BalanceScreen: View {
         session.exchangedBalance.converted
     }
     
+    private let database: Database
+    
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>) {
+    init(isPresented: Binding<Bool>, container: Container) {
         self._isPresented = isPresented
+        let database      = container.database
+        self.database     = database
+        
+        self._updateableActivities = .init(wrappedValue: Updateable {
+            (try? database.getActivities()) ?? []
+        })
     }
     
     // MARK: - Lifecycle -
@@ -167,5 +177,5 @@ extension GeometryProxy {
 // MARK: - Preview -
 
 #Preview {
-    BalanceScreen(isPresented: .constant(true))
+    BalanceScreen(isPresented: .constant(true), container: .mock)
 }

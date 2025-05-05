@@ -1,5 +1,5 @@
 //
-//  RatesStore.swift
+//  Database+Rates.swift
 //  Code
 //
 //  Created by Dima Bart on 2025-04-11.
@@ -11,25 +11,13 @@ import SQLite
 
 extension Database {
     
+    // MARK: - Get -
+    
     func rate(for currency: CurrencyCode) throws -> Rate? {
         try getRate(currency: currency.rawValue)
     }
     
-    func insert(snapshot: RatesSnapshot) throws {
-        try transaction {
-            for rate in snapshot.rates {
-                try $0.insertRate(
-                    rate: rate,
-                    date: snapshot.date
-                )
-            }
-        }
-    }
-}
-
-private extension Database {
-    
-    func getRate(currency: String) throws -> Rate? {
+    private func getRate(currency: String) throws -> Rate? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             r.currency,
@@ -53,7 +41,20 @@ private extension Database {
         return rates.first
     }
     
-    func insertRate(rate: Rate, date: Date) throws {
+    // MARK: - Insert -
+    
+    func insert(snapshot: RatesSnapshot) throws {
+        try transaction {
+            for rate in snapshot.rates {
+                try $0.insertRate(
+                    rate: rate,
+                    date: snapshot.date
+                )
+            }
+        }
+    }
+    
+    private func insertRate(rate: Rate, date: Date) throws {
         let table = RateTable()
         try writer.run(
             table.table.upsert(

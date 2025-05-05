@@ -9,23 +9,52 @@ import Foundation
 import FlipcashCoreAPI
 
 public struct Activity: Identifiable, Sendable, Equatable, Hashable {
-    public let id: ID
+    public let id: PublicKey
+    public let state: State
+    public let kind: Kind
     public let title: String
     public let exchangedFiat: ExchangedFiat
     public let date: Date
-    public let kind: Kind
+    public let metadata: Metadata?
+    
+    public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?) {
+        self.id = id
+        self.state = state
+        self.kind = kind
+        self.title = title
+        self.exchangedFiat = exchangedFiat
+        self.date = date
+        self.metadata = metadata
+    }
 }
 
 // MARK: - Kind -
 
 extension Activity {
-    public enum Kind: Sendable, Equatable, Hashable {
-        case welcomeBonus
-        case gave
-        case received
-        case withdrew
-        case cashLink(CashLinkMetadata)
+    public enum Kind: Int, Sendable {
+        case welcomeBonus = 0
+        case gave         = 1
+        case received     = 2
+        case withdrew     = 3
+        case cashLink     = 4
+        case deposited    = 5
         case unknown
+    }
+}
+
+// MARK: - Kind -
+
+extension Activity {
+    public enum State: Int, Sendable {
+        case unknown   = 0
+        case pending   = 1
+        case completed = 2
+    }
+}
+
+extension Activity {
+    public enum Metadata: Sendable, Equatable, Hashable {
+        case cashLink(CashLinkMetadata)
     }
 }
 
@@ -33,11 +62,15 @@ extension Activity {
 
 extension Activity {
     init(_ proto: Flipcash_Activity_V1_Notification) throws {
-        self.id            = ID(data: proto.id.value)
-        self.title         = proto.localizedText
-        self.exchangedFiat = try ExchangedFiat(proto.paymentAmount)
-        self.date          = proto.ts.date
-        self.kind          = .init(proto.additionalMetadata)
+        self.init(
+            id: PublicKey(proto.id.value)!,
+            state: .init(rawValue: proto.state.rawValue) ?? .unknown,
+            kind: .init(proto.additionalMetadata),
+            title: proto.localizedText,
+            exchangedFiat: try ExchangedFiat(proto.paymentAmount),
+            date: proto.ts.date,
+            metadata: .init(proto.additionalMetadata)
+        )
     }
 }
 
@@ -53,12 +86,30 @@ extension Activity.Kind {
                 self = .received
             case .withdrewUsdc:
                 self = .withdrew
+            case .sentUsdc:
+                self = .cashLink
+            case .depositedUsdc:
+                self = .deposited
+            }
+            
+        } else {
+            self = .unknown
+        }
+    }
+}
+
+extension Activity.Metadata {
+    init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
+        if let proto {
+            switch proto {
+            case .welcomeBonus, .gaveUsdc, .receivedUsdc, .withdrewUsdc, .depositedUsdc:
+                return nil
             case .sentUsdc(let metadata):
                 self = .cashLink(.init(metadata))
             }
             
         } else {
-            self = .unknown
+            return nil
         }
     }
 }

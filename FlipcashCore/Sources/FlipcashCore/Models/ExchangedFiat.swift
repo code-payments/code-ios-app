@@ -46,7 +46,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
-    private init(usdc: Fiat, converted: Fiat) {
+    public init(usdc: Fiat, converted: Fiat) {
         self.init(
             usdc: usdc,
             converted: converted,
