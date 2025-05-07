@@ -8,6 +8,7 @@
 	<array>
 		<string>applinks:send.flipcash.com</string>
 		<string>applinks:jump.flipcash.com</string>
+		<string>webcredentials:send.flipcash.com</string>
 	</array>
 </dict>
 </plist>
