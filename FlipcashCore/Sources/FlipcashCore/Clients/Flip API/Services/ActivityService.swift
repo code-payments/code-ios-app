@@ -9,8 +9,6 @@
 import Foundation
 import FlipcashCoreAPI
 import GRPC
-import NIO
-import SwiftProtobuf
 
 class ActivityService: CodeService<Flipcash_Activity_V1_ActivityFeedNIOClient> {
     
