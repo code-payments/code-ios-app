@@ -9,9 +9,9 @@ import Foundation
 
 extension FlipClient {
     
-    public func completePurchase(owner: KeyPair, productID: String, receipt: Data, fiatPaid: Fiat) async throws {
+    public func completePurchase(receipt: Data, productID: String, price: Double, currency: String, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
-            iapService.completePurchase(receipt: receipt, productID: productID, fiatPaid: fiatPaid, owner: owner) { c.resume(with: $0) }
+            iapService.completePurchase(receipt: receipt, productID: productID, price: price, currency: currency, owner: owner) { c.resume(with: $0) }
         }
     }
 }

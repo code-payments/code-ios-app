@@ -12,15 +12,15 @@ import GRPC
 
 class IAPService: CodeService<Flipcash_Iap_V1_IapNIOClient> {
     
-    func completePurchase(receipt: Data, productID: String, fiatPaid: Fiat, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorCompletePurchase>) -> Void) {
+    func completePurchase(receipt: Data, productID: String, price: Double, currency: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorCompletePurchase>) -> Void) {
         trace(.send, components: "Receipt: \(receipt.count) bytes")
         
         let request = Flipcash_Iap_V1_OnPurchaseCompletedRequest.with {
             $0.platform = .apple
             $0.metadata = .with {
                 $0.product  = productID
-                $0.currency = fiatPaid.currencyCode.rawValue
-                $0.amount   = Float(fiatPaid.doubleValue)
+                $0.currency = currency
+                $0.amount   = price
             }
             $0.receipt = .with { $0.value = receipt.base64EncodedString() }
             $0.auth = owner.authFor(message: $0)
