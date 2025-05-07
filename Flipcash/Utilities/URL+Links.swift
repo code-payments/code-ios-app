@@ -30,7 +30,7 @@ extension URL {
     }
     
     static var termsOfService: URL {
-        URL(string: "https://app.getcode.com/tos")!
+        URL(string: "https://www.flipcash.com/terms")!
     }
     
     static func solanaExplorerTransaction(with signature: Signature) -> URL {

@@ -50,7 +50,7 @@ public struct CodeButton: View {
             case .subtle:
                 button()
                     .opacity(disabled ? 0.5 : 1.0)
-                    .foregroundColor(.textSecondary)
+                    .foregroundColor(Color.textMain.opacity(0.6))
             }
         }
         .disabled(isDisabled())

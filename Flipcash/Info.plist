@@ -23,5 +23,7 @@
 		<string>remote-notification</string>
 		<string>processing</string>
 	</array>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>We will save your Access Key to your library.</string>
 </dict>
 </plist>

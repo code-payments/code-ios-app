@@ -37,24 +37,37 @@ public struct AccessKey: View {
             .background(
                 LinearGradient(
                     gradient: Gradient(stops: [
-                        Gradient.Stop(color: Color(r: 32,  g: 35,  b: 36),  location: 0.0),
-                        Gradient.Stop(color: Color(r: 102, g: 102, b: 121), location: 0.2),
-                        Gradient.Stop(color: Color(r: 15,  g: 12,  b: 31),  location: 0.53),
-                        Gradient.Stop(color: Color(r: 105, g: 105, b: 132), location: 0.62),
-                        Gradient.Stop(color: Color(r: 32,  g: 35,  b: 36),  location: 1.0),
+                        Gradient.Stop(color: Color(r: 4,  g: 32, b: 5),  location: 0.0),
+                        Gradient.Stop(color: Color(r: 12, g: 41, b: 26), location: 0.57),
+                        Gradient.Stop(color: Color(r: 0,  g: 70, b: 2),  location: 0.65),
+                        Gradient.Stop(color: Color(r: 0,  g: 26, b: 12), location: 1.00),
                     ]),
                     startPoint: UnitPoint(x: -0.5, y: 1.0),
-                    endPoint:   UnitPoint(x: 1.5,  y: 0.1)
+                    endPoint:   UnitPoint(x: 1.35,  y: 0.15)
                 )
                 .scaleEffect(1.3)
+                .overlay {
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.2),
+                            Color.white.opacity(0)
+                        ]),
+                        center: .topLeading,
+                        startRadius: 0,
+                        endRadius: 200
+                    )
+                }
                 .blur(radius: 20)
             )
             .overlay(
                 ZStack {
                     VStack {
-                        CodeBrand(size: .flexible, template: true)
-                            .frame(maxWidth: 90)
-                            .foregroundColor(.white)
+                        Image.asset(.flipcashLogo)
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxHeight: 50)
+                            .foregroundStyle(Color.white)
                             
                         Spacer()
                         

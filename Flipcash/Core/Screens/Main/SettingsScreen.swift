@@ -13,7 +13,10 @@ struct SettingsScreen: View {
     
     @Binding public var isPresented: Bool
     
-    @State private var isPresentingAccountSelection = false
+    @State private var isShowingAccountSelection = false
+    @State private var isShowingLogoutConfirmation = false
+    
+    @State private var dialogItem: DialogItem?
     
     private let insets: EdgeInsets = EdgeInsets(
         top: 25,
@@ -86,34 +89,35 @@ struct SettingsScreen: View {
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             row(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge()) {
-                isPresentingAccountSelection.toggle()
+                isShowingAccountSelection.toggle()
             }
-            .sheet(isPresented: $isPresentingAccountSelection) {
+            .sheet(isPresented: $isShowingAccountSelection) {
                 AccountSelectionScreen(
-                    isPresented: $isPresentingAccountSelection,
+                    isPresented: $isShowingAccountSelection,
                     sessionAuthenticator: sessionAuthenticator,
                     action: switchAccount
                 )
             }
             
             row(asset: .logout, title: "Log Out") {
-                logout()
-//                banners.show(
-//                    style: .error,
-//                    title: "Log out?",
-//                    description: "Are you sure you want to log out?",
-//                    position: .bottom,
-//                    actions: [
-//                        .destructive(title: "Log Out", action: logout),
-//                        .cancel(title: "Cancel"),
-//                    ]
-//                )
+                dialogItem = .init(
+                    style: .destructive,
+                    title: "Are you sure you want to log out?",
+                    subtitle: "You can get into this account using your Access Key",
+                    dismissable: true
+                ) {
+                    DialogAction.destructive("Log Out") {
+                        logout()
+                    }
+                    DialogAction.cancel {}
+                }
             }
             
             Spacer()
         }
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
+        .dialog(item: $dialogItem)
     }
     
     // MARK: - Utilities -

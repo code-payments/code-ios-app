@@ -174,32 +174,6 @@ final class SessionAuthenticator: ObservableObject {
         }
     }
     
-    // MARK: - Actions -
-    
-    func createAccountAction() {
-        let mnemonic = MnemonicPhrase.generate(.words12)
-        Task {
-            loginButtonState = .loading
-            defer {
-                loginButtonState = .normal
-            }
-            let account  = try await initialize(
-                using: mnemonic,
-                isRegistration: true
-            )
-            
-            // Prevent server race condition for airdrop
-            try await Task.delay(seconds: 1)
-            
-            _ = try await client.airdrop(
-                type: .getFirstCrypto,
-                owner: account.keyAccount.derivedKey.keyPair
-            )
-            
-            completeLogin(with: account)
-        }
-    }
-    
     // MARK: - Login -
     
     func initialize(using mnemonic: MnemonicPhrase, isRegistration: Bool) async throws -> InitializedAccount {

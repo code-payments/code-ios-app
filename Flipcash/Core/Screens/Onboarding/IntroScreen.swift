@@ -13,22 +13,22 @@ struct IntroScreen: View {
     
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     
-    @State private var path: [IntroNavigationPath] = []
-    
     @State private var isShowingLogin          = false
     @State private var isShowingPrivacyPolicy  = false
     @State private var isShowingTermsOfService = false
     
+    @StateObject private var viewModel: OnboardingViewModel
+    
     // MARK: - Init -
     
     init(container: Container) {
-        
+        _viewModel = StateObject(wrappedValue: OnboardingViewModel(container: container))
     }
     
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack(path: $viewModel.path) {
             Background(color: .backgroundMain) {
                 VStack {
                     VStack(spacing: 10) {
@@ -45,15 +45,13 @@ struct IntroScreen: View {
                                 state: sessionAuthenticator.loginButtonState,
                                 style: .filled,
                                 title: "Create a New Account",
-                                action: sessionAuthenticator.createAccountAction
+                                action: viewModel.createAccountAction
                             )
                             
                             CodeButton(
                                 style: .subtle,
                                 title: "Log In",
-                                action: {
-                                    path = [.login]
-                                }
+                                action: viewModel.loginAction
                             )
                         }
                     }
@@ -102,21 +100,19 @@ struct IntroScreen: View {
             .ignoresSafeArea(.keyboard)
             .navigationBarTitle("")
             .navigationBarHidden(true)
-            .navigationDestination(for: IntroNavigationPath.self) { path in
+            .navigationDestination(for: OnboardingPath.self) { path in
                 switch path {
                 case .login:
                     LoginScreen()
+                case .accessKey:
+                    AccessKeyScreen(viewModel: viewModel)
+                case .purchase:
+                    EmptyView()
                 }
             }
         }
         .navigationViewStyle(.stack)
     }
-}
-
-// MARK: - Path -
-
-private enum IntroNavigationPath {
-    case login
 }
 
 // MARK: - Previews -
