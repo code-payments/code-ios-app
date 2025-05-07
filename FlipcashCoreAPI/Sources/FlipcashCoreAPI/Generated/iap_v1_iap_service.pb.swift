@@ -150,7 +150,7 @@ public struct Flipcash_Iap_V1_Metadata {
 
   public var currency: String = String()
 
-  public var amount: Float = 0
+  public var amount: Double = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -312,7 +312,7 @@ extension Flipcash_Iap_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messag
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularStringField(value: &self.product) }()
       case 2: try { try decoder.decodeSingularStringField(value: &self.currency) }()
-      case 3: try { try decoder.decodeSingularFloatField(value: &self.amount) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.amount) }()
       default: break
       }
     }
@@ -326,7 +326,7 @@ extension Flipcash_Iap_V1_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Messag
       try visitor.visitSingularStringField(value: self.currency, fieldNumber: 2)
     }
     if self.amount != 0 {
-      try visitor.visitSingularFloatField(value: self.amount, fieldNumber: 3)
+      try visitor.visitSingularDoubleField(value: self.amount, fieldNumber: 3)
     }
     try unknownFields.traverse(visitor: &visitor)
   }

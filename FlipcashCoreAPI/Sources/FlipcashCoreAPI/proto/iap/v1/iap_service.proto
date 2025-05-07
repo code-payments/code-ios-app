@@ -53,5 +53,5 @@ message Metadata {
         pattern: "^[a-z]{3}$"
     }];
 
-    float amount = 3 [(validate.rules).float.gt = 0];
+    double amount = 3 [(validate.rules).double.gt = 0];
 }
