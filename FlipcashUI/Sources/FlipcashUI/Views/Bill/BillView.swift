@@ -179,13 +179,13 @@ public struct BillView: View {
                     // Lines
                     VStack {
                         HStack {
-                            // September
-                            LineView(count: 9, spacing: geometry.linesSpacing)
+                            // October
+                            LineView(count: 10, spacing: geometry.linesSpacing)
                             
                             Spacer()
                             
-                            // Sept 12
-                            LineView(count: 12, spacing: geometry.linesSpacing)
+                            // Oct 31
+                            LineView(count: 31, spacing: geometry.linesSpacing)
                         }
                         .frame(height: geometry.linesHeight)
                         
@@ -212,9 +212,10 @@ public struct BillView: View {
                             }
                             Spacer()
                             
-                            // 2017
-                            LineView(count: 17, spacing: geometry.linesSpacing)
+                            // 2008
+                            LineView(count: 8, spacing: geometry.linesSpacing)
                                 .padding(.bottom, -2)
+                                .padding(.trailing, geometry.valuePadding)
                         }
                         .frame(height: geometry.linesHeight)
                     }
@@ -340,7 +341,7 @@ private extension GeometryProxy {
     }
     
     var linesSpacing: CGFloat {
-        ceil(size.width * 0.032)
+        ceil(size.width * 0.017)
     }
     
     var codeWidth: CGFloat {
