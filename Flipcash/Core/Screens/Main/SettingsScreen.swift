@@ -113,6 +113,20 @@ struct SettingsScreen: View {
                 }
             }
             
+            row(asset: .delete, title: "Delete Account") {
+                dialogItem = .init(
+                    style: .destructive,
+                    title: "Permanently Delete Account?",
+                    subtitle: "This will permanently delete your Flipcash account",
+                    dismissable: true
+                ) {
+                    DialogAction.destructive("Permanently Delete Account") {
+                        logout()
+                    }
+                    DialogAction.cancel {}
+                }
+            }
+            
             Spacer()
         }
         .font(.appDisplayXS)
