@@ -99,10 +99,15 @@ class Session: ObservableObject {
     
     // MARK: - Balance -
     
-    private func fetchBalance() async throws {
+    func fetchBalance() async throws {
         balance = try await client.fetchAccountInfo(type: .primary, owner: ownerKeyPair).fiat
     }
     
+    func updateBalance() {
+        Task {
+            try await fetchBalance()
+        }
+    }
     
     // MARK: - Toast -
     
@@ -144,6 +149,9 @@ class Session: ObservableObject {
             
             do {
                 let metadata = try await operation.start()
+                
+                updateBalance()
+                
                 showCashBill(.init(
                     kind: .cash,
                     exchangedFiat: metadata.exchangedFiat,
@@ -188,6 +196,7 @@ class Session: ObservableObject {
         operation.start { [weak self] result in
             switch result {
             case .success(let success):
+                self?.updateBalance()
                 self?.dismissCashBill(style: .pop)
                 self?.showToast(
                     fiat: billDescription.exchangedFiat.converted,
@@ -217,20 +226,25 @@ class Session: ObservableObject {
     
     // MARK: - Cash Links -
     
+    func cancelCashLink(giftCardVault: PublicKey) async throws {
+        try await client.voidCashLink(giftCardVault: giftCardVault, owner: ownerKeyPair)
+    }
+    
     func receiveCashLink(giftCard: GiftCardCluster) {
         Task {
             do {
-                let giftCardAccountInfo = try await self.client.fetchAccountInfo(
+                let giftCardAccountInfo = try await client.fetchAccountInfo(
                     type: .giftCard,
                     owner: giftCard.cluster.authority.keyPair
                 )
                 
-                
-                try await self.client.receiveCashLink(
+                try await client.receiveCashLink(
                     fiat: giftCardAccountInfo.fiat,
                     ownerCluster: owner,
                     giftCard: giftCard
                 )
+                
+                updateBalance()
                 
                 guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
                     trace(.failure, components: "Gift card account info is missing ExchangeFiat.")
@@ -284,6 +298,8 @@ class Session: ObservableObject {
                             giftCard: giftCard,
                             rendezvous: payload.rendezvous.publicKey
                         )
+                        
+                        self.updateBalance()
                         
                     } catch {
                         // TODO: Show error

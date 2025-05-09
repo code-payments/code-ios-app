@@ -40,12 +40,7 @@ class HistoryController: ObservableObject {
         }
     }
     
-    private func syncDeltaHistory() async throws {
-        let latestID = try database.getLatestActivityID()
-        try await syncHistory(since: latestID)
-    }
-    
-    private func syncPendingActivities() async throws {
+    func syncPendingActivities() async throws {
         let pendingIDs = try database.getPendingActivityIDs()
         if !pendingIDs.isEmpty {
             let activities = try await client.fetchTransactionHistoryItemsByID(owner: ownerKeyPair, ids: pendingIDs)
@@ -57,6 +52,11 @@ class HistoryController: ObservableObject {
         } else {
             trace(.note, components: "No pending activities")
         }
+    }
+    
+    private func syncDeltaHistory() async throws {
+        let latestID = try database.getLatestActivityID()
+        try await syncHistory(since: latestID)
     }
     
     private func syncHistory(since id: PublicKey? = nil) async throws {

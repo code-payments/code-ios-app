@@ -121,8 +121,10 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         call.handle(on: queue) { response in
             let error = ErrorVoidGiftCard(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
+                trace(.success, components: "Gift card: \(giftCardVault.base58)")
                 completion(.success(()))
             } else {
+                trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
             

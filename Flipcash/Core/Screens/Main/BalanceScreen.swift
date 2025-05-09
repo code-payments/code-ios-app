@@ -19,6 +19,8 @@ struct BalanceScreen: View {
     
     @State private var isShowingCurrencySelection: Bool = false
     
+    @State private var dialogItem: DialogItem?
+    
     @StateObject private var updateableActivities: Updateable<[Activity]>
     
     private var activities: [Activity] {
@@ -86,6 +88,7 @@ struct BalanceScreen: View {
             }
             .onAppear(perform: onAppear)
         }
+        .dialog(item: $dialogItem)
     }
     
     @ViewBuilder private func header(geometry: GeometryProxy) -> some View {
@@ -127,36 +130,93 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func row(activity: Activity) -> some View {
-        VStack {
-            HStack {
-                Text(activity.title)
+        Button {
+            rowAction(activity: activity)
+        } label: {
+            VStack {
+                HStack {
+                    Text(activity.title)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                    Spacer()
+                    AmountText(
+                        flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
+                        flagSize: .small,
+                        content: activity.exchangedFiat.converted.formatted(suffix: nil)
+                    )
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
-                Spacer()
-                AmountText(
-                    flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
-                    flagSize: .small,
-                    content: activity.exchangedFiat.converted.formatted(suffix: nil)
-                )
-                .font(.appTextMedium)
-                .foregroundStyle(Color.textMain)
-            }
-            
-            HStack {
-                Text(activity.date.formattedRelatively())
-                    .font(.appTextSmall)
-                    .foregroundStyle(Color.textSecondary)
-                Spacer()
-                if activity.exchangedFiat.converted.currencyCode != .usd {
-                    Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
+                }
+                
+                HStack {
+                    Text(activity.date.formattedRelatively())
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
+                    Spacer()
+                    if activity.exchangedFiat.converted.currencyCode != .usd {
+                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
+                    }
                 }
             }
         }
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
+    }
+    
+    // MARK: - Action -
+    
+    private func rowAction(activity: Activity) {
+        switch activity.state {
+        case .pending:
+            if case .cashLink(let cashLinkMetadata) = activity.metadata, cashLinkMetadata.canCancel {
+                cancelCashLinkAction(
+                    activity: activity,
+                    metadata: cashLinkMetadata
+                )
+            }
+            
+        case .completed, .unknown:
+            break
+        }
+    }
+    
+    private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Cancel \(activity.exchangedFiat.converted.formatted(suffix: nil)) Transfer?",
+            subtitle: "The money will be returned to your wallet.",
+            dismissable: true
+        ) {
+            .destructive("Cancel Transfer") {
+                cancelCashLink(metadata: metadata)
+            };
+            .cancel()
+        }
+    }
+    
+    private func cancelCashLink(metadata: Activity.CashLinkMetadata) {
+        Task {
+            do {
+                try await session.cancelCashLink(giftCardVault: metadata.vault)
+                
+                // TODO: Move into Session?
+                try? await historyController.syncPendingActivities()
+                try? await session.fetchBalance()
+                
+            } catch {
+                dialogItem = .init(
+                    style: .destructive,
+                    title: "Failed to Cancel Transfer",
+                    subtitle: "Something went wrong. Please try again later",
+                    dismissable: true
+                ) {
+                    .okay()
+                }
+            }
+        }
     }
 }
 
