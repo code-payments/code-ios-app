@@ -106,11 +106,9 @@ struct BalanceScreen: View {
                         .foregroundStyle(Color.textMain)
                         .frame(maxWidth: .infinity)
                         
-                        if convertedFiat.currencyCode != .usd {
-                            Text("Your balance is held in US dollars")
-                                .font(.appTextSmall)
-                                .foregroundStyle(Color.textSecondary)
-                        }
+                        Text("Your balance is held in US dollar stablecoins")
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
                         
                         Spacer()
                     }
