@@ -12,6 +12,8 @@ enum SecureKey: String {
     case keyAccount         = "com.flipcash.account.key"
     case historicalAccounts = "com.flipcash.account.list"
     case currentUserAccount = "com.flipcash.account.userAccount"
+    case betaFlagsEnabled   = "com.flipcash.betaFlags.enabled"
+    
 //    case restricted = "com.code.account.restricted"
 //    case giftCardAccounts = "com.code.giftCard.list"
     

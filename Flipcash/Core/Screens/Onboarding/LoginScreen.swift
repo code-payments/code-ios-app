@@ -13,6 +13,7 @@ struct LoginScreen: View {
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    @EnvironmentObject private var betaFlags: BetaFlags
     
     @State private var buttonState: ButtonState = .normal
     @State private var inputText: String = ""
@@ -79,7 +80,7 @@ struct LoginScreen: View {
                             action: attemptLogin
                         )
                         
-//                        if betaFlags.accessGranted {
+                        if betaFlags.accessGranted {
                             CodeButton(
                                 style: .subtle,
                                 title: "Recover Existing Account",
@@ -95,7 +96,7 @@ struct LoginScreen: View {
                                 )
                                 .environmentObject(client)
                             }
-//                        }
+                        }
                     }
                 }
                 .foregroundColor(.textMain)

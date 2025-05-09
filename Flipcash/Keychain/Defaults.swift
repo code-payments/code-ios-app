@@ -14,8 +14,6 @@ enum DefaultsKey: String {
 //    case recentCurrencies   = "com.code.currency.recentCurrencies"
 //    case localCurrencyAdded = "com.code.currency.localCurrencyAdded"
     
-//    case betaFlags = "com.code.debug.preferences"
-//    
 //    case twitterUser    = "com.code.social.twitterUser"
 //    case hasSeenTipCard = "com.code.social.hasSeenTipCard"
     
@@ -37,6 +35,8 @@ enum DefaultsKey: String {
     case balanceCurrency    = "com.flipcash.currency.balanceCurrency"
     case recentCurrencies   = "com.flipcash.currency.recentCurrencies"
     case localCurrencyAdded = "com.flipcash.currency.localCurrencyAdded"
+    
+    case betaFlags = "com.flipcash.betaFlags"
     
     // Legacy
     

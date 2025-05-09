@@ -11,12 +11,15 @@ import FlipcashCore
 
 struct SettingsScreen: View {
     
+    @EnvironmentObject private var betaFlags: BetaFlags
+    
     @Binding public var isPresented: Bool
     
     @State private var isShowingAccountSelection = false
     @State private var isShowingLogoutConfirmation = false
     
     @State private var dialogItem: DialogItem?
+    @State private var debugTapCount: Int = 0
     
     private let insets: EdgeInsets = EdgeInsets(
         top: 25,
@@ -52,6 +55,21 @@ struct SettingsScreen: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxHeight: 40)
+                                    .onTapGesture {
+                                        if debugTapCount > 9 {
+                                            if betaFlags.accessGranted {
+                                                betaFlags.setAccessGranted(false)
+                                            } else {
+//                                                if session.user.betaFlagsAllowed {
+                                                betaFlags.setAccessGranted(true)
+//                                                }
+                                            }
+                                            
+                                            debugTapCount = 0
+                                        } else {
+                                            debugTapCount += 1
+                                        }
+                                    }
                                 Spacer()
                             }
                             .padding(.vertical, 20)
@@ -88,15 +106,17 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            row(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge()) {
-                isShowingAccountSelection.toggle()
-            }
-            .sheet(isPresented: $isShowingAccountSelection) {
-                AccountSelectionScreen(
-                    isPresented: $isShowingAccountSelection,
-                    sessionAuthenticator: sessionAuthenticator,
-                    action: switchAccount
-                )
+            if betaFlags.accessGranted {
+                row(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge()) {
+                    isShowingAccountSelection.toggle()
+                }
+                .sheet(isPresented: $isShowingAccountSelection) {
+                    AccountSelectionScreen(
+                        isPresented: $isShowingAccountSelection,
+                        sessionAuthenticator: sessionAuthenticator,
+                        action: switchAccount
+                    )
+                }
             }
             
             row(asset: .logout, title: "Log Out") {

@@ -6,6 +6,8 @@
     <array>
         <string>com.flipcash.background.task</string>
     </array>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
