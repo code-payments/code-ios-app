@@ -77,6 +77,12 @@ class Session: ObservableObject {
         
     }
     
+    // MARK: - Balance -
+    
+    func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> Bool {
+        exchangedFiat.usdc.quarks <= balance.quarks
+    }
+    
     // MARK: - Poller -
     
     private func registerPoller() {

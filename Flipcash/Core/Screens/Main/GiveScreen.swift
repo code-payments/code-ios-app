@@ -20,6 +20,8 @@ struct GiveScreen: View {
     @State private var actionState: ButtonState = .normal
     @State private var isShowingCurrencySelection: Bool = false
     
+    @State private var dialogItem: DialogItem?
+    
     private let kind: Kind
     
     private var isSendEnabled: Bool {
@@ -90,12 +92,18 @@ struct GiveScreen: View {
                 }
             }
         }
+        .dialog(item: $dialogItem)
     }
     
     // MARK: - Actions -
     
     private func showBill() {
         guard let exchangedFiat = enteredFiat else {
+            return
+        }
+        
+        guard session.hasSufficientFunds(for: exchangedFiat) else {
+            showInsufficientBalanceError()
             return
         }
         
@@ -122,6 +130,19 @@ struct GiveScreen: View {
     
     private func showCurrencySelection() {
         isShowingCurrencySelection.toggle()
+    }
+    
+    // MARK: - Errors -
+    
+    private func showInsufficientBalanceError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Insufficient Balance",
+            subtitle: "Please enter a lower amount and try again",
+            dismissable: true
+        ) {
+            .okay()
+        }
     }
 }
 

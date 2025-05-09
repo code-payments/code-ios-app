@@ -193,14 +193,21 @@ private extension Decimal {
     static let multiplier: Decimal = 1_000_000
     
     var toQuarks: UInt64 {
-        var quarks = self * .multiplier
-        var rounded = Decimal()
-        NSDecimalRound(&rounded, &quarks, 0, .plain)
+        let rounded = (self * .multiplier).rounded(to: 0)
         return NSDecimalNumber(decimal: rounded).uint64Value
     }
     
     var toFiat: Decimal {
         self / .multiplier
+    }
+}
+
+extension Decimal {
+    func rounded(to decimalPlaces: Int) -> Decimal {
+        var current = self
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &current, decimalPlaces, .plain)
+        return rounded
     }
 }
 
