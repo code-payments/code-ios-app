@@ -99,3 +99,16 @@ struct AppMain: App {
 //        scrollView.keyboardDismissMode = .onDrag
     }
 }
+
+extension UINavigationController {
+    
+    /// Remove the back button in all navigation stacks
+    open override func viewWillLayoutSubviews() {
+        navigationBar.topItem?.backBarButtonItem = UIBarButtonItem(
+            title: "",
+            style: .plain,
+            target: nil,
+            action: nil
+        )
+    }
+}

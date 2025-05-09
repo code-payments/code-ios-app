@@ -64,8 +64,8 @@ struct AccessKeyScreen: View {
             .ignoresSafeArea(.keyboard)
             .foregroundColor(.textMain)
             .padding(20)
-            .navigationBarTitle(Text("Your Access Key"), displayMode: .inline)
-            .interactiveDismissDisabled()
+            .navigationTitle("Your Access Key")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .dialog(item: $viewModel.dialogItem)
     }

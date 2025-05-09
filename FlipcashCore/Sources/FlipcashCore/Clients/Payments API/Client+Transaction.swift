@@ -58,6 +58,7 @@ extension Client {
     
     // MARK: - AirDrop -
     
+    @discardableResult
     public func airdrop(type: AirdropType, owner: KeyPair) async throws -> PaymentMetadata {
         try await withCheckedThrowingContinuation { c in
             transactionService.airdrop(type: type, owner: owner) { c.resume(with: $0) }

@@ -45,7 +45,7 @@ public struct DialogAction {
     
     // MARK: - Pre-baked -
     
-    public static func okay(action: @escaping () -> Void) -> Self {
+    public static func okay(action: @escaping () -> Void = {}) -> Self {
         self.init(
             kind: .standard,
             title: "OK",
@@ -53,10 +53,18 @@ public struct DialogAction {
         )
     }
     
-    public static func cancel(action: @escaping () -> Void) -> Self {
+    public static func cancel(action: @escaping () -> Void = {}) -> Self {
         self.init(
             kind: .subtle,
             title: "Cancel",
+            action: action
+        )
+    }
+    
+    public static func notNow(action: @escaping () -> Void = {}) -> Self {
+        self.init(
+            kind: .subtle,
+            title: "Not Now",
             action: action
         )
     }

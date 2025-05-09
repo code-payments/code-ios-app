@@ -106,8 +106,13 @@ struct IntroScreen: View {
                     LoginScreen()
                 case .accessKey:
                     AccessKeyScreen(viewModel: viewModel)
-                case .purchase:
-                    EmptyView()
+                case .buyAccount:
+                    BuyAccountScreen(viewModel: viewModel)
+                case .cameraAccess:
+                    PermissionScreen.forCameraAccess(
+                        action: viewModel.allowCameraAccessAction,
+                        skipAction: viewModel.skipCameraAccessAction
+                    )
                 }
             }
         }

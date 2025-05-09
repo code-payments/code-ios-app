@@ -9,6 +9,7 @@ import Foundation
 
 extension FlipClient {
     
+    @discardableResult
     public func register(owner: KeyPair) async throws -> UserID {
         try await withCheckedThrowingContinuation { c in
             accountService.register(owner: owner) { c.resume(with: $0) }

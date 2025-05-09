@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "Bill-Phone.png",
+      "filename" : "graphicCameraAccess.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "Bill-Phone@2x.png",
+      "filename" : "graphicCameraAccess@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "Bill-Phone@3x.png",
+      "filename" : "graphicCameraAccess@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

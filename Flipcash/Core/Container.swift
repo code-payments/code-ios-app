@@ -15,6 +15,7 @@ class Container {
     let client: Client
     let flipClient: FlipClient
     let accountManager: AccountManager
+    let storeController: StoreController
     
     lazy var sessionAuthenticator = SessionAuthenticator(container: self)
     lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
@@ -24,9 +25,10 @@ class Container {
     // MARK: - Init -
     
     init() {
-        self.client         = Client(network: .mainNet)
-        self.flipClient     = FlipClient(network: .mainNet)
-        self.accountManager = AccountManager()
+        self.client          = Client(network: .mainNet)
+        self.flipClient      = FlipClient(network: .mainNet)
+        self.accountManager  = AccountManager()
+        self.storeController = StoreController(client: flipClient)
         
         _ = sessionAuthenticator
     }
@@ -36,6 +38,7 @@ class Container {
             .environmentObject(client)
             .environmentObject(flipClient)
             .environmentObject(sessionAuthenticator)
+            .environmentObject(storeController)
     }
 }
 
