@@ -29,8 +29,12 @@ struct BalanceScreen: View {
     
     private let proportion: CGFloat = 0.3
     
-    private var convertedFiat: Fiat {
-        session.exchangedBalance.converted
+    private var balance: ExchangedFiat {
+        session.exchangedBalance
+    }
+    
+    private var isBalanceBaseCurrency: Bool {
+        balance.converted.currencyCode == .usd
     }
     
     private let database: Database
@@ -101,17 +105,23 @@ struct BalanceScreen: View {
                         Spacer()
                         
                         AmountText(
-                            flagStyle: convertedFiat.currencyCode.flagStyle,
-                            content: convertedFiat.formattedWithSuffixIfNeeded(),
+                            flagStyle: balance.converted.currencyCode.flagStyle,
+                            content: balance.converted.formatted(suffix: nil),
                             showChevron: true
                         )
                         .font(.appDisplayMedium)
                         .foregroundStyle(Color.textMain)
                         .frame(maxWidth: .infinity)
                         
-                        Text("Your balance is held in US dollar stablecoins")
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
+                        if isBalanceBaseCurrency {
+                            Text("Your balance is held in US dollar stablecoins")
+                                .font(.appTextSmall)
+                                .foregroundStyle(Color.textSecondary)
+                        } else {
+                            Text("\(balance.usdc.formatted(suffix: nil)) of US dollar stablecoins")
+                                .font(.appTextSmall)
+                                .foregroundStyle(Color.textSecondary)
+                        }
                         
                         Spacer()
                     }
@@ -153,11 +163,11 @@ struct BalanceScreen: View {
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                     Spacer()
-                    if activity.exchangedFiat.converted.currencyCode != .usd {
-                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
-                    }
+//                    if activity.exchangedFiat.converted.currencyCode != .usd {
+//                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
+//                            .font(.appTextSmall)
+//                            .foregroundStyle(Color.textSecondary)
+//                    }
                 }
             }
         }
