@@ -88,7 +88,7 @@ public struct BillView: View {
                     
                     // More opaque layer for the code
                     // to help with scanning
-                    Circle()
+                    Rectangle()
                         .fill(Color.black.opacity(0.5))
                     
                     // Main background (clip)
