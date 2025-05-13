@@ -86,6 +86,7 @@ struct LoginScreen: View {
                                 title: "Recover Existing Account",
                                 disabled: !buttonState.isNormal
                             ) {
+                                isFocused = false
                                 isShowingAccountSelection.toggle()
                             }
                             .sheet(isPresented: $isShowingAccountSelection) {
