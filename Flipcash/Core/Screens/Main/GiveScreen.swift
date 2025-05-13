@@ -85,7 +85,8 @@ struct GiveScreen: View {
                     )
                 }
             }
-            .navigationBarTitle(Text("Give"), displayMode: .inline)
+            .navigationTitle(kind.navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
@@ -148,7 +149,15 @@ struct GiveScreen: View {
 
 extension GiveScreen {
     enum Kind {
+        
         case cash
         case cashLink
+        
+        fileprivate var navigationTitle: String {
+            switch self {
+            case .cash:     "Give"
+            case .cashLink: "Send"
+            }
+        }
     }
 }
