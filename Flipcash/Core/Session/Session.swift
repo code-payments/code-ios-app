@@ -275,12 +275,6 @@ class Session: ObservableObject {
         
         let payload = operation.payload
         
-        sendOperation     = operation
-        presentationState = .visible(.slide)
-        billState         = .init(
-            bill: .cash(payload)
-        )
-        
         let owner    = owner
         let giftCard = GiftCardCluster()
         let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
@@ -306,6 +300,16 @@ class Session: ObservableObject {
                     }
                 }
             }
+        }
+        
+        Task {
+            try await Task.delay(milliseconds: 350)
+            
+            sendOperation     = operation
+            presentationState = .visible(.slide)
+            billState         = .init(
+                bill: .cash(payload)
+            )
         }
     }
 }

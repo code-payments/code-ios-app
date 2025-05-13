@@ -72,7 +72,7 @@ struct GiveScreen: View {
                     actionEnabled: { _ in
                         enteredFiat != nil
                     },
-                    action: showBill,
+                    action: nextAction,
                     currencySelectionAction: showCurrencySelection
                 )
                 .foregroundColor(.textMain)
@@ -97,7 +97,7 @@ struct GiveScreen: View {
     
     // MARK: - Actions -
     
-    private func showBill() {
+    private func nextAction() {
         guard let exchangedFiat = enteredFiat else {
             return
         }
