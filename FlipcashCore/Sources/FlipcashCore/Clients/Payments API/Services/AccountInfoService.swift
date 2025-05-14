@@ -13,7 +13,7 @@ import GRPC
 
 final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
     func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, completion: @Sendable @escaping (Result<AccountInfo, ErrorFetchBalance>) -> Void) {
-        trace(.send, components: "Owner: \(owner.publicKey.base58)")
+//        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.solanaAccountID
@@ -34,8 +34,7 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
                 }.first
                 
                 if let account {
-//                    let balance = Fiat(quarks: account.value.balance, currencyCode: .usd)
-                    trace(.success, components: "Balance: \(account.fiat.formatted(suffix: " USD"))")
+//                    trace(.success, components: "Balance: \(account.fiat.formatted(suffix: " USD"))")
                     completion(.success(account))
                 } else {
                     trace(.failure, components: "Account not in list of accounts returned: \(response.tokenAccountInfos)")

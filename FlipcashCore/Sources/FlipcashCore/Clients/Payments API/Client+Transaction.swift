@@ -40,10 +40,10 @@ extension Client {
         }
     }
     
-    public func receiveCashLink(fiat: Fiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
+    public func receiveCashLink(usdc: Fiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.receiveCashLink(
-                fiat: fiat,
+                usdc: usdc,
                 ownerCluster: ownerCluster,
                 giftCard: giftCard
             ) { c.resume(with: $0) }

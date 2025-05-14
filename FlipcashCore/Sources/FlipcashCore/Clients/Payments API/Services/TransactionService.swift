@@ -86,13 +86,13 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    func receiveCashLink(fiat: Fiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(fiat.formatted(suffix: " USDC"))")
+    func receiveCashLink(usdc: Fiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(usdc.formatted(suffix: " USDC"))")
         
         let intent = IntentReceiveCashLink(
             ownerCluster: ownerCluster,
             giftCard: giftCard,
-            usdc: fiat
+            usdc: usdc
         )
         
         submit(intent: intent, owner: ownerCluster.authority.keyPair) { result in

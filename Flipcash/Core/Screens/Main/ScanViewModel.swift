@@ -52,8 +52,8 @@ class ScanViewModel: ObservableObject {
     }
     
     private func didScan(_ payload: CashCode.Payload) {
-        guard session.canPresentBill else {
-            trace(.warning, components: "Can't initiate send.")
+        guard !session.isShowingBill else {
+            trace(.warning, components: "Can't initiate send, bill on screen.")
             return
         }
         

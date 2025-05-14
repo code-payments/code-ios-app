@@ -46,8 +46,8 @@ class Session: ObservableObject {
         )
     }
     
-    var canPresentBill: Bool {
-        billState.bill == nil
+    var isShowingBill: Bool {
+        billState.bill != nil
     }
     
     private let container: Container
@@ -59,6 +59,8 @@ class Session: ObservableObject {
     
     private var scanOperation: ScanCashOperation?
     private var sendOperation: SendCashOperation?
+    
+    private var toastQueue = ToastQueue()
     
     // MARK: - Init -
     
@@ -111,16 +113,48 @@ class Session: ObservableObject {
     
     // MARK: - Toast -
     
-    private func showToast(fiat: Fiat, isDeposit: Bool, autoDismiss: Bool = true) {
-        toast = .init(
-            amount: fiat,
-            isDeposit: isDeposit
-        )
+    private func show(toast: Toast) {
+        enqueue(toast: toast)
+        if self.toast == nil {
+            consumeToast()
+        }
+    }
+    
+    private func enqueue(toast: Toast) {
+        toastQueue.insert(toast)
+    }
+    
+    private func consumeToast() {
+        guard toastQueue.hasToasts else {
+            return
+        }
         
-        if autoDismiss {
-            Task {
-                try await Task.delay(seconds: 3)
-                toast = nil
+        Task {
+            // Wait for bill animation to finish
+            // before showing the toast
+            try await Task.delay(milliseconds: 500)
+            
+            // Ensure that there's no bills showing
+            // otherwise we'll wait for dismissBill
+            // to consume the toast
+            guard !isShowingBill else {
+                trace(.note, components: "Bill showing, waiting for toasts to resume...")
+                return
+            }
+            
+            guard toastQueue.hasToasts else {
+                return
+            }
+            
+            toast = toastQueue.pop()
+//            trace(.note, components: "Showing toast: \(toast!.amount.formatted(suffix: nil))")
+            
+            try await Task.delay(seconds: 3)
+            toast = nil
+            
+            if toastQueue.hasToasts {
+                try await Task.delay(milliseconds: 1000)
+                consumeToast()
             }
         }
     }
@@ -151,6 +185,11 @@ class Session: ObservableObject {
                 let metadata = try await operation.start()
                 
                 updateBalance()
+                
+                enqueue(toast: .init(
+                    amount: metadata.exchangedFiat.converted,
+                    isDeposit: true
+                ))
                 
                 showCashBill(.init(
                     kind: .cash,
@@ -195,28 +234,22 @@ class Session: ObservableObject {
         
         operation.start { [weak self] result in
             switch result {
-            case .success(let success):
+            case .success:
+                self?.enqueue(toast: .init(
+                    amount: billDescription.exchangedFiat.converted,
+                    isDeposit: false
+                ))
                 self?.updateBalance()
                 self?.dismissCashBill(style: .pop)
-                self?.showToast(
-                    fiat: billDescription.exchangedFiat.converted,
-                    isDeposit: false
-                )
                 
-            case .failure(let failure):
+            case .failure:
                 self?.dismissCashBill(style: .slide)
             }
         }
     }
     
-    
     func dismissCashBill(style: PresentationState.Style) {
-        if billState.shouldShowToast, let valuation = valuation {
-            showToast(
-                fiat: valuation.exchangedFiat.converted,
-                isDeposit: true
-            )
-        }
+        consumeToast()
         
         sendOperation = nil
         presentationState = .hidden(style)
@@ -238,18 +271,23 @@ class Session: ObservableObject {
                     owner: giftCard.cluster.authority.keyPair
                 )
                 
+                guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
+                    trace(.failure, components: "Gift card account info is missing ExchangeFiat.")
+                    return
+                }
+                
                 try await client.receiveCashLink(
-                    fiat: giftCardAccountInfo.fiat,
+                    usdc: exchangedFiat.usdc,
                     ownerCluster: owner,
                     giftCard: giftCard
                 )
                 
                 updateBalance()
                 
-                guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
-                    trace(.failure, components: "Gift card account info is missing ExchangeFiat.")
-                    return
-                }
+                enqueue(toast: .init(
+                    amount: exchangedFiat.converted,
+                    isDeposit: true
+                ))
                 
                 showCashBill(
                     .init(
@@ -279,11 +317,19 @@ class Session: ObservableObject {
         let giftCard = GiftCardCluster()
         let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
         
-        ShareSheet.present(activityItem: item) { [weak self] isCompleted in
+        ShareSheet.present(activityItem: item) { [weak self] didShare in
             guard let self = self else { return }
             
+            if didShare {
+                self.enqueue(toast: .init(
+                    amount: exchangedFiat.converted,
+                    isDeposit: false
+                ))
+            }
+            
             self.dismissCashBill(style: .slide)
-            if isCompleted {
+            
+            if didShare {
                 Task {
                     do {
                         try await self.client.sendCashLink(
