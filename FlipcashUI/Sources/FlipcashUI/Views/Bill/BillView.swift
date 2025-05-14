@@ -256,9 +256,10 @@ struct LineView: View {
         HStack(spacing: spacing) {
             ForEach(0..<count, id: \.self) { _ in
                 Rectangle()
-                    .fill(Color.white.opacity(0.2))
+                    .fill(Color.white.opacity(0.1))
                     .frame(width: 1)
                     .rotationEffect(.degrees(-18), anchor: .top)
+                    
             }
         }
     }
@@ -341,7 +342,7 @@ private extension GeometryProxy {
     }
     
     var linesSpacing: CGFloat {
-        ceil(size.width * 0.017)
+        ceil(size.width * 0.016)
     }
     
     var codeWidth: CGFloat {
