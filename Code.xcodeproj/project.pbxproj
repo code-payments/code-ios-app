@@ -240,6 +240,10 @@
 		9AD5D85825F26E4C007388AE /* CodeScanner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5D84C25F26E3C007388AE /* CodeScanner.framework */; };
 		9AD5E64C25F2BF3E007388AE /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E64B25F2BF3E007388AE /* opencv2.framework */; };
 		9AD87C7F2BC04A3B00F33A08 /* ConnectXScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD87C7E2BC04A3B00F33A08 /* ConnectXScreen.swift */; };
+		9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C22DD50BDE001B260A /* FirebaseAnalytics */; };
+		9ADEF1C52DD50BDE001B260A /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C42DD50BDE001B260A /* FirebaseCrashlytics */; };
+		9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C62DD50BDE001B260A /* FirebaseInstallations */; };
+		9ADEF1C92DD50BDE001B260A /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C82DD50BDE001B260A /* FirebaseMessaging */; };
 		9AE0834228EC8E7D00350407 /* DeleteAccountScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834128EC8E7D00350407 /* DeleteAccountScreen.swift */; };
 		9AE0834528EC918800350407 /* DeleteAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834428EC918800350407 /* DeleteAccountViewModel.swift */; };
 		9AE0834728EC973B00350407 /* ConfirmDeleteScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834628EC973B00350407 /* ConfirmDeleteScreen.swift */; };
@@ -616,8 +620,8 @@
 		9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"apple-app-site-association",
-				Info.plist,
+				"Supporting Files/apple-app-site-association",
+				"Supporting Files/Info.plist",
 			);
 			target = 9A516F792D9B12E800AF478B /* Flipcash */;
 		};
@@ -638,8 +642,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9ADEF1C92DD50BDE001B260A /* FirebaseMessaging in Frameworks */,
 				9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */,
 				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
+				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
+				9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */,
+				9ADEF1C52DD50BDE001B260A /* FirebaseCrashlytics in Frameworks */,
 				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
 				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
@@ -1305,6 +1313,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9A516F9B2D9B12EA00AF478B /* Build configuration list for PBXNativeTarget "Flipcash" */;
 			buildPhases = (
+				9ADEF1CD2DD516A5001B260A /* Generate Google */,
 				9A516F762D9B12E800AF478B /* Sources */,
 				9A516F772D9B12E800AF478B /* Frameworks */,
 				9A516F782D9B12E800AF478B /* Resources */,
@@ -1321,6 +1330,10 @@
 				9ABDD1942D9D7B61006B6CDA /* FlipcashCore */,
 				9AC011172DA4320F0030298E /* FlipcashUI */,
 				9AD1265D2DA98ADC0048141F /* SQLite */,
+				9ADEF1C22DD50BDE001B260A /* FirebaseAnalytics */,
+				9ADEF1C42DD50BDE001B260A /* FirebaseCrashlytics */,
+				9ADEF1C62DD50BDE001B260A /* FirebaseInstallations */,
+				9ADEF1C82DD50BDE001B260A /* FirebaseMessaging */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -1986,6 +1999,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./run -a flipcashCore     # -s 1 # skips pull, only runs generation\n./run -a flipcashPayments # -s 1 # skips pull, only runs generation\n";
+		};
+		9ADEF1CD2DD516A5001B260A /* Generate Google */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Generate Google";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$SOURCE_ROOT/Flipcash/Supporting Files/GoogleService-Info.plist\" \"FG_\"\n";
 		};
 		9AEB5FDB25CDD4CB004B3680 /* Generate Code Services */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -2739,14 +2771,13 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = Flipcash/Flipcash.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 101;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
@@ -2757,7 +2788,7 @@
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Flipcash/Info.plist;
+				INFOPLIST_FILE = "Flipcash/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
@@ -2791,14 +2822,13 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = Flipcash/Flipcash.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 101;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
@@ -2809,7 +2839,7 @@
 					"$(inherited)",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Flipcash/Info.plist;
+				INFOPLIST_FILE = "Flipcash/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
@@ -2843,21 +2873,20 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = Flipcash/Flipcash.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 101;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
 				);
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Flipcash/Info.plist;
+				INFOPLIST_FILE = "Flipcash/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
@@ -2890,21 +2919,20 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CODE_SIGN_ENTITLEMENTS = Flipcash/Flipcash.entitlements;
+				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 101;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
 				);
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Flipcash/Info.plist;
+				INFOPLIST_FILE = "Flipcash/Supporting Files/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Flipcash;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
@@ -4626,6 +4654,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
+		};
+		9ADEF1C22DD50BDE001B260A /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		9ADEF1C42DD50BDE001B260A /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		9ADEF1C62DD50BDE001B260A /* FirebaseInstallations */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseInstallations;
+		};
+		9ADEF1C82DD50BDE001B260A /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 		9AEABBEE2B76CD4100667DA4 /* CodeUI */ = {
 			isa = XCSwiftPackageProductDependency;

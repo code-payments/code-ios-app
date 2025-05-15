@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipcashUI
+import Firebase
 
 @main
 struct AppMain: App {
@@ -15,9 +16,17 @@ struct AppMain: App {
     
     // MARK: - Init -
     
-    init() {
+    init() {        
         FontBook.registerApplicationFonts()
+        configureFirebase()
         setupAppearance()
+    }
+    
+    private func configureFirebase() {
+        let isRunningPreviews = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        if !isRunningPreviews {
+            FirebaseApp.configure()
+        }
     }
     
     // MARK: - Body -

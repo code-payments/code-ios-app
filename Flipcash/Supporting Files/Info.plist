@@ -29,5 +29,15 @@
 		<string>remote-notification</string>
 		<string>processing</string>
 	</array>
+    <key>bugsnag</key>
+    <dict>
+        <key>apiKey</key>
+        <string>$(FLIPCASH_BUGSNAG)</string>
+    </dict>
+    <key>mixpanel</key>
+    <dict>
+        <key>apiKey</key>
+        <string>$(FLIPCASH_MIXPANEL)</string>
+    </dict>
 </dict>
 </plist>
