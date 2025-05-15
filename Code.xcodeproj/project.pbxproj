@@ -244,6 +244,8 @@
 		9ADEF1C52DD50BDE001B260A /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C42DD50BDE001B260A /* FirebaseCrashlytics */; };
 		9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C62DD50BDE001B260A /* FirebaseInstallations */; };
 		9ADEF1C92DD50BDE001B260A /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C82DD50BDE001B260A /* FirebaseMessaging */; };
+		9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D62DD627C0001B260A /* Bugsnag */; };
+		9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1D82DD627C6001B260A /* Mixpanel */; };
 		9AE0834228EC8E7D00350407 /* DeleteAccountScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834128EC8E7D00350407 /* DeleteAccountScreen.swift */; };
 		9AE0834528EC918800350407 /* DeleteAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834428EC918800350407 /* DeleteAccountViewModel.swift */; };
 		9AE0834728EC973B00350407 /* ConfirmDeleteScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AE0834628EC973B00350407 /* ConfirmDeleteScreen.swift */; };
@@ -644,6 +646,7 @@
 			files = (
 				9ADEF1C92DD50BDE001B260A /* FirebaseMessaging in Frameworks */,
 				9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */,
+				9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */,
 				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
 				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
 				9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */,
@@ -651,6 +654,7 @@
 				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
 				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
+				9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1334,6 +1338,8 @@
 				9ADEF1C42DD50BDE001B260A /* FirebaseCrashlytics */,
 				9ADEF1C62DD50BDE001B260A /* FirebaseInstallations */,
 				9ADEF1C82DD50BDE001B260A /* FirebaseMessaging */,
+				9ADEF1D62DD627C0001B260A /* Bugsnag */,
+				9ADEF1D82DD627C6001B260A /* Mixpanel */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -4674,6 +4680,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		9ADEF1D62DD627C0001B260A /* Bugsnag */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */;
+			productName = Bugsnag;
+		};
+		9ADEF1D82DD627C6001B260A /* Mixpanel */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
+			productName = Mixpanel;
 		};
 		9AEABBEE2B76CD4100667DA4 /* CodeUI */ = {
 			isa = XCSwiftPackageProductDependency;

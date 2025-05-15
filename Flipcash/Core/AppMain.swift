@@ -18,7 +18,12 @@ struct AppMain: App {
     
     init() {        
         FontBook.registerApplicationFonts()
+        
         configureFirebase()
+        
+        Analytics.initialize()
+        ErrorReporting.initialize()
+        
         setupAppearance()
     }
     

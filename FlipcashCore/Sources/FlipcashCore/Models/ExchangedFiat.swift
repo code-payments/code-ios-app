@@ -110,6 +110,18 @@ extension ExchangedFiat {
 }
 
 extension ExchangedFiat {
+    public var descriptionDictionary: [String: String] {
+        [
+            "usdc": usdc.formatted(suffix: nil),
+            "quarks": "\(usdc.quarks)",
+            "fx": rate.fx.formatted(),
+            "converted": converted.formatted(suffix: nil),
+            "currency": rate.currency.rawValue.uppercased(),
+        ]
+    }
+}
+
+extension ExchangedFiat {
     enum Error: Swift.Error {
         case invalidCurrency
         case invalidNativeAmount

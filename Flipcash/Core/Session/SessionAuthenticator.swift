@@ -241,7 +241,7 @@ final class SessionAuthenticator: ObservableObject {
         state = .loggedIn(session)
         UserDefaults.wasLoggedIn = true
         
-//        Analytics.setIdentity(initializedAccount.user)
+        Analytics.setIdentity(initializedAccount.userID)
     }
     
     func switchAccount(to account: AccountDescription) {

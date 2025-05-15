@@ -196,16 +196,34 @@ class Session: ObservableObject {
                     exchangedFiat: metadata.exchangedFiat,
                     received: true
                 ))
+                
+                Analytics.transfer(
+                    event: .grabBill,
+                    exchangedFiat: metadata.exchangedFiat,
+                    successful: true,
+                    error: nil
+                )
                 completion(.success)
                 
             } catch ScanCashOperation.Error.noOpenStreamForRendezvous {
 //                showCashExpiredError()
                 completion(.noStream)
+                
             } catch {
+                ErrorReporting.capturePayment(
+                    error: error,
+                    rendezvous: payload.rendezvous.publicKey,
+                    fiat: payload.fiat
+                )
+                
+                Analytics.transfer(
+                    event: .grabBill,
+                    fiat: payload.fiat,
+                    successful: false,
+                    error: error
+                )
                 completion(.failed)
             }
-            
-            // Update balance
         }
     }
     
@@ -242,8 +260,28 @@ class Session: ObservableObject {
                 self?.updateBalance()
                 self?.dismissCashBill(style: .pop)
                 
-            case .failure:
+                Analytics.transfer(
+                    event: .giveBill,
+                    exchangedFiat: billDescription.exchangedFiat,
+                    successful: true,
+                    error: nil
+                )
+                
+            case .failure(let error):
                 self?.dismissCashBill(style: .slide)
+                
+                ErrorReporting.capturePayment(
+                    error: error,
+                    rendezvous: operation.payload.rendezvous.publicKey,
+                    exchangedFiat: billDescription.exchangedFiat
+                )
+                
+                Analytics.transfer(
+                    event: .giveBill,
+                    exchangedFiat: billDescription.exchangedFiat,
+                    successful: false,
+                    error: error
+                )
             }
         }
     }
@@ -297,8 +335,23 @@ class Session: ObservableObject {
                     )
                 )
                 
-                print("Gift card balance: \(giftCardAccountInfo)")
+                Analytics.transfer(
+                    event: .receiveCashLink,
+                    exchangedFiat: exchangedFiat,
+                    successful: true,
+                    error: nil
+                )
+                
             } catch {
+                ErrorReporting.captureError(error)
+                
+                Analytics.transfer(
+                    event: .receiveCashLink,
+                    exchangedFiat: nil,
+                    successful: false,
+                    error: error
+                )
+                
                 trace(.failure, components: "Failed to receive cash link for gift card: \(giftCard)")
             }
         }
@@ -342,6 +395,16 @@ class Session: ObservableObject {
                         self.updateBalance()
                         
                     } catch {
+                        
+                        ErrorReporting.captureError(error)
+                        
+                        Analytics.transfer(
+                            event: .sendCashLink,
+                            exchangedFiat: exchangedFiat,
+                            successful: false,
+                            error: error
+                        )
+                        
                         // TODO: Show error
                     }
                 }

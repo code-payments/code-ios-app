@@ -30,7 +30,7 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
                 rates: rates
             )
             
-            trace(.success, components: "\(rates.count) rates")
+//            trace(.success, components: "\(rates.count) rates")
             completion(.success(snapshot))
             
         } failure: { error in
