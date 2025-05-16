@@ -16,14 +16,16 @@ public struct TimelockDerivedAccounts: Codable, Hashable, Equatable, Sendable {
     public let owner: PublicKey
     public let state: ProgramDerivedAccount
     public let vault: ProgramDerivedAccount
+    public let deposit: ProgramDerivedAccount
     
     public init(owner: PublicKey) {
         
         let state: ProgramDerivedAccount
         let vault: ProgramDerivedAccount
         
-        state = PublicKey.deriveTimelockStateAccount(owner: owner, lockout: Self.lockoutInDays)!
-        vault = PublicKey.deriveTimelockVaultAccount(stateAccount: state.publicKey, version: Self.dataVersion)!
+        state   = PublicKey.deriveTimelockStateAccount(owner: owner, lockout: Self.lockoutInDays)!
+        vault   = PublicKey.deriveTimelockVaultAccount(stateAccount: state.publicKey, version: Self.dataVersion)!
+        deposit = PublicKey.deriveDepositAccount(owner: owner, lockout: Self.lockoutInDays)!
         
         self.owner = owner
         self.state = state
@@ -50,6 +52,36 @@ public struct ProgramDerivedAccount: Codable, Hashable, Equatable, Sendable  {
     init(publicKey: PublicKey, bump: Byte) {
         self.publicKey = publicKey
         self.bump = bump
+    }
+}
+
+// MARK: - VM Derivation -
+
+extension PublicKey {
+    private static func deriveVMAccount(lockout: Byte) -> ProgramDerivedAccount? {
+        findProgramAddress(
+            program: VMProgram.address,
+            seeds:
+                Data("code_vm".utf8),
+                Mint.usdc.data,
+                PublicKey.timeAuthority.data,
+                lockout.bytes.data
+        )
+    }
+    
+    public static func deriveDepositAccount(owner: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
+        guard let vmAccount = deriveVMAccount(lockout: lockout) else {
+            return nil
+        }
+        
+        return findProgramAddress(
+            program: VMProgram.address,
+            seeds:
+                Data("code_vm".utf8),
+                Data("vm_deposit_pda".utf8),
+                owner.data,
+                vmAccount.publicKey.data
+        )
     }
 }
 

@@ -124,6 +124,10 @@ struct SettingsScreen: View {
                 }
             }
             
+            navigationRow(asset: .deposit, title: "Deposit") {
+                DepositScreen(session: session)
+            }
+            
             row(asset: .withdraw, title: "Withdraw") {
                 isShowingWithdrawFlow.toggle()
             }

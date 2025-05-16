@@ -21,6 +21,10 @@ public struct AccountCluster: Equatable, Codable, Hashable, Sendable {
         timelock.vault.publicKey
     }
     
+    public var depositPublicKey: PublicKey {
+        timelock.deposit.publicKey
+    }
+    
     public init(authority: DerivedKey) {
         self.authority = authority
         self.timelock  = TimelockDerivedAccounts(owner: authority.keyPair.publicKey)
