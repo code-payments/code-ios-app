@@ -79,7 +79,7 @@ struct BuyAccountScreen: View {
             Text("Pay \(formattedPrice), Get \(formattedPrice)")
                 .font(.appTextLarge)
             
-            Text("Pay \(formattedPrice) to create your Flipcash account and get \(formattedPrice) in your wallet. You can withdraw these funds to your bank account at any time.")
+            Text("For a limited time new accounts will receive a free welcome bonus of \(formattedPrice) of stablecoins.")
                 .font(.appTextSmall)
         }
     }
