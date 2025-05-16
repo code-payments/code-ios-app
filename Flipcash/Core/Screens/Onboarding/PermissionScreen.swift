@@ -66,10 +66,6 @@ struct PermissionScreen: View {
             .padding(20)
         }
         .navigationBarBackButtonHidden(true)
-        .onAppear {
-//            Analytics.open(screen: .permission)
-//            ErrorReporting.breadcrumb(.permissionScreen)
-        }
     }
 }
 
@@ -89,7 +85,7 @@ extension PermissionScreen {
     static func forCameraAccess(action: @escaping VoidAction, skipAction: @escaping VoidAction) -> PermissionScreen {
         PermissionScreen(
             image: .asset(.graphicCameraAccess),
-            actionTitle: "Allow Camera Access",
+            actionTitle: "Next",
             description: "Your camera is used to grab Digital Cash. Please allow access to the camera to proceed",
             action: action,
             skipAction: skipAction
