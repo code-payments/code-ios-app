@@ -55,6 +55,8 @@ class ShareCashLinkItem: NSObject, UIActivityItemSource {
         switch activityType.rawValue {
         case "com.tinyspeck.chatlyio.share": // Slack
             return url
+        case "org.whispersystems.signal.shareextension": // Signal
+            return url
         default:
             break
         }
