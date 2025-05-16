@@ -24,10 +24,10 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             let equivalentUSD = converted.decimalValue / rate.fx
             
             // Trims any quark amount beyond 2 decimal places
-            let roundedUSD = equivalentUSD.rounded(to: 2)
+//            let roundedUSD = equivalentUSD.rounded(to: 2)
             
             let usdc = try Fiat(
-                fiatDecimal: roundedUSD,
+                fiatDecimal: equivalentUSD,
                 currencyCode: .usd
             )
             
