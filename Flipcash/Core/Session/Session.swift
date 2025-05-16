@@ -188,8 +188,8 @@ class Session: ObservableObject {
             
             Analytics.withdrawal(
                 exchangedFiat: exchangedFiat,
-                successful: true,
-                error: nil
+                successful: false,
+                error: error
             )
             
             throw error
