@@ -81,7 +81,8 @@ class SendCashOperation {
                             exchangedFiat: exchangedFiat,
                             owner: owner,
                             destination: paymentMetadata.account,
-                            rendezvous: rendezvous.publicKey
+                            rendezvous: rendezvous.publicKey,
+                            isWithdrawal: false
                         )
                         
                         _ = try await self.client.pollIntentMetadata(

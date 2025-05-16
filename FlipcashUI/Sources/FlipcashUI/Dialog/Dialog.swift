@@ -71,11 +71,13 @@ public struct Dialog: View {
 extension Dialog {
     public enum Style {
         case standard
+        case success
         case destructive
         
         var backgroundColor: Color {
             switch self {
             case .standard:    return .bannerInfo
+            case .success:     return .bannerSuccess
             case .destructive: return .bannerError
             }
         }

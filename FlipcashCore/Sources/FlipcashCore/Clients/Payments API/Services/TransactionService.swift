@@ -40,14 +40,15 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Transfer -
     
-    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, isWithdrawal: Bool, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         let intent = IntentTransfer(
             rendezvous: rendezvous,
             sourceCluster: sourceCluster,
             destination: destination,
-            exchangedFiat: exchangedFiat
+            exchangedFiat: exchangedFiat,
+            isWithdrawal: isWithdrawal
         )
         
         submit(intent: intent, owner: owner) { result in
@@ -400,7 +401,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
 
 // MARK: - Types -
 
-public struct DestinationMetadata {
+public struct DestinationMetadata: Sendable {
     
     public let destination: PublicKey
     public let isValid: Bool
@@ -421,13 +422,13 @@ public struct DestinationMetadata {
             
         case .owner:
             self.hasResolvedDestination = true
-            self.resolvedDestination = AssociatedTokenAccount(owner: destination, mint: Mint.kin).ata.publicKey
+            self.resolvedDestination = AssociatedTokenAccount(owner: destination, mint: Mint.usdc).ata.publicKey
         }
     }
 }
             
 extension DestinationMetadata {
-    public enum Kind: Int {
+    public enum Kind: Int, Sendable {
         case unknown
         case token
         case owner

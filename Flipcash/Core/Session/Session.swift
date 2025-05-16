@@ -159,6 +159,43 @@ class Session: ObservableObject {
         }
     }
     
+    // MARK: - Withdrawals -
+    
+    func withdraw(exchangedFiat: ExchangedFiat, to destination: PublicKey) async throws {
+        let rendezvous = PublicKey.generate()!
+        do {
+            try await self.client.transfer(
+                exchangedFiat: exchangedFiat,
+                owner: owner,
+                destination: destination,
+                rendezvous: rendezvous,
+                isWithdrawal: true
+            )
+            
+            Analytics.withdrawal(
+                exchangedFiat: exchangedFiat,
+                successful: true,
+                error: nil
+            )
+            
+        } catch {
+            
+            ErrorReporting.capturePayment(
+                error: error,
+                rendezvous: rendezvous,
+                exchangedFiat: exchangedFiat
+            )
+            
+            Analytics.withdrawal(
+                exchangedFiat: exchangedFiat,
+                successful: true,
+                error: nil
+            )
+            
+            throw error
+        }
+    }
+    
     // MARK: - Cash -
     
     func receiveCash(_ payload: CashCode.Payload, completion: @escaping (ReceiveCashResult) -> Void) {

@@ -239,7 +239,7 @@ struct ScanScreen: View {
                 SettingsScreen(
                     isPresented: $isShowingSettings,
                     container: container,
-                    session: session
+                    sessionContainer: sessionContainer
                 )
 //                .environmentObject(betaFlags)
 //                .environmentObject(client)

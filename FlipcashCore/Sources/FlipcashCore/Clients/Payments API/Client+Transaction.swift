@@ -17,14 +17,15 @@ extension Client {
         }
     }
     
-    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
+    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey, isWithdrawal: Bool) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 exchangedFiat: exchangedFiat,
                 sourceCluster: owner,
                 destination: destination,
                 owner: owner.authority.keyPair,
-                rendezvous: rendezvous
+                rendezvous: rendezvous,
+                isWithdrawal: isWithdrawal
             ) { c.resume(with: $0) }
         }
     }
@@ -95,14 +96,14 @@ extension Client {
 //            transactionService.fetchTransactionLimits(owner: owner, since: date) { c.resume(with: $0) }
 //        }
 //    }
-//    
-//    // MARK: - Withdrawals -
-//    
-//    public func fetchDestinationMetadata(destination: PublicKey) async -> DestinationMetadata {
-//        await withCheckedContinuation { c in
-//            transactionService.fetchDestinationMetadata(destination: destination) { c.resume(with: $0) }
-//        }
-//    }
+    
+    // MARK: - Withdrawals -
+    
+    public func fetchDestinationMetadata(destination: PublicKey) async -> DestinationMetadata {
+        await withCheckedContinuation { c in
+            transactionService.fetchDestinationMetadata(destination: destination) { c.resume(with: $0) }
+        }
+    }
 }
 
 // MARK: - Error -

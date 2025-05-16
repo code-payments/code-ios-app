@@ -47,6 +47,26 @@ import FlipcashCore
 
 extension Analytics {
     
+    static func withdrawal(exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
+        var properties: [Property: AnalyticsValue] = [
+            .state: successful ? String.success : String.failure,
+        ]
+        
+        if let exchangedFiat {
+            properties[.usdc]     = exchangedFiat.usdc.doubleValue
+            properties[.quarks]   = exchangedFiat.usdc.quarks.analyticsValue
+            properties[.fiat]     = exchangedFiat.converted.doubleValue
+            properties[.fx]       = exchangedFiat.rate.fx.analyticsValue
+            properties[.currency] = exchangedFiat.rate.currency.rawValue
+        }
+        
+        track(
+            event: .withdrawal,
+            properties: properties,
+            error: error
+        )
+    }
+    
     static func transfer(event: Name, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,

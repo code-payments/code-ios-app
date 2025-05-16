@@ -24,10 +24,6 @@ struct GiveScreen: View {
     
     private let kind: Kind
     
-    private var isSendEnabled: Bool {
-        true
-    }
-    
     private var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil

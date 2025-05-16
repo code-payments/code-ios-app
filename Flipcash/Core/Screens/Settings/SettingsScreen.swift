@@ -15,6 +15,7 @@ struct SettingsScreen: View {
     
     @Binding public var isPresented: Bool
     
+    @State private var isShowingWithdrawFlow = false
     @State private var isShowingAccountSelection = false
     @State private var isShowingLogoutConfirmation = false
     
@@ -28,15 +29,19 @@ struct SettingsScreen: View {
         trailing: 0
     )
     
+    private let container: Container
     private let sessionAuthenticator: SessionAuthenticator
+    private let sessionContainer: SessionContainer
     private let session: Session
     
     // MARK: - Init -
     
-    public init(isPresented: Binding<Bool>, container: Container, session: Session) {
+    public init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
         self._isPresented = isPresented
+        self.container = container
         self.sessionAuthenticator = container.sessionAuthenticator
-        self.session = session
+        self.sessionContainer = sessionContainer
+        self.session = sessionContainer.session
     }
     
     // MARK: - Body -
@@ -117,6 +122,17 @@ struct SettingsScreen: View {
                         action: switchAccount
                     )
                 }
+            }
+            
+            row(asset: .withdraw, title: "Withdraw") {
+                isShowingWithdrawFlow.toggle()
+            }
+            .sheet(isPresented: $isShowingWithdrawFlow) {
+                WithdrawAmountScreen(
+                    isPresented: $isShowingWithdrawFlow,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
             }
             
             row(asset: .logout, title: "Log Out") {
@@ -230,14 +246,4 @@ struct SettingsScreen: View {
             sessionAuthenticator.logout()
         }
     }
-}
-
-// MARK: - Previews -
-
-#Preview {
-    SettingsScreen(
-        isPresented: .constant(true),
-        container: .mock,
-        session: .mock
-    )
 }
