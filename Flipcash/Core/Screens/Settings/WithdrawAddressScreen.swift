@@ -29,13 +29,12 @@ struct WithdrawAddressScreen: View {
     
     var body: some View {
         Background(color: .backgroundMain) {
-            VStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 20) {
                 Text("Where would you like to withdraw $20 CAD of USDC to?")
                     .font(.appTextMedium)
-                    .foregroundColor(.textMain)
+                    .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.bottom, 20)
                 
                 VStack(spacing: 10) {
                     InputContainer(size: .regular) {
@@ -60,7 +59,6 @@ struct WithdrawAddressScreen: View {
                     disabled: !canPaste,
                     action: viewModel.pasteFromClipboardAction
                 )
-                .padding(.top, 5)
                 
                 Spacer()
                     .frame(minHeight: 1)
