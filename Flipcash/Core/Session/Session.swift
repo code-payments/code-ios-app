@@ -417,7 +417,7 @@ class Session: ObservableObject {
                 ))
             }
             
-            self.dismissCashBill(style: .pop)
+            self.dismissCashBill(style: didShare ? .pop : .slide)
             
             if didShare {
                 Task {
