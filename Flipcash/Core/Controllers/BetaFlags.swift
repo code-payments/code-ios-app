@@ -84,7 +84,7 @@ class BetaFlags: ObservableObject {
 extension BetaFlags {
     enum Option: String, Hashable, Equatable, Codable, CaseIterable, Identifiable {
         
-        case placeholder
+        case transactionDetails
         
         var id: String {
             localizedTitle
@@ -92,15 +92,15 @@ extension BetaFlags {
         
         var localizedTitle: String {
             switch self {
-            case .placeholder:
-                return "Temp"
+            case .transactionDetails:
+                return "Transaction details"
             }
         }
         
         var localizedDescription: String {
             switch self {
-            case .placeholder:
-                return "If enabled, this is a placeholder."
+            case .transactionDetails:
+                return "If enabled, tapping a transaction in Balance will open a details modal."
             }
         }
     }

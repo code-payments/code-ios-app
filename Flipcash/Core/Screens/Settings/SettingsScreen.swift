@@ -112,6 +112,10 @@ struct SettingsScreen: View {
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             if betaFlags.accessGranted {
+                navigationRow(asset: .debug, title: "Beta Flags", badge: betaBadge()) {
+                    BetaFlagsScreen(container: container)
+                }
+                
                 row(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge()) {
                     isShowingAccountSelection.toggle()
                 }

@@ -21,6 +21,8 @@ struct BalanceScreen: View {
     
     @State private var dialogItem: DialogItem?
     
+    @State private var selectedActivity: Activity?
+    
     @StateObject private var updateableActivities: Updateable<[Activity]>
     
     private var activities: [Activity] {
@@ -89,6 +91,20 @@ struct BalanceScreen: View {
                         ToolbarCloseButton(binding: $isPresented)
                     }
                 }
+                .sheet(item: $selectedActivity) { activity in
+                    PartialSheet(background: .backgroundMain) {
+                        TransactionDetailsModal(
+                            isPresented: Binding {
+                                selectedActivity != nil
+                            } set: { _ in
+                                selectedActivity = nil
+                            },
+                            activity: activity
+                        ) { metadata in
+                            cancelCashLinkAction(activity: activity, metadata: metadata)
+                        }
+                    }
+                }
             }
             .onAppear(perform: onAppear)
         }
@@ -141,7 +157,11 @@ struct BalanceScreen: View {
     
     @ViewBuilder private func row(activity: Activity) -> some View {
         Button {
-            rowAction(activity: activity)
+            if BetaFlags.shared.hasEnabled(.transactionDetails) {
+                selectedActivity = activity
+            } else {
+                rowAction(activity: activity)
+            }
         } label: {
             VStack {
                 HStack {
@@ -179,17 +199,11 @@ struct BalanceScreen: View {
     // MARK: - Action -
     
     private func rowAction(activity: Activity) {
-        switch activity.state {
-        case .pending:
-            if case .cashLink(let cashLinkMetadata) = activity.metadata, cashLinkMetadata.canCancel {
-                cancelCashLinkAction(
-                    activity: activity,
-                    metadata: cashLinkMetadata
-                )
-            }
-            
-        case .completed, .unknown:
-            break
+        if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
+            cancelCashLinkAction(
+                activity: activity,
+                metadata: cashLinkMetadata
+            )
         }
     }
     

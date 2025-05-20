@@ -17,6 +17,20 @@ public struct Activity: Identifiable, Sendable, Equatable, Hashable {
     public let date: Date
     public let metadata: Metadata?
     
+    public var cancellableCashLinkMetadata: CashLinkMetadata? {
+        switch state {
+        case .pending:
+            if case .cashLink(let cashLinkMetadata) = metadata, cashLinkMetadata.canCancel {
+                return cashLinkMetadata
+            }
+            
+        case .completed, .unknown:
+            break
+        }
+        
+        return nil
+    }
+    
     public init(id: PublicKey, state: State, kind: Kind, title: String, exchangedFiat: ExchangedFiat, date: Date, metadata: Metadata?) {
         self.id = id
         self.state = state
@@ -45,10 +59,22 @@ extension Activity {
 // MARK: - Kind -
 
 extension Activity {
-    public enum State: Int, Sendable {
+    public enum State: Int, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
         case unknown   = 0
         case pending   = 1
         case completed = 2
+        
+        public var description: String {
+            switch self {
+            case .unknown:   "Unknown"
+            case .pending:   "Pending"
+            case .completed: "Completed"
+            }
+        }
+        
+        public var debugDescription: String {
+            description
+        }
     }
 }
 
