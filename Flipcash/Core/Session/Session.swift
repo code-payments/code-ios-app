@@ -24,6 +24,8 @@ class Session: ObservableObject {
     
     @Published var valuation: BillValuation? = nil
     @Published var toast: Toast? = nil
+    
+    @Published var dialogItem: DialogItem?
 
     let owner: AccountCluster
     let userID: UserID
@@ -351,6 +353,11 @@ class Session: ObservableObject {
                     return
                 }
                 
+                guard giftCardAccountInfo.claimState != .claimed && giftCardAccountInfo.claimState != .expired else {
+                    showCashLinkNotAvailable()
+                    return
+                }
+                
                 try await client.receiveCashLink(
                     usdc: exchangedFiat.usdc,
                     ownerCluster: owner,
@@ -456,6 +463,19 @@ class Session: ObservableObject {
             billState         = .init(
                 bill: .cash(payload)
             )
+        }
+    }
+    
+    // MARK: - Errors -
+    
+    private func showCashLinkNotAvailable() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Funds No Longer Available",
+            subtitle: "This cash link has expired or has already been claimed.",
+            dismissable: true
+        ) {
+            .okay()
         }
     }
 }

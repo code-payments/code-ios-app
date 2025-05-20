@@ -121,6 +121,7 @@ struct ScanScreen: View {
             }
             .interactiveDismissDisabled()
         }
+        .dialog(item: $session.dialogItem)
     }
     
     @ViewBuilder private func cameraViewport() -> some View {
