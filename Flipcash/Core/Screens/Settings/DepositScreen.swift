@@ -29,7 +29,7 @@ struct DepositScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Deposit USDC into your Code wallet by sending USDC to your deposit address below. Tap to copy.")
+                Text("Deposit funds into your wallet by sending USDC to your deposit address below. Tap to copy.")
                     .font(.appTextMedium)
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.leading)

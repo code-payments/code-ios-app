@@ -164,7 +164,7 @@ struct ScanScreen: View {
     @ViewBuilder private func authorizeView() -> some View {
         let goToSettings = directToSettingsForCamera == true
         VStack(spacing: 40) {
-            Text(goToSettings ? "You need to turn on Camera in Settings to scan Codes" : "Flipcash enables you to receive cash by pointing your camera at the digital bill on another user's phone")
+            Text(goToSettings ? "You need to turn on Camera in Settings to scan Codes" : "Flipcash enables you to grab the digital cash displayed on another user's phone by pointing your camera at it")
                 .frame(maxWidth: 260)
                 .multilineTextAlignment(.center)
             

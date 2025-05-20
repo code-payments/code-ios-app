@@ -27,7 +27,7 @@ class ShareCashLinkItem: NSObject, UIActivityItemSource {
         self.exchangedFiat = exchangedFiat
         self.url           = URL.cashLink(with: giftCard.mnemonic)
         
-        self.formattedAmount = exchangedFiat.converted.formatted(suffix: " of USD")
+        self.formattedAmount = exchangedFiat.converted.formatted(suffix: nil)
         self.content         = "\(formattedAmount) \(url.absoluteString)"
         self.subject         = "Here's \(formattedAmount)"
         self.shareSheetTitle = "Send \(formattedAmount)"
