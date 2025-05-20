@@ -116,15 +116,15 @@ extension UInt64: @retroactive Value {
 
 extension PublicKey: @retroactive Value {
     public static var declaredDatatype: String {
-        String.declaredDatatype
+        Blob.declaredDatatype
     }
 
-    public static func fromDatatypeValue(_ dataValue: String) -> PublicKey {
-        PublicKey(base58: dataValue)!
+    public static func fromDatatypeValue(_ dataValue: Blob) -> PublicKey {
+        PublicKey(dataValue.bytes)!
     }
 
-    public var datatypeValue: String {
-        base58
+    public var datatypeValue: Blob {
+        Blob(bytes: bytes)
     }
 }
 
