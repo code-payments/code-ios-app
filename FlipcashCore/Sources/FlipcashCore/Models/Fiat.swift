@@ -97,9 +97,10 @@ extension Fiat {
         }
     }
     
-    public func formatted(suffix: String?) -> String {
+    public func formatted(showAllDecimals: Bool = false, suffix: String?) -> String {
         NumberFormatter.fiat(
             currency: currencyCode,
+            minimumFractionDigits: showAllDecimals ? 6 : 2,
             truncated: false,
             suffix: suffix
         ).string(from: quarks.toFiat)!

@@ -47,7 +47,7 @@ struct TransactionDetailsModal: View {
             ),
             DetailRow(
                 title: "USDC",
-                subtitle: activity.exchangedFiat.usdc.formatted(suffix: nil)
+                subtitle: activity.exchangedFiat.usdc.formatted(showAllDecimals: true, suffix: nil)
             ),
         ]
     }
