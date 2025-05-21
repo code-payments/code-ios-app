@@ -237,7 +237,7 @@ struct BalanceScreen: View {
                     subtitle: "Something went wrong. Please try again later",
                     dismissable: true
                 ) {
-                    .okay()
+                    .okay(kind: .destructive)
                 }
             }
         }

@@ -96,7 +96,7 @@ class OnboardingViewModel: ObservableObject {
                     subtitle: "Please allow Flipchat access to Photos in Settings in order to save your Access Key.",
                     dismissable: true
                 ) {
-                    .standard("Open Settings") {
+                    .destructive("Open Settings") {
                         URL.openSettings()
                     };
                     .notNow()
@@ -147,7 +147,7 @@ class OnboardingViewModel: ObservableObject {
                     subtitle: "We couldn't create your account. Please try again.",
                     dismissable: true
                 ) {
-                    .okay()
+                    .okay(kind: .destructive)
                 }
                 buyAccountButtonState = .normal
             }

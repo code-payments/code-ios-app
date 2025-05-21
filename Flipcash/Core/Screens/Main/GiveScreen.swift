@@ -139,7 +139,7 @@ struct GiveScreen: View {
             subtitle: "Please enter a lower amount and try again",
             dismissable: true
         ) {
-            .okay()
+            .okay(kind: .destructive)
         }
     }
 }

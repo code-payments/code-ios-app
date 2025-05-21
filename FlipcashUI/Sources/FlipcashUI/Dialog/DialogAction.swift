@@ -45,9 +45,9 @@ public struct DialogAction {
     
     // MARK: - Pre-baked -
     
-    public static func okay(action: @escaping () -> Void = {}) -> Self {
+    public static func okay(kind: Kind, action: @escaping () -> Void = {}) -> Self {
         self.init(
-            kind: .standard,
+            kind: kind,
             title: "OK",
             action: action
         )
@@ -82,7 +82,7 @@ extension DialogAction {
             switch self {
             case .standard:    return .filled
             case .subtle:      return .subtle
-            case .destructive: return .filled
+            case .destructive: return .filledDestructive
             }
         }
         

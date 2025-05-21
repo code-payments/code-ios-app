@@ -186,7 +186,7 @@ class WithdrawViewModel: ObservableObject {
             subtitle: "Your withdrawal has been processed. It may take a few minutes for your funds to show up in your destination wallet.",
             dismissable: false
         ) {
-            .okay { [weak self] in
+            .okay(kind: .standard) { [weak self] in
                 self?.isPresented.wrappedValue = false
             }
         }
@@ -199,7 +199,7 @@ class WithdrawViewModel: ObservableObject {
             subtitle: "Please enter a lower amount and try again",
             dismissable: true
         ) {
-            .okay()
+            .okay(kind: .destructive)
         }
     }
 }

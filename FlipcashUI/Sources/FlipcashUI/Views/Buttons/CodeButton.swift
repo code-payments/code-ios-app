@@ -43,7 +43,7 @@ public struct CodeButton: View {
     public var body: some View {
         Group {
             switch style {
-            case .bordered, .filled, .filledMedium, .filledThin:
+            case .bordered, .filled, .filledDestructive, .filledMedium, .filledThin:
                 button()
                     .buttonStyle(CustomStyle(style: style, isDisabled: isDisabled()))
                 
@@ -110,7 +110,7 @@ public struct CodeButton: View {
         switch style {
         case .bordered:
             return .textMain
-        case .filled, .filledMedium, .filledThin, .subtle:
+        case .filled, .filledDestructive, .filledMedium, .filledThin, .subtle:
             return .textSecondary
         }
     }
@@ -121,7 +121,7 @@ public struct CodeButton: View {
             return Metrics.buttonHeightThin
         case .filledMedium:
             return 55
-        case .bordered, .filled, .subtle:
+        case .bordered, .filled, .filledDestructive, .subtle:
             return Metrics.buttonHeight
         }
     }
@@ -133,6 +133,7 @@ extension CodeButton {
     public enum Style {
         case bordered
         case filled
+        case filledDestructive
         case filledMedium
         case filledThin
         case subtle
@@ -165,7 +166,7 @@ private extension CodeButton {
                         .stroke(Color.textMain, lineWidth: Metrics.buttonLineWidth)
                 }
                 
-            case .filled, .filledMedium, .filledThin:
+            case .filled, .filledDestructive, .filledMedium, .filledThin:
                 if isDisabled {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(Color.actionDisabled)
@@ -186,6 +187,13 @@ private extension CodeButton {
                     return .backgroundRow
                 } else {
                     return .textMain
+                }
+                
+            case .filledDestructive:
+                if isDisabled {
+                    return .textActionDisabled
+                } else {
+                    return .bannerError
                 }
                 
             case .filled, .filledMedium, .filledThin:

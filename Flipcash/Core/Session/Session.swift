@@ -544,7 +544,7 @@ class Session: ObservableObject {
             subtitle: "This cash link has expired or has already been claimed.",
             dismissable: true
         ) {
-            .okay()
+            .okay(kind: .destructive)
         }
     }
 }
