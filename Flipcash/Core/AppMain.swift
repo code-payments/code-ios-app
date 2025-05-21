@@ -12,7 +12,13 @@ import Firebase
 @main
 struct AppMain: App {
     
+    @Environment(\.scenePhase) private var scenePhase
+    
     let container = Container()
+    
+    private var isAppBackgrounded: Bool {
+        scenePhase == .background || scenePhase == .inactive
+    }
     
     // MARK: - Init -
     
