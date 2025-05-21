@@ -53,7 +53,8 @@ class StoreController: NSObject, ObservableObject {
                 print("\($0.id): \($0.formattedPrice) - \($0.displayName)")
             }
         } catch {
-//            ErrorReporting.captureError(error)
+            ErrorReporting.captureError(error)
+            throw error
         }
     }
     
