@@ -72,6 +72,9 @@ struct BuyAccountScreen: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .dialog(item: $viewModel.dialogItem)
+        .task {
+            storeController.loadProductsIfNeeded()
+        }
     }
     
     @ViewBuilder private func descriptions(formattedPrice: String) -> some View {
