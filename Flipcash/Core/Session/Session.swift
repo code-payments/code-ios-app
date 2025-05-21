@@ -174,6 +174,8 @@ class Session: ObservableObject {
                 isWithdrawal: true
             )
             
+            historyController.sync()
+            
             Analytics.withdrawal(
                 exchangedFiat: exchangedFiat,
                 successful: true,
@@ -224,6 +226,7 @@ class Session: ObservableObject {
                 let metadata = try await operation.start()
                 
                 updateBalance()
+                historyController.sync()
                 
                 enqueue(toast: .init(
                     amount: metadata.exchangedFiat.converted,
@@ -299,7 +302,10 @@ class Session: ObservableObject {
                     amount: billDescription.exchangedFiat.converted,
                     isDeposit: false
                 ))
+                
                 self?.updateBalance()
+                self?.historyController.sync()
+                
                 self?.dismissCashBill(style: .pop)
                 
                 Analytics.transfer(
@@ -367,6 +373,7 @@ class Session: ObservableObject {
                     )
                     
                     self.updateBalance()
+                    self.historyController.sync()
                     
                 } catch {
                     
@@ -425,6 +432,7 @@ class Session: ObservableObject {
                 )
                 
                 updateBalance()
+                historyController.sync()
                 
                 enqueue(toast: .init(
                     amount: exchangedFiat.converted,
