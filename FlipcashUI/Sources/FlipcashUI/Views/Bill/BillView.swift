@@ -200,7 +200,7 @@ public struct BillView: View {
                         }
                         .padding(.bottom, geometry.mintPadding)
                         
-                        HStack {
+                        HStack(spacing: 0) {
                             VStack {
                                 Image.asset(.flipcashBrand)
                                     .resizable()
@@ -211,6 +211,11 @@ public struct BillView: View {
                                 Spacer()
                             }
                             Spacer()
+                            
+                            // 2 (of 2008)
+                            LineView(count: 2, spacing: geometry.linesSpacing)
+                                .padding(.bottom, -2)
+                                .padding(.trailing, geometry.valuePadding * 4)
                             
                             // 2008
                             LineView(count: 8, spacing: geometry.linesSpacing)
