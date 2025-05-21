@@ -22,7 +22,7 @@ struct ScanScreen: View {
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var isShowingGive: Bool = false
-    @State private var isShowingSend: Bool = false
+//    @State private var isShowingSend: Bool = false
     
     private var toast: String? {
         if let toast = session.toast {
@@ -212,6 +212,16 @@ struct ScanScreen: View {
             Spacer()
             
             HStack(alignment: .center, spacing: 30) {
+                if let secondaryAction = session.billState.secondaryAction {
+                    CapsuleButton(
+                        state: .normal,
+                        asset: secondaryAction.asset,
+                        title: secondaryAction.title
+                    ) {
+                        secondaryAction.action()
+                    }
+                }
+                
                 if let primaryAction = session.billState.primaryAction {
                     CapsuleButton(
                         state: .normal,
@@ -257,7 +267,7 @@ struct ScanScreen: View {
     @ViewBuilder private func bottomBar() -> some View {
         HStack(alignment: .bottom) {
             LargeButton(
-                title: "Give",
+                title: "Cash",
                 image: .asset(.tipcard),
                 spacing: 12,
                 maxWidth: 80,
@@ -273,23 +283,23 @@ struct ScanScreen: View {
                 )
             }
             
-            LargeButton(
-                title: "Send",
-                image: .asset(.airplane),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                badgeInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 5),
-                aligment: .bottom,
-                binding: $isShowingSend
-            )
-            .sheet(isPresented: $isShowingSend) {
-                GiveScreen(
-                    isPresented: $isShowingSend,
-                    kind: .cashLink
-                )
-            }
+//            LargeButton(
+//                title: "Send",
+//                image: .asset(.airplane),
+//                spacing: 12,
+//                maxWidth: 80,
+//                maxHeight: 80,
+//                fullWidth: true,
+//                badgeInsets: .init(top: 0, leading: 0, bottom: 0, trailing: 5),
+//                aligment: .bottom,
+//                binding: $isShowingSend
+//            )
+//            .sheet(isPresented: $isShowingSend) {
+//                GiveScreen(
+//                    isPresented: $isShowingSend,
+//                    kind: .cashLink
+//                )
+//            }
             
             ToastContainer(toast: toast) {
                 LargeButton(

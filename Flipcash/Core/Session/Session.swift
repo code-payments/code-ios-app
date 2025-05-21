@@ -287,6 +287,9 @@ class Session: ObservableObject {
             primaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
                 self?.dismissCashBill(style: .slide)
             },
+            secondaryAction: .init(asset: .airplane, title: "Send") { [weak self] in
+                self?.showCashLinkShareSheet(operation: operation, exchangedFiat: billDescription.exchangedFiat)
+            },
         )
         
         operation.start { [weak self] result in
@@ -321,6 +324,63 @@ class Session: ObservableObject {
                     successful: false,
                     error: error
                 )
+            }
+        }
+    }
+    
+    private func showCashLinkShareSheet(operation: SendCashOperation, exchangedFiat: ExchangedFiat) {
+        let payload = operation.payload
+        
+        let owner    = owner
+        let giftCard = GiftCardCluster()
+        let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
+        
+        // Disable scanning of the bill
+        // while the share sheet is up
+        operation.ignoresStream = true
+        
+        ShareSheet.present(activityItem: item) { [weak self] didShare in
+            guard let self = self else { return }
+            
+            if !didShare {
+                operation.ignoresStream = false
+            }
+            
+            guard didShare else {
+                return
+            }
+            
+            self.enqueue(toast: .init(
+                amount: exchangedFiat.converted,
+                isDeposit: false
+            ))
+            
+            self.dismissCashBill(style: .pop)
+            
+            Task {
+                do {
+                    try await self.client.sendCashLink(
+                        exchangedFiat: exchangedFiat,
+                        ownerCluster: owner,
+                        giftCard: giftCard,
+                        rendezvous: payload.rendezvous.publicKey
+                    )
+                    
+                    self.updateBalance()
+                    
+                } catch {
+                    
+                    ErrorReporting.captureError(error)
+                    
+                    Analytics.transfer(
+                        event: .sendCashLink,
+                        exchangedFiat: exchangedFiat,
+                        successful: false,
+                        error: error
+                    )
+                    
+                    // TODO: Show error
+                }
             }
         }
     }
@@ -396,75 +456,76 @@ class Session: ObservableObject {
                     error: error
                 )
                 
+                showCashLinkNotAvailable()
                 trace(.failure, components: "Failed to receive cash link for gift card: \(giftCard)")
             }
         }
     }
     
-    func showCashLinkBillWithShareSheet(exchangedFiat: ExchangedFiat) {
-        let operation = SendCashOperation(
-            client: client,
-            owner: owner,
-            exchangedFiat: exchangedFiat
-        )
-        
-        let payload = operation.payload
-        
-        let owner    = owner
-        let giftCard = GiftCardCluster()
-        let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
-        
-        ShareSheet.present(activityItem: item) { [weak self] didShare in
-            guard let self = self else { return }
-            
-            if didShare {
-                self.enqueue(toast: .init(
-                    amount: exchangedFiat.converted,
-                    isDeposit: false
-                ))
-            }
-            
-            self.dismissCashBill(style: didShare ? .pop : .slide)
-            
-            if didShare {
-                Task {
-                    do {
-                        try await self.client.sendCashLink(
-                            exchangedFiat: exchangedFiat,
-                            ownerCluster: owner,
-                            giftCard: giftCard,
-                            rendezvous: payload.rendezvous.publicKey
-                        )
-                        
-                        self.updateBalance()
-                        
-                    } catch {
-                        
-                        ErrorReporting.captureError(error)
-                        
-                        Analytics.transfer(
-                            event: .sendCashLink,
-                            exchangedFiat: exchangedFiat,
-                            successful: false,
-                            error: error
-                        )
-                        
-                        // TODO: Show error
-                    }
-                }
-            }
-        }
-        
-        Task {
-            try await Task.delay(milliseconds: 350)
-            
-            sendOperation     = operation
-            presentationState = .visible(.slide)
-            billState         = .init(
-                bill: .cash(payload)
-            )
-        }
-    }
+//    func showCashLinkBillWithShareSheet(exchangedFiat: ExchangedFiat) {
+//        let operation = SendCashOperation(
+//            client: client,
+//            owner: owner,
+//            exchangedFiat: exchangedFiat
+//        )
+//        
+//        let payload = operation.payload
+//        
+//        let owner    = owner
+//        let giftCard = GiftCardCluster()
+//        let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
+//        
+//        ShareSheet.present(activityItem: item) { [weak self] didShare in
+//            guard let self = self else { return }
+//            
+//            if didShare {
+//                self.enqueue(toast: .init(
+//                    amount: exchangedFiat.converted,
+//                    isDeposit: false
+//                ))
+//            }
+//            
+//            self.dismissCashBill(style: didShare ? .pop : .slide)
+//            
+//            if didShare {
+//                Task {
+//                    do {
+//                        try await self.client.sendCashLink(
+//                            exchangedFiat: exchangedFiat,
+//                            ownerCluster: owner,
+//                            giftCard: giftCard,
+//                            rendezvous: payload.rendezvous.publicKey
+//                        )
+//                        
+//                        self.updateBalance()
+//                        
+//                    } catch {
+//                        
+//                        ErrorReporting.captureError(error)
+//                        
+//                        Analytics.transfer(
+//                            event: .sendCashLink,
+//                            exchangedFiat: exchangedFiat,
+//                            successful: false,
+//                            error: error
+//                        )
+//                        
+//                        // TODO: Show error
+//                    }
+//                }
+//            }
+//        }
+//        
+//        Task {
+//            try await Task.delay(milliseconds: 350)
+//            
+//            sendOperation     = operation
+//            presentationState = .visible(.slide)
+//            billState         = .init(
+//                bill: .cash(payload)
+//            )
+//        }
+//    }
     
     // MARK: - Errors -
     

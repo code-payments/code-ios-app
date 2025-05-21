@@ -14,6 +14,8 @@ class SendCashOperation {
     
     let payload: CashCode.Payload
     
+    var ignoresStream = false
+    
     private let client: Client
     private let owner: AccountCluster
     private let exchangedFiat: ExchangedFiat
@@ -47,6 +49,10 @@ class SendCashOperation {
         messageStream = self.client.openMessageStream(rendezvous: self.payload.rendezvous) { [weak self] result in
             guard let self = self else { return }
             
+            guard !self.ignoresStream else {
+                return
+            }
+            
             switch result {
             case .success(let paymentMetadata):
                 
@@ -62,13 +68,6 @@ class SendCashOperation {
                 
                 guard isValid else {
                     let error: Error = Error.invalidPaymentDestinationSignature
-//                    ErrorReporting.capturePayment(
-//                        error: error,
-//                        rendezvous: rendezvous.publicKey,
-//                        tray: tray,
-//                        amount: amount,
-//                        reason: "Request signature verification failed"
-//                    )
                     completion(.failure(error))
                     return
                 }
@@ -93,7 +92,6 @@ class SendCashOperation {
                         completion(.success(()))
                         
                     } catch {
-//                        ErrorReporting.capture(error)
                         completion(.failure(error))
                     }
                 }

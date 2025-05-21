@@ -66,7 +66,7 @@ struct GiveScreen: View {
                     enteredAmount: $enteredAmount,
                     actionState: $actionState,
                     actionEnabled: { _ in
-                        enteredFiat != nil
+                        enteredFiat != nil && (enteredFiat?.usdc.quarks ?? 0) > 0
                     },
                     action: nextAction,
                     currencySelectionAction: showCurrencySelection
@@ -120,7 +120,8 @@ struct GiveScreen: View {
                 )
                 
             case .cashLink:
-                session.showCashLinkBillWithShareSheet(exchangedFiat: exchangedFiat)
+//                session.showCashLinkBillWithShareSheet(exchangedFiat: exchangedFiat)
+                break
             }
         }
     }
