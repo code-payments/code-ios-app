@@ -12,15 +12,13 @@ import FlipcashCore
 class ScanCashOperation {
     
     private let client: Client
-    private let historyController: HistoryController
     private let owner: AccountCluster
     private let payload: CashCode.Payload
     
     // MARK: - Init -
     
-    init(client: Client, historyController: HistoryController, owner: AccountCluster, payload: CashCode.Payload) {
+    init(client: Client, owner: AccountCluster, payload: CashCode.Payload) {
         self.client  = client
-        self.historyController = historyController
         self.owner   = owner
         self.payload = payload
     }
@@ -42,7 +40,10 @@ class ScanCashOperation {
             )
             
             if case .sendPayment(let paymentMetadata) = metadata {
-                historyController.sync()
+                return paymentMetadata
+            }
+            
+            if case .receivePayment(let paymentMetadata) = metadata {
                 return paymentMetadata
             }
             

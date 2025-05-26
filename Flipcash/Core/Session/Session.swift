@@ -211,7 +211,6 @@ class Session: ObservableObject {
         
         let operation = ScanCashOperation(
             client: client,
-            historyController: historyController,
             owner: owner,
             payload: payload
         )
