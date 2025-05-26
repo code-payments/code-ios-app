@@ -72,7 +72,9 @@ struct GiveScreen: View {
                     currencySelectionAction: showCurrencySelection
                 )
                 .foregroundColor(.textMain)
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+                .padding(.top, -20)
                 .sheet(isPresented: $isShowingCurrencySelection) {
                     CurrencySelectionScreen(
                         isPresented: $isShowingCurrencySelection,
@@ -81,7 +83,7 @@ struct GiveScreen: View {
                     )
                 }
             }
-            .navigationTitle(kind.navigationTitle)
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

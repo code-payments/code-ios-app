@@ -235,6 +235,7 @@ struct ScanScreen: View {
                 }
             }
         }
+        .padding(.bottom, 10)
     }
     
     @ViewBuilder private func topBar() -> some View {
@@ -268,7 +269,7 @@ struct ScanScreen: View {
         HStack(alignment: .bottom) {
             LargeButton(
                 title: "Cash",
-                image: .asset(.tipcard),
+                image: .asset(.cash),
                 spacing: 12,
                 maxWidth: 80,
                 maxHeight: 80,

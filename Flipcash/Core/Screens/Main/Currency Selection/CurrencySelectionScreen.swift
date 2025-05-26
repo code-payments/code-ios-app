@@ -58,6 +58,7 @@ struct CurrencySelectionScreen: View {
                 placement: .navigationBarDrawer(displayMode: .always),
                 prompt: "Search Currencies"
             )
+            .foregroundStyle(Color.textMain)
         }
         .onAppear {
 //            Analytics.open(screen: .currencySelection)

@@ -117,6 +117,7 @@ public enum Asset: String, Sendable {
     case flipcashLogo
     case airplane
     case successCheckmark
+    case cash
     
     // Flipchat
     

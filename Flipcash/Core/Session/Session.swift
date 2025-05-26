@@ -540,8 +540,8 @@ class Session: ObservableObject {
     private func showCashLinkNotAvailable() {
         dialogItem = .init(
             style: .destructive,
-            title: "Funds No Longer Available",
-            subtitle: "This cash link has expired or has already been claimed.",
+            title: "Cash Already Collected",
+            subtitle: "This cash has already been collected",
             dismissable: true
         ) {
             .okay(kind: .destructive)
