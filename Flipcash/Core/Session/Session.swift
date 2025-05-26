@@ -275,9 +275,11 @@ class Session: ObservableObject {
             exchangedFiat: billDescription.exchangedFiat
         )
         
+        let payload = operation.payload
+        
         if billDescription.received {
             valuation = BillValuation(
-                rendezvous: operation.payload.rendezvous.publicKey,
+                rendezvous: payload.rendezvous.publicKey,
                 exchangedFiat: billDescription.exchangedFiat
             )
         }
@@ -285,12 +287,14 @@ class Session: ObservableObject {
         sendOperation     = operation
         presentationState = .visible(billDescription.received ? .pop : .slide)
         billState         = .init(
-            bill: .cash(operation.payload),
+            bill: .cash(payload),
             primaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
                 self?.dismissCashBill(style: .slide)
             },
-            secondaryAction: .init(asset: .airplane, title: "Send") { [weak self] in
-                self?.showCashLinkShareSheet(operation: operation, exchangedFiat: billDescription.exchangedFiat)
+            secondaryAction: .init(asset: .airplane, title: "Send") { [weak self, weak operation] in
+                if let operation {
+                    self?.showCashLinkShareSheet(operation: operation, exchangedFiat: billDescription.exchangedFiat)
+                }
             },
         )
         
@@ -319,7 +323,7 @@ class Session: ObservableObject {
                 
                 ErrorReporting.capturePayment(
                     error: error,
-                    rendezvous: operation.payload.rendezvous.publicKey,
+                    rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat
                 )
                 
