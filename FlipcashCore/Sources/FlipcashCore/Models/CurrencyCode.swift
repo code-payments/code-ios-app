@@ -258,6 +258,9 @@ extension CurrencyCode {
     }
     
     public init?(index: Byte) {
+        guard index >= 0 && index < CurrencyCode.allCases.count else {
+            return nil
+        }
         self = CurrencyCode.allCases[Int(index)]
     }
 }
