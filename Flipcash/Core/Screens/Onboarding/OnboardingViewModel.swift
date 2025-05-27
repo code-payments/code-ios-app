@@ -129,7 +129,7 @@ class OnboardingViewModel: ObservableObject {
                 )
                 
                 switch result {
-                case .success(let product):
+                case .success:
                     
                     try await createAccount()
                     buyAccountButtonState = .success
@@ -141,6 +141,8 @@ class OnboardingViewModel: ObservableObject {
                 }
                 
             } catch {
+                ErrorReporting.captureError(error)
+                
                 dialogItem = .init(
                     style: .destructive,
                     title: "Something Went Wrong",
@@ -179,7 +181,7 @@ class OnboardingViewModel: ObservableObject {
         // Prevent server race condition for airdrop
         try await Task.delay(seconds: 1)
         
-        try await client.airdrop(
+        _ = try? await client.airdrop(
             type: .getFirstCrypto,
             owner: account.keyAccount.derivedKey.keyPair
         )

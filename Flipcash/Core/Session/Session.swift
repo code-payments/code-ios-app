@@ -75,10 +75,22 @@ class Session: ObservableObject {
         self.userID            = userID
         
         registerPoller()
+        attemptAirdrop()
     }
     
     func prepareForLogout() {
         
+    }
+    
+    // MARK: - Airdrop -
+    
+    private func attemptAirdrop() {
+        // In rare cases account creation airdrop
+        // might fail and so we'll have it again
+        // in case the server has something to send
+        Task {
+            try await client.airdrop(type: .getFirstCrypto, owner: ownerKeyPair)
+        }
     }
     
     // MARK: - Balance -
