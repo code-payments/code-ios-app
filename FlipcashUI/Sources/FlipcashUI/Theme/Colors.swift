@@ -28,7 +28,7 @@ extension Color {
     public static let bannerError         = Color(r: 188, g: 52,  b: 52)
     public static let bannerInfo          = Color(r: 86 , g: 92,  b: 134)
     public static let bannerWarning       = Color(r: 241, g: 171, b: 31)
-    public static let bannerSuccess       = Color(r: 15,  g: 80,  b: 32)
+    public static let bannerSuccess       = Color(r: 9,   g: 85,  b: 11)
     
     public static let button              = Color(r: 28,  g: 24,  b: 52)
     
@@ -104,6 +104,7 @@ extension UIColor {
     public static let bannerError         = UIColor(r: 188, g: 52,  b: 52)
     public static let bannerInfo          = UIColor(r: 86 , g: 92,  b: 134)
     public static let bannerWarning       = UIColor(r: 241, g: 171, b: 31)
+    public static let bannerSuccess       = UIColor(r: 9,   g: 85,  b: 11)
     
     public static let button              = UIColor(r: 28,  g: 24,  b: 52)
     

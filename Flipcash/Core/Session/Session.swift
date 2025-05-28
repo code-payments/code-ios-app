@@ -125,6 +125,11 @@ class Session: ObservableObject {
         }
     }
     
+    func updateBalanceAndHistory() {
+        updateBalance()
+        historyController.sync()
+    }
+    
     // MARK: - Toast -
     
     private func show(toast: Toast) {
@@ -236,8 +241,7 @@ class Session: ObservableObject {
             do {
                 let metadata = try await operation.start()
                 
-                updateBalance()
-                historyController.sync()
+                updateBalanceAndHistory()
                 
                 enqueue(toast: .init(
                     amount: metadata.exchangedFiat.converted,
@@ -300,13 +304,28 @@ class Session: ObservableObject {
         presentationState = .visible(billDescription.received ? .pop : .slide)
         billState         = .init(
             bill: .cash(payload),
-            primaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
-                self?.dismissCashBill(style: .slide)
-            },
-            secondaryAction: .init(asset: .airplane, title: "Send") { [weak self, weak operation] in
-                if let operation {
-                    self?.showCashLinkShareSheet(operation: operation, exchangedFiat: billDescription.exchangedFiat)
+            primaryAction: .init(asset: .airplane, title: "Send") { [weak self, weak operation] in
+                if let operation, let self {
+                    // Disable scanning of the bill
+                    // while the share sheet is up
+                    operation.ignoresStream = true
+                    
+                    let payload       = operation.payload
+                    let exchangedFiat = billDescription.exchangedFiat
+                    
+                    let giftCard = try await self.createCashLink(
+                        payload: payload,
+                        exchangedFiat: exchangedFiat
+                    )
+                    
+                    self.showCashLinkShareSheet(
+                        giftCard: giftCard,
+                        exchangedFiat: exchangedFiat
+                    )
                 }
+            },
+            secondaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
+                self?.dismissCashBill(style: .slide)
             },
         )
         
@@ -318,8 +337,7 @@ class Session: ObservableObject {
                     isDeposit: false
                 ))
                 
-                self?.updateBalance()
-                self?.historyController.sync()
+                self?.updateBalanceAndHistory()
                 
                 self?.dismissCashBill(style: .pop)
                 
@@ -349,59 +367,49 @@ class Session: ObservableObject {
         }
     }
     
-    private func showCashLinkShareSheet(operation: SendCashOperation, exchangedFiat: ExchangedFiat) {
-        let payload = operation.payload
-        
-        let owner    = owner
-        let giftCard = GiftCardCluster()
-        let item     = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
-        
-        // Disable scanning of the bill
-        // while the share sheet is up
-        operation.ignoresStream = true
-        
+    private func showCashLinkShareSheet(giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat) {
+        let item = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
         ShareSheet.present(activityItem: item) { [weak self] didShare in
             guard let self = self else { return }
             
-            if !didShare {
-                operation.ignoresStream = false
+            let cancelSend = {
+                self.dismissCashBill(style: .slide)
+                Task {
+                    try await self.cancelCashLink(giftCardVault: giftCard.cluster.vaultPublicKey)
+                    self.updateBalanceAndHistory()
+                }
             }
             
+            // If the share sheet detected no action,
+            // it will be functionally identical to
+            // cancelling the cash link
             guard didShare else {
+                cancelSend()
                 return
             }
             
-            self.enqueue(toast: .init(
-                amount: exchangedFiat.converted,
-                isDeposit: false
-            ))
-            
-            self.dismissCashBill(style: .pop)
-            
-            Task {
-                do {
-                    try await self.client.sendCashLink(
-                        exchangedFiat: exchangedFiat,
-                        ownerCluster: owner,
-                        giftCard: giftCard,
-                        rendezvous: payload.rendezvous.publicKey
-                    )
-                    
-                    self.updateBalance()
-                    self.historyController.sync()
-                    
-                } catch {
-                    
-                    ErrorReporting.captureError(error)
-                    
-                    Analytics.transfer(
-                        event: .sendCashLink,
-                        exchangedFiat: exchangedFiat,
-                        successful: false,
-                        error: error
-                    )
-                    
-                    // TODO: Show error
+            self.dialogItem = .init(
+                style: .success,
+                title: "Did you send the link?",
+                subtitle: "Any cash that isn't collected within 24 hours will be automatically returned to your balance",
+                dismissable: false,
+            ) {
+                .standard("Yes") {
+                    Task {
+                        try await Task.delay(milliseconds: 250)
+                        
+                        self.enqueue(toast: .init(
+                            amount: exchangedFiat.converted,
+                            isDeposit: false
+                        ))
+                        
+                        self.dismissCashBill(style: .pop)
+                        self.updateBalanceAndHistory()
+                    }
+                };
+                
+                .subtle("No, Cancel Send") {
+                    cancelSend()
                 }
             }
         }
@@ -417,6 +425,41 @@ class Session: ObservableObject {
     }
     
     // MARK: - Cash Links -
+    
+    private func createCashLink(payload: CashCode.Payload, exchangedFiat: ExchangedFiat) async throws -> GiftCardCluster {
+        do {
+            let giftCard = GiftCardCluster()
+            try await client.sendCashLink(
+                exchangedFiat: exchangedFiat,
+                ownerCluster: owner,
+                giftCard: giftCard,
+                rendezvous: payload.rendezvous.publicKey
+            )
+            
+            Analytics.transfer(
+                event: .sendCashLink,
+                exchangedFiat: exchangedFiat,
+                successful: true,
+                error: nil
+            )
+            
+            return giftCard
+            
+        } catch {
+            ErrorReporting.captureError(error)
+            
+            Analytics.transfer(
+                event: .sendCashLink,
+                exchangedFiat: exchangedFiat,
+                successful: false,
+                error: error
+            )
+            
+            // TODO: Show error
+            
+            throw Error.cashLinkCreationFailed
+        }
+    }
     
     func cancelCashLink(giftCardVault: PublicKey) async throws {
         try await client.voidCashLink(giftCardVault: giftCardVault, owner: ownerKeyPair)
@@ -446,8 +489,7 @@ class Session: ObservableObject {
                     giftCard: giftCard
                 )
                 
-                updateBalance()
-                historyController.sync()
+                updateBalanceAndHistory()
                 
                 enqueue(toast: .init(
                     amount: exchangedFiat.converted,
@@ -561,6 +603,14 @@ class Session: ObservableObject {
         ) {
             .okay(kind: .destructive)
         }
+    }
+}
+
+// MARK: - Errors -
+
+extension Session {
+    enum Error: Swift.Error {
+        case cashLinkCreationFailed
     }
 }
 

@@ -24,6 +24,8 @@ struct ScanScreen: View {
     @State private var isShowingGive: Bool = false
 //    @State private var isShowingSend: Bool = false
     
+    @State private var sendButtonState: ButtonState = .normal
+    
     private var toast: String? {
         if let toast = session.toast {
             let formatted = toast.amount.formatted(suffix: nil)
@@ -212,6 +214,21 @@ struct ScanScreen: View {
             Spacer()
             
             HStack(alignment: .center, spacing: 30) {
+                if let primaryAction = session.billState.primaryAction {
+                    CapsuleButton(
+                        state: sendButtonState,
+                        asset: primaryAction.asset,
+                        title: primaryAction.title
+                    ) {
+                        Task {
+                            sendButtonState = .loading
+                            try await primaryAction.action()
+                            try await Task.delay(milliseconds: 1000)
+                            sendButtonState = .normal
+                        }
+                    }
+                }
+                
                 if let secondaryAction = session.billState.secondaryAction {
                     CapsuleButton(
                         state: .normal,
@@ -219,18 +236,6 @@ struct ScanScreen: View {
                         title: secondaryAction.title
                     ) {
                         secondaryAction.action()
-                    }
-                }
-                
-                if let primaryAction = session.billState.primaryAction {
-                    CapsuleButton(
-                        state: .normal,
-                        asset: primaryAction.asset,
-                        title: primaryAction.title
-                    ) {
-                        Task {
-                            try await primaryAction.action()
-                        }
                     }
                 }
             }
