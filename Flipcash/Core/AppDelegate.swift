@@ -18,7 +18,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     let container = Container()
     
+    private var resetInterval: TimeInterval = 60.0
+    private var lastActiveDate: Date?
+    
     private var hasBeenBackgrounded: Bool = false
+    
+    private var sessionContainer: SessionContainer? {
+        if case .loggedIn(let container) = container.sessionAuthenticator.state {
+            return container
+        }
+        return nil
+    }
     
     // MARK: - Launch -
 
@@ -61,8 +71,52 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     // MARK: - Lifecycle -
     
+    func applicationWillResignActive(_ application: UIApplication) {
+        trace(.warning)
+        lastActiveDate = .now
+        
+//        appContainer.pushController.appWillResignActive()
+        
+//        beginBackgroundTask()
+    }
+    
     func applicationDidEnterBackground(_ application: UIApplication) {
         hasBeenBackgrounded = true
+        
+        if let sessionContainer {
+            sessionContainer.session.didEnterBackground()
+        }
+    }
+    
+    func applicationWillEnterForeground(_ application: UIApplication) {
+        trace(.warning)
+        
+//        appContainer.sessionAuthenticator.updateBiometricsState()
+        
+        if let _ = sessionContainer { // Logged in
+            if !UIApplication.isInterfaceResetDisabled {
+                if let interval = secondsSinceLastActive(), interval > resetInterval {
+                    trace(.warning, components: "Resetting interface...")
+                    assignHost()
+                    //                fadeOutOverlay(delay: 0.4)
+                } else {
+                    //                fadeOutOverlay(delay: 0.3)
+                }
+            } else {
+                trace(.warning, components: "Interface reset disabled.")
+            }
+            
+        } else { // Logged out
+//            destroyOverlay()
+        }
+    }
+    
+    private func secondsSinceLastActive() -> TimeInterval? {
+        guard let lastActiveDate = lastActiveDate else {
+            return nil
+        }
+
+        return Date.now.timeIntervalSince1970 - lastActiveDate.timeIntervalSince1970
     }
     
     // MARK: - Deep Links -
@@ -107,7 +161,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Push Notifications -
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        if case .loggedIn(let container) = container.sessionAuthenticator.state {
+        if let sessionContainer {
 //            container.pushController.didReceiveRemoteNotificationToken(with: deviceToken)
         }
     }
@@ -115,6 +169,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         trace(.failure, components: "Push notification registration failed: \(error)")
     }
+}
+
+// MARK: - UIApplication -
+
+extension UIApplication {
+    static var isInterfaceResetDisabled: Bool = false
 }
 
 // MARK: - Firebase -

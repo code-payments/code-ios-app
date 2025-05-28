@@ -5,7 +5,7 @@
 //  Created by Dima Bart on 2025-04-15.
 //
 
-import Foundation
+import UIKit
 import FlipcashUI
 import FlipcashCore
 
@@ -80,6 +80,17 @@ class Session: ObservableObject {
     
     func prepareForLogout() {
         
+    }
+    
+    // MARK: - Lifecycle -
+    
+    func didEnterBackground() {
+        // If the sendOperation is ignoring stream, it's likely
+        // presenting a share sheet or in some way mid-process
+        // so we don't want to dismiss the bill from under it
+        if let sendOperation, !sendOperation.ignoresStream {
+            dismissCashBill(style: .slide)
+        }
     }
     
     // MARK: - Airdrop -
@@ -368,6 +379,8 @@ class Session: ObservableObject {
     }
     
     private func showCashLinkShareSheet(giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat) {
+        UIApplication.isInterfaceResetDisabled = true
+        
         let item = ShareCashLinkItem(giftCard: giftCard, exchangedFiat: exchangedFiat)
         ShareSheet.present(activityItem: item) { [weak self] didShare in
             guard let self = self else { return }
@@ -422,6 +435,8 @@ class Session: ObservableObject {
         presentationState = .hidden(style)
         billState = .default()
         valuation = nil
+        
+        UIApplication.isInterfaceResetDisabled = false
     }
     
     // MARK: - Cash Links -
