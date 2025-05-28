@@ -87,8 +87,7 @@ extension PermissionScreen {
             image: .asset(.graphicCameraAccess),
             actionTitle: "Next",
             description: "Your camera is used to grab Digital Cash. Please allow access to the camera to proceed",
-            action: action,
-            skipAction: skipAction
+            action: action
         )
     }
 }
