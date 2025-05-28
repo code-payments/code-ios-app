@@ -9,17 +9,19 @@ import SwiftUI
 
 public struct DialogAction {
     
+    public typealias DialogActionHandler = () -> Void
+    
     public let kind: Kind
     public let title: String
-    public let action: () -> Void
+    public let action: DialogActionHandler
     
-    init(kind: Kind, title: String, action: @escaping () -> Void) {
+    init(kind: Kind, title: String, action: @escaping DialogActionHandler) {
         self.kind   = kind
         self.title  = title
         self.action = action
     }
     
-    public static func standard(_ title: String, action: @escaping () -> Void) -> Self {
+    public static func standard(_ title: String, action: @escaping DialogActionHandler) -> Self {
         self.init(
             kind: .standard,
             title: title,
@@ -27,7 +29,7 @@ public struct DialogAction {
         )
     }
     
-    public static func subtle(_ title: String, action: @escaping () -> Void) -> Self {
+    public static func subtle(_ title: String, action: @escaping DialogActionHandler) -> Self {
         self.init(
             kind: .subtle,
             title: title,
@@ -35,7 +37,7 @@ public struct DialogAction {
         )
     }
     
-    public static func destructive(_ title: String, action: @escaping () -> Void) -> Self {
+    public static func destructive(_ title: String, action: @escaping DialogActionHandler) -> Self {
         self.init(
             kind: .destructive,
             title: title,
@@ -45,7 +47,7 @@ public struct DialogAction {
     
     // MARK: - Pre-baked -
     
-    public static func okay(kind: Kind, action: @escaping () -> Void = {}) -> Self {
+    public static func okay(kind: Kind, action: @escaping DialogActionHandler = {}) -> Self {
         self.init(
             kind: kind,
             title: "OK",
@@ -53,7 +55,7 @@ public struct DialogAction {
         )
     }
     
-    public static func cancel(action: @escaping () -> Void = {}) -> Self {
+    public static func cancel(action: @escaping DialogActionHandler = {}) -> Self {
         self.init(
             kind: .subtle,
             title: "Cancel",
@@ -61,7 +63,7 @@ public struct DialogAction {
         )
     }
     
-    public static func notNow(action: @escaping () -> Void = {}) -> Self {
+    public static func notNow(action: @escaping DialogActionHandler = {}) -> Self {
         self.init(
             kind: .subtle,
             title: "Not Now",
@@ -78,11 +80,11 @@ extension DialogAction {
         case subtle
         case destructive
         
-        var buttonStyle: CodeButton.Style {
+        var buttonStyle: DialogButton.Style {
             switch self {
-            case .standard:    return .filled
+            case .standard:    return .primary
             case .subtle:      return .subtle
-            case .destructive: return .filledDestructive
+            case .destructive: return .destructive
             }
         }
         

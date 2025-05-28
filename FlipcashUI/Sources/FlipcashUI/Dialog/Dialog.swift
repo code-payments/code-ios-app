@@ -49,7 +49,7 @@ public struct Dialog: View {
             
             VStack(spacing: 0) {
                 ForEach(actions, id: \.title) { action in
-                    CodeButton(
+                    DialogButton(
                         style: action.kind.buttonStyle,
                         title: action.title
                     ) {
