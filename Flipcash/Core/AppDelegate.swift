@@ -59,6 +59,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         let screen = ContainerScreen(container: container)
             .injectingEnvironment(from: container)
+            .colorScheme(.dark)
+            .tint(Color.textMain)
         
         let controller = UIHostingController(rootView: screen)
         controller.view.backgroundColor = .backgroundMain
