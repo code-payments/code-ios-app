@@ -245,6 +245,11 @@ struct ScanScreen: View {
     
     @ViewBuilder private func topBar() -> some View {
         HStack(alignment: .top) {
+            Image.asset(.flipcashBrand)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: 28)
+            
             Spacer()
             
             RoundButton(
