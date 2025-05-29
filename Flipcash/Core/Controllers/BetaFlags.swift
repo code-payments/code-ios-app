@@ -85,6 +85,7 @@ extension BetaFlags {
     enum Option: String, Hashable, Equatable, Codable, CaseIterable, Identifiable {
         
         case transactionDetails
+        case vibrateOnScan
         
         var id: String {
             localizedTitle
@@ -94,6 +95,8 @@ extension BetaFlags {
             switch self {
             case .transactionDetails:
                 return "Transaction details"
+            case .vibrateOnScan:
+                return "Vibrate on scal"
             }
         }
         
@@ -101,6 +104,8 @@ extension BetaFlags {
             switch self {
             case .transactionDetails:
                 return "If enabled, tapping a transaction in Balance will open a details modal."
+            case .vibrateOnScan:
+                return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill."
             }
         }
     }

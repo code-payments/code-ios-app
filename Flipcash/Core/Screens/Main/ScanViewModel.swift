@@ -62,6 +62,10 @@ class ScanViewModel: ObservableObject {
             return
         }
         
+        if BetaFlags.shared.hasEnabled(.vibrateOnScan) {
+            Haptics.tap()
+        }
+        
 //        trace(.note, components: scannedRendezvous.map { $0.base58 })
         scannedRendezvous.insert(payload.rendezvous.publicKey)
         
