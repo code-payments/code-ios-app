@@ -305,10 +305,13 @@ class Session: ObservableObject {
         let payload = operation.payload
         
         if billDescription.received {
-            valuation = BillValuation(
-                rendezvous: payload.rendezvous.publicKey,
-                exchangedFiat: billDescription.exchangedFiat
-            )
+            Task {
+                try await Task.delay(milliseconds: 300)
+                valuation = BillValuation(
+                    rendezvous: payload.rendezvous.publicKey,
+                    exchangedFiat: billDescription.exchangedFiat
+                )
+            }
         }
         
         sendOperation     = operation
