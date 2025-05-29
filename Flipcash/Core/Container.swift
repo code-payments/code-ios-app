@@ -17,6 +17,7 @@ class Container {
     let accountManager: AccountManager
     let storeController: StoreController
     let betaFlags: BetaFlags
+    let preferences: Preferences
     
     lazy var sessionAuthenticator = SessionAuthenticator(container: self)
     lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
@@ -31,6 +32,7 @@ class Container {
         self.accountManager  = AccountManager()
         self.storeController = StoreController(client: flipClient)
         self.betaFlags       = BetaFlags.shared
+        self.preferences     = Preferences()
         
         _ = sessionAuthenticator
     }
@@ -42,6 +44,7 @@ class Container {
             .environmentObject(sessionAuthenticator)
             .environmentObject(storeController)
             .environmentObject(betaFlags)
+            .environmentObject(preferences)
     }
 }
 

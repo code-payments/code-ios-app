@@ -40,6 +40,10 @@ class ScanViewModel: ObservableObject {
         }
     }
     
+    func stopCamera() {
+        cameraSession.stop()
+    }
+    
     // MARK: - Scanning -
     
     private func registerCodeExtractorObserver() {

@@ -11,13 +11,13 @@ import FlipcashUI
 struct ScanScreen: View {
     
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
+    @EnvironmentObject private var preferences: Preferences
     
     @ObservedObject private var session: Session
     
     @StateObject private var viewModel: ScanViewModel
     
     @State private var cameraAuthorizer = CameraAuthorizer()
-//    @State private var preferences = Preferences()
     
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
@@ -77,9 +77,15 @@ struct ScanScreen: View {
         let showControls = session.billState.bill == nil
         ZStack {
             if cameraAuthorized {
-//                if preferences.cameraEnabled {
+                if preferences.cameraEnabled {
                     cameraViewport()
-//                }
+                        .transition(
+                            .asymmetric(
+                                insertion: .opacity.animation(.easeInOut(duration: 0.2).delay(0.3)),
+                                removal: .identity
+                            )
+                        )
+                }
             }
             
             billView()
@@ -93,12 +99,11 @@ struct ScanScreen: View {
                         .zIndex(1)
                         .transition(.opacity)
                     
+                } else if !preferences.cameraEnabled {
+                    manualCameraStart()
+                        .zIndex(1)
+                        .transition(.opacity)
                 }
-//                else if !preferences.cameraEnabled {
-//                    manualCameraStart()
-//                        .zIndex(1)
-//                        .transition(.opacity)
-//                }
             
                 interfaceView()
                     .zIndex(1)
@@ -111,6 +116,7 @@ struct ScanScreen: View {
         }
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
+        .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
         .ignoresSafeArea(.keyboard)
         .sheet(item: $session.valuation) { valuation in
             PartialSheet(background: .backgroundMain, canAccessBackground: true) {
@@ -190,14 +196,14 @@ struct ScanScreen: View {
                 .multilineTextAlignment(.center)
             
             BubbleButton(text: "Start Camera") {
-//                preferences.cameraEnabled.toggle()
+                preferences.cameraEnabled.toggle()
             }
         }
         .padding(40)
         .font(.appTextSmall)
         .foregroundColor(.textMain)
         .onAppear {
-//            cameraSession.stop()
+            viewModel.stopCamera()
         }
     }
     

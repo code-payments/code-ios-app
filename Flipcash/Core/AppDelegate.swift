@@ -88,6 +88,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if let sessionContainer {
             sessionContainer.session.didEnterBackground()
         }
+        
+        container.preferences.appDidEnterBackground()
     }
     
     func applicationWillEnterForeground(_ application: UIApplication) {

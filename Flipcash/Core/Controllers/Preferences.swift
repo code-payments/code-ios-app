@@ -10,12 +10,11 @@ import FlipcashCore
 import FlipcashUI
 
 @MainActor
-@Observable
-class Preferences {
+class Preferences: ObservableObject {
     
-    var cameraEnabled: Bool = false
+    @Published var cameraEnabled: Bool = false
     
-    private(set) var cameraAutoStartDisabled: Bool = false {
+    @Published var cameraAutoStartDisabled: Bool = false {
         willSet {
             UserDefaults.cameraAutoStartDisabled = newValue
             cameraEnabled = !newValue

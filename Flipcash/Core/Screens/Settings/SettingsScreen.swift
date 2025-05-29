@@ -12,6 +12,7 @@ import FlipcashCore
 struct SettingsScreen: View {
     
     @EnvironmentObject private var betaFlags: BetaFlags
+    @EnvironmentObject private var preferences: Preferences
     
     @Binding public var isPresented: Bool
     
@@ -111,6 +112,26 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            
+            navigationRow(asset: .deposit, title: "Deposit") {
+                DepositScreen(session: session)
+            }
+            
+            row(asset: .withdraw, title: "Withdraw") {
+                isShowingWithdrawFlow.toggle()
+            }
+            .sheet(isPresented: $isShowingWithdrawFlow) {
+                WithdrawAmountScreen(
+                    isPresented: $isShowingWithdrawFlow,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
+            
+            navigationRow(asset: .settings, title: "App Settings") {
+                appSettingsScreen()
+            }
+            
             if betaFlags.accessGranted {
                 navigationRow(asset: .debug, title: "Beta Flags", badge: betaBadge()) {
                     BetaFlagsScreen(container: container)
@@ -126,21 +147,6 @@ struct SettingsScreen: View {
                         action: switchAccount
                     )
                 }
-            }
-            
-            navigationRow(asset: .deposit, title: "Deposit") {
-                DepositScreen(session: session)
-            }
-            
-            row(asset: .withdraw, title: "Withdraw") {
-                isShowingWithdrawFlow.toggle()
-            }
-            .sheet(isPresented: $isShowingWithdrawFlow) {
-                WithdrawAmountScreen(
-                    isPresented: $isShowingWithdrawFlow,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
             }
             
             row(asset: .logout, title: "Log Out") {
@@ -176,6 +182,68 @@ struct SettingsScreen: View {
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
         .dialog(item: $dialogItem)
+    }
+    
+    // MARK: - App Settings -
+    
+    @ViewBuilder private func appSettingsScreen() -> some View {
+        Background(color: .backgroundMain) {
+            ScrollBox(color: .backgroundMain) {
+                ScrollView(showsIndicators: false) {
+                    appSettingsList()
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .navigationTitle("App Settings")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    @ViewBuilder private func appSettingsList() -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+//            switch biometrics.kind {
+//            case .none:
+//                EmptyView()
+//                
+//            case .passcode:
+//                toggle(
+//                    image: .system(.faceID),
+//                    title: Localized.Title.requirePasscode,
+//                    isEnabled: biometricsEnabledBinding()
+//                )
+//                
+//            case .faceID:
+//                toggle(
+//                    image: .system(.faceID),
+//                    title: Localized.Title.requireFaceID,
+//                    isEnabled: biometricsEnabledBinding()
+//                )
+//                
+//            case .touchID:
+//                toggle(
+//                    image: .system(.touchID),
+//                    title: Localized.Title.requireTouchID,
+//                    isEnabled: biometricsEnabledBinding()
+//                )
+//            }
+            
+            toggle(
+                image: .asset(.camera),
+                title: "Auto Start Camera",
+                isEnabled: cameraAutoStartDisabledBinding()
+            )
+        }
+        .font(.appDisplayXS)
+        .foregroundColor(.textMain)
+    }
+    
+    private func cameraAutoStartDisabledBinding() -> Binding<Bool> {
+        Binding(
+            get: { !preferences.cameraAutoStartDisabled },
+            set: { enabled in
+                preferences.cameraAutoStartDisabled = !enabled
+            }
+        )
     }
     
     // MARK: - Utilities -
@@ -218,6 +286,7 @@ struct SettingsScreen: View {
                 .multilineTextAlignment(.leading)
                 .truncationMode(.tail)
                 .padding(.trailing, 2)
+                .tint(.textSuccess)
         }
     }
     

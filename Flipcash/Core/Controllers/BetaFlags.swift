@@ -96,7 +96,7 @@ extension BetaFlags {
             case .transactionDetails:
                 return "Transaction details"
             case .vibrateOnScan:
-                return "Vibrate on scal"
+                return "Vibrate on scan"
             }
         }
         
