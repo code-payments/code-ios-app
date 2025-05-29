@@ -7,6 +7,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:send.flipcash.com</string>
+		<string>applinks:app.flipcash.com</string>
 		<string>applinks:jump.flipcash.com</string>
 		<string>webcredentials:send.flipcash.com</string>
 	</array>
