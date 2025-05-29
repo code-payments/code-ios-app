@@ -324,15 +324,21 @@ class Session: ObservableObject {
                     let payload       = operation.payload
                     let exchangedFiat = billDescription.exchangedFiat
                     
-                    let giftCard = try await self.createCashLink(
-                        payload: payload,
-                        exchangedFiat: exchangedFiat
-                    )
-                    
-                    self.showCashLinkShareSheet(
-                        giftCard: giftCard,
-                        exchangedFiat: exchangedFiat
-                    )
+                    do {
+                        let giftCard = try await self.createCashLink(
+                            payload: payload,
+                            exchangedFiat: exchangedFiat
+                        )
+                        
+                        self.showCashLinkShareSheet(
+                            giftCard: giftCard,
+                            exchangedFiat: exchangedFiat
+                        )
+                        
+                    } catch {
+                        ErrorReporting.captureError(error)
+                        showSomethingWentWrongError()
+                    }
                 }
             },
             secondaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
@@ -388,17 +394,27 @@ class Session: ObservableObject {
             let cancelSend = {
                 self.dismissCashBill(style: .slide)
                 Task {
-                    try await self.cancelCashLink(giftCardVault: giftCard.cluster.vaultPublicKey)
-                    self.updateBalanceAndHistory()
+                    do {
+                        try await self.cancelCashLink(giftCardVault: giftCard.cluster.vaultPublicKey)
+                        self.updateBalanceAndHistory()
+                    } catch {
+                        ErrorReporting.captureError(error)
+                    }
                 }
             }
             
-            // If the share sheet detected no action,
-            // it will be functionally identical to
-            // cancelling the cash link
-            guard didShare else {
-                cancelSend()
-                return
+            let completeSend = {
+                _ = Task {
+                    try await Task.delay(milliseconds: 250)
+                    
+                    self.enqueue(toast: .init(
+                        amount: exchangedFiat.converted,
+                        isDeposit: false
+                    ))
+                    
+                    self.dismissCashBill(style: .pop)
+                    self.updateBalanceAndHistory()
+                }
             }
             
             self.dialogItem = .init(
@@ -408,17 +424,7 @@ class Session: ObservableObject {
                 dismissable: false,
             ) {
                 .standard("Yes") {
-                    Task {
-                        try await Task.delay(milliseconds: 250)
-                        
-                        self.enqueue(toast: .init(
-                            amount: exchangedFiat.converted,
-                            isDeposit: false
-                        ))
-                        
-                        self.dismissCashBill(style: .pop)
-                        self.updateBalanceAndHistory()
-                    }
+                    completeSend()
                 };
                 
                 .subtle("No, Cancel Send") {
@@ -608,6 +614,17 @@ class Session: ObservableObject {
 //    }
     
     // MARK: - Errors -
+    
+    private func showSomethingWentWrongError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Something Went Wrong",
+            subtitle: "Please try again later",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
     
     private func showCashLinkNotAvailable() {
         dialogItem = .init(
