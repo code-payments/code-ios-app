@@ -82,7 +82,7 @@ extension PermissionScreen {
 //        )
 //    }
     
-    static func forCameraAccess(action: @escaping VoidAction, skipAction: @escaping VoidAction) -> PermissionScreen {
+    static func forCameraAccess(action: @escaping VoidAction) -> PermissionScreen {
         PermissionScreen(
             image: .asset(.graphicCameraAccess),
             actionTitle: "Next",

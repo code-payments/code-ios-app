@@ -166,9 +166,9 @@ class OnboardingViewModel: ObservableObject {
         }
     }
     
-    func skipCameraAccessAction() {
-        completeOnboardingAndLogin()
-    }
+//    func skipCameraAccessAction() {
+//        completeOnboardingAndLogin()
+//    }
     
     // MARK: - Account Creation -
     
