@@ -110,8 +110,7 @@ struct IntroScreen: View {
                     BuyAccountScreen(viewModel: viewModel)
                 case .cameraAccess:
                     PermissionScreen.forCameraAccess(
-                        action: viewModel.allowCameraAccessAction,
-                        skipAction: viewModel.skipCameraAccessAction
+                        action: viewModel.allowCameraAccessAction
                     )
                 }
             }
