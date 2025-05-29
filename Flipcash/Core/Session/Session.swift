@@ -613,7 +613,7 @@ class Session: ObservableObject {
         dialogItem = .init(
             style: .destructive,
             title: "Cash Already Collected",
-            subtitle: "This cash has already been collected",
+            subtitle: "This cash has already been collected, or was cancelled by the sender",
             dismissable: true
         ) {
             .okay(kind: .destructive)
