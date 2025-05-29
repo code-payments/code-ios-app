@@ -46,11 +46,50 @@ public class CameraSession<T>: ObservableObject, AnyCameraSession where T: Camer
         
         session.beginConfiguration()
         
+        // Use 1080 p for a solid balance of resolution and frame‑rate when scanning codes
+        if session.canSetSessionPreset(.hd1920x1080) {
+            session.sessionPreset = .hd1920x1080
+        }
+        
         // Inputs
         
         guard let rearWideDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
             throw Error.deviceUnavailable
         }
+        
+        // Tune the camera for close‑range, high‑speed code scanning
+        try rearWideDevice.lockForConfiguration()
+        
+        // Focus configuration
+        if rearWideDevice.isAutoFocusRangeRestrictionSupported {
+            rearWideDevice.autoFocusRangeRestriction = .near
+        }
+        if rearWideDevice.isFocusModeSupported(.continuousAutoFocus) {
+            rearWideDevice.focusMode = .continuousAutoFocus
+        }
+        if rearWideDevice.isFocusPointOfInterestSupported {
+            rearWideDevice.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        }
+        
+        // Exposure configuration
+        if rearWideDevice.isExposureModeSupported(.continuousAutoExposure) {
+            rearWideDevice.exposureMode = .continuousAutoExposure
+        }
+        if rearWideDevice.isExposurePointOfInterestSupported {
+            rearWideDevice.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5)
+        }
+        
+        // White‑balance configuration
+        if rearWideDevice.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+            rearWideDevice.whiteBalanceMode = .continuousAutoWhiteBalance
+        }
+        
+        // Low‑light boost
+        if rearWideDevice.isLowLightBoostSupported {
+            rearWideDevice.automaticallyEnablesLowLightBoostWhenAvailable = true
+        }
+        
+        rearWideDevice.unlockForConfiguration()
         
         guard let rearWideInput = try? AVCaptureDeviceInput(device: rearWideDevice) else {
             throw Error.inputCreationFailed

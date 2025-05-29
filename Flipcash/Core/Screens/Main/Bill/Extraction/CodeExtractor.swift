@@ -14,9 +14,7 @@ import FlipcashCore
 
 class CodeExtractor: CameraSessionExtractor {
     
-    private var container = RedundancyContainer<Data>(threshold: 5)
-    
-    private var isHD: Bool = false
+    private var container = RedundancyContainer<Data>(threshold: 1)
     
     required init() {}
     
@@ -45,10 +43,6 @@ class CodeExtractor: CameraSessionExtractor {
     }
     
     func extract(output: AVCaptureOutput, sampleBuffer: CMSampleBuffer, connection: AVCaptureConnection) -> CashCode.Payload? {
-        defer {
-            isHD = !isHD
-        }
-        
         let sample = extractSample(from: sampleBuffer)
         
         guard let sample = sample else {
@@ -57,7 +51,7 @@ class CodeExtractor: CameraSessionExtractor {
         
         let payload = Self.processSample(
             sample: sample,
-            quality: isHD ? .best : .high,
+            quality: .best,
             container: &container
         )
         

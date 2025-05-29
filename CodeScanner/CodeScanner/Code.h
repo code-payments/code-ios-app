@@ -14,7 +14,7 @@ typedef NS_ENUM(NSInteger, KikCodesScanQuality) {
     KikCodesScanQualityLow    NS_SWIFT_NAME(low)    = 0,
     KikCodesScanQualityMedium NS_SWIFT_NAME(medium) = 2,
     KikCodesScanQualityHigh   NS_SWIFT_NAME(high)   = 7,
-    KikCodesScanQualityBest   NS_SWIFT_NAME(best)   = 9
+    KikCodesScanQualityBest   NS_SWIFT_NAME(best)   = 10
 } NS_SWIFT_NAME(KikCodesScanQuality);
 
 @interface KikCodes : NSObject
