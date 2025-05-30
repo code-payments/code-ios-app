@@ -84,6 +84,26 @@ class Session: ObservableObject {
         
     }
     
+    // MARK: - Login -
+    
+    func attemptLogin(with mnemonic: MnemonicPhrase, completion: @escaping () async throws -> Void) {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Log In?",
+            subtitle: "You're already logged into an account. Please ensure you have saved your Access Key before proceeding. Would you like to logout and login with a new account?",
+            dismissable: true,
+            actions: {
+                .destructive("Log Out & Log In") {
+                    Task {
+                        try await completion()
+                    }
+                };
+                
+                .cancel()
+            }
+        )
+    }
+    
     // MARK: - Lifecycle -
     
     func didEnterBackground() {

@@ -58,15 +58,6 @@ final class DeepLinkController {
                 let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy.value)
             {
                 return actionForLogin(mnemonic: mnemonic)
-                
-            } else if let entropy = route.properties["data"] { // Handle legacy login links
-                
-                // Attempt base64 encoding first (deprecated) then base58
-                guard let mnemonic = MnemonicPhrase(base64EncodedEntropy: entropy) ?? MnemonicPhrase(base58EncodedEntropy: entropy) else {
-                    return nil
-                }
-                
-                return actionForLogin(mnemonic: mnemonic)
             }
             
         case .cash:
@@ -117,23 +108,23 @@ struct DeepLinkAction {
     
     let kind: Kind
     
-    var confirmationDescription: ConfirmationDescription? {
-        switch kind {
-        case .accessKey:
-            guard sessionAuthenticator.isLoggedIn else {
-                return nil
-            }
-            
-            return .init(
-                confirmation: "Log Out",
-                title: "You're currently logged into an account. Please ensure you have saved your Access Key before proceeding. Would you like to logout and login with a new account?",
-                description: nil
-            )
-            
-        case .receiveCashLink:
-            return nil // Don't need confirmation
-        }
-    }
+//    var confirmationDescription: ConfirmationDescription? {
+//        switch kind {
+//        case .accessKey:
+//            guard sessionAuthenticator.isLoggedIn else {
+//                return nil
+//            }
+//            
+//            return .init(
+//                confirmation: "Log Out",
+//                title: "You're currently logged into an account. Please ensure you have saved your Access Key before proceeding. Would you like to logout and login with a new account?",
+//                description: nil
+//            )
+//            
+//        case .receiveCashLink:
+//            return nil // Don't need confirmation
+//        }
+//    }
     
     private let sessionAuthenticator: SessionAuthenticator
     
@@ -149,11 +140,18 @@ struct DeepLinkAction {
     func executeAction() async throws {
         switch kind {
         case .accessKey(let mnemonic):
-            break
-//            if case .loggedIn = sessionAuthenticator.state {
-//                sessionAuthenticator.logout()
-//            }
-//            sessionAuthenticator.completeLogin(with: try await sessionAuthenticator.initialize(using: mnemonic))
+            if case .loggedIn(let sessionContainer) = sessionAuthenticator.state {
+                guard mnemonic != sessionContainer.session.keyAccount.mnemonic else {
+                    return
+                }
+                
+                sessionContainer.session.attemptLogin(with: mnemonic) {
+                    sessionAuthenticator.switchAccount(to: mnemonic)
+                }
+                
+            } else {
+                sessionAuthenticator.switchAccount(to: mnemonic)
+            }
             
         case .receiveCashLink(let giftCard):
             if case .loggedIn(let container) = sessionAuthenticator.state {

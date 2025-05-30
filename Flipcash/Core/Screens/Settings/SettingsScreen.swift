@@ -364,7 +364,7 @@ struct SettingsScreen: View {
             isPresented = false
             try await Task.delay(milliseconds: 250)
             
-            sessionAuthenticator.switchAccount(to: account)
+            sessionAuthenticator.switchAccount(to: account.account.mnemonic)
         }
     }
     

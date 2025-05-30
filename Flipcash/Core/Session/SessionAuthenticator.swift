@@ -245,7 +245,7 @@ final class SessionAuthenticator: ObservableObject {
         Analytics.setIdentity(initializedAccount.userID)
     }
     
-    func switchAccount(to account: AccountDescription) {
+    func switchAccount(to mnemonic: MnemonicPhrase) {
         Task {
             loginButtonState = .loading
             // State is changed back to .normal
@@ -256,7 +256,7 @@ final class SessionAuthenticator: ObservableObject {
         
             completeLogin(
                 with: try await initialize(
-                    using: account.account.mnemonic,
+                    using: mnemonic,
                     isRegistration: false
                 )
             )
