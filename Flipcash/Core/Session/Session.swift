@@ -27,6 +27,7 @@ class Session: ObservableObject {
     
     @Published var dialogItem: DialogItem?
 
+    let keyAccount: KeyAccount
     let owner: AccountCluster
     let userID: UserID
     
@@ -66,11 +67,12 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, historyController: HistoryController, ratesController: RatesController, owner: AccountCluster, userID: UserID) {
+    init(container: Container, historyController: HistoryController, ratesController: RatesController, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
         self.ratesController   = ratesController
         self.historyController = historyController
+        self.keyAccount        = keyAccount
         self.owner             = owner
         self.userID            = userID
         
@@ -686,6 +688,7 @@ extension Session {
         container: .mock,
         historyController: .mock,
         ratesController: .mock,
+        keyAccount: .mock,
         owner: .init(authority: .derive(using: .primary(), mnemonic: .mock)),
         userID: UUID()
     )

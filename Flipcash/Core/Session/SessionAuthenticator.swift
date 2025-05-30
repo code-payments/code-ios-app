@@ -134,6 +134,7 @@ final class SessionAuthenticator: ObservableObject {
             container: container,
             historyController: historyController,
             ratesController: ratesController,
+            keyAccount: initializedAccount.keyAccount,
             owner: owner,
             userID: initializedAccount.userID
         )

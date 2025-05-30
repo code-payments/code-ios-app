@@ -19,6 +19,7 @@ struct SettingsScreen: View {
     @State private var isShowingWithdrawFlow = false
     @State private var isShowingAccountSelection = false
     @State private var isShowingLogoutConfirmation = false
+    @State private var isShowingAccessKey = false
     
     @State private var dialogItem: DialogItem?
     @State private var debugTapCount: Int = 0
@@ -113,10 +114,6 @@ struct SettingsScreen: View {
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             
-            navigationRow(asset: .deposit, title: "Deposit") {
-                DepositScreen(session: session)
-            }
-            
             row(asset: .withdraw, title: "Withdraw") {
                 isShowingWithdrawFlow.toggle()
             }
@@ -126,6 +123,14 @@ struct SettingsScreen: View {
                     container: container,
                     sessionContainer: sessionContainer
                 )
+            }
+            
+            navigationRow(asset: .deposit, title: "Deposit") {
+                DepositScreen(session: session)
+            }
+            
+            navigationRow(asset: .myAccount, title: "My Account") {
+                myAccountScreen()
             }
             
             navigationRow(asset: .settings, title: "App Settings") {
@@ -163,6 +168,57 @@ struct SettingsScreen: View {
                 }
             }
             
+            Spacer()
+        }
+        .font(.appDisplayXS)
+        .foregroundColor(.textMain)
+        .dialog(item: $dialogItem)
+    }
+    
+    // MARK: - My Account -
+    
+    @ViewBuilder private func myAccountScreen() -> some View {
+        Background(color: .backgroundMain) {
+            ScrollBox(color: .backgroundMain) {
+                ScrollView(showsIndicators: false) {
+                    myAccountList()
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .navigationTitle("My Account")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    @ViewBuilder private func myAccountList() -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            
+            row(asset: .key, title: "Access Key") {
+                dialogItem = .init(
+                    style: .destructive,
+                    title: "View Your Access Key?",
+                    subtitle: "Your Access Key will grant access to your Flipcash account. Keep it private and safe",
+                    dismissable: true
+                ) {
+                    DialogAction.destructive("View Access Key") {
+                        isShowingAccessKey.toggle()
+                    }
+                    DialogAction.cancel {}
+                }
+            }
+            .sheet(isPresented: $isShowingAccessKey) {
+                NavigationStack {
+                    AccessKeyBackupScreen(mnemonic: session.keyAccount.mnemonic)
+                        .navigationTitle("Access Key")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                ToolbarCloseButton(binding: $isShowingAccessKey)
+                            }
+                        }
+                }
+            }
+            
             row(asset: .delete, title: "Delete Account") {
                 dialogItem = .init(
                     style: .destructive,
@@ -176,12 +232,9 @@ struct SettingsScreen: View {
                     DialogAction.cancel {}
                 }
             }
-            
-            Spacer()
         }
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
-        .dialog(item: $dialogItem)
     }
     
     // MARK: - App Settings -
