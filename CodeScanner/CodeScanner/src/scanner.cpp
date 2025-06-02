@@ -282,10 +282,10 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
         // disard small shards that were erroneously picked up
         sort(finder_points.begin(), finder_points.end(), compareFinderPointsSize);
 
-        int median_size = finder_points[finder_points.size() / 2].contourSize;
+        int p90_size = finder_points[finder_points.size() * 0.9].contourSize;
         
         for (int i = 0; i < finder_points.size(); ++i) {
-            if (finder_points[i].contourSize < median_size / 2) {
+            if (finder_points[i].contourSize < p90_size / 5) {
                 finder_points.erase(finder_points.begin() + i);
 
                 --i;
