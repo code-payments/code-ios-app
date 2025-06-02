@@ -526,7 +526,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
         const double minimum_ellipse_convexity = 0.9;
 
         // not too squished
-        const double minimum_ellipse_inertia = 0.6;
+        const double minimum_ellipse_inertia = 0.5;
 
         // perform checks based on the moments already computed
         double area = moment.m00;
