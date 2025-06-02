@@ -191,7 +191,7 @@ struct ScanScreen: View {
     
     @ViewBuilder private func manualCameraStart() -> some View {
         VStack(spacing: 40) {
-            Text("You need to start your camera to scan Codes")
+            Text("You need to start your camera to grab cash")
                 .frame(maxWidth: 240)
                 .multilineTextAlignment(.center)
             
