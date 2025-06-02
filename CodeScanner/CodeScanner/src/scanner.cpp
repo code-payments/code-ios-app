@@ -452,7 +452,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
 
     // determine the light vs. dark areas of the image
     START_DEBUG_TIMING(threshold);
-    adaptiveThreshold(greyscale, whitish, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, adaptive_threshold_width, -5);
+    threshold(greyscale, whitish, 170, 255, THRESH_BINARY);
     END_DEBUG_TIMING(timing, threshold);
 
 #if DEBUGGING
