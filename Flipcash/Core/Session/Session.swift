@@ -416,6 +416,11 @@ class Session: ObservableObject {
         ShareSheet.present(activityItem: item) { [weak self] didShare in
             guard let self = self else { return }
             
+            let hideBillActions = {
+                self.billState.primaryAction = nil
+                self.billState.secondaryAction = nil
+            }
+            
             let cancelSend = {
                 self.dismissCashBill(style: .slide)
                 Task {
@@ -449,10 +454,12 @@ class Session: ObservableObject {
                 dismissable: false,
             ) {
                 .standard("Yes") {
+                    hideBillActions()
                     completeSend()
                 };
                 
                 .subtle("No, Cancel Send") {
+                    hideBillActions()
                     cancelSend()
                 }
             }
