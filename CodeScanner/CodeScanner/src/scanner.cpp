@@ -405,7 +405,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
 
     START_DEBUG_TIMING(total);
 
-    double scaling_rate = greyscale.cols / 480.0;
+    double scaling_rate = MIN(greyscale.rows, greyscale.cols) / 480.0;
 
     double finder_deltas[FINDER_POINT_COUNT - 1];
     computeFinderDeltas(finder_deltas);
