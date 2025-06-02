@@ -48,8 +48,8 @@ int kikCodeScan(
             break;
 
         case SCAN_DEVICE_QUALITY_BEST:
-            if (max_edge_size > 1280) {
-                scale = 1280.0 / max_edge_size;
+            if (max_edge_size > 960.0) {
+                scale = 960.0 / max_edge_size;
             }
             break;
 

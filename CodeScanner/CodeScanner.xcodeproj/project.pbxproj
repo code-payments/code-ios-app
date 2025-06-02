@@ -475,6 +475,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Frameworks",
 				);
+				GCC_OPTIMIZATION_LEVEL = 3;
 				INFOPLIST_FILE = CodeScanner/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
@@ -486,6 +487,12 @@
 				MACH_O_TYPE = staticlib;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				OTHER_CFLAGS = (
+					"-O3",
+					"-ffast-math",
+					"-funsafe-math-optimizations",
+					"-funroll-loops",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
@@ -597,6 +604,12 @@
 				MACH_O_TYPE = staticlib;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				OTHER_CFLAGS = (
+					"-O3",
+					"-ffast-math",
+					"-funsafe-math-optimizations",
+					"-funroll-loops",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
@@ -758,6 +771,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Frameworks",
 				);
+				GCC_OPTIMIZATION_LEVEL = 3;
 				INFOPLIST_FILE = CodeScanner/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
@@ -769,6 +783,12 @@
 				MACH_O_TYPE = staticlib;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				OTHER_CFLAGS = (
+					"-O3",
+					"-ffast-math",
+					"-funsafe-math-optimizations",
+					"-funroll-loops",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
@@ -803,6 +823,12 @@
 				MACH_O_TYPE = staticlib;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++14";
+				OTHER_CFLAGS = (
+					"-O3",
+					"-ffast-math",
+					"-funsafe-math-optimizations",
+					"-funroll-loops",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.kik.CodeScanner;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;

@@ -97,17 +97,18 @@ class CodeExtractor: CameraSessionExtractor {
             CVPixelBufferUnlockBaseAddress(buffer, CVPixelBufferLockFlags(rawValue: 0))
         }
         
-        guard let base = CVPixelBufferGetBaseAddress(buffer) else {
+        guard let base = CVPixelBufferGetBaseAddressOfPlane(buffer, 0) else {
             return nil
         }
         
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
         let width = CVPixelBufferGetWidth(buffer)
         let height = CVPixelBufferGetHeight(buffer)
         
         let sample = Sample(
             width: width,
             height: height,
-            data: Data(bytesNoCopy: base, count: width * height, deallocator: .none)
+            data: Data(bytesNoCopy: base, count: bytesPerRow * height, deallocator: .none)
         )
         
         return sample

@@ -282,10 +282,10 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
         // disard small shards that were erroneously picked up
         sort(finder_points.begin(), finder_points.end(), compareFinderPointsSize);
 
-        int median_size = finder_points[finder_points.size() / 2].contourSize;
+        int p90_size = finder_points[finder_points.size() * 0.9].contourSize;
         
         for (int i = 0; i < finder_points.size(); ++i) {
-            if (finder_points[i].contourSize < median_size / 2) {
+            if (finder_points[i].contourSize < p90_size / 5) {
                 finder_points.erase(finder_points.begin() + i);
 
                 --i;
@@ -405,7 +405,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
 
     START_DEBUG_TIMING(total);
 
-    double scaling_rate = greyscale.cols / 480.0;
+    double scaling_rate = MIN(greyscale.rows, greyscale.cols) / 480.0;
 
     double finder_deltas[FINDER_POINT_COUNT - 1];
     computeFinderDeltas(finder_deltas);
@@ -452,7 +452,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
 
     // determine the light vs. dark areas of the image
     START_DEBUG_TIMING(threshold);
-    adaptiveThreshold(greyscale, whitish, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY, adaptive_threshold_width, -5);
+    threshold(greyscale, whitish, 170, 255, THRESH_BINARY);
     END_DEBUG_TIMING(timing, threshold);
 
 #if DEBUGGING
@@ -526,7 +526,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
         const double minimum_ellipse_convexity = 0.9;
 
         // not too squished
-        const double minimum_ellipse_inertia = 0.6;
+        const double minimum_ellipse_inertia = 0.5;
 
         // perform checks based on the moments already computed
         double area = moment.m00;
