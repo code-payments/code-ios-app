@@ -20,12 +20,6 @@ service Account {
     // GetTokenAccountInfos returns token account metadata relevant to the Code owner
     // account.
     rpc GetTokenAccountInfos(GetTokenAccountInfosRequest) returns (GetTokenAccountInfosResponse);
-
-    // LinkAdditionalAccounts allows a client to declare additional accounts to
-    // be tracked and used within Code. The accounts declared in this RPC are not
-    // managed by Code (ie. not a Timelock account), created externally and cannot
-    // be linked automatically (ie. authority derived off user 12 words).
-    rpc LinkAdditionalAccounts(LinkAdditionalAccountsRequest) returns (LinkAdditionalAccountsResponse);
 }
 
 message IsCodeAccountRequest {
@@ -69,38 +63,6 @@ message GetTokenAccountInfosResponse {
     }
 
     map<string, TokenAccountInfo> token_account_infos = 2;
-}
-
-message LinkAdditionalAccountsRequest {
-    // The owner account to link to
-    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
-
-    // The authority account derived off the user's 12 words, which contains
-    // the USDC ATA (and potentially others in the future) that will be used
-    // in swaps.
-    common.v1.SolanaAccountId swap_authority = 2 [(validate.rules).message.required = true];
-
-    // Signature values for each account provided in this request. Each signature
-    // must be generated without this array set. The expected ordering of signatures:
-    //  1. owner
-    //  2. swap_authority
-    repeated common.v1.Signature signatures = 3 [(validate.rules).repeated = {
-        min_items: 2
-        max_items: 2
-    }];
-}
-
-message LinkAdditionalAccountsResponse {
-    Result result = 1;
-    enum Result {
-        // Supports idempotency, and will be returned as long as the request exactly
-        // matches a previous execution.
-        OK = 0;
-        // The action has been denied (eg. owner account not phone verified)
-        DENIED = 1;
-        // An account being linked is not valid
-        INVALID_ACCOUNT = 2;
-    }
 }
 
 message TokenAccountInfo {

@@ -223,22 +223,6 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         )
     }
     
-    func codeScanned(rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
-        trace(.send, components: "Rendezvous: \(rendezvous.publicKey.base58)")
-        
-        let message: Code_Messaging_V1_Message = .with {
-            $0.codeScanned = .with {
-                $0.timestamp = Google_Protobuf_Timestamp(date: Date())
-            }
-        }
-        
-        sendRendezvousMessage(
-            message: message,
-            rendezvous: rendezvous,
-            completion: completion
-        )
-    }
-    
     private func sendRendezvousMessage(message: Code_Messaging_V1_Message, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
         let request = Code_Messaging_V1_SendMessageRequest.with {
             $0.message = message

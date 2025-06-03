@@ -23,7 +23,7 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 /// AccountType associates a type to an account, which infers how an account is used
 /// within the Code ecosystem.
 ///
-/// todo: Deprecate legacy accounts (temporary, buckets, legacy primary, relationship)
+/// todo: Deprecate legacy accounts (temporary, buckets, legacy primary, relationship, swap)
 public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   public typealias RawValue = Int
   case unknown // = 0
@@ -41,6 +41,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   case remoteSendGiftCard // = 12
   case relationship // = 13
   case swap // = 14
+  case associatedTokenAccount // = 15
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -64,6 +65,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case 12: self = .remoteSendGiftCard
     case 13: self = .relationship
     case 14: self = .swap
+    case 15: self = .associatedTokenAccount
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -85,6 +87,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case .remoteSendGiftCard: return 12
     case .relationship: return 13
     case .swap: return 14
+    case .associatedTokenAccount: return 15
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -111,6 +114,7 @@ extension Code_Common_V1_AccountType: CaseIterable {
     .remoteSendGiftCard,
     .relationship,
     .swap,
+    .associatedTokenAccount,
   ]
 }
 
@@ -204,19 +208,6 @@ public struct Code_Common_V1_IntentId {
   // methods supported on all messages.
 
   public var value: Data = Data()
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-}
-
-/// Domain is a hostname
-public struct Code_Common_V1_Domain {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var value: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -390,7 +381,6 @@ extension Code_Common_V1_Transaction: @unchecked Sendable {}
 extension Code_Common_V1_Blockhash: @unchecked Sendable {}
 extension Code_Common_V1_Signature: @unchecked Sendable {}
 extension Code_Common_V1_IntentId: @unchecked Sendable {}
-extension Code_Common_V1_Domain: @unchecked Sendable {}
 extension Code_Common_V1_Hash: @unchecked Sendable {}
 extension Code_Common_V1_UUID: @unchecked Sendable {}
 extension Code_Common_V1_Request: @unchecked Sendable {}
@@ -421,6 +411,7 @@ extension Code_Common_V1_AccountType: SwiftProtobuf._ProtoNameProviding {
     12: .same(proto: "REMOTE_SEND_GIFT_CARD"),
     13: .same(proto: "RELATIONSHIP"),
     14: .same(proto: "SWAP"),
+    15: .same(proto: "ASSOCIATED_TOKEN_ACCOUNT"),
   ]
 }
 
@@ -626,38 +617,6 @@ extension Code_Common_V1_IntentId: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 
   public static func ==(lhs: Code_Common_V1_IntentId, rhs: Code_Common_V1_IntentId) -> Bool {
-    if lhs.value != rhs.value {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Code_Common_V1_Domain: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".Domain"
-  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "value"),
-  ]
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularStringField(value: &self.value) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    if !self.value.isEmpty {
-      try visitor.visitSingularStringField(value: self.value, fieldNumber: 1)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Code_Common_V1_Domain, rhs: Code_Common_V1_Domain) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

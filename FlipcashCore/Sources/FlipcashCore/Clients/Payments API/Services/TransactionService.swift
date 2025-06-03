@@ -565,14 +565,6 @@ extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFa
         makeInterceptors()
     }
     
-    func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSwapInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>] {
-        makeInterceptors()
-    }
-    
     func makeAirdropInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>] {
         makeInterceptors()
     }

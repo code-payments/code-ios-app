@@ -32,8 +32,8 @@ extension AirdropType {
 
 public enum AirdropType: Int, Codable, Equatable, Sendable {
     case unknown
-    case giveFirstCrypto
-    case getFirstCrypto
+    case onboardingBonus
+    case welcomeBonus
 }
 
 // MARK: - Proto -
@@ -44,10 +44,10 @@ extension AirdropType {
         switch grpcType {
         case .unknown:
             self = .unknown
-        case .giveFirstCrypto:
-            self = .giveFirstCrypto
-        case .getFirstCrypto:
-            self = .getFirstCrypto
+        case .onboardingBonus:
+            self = .onboardingBonus
+        case .welcomeBonus:
+            self = .welcomeBonus
         default:
             throw Error.unsupportedAirdropType
         }
@@ -57,10 +57,10 @@ extension AirdropType {
         switch self {
         case .unknown:
             return .unknown
-        case .giveFirstCrypto:
-            return .giveFirstCrypto
-        case .getFirstCrypto:
-            return .getFirstCrypto
+        case .onboardingBonus:
+            return .onboardingBonus
+        case .welcomeBonus:
+            return .welcomeBonus
         }
     }
 }

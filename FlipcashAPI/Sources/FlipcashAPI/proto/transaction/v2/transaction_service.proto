@@ -61,32 +61,6 @@ service Transaction {
     // Airdrop airdrops core mint tokens to the requesting account
     rpc Airdrop(AirdropRequest) returns (AirdropResponse);
 
-    // Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
-    // closely. However, due to the time-sensitive nature and unreliability of
-    // swaps, they do not fit within the broader intent system. This results in
-    // a few key differences:
-    //  * Transactions are submitted on a best-effort basis outside of the Code
-    //    Sequencer within the RPC handler
-    //  * Balance changes are applied after the transaction has finalized
-    //  * Transactions use recent blockhashes over a nonce
-    // SubmitIntent also operates on VM virtual instructions, whereas Swap uses
-    // Solana transactions.
-    //
-    // The transaction will have the following instruction format:
-    //   1. ComputeBudget::SetComputeUnitLimit
-    //   2. ComputeBudget::SetComputeUnitPrice
-    //   3. SwapValidator::PreSwap
-    //   4. Dynamic swap instruction
-    //   5. SwapValidator::PostSwap
-    //
-    // Note: Currently limited to swapping USDC to core mint tokens.
-    // Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
-    rpc Swap(stream SwapRequest) returns (stream SwapResponse);
-
-    // DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-    // onramp to purchase core mint tokens for use in Code.
-    rpc DeclareFiatOnrampPurchaseAttempt(DeclareFiatOnrampPurchaseAttemptRequest) returns (DeclareFiatOnrampPurchaseAttemptResponse);
-
     // VoidGiftCard voids a gift card account by returning the funds to the funds back
     // to the issuer via the auto-return action if it hasn't been claimed or already
     // returned.
@@ -173,9 +147,6 @@ message SubmitIntentResponse {
             // The intent was successfully created and is now scheduled.
             OK = 0;
         }
-
-       // todo: Revisit if we need side-effects. Clients are effecitively doing
-       //       local simulation now with the privacy solution.
     }
 
     message Error {
@@ -246,11 +217,12 @@ message GetLimitsResponse {
 
     reserved 3; // Deprecated deposit limit
 
-    // Micro payment limits keyed by currency
-    map<string, MicroPaymentLimit> micro_payment_limits_by_currency = 4;
+    reserved 4; // Deprecated micro payment limits
 
-    // Buy module limits keyed by currency
-    map<string, BuyModuleLimit> buy_module_limits_by_currency = 5;
+    reserved 5; // Deprecated buy module limits
+
+    // The amount of USD transacted since the consumption timestamp
+    double usd_transacted = 6 [(validate.rules).double.gte = 0];;
 }
 
 message CanWithdrawToAccountRequest {
@@ -258,6 +230,13 @@ message CanWithdrawToAccountRequest {
 }
 
 message CanWithdrawToAccountResponse {
+    // Server-controlled flag to indicate if the account can be withdrawn to.
+    // There are several reasons server may deny it, including:
+    //  - Wrong type of Code account
+    //  - Unsupported external account type (eg. token account but of the wrong mint)
+    // This is guaranteed to be false when account_type = Unknown.
+    bool is_valid_payment_destination = 1;
+
     // Metadata so the client knows how to withdraw to the account. Server cannot
     // provide precalculated addresses in this response to maintain non-custodial
     // status.
@@ -268,24 +247,23 @@ message CanWithdrawToAccountResponse {
         OwnerAccount = 2; // Client locally derives the ATA to use in SubmitIntent
     }
 
-    // Server-controlled flag to indicate if the account can be withdrawn to.
-    // There are several reasons server may deny it, including:
-    //  - Wrong type of Code account
-    //  - Not wanting to subsidize the creation of an ATA
-    //  - Unsupported external account type (eg. token account but of the wrong mint)
-    // This is guaranteed to be false when account_type = Unknown.
-    bool is_valid_payment_destination = 1;
-
-    // Token account requires initialization before the withdrawal can occur.
-    // Server has chosen not to subsidize the fees. The response is guaranteed
-    // to have set is_valid_payment_destination = false in this case.
+    // ATA requires initialization before the withdrawal can occur. Server will not
+    // subsidize the account creation, so a fee is required.
     bool requires_initialization = 3;
+
+    // The WITHDRAWAL_CREATE_ON_SEND fee, in USD, that must be paid in order to
+    // submit a withdrawal to subsidize the creation of the account at time of
+    // send. The user must explicitly agree to this fee amount before submitting
+    // the intent.
+    //
+    // This will be set when requires_initialization = true
+    ExchangeDataWithoutRate fee_amount = 4;
 }
 
 message AirdropRequest {
     // The type of airdrop to claim
     AirdropType airdrop_type = 1 [(validate.rules).enum = {
-        not_in: [0, 1] // UNKNOWN, GIVE_FIRST_CRYPTO
+        not_in: [0, 1] // UNKNOWN, ONBOARDING_BONUS
     }];
 
     // The owner account to airdrop core mint tokens to
@@ -309,155 +287,6 @@ message AirdropResponse {
 
     // Exchange data for the amount of core mint tokens airdropped when successful
     ExchangeData exchange_data = 2;
-}
-
-message SwapRequest {
-    oneof request {
-        option (validate.required) = true;
-
-        Initiate        initiate         = 1;
-        SubmitSignature submit_signature = 2;
-    }
-
-    message Initiate {
-        // The verified owner account public key
-        common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
-
-        // The user authority account that will sign to authorize the swap. Ideally,
-        // this is an account derived off the owner account that is solely responsible
-        // for swapping.
-        common.v1.SolanaAccountId swap_authority = 2 [(validate.rules).message.required = true];
-
-        // Maximum amount to swap from the source mint, in quarks. If value is set to zero,
-        // the entire amount will be swapped.
-        uint64 limit = 3;
-
-        // Whether the client wants the RPC to wait for blockchain status. If false,
-        // then the RPC will return Success when the swap is submitted to the blockchain.
-        // Otherwise, the RPC will observe and report back the status of the transaction.
-        bool wait_for_blockchain_status = 4;
-
-        // The signature is of serialize(Initiate) without this field set using the
-        // private key of the owner account. This provides an authentication mechanism
-        // to the RPC.
-        common.v1.Signature signature = 5 [(validate.rules).message.required = true];
-    }
-
-    message SubmitSignature {
-        // The signature for the locally constructed swap transaction
-        common.v1.Signature signature = 1 [(validate.rules).message.required = true];
-    }
-}
-
-message SwapResponse {
-    oneof response {
-        option (validate.required) = true;
-
-        ServerParameters server_parameters  = 1;
-        Success          success            = 2;
-        Error            error              = 3;
-    }
-
-    message ServerParameters {
-        // Subisdizer account that will be paying for the swap
-        common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
-
-        // Recent blockhash
-        common.v1.Blockhash recent_blockhash = 2 [(validate.rules).message.required = true];
-
-        // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
-        // instruction. If the value is 0, then the instruction can be omitted.
-        uint32 compute_unit_limit = 3;
-
-        // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
-        // instruction. If the value is 0, then the instruction can be omitted.
-        uint64 compute_unit_price = 4;
-
-        // On-chain program that will be performing the swap
-        common.v1.SolanaAccountId swap_program = 5 [(validate.rules).message.required = true];
-
-        // Accounts provided to the swap instruction
-        repeated common.v1.InstructionAccount swap_ixn_accounts = 6 [(validate.rules).repeated = {
-            min_items: 1
-            max_items: 64
-        }];
-
-        // Instruction data for the swap instruction
-        bytes swap_ixn_data = 7 [(validate.rules).bytes = {
-            min_len: 1
-            max_len: 256 // Arbitrary
-        }];
-
-        // Maximum quarks that will be sent out of the source account after
-        // executing the swap. If not, the validation instruction will cause
-        // the transaction to fail.
-        uint64 max_to_send = 8 [(validate.rules).uint64.gt = 0];
-
-        // Minimum quarks that will be received into the destination account
-        // after executing the swap. If not, the validation instruction will
-        // cause the transaction to fail.
-        uint64 min_to_receive = 9 [(validate.rules).uint64.gt = 0];
-
-        // Nonce to use in swap validator state account PDA
-        common.v1.SolanaAccountId nonce = 10 [(validate.rules).message.required = true];
-    }
-
-    message Success {
-        Code code = 1;
-        enum Code {
-            // The swap was submitted to the blockchain.
-            SWAP_SUBMITTED = 0;
-            // The swap was finalized on the blockchain.
-            SWAP_FINALIZED = 1;
-        }
-    }
-
-    message Error {
-        Code code = 1;
-        enum Code {
-            // Denied by a guard (spam, money laundering, etc)
-            DENIED = 0;
-            // There is an issue with the provided signature.
-            SIGNATURE_ERROR = 2;
-            // The swap failed server-side validation
-            INVALID_SWAP = 3;
-            // The submitted swap transaction failed. Attempt the swap again.
-            SWAP_FAILED = 4;
-        }
-
-        repeated ErrorDetails error_details = 2;
-    }
-}
-
-message DeclareFiatOnrampPurchaseAttemptRequest {
-    // The owner account invoking the buy module
-    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
-
-    // The amount being purchased
-    ExchangeDataWithoutRate purchase_amount = 2 [(validate.rules).message.required = true];
-
-    // A nonce value unique to the purchase. If it's included in a memo for the
-    // transaction for the deposit to the owner, then purchase_amount will be used
-    // for display values. Otherwise, the amount will be inferred from the transaction.
-    common.v1.UUID nonce = 3 [(validate.rules).message.required = true];
-
-    // The signature is of serialize(DeclareFiatOnrampPurchaseAttemptRequest) without
-    // this field set using the private key of the owner account. This provides an
-    // authentication mechanism to the RPC.
-    common.v1.Signature signature = 4 [(validate.rules).message.required = true];
-}
-
-message DeclareFiatOnrampPurchaseAttemptResponse {
-    Result result = 1;
-    enum Result {
-        OK = 0;
-        // The owner account is not valid (ie. it isn't a Code account)
-        INVALID_OWNER = 1;
-        // The currency isn't supported
-        UNSUPPORTED_CURRENCY = 2;
-        // The amount specified exceeds limits
-        AMOUNT_EXCEEDS_MAXIMUM = 3;
-    }
 }
 
 message VoidGiftCardRequest {
@@ -495,9 +324,9 @@ message Metadata {
     oneof type {
         option (validate.required) = true;
 
-        OpenAccountsMetadata             open_accounts              = 1;
-        SendPublicPaymentMetadata        send_public_payment        = 6;
-        ReceivePaymentsPubliclyMetadata  receive_payments_publicly  = 7;
+        OpenAccountsMetadata            open_accounts             = 1;
+        SendPublicPaymentMetadata       send_public_payment       = 6;
+        ReceivePaymentsPubliclyMetadata receive_payments_publicly = 7;
     }
 
     reserved 2; // Deprecated SendPrivatePaymentMetadata
@@ -520,9 +349,17 @@ message OpenAccountsMetadata {
 
 // Send a payment to a destination account publicly.
 //
-// Action Spec (Payment, Withdrawal):
+// Action Spec (Payment):
 //
 // actions = [NoPrivacyTransferAction(PRIMARY, destination, ExchangeData.Quarks)]
+//
+// Action Spec (Withdrawal):
+//
+// actions = [NoPrivacyTransferAction(PRIMARY, destination, ExchangeData.Quarks)]
+// if destinationRequiresInitialization {
+//   actions[0].NoPrivacyTransferAction.ExchangeData.Quarks -= feeAmount
+//   actions.push_back(FeePaymentAction(PRIMARY, feeAccount, feeAmount))
+// }
 //
 // Action Spec (Remote Send):
 //
@@ -531,8 +368,6 @@ message OpenAccountsMetadata {
 //   NoPrivacyTransferAction(PRIMARY, REMOTE_SEND_GIFT_CARD, ExchangeData.Quarks),
 //   NoPrivacyWithdrawAction(REMOTE_SEND_GIFT_CARD, PRIMARY, ExchangeData.Quarks, is_auto_return=true),
 // ]
-//
-// todo: Possibly use a different action type for deferred closing?
 message SendPublicPaymentMetadata {
     // The primary account where funds will be sent from. The primary account is assumed if this
     // field is not set for backwards compatibility with old clients.
@@ -549,6 +384,10 @@ message SendPublicPaymentMetadata {
 
     // Is the payment going to a new gift card? Note is_withdrawal must be false.
     bool is_remote_send = 5;
+
+    // Destination owner account, which is required for withdrawals that intend
+    // to create an ATA. Every other variation of this intent can omit this field.
+    common.v1.SolanaAccountId destination_owner = 6;
 }
 
 // Receive funds into a user-owned account publicly. All use cases of this intent
@@ -593,10 +432,10 @@ message Action {
     oneof type {
         option (validate.required) = true;
 
-        OpenAccountAction              open_account               = 2;
-        NoPrivacyTransferAction        no_privacy_transfer        = 5;
-        NoPrivacyWithdrawAction        no_privacy_withdraw        = 6;
-        FeePaymentAction               fee_payment                = 10;
+        OpenAccountAction       open_account        = 2;
+        NoPrivacyTransferAction no_privacy_transfer = 5;
+        NoPrivacyWithdrawAction no_privacy_withdraw = 6;
+        FeePaymentAction        fee_payment         = 10;
     }
 
     reserved 3; // Deprecated CloseEmptyAccountAction 
@@ -673,24 +512,20 @@ message NoPrivacyWithdrawAction {
 // Compact message signature required
 message FeePaymentAction {
     // The type of fee being operated on
-    FeeType type = 4;
+    FeeType type = 1 [(validate.rules).enum.not_in = 0];
     enum FeeType {
-        CODE        = 0; // Hardcoded $0.01 USD fee to a dynamic fee account specified by server
-        THIRD_PARTY = 1; // Third party fee specified at time of payment request
+        UNKNOWN                   = 0;
+        CREATE_ON_SEND_WITHDRAWAL = 1; // Server-defined fee for creating an external ATA on withdrawals on send
     }
 
     // The public key of the private key that has authority over source
-    common.v1.SolanaAccountId authority = 1 [(validate.rules).message.required = true];
+    common.v1.SolanaAccountId authority = 2 [(validate.rules).message.required = true];
 
     // The source account where funds are transferred from
-    common.v1.SolanaAccountId source = 2 [(validate.rules).message.required = true];
+    common.v1.SolanaAccountId source = 3 [(validate.rules).message.required = true];
 
     // The core mint quark amount to transfer
-    uint64 amount = 3 [(validate.rules).uint64.gt = 0];
-
-    // The destination where the fee payment is being made for fees outside of
-    // Code.
-    common.v1.SolanaAccountId destination = 5;
+    uint64 amount = 4 [(validate.rules).uint64.gt = 0];
 }
 
 //
@@ -721,10 +556,10 @@ message ServerParameter {
         FeePaymentServerParameter               fee_payment                = 11;
     }
 
-    reserved 4; // Deprecated CloseEmptyAccountServerParameter
-    reserved 5; // Deprecated CloseDormantAccountServerParameter
-    reserved 8; // Deprecated TemporaryPrivacyTransferServerParameter
-    reserved 9; // Deprecated TemporaryPrivacyExchangeServerParameter
+    reserved 4;  // Deprecated CloseEmptyAccountServerParameter
+    reserved 5;  // Deprecated CloseDormantAccountServerParameter
+    reserved 8;  // Deprecated TemporaryPrivacyTransferServerParameter
+    reserved 9;  // Deprecated TemporaryPrivacyExchangeServerParameter
     reserved 10; // Deprecated PermanentPrivacyUpgradeServerParameter
 }
 
@@ -751,9 +586,10 @@ message NoPrivacyWithdrawServerParameter {
 }
 
 message FeePaymentServerParameter {
-    // The destination account where Code fee payments should be sent. This will
-    // only be set when the corresponding FeePaymentAction Type is CODE.
-    common.v1.SolanaAccountId code_destination = 1;
+    // The destination account where OCP fee payments should be sent. This will
+    // only be set when the corresponding FeePaymentAction.Type:
+    // - CREATE_ON_SEND_WITHDRAWAL
+    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
 }
 
 //
@@ -842,17 +678,6 @@ message ExchangeDataWithoutRate {
     double native_amount = 2 [(validate.rules).double.gt = 0];
 }
 
-message AdditionalFeePayment {
-    // Destination token account where the fee payment will be made
-    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
-
-    // Fee percentage, in basis points, of the total quark amount of a payment.
-    uint32 fee_bps = 2 [(validate.rules).uint32 = {
-        gt: 0,
-        lte: 10000,
-    }];
-}
-
 message SendLimit {
     // Remaining limit to apply on the next transaction
     float next_transaction = 1;
@@ -864,33 +689,10 @@ message SendLimit {
     float max_per_day = 3;
 }
 
-message MicroPaymentLimit {
-    // Maximum native amount that can be applied per micro payment transaction
-    float max_per_transaction = 1;
-
-    // Minimum native amount that can be applied per micro payment transaction
-    float min_per_transaction = 2;
-}
-
-message BuyModuleLimit {
-    // Minimum amount that can be purchased through the buy module
-    float min_per_transaction = 1;
-
-    // Maximum amount that can be purchased through the buy module
-    float max_per_transaction = 2;
-}
-
-message Cursor {
-    bytes value = 1 [(validate.rules).bytes = {
-        min_len: 8
-        max_len: 8
-    }];
-}
-
 enum AirdropType {
     UNKNOWN = 0;
-    // Reward for giving someone else their first crypto
-    GIVE_FIRST_CRYPTO = 1;
+    // Reward for onboarding another user
+    ONBOARDING_BONUS = 1;
     // Airdrop for getting a user started with first crypto balance
-    GET_FIRST_CRYPTO = 2;
+    WELCOME_BONUS = 2;
 }

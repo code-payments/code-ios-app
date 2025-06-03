@@ -122,7 +122,7 @@ class Session: ObservableObject {
         // might fail and so we'll have it again
         // in case the server has something to send
         Task {
-            try await client.airdrop(type: .getFirstCrypto, owner: ownerKeyPair)
+            try await client.airdrop(type: .welcomeBonus, owner: ownerKeyPair)
         }
     }
     

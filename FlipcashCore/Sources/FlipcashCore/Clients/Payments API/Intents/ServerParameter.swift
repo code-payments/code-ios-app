@@ -89,7 +89,7 @@ extension ServerParameter.Parameter {
             
         case .feePayment(let param):
             // PublicKey will be `nil` for .thirdParty fee payments
-            let optionalDestination = PublicKey(param.codeDestination.value)
+            let optionalDestination = PublicKey(param.destination.value)
             self = .feePayment(optionalDestination)
             
         case .openAccount, .noPrivacyTransfer, .noPrivacyWithdraw, .none:

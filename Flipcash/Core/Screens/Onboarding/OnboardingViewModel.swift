@@ -182,7 +182,7 @@ class OnboardingViewModel: ObservableObject {
         try await Task.delay(seconds: 1)
         
         _ = try? await client.airdrop(
-            type: .getFirstCrypto,
+            type: .welcomeBonus,
             owner: account.keyAccount.derivedKey.keyPair
         )
         

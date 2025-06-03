@@ -86,10 +86,6 @@ extension InterceptorFactory: Code_Account_V1_AccountClientInterceptorFactoryPro
     func makeGetTokenAccountInfosInterceptors() -> [GRPC.ClientInterceptor<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>] {
         makeInterceptors()
     }
-    
-    func makeLinkAdditionalAccountsInterceptors() -> [GRPC.ClientInterceptor<Code_Account_V1_LinkAdditionalAccountsRequest, Code_Account_V1_LinkAdditionalAccountsResponse>] {
-        makeInterceptors()
-    }
 }
 
 // MARK: - GRPCClientType -

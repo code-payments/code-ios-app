@@ -41,16 +41,6 @@ public protocol Code_Transaction_V2_TransactionClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>
 
-  func swap(
-    callOptions: CallOptions?,
-    handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
-  ) -> BidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
-
-  func declareFiatOnrampPurchaseAttempt(
-    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
-
   func voidGiftCard(
     _ request: Code_Transaction_V2_VoidGiftCardRequest,
     callOptions: CallOptions?
@@ -190,65 +180,6 @@ extension Code_Transaction_V2_TransactionClientProtocol {
     )
   }
 
-  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
-  /// closely. However, due to the time-sensitive nature and unreliability of
-  /// swaps, they do not fit within the broader intent system. This results in
-  /// a few key differences:
-  ///  * Transactions are submitted on a best-effort basis outside of the Code
-  ///    Sequencer within the RPC handler
-  ///  * Balance changes are applied after the transaction has finalized
-  ///  * Transactions use recent blockhashes over a nonce
-  /// SubmitIntent also operates on VM virtual instructions, whereas Swap uses
-  /// Solana transactions.
-  ///
-  /// The transaction will have the following instruction format:
-  ///   1. ComputeBudget::SetComputeUnitLimit
-  ///   2. ComputeBudget::SetComputeUnitPrice
-  ///   3. SwapValidator::PreSwap
-  ///   4. Dynamic swap instruction
-  ///   5. SwapValidator::PostSwap
-  ///
-  /// Note: Currently limited to swapping USDC to core mint tokens.
-  /// Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
-  ///
-  /// Callers should use the `send` method on the returned object to send messages
-  /// to the server. The caller should send an `.end` after the final message has been sent.
-  ///
-  /// - Parameters:
-  ///   - callOptions: Call options.
-  ///   - handler: A closure called when each response is received from the server.
-  /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
-  public func swap(
-    callOptions: CallOptions? = nil,
-    handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
-  ) -> BidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse> {
-    return self.makeBidirectionalStreamingCall(
-      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
-      handler: handler
-    )
-  }
-
-  /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-  /// onramp to purchase core mint tokens for use in Code.
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to DeclareFiatOnrampPurchaseAttempt.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func declareFiatOnrampPurchaseAttempt(
-    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse> {
-    return self.makeUnaryCall(
-      path: Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
-    )
-  }
-
   /// VoidGiftCard voids a gift card account by returning the funds to the funds back
   /// to the issuer via the auto-return action if it hasn't been claimed or already
   /// returned.
@@ -359,15 +290,6 @@ public protocol Code_Transaction_V2_TransactionAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>
 
-  func makeSwapCall(
-    callOptions: CallOptions?
-  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
-
-  func makeDeclareFiatOnrampPurchaseAttemptCall(
-    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
-
   func makeVoidGiftCardCall(
     _ request: Code_Transaction_V2_VoidGiftCardRequest,
     callOptions: CallOptions?
@@ -439,28 +361,6 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeAirdropInterceptors() ?? []
-    )
-  }
-
-  public func makeSwapCall(
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse> {
-    return self.makeAsyncBidirectionalStreamingCall(
-      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
-    )
-  }
-
-  public func makeDeclareFiatOnrampPurchaseAttemptCall(
-    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
     )
   }
 
@@ -551,42 +451,6 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
     )
   }
 
-  public func swap<RequestStream>(
-    _ requests: RequestStream,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_SwapResponse> where RequestStream: Sequence, RequestStream.Element == Code_Transaction_V2_SwapRequest {
-    return self.performAsyncBidirectionalStreamingCall(
-      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
-      requests: requests,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
-    )
-  }
-
-  public func swap<RequestStream>(
-    _ requests: RequestStream,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_SwapResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Code_Transaction_V2_SwapRequest {
-    return self.performAsyncBidirectionalStreamingCall(
-      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
-      requests: requests,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
-    )
-  }
-
-  public func declareFiatOnrampPurchaseAttempt(
-    _ request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? []
-    )
-  }
-
   public func voidGiftCard(
     _ request: Code_Transaction_V2_VoidGiftCardRequest,
     callOptions: CallOptions? = nil
@@ -634,12 +498,6 @@ public protocol Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when invoking 'airdrop'.
   func makeAirdropInterceptors() -> [ClientInterceptor<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>]
 
-  /// - Returns: Interceptors to use when invoking 'swap'.
-  func makeSwapInterceptors() -> [ClientInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
-
-  /// - Returns: Interceptors to use when invoking 'declareFiatOnrampPurchaseAttempt'.
-  func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [ClientInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>]
-
   /// - Returns: Interceptors to use when invoking 'voidGiftCard'.
   func makeVoidGiftCardInterceptors() -> [ClientInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
 }
@@ -654,8 +512,6 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       Code_Transaction_V2_TransactionClientMetadata.Methods.getLimits,
       Code_Transaction_V2_TransactionClientMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionClientMetadata.Methods.airdrop,
-      Code_Transaction_V2_TransactionClientMetadata.Methods.swap,
-      Code_Transaction_V2_TransactionClientMetadata.Methods.declareFiatOnrampPurchaseAttempt,
       Code_Transaction_V2_TransactionClientMetadata.Methods.voidGiftCard,
     ]
   )
@@ -688,18 +544,6 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
     public static let airdrop = GRPCMethodDescriptor(
       name: "Airdrop",
       path: "/code.transaction.v2.Transaction/Airdrop",
-      type: GRPCCallType.unary
-    )
-
-    public static let swap = GRPCMethodDescriptor(
-      name: "Swap",
-      path: "/code.transaction.v2.Transaction/Swap",
-      type: GRPCCallType.bidirectionalStreaming
-    )
-
-    public static let declareFiatOnrampPurchaseAttempt = GRPCMethodDescriptor(
-      name: "DeclareFiatOnrampPurchaseAttempt",
-      path: "/code.transaction.v2.Transaction/DeclareFiatOnrampPurchaseAttempt",
       type: GRPCCallType.unary
     )
 
@@ -765,32 +609,6 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   /// Airdrop airdrops core mint tokens to the requesting account
   func airdrop(request: Code_Transaction_V2_AirdropRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_AirdropResponse>
 
-  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
-  /// closely. However, due to the time-sensitive nature and unreliability of
-  /// swaps, they do not fit within the broader intent system. This results in
-  /// a few key differences:
-  ///  * Transactions are submitted on a best-effort basis outside of the Code
-  ///    Sequencer within the RPC handler
-  ///  * Balance changes are applied after the transaction has finalized
-  ///  * Transactions use recent blockhashes over a nonce
-  /// SubmitIntent also operates on VM virtual instructions, whereas Swap uses
-  /// Solana transactions.
-  ///
-  /// The transaction will have the following instruction format:
-  ///   1. ComputeBudget::SetComputeUnitLimit
-  ///   2. ComputeBudget::SetComputeUnitPrice
-  ///   3. SwapValidator::PreSwap
-  ///   4. Dynamic swap instruction
-  ///   5. SwapValidator::PostSwap
-  ///
-  /// Note: Currently limited to swapping USDC to core mint tokens.
-  /// Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
-  func swap(context: StreamingResponseCallContext<Code_Transaction_V2_SwapResponse>) -> EventLoopFuture<(StreamEvent<Code_Transaction_V2_SwapRequest>) -> Void>
-
-  /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-  /// onramp to purchase core mint tokens for use in Code.
-  func declareFiatOnrampPurchaseAttempt(request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>
-
   /// VoidGiftCard voids a gift card account by returning the funds to the funds back
   /// to the issuer via the auto-return action if it hasn't been claimed or already
   /// returned.
@@ -855,24 +673,6 @@ extension Code_Transaction_V2_TransactionProvider {
         responseSerializer: ProtobufSerializer<Code_Transaction_V2_AirdropResponse>(),
         interceptors: self.interceptors?.makeAirdropInterceptors() ?? [],
         userFunction: self.airdrop(request:context:)
-      )
-
-    case "Swap":
-      return BidirectionalStreamingServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_SwapRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Transaction_V2_SwapResponse>(),
-        interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
-        observerFactory: self.swap(context:)
-      )
-
-    case "DeclareFiatOnrampPurchaseAttempt":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>(),
-        interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? [],
-        userFunction: self.declareFiatOnrampPurchaseAttempt(request:context:)
       )
 
     case "VoidGiftCard":
@@ -962,39 +762,6 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Transaction_V2_AirdropResponse
 
-  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
-  /// closely. However, due to the time-sensitive nature and unreliability of
-  /// swaps, they do not fit within the broader intent system. This results in
-  /// a few key differences:
-  ///  * Transactions are submitted on a best-effort basis outside of the Code
-  ///    Sequencer within the RPC handler
-  ///  * Balance changes are applied after the transaction has finalized
-  ///  * Transactions use recent blockhashes over a nonce
-  /// SubmitIntent also operates on VM virtual instructions, whereas Swap uses
-  /// Solana transactions.
-  ///
-  /// The transaction will have the following instruction format:
-  ///   1. ComputeBudget::SetComputeUnitLimit
-  ///   2. ComputeBudget::SetComputeUnitPrice
-  ///   3. SwapValidator::PreSwap
-  ///   4. Dynamic swap instruction
-  ///   5. SwapValidator::PostSwap
-  ///
-  /// Note: Currently limited to swapping USDC to core mint tokens.
-  /// Note: Core mint tokens are deposited into the token account derived from the VM deposit PDA of the owner account.
-  func swap(
-    requestStream: GRPCAsyncRequestStream<Code_Transaction_V2_SwapRequest>,
-    responseStream: GRPCAsyncResponseStreamWriter<Code_Transaction_V2_SwapResponse>,
-    context: GRPCAsyncServerCallContext
-  ) async throws
-
-  /// DeclareFiatOnrampPurchaseAttempt is called whenever a user attempts to use a fiat
-  /// onramp to purchase core mint tokens for use in Code.
-  func declareFiatOnrampPurchaseAttempt(
-    request: Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse
-
   /// VoidGiftCard voids a gift card account by returning the funds to the funds back
   /// to the issuer via the auto-return action if it hasn't been claimed or already
   /// returned.
@@ -1071,24 +838,6 @@ extension Code_Transaction_V2_TransactionAsyncProvider {
         wrapping: { try await self.airdrop(request: $0, context: $1) }
       )
 
-    case "Swap":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_SwapRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Transaction_V2_SwapResponse>(),
-        interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
-        wrapping: { try await self.swap(requestStream: $0, responseStream: $1, context: $2) }
-      )
-
-    case "DeclareFiatOnrampPurchaseAttempt":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>(),
-        interceptors: self.interceptors?.makeDeclareFiatOnrampPurchaseAttemptInterceptors() ?? [],
-        wrapping: { try await self.declareFiatOnrampPurchaseAttempt(request: $0, context: $1) }
-      )
-
     case "VoidGiftCard":
       return GRPCAsyncServerHandler(
         context: context,
@@ -1126,14 +875,6 @@ public protocol Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol:
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeAirdropInterceptors() -> [ServerInterceptor<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>]
 
-  /// - Returns: Interceptors to use when handling 'swap'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeSwapInterceptors() -> [ServerInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
-
-  /// - Returns: Interceptors to use when handling 'declareFiatOnrampPurchaseAttempt'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeDeclareFiatOnrampPurchaseAttemptInterceptors() -> [ServerInterceptor<Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptRequest, Code_Transaction_V2_DeclareFiatOnrampPurchaseAttemptResponse>]
-
   /// - Returns: Interceptors to use when handling 'voidGiftCard'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeVoidGiftCardInterceptors() -> [ServerInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
@@ -1149,8 +890,6 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       Code_Transaction_V2_TransactionServerMetadata.Methods.getLimits,
       Code_Transaction_V2_TransactionServerMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionServerMetadata.Methods.airdrop,
-      Code_Transaction_V2_TransactionServerMetadata.Methods.swap,
-      Code_Transaction_V2_TransactionServerMetadata.Methods.declareFiatOnrampPurchaseAttempt,
       Code_Transaction_V2_TransactionServerMetadata.Methods.voidGiftCard,
     ]
   )
@@ -1183,18 +922,6 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
     public static let airdrop = GRPCMethodDescriptor(
       name: "Airdrop",
       path: "/code.transaction.v2.Transaction/Airdrop",
-      type: GRPCCallType.unary
-    )
-
-    public static let swap = GRPCMethodDescriptor(
-      name: "Swap",
-      path: "/code.transaction.v2.Transaction/Swap",
-      type: GRPCCallType.bidirectionalStreaming
-    )
-
-    public static let declareFiatOnrampPurchaseAttempt = GRPCMethodDescriptor(
-      name: "DeclareFiatOnrampPurchaseAttempt",
-      path: "/code.transaction.v2.Transaction/DeclareFiatOnrampPurchaseAttempt",
       type: GRPCCallType.unary
     )
 
