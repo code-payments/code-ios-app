@@ -17,15 +17,25 @@ extension Client {
         }
     }
     
-    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey, isWithdrawal: Bool) async throws {
+    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 exchangedFiat: exchangedFiat,
                 sourceCluster: owner,
                 destination: destination,
                 owner: owner.authority.keyPair,
-                rendezvous: rendezvous,
-                isWithdrawal: isWithdrawal
+                rendezvous: rendezvous
+            ) { c.resume(with: $0) }
+        }
+    }
+    
+    public func withdraw(exchangedFiat: ExchangedFiat, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
+        _ = try await withCheckedThrowingContinuation { c in
+            transactionService.withdraw(
+                exchangedFiat: exchangedFiat,
+                sourceCluster: owner,
+                destinationMetadata: destinationMetadata,
+                owner: owner.authority.keyPair
             ) { c.resume(with: $0) }
         }
     }

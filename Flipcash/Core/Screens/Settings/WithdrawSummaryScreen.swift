@@ -15,6 +15,8 @@ struct WithdrawSummaryScreen: View {
     
     @ObservedObject private var viewModel: WithdrawViewModel
     
+    @State private var dialogItem: DialogItem?
+    
     // MARK: - Init -
     
     init(viewModel: WithdrawViewModel) {
@@ -29,17 +31,61 @@ struct WithdrawSummaryScreen: View {
                 VStack(alignment: .center, spacing: 20) {
                     Spacer()
                     
-                    BorderedContainer {
-                        VStack(spacing: 10) {
-                            AmountText(
-                                flagStyle: viewModel.enteredFiat?.converted.currencyCode.flagStyle ?? .fiat(.us),
-                                content: viewModel.enteredFiat?.converted.formatted(suffix: nil) ?? "$0.00",
-                                showChevron: false
-                            )
-                            .font(.appDisplayMedium)
+                    if
+                        let enteredAmount = viewModel.enteredFiat,
+                        let withdrawableAmount = viewModel.withdrawableAmount,
+                        let metadata = viewModel.destinationMetadata
+                    {
+                        
+                        let originalFiat = enteredAmount.converted
+                        let usdcFiat     = enteredAmount.usdc
+                        let fee          = metadata.fee
+                        
+                        BorderedContainer {
+                            VStack(spacing: 20) {
+                                
+                                Spacer()
+                                
+                                AmountText(
+                                    flagStyle: CurrencyCode.usd.flagStyle,
+                                    content: withdrawableAmount.usdc.formatted(suffix: nil),
+                                    showChevron: false,
+                                    canScale: false
+                                )
+                                .font(.appDisplayMedium)
+                                
+                                Spacer()
+                                
+                                if originalFiat.currencyCode != .usd || fee.quarks > 0 {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        lineItem(
+                                            title: Text("Withdrawal amount"),
+                                            value: originalFiat.formatted(suffix: nil)
+                                        )
+                                        
+                                        if originalFiat.currencyCode != .usd {
+                                            lineItem(
+                                                title: Text("Converted to USD"),
+                                                value: usdcFiat.formatted(/*truncated: true,*/suffix: nil)
+                                            )
+                                        }
+                                        
+                                        if fee.quarks > 0 {
+                                            lineItem(
+                                                title: Text("Less one time fee \(Image.system(.info))"),
+                                                value: fee.formatted(suffix: nil)
+                                            ) {
+                                                showFeeInformationDialog()
+                                            }
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                }
+                            }
+                            .padding(20)
+                            .frame(height: geometry.size.height * 0.3)
                         }
-                        .padding(20)
-                        .frame(height: geometry.size.height * 0.3)
                     }
                     
                     Image.system(.arrowDown)
@@ -67,5 +113,39 @@ struct WithdrawSummaryScreen: View {
         .navigationTitle("Withdraw")
         .navigationBarTitleDisplayMode(.inline)
         .interactiveDismissDisabled()
+        .dialog(item: $dialogItem)
+    }
+    
+    @ViewBuilder private func lineItem(title: Text, value: String, action: (() -> Void)? = nil) -> some View {
+        HStack {
+            if let action {
+                Button {
+                    action()
+                } label: {
+                    title
+                        .foregroundStyle(Color.textSecondary)
+                }
+            } else {
+                title
+                    .foregroundStyle(Color.textSecondary)
+            }
+            Spacer()
+            Text(value)
+                .foregroundStyle(Color.textMain)
+        }
+        .font(.appTextSmall)
+    }
+    
+    // MARK: - Dialogs -
+    
+    private func showFeeInformationDialog() {
+        dialogItem = .init(
+            style: .success,
+            title: "What Is This Fee?",
+            subtitle: "The account you're trying to withdraw to requires a one time account creation fee. This fee will be deducted from the amount you're withdrawing",
+            dismissable: true
+        ) {
+            .okay(kind: .standard)
+        }
     }
 }

@@ -213,15 +213,13 @@ class Session: ObservableObject {
     
     // MARK: - Withdrawals -
     
-    func withdraw(exchangedFiat: ExchangedFiat, to destination: PublicKey) async throws {
+    func withdraw(exchangedFiat: ExchangedFiat, to destinationMetadata: DestinationMetadata) async throws {
         let rendezvous = PublicKey.generate()!
         do {
-            try await self.client.transfer(
+            try await self.client.withdraw(
                 exchangedFiat: exchangedFiat,
                 owner: owner,
-                destination: destination,
-                rendezvous: rendezvous,
-                isWithdrawal: true
+                destinationMetadata: destinationMetadata,
             )
             
             historyController.sync()

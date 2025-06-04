@@ -40,15 +40,14 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Transfer -
     
-    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, isWithdrawal: Bool, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         let intent = IntentTransfer(
             rendezvous: rendezvous,
             sourceCluster: sourceCluster,
             destination: destination,
-            exchangedFiat: exchangedFiat,
-            isWithdrawal: isWithdrawal
+            exchangedFiat: exchangedFiat
         )
         
         submit(intent: intent, owner: owner) { result in
@@ -61,6 +60,34 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
+        }
+    }
+    
+    func withdraw(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        trace(.send)
+        
+        do {
+            let intent = try IntentWithdraw(
+                sourceCluster: sourceCluster,
+                destinationMetadata: destinationMetadata,
+                exchangedFiat: exchangedFiat
+            )
+            
+            submit(intent: intent, owner: owner) { result in
+                switch result {
+                case .success(_):
+                    trace(.success)
+                    completion(.success(()))
+                    
+                case .failure(let error):
+                    trace(.failure, components: "Error: \(error)")
+                    completion(.failure(error))
+                }
+            }
+            
+        } catch {
+            trace(.failure, components: "Intent error: \(error)")
+            completion(.failure(error))
         }
     }
     
@@ -379,9 +406,14 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         call.handle(on: queue) { response in
             
             let metadata = DestinationMetadata(
+                kind: .init(rawValue: response.accountType.rawValue) ?? .unknown,
                 destination: destination,
                 isValid: response.isValidPaymentDestination,
-                kind: .init(rawValue: response.accountType.rawValue) ?? .unknown
+                requiresInitialization: response.requiresInitialization,
+                fee: response.requiresInitialization ? try! Fiat(
+                    fiatDecimal: Decimal(response.feeAmount.nativeAmount),
+                    currencyCode: .usd
+                ) : 0
             )
             
             completion(.success(metadata))
@@ -389,9 +421,11 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         } failure: { _ in
             
             let metadata = DestinationMetadata(
+                kind: .unknown,
                 destination: destination,
                 isValid: false,
-                kind: .unknown
+                requiresInitialization: false,
+                fee: 0
             )
             
             completion(.success(metadata))
@@ -403,27 +437,26 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
 
 public struct DestinationMetadata: Sendable {
     
-    public let destination: PublicKey
+    public let destination: Destination
     public let isValid: Bool
     public let kind: Kind
+    public let fee: Fiat
     
-    public let hasResolvedDestination: Bool
-    public let resolvedDestination: PublicKey
+    public let requiresInitialization: Bool
     
-    init(destination: PublicKey, isValid: Bool, kind: Kind) {
-        self.destination = destination
-        self.isValid = isValid
-        self.kind = kind
-        
+    init(kind: Kind, destination: PublicKey, isValid: Bool, requiresInitialization: Bool, fee: Fiat) {
         switch kind {
         case .unknown, .token:
-            self.hasResolvedDestination = false
-            self.resolvedDestination = destination
+            self.destination = .init(token: destination)
             
         case .owner:
-            self.hasResolvedDestination = true
-            self.resolvedDestination = AssociatedTokenAccount(owner: destination, mint: Mint.usdc).ata.publicKey
+            self.destination = .init(owner: destination)
         }
+        
+        self.kind = kind
+        self.isValid = isValid
+        self.requiresInitialization = requiresInitialization
+        self.fee = fee
     }
 }
             
@@ -432,6 +465,24 @@ extension DestinationMetadata {
         case unknown
         case token
         case owner
+    }
+    
+    public struct Destination: Sendable {
+        public let owner: PublicKey?
+        public let token: PublicKey
+        public let requiredResolution: Bool
+        
+        init(token: PublicKey) {
+            self.owner = nil
+            self.token = token
+            self.requiredResolution = false
+        }
+        
+        init(owner: PublicKey) {
+            self.owner = owner
+            self.token = AssociatedTokenAccount(owner: owner, mint: Mint.usdc).ata.publicKey
+            self.requiredResolution = true
+        }
     }
 }
 

@@ -17,17 +17,15 @@ final class IntentTransfer: IntentType {
     let destination: PublicKey
     let exchangedFiat: ExchangedFiat
     let extendedMetadata: Google_Protobuf_Any?
-    let isWithdrawal: Bool
     
     var actionGroup: ActionGroup
     
-    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, exchangedFiat: ExchangedFiat, isWithdrawal: Bool = false, extendedMetadata: Google_Protobuf_Any? = nil) {
+    init(rendezvous: PublicKey, sourceCluster: AccountCluster, destination: PublicKey, exchangedFiat: ExchangedFiat, extendedMetadata: Google_Protobuf_Any? = nil) {
         self.id               = rendezvous
         self.sourceCluster    = sourceCluster
         self.exchangedFiat    = exchangedFiat
         self.extendedMetadata = extendedMetadata
         self.destination      = destination
-        self.isWithdrawal     = isWithdrawal
         
         let transfer = ActionTransfer(
             amount: exchangedFiat.usdc,
@@ -36,14 +34,6 @@ final class IntentTransfer: IntentType {
         )
         
         self.actionGroup = ActionGroup(actions: [transfer])
-    }
-}
-
-// MARK: - Errors -
-
-extension IntentTransfer {
-    enum Error: Swift.Error {
-        case balanceMismatch
     }
 }
 
@@ -61,7 +51,7 @@ extension IntentTransfer {
                     $0.exchangeRate = exchangedFiat.rate.fx.doubleValue
                     $0.nativeAmount = exchangedFiat.converted.doubleValue
                 }
-                $0.isWithdrawal = isWithdrawal
+                $0.isWithdrawal = false
                 $0.isRemoteSend = false
             }
         }

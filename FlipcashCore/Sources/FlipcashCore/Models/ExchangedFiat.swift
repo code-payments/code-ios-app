@@ -68,6 +68,26 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         self.converted = converted
         self.rate = rate
     }
+    
+    public func subtracting(fee: Fiat) throws -> ExchangedFiat {
+        assert(fee.currencyCode == .usd, "Fee must be in USD")
+        
+        let feeInQuarks = fee.quarks
+        
+        guard feeInQuarks < usdc.quarks else {
+            throw Error.feeLargerThanAmount
+        }
+        
+        let remainingQuarks = usdc.quarks - feeInQuarks
+        
+        return try ExchangedFiat(
+            usdc: Fiat(
+                quarks: remainingQuarks,
+                currencyCode: .usd
+            ),
+            rate: rate
+        )
+    }
 }
 
 // MARK: - Proto -
@@ -122,8 +142,9 @@ extension ExchangedFiat {
 }
 
 extension ExchangedFiat {
-    enum Error: Swift.Error {
+    public enum Error: Swift.Error {
         case invalidCurrency
         case invalidNativeAmount
+        case feeLargerThanAmount
     }
 }

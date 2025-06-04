@@ -58,6 +58,22 @@ class WithdrawViewModel: ObservableObject {
         return try! ExchangedFiat(converted: converted, rate: rate)
     }
     
+    var withdrawableAmount: ExchangedFiat? {
+        guard let enteredFiat = enteredFiat else {
+            return nil
+        }
+        
+        guard let destinationMetadata else {
+            return nil
+        }
+        
+        if destinationMetadata.requiresInitialization && destinationMetadata.fee.quarks > 0 {
+            return try? enteredFiat.subtracting(fee: destinationMetadata.fee)
+        } else {
+            return enteredFiat
+        }
+    }
+    
     var canCompleteWithdrawal: Bool {
         if
             let enteredFiat = enteredFiat,
@@ -110,7 +126,7 @@ class WithdrawViewModel: ObservableObject {
         Task {
             try await session.withdraw(
                 exchangedFiat: enteredFiat,
-                to: destinationMetadata.resolvedDestination
+                to: destinationMetadata
             )
             
             try await Task.delay(milliseconds: 500)
