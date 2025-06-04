@@ -17,6 +17,18 @@ struct WithdrawSummaryScreen: View {
     
     @State private var dialogItem: DialogItem?
     
+    private var usdcToWithdraw: String {
+        if let withdrawableAmount = viewModel.withdrawableAmount {
+            return withdrawableAmount.usdc.formatted(suffix: nil)
+            
+        } else if let negativeDelta = viewModel.negativeWithdrawableAmount {
+            return "-\(negativeDelta.formatted(suffix: nil))"
+            
+        } else {
+            return Fiat(quarks: 0 as UInt64, currencyCode: .usd).formatted(suffix: nil)
+        }
+    }
+    
     // MARK: - Init -
     
     init(viewModel: WithdrawViewModel) {
@@ -33,10 +45,8 @@ struct WithdrawSummaryScreen: View {
                     
                     if
                         let enteredAmount = viewModel.enteredFiat,
-                        let withdrawableAmount = viewModel.withdrawableAmount,
                         let metadata = viewModel.destinationMetadata
                     {
-                        
                         let originalFiat = enteredAmount.converted
                         let usdcFiat     = enteredAmount.usdc
                         let fee          = metadata.fee
@@ -48,7 +58,7 @@ struct WithdrawSummaryScreen: View {
                                 
                                 AmountText(
                                     flagStyle: CurrencyCode.usd.flagStyle,
-                                    content: withdrawableAmount.usdc.formatted(suffix: nil),
+                                    content: usdcToWithdraw,
                                     showChevron: false,
                                     canScale: false
                                 )

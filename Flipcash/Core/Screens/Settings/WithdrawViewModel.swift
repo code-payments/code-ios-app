@@ -58,6 +58,25 @@ class WithdrawViewModel: ObservableObject {
         return try! ExchangedFiat(converted: converted, rate: rate)
     }
     
+    var negativeWithdrawableAmount: Fiat? {
+        guard let enteredFiat = enteredFiat else {
+            return nil
+        }
+        
+        guard let destinationMetadata else {
+            return nil
+        }
+        
+        guard destinationMetadata.fee.quarks >= enteredFiat.usdc.quarks else {
+            return nil
+        }
+        
+        return Fiat(
+            quarks: destinationMetadata.fee.quarks - enteredFiat.usdc.quarks,
+            currencyCode: .usd
+        )
+    }
+    
     var withdrawableAmount: ExchangedFiat? {
         guard let enteredFiat = enteredFiat else {
             return nil
@@ -124,16 +143,21 @@ class WithdrawViewModel: ObservableObject {
         
         withdrawButtonState = .loading
         Task {
-            try await session.withdraw(
-                exchangedFiat: enteredFiat,
-                to: destinationMetadata
-            )
-            
-            try await Task.delay(milliseconds: 500)
-            withdrawButtonState = .success
-            
-            try await Task.delay(milliseconds: 500)
-            showSuccessfulWithdrawalDialog()
+            do {
+                try await session.withdraw(
+                    exchangedFiat: enteredFiat,
+                    to: destinationMetadata
+                )
+                
+                try await Task.delay(milliseconds: 500)
+                withdrawButtonState = .success
+                
+                try await Task.delay(milliseconds: 500)
+                showSuccessfulWithdrawalDialog()
+                
+            } catch {
+                withdrawButtonState = .normal
+            }
         }
     }
     
@@ -158,6 +182,21 @@ class WithdrawViewModel: ObservableObject {
     }
     
     func completeWithdrawalAction() {
+        guard negativeWithdrawableAmount == nil else {
+            dialogItem = .init(
+                style: .destructive,
+                title: "Withdrawal Amount Too Small",
+                subtitle: "Your withdrawal amount is too small to cover the one time fee. Please try a different amount",
+                dismissable: true
+            ) {
+                .okay(kind: .standard) { [weak self] in
+                    self?.resetEnteredAmount()
+                    self?.popToRoot()
+                }
+            }
+            return
+        }
+        
         dialogItem = .init(
             style: .destructive,
             title: "Are you sure?",
@@ -183,7 +222,17 @@ class WithdrawViewModel: ObservableObject {
         enteredAddress = address.base58
     }
     
+    // MARK: - Reset -
+    
+    private func resetEnteredAmount() {
+        enteredAmount = ""
+    }
+    
     // MARK: - Navigation -
+    
+    private func popToRoot() {
+        path = []
+    }
     
     private func pushEnterAddressScreen() {
         path.append(.enterAddress)
