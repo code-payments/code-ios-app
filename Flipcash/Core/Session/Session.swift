@@ -510,7 +510,7 @@ class Session: ObservableObject {
             
             // TODO: Show error
             
-            throw Error.cashLinkCreationFailed
+            throw error
         }
     }
     
