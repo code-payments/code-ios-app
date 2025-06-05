@@ -82,16 +82,10 @@ struct WithdrawAddressScreen: View {
         case .unknown:
             HStack(alignment: .top, spacing: 6) {
                 Image.system(.xmark)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Destination Account Not Initialized")
-                        .lineLimit(1)
-                        .font(.appTextHeading)
-                    Text("Please make sure the address you’re withdrawing to has been initialized by your wallet provider. A quick way to do this is to make sure there is already some USDC in the address you’re trying to withdraw to.")
-                        .font(.appTextCaption)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.top, 1)
+                Text("Destination address not valid")
+                    .lineLimit(1)
             }
+            .font(.appTextHeading)
             .foregroundColor(.textError)
             
         case .owner, .token:

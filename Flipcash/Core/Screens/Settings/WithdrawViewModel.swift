@@ -191,7 +191,7 @@ class WithdrawViewModel: ObservableObject {
             ) {
                 .okay(kind: .standard) { [weak self] in
                     self?.resetEnteredAmount()
-                    self?.popToRoot()
+                    self?.popToEnterAmount()
                 }
             }
             return
@@ -199,8 +199,8 @@ class WithdrawViewModel: ObservableObject {
         
         dialogItem = .init(
             style: .destructive,
-            title: "Are you sure?",
-            subtitle: "Withdrawals are irreversible and cannot be undone once initiated.",
+            title: "Are You Sure?",
+            subtitle: "Withdrawals are irreversible and cannot be undone once initiated",
             dismissable: true,
             actions: {
                 .destructive("Withdraw") { [weak self] in
@@ -230,8 +230,12 @@ class WithdrawViewModel: ObservableObject {
     
     // MARK: - Navigation -
     
-    private func popToRoot() {
-        path = []
+    private func popToEnterAmount() {
+        path = [.enterAmount]
+    }
+    
+    func pushEnterAmountScreen() {
+        path.append(.enterAmount)
     }
     
     private func pushEnterAddressScreen() {
@@ -270,6 +274,7 @@ class WithdrawViewModel: ObservableObject {
 }
 
 enum WithdrawNavigationPath {
+    case enterAmount
     case enterAddress
     case confirmation
 }

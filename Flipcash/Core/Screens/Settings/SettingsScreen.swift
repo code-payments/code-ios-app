@@ -118,7 +118,7 @@ struct SettingsScreen: View {
                 isShowingWithdrawFlow.toggle()
             }
             .sheet(isPresented: $isShowingWithdrawFlow) {
-                WithdrawAmountScreen(
+                WithdrawDescriptionScreen(
                     isPresented: $isShowingWithdrawFlow,
                     container: container,
                     sessionContainer: sessionContainer
@@ -126,7 +126,8 @@ struct SettingsScreen: View {
             }
             
             navigationRow(asset: .deposit, title: "Deposit") {
-                DepositScreen(session: session)
+                DepositDescriptionScreen(session: session)
+//                DepositScreen(session: session)
             }
             
             navigationRow(asset: .myAccount, title: "My Account") {

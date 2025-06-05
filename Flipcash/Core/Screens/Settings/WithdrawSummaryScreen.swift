@@ -82,8 +82,8 @@ struct WithdrawSummaryScreen: View {
                                         
                                         if fee.quarks > 0 {
                                             lineItem(
-                                                title: Text("Less one time fee \(Image.system(.info))"),
-                                                value: fee.formatted(suffix: nil)
+                                                title: Text("Less one time fee").underline() + Text(" \(Image.asset(.info))").baselineOffset(-2),
+                                                value: "-\(fee.formatted(suffix: nil))"
                                             ) {
                                                 showFeeInformationDialog()
                                             }
@@ -93,7 +93,8 @@ struct WithdrawSummaryScreen: View {
                                     Spacer()
                                 }
                             }
-                            .padding(20)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 25)
                             .frame(height: geometry.size.height * 0.3)
                         }
                     }

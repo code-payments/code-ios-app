@@ -1,0 +1,96 @@
+//
+//  WithdrawDescriptionScreen.swift
+//  Code
+//
+//  Created by Dima Bart on 2021-03-02.
+//
+
+import SwiftUI
+import FlipcashUI
+import FlipcashCore
+
+struct WithdrawDescriptionScreen: View {
+    
+    @Binding var isPresented: Bool
+    
+    @StateObject private var viewModel: WithdrawViewModel
+    
+    // MARK: - Init -
+
+    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
+        self._isPresented = isPresented
+        self._viewModel = .init(
+            wrappedValue: WithdrawViewModel(
+                isPresented: isPresented,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
+    }
+    
+    // MARK: - Body -
+    
+    var body: some View {
+        NavigationStack(path: $viewModel.path) {
+            Background(color: .backgroundMain) {
+                VStack(alignment: .center, spacing: 20) {
+                    
+                    Spacer()
+                    
+                    Image.asset(.withdrawCircle)
+                    
+                    Spacer()
+                    
+                    Text("You can withdraw your funds at any time, and move them into your bank acccount")
+                        .font(.appTextMedium)
+                        .foregroundColor(.textMain)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    
+                    Spacer()
+                    
+                    CodeButton(
+                        style: .filled,
+                        title: "Learn How to Withdraw Funds",
+                        action: learnAction
+                    )
+                    
+                    CodeButton(
+                        style: .filled,
+                        title: "Withdraw Funds Now",
+                        action: withdrawAction
+                    )
+                }
+                .padding(20)
+            }
+            .navigationTitle("Withdraw")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: WithdrawNavigationPath.self) { path in
+                switch path {
+                case .enterAmount:
+                    WithdrawAmountScreen(viewModel: viewModel)
+                case .enterAddress:
+                    WithdrawAddressScreen(viewModel: viewModel)
+                case .confirmation:
+                    WithdrawSummaryScreen(viewModel: viewModel)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Actions -
+    
+    private func withdrawAction() {
+        viewModel.pushEnterAmountScreen()
+    }
+    
+    private func learnAction() {
+        let url = URL(string: "https://chatgpt.com/share/68399a36-001c-8002-8c2d-7877a064ea34")!
+        url.openWithApplication()
+    }
+}
