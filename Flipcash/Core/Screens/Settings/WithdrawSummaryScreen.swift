@@ -93,9 +93,8 @@ struct WithdrawSummaryScreen: View {
                                     Spacer()
                                 }
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 25)
-                            .frame(height: geometry.size.height * 0.3)
+                            .padding(20)
+                            .frame(height: geometry.size.height * 0.35)
                         }
                     }
                     
