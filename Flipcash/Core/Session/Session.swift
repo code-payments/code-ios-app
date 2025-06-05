@@ -555,6 +555,10 @@ class Session: ObservableObject {
                     )
                 )
                 
+                // Don't show actions for cash links
+                billState.primaryAction   = nil
+                billState.secondaryAction = nil
+                
                 Analytics.transfer(
                     event: .receiveCashLink,
                     exchangedFiat: exchangedFiat,
