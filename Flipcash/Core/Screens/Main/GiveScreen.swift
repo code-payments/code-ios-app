@@ -106,6 +106,11 @@ struct GiveScreen: View {
             return
         }
         
+        guard session.hasLimitToSendFunds(for: exchangedFiat) else {
+            showLimitsError()
+            return
+        }
+        
         isPresented = false
         
         Task {
@@ -139,6 +144,17 @@ struct GiveScreen: View {
             style: .destructive,
             title: "Insufficient Balance",
             subtitle: "Please enter a lower amount and try again",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+    
+    private func showLimitsError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Transaction Limit Reached",
+            subtitle: "Flipcash is designed for small, every day transactions. Send limits reset daily",
             dismissable: true
         ) {
             .okay(kind: .destructive)

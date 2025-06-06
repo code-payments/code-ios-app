@@ -99,13 +99,13 @@ extension Client {
         }
     }
     
-//    // MARK: - Limits -
-//    
-//    public func fetchTransactionLimits(owner: KeyPair, since date: Date) async throws -> Limits {
-//        try await withCheckedThrowingContinuation { c in
-//            transactionService.fetchTransactionLimits(owner: owner, since: date) { c.resume(with: $0) }
-//        }
-//    }
+    // MARK: - Limits -
+    
+    public func fetchTransactionLimits(owner: KeyPair, since date: Date) async throws -> Limits {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.fetchTransactionLimits(owner: owner, since: date) { c.resume(with: $0) }
+        }
+    }
     
     // MARK: - Withdrawals -
     

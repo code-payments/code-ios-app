@@ -356,42 +356,40 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Limits -
     
-//    func fetchTransactionLimits(owner: KeyPair, since date: Date, completion: @escaping (Result<Limits, ErrorFetchLimits>) -> Void) {
-//        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Date (local): \(date.description(with: .current))")
-//        
-//        let fetchDate: Date = .now
-//        
-//        let request = Code_Transaction_V2_GetLimitsRequest.with {
-//            $0.owner         = owner.publicKey.codeAccountID
-//            $0.consumedSince = .init(date: date)
-//            $0.signature     = $0.sign(with: owner)
-//        }
-//        
-//        let call = service.getLimits(request)
-//        call.handle(on: queue) { response in
-//            
-//            let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
-//            guard error == .ok else {
-//                trace(.failure, components: "Owner: \(owner.publicKey.base58)", "Date (local): \(date.description(with: .current))", "Error: \(error)")
-//                completion(.failure(error))
-//                return
-//            }
-//            
-//            let limits = Limits(
-//                sinceDate: date,
-//                fetchDate: fetchDate,
-//                sendLimits: response.sendLimitsByCurrency,
-//                buyLimits: response.buyModuleLimitsByCurrency,
-//                deposits: response.depositLimit
-//            )
-//            
-//            trace(.success, components: "Owner: \(owner.publicKey.base58)", "Date (local): \(date.description(with: .current))", "Max Deposit: \(limits.maxDeposit)")
-//            completion(.success(limits))
-//            
-//        } failure: { error in
-//            completion(.failure(.unknown))
-//        }
-//    }
+    func fetchTransactionLimits(owner: KeyPair, since date: Date, completion: @Sendable @escaping (Result<Limits, ErrorFetchLimits>) -> Void) {
+        trace(.send, components: "Owner: \(owner.publicKey.base58)", "Since (local): \(date.description(with: .current))")
+        
+        let fetchDate: Date = .now
+        
+        let request = Code_Transaction_V2_GetLimitsRequest.with {
+            $0.owner         = owner.publicKey.solanaAccountID
+            $0.consumedSince = .init(date: date)
+            $0.signature     = $0.sign(with: owner)
+        }
+        
+        let call = service.getLimits(request)
+        call.handle(on: queue) { response in
+            
+            let error = ErrorFetchLimits(rawValue: response.result.rawValue) ?? .unknown
+            guard error == .ok else {
+                trace(.failure, components: "Owner: \(owner.publicKey.base58)", "Since (local): \(date.description(with: .current))", "Error: \(error)")
+                completion(.failure(error))
+                return
+            }
+            
+            let limits = Limits(
+                proto: response,
+                sinceDate: date,
+                fetchDate: fetchDate
+            )
+            
+            trace(.success, components: "Owner: \(owner.publicKey.base58)", "Since (local): \(date.description(with: .current))")
+            completion(.success(limits))
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
     
     // MARK: - Withdrawals -
     

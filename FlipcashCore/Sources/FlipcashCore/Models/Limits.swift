@@ -17,51 +17,23 @@ public struct Limits: Codable, Equatable, Hashable, Sendable {
     /// Date at which the limits were fetched
     public let fetchDate: Date
     
-    /// Maximum quarks that may be deposited at any time. Server will guarantee
-    /// this threshold will be below enforced dollar value limits, while also
-    /// ensuring sufficient funds are available for a full organizer that supports
-    /// max payment sends. Total dollar value limits may be spread across many deposits.
-    public let maxDeposit: Fiat
-    
     public var isStale: Bool {
-        Date.now.timeIntervalSince1970 - fetchDate.timeIntervalSince1970 > (60 * 60) // Older than 1 hour
+        Date.now.timeIntervalSince1970 - fetchDate.timeIntervalSince1970 > (60 * 15) // Older than 15 min
     }
     
     /// Remaining send limits keyed by currency
     private let sendLimits: [CurrencyCode: SendLimit]
     
-    /// Buy limits keyed by currency
-    private let buyLimits: [CurrencyCode: BuyLimit]
-    
     // MARK: - Init -
     
-    init(sinceDate: Date, fetchDate: Date, sendLimits: [CurrencyCode: SendLimit], buyLimits: [CurrencyCode: BuyLimit], maxDeposit: Fiat) {
+    init(sinceDate: Date, fetchDate: Date, sendLimits: [CurrencyCode: SendLimit]) {
         self.sinceDate  = sinceDate
         self.fetchDate  = fetchDate
         self.sendLimits = sendLimits
-        self.buyLimits  = buyLimits
-        self.maxDeposit = maxDeposit
     }
     
     public func sendLimitFor(currency: CurrencyCode) -> SendLimit? {
         sendLimits[currency]
-    }
-    
-    public func buyLimit(for currency: CurrencyCode) -> BuyLimit? {
-        buyLimits[currency]
-    }
-}
-
-public struct BuyLimit: Codable, Equatable, Hashable, Sendable {
-    
-    public static let zero = BuyLimit(max: 0, min: 0)
-    
-    public let max: Decimal
-    public let min: Decimal
-    
-    public init(max: Decimal, min: Decimal) {
-        self.max = max
-        self.min = min
     }
 }
 
@@ -70,15 +42,15 @@ public struct SendLimit: Codable, Equatable, Hashable, Sendable {
     public static let zero = SendLimit(nextTransaction: 0, maxPerTransaction: 0, maxPerDay: 0)
     
     /// Remaining limit to apply on the next transaction
-    public var nextTransaction: Decimal
+    public var nextTransaction: Fiat
 
     /// Maximum allowed on a per-transaction basis
-    public var maxPerTransaction: Decimal
+    public var maxPerTransaction: Fiat
 
     /// Maximum allowed on a per-day basis
-    public var maxPerDay: Decimal
+    public var maxPerDay: Fiat
     
-    public init(nextTransaction: Decimal, maxPerTransaction: Decimal, maxPerDay: Decimal) {
+    public init(nextTransaction: Fiat, maxPerTransaction: Fiat, maxPerDay: Fiat) {
         self.nextTransaction = nextTransaction
         self.maxPerTransaction = maxPerTransaction
         self.maxPerDay = maxPerDay
@@ -87,54 +59,50 @@ public struct SendLimit: Codable, Equatable, Hashable, Sendable {
 
 // MARK: - Proto -
 
-//extension Limits {
-//    init(sinceDate: Date, fetchDate: Date, sendLimits: [String: Code_Transaction_V2_SendLimit], buyLimits: [String: Code_Transaction_V2_BuyModuleLimit]) {
-//        
-//        let sendDict = sendLimits.mapValues {
-//            SendLimit(
-//                nextTransaction: Decimal(Double($0.nextTransaction)),
-//                maxPerTransaction: Decimal(Double($0.maxPerTransaction)),
-//                maxPerDay: Decimal(Double($0.maxPerDay))
-//            )
-//            
-//        }
-//        
-//        var sendContainer: [CurrencyCode: SendLimit] = [:]
-//        sendDict.forEach { code, limit in
-//            if let currency = try? CurrencyCode(currencyCode: code) {
-//                sendContainer[currency] = limit
-//            }
-//        }
-//        
-//        let buyDict = buyLimits.mapValues {
-//            BuyLimit(
-//                max: Decimal(Double($0.maxPerTransaction)),
-//                min: Decimal(Double($0.minPerTransaction))
-//            )
-//        }
-//        
-//        var buyContainer: [CurrencyCode: BuyLimit] = [:]
-//        buyDict.forEach { code, limit in
-//            if let currency = try? CurrencyCode(currencyCode: code) {
-//                buyContainer[currency] = limit
-//            }
-//        }
-//        
-//        self.init(
-//            sinceDate: sinceDate,
-//            fetchDate: fetchDate,
-//            sendLimits: sendContainer,
-//            buyLimits: buyContainer
-//        )
-//    }
-//}
+extension Limits {
+    init(proto: Code_Transaction_V2_GetLimitsResponse, sinceDate: Date, fetchDate: Date) {
+
+        let container: [CurrencyCode: SendLimit] = Dictionary(uniqueKeysWithValues: proto.sendLimitsByCurrency.compactMap { code, limit in
+            guard let currency = try? CurrencyCode(currencyCode: code) else {
+                return nil
+            }
+            
+            let nextTransaction = try! Fiat(
+                fiatDecimal: Decimal(Double(limit.nextTransaction)),
+                currencyCode: currency
+            )
+            
+            let maxPerTransaction = try! Fiat(
+                fiatDecimal: Decimal(Double(limit.maxPerTransaction)),
+                currencyCode: currency
+            )
+            
+            let maxPerDay = try! Fiat(
+                fiatDecimal: Decimal(Double(limit.maxPerDay)),
+                currencyCode: currency
+            )
+            
+            let limit = SendLimit(
+                nextTransaction: nextTransaction,
+                maxPerTransaction: maxPerTransaction,
+                maxPerDay: maxPerDay
+            )
+            
+            return (currency, limit)
+        })
+        
+        self.init(
+            sinceDate: sinceDate,
+            fetchDate: fetchDate,
+            sendLimits: container
+        )
+    }
+}
 
 extension Limits {
     public static let empty = Limits(
         sinceDate: .todayAtMidnight(),
         fetchDate: .now,
-        sendLimits: [:],
-        buyLimits: [:],
-        maxDeposit: 0
+        sendLimits: [:]
     )
 }

@@ -22,8 +22,18 @@ public struct EnterAmountView: View {
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
     
-    private var convertedEntryFiat: Fiat {
-        session.exchangedEntryBalance.converted
+    private var maxEnterAmount: Fiat {
+        guard let limit = session.nextTransactionLimit else {
+            return 0
+        }
+        
+        let balance = session.exchangedEntryBalance.converted
+
+        guard balance.quarks <= limit.quarks else {
+            return limit
+        }
+        
+        return balance
     }
     
     // MARK: - Init -
@@ -66,7 +76,7 @@ public struct EnterAmountView: View {
                         .foregroundColor(.textMain)
                     }
                     
-                    Text("Enter up to \(convertedEntryFiat.formatted(suffix: nil))")
+                    Text("Enter up to \(maxEnterAmount.formatted(suffix: nil))")
                         .fixedSize()
                         .foregroundColor(.textSecondary)
                         .font(.appTextMedium)

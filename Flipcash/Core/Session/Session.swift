@@ -18,6 +18,7 @@ protocol SessionDelegate: AnyObject {
 class Session: ObservableObject {
     
     @Published private(set) var balance: Fiat = 0
+    @Published private(set) var limits: Limits?
     
     @Published var billState: BillState = .default()
     @Published var presentationState: PresentationState = .hidden(.slide)
@@ -47,6 +48,20 @@ class Session: ObservableObject {
             usdc: balance,
             rate: ratesController.rateForEntryCurrency()
         )
+    }
+    
+    var nextTransactionLimit: Fiat? {
+        guard let limits else {
+            return nil
+        }
+        
+        let rate = ratesController.rateForEntryCurrency()
+        
+        guard let limit = limits.sendLimitFor(currency: rate.currency) else {
+            return nil
+        }
+        
+        return limit.nextTransaction
     }
     
     var isShowingBill: Bool {
@@ -128,6 +143,18 @@ class Session: ObservableObject {
     
     // MARK: - Balance -
     
+    func hasLimitToSendFunds(for exchangedFiat: ExchangedFiat) -> Bool {
+        guard let nextTransactionLimit else {
+            return false
+        }
+        
+        guard exchangedFiat.converted.currencyCode == nextTransactionLimit.currencyCode else {
+            return false
+        }
+        
+        return exchangedFiat.converted.quarks <= nextTransactionLimit.quarks
+    }
+    
     func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> Bool {
         exchangedFiat.usdc.quarks > 0 && exchangedFiat.usdc.quarks <= balance.quarks
     }
@@ -143,7 +170,31 @@ class Session: ObservableObject {
     }
     
     private func poll() async throws {
+        try await fetchLimitsIfNeeded()
         try await fetchBalance()
+    }
+    
+    // MARK: - Limits -
+    
+    private func fetchLimitsIfNeeded() async throws {
+        if limits == nil || limits?.isStale == true {
+            try await fetchLimits()
+        }
+    }
+    
+    private func fetchLimits() async throws {
+        limits = try await client.fetchTransactionLimits(
+            owner: ownerKeyPair,
+            since: .todayAtMidnight()
+        )
+        
+        trace(.note, components: "Daily limit updated (USD): \(limits?.sendLimitFor(currency: .usd)?.maxPerDay.decimalValue ?? -1)")
+    }
+    
+    private func updateLimits() {
+        Task {
+            try await fetchLimits()
+        }
     }
     
     // MARK: - Balance -
@@ -158,8 +209,9 @@ class Session: ObservableObject {
         }
     }
     
-    func updateBalanceAndHistory() {
+    func updatePostTransaction() {
         updateBalance()
+        updateLimits()
         historyController.sync()
     }
     
@@ -272,7 +324,7 @@ class Session: ObservableObject {
             do {
                 let metadata = try await operation.start()
                 
-                updateBalanceAndHistory()
+                updatePostTransaction()
                 
                 enqueue(toast: .init(
                     amount: metadata.exchangedFiat.converted,
@@ -377,7 +429,7 @@ class Session: ObservableObject {
                     isDeposit: false
                 ))
                 
-                self?.updateBalanceAndHistory()
+                self?.updatePostTransaction()
                 
                 self?.dismissCashBill(style: .pop)
                 
@@ -424,7 +476,7 @@ class Session: ObservableObject {
                 Task {
                     do {
                         try await self.cancelCashLink(giftCardVault: giftCard.cluster.vaultPublicKey)
-                        self.updateBalanceAndHistory()
+                        self.updatePostTransaction()
                     } catch {
                         ErrorReporting.captureError(error)
                     }
@@ -441,7 +493,7 @@ class Session: ObservableObject {
                     ))
                     
                     self.dismissCashBill(style: .pop)
-                    self.updateBalanceAndHistory()
+                    self.updatePostTransaction()
                 }
             }
             
@@ -540,7 +592,7 @@ class Session: ObservableObject {
                     giftCard: giftCard
                 )
                 
-                updateBalanceAndHistory()
+                updatePostTransaction()
                 
                 enqueue(toast: .init(
                     amount: exchangedFiat.converted,
