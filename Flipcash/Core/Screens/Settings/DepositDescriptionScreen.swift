@@ -74,7 +74,7 @@ struct DepositDescriptionScreen: View {
     }
     
     private func learnAction() {
-        let url = URL(string: "https://chatgpt.com/share/68399b06-51a8-8002-88ab-ab374e8f7b08")!
+        let url = URL(string: "https://chatgpt.com/share/68431710-5824-8002-af0a-c4948970b626")!
         url.openWithApplication()
     }
 }

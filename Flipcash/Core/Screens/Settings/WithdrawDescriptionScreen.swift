@@ -90,7 +90,7 @@ struct WithdrawDescriptionScreen: View {
     }
     
     private func learnAction() {
-        let url = URL(string: "https://chatgpt.com/share/68399a36-001c-8002-8c2d-7877a064ea34")!
+        let url = URL(string: "https://chatgpt.com/share/68431512-cdf8-8002-b944-7538e90dfa48")!
         url.openWithApplication()
     }
 }
