@@ -178,14 +178,6 @@ class OnboardingViewModel: ObservableObject {
             isRegistration: true
         )
         
-        // Prevent server race condition for airdrop
-        try await Task.delay(seconds: 1)
-        
-        _ = try? await client.airdrop(
-            type: .welcomeBonus,
-            owner: account.keyAccount.derivedKey.keyPair
-        )
-        
         initializedAccount = account
     }
     

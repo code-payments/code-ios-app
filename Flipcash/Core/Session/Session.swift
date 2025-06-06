@@ -133,11 +133,26 @@ class Session: ObservableObject {
     // MARK: - Airdrop -
     
     private func attemptAirdrop() {
-        // In rare cases account creation airdrop
-        // might fail and so we'll have it again
-        // in case the server has something to send
         Task {
-            try await client.airdrop(type: .welcomeBonus, owner: ownerKeyPair)
+            let paymentMetadata = try await client.airdrop(type: .welcomeBonus, owner: ownerKeyPair)
+            
+            try await Task.delay(milliseconds: 750)
+            let exchangedFiat = paymentMetadata.exchangedFiat
+            
+            enqueue(toast: .init(
+                amount: exchangedFiat.converted,
+                isDeposit: true
+            ))
+            
+            showCashBill(.init(
+                kind: .cash,
+                exchangedFiat: exchangedFiat,
+                received: true
+            ))
+            
+            // Don't show actions for this bill
+            billState.primaryAction   = nil
+            billState.secondaryAction = nil
         }
     }
     
