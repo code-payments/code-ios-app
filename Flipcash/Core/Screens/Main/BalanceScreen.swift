@@ -225,11 +225,6 @@ struct BalanceScreen: View {
         Task {
             do {
                 try await session.cancelCashLink(giftCardVault: metadata.vault)
-                
-                // TODO: Move into Session?
-                try? await historyController.syncPendingActivities()
-                try? await session.fetchBalance()
-                
             } catch {
                 dialogItem = .init(
                     style: .destructive,

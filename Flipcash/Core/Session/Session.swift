@@ -581,6 +581,8 @@ class Session: ObservableObject {
     
     func cancelCashLink(giftCardVault: PublicKey) async throws {
         try await client.voidCashLink(giftCardVault: giftCardVault, owner: ownerKeyPair)
+        
+        updatePostTransaction()
     }
     
     func receiveCashLink(giftCard: GiftCardCluster) {
