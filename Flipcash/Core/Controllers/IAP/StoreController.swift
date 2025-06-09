@@ -156,13 +156,22 @@ class StoreController: NSObject, ObservableObject {
         let receipt = try await getReceipt()
         print("[IAP] Receipt: \(receipt.base64EncodedString())")
         
+        let price = product.price.doubleValue
+        let currencyCode = product.priceFormatStyle.currencyCode.lowercased()
+        
         try await client.register(owner: owner)
         try await client.completePurchase(
             receipt: receipt,
             productID: product.id,
-            price: product.price.doubleValue,
-            currency: product.priceFormatStyle.currencyCode.lowercased(),
+            price: price,
+            currency: currencyCode,
             owner: owner
+        )
+        
+        Analytics.createAccountPayment(
+            price: price,
+            currency: currencyCode,
+            owner: owner.publicKey
         )
         
         await transaction.finish() // Remove from queue

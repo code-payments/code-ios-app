@@ -11,11 +11,11 @@ import FlipcashCore
 
 // MARK: - Account -
 
-//extension Analytics {
+extension Analytics {
 //    static func logout() {
 //        track(.logout)
 //    }
-//    
+    
 //    static func login(ownerPublicKey: PublicKey, autoCompleteCount: Int, inputChangeCount: Int) {
 //        track(.login, properties: [
 //            .ownerPublicKey: ownerPublicKey.base58,
@@ -23,13 +23,13 @@ import FlipcashCore
 //            .inputChangeCount: inputChangeCount,
 //        ])
 //    }
-//    
+    
 //    static func loginByRetry(count: Int) {
 //        track(.loginByRetry, properties: [
 //            .retryCount: count,
 //        ])
 //    }
-//    
+    
 //    static func createAccount(isSuccessful: Bool, ownerPublicKey: PublicKey?, error: Error?) {
 //        var properties: [Property: AnalyticsValue] = [
 //            .result: isSuccessful,
@@ -41,7 +41,18 @@ import FlipcashCore
 //        
 //        track(.createAccount, properties: properties, error: error)
 //    }
-//}
+    
+    static func createAccountPayment(price: Double, currency: String, owner: PublicKey) {
+        track(
+            event: .createAccountPayment,
+            properties: [
+                .fiat: price,
+                .currency: currency.lowercased(),
+                .ownerPublicKey: owner.base58,
+            ]
+        )
+    }
+}
 
 // MARK: - Cash Transfer -
 
@@ -109,11 +120,12 @@ extension Analytics {
 
 extension Analytics {
     enum Name: String {
-        case withdrawal      = "Withdrawal"
-        case sendCashLink    = "Send Cash Link"
-        case receiveCashLink = "Receive Cash Link"
-        case grabBill        = "Grab Bill"
-        case giveBill        = "Give Bill"
+        case createAccountPayment = "Create Account Payment"
+        case withdrawal           = "Withdrawal"
+        case sendCashLink         = "Send Cash Link"
+        case receiveCashLink      = "Receive Cash Link"
+        case grabBill             = "Grab Bill"
+        case giveBill             = "Give Bill"
     }
 }
 
