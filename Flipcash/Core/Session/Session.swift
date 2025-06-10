@@ -391,49 +391,57 @@ class Session: ObservableObject {
         
         let payload = operation.payload
         
+        var primaryAction: BillState.PrimaryAction? = .init(asset: .airplane, title: "Send") { [weak self, weak operation] in
+            if let operation, let self {
+                // Disable scanning of the bill
+                // while the share sheet is up
+                operation.ignoresStream = true
+                
+                let payload       = operation.payload
+                let exchangedFiat = billDescription.exchangedFiat
+                
+                do {
+                    let giftCard = try await self.createCashLink(
+                        payload: payload,
+                        exchangedFiat: exchangedFiat
+                    )
+                    
+                    self.showCashLinkShareSheet(
+                        giftCard: giftCard,
+                        exchangedFiat: exchangedFiat
+                    )
+                    
+                } catch {
+                    ErrorReporting.captureError(error)
+                    showSomethingWentWrongError()
+                }
+            }
+        }
+        
+        var secondaryAction: BillState.SecondaryAction? = .init(asset: .cancel, title: "Cancel") { [weak self] in
+            self?.dismissCashBill(style: .slide)
+        }
+        
         if billDescription.received {
             Task {
-                try await Task.delay(milliseconds: 300)
+                try await Task.delay(milliseconds: 750)
                 valuation = BillValuation(
                     rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat
                 )
             }
+            
+            // Don't show actions for receives
+            primaryAction   = nil
+            secondaryAction = nil
         }
         
         sendOperation     = operation
         presentationState = .visible(billDescription.received ? .pop : .slide)
         billState         = .init(
             bill: .cash(payload),
-            primaryAction: .init(asset: .airplane, title: "Send") { [weak self, weak operation] in
-                if let operation, let self {
-                    // Disable scanning of the bill
-                    // while the share sheet is up
-                    operation.ignoresStream = true
-                    
-                    let payload       = operation.payload
-                    let exchangedFiat = billDescription.exchangedFiat
-                    
-                    do {
-                        let giftCard = try await self.createCashLink(
-                            payload: payload,
-                            exchangedFiat: exchangedFiat
-                        )
-                        
-                        self.showCashLinkShareSheet(
-                            giftCard: giftCard,
-                            exchangedFiat: exchangedFiat
-                        )
-                        
-                    } catch {
-                        ErrorReporting.captureError(error)
-                        showSomethingWentWrongError()
-                    }
-                }
-            },
-            secondaryAction: .init(asset: .cancel, title: "Cancel") { [weak self] in
-                self?.dismissCashBill(style: .slide)
-            },
+            primaryAction: primaryAction,
+            secondaryAction: secondaryAction,
         )
         
         operation.start { [weak self] result in
