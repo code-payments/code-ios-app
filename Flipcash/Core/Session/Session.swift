@@ -149,10 +149,6 @@ class Session: ObservableObject {
                 exchangedFiat: exchangedFiat,
                 received: true
             ))
-            
-            // Don't show actions for this bill
-            billState.primaryAction   = nil
-            billState.secondaryAction = nil
         }
     }
     
@@ -631,10 +627,6 @@ class Session: ObservableObject {
                         received: true
                     )
                 )
-                
-                // Don't show actions for cash links
-                billState.primaryAction   = nil
-                billState.secondaryAction = nil
                 
                 Analytics.transfer(
                     event: .receiveCashLink,
