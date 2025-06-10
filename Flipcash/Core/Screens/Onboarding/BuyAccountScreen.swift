@@ -15,7 +15,7 @@ struct BuyAccountScreen: View {
     @ObservedObject private var storeController: StoreController
     
     private var formattedPrice: String? {
-        storeController.products[IAPProduct.createAccountWithWelcomeBonus.rawValue]?.formattedPrice
+        storeController.products[IAPProduct.createAccount.rawValue]?.formattedPrice
     }
     
     private var isPriceAvailable: Bool {

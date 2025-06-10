@@ -124,7 +124,7 @@ class OnboardingViewModel: ObservableObject {
         Task {
             do {
                 let result = try await storeController.pay(
-                    for: .createAccountWithWelcomeBonus,
+                    for: .createAccount,
                     owner: inflightMnemonic.solanaKeyPair()
                 )
                 

@@ -8,7 +8,7 @@
 enum IAPProduct: String, CaseIterable, Hashable, Equatable {
     
     case createAccount                 = "com.flipcash.iap.createAccount"
-    case createAccountWithWelcomeBonus = "com.flipcash.iap.createAccountWithWelcomeBonus"
+//    case createAccountWithWelcomeBonus = "com.flipcash.iap.createAccountWithWelcomeBonus"
     
     static var productIDs: Set<String> {
         Set(allCases.map { $0.rawValue })
