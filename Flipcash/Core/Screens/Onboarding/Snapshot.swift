@@ -36,7 +36,7 @@ struct Snapshot: View {
                 
                 Spacer()
                 
-                Text("Tap and hold the QR code to log in. Alternatively you can log in manually by entering the 12 words in the Code Log In screen.")
+                Text("Tap and hold the QR code to log in. Alternatively you can log in manually by entering the 12 words in the Flipcash Log In screen.")
                     .font(.appTextHeading)
                     .foregroundColor(.textMain)
                     .fixedSize(horizontal: false, vertical: true)
