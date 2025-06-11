@@ -50,7 +50,7 @@ class StoreController: NSObject, ObservableObject {
             self.products = products.elementsKeyed(by: \.id)
             print("[IAP] Loaded products:")
             products.forEach {
-                print("\($0.id): \($0.formattedPrice) - \($0.displayName)")
+                print("\($0.id): \($0.displayPrice) - \($0.displayName)")
             }
         } catch {
             ErrorReporting.captureError(error)
@@ -112,6 +112,11 @@ class StoreController: NSObject, ObservableObject {
         guard let storeProduct = products[product.rawValue] else {
             print("[IAP] Can't make purchases.")
             throw Error.productNotFound
+        }
+        
+        guard await Transaction.latest(for: product.rawValue) == nil else {
+            print("[IAP] Product already purchased: \(product.rawValue)")
+            throw Error.productAlreadyPurchased
         }
         
         let result = try await storeProduct.purchase()
@@ -224,21 +229,11 @@ extension StoreController {
 extension StoreController {
     enum Error: Swift.Error {
         case productNotFound
+        case productAlreadyPurchased
         case paymentsUnavailable
         case receiptNotFound
         case failedToLoadReceipt
         case unknown
-    }
-}
-
-extension Product {
-    var formattedPrice: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.maximumFractionDigits = 0
-        formatter.locale = priceFormatStyle.locale
-        
-        return formatter.string(from: price) ?? "n/a"
     }
 }
 

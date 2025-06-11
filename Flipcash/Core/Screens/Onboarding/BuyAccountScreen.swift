@@ -15,7 +15,7 @@ struct BuyAccountScreen: View {
     @ObservedObject private var storeController: StoreController
     
     private var formattedPrice: String? {
-        storeController.products[IAPProduct.createAccount.rawValue]?.formattedPrice
+        storeController.products[IAPProduct.createAccount.rawValue]?.displayPrice
     }
     
     private var isPriceAvailable: Bool {
@@ -43,7 +43,7 @@ struct BuyAccountScreen: View {
                     if let formattedPrice {
                         descriptions(formattedPrice: formattedPrice)
                     } else {
-                        descriptions(formattedPrice: "$19")
+                        descriptions(formattedPrice: "$0.99")
                             .opacity(0)
                             .overlay {
                                 LoadingView(color: .textMain)
@@ -60,7 +60,7 @@ struct BuyAccountScreen: View {
                 CodeButton(
                     state: viewModel.buyAccountButtonState,
                     style: .filled,
-                    title: "Buy Account",
+                    title: "Purchase Your Account",
                     disabled: !isPriceAvailable,
                     action: viewModel.buyAccountAction
                 )
@@ -79,10 +79,10 @@ struct BuyAccountScreen: View {
     
     @ViewBuilder private func descriptions(formattedPrice: String) -> some View {
         VStack(alignment: .center, spacing: 40) {
-            Text("Pay \(formattedPrice), Get \(formattedPrice)")
+            Text("Purchase an Account for \(formattedPrice)")
                 .font(.appTextLarge)
             
-            Text("For a limited time new accounts will receive a free welcome bonus of \(formattedPrice) of stablecoins.")
+            Text("This fee is used to cover our operational costs")
                 .font(.appTextSmall)
         }
     }
