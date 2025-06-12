@@ -18,6 +18,7 @@ struct BalanceScreen: View {
     @EnvironmentObject var historyController: HistoryController
     
     @State private var isShowingCurrencySelection: Bool = false
+    @State private var isShowingDepositScreen: Bool = false
     
     @State private var dialogItem: DialogItem?
     
@@ -27,6 +28,10 @@ struct BalanceScreen: View {
     
     private var activities: [Activity] {
         updateableActivities.value
+    }
+    
+    private var hasActivities: Bool {
+        !activities.isEmpty
     }
     
     private let proportion: CGFloat = 0.3
@@ -65,24 +70,7 @@ struct BalanceScreen: View {
         NavigationStack {
             Background(color: .backgroundMain) {
                 VStack(spacing: 0) {
-                    GeometryReader { g in
-                        List {
-                            Section {
-                                ForEach(activities) { activity in
-                                    row(activity: activity)
-                                }
-                                
-                            } header: {
-                                header(geometry: g)
-                                    .textCase(.none)
-                            }
-//                            .listSectionSeparator(.hidden)
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparatorTint(Color.rowSeparator)
-                        }
-                        .listStyle(.grouped)
-                        .scrollContentBackground(.hidden)
-                    }
+                    list()
                 }
                 .navigationTitle("Balance")
                 .navigationBarTitleDisplayMode(.inline)
@@ -107,8 +95,52 @@ struct BalanceScreen: View {
                 }
             }
             .onAppear(perform: onAppear)
+            .navigationDestination(isPresented: $isShowingDepositScreen) {
+                DepositScreen(session: session)
+            }
         }
         .dialog(item: $dialogItem)
+    }
+    
+    @ViewBuilder private func emptyState() -> some View {
+        VStack(spacing: 30) {
+            Text("Ask a friend to give you some Flipcash, or deposit USDC from your crypto exchange or other crypto wallet")
+                .font(.appTextMedium)
+                .multilineTextAlignment(.center)
+            
+            CodeButton(style: .filled, title: "Deposit USDC") {
+                isShowingDepositScreen.toggle()
+            }
+        }
+        .listRowBackground(Color.clear)
+        .foregroundStyle(Color.textMain)
+        .padding(.horizontal, 20)
+        .padding(.top, 60)
+    }
+    
+    @ViewBuilder private func list() -> some View {
+        GeometryReader { g in
+            List {
+                Section {
+                    if hasActivities {
+                        ForEach(activities) { activity in
+                            row(activity: activity)
+                        }
+                    } else {
+                        emptyState()
+                    }
+                    
+                } header: {
+                    header(geometry: g)
+                        .textCase(.none)
+                }
+                //.listSectionSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparatorTint(hasActivities ? .rowSeparator : .clear)
+            }
+            .listStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
     }
     
     @ViewBuilder private func header(geometry: GeometryProxy) -> some View {
