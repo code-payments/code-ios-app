@@ -9,19 +9,24 @@ import FlipcashCore
 import StoreKit
 
 @MainActor
+protocol StoreControllerDelegate: AnyObject {
+    func storeController(_ controller: StoreController, didReceivePurchaseResult result: StoreController.PurchaseResult)
+}
+
+@MainActor
 class StoreController: NSObject, ObservableObject {
+    
+    weak var delegate: StoreControllerDelegate?
     
     @Published private(set) var products: [String: Product] = [:]
     
-    private var updates: Task<Void, Never>?
+    private(set) var pendingPurchaseResults: [PurchaseResult] = []
     
-    private let client: FlipClient
+    private var updates: Task<Void, Never>?
     
     // MARK: - Init -
     
-    init(client: FlipClient) {
-        self.client = client
-        
+    override init() {
         super.init()
         
         loadProductsIfNeeded()
@@ -29,11 +34,39 @@ class StoreController: NSObject, ObservableObject {
     }
     
     private func listenForTransactionUpdates() {
-        updates = Task { @MainActor in
+        updates = Task { @MainActor [weak self] in
+            print("[IAP] Listening for transaction updates...")
             for await update in Transaction.updates {
-                if let transaction = try? update.payloadValue {
-                    print("[IAP] Finished transaction: \(transaction.id)")
-                    await transaction.finish()
+                guard let transaction = try? update.payloadValue else {
+                    continue
+                }
+                
+                guard let self = self else {
+                    continue
+                }
+                
+                print("[IAP] Async transaction received: \(transaction.id)")
+                
+                do {
+                    let purchase = try await self.getPurchase(for: transaction)
+                    
+                    let finish: FinishTransaction = {
+                        await transaction.finish()
+                    }
+                    
+                    let result = PurchaseResult.success(purchase, finish)
+                    
+                    if let delegate = self.delegate {
+                        print("[IAP] Notifying delegate of purchase result for: \(purchase.productID)")
+                        delegate.storeController(self, didReceivePurchaseResult: result)
+                    } else {
+                        print("[IAP] No delegate assigned. Storing purchase result for: \(purchase.productID)")
+                        pendingPurchaseResults.append(result)
+                    }
+                    
+                } catch {
+                    print("[IAP] Failed to get purchase: \(error)")
+                    ErrorReporting.captureError(error)
                 }
             }
         }
@@ -103,40 +136,47 @@ class StoreController: NSObject, ObservableObject {
     
     // MARK: - Actions -
 
-    func pay(for product: IAPProduct, owner: KeyPair) async throws -> PurchaseResult {
+    func pay(for iap: IAPProduct, owner: KeyPair, uniqueID: UUID) async throws -> PurchaseResult {
         if products.isEmpty {
             print("[IAP] Loading products before purchase.")
             try await loadProducts()
         }
         
-        guard let storeProduct = products[product.rawValue] else {
+        guard let product = products[iap.rawValue] else {
             print("[IAP] Can't make purchases.")
             throw Error.productNotFound
         }
         
-        guard await Transaction.latest(for: product.rawValue) == nil else {
-            print("[IAP] Product already purchased: \(product.rawValue)")
+        guard await Transaction.latest(for: iap.rawValue) == nil else {
+            print("[IAP] Product already purchased: \(iap.rawValue)")
             throw Error.productAlreadyPurchased
         }
         
-        let result = try await storeProduct.purchase()
+        let result = try await product.purchase(
+            options: [
+                .appAccountToken(uniqueID),
+            ]
+        )
+        
         switch result {
         case .success(let purchaseResult):
             
-            // Handle purchase result
             switch purchaseResult {
             case .unverified(_, let error):
                 print("[IAP] Purchase could not be verified: \(error)")
-                try await purchaseResult.payloadValue.finish() // Remove from queue
+                let transaction = try purchaseResult.payloadValue
+                await transaction.finish()
                 return .failed
                 
-            case .verified(let tx):
-                try await completeVerifiedTransaction(
-                    transaction: tx,
-                    for: storeProduct,
-                    owner: owner
-                )
-                return .success(product)
+            case .verified(let transaction):
+                print("[IAP] Purchase success. Tx: \(transaction.id)")
+                let purchase = try await getPurchase(for: transaction)
+                
+                let finish: FinishTransaction = {
+                    await transaction.finish()
+                }
+                
+                return .success(purchase, finish)
             }
             
         case .userCancelled:
@@ -144,8 +184,7 @@ class StoreController: NSObject, ObservableObject {
             return .cancelled
             
         case .pending:
-            // TODO: Handle pending transactions
-            fatalError("[IAP] (UNSUPPORTED) Purchase pending")
+            return .pending
             
         @unknown default:
             print("[IAP] Unknown purchase result: \(result)")
@@ -153,34 +192,47 @@ class StoreController: NSObject, ObservableObject {
         }
     }
     
-    private func completeVerifiedTransaction(transaction: Transaction, for product: Product, owner: KeyPair) async throws {
-        print("[IAP] Purchase success. Tx: \(transaction.id)")
-        
+    private func getPurchase(for transaction: Transaction) async throws -> Purchase {
         try await refreshReceipt()
         
         let receipt = try await getReceipt()
         print("[IAP] Receipt: \(receipt.base64EncodedString())")
         
-        let price = product.price.doubleValue
-        let currencyCode = product.priceFormatStyle.currencyCode.lowercased()
-        
-        try await client.register(owner: owner)
-        try await client.completePurchase(
-            receipt: receipt,
-            productID: product.id,
-            price: price,
-            currency: currencyCode,
-            owner: owner
+        return Purchase(
+            uniqueID: transaction.appAccountToken ?? UUID(),
+            productID: transaction.productID,
+            price: transaction.price,
+            currencyCode: transaction.currency?.identifier.lowercased(),
+            receipt: receipt
         )
-        
-        Analytics.createAccountPayment(
-            price: price,
-            currency: currencyCode,
-            owner: owner.publicKey
-        )
-        
-        await transaction.finish() // Remove from queue
     }
+    
+//    private func completeVerifiedTransaction(transaction: Transaction, for storeProduct: Product, owner: KeyPair) async throws {
+//        
+//        
+//        // TODO: Move below code into view model, convert StoreController to call
+//        // completeVerifiedTransaction to pass the receipt and Product to the delegate
+//        // and centralize all of the below code in the view model that call it in response
+//        // to the delegate callback. The callback will be invoked on success in pay() or in
+//        // Transaction.updates in response to async 'ask to buy' flow
+//        
+//        try await client.register(owner: owner)
+//        try await client.completePurchase(
+//            receipt: receipt,
+//            productID: storeProduct.id,
+//            price: price,
+//            currency: currencyCode,
+//            owner: owner
+//        )
+//        
+//        Analytics.createAccountPayment(
+//            price: price,
+//            currency: currencyCode,
+//            owner: owner.publicKey
+//        )
+//        
+//        await transaction.finish() // Remove from queue
+//    }
 }
 
 // MARK: - ReceiptDelegate -
@@ -217,10 +269,24 @@ extension StoreController {
 }
 
 extension StoreController {
+    
+    typealias FinishTransaction = () async -> Void
+    
     enum PurchaseResult {
-        case success(IAPProduct)
+        case success(Purchase, FinishTransaction)
         case failed
+        case pending
         case cancelled
+    }
+}
+
+extension StoreController {
+    struct Purchase: Codable, Hashable, Equatable, Sendable {
+        let uniqueID: UUID
+        let productID: String
+        let price: Decimal?
+        let currencyCode: String?
+        let receipt: Data
     }
 }
 
@@ -238,5 +304,5 @@ extension StoreController {
 }
 
 extension StoreController {
-    static let mock = StoreController(client: .mock)
+    static let mock = StoreController()
 }

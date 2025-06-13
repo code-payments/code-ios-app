@@ -30,7 +30,7 @@ class Container {
         self.client          = Client(network: .mainNet)
         self.flipClient      = FlipClient(network: .mainNet)
         self.accountManager  = AccountManager()
-        self.storeController = StoreController(client: flipClient)
+        self.storeController = StoreController()
         self.betaFlags       = BetaFlags.shared
         self.preferences     = Preferences()
         

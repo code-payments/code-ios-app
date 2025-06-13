@@ -38,6 +38,8 @@ enum DefaultsKey: String {
     
     case betaFlags = "com.flipcash.betaFlags"
     
+    case pendingPurchase = "com.flipcash.iap.pendingPurchase"
+    
     // Legacy
     
 //    case faqs = "com.code.faqs"

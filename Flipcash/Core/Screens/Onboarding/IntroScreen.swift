@@ -112,6 +112,8 @@ struct IntroScreen: View {
                     PermissionScreen.forCameraAccess(
                         action: viewModel.allowCameraAccessAction
                     )
+                case .purchasePending:
+                    PurchasePendingScreen()
                 }
             }
         }

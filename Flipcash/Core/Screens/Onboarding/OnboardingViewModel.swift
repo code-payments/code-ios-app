@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import StoreKit
 
 @MainActor
 class OnboardingViewModel: ObservableObject {
@@ -26,19 +27,31 @@ class OnboardingViewModel: ObservableObject {
     
     private let container: Container
     private let client: Client
+    private let flipClient: FlipClient
     private let sessionAuthenticator: SessionAuthenticator
     private let cameraAuthorizer: CameraAuthorizer
     
     private var initializedAccount: InitializedAccount?
+    
+    private var isPurchasePending: Bool = true
     
     // MARK: - Init -
     
     init(container: Container) {
         self.container            = container
         self.client               = container.client
+        self.flipClient           = container.flipClient
         self.sessionAuthenticator = container.sessionAuthenticator
         self.storeController      = container.storeController
         self.cameraAuthorizer     = CameraAuthorizer()
+        
+        storeController.delegate = self
+        
+        if let _ = UserDefaults.pendingPurchase {
+            path = [.purchasePending]
+        }
+        
+        processAsynTransactionsIfNeeded()
     }
     
     // MARK: - Action -
@@ -121,24 +134,41 @@ class OnboardingViewModel: ObservableObject {
     
     func buyAccountAction() {
         buyAccountButtonState = .loading
+        let mnemonic = inflightMnemonic
         Task {
+            let owner    = mnemonic.solanaKeyPair()
+            let product  = IAPProduct.createAccount
+            let uniqueID = UUID()
+            
             do {
                 let result = try await storeController.pay(
-                    for: .createAccount,
-                    owner: inflightMnemonic.solanaKeyPair()
+                    for: product,
+                    owner: owner,
+                    uniqueID: uniqueID
                 )
                 
                 switch result {
-                case .success:
+                case .success(let purchase, let finishTransaction):
+                    try await registerAccount(
+                        for: purchase,
+                        finishTransaction: finishTransaction,
+                        mnemonic: mnemonic,
+                        uniqueID: uniqueID
+                    )
                     
-                    try await createAccount()
-                    buyAccountButtonState = .success
-                    try await Task.delay(seconds: 1)
-                    navigationToCameraAccessScreen()
+                case .pending:
+                    setPurchasePending(
+                        for: mnemonic,
+                        product: product,
+                        uniqueID: uniqueID
+                    )
                     
                 case .failed, .cancelled:
-                    buyAccountButtonState = .normal
+                    break
                 }
+                
+                try await Task.delay(milliseconds: 350)
+                buyAccountButtonState = .normal
                 
             } catch {
                 ErrorReporting.captureError(error)
@@ -170,16 +200,45 @@ class OnboardingViewModel: ObservableObject {
 //        completeOnboardingAndLogin()
 //    }
     
-    // MARK: - Account Creation -
+    // MARK: - Purchase -
     
-    private func createAccount() async throws {
+    private func registerAccount(for purchase: StoreController.Purchase, finishTransaction: StoreController.FinishTransaction, mnemonic: MnemonicPhrase, uniqueID: UUID) async throws {
+        let owner = mnemonic.solanaKeyPair()
+        
+        let price = purchase.price?.doubleValue ?? -1
+        let currency = purchase.currencyCode ?? "nil"
+        
+        Analytics.createAccountPayment(
+            price: price,
+            currency: currency,
+            owner: owner.publicKey
+        )
+        
+        try await flipClient.register(owner: owner)
+        try await flipClient.completePurchase(
+            receipt: purchase.receipt,
+            productID: purchase.productID,
+            price: price,
+            currency: currency,
+            owner: owner
+        )
+        
+        await finishTransaction()
+        
         let account = try await sessionAuthenticator.initialize(
-            using: inflightMnemonic,
+            using: mnemonic,
             isRegistration: true
         )
         
         initializedAccount = account
+        
+        buyAccountButtonState = .success
+        try await Task.delay(seconds: 1)
+        
+        navigationToCameraAccessScreen()
     }
+    
+    // MARK: - Account Creation -
     
     private func completeOnboardingAndLogin() {
         guard let initializedAccount else {
@@ -187,6 +246,77 @@ class OnboardingViewModel: ObservableObject {
         }
         
         sessionAuthenticator.completeLogin(with: initializedAccount)
+    }
+    
+    // MARK: - Pending Transactions -
+    
+    private func setPurchasePending(for mnemonic: MnemonicPhrase, product: IAPProduct, uniqueID: UUID) {
+        UserDefaults.pendingPurchase = .init(
+            uniqueID: uniqueID,
+            mnemonic: mnemonic,
+            product: product,
+            date: .now
+        )
+        
+        navigateToPurchasePendingScreen()
+    }
+    
+    private func processAsynTransactionsIfNeeded() {
+        if !storeController.pendingPurchaseResults.isEmpty {
+            trace(.note, components: "Processing outstanding pending transactions...")
+            
+            for result in storeController.pendingPurchaseResults {
+                // Only process one at a time
+                let processed = processAsyncPurchaseResult(result: result)
+                if processed {
+                    return
+                }
+            }
+        }
+    }
+    
+    @discardableResult
+    private func processAsyncPurchaseResult(result: StoreController.PurchaseResult) -> Bool {
+        switch result {
+        case .success(let purchase, let finishTransaction):
+            
+            // Only process account purchases, only one at a time
+            if purchase.productID == IAPProduct.createAccount.rawValue {
+                trace(.success, components: "Processing successful purchase for: \(purchase.productID), uuid: \(purchase.uniqueID.uuidString)")
+                
+                guard let pendingPurchase = UserDefaults.pendingPurchase else {
+                    return false
+                }
+                
+                trace(.note, components: "Found stored pending purchase for: \(pendingPurchase.uniqueID.uuidString)")
+                
+                guard pendingPurchase.uniqueID == purchase.uniqueID else {
+                    trace(.failure, components: "Store pending purchase: \(pendingPurchase.uniqueID.uuidString) doesn't match purchase: \(purchase.uniqueID.uuidString)")
+                    return false
+                }
+                
+                Task {
+                    do {
+                        try await registerAccount(
+                            for: purchase,
+                            finishTransaction: finishTransaction,
+                            mnemonic: pendingPurchase.mnemonic,
+                            uniqueID: pendingPurchase.uniqueID
+                        )
+                    } catch {
+                        ErrorReporting.captureError(error)
+                    }
+                }
+                
+                UserDefaults.pendingPurchase = nil
+                return true
+            }
+            
+        case .pending, .cancelled, .failed:
+            break
+        }
+        
+        return false
     }
     
     // MARK: - Navigation -
@@ -199,12 +329,24 @@ class OnboardingViewModel: ObservableObject {
         path = [.accessKey]
     }
     
+    func navigateToPurchasePendingScreen() {
+        path.append(.purchasePending)
+    }
+    
     func navigateToBuyAccountScreen() {
         path.append(.buyAccount)
     }
     
     func navigationToCameraAccessScreen() {
         path.append(.cameraAccess)
+    }
+}
+
+// MARK: - StoreControllerDelegate -
+
+extension OnboardingViewModel: StoreControllerDelegate {
+    func storeController(_ controller: StoreController, didReceivePurchaseResult result: StoreController.PurchaseResult) {
+        processAsyncPurchaseResult(result: result)
     }
 }
 
@@ -215,4 +357,22 @@ enum OnboardingPath {
     case accessKey
     case buyAccount
     case cameraAccess
+    case purchasePending
+}
+
+// MARK: - PendingPurchase -
+
+struct PendingPurchase: Codable, Hashable, Equatable, Sendable {
+    let uniqueID: UUID
+    let mnemonic: MnemonicPhrase
+    let product: IAPProduct
+    let date: Date
+}
+
+// MARK: - Defaults -
+
+private extension UserDefaults {
+    
+    @Defaults(.pendingPurchase)
+    static var pendingPurchase: PendingPurchase?
 }

@@ -5,7 +5,7 @@
 //  Created by Dima Bart on 2025-05-07.
 //
 
-enum IAPProduct: String, CaseIterable, Hashable, Equatable {
+enum IAPProduct: String, CaseIterable, Hashable, Equatable, Codable {
     
     case createAccount                 = "com.flipcash.iap.createAccount"
 //    case createAccountWithWelcomeBonus = "com.flipcash.iap.createAccountWithWelcomeBonus"
