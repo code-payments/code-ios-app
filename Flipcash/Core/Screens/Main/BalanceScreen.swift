@@ -211,7 +211,7 @@ struct BalanceScreen: View {
                 }
                 
                 HStack {
-                    Text(activity.date.formattedRelatively())
+                    Text(activity.date.formattedRelatively(useTimeForToday: true))
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                     Spacer()
