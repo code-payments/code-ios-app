@@ -196,6 +196,13 @@ class OnboardingViewModel: ObservableObject {
         }
     }
     
+    func cancelPendingPurchaseAction() {
+        UserDefaults.pendingPurchase = nil
+        navigateToRoot()
+        
+        Analytics.cancelPendingPurchase()
+    }
+    
 //    func skipCameraAccessAction() {
 //        completeOnboardingAndLogin()
 //    }
@@ -320,6 +327,10 @@ class OnboardingViewModel: ObservableObject {
     }
     
     // MARK: - Navigation -
+    
+    func navigateToRoot() {
+        path = []
+    }
     
     func navigateToLogin() {
         path = [.login]

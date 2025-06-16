@@ -42,6 +42,10 @@ extension Analytics {
 //        track(.createAccount, properties: properties, error: error)
 //    }
     
+    static func cancelPendingPurchase() {
+        track(event: .cancelPendingPurchase)
+    }
+    
     static func createAccountPayment(price: Double, currency: String, owner: PublicKey) {
         track(
             event: .createAccountPayment,
@@ -126,6 +130,8 @@ extension Analytics {
         case receiveCashLink      = "Receive Cash Link"
         case grabBill             = "Grab Bill"
         case giveBill             = "Give Bill"
+        
+        case cancelPendingPurchase = "Cancel Pending Purchase"
     }
 }
 

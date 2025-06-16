@@ -113,7 +113,7 @@ struct IntroScreen: View {
                         action: viewModel.allowCameraAccessAction
                     )
                 case .purchasePending:
-                    PurchasePendingScreen()
+                    PurchasePendingScreen(viewModel: viewModel)
                 }
             }
         }

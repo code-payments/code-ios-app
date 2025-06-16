@@ -536,7 +536,7 @@ class Session: ObservableObject {
                         subtitle: "Anyone you sent the link to won't be able to collect the cash",
                         dismissable: false,
                     ) {
-                        .standard("Yes") {
+                        .destructive("Yes") {
                             hideBillActions()
                             cancelSend()
                         };
