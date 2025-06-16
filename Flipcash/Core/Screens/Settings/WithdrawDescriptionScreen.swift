@@ -49,19 +49,22 @@ struct WithdrawDescriptionScreen: View {
                     
                     Spacer()
                     
-                    CodeButton(
-                        style: .filled,
-                        title: "Learn How to Withdraw Funds",
-                        action: learnAction
-                    )
-                    
-                    CodeButton(
-                        style: .filled,
-                        title: "Withdraw Funds Now",
-                        action: withdrawAction
-                    )
+                    VStack(spacing: 0) {
+                        CodeButton(
+                            style: .filled,
+                            title: "Withdraw Funds",
+                            action: withdrawAction
+                        )
+                        
+                        CodeButton(
+                            style: .subtle,
+                            title: "Learn How to Withdraw",
+                            action: learnAction
+                        )
+                    }
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
             .navigationTitle("Withdraw")
             .navigationBarTitleDisplayMode(.inline)

@@ -37,7 +37,7 @@ struct DepositDescriptionScreen: View {
                 
                 Spacer()
                 
-                Text("You can deposit funds from your bank account into Flipcash")
+                Text("Purchase USDC on a crypto exchange with your bank account, and then deposit into Flipcash")
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)
                     .multilineTextAlignment(.center)
@@ -45,23 +45,26 @@ struct DepositDescriptionScreen: View {
                 
                 Spacer()
                 
-                CodeButton(
-                    style: .filled,
-                    title: "Learn How to Deposit Funds",
-                    action: learnAction
-                )
-                
-                NavigationLink {
-                    DepositScreen(session: session)
-                } label: {
+                VStack(spacing: 0) {
+                    NavigationLink {
+                        DepositScreen(session: session)
+                    } label: {
+                        CodeButton(
+                            style: .filled,
+                            title: "Deposit USDC",
+                            action: depositAction
+                        )
+                    }
+                    
                     CodeButton(
-                        style: .filled,
-                        title: "Deposit Funds Now",
-                        action: depositAction
+                        style: .subtle,
+                        title: "Learn How to Get USDC",
+                        action: learnAction
                     )
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
         }
         .navigationTitle("Deposit")
         .navigationBarTitleDisplayMode(.inline)

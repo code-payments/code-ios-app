@@ -108,7 +108,7 @@ struct BalanceScreen: View {
                 .font(.appTextMedium)
                 .multilineTextAlignment(.center)
             
-            CodeButton(style: .filled, title: "Deposit USDC") {
+            CodeButton(style: .filled, title: "Deposit Funds") {
                 isShowingDepositScreen.toggle()
             }
         }
