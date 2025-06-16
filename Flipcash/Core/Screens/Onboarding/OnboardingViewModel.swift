@@ -49,6 +49,9 @@ class OnboardingViewModel: ObservableObject {
         
         if let _ = UserDefaults.pendingPurchase {
             path = [.purchasePending]
+        } else if let mnemonic = Keychain.onboardingMnemonic {
+            inflightMnemonic = mnemonic
+            navigateToBuyAccountScreen()
         }
         
         processAsynTransactionsIfNeeded()
@@ -61,7 +64,11 @@ class OnboardingViewModel: ObservableObject {
     }
     
     func createAccountAction() {
-        inflightMnemonic = MnemonicPhrase.generate(.words12)
+        if let mnemonic = Keychain.onboardingMnemonic {
+            inflightMnemonic = mnemonic
+        } else {
+            inflightMnemonic = MnemonicPhrase.generate(.words12)
+        }
         navigateToAccessKey()
 //        Task {
 //            loginButtonState = .loading
@@ -89,8 +96,14 @@ class OnboardingViewModel: ObservableObject {
         Task {
             accessKeyButtonState = .loading
             
+            let mnemonic = inflightMnemonic
             do {
-                try await PhotoLibrary.saveSecretRecoveryPhraseSnapshot(for: inflightMnemonic)
+                try await PhotoLibrary.saveSecretRecoveryPhraseSnapshot(for: mnemonic)
+                
+                // Store onboarding mnemonic is it has
+                // been saved to photos so we can resume
+                // the flow if the account isn't paid for
+                Keychain.onboardingMnemonic = mnemonic
                 
                 try await Task.delay(milliseconds: 150)
                 accessKeyButtonState = .success
@@ -149,6 +162,11 @@ class OnboardingViewModel: ObservableObject {
                 
                 switch result {
                 case .success(let purchase, let finishTransaction):
+                    
+                    // Reset onboarding mnemonic after
+                    // the account has been paid for
+                    Keychain.onboardingMnemonic = nil
+                    
                     try await registerAccount(
                         for: purchase,
                         finishTransaction: finishTransaction,
@@ -198,6 +216,8 @@ class OnboardingViewModel: ObservableObject {
     
     func cancelPendingPurchaseAction() {
         UserDefaults.pendingPurchase = nil
+        Keychain.onboardingMnemonic = nil
+        
         navigateToRoot()
         
         Analytics.cancelPendingPurchase()
@@ -386,4 +406,11 @@ private extension UserDefaults {
     
     @Defaults(.pendingPurchase)
     static var pendingPurchase: PendingPurchase?
+}
+
+// MARK: - Keychain -
+
+private extension Keychain {
+    @SecureCodable(.onboardingMnemonic)
+    static var onboardingMnemonic: MnemonicPhrase?
 }
