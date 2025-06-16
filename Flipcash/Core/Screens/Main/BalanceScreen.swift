@@ -104,7 +104,7 @@ struct BalanceScreen: View {
     
     @ViewBuilder private func emptyState() -> some View {
         VStack(spacing: 30) {
-            Text("Ask a friend to give you some Flipcash, or deposit USDC from your crypto exchange or other crypto wallet")
+            Text("Ask a friend to give you some cash with Flipcash, or deposit USDC from your crypto exchange or another crypto wallet")
                 .font(.appTextMedium)
                 .multilineTextAlignment(.center)
             
