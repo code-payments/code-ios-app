@@ -516,7 +516,9 @@ class Session: ObservableObject {
                 }
             }
             
-            self.dialogItem = .init(
+            var confirmationDialog: DialogItem?
+            
+            confirmationDialog = .init(
                 style: .success,
                 title: "Did you send the link?",
                 subtitle: "Any cash that isn't collected within 24 hours will be automatically returned to your balance",
@@ -528,10 +530,25 @@ class Session: ObservableObject {
                 };
                 
                 .subtle("No, Cancel Send") {
-                    hideBillActions()
-                    cancelSend()
+                    self.dialogItem = .init(
+                        style: .destructive,
+                        title: "Are You Sure?",
+                        subtitle: "Anyone you sent the link to won't be able to collect the cash",
+                        dismissable: false,
+                    ) {
+                        .standard("Yes") {
+                            hideBillActions()
+                            cancelSend()
+                        };
+                        
+                        .subtle("Nevermind") {
+                            self.dialogItem = confirmationDialog
+                        }
+                    }
                 }
             }
+            
+            self.dialogItem = confirmationDialog
         }
     }
     
@@ -715,6 +732,12 @@ class Session: ObservableObject {
 //            )
 //        }
 //    }
+    
+    // MARK: - Confirmations -
+    
+    private func showDidYouSendConfirmation() {
+        
+    }
     
     // MARK: - Errors -
     

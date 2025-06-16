@@ -53,8 +53,8 @@ public struct Dialog: View {
                         style: action.kind.buttonStyle,
                         title: action.title
                     ) {
-                        action.action()
                         dismiss()
+                        action.action()
                     }
                     .padding(.top, action.kind.topPadding)
                 }
