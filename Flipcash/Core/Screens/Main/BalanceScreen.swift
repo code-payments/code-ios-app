@@ -96,7 +96,7 @@ struct BalanceScreen: View {
             }
             .onAppear(perform: onAppear)
             .navigationDestination(isPresented: $isShowingDepositScreen) {
-                DepositScreen(session: session)
+                DepositDescriptionScreen(session: session)
             }
         }
         .dialog(item: $dialogItem)

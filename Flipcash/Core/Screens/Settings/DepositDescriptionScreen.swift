@@ -46,15 +46,11 @@ struct DepositDescriptionScreen: View {
                 Spacer()
                 
                 VStack(spacing: 0) {
-                    NavigationLink {
-                        DepositScreen(session: session)
-                    } label: {
-                        CodeButton(
-                            style: .filled,
-                            title: "Deposit USDC",
-                            action: depositAction
-                        )
-                    }
+                    CodeButton(
+                        style: .filled,
+                        title: "Deposit USDC",
+                        action: depositAction
+                    )
                     
                     CodeButton(
                         style: .subtle,
