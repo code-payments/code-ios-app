@@ -162,11 +162,6 @@ class OnboardingViewModel: ObservableObject {
                 
                 switch result {
                 case .success(let purchase, let finishTransaction):
-                    
-                    // Reset onboarding mnemonic after
-                    // the account has been paid for
-                    Keychain.onboardingMnemonic = nil
-                    
                     try await registerAccount(
                         for: purchase,
                         finishTransaction: finishTransaction,
@@ -242,6 +237,11 @@ class OnboardingViewModel: ObservableObject {
     // MARK: - Purchase -
     
     private func registerAccount(for purchase: StoreController.Purchase, finishTransaction: StoreController.FinishTransaction, mnemonic: MnemonicPhrase, uniqueID: UUID) async throws {
+        // Reset onboarding mnemonic after
+        // the account has been paid for and
+        // is being registered
+        Keychain.onboardingMnemonic = nil
+        
         let owner = mnemonic.solanaKeyPair()
         
         let price = purchase.price?.doubleValue ?? -1

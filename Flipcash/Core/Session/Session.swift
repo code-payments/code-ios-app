@@ -733,12 +733,6 @@ class Session: ObservableObject {
 //        }
 //    }
     
-    // MARK: - Confirmations -
-    
-    private func showDidYouSendConfirmation() {
-        
-    }
-    
     // MARK: - Errors -
     
     private func showSomethingWentWrongError() {
