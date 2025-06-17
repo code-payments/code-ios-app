@@ -8,6 +8,7 @@
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
+import Firebase
 
 @MainActor
 class Container {
@@ -27,6 +28,8 @@ class Container {
     // MARK: - Init -
     
     init() {
+        Self.configureFirebase()
+        
         self.client          = Client(network: .mainNet)
         self.flipClient      = FlipClient(network: .mainNet)
         self.accountManager  = AccountManager()
@@ -45,6 +48,13 @@ class Container {
             .environmentObject(storeController)
             .environmentObject(betaFlags)
             .environmentObject(preferences)
+    }
+    
+    static func configureFirebase() {
+        let isRunningPreviews = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        if !isRunningPreviews {
+            FirebaseApp.configure()
+        }
     }
 }
 

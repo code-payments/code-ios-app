@@ -9,7 +9,6 @@ import UIKit
 import SwiftUI
 import FlipcashUI
 import FlipcashCore
-import Firebase
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -36,7 +35,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         window = UIWindow(frame: UIScreen.main.bounds)
         
-        configureFirebase()
         Analytics.initialize()
         ErrorReporting.initialize()
         FontBook.registerApplicationFonts()
@@ -165,8 +163,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Push Notifications -
     
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        trace(.success, components: "Did register for remote notifications with token: \(deviceToken.hexString())")
+        
         if let sessionContainer {
-//            container.pushController.didReceiveRemoteNotificationToken(with: deviceToken)
+            sessionContainer.pushController.didReceiveRemoteNotificationToken(with: deviceToken)
         }
     }
     
@@ -179,17 +179,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 extension UIApplication {
     static var isInterfaceResetDisabled: Bool = false
-}
-
-// MARK: - Firebase -
-
-private extension AppDelegate {
-    func configureFirebase() {
-        let isRunningPreviews = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
-        if !isRunningPreviews {
-            FirebaseApp.configure()
-        }
-    }
 }
 
 // MARK: - Appearance -

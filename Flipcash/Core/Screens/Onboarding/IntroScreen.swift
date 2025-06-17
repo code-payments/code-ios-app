@@ -108,12 +108,17 @@ struct IntroScreen: View {
                     AccessKeyScreen(viewModel: viewModel)
                 case .buyAccount:
                     BuyAccountScreen(viewModel: viewModel)
+                case .purchasePending:
+                    PurchasePendingScreen(viewModel: viewModel)
                 case .cameraAccess:
                     PermissionScreen.forCameraAccess(
                         action: viewModel.allowCameraAccessAction
                     )
-                case .purchasePending:
-                    PurchasePendingScreen(viewModel: viewModel)
+                case .pushPermissions:
+                    PermissionScreen.forPushNotifications(
+                        action: viewModel.allowPushPermissionsAction,
+                        skipAction: viewModel.skipPushPermissionsAction
+                    )
                 }
             }
         }

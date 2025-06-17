@@ -205,12 +205,15 @@ class OnboardingViewModel: ObservableObject {
     }
     
     func allowCameraAccessAction() {
-        cameraAuthorizer.authorize { [weak self] _ in
-            // Regardless of authorization status
-            // continue to finalize the account,
-            // they'll have an opportunity to grant
-            // access on the camera screen
-            self?.completeOnboardingAndLogin()
+        Task {
+            do {
+                // Regardless of authorization status
+                // continue to finalize the account,
+                // they'll have an opportunity to grant
+                // access on the camera screen
+                _ = try await cameraAuthorizer.authorize()
+            } catch {}
+            completeOnboardingAndLogin()
         }
     }
     
@@ -223,9 +226,18 @@ class OnboardingViewModel: ObservableObject {
         Analytics.cancelPendingPurchase()
     }
     
-//    func skipCameraAccessAction() {
-//        completeOnboardingAndLogin()
-//    }
+    func allowPushPermissionsAction() {
+        Task {
+            do {
+                try await PushController.authorize()
+            } catch {}
+            navigateToCameraAccessScreen()
+        }
+    }
+    
+    func skipPushPermissionsAction() {
+        navigateToCameraAccessScreen()
+    }
     
     // MARK: - Purchase -
     
@@ -262,7 +274,7 @@ class OnboardingViewModel: ObservableObject {
         buyAccountButtonState = .success
         try await Task.delay(seconds: 1)
         
-        navigationToCameraAccessScreen()
+        navigateToPushPermissionsScreen()
     }
     
     // MARK: - Account Creation -
@@ -368,8 +380,12 @@ class OnboardingViewModel: ObservableObject {
         path.append(.buyAccount)
     }
     
-    func navigationToCameraAccessScreen() {
+    func navigateToCameraAccessScreen() {
         path.append(.cameraAccess)
+    }
+    
+    func navigateToPushPermissionsScreen() {
+        path.append(.pushPermissions)
     }
 }
 
@@ -387,6 +403,7 @@ enum OnboardingPath {
     case login
     case accessKey
     case buyAccount
+    case pushPermissions
     case cameraAccess
     case purchasePending
 }

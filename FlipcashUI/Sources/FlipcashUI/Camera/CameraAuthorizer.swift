@@ -25,16 +25,14 @@ public class CameraAuthorizer {
     
     // MARK: - Authorize -
     
-    public func authorize(completion: ((AVAuthorizationStatus) -> Void)? = nil) {
+    public func authorize() async throws -> AVAuthorizationStatus {
         let status = AVCaptureDevice.authorizationStatus(for: Self.mediaType)
         if status != .authorized {
-            Task {
-                await AVCaptureDevice.requestAccess(for: Self.mediaType)
-                updateStatus()
-                completion?(self.status)
-            }
+            await AVCaptureDevice.requestAccess(for: Self.mediaType)
+            updateStatus()
+            return self.status
         } else {
-            completion?(status)
+            return status
         }
     }
     

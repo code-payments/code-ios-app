@@ -130,6 +130,11 @@ final class SessionAuthenticator: ObservableObject {
             database: database
         )
         
+        let pushController = PushController(
+            owner: owner.authority.keyPair,
+            client: container.flipClient
+        )
+        
         let session = Session(
             container: container,
             historyController: historyController,
@@ -143,7 +148,8 @@ final class SessionAuthenticator: ObservableObject {
             session: session,
             database: database,
             ratesController: ratesController,
-            historyController: historyController
+            historyController: historyController,
+            pushController: pushController
         )
     }
     
@@ -276,6 +282,7 @@ final class SessionAuthenticator: ObservableObject {
     func logout() {
         if case .loggedIn(let container) = state {
             container.session.prepareForLogout()
+            container.pushController.prepareForLogout()
         }
         
         accountManager.resetForLogout()
@@ -295,12 +302,14 @@ struct SessionContainer {
     let database: Database
     let ratesController: RatesController
     let historyController: HistoryController
+    let pushController: PushController
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
             .environmentObject(session)
             .environmentObject(ratesController)
             .environmentObject(historyController)
+            .environmentObject(pushController)
     }
 }
 

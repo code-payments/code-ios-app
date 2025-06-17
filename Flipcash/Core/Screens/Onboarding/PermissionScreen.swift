@@ -72,15 +72,15 @@ struct PermissionScreen: View {
 // MARK: - Templates -
 
 extension PermissionScreen {
-//    static func forPushNotifications(action: @escaping VoidAction, skipAction: @escaping VoidAction) -> PermissionScreen {
-//        PermissionScreen(
-//            image: .asset(.graphicPushPermission),
-//            actionTitle: Localized.Action.allowPushNotifications,
-//            description: Localized.Permissions.Description.push,
-//            action: action,
-//            skipAction: skipAction
-//        )
-//    }
+    static func forPushNotifications(action: @escaping VoidAction, skipAction: @escaping VoidAction) -> PermissionScreen {
+        PermissionScreen(
+            image: .asset(.graphicPushPermission),
+            actionTitle: "Next",
+            description: "Please allow Push Notifications to get notified when you receive cash",
+            action: action,
+            skipAction: skipAction
+        )
+    }
     
     static func forCameraAccess(action: @escaping VoidAction) -> PermissionScreen {
         PermissionScreen(

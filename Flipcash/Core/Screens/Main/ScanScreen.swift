@@ -180,7 +180,9 @@ struct ScanScreen: View {
                 if goToSettings {
                     URL.openSettings()
                 } else {
-                    cameraAuthorizer.authorize()
+                    Task {
+                        try await cameraAuthorizer.authorize()
+                    }
                 }
             }
         }
