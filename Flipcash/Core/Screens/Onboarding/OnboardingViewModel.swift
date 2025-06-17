@@ -47,7 +47,7 @@ class OnboardingViewModel: ObservableObject {
         
         storeController.delegate = self
         
-        if let _ = UserDefaults.pendingPurchase {
+        if let purchase = UserDefaults.pendingPurchase, !purchase.isCancelled {
             path = [.purchasePending]
         } else if let mnemonic = Keychain.onboardingMnemonic {
             inflightMnemonic = mnemonic
@@ -213,7 +213,9 @@ class OnboardingViewModel: ObservableObject {
     }
     
     func cancelPendingPurchaseAction() {
-        UserDefaults.pendingPurchase = nil
+        if let cancelledPurchase = UserDefaults.pendingPurchase?.cancelledPurchase() {
+            UserDefaults.pendingPurchase = cancelledPurchase
+        }
         Keychain.onboardingMnemonic = nil
         
         navigateToRoot()
@@ -294,7 +296,8 @@ class OnboardingViewModel: ObservableObject {
             uniqueID: uniqueID,
             mnemonic: mnemonic,
             product: product,
-            date: .now
+            date: .now,
+            isCancelled: false
         )
         
         navigateToPurchasePendingScreen()
@@ -415,6 +418,13 @@ struct PendingPurchase: Codable, Hashable, Equatable, Sendable {
     let mnemonic: MnemonicPhrase
     let product: IAPProduct
     let date: Date
+    var isCancelled: Bool
+    
+    func cancelledPurchase() -> PendingPurchase {
+        var purchase = self
+        purchase.isCancelled = true
+        return purchase
+    }
 }
 
 // MARK: - Defaults -
