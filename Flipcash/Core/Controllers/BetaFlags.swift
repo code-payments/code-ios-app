@@ -86,6 +86,7 @@ extension BetaFlags {
         
         case transactionDetails
         case vibrateOnScan
+        case pools
         
         var id: String {
             localizedTitle
@@ -97,15 +98,19 @@ extension BetaFlags {
                 return "Transaction details"
             case .vibrateOnScan:
                 return "Vibrate on scan"
+            case .pools:
+                return "Pools"
             }
         }
         
         var localizedDescription: String {
             switch self {
             case .transactionDetails:
-                return "If enabled, tapping a transaction in Balance will open a details modal."
+                return "If enabled, tapping a transaction in Balance will open a details modal"
             case .vibrateOnScan:
-                return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill."
+                return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
+            case .pools:
+                return "If enabled, a new 'Pools' button will become available on the camera screen"
             }
         }
     }

@@ -101,6 +101,8 @@ public enum Asset: String, Sendable {
     case telephoneFilled
     case graphicCameraAccess
     case graphicPushPermission
+    case graphicPoolQuestion
+    case graphicPoolPlaceholder
     case hamburger
     case photo
     case deleteBubble
@@ -118,6 +120,7 @@ public enum Asset: String, Sendable {
     case airplane
     case successCheckmark
     case cash
+    case pools
     case info
     case depositCircle
     case withdrawCircle

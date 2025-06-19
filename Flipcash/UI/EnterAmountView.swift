@@ -18,6 +18,7 @@ public struct EnterAmountView: View {
     @Binding public var actionState: ButtonState
     
     private let mode: Mode
+    private let subtitle: Subtitle
     private let actionEnabled: (String) -> Bool
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
@@ -41,12 +42,14 @@ public struct EnterAmountView: View {
     init(
         mode: Mode,
         enteredAmount: Binding<String>,
+        subtitle: Subtitle = .balanceWithLimits,
         actionState: Binding<ButtonState>,
         actionEnabled: @escaping (String) -> Bool,
         action: @escaping () -> Void,
         currencySelectionAction: (() -> Void)? = nil
     ) {
         self.mode                    = mode
+        self.subtitle                = subtitle
         self._enteredAmount          = enteredAmount
         self._actionState            = actionState
         self.actionEnabled           = actionEnabled
@@ -76,10 +79,19 @@ public struct EnterAmountView: View {
                         .foregroundColor(.textMain)
                     }
                     
-                    Text("Enter up to \(maxEnterAmount.formatted(suffix: nil))")
-                        .fixedSize()
-                        .foregroundColor(.textSecondary)
-                        .font(.appTextMedium)
+                    switch subtitle {
+                    case .balanceWithLimits:
+                        Text("Enter up to \(maxEnterAmount.formatted(suffix: nil))")
+                            .fixedSize()
+                            .foregroundColor(.textSecondary)
+                            .font(.appTextMedium)
+                        
+                    case .custom(let text):
+                        Text(text)
+                            .fixedSize()
+                            .foregroundColor(.textSecondary)
+                            .font(.appTextMedium)
+                    }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -134,6 +146,15 @@ extension EnterAmountView {
             case .currency:  return "Next"
             }
         }
+    }
+}
+
+// MARK: - Subtitle -
+
+extension EnterAmountView {
+    enum Subtitle {
+        case balanceWithLimits
+        case custom(String)
     }
 }
 

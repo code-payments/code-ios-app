@@ -12,6 +12,7 @@ struct ScanScreen: View {
     
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
     @EnvironmentObject private var preferences: Preferences
+    @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
     
@@ -22,6 +23,7 @@ struct ScanScreen: View {
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var isShowingGive: Bool = false
+    @State private var isShowingPools: Bool = false
 //    @State private var isShowingSend: Bool = false
     
     @State private var sendButtonState: ButtonState = .normal
@@ -300,6 +302,26 @@ struct ScanScreen: View {
                     isPresented: $isShowingGive,
                     kind: .cash
                 )
+            }
+            
+            if betaFlags.hasEnabled(.pools) {
+                LargeButton(
+                    title: "Pools",
+                    image: .asset(.pools),
+                    spacing: 12,
+                    maxWidth: 80,
+                    maxHeight: 80,
+                    fullWidth: true,
+                    aligment: .bottom,
+                    binding: $isShowingPools
+                )
+                .sheet(isPresented: $isShowingPools) {
+                    PoolsScreen(
+                        isPresented: $isShowingPools,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
             }
             
 //            LargeButton(
