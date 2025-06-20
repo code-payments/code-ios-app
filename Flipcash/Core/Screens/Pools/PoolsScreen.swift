@@ -17,6 +17,8 @@ struct PoolsScreen: View {
     
     @StateObject private var updateablePools: Updateable<[PoolMetadata]>
     
+    @State private var selectedPoolID: PublicKey?
+    
     private let container: Container
     private let sessionContainer: SessionContainer
     private let database: Database
@@ -41,7 +43,7 @@ struct PoolsScreen: View {
             )
         )
         
-        self._updateablePools = .init(wrappedValue: Updateable {
+        _updateablePools = .init(wrappedValue: Updateable {
             (try? database.getPools()) ?? []
         })
     }
@@ -137,11 +139,17 @@ struct PoolsScreen: View {
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
+        .sheet(item: $selectedPoolID) { poolID in
+            PoolDetailsScreen(
+                poolID: poolID,
+                database: database
+            )
+        }
     }
     
     @ViewBuilder private func row(pool: PoolMetadata) -> some View {
         Button {
-            
+            selectedPoolID = pool.id
         } label: {
             VStack(alignment: .leading, spacing: 5) {
                 Text(pool.name)

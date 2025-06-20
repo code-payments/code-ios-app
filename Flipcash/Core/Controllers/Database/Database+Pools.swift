@@ -13,6 +13,56 @@ extension Database {
     
     // MARK: - Get -
     
+    func getPool(poolID: PublicKey) throws -> PoolMetadata? {
+        let statement = try reader.prepareRowIterator("""
+        SELECT
+            p.id,
+            p.fundingAccount,
+            p.creatorUserID,
+            p.creationDate,
+            p.isOpen,
+            p.name,
+            p.buyInQuarks,
+            p.buyInCurrency,
+            p.resolution,
+            p.privateKeySeed
+        FROM pool p
+        WHERE p.id = ?
+        LIMIT 1;
+        """, bindings: Blob(bytes: poolID.bytes))
+        
+        let pTable = PoolTable()
+        
+        let pools = try statement.map { row in
+            var rendezvous: KeyPair?
+            if let seed = row[pTable.privateKeySeed] {
+                rendezvous = KeyPair(seed: seed)
+            }
+            
+            var resolution: PoolResoltion?
+            if let result = row[pTable.resolution] {
+                resolution = result ? .yes : .no
+            }
+            
+            return PoolMetadata(
+                id: row[pTable.id],
+                rendezvous: rendezvous,
+                fundingAccount: row[pTable.fundingAccount],
+                creatorUserID: row[pTable.creatorUserID],
+                creationDate: row[pTable.creationDate],
+                isOpen: row[pTable.isOpen],
+                name: row[pTable.name],
+                buyIn: Fiat(
+                    quarks: row[pTable.buyInQuarks],
+                    currencyCode: row[pTable.buyInCurrency]
+                ),
+                resolution: resolution
+            )
+        }
+        
+        return pools.first
+    }
+    
     func getPools() throws -> [PoolMetadata] {
         let statement = try reader.prepareRowIterator("""
         SELECT
