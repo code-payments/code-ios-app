@@ -67,8 +67,8 @@ enum Platform {
     GOOGLE  = 2;
 }
 
-// PaymentAmount defines an amount of USDC with currency exchange data
-message PaymentAmount {
+// UsdcPaymentAmount defines an amount of USDC with currency exchange data
+message UsdcPaymentAmount {
     // ISO 4217 alpha-3 currency code the payment was made in
     string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3,4}$" }];
 
@@ -77,6 +77,15 @@ message PaymentAmount {
 
     // The amount in quarks of USDC that was paid
     uint64 quarks = 3 [(validate.rules).uint64.gt = 0];
+}
+
+// FiatPaymentAmount defines an amount of fiat
+message FiatPaymentAmount {
+    // ISO 4217 alpha-3 currency code the payment was made in
+    string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3,4}$" }];
+
+    // The amount in the native currency that was paid
+    double native_amount = 2 [(validate.rules).double.gt = 0];
 }
 
 message PagingToken {
@@ -102,5 +111,26 @@ message QueryOptions {
     enum Order {
         ASC = 0;
         DESC = 1;
+    }
+}
+
+// Request is a generic wrapper for gRPC requests
+message Request {
+    string version = 1;
+    string service = 2;
+    string method = 3;
+    bytes body = 4;
+}
+
+// Response is a generic wrapper for gRPC responses
+message Response {
+    Result result = 1;
+
+    bytes body = 2;
+    string message = 3;
+
+    enum Result {
+        OK = 0;
+        ERROR = 1;
     }
 }

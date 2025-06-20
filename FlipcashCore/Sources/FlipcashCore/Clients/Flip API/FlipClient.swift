@@ -23,6 +23,7 @@ public class FlipClient: ObservableObject {
     internal let activityService: ActivityService
     internal let iapService: IAPService
     internal let pushService: PushService
+    internal let poolService: PoolService
     
     // MARK: - Init -
     
@@ -38,6 +39,7 @@ public class FlipClient: ObservableObject {
         self.activityService = ActivityService(channel: channel, queue: queue)
         self.iapService      = IAPService(channel: channel, queue: queue)
         self.pushService     = PushService(channel: channel, queue: queue)
+        self.poolService     = PoolService(channel: channel, queue: queue)
     }
     
     deinit {

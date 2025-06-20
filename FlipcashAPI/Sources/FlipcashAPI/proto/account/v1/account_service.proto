@@ -45,14 +45,28 @@ message IsCodeAccountResponse {
 }
 
 message GetTokenAccountInfosRequest {
-    // The owner account, which can also be thought of as a parent account for this
-    // RPC that links to one or more token accounts.
+    // The owner account to fetch balances for, which can also be thought of as a
+    // parent account for this RPC that links to one or more token accounts.
     common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
 
-    // The signature is of serialize(GetTokenAccountInfosRequest) without this field set
-    // using the private key of the owner account. This provides an authentication
-    // mechanism to the RPC.
+    // The signature is of serialize(GetTokenAccountInfosRequest) without signature
+    // fields set using the private key of the owner account. This provides
+    // an authentication mechanism to the RPC.
     common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+
+    // A requesting owner account that is requesting the balance for owner. Additional
+    // metadata that is considered private will be provided, if applicable. An example
+    // use case includes a user owner account requesting account info for a gift card
+    // owner account.
+    common.v1.SolanaAccountId requesting_owner = 3;
+
+    // The signature is of serialize(GetTokenAccountInfosRequest) without signature
+    // fields set using the private key of the requesting_owner_signature account.
+    // This provides an authentication mechanism to the RPC when requesting_owner is
+    // present.
+    //
+    // This must be set when requesting_owner is present.
+    common.v1.Signature requesting_owner_signature = 4;
 }
 
 message GetTokenAccountInfosResponse {
@@ -63,6 +77,9 @@ message GetTokenAccountInfosResponse {
     }
 
     map<string, TokenAccountInfo> token_account_infos = 2;
+
+    // The next index clients should use for POOL account types
+    uint64 next_pool_index = 3;
 }
 
 message TokenAccountInfo {
@@ -188,4 +205,8 @@ message TokenAccountInfo {
     // the time of intent submission. Otherwise, for external accounts, it is
     // the tiem created on the blockchain.
     google.protobuf.Timestamp created_at = 17;
+
+    // For REMOTE_SEND_GIFT_CARD, if requesting_owner was provided, was
+    // requesting_owner the issuer of the account.
+    bool is_gift_card_issuer = 18;
 }

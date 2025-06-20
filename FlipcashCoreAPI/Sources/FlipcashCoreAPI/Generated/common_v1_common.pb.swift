@@ -194,8 +194,8 @@ public struct Flipcash_Common_V1_AppInstallId {
   public init() {}
 }
 
-/// PaymentAmount defines an amount of USDC with currency exchange data
-public struct Flipcash_Common_V1_PaymentAmount {
+/// UsdcPaymentAmount defines an amount of USDC with currency exchange data
+public struct Flipcash_Common_V1_UsdcPaymentAmount {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -208,6 +208,23 @@ public struct Flipcash_Common_V1_PaymentAmount {
 
   /// The amount in quarks of USDC that was paid
   public var quarks: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// FiatPaymentAmount defines an amount of fiat
+public struct Flipcash_Common_V1_FiatPaymentAmount {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// ISO 4217 alpha-3 currency code the payment was made in
+  public var currency: String = String()
+
+  /// The amount in the native currency that was paid
+  public var nativeAmount: Double = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -298,6 +315,82 @@ extension Flipcash_Common_V1_QueryOptions.Order: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+/// Request is a generic wrapper for gRPC requests
+public struct Flipcash_Common_V1_Request {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var version: String = String()
+
+  public var service: String = String()
+
+  public var method: String = String()
+
+  public var body: Data = Data()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// Response is a generic wrapper for gRPC responses
+public struct Flipcash_Common_V1_Response {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipcash_Common_V1_Response.Result = .ok
+
+  public var body: Data = Data()
+
+  public var message: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case error // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .error
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .error: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipcash_Common_V1_Response.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Common_V1_Response.Result] = [
+    .ok,
+    .error,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipcash_Common_V1_Platform: @unchecked Sendable {}
 extension Flipcash_Common_V1_PublicKey: @unchecked Sendable {}
@@ -307,10 +400,14 @@ extension Flipcash_Common_V1_Auth.OneOf_Kind: @unchecked Sendable {}
 extension Flipcash_Common_V1_Auth.KeyPair: @unchecked Sendable {}
 extension Flipcash_Common_V1_UserId: @unchecked Sendable {}
 extension Flipcash_Common_V1_AppInstallId: @unchecked Sendable {}
-extension Flipcash_Common_V1_PaymentAmount: @unchecked Sendable {}
+extension Flipcash_Common_V1_UsdcPaymentAmount: @unchecked Sendable {}
+extension Flipcash_Common_V1_FiatPaymentAmount: @unchecked Sendable {}
 extension Flipcash_Common_V1_PagingToken: @unchecked Sendable {}
 extension Flipcash_Common_V1_QueryOptions: @unchecked Sendable {}
 extension Flipcash_Common_V1_QueryOptions.Order: @unchecked Sendable {}
+extension Flipcash_Common_V1_Request: @unchecked Sendable {}
+extension Flipcash_Common_V1_Response: @unchecked Sendable {}
+extension Flipcash_Common_V1_Response.Result: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -543,8 +640,8 @@ extension Flipcash_Common_V1_AppInstallId: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Flipcash_Common_V1_PaymentAmount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".PaymentAmount"
+extension Flipcash_Common_V1_UsdcPaymentAmount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UsdcPaymentAmount"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "currency"),
     2: .standard(proto: "native_amount"),
@@ -578,10 +675,48 @@ extension Flipcash_Common_V1_PaymentAmount: SwiftProtobuf.Message, SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Common_V1_PaymentAmount, rhs: Flipcash_Common_V1_PaymentAmount) -> Bool {
+  public static func ==(lhs: Flipcash_Common_V1_UsdcPaymentAmount, rhs: Flipcash_Common_V1_UsdcPaymentAmount) -> Bool {
     if lhs.currency != rhs.currency {return false}
     if lhs.nativeAmount != rhs.nativeAmount {return false}
     if lhs.quarks != rhs.quarks {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_FiatPaymentAmount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".FiatPaymentAmount"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "currency"),
+    2: .standard(proto: "native_amount"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.currency) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.nativeAmount) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.currency.isEmpty {
+      try visitor.visitSingularStringField(value: self.currency, fieldNumber: 1)
+    }
+    if self.nativeAmount != 0 {
+      try visitor.visitSingularDoubleField(value: self.nativeAmount, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_FiatPaymentAmount, rhs: Flipcash_Common_V1_FiatPaymentAmount) -> Bool {
+    if lhs.currency != rhs.currency {return false}
+    if lhs.nativeAmount != rhs.nativeAmount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -671,5 +806,106 @@ extension Flipcash_Common_V1_QueryOptions.Order: SwiftProtobuf._ProtoNameProvidi
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "ASC"),
     1: .same(proto: "DESC"),
+  ]
+}
+
+extension Flipcash_Common_V1_Request: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Request"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "version"),
+    2: .same(proto: "service"),
+    3: .same(proto: "method"),
+    4: .same(proto: "body"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.version) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.service) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.method) }()
+      case 4: try { try decoder.decodeSingularBytesField(value: &self.body) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.version.isEmpty {
+      try visitor.visitSingularStringField(value: self.version, fieldNumber: 1)
+    }
+    if !self.service.isEmpty {
+      try visitor.visitSingularStringField(value: self.service, fieldNumber: 2)
+    }
+    if !self.method.isEmpty {
+      try visitor.visitSingularStringField(value: self.method, fieldNumber: 3)
+    }
+    if !self.body.isEmpty {
+      try visitor.visitSingularBytesField(value: self.body, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_Request, rhs: Flipcash_Common_V1_Request) -> Bool {
+    if lhs.version != rhs.version {return false}
+    if lhs.service != rhs.service {return false}
+    if lhs.method != rhs.method {return false}
+    if lhs.body != rhs.body {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_Response: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Response"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .same(proto: "body"),
+    3: .same(proto: "message"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularBytesField(value: &self.body) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.message) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    if !self.body.isEmpty {
+      try visitor.visitSingularBytesField(value: self.body, fieldNumber: 2)
+    }
+    if !self.message.isEmpty {
+      try visitor.visitSingularStringField(value: self.message, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Common_V1_Response, rhs: Flipcash_Common_V1_Response) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.body != rhs.body {return false}
+    if lhs.message != rhs.message {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Common_V1_Response.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "ERROR"),
   ]
 }

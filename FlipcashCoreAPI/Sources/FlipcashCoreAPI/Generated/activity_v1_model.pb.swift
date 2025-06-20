@@ -147,8 +147,8 @@ public struct Flipcash_Activity_V1_Notification {
   public var localizedText: String = String()
 
   /// If a payment applies, the amount that was paid
-  public var paymentAmount: Flipcash_Common_V1_PaymentAmount {
-    get {return _paymentAmount ?? Flipcash_Common_V1_PaymentAmount()}
+  public var paymentAmount: Flipcash_Common_V1_UsdcPaymentAmount {
+    get {return _paymentAmount ?? Flipcash_Common_V1_UsdcPaymentAmount()}
     set {_paymentAmount = newValue}
   }
   /// Returns true if `paymentAmount` has been explicitly set.
@@ -270,7 +270,7 @@ public struct Flipcash_Activity_V1_Notification {
   public init() {}
 
   fileprivate var _id: Flipcash_Activity_V1_NotificationId? = nil
-  fileprivate var _paymentAmount: Flipcash_Common_V1_PaymentAmount? = nil
+  fileprivate var _paymentAmount: Flipcash_Common_V1_UsdcPaymentAmount? = nil
   fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 

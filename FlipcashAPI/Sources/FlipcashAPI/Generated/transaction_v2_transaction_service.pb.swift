@@ -650,7 +650,7 @@ public struct Code_Transaction_V2_CanWithdrawToAccountResponse {
   /// subsidize the account creation, so a fee is required.
   public var requiresInitialization: Bool = false
 
-  /// The WITHDRAWAL_CREATE_ON_SEND fee, in USD, that must be paid in order to
+  /// The CREATE_ON_SEND_WITHDRAWAL fee, in USD, that must be paid in order to
   /// submit a withdrawal to subsidize the creation of the account at time of
   /// send. The user must explicitly agree to this fee amount before submitting
   /// the intent.
@@ -976,12 +976,21 @@ public struct Code_Transaction_V2_Metadata {
     set {type = .receivePaymentsPublicly(newValue)}
   }
 
+  public var publicDistribution: Code_Transaction_V2_PublicDistributionMetadata {
+    get {
+      if case .publicDistribution(let v)? = type {return v}
+      return Code_Transaction_V2_PublicDistributionMetadata()
+    }
+    set {type = .publicDistribution(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable {
     case openAccounts(Code_Transaction_V2_OpenAccountsMetadata)
     case sendPublicPayment(Code_Transaction_V2_SendPublicPaymentMetadata)
     case receivePaymentsPublicly(Code_Transaction_V2_ReceivePaymentsPubliclyMetadata)
+    case publicDistribution(Code_Transaction_V2_PublicDistributionMetadata)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Code_Transaction_V2_Metadata.OneOf_Type, rhs: Code_Transaction_V2_Metadata.OneOf_Type) -> Bool {
@@ -1001,6 +1010,10 @@ public struct Code_Transaction_V2_Metadata {
         guard case .receivePaymentsPublicly(let l) = lhs, case .receivePaymentsPublicly(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
+      case (.publicDistribution, .publicDistribution): return {
+        guard case .publicDistribution(let l) = lhs, case .publicDistribution(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
       default: return false
       }
     }
@@ -1010,22 +1023,72 @@ public struct Code_Transaction_V2_Metadata {
   public init() {}
 }
 
-/// Open a set of accounts. Currently, clients should only use this for new users
-/// to open all required accounts up front..
+/// Open a set of accounts
 ///
-/// Action Spec:
+/// Action Spec (User):
 ///
 /// for account in [PRIMARY]
+///   actions.push_back(OpenAccountAction(account))
+///
+/// Action Spec (Pool):
+///
+/// for account in [POOL]
 ///   actions.push_back(OpenAccountAction(account))
 public struct Code_Transaction_V2_OpenAccountsMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  public var accountSet: Code_Transaction_V2_OpenAccountsMetadata.AccountSet = .user
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum AccountSet: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+
+    /// Opens a set of user accounts
+    case user // = 0
+
+    /// Opens a pool account
+    case pool // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .user
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .user
+      case 1: self = .pool
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .user: return 0
+      case .pool: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
 
   public init() {}
 }
+
+#if swift(>=4.2)
+
+extension Code_Transaction_V2_OpenAccountsMetadata.AccountSet: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Code_Transaction_V2_OpenAccountsMetadata.AccountSet] = [
+    .user,
+    .pool,
+  ]
+}
+
+#endif  // swift(>=4.2)
 
 /// Send a payment to a destination account publicly.
 ///
@@ -1053,8 +1116,8 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The primary account where funds will be sent from. The primary account is assumed if this
-  /// field is not set for backwards compatibility with old clients.
+  /// The source account where funds will be sent from. Currently, this is always
+  /// the user's primary account.
   public var source: Code_Common_V1_SolanaAccountId {
     get {return _source ?? Code_Common_V1_SolanaAccountId()}
     set {_source = newValue}
@@ -1074,6 +1137,17 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
+  /// Destination owner account, which is required for withdrawals that intend
+  /// to create an ATA. Every other variation of this intent can omit this field.
+  public var destinationOwner: Code_Common_V1_SolanaAccountId {
+    get {return _destinationOwner ?? Code_Common_V1_SolanaAccountId()}
+    set {_destinationOwner = newValue}
+  }
+  /// Returns true if `destinationOwner` has been explicitly set.
+  public var hasDestinationOwner: Bool {return self._destinationOwner != nil}
+  /// Clears the value of `destinationOwner`. Subsequent reads from it will return its default value.
+  public mutating func clearDestinationOwner() {self._destinationOwner = nil}
+
   /// The exchange data of total funds being sent to the destination
   public var exchangeData: Code_Transaction_V2_ExchangeData {
     get {return _exchangeData ?? Code_Transaction_V2_ExchangeData()}
@@ -1090,25 +1164,14 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   /// Is the payment going to a new gift card? Note is_withdrawal must be false.
   public var isRemoteSend: Bool = false
 
-  /// Destination owner account, which is required for withdrawals that intend
-  /// to create an ATA. Every other variation of this intent can omit this field.
-  public var destinationOwner: Code_Common_V1_SolanaAccountId {
-    get {return _destinationOwner ?? Code_Common_V1_SolanaAccountId()}
-    set {_destinationOwner = newValue}
-  }
-  /// Returns true if `destinationOwner` has been explicitly set.
-  public var hasDestinationOwner: Bool {return self._destinationOwner != nil}
-  /// Clears the value of `destinationOwner`. Subsequent reads from it will return its default value.
-  public mutating func clearDestinationOwner() {self._destinationOwner = nil}
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
-  fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
   fileprivate var _destinationOwner: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
 }
 
 /// Receive funds into a user-owned account publicly. All use cases of this intent
@@ -1157,6 +1220,68 @@ public struct Code_Transaction_V2_ReceivePaymentsPubliclyMetadata {
 
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
+}
+
+/// Distribute funds from a pool account publicly to one or more user-owned accounts.
+///
+/// Action Spec:
+///
+/// for distribution in distributions[:len(distributions)-1]
+///   actions.push_back(NoPrivacyTransferAction(POOL, distribution.destination, distributions.quarks))
+/// actions.push_back(NoPrivacyWithdrawAction(POOL, distributions[:len(distributions)-1].destination, distributions[:len(distributions)-1].quarks))
+///
+/// Notes:
+///  - All funds must distributed. The balance of the pool must be zero at the end of the intent
+///  - The pool is closed at the end of the intent via a NoPrivacyWithdrawAction
+public struct Code_Transaction_V2_PublicDistributionMetadata {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The pool account to distribute from
+  public var source: Code_Common_V1_SolanaAccountId {
+    get {return _source ?? Code_Common_V1_SolanaAccountId()}
+    set {_source = newValue}
+  }
+  /// Returns true if `source` has been explicitly set.
+  public var hasSource: Bool {return self._source != nil}
+  /// Clears the value of `source`. Subsequent reads from it will return its default value.
+  public mutating func clearSource() {self._source = nil}
+
+  /// The set of distributions
+  public var distributions: [Code_Transaction_V2_PublicDistributionMetadata.Distribution] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public struct Distribution {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// Destination where a portion of the pool's funds will be distributed.
+    /// This must always be a primary account.
+    public var destination: Code_Common_V1_SolanaAccountId {
+      get {return _destination ?? Code_Common_V1_SolanaAccountId()}
+      set {_destination = newValue}
+    }
+    /// Returns true if `destination` has been explicitly set.
+    public var hasDestination: Bool {return self._destination != nil}
+    /// Clears the value of `destination`. Subsequent reads from it will return its default value.
+    public mutating func clearDestination() {self._destination = nil}
+
+    /// The amount of funds to distribute to the destination
+    public var quarks: UInt64 = 0
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
+  }
+
+  public init() {}
+
+  fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Action is a well-defined, ordered and small set of transactions or virtual instructions
@@ -1977,8 +2102,11 @@ extension Code_Transaction_V2_VoidGiftCardResponse.Result: @unchecked Sendable {
 extension Code_Transaction_V2_Metadata: @unchecked Sendable {}
 extension Code_Transaction_V2_Metadata.OneOf_Type: @unchecked Sendable {}
 extension Code_Transaction_V2_OpenAccountsMetadata: @unchecked Sendable {}
+extension Code_Transaction_V2_OpenAccountsMetadata.AccountSet: @unchecked Sendable {}
 extension Code_Transaction_V2_SendPublicPaymentMetadata: @unchecked Sendable {}
 extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: @unchecked Sendable {}
+extension Code_Transaction_V2_PublicDistributionMetadata: @unchecked Sendable {}
+extension Code_Transaction_V2_PublicDistributionMetadata.Distribution: @unchecked Sendable {}
 extension Code_Transaction_V2_Action: @unchecked Sendable {}
 extension Code_Transaction_V2_Action.OneOf_Type: @unchecked Sendable {}
 extension Code_Transaction_V2_OpenAccountAction: @unchecked Sendable {}
@@ -2870,6 +2998,7 @@ extension Code_Transaction_V2_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Me
     1: .standard(proto: "open_accounts"),
     6: .standard(proto: "send_public_payment"),
     7: .standard(proto: "receive_payments_publicly"),
+    9: .standard(proto: "public_distribution"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2917,6 +3046,19 @@ extension Code_Transaction_V2_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Me
           self.type = .receivePaymentsPublicly(v)
         }
       }()
+      case 9: try {
+        var v: Code_Transaction_V2_PublicDistributionMetadata?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .publicDistribution(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .publicDistribution(v)
+        }
+      }()
       default: break
       }
     }
@@ -2940,6 +3082,10 @@ extension Code_Transaction_V2_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Me
       guard case .receivePaymentsPublicly(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     }()
+    case .publicDistribution?: try {
+      guard case .publicDistribution(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    }()
     case nil: break
     }
     try unknownFields.traverse(visitor: &visitor)
@@ -2954,21 +3100,41 @@ extension Code_Transaction_V2_Metadata: SwiftProtobuf.Message, SwiftProtobuf._Me
 
 extension Code_Transaction_V2_OpenAccountsMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OpenAccountsMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "account_set"),
+  ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let _ = try decoder.nextFieldNumber() {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.accountSet) }()
+      default: break
+      }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.accountSet != .user {
+      try visitor.visitSingularEnumField(value: self.accountSet, fieldNumber: 1)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_OpenAccountsMetadata, rhs: Code_Transaction_V2_OpenAccountsMetadata) -> Bool {
+    if lhs.accountSet != rhs.accountSet {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Code_Transaction_V2_OpenAccountsMetadata.AccountSet: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "USER"),
+    1: .same(proto: "POOL"),
+  ]
 }
 
 extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -2976,10 +3142,10 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     4: .same(proto: "source"),
     1: .same(proto: "destination"),
+    6: .standard(proto: "destination_owner"),
     2: .standard(proto: "exchange_data"),
     3: .standard(proto: "is_withdrawal"),
     5: .standard(proto: "is_remote_send"),
-    6: .standard(proto: "destination_owner"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3028,10 +3194,10 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
   public static func ==(lhs: Code_Transaction_V2_SendPublicPaymentMetadata, rhs: Code_Transaction_V2_SendPublicPaymentMetadata) -> Bool {
     if lhs._source != rhs._source {return false}
     if lhs._destination != rhs._destination {return false}
+    if lhs._destinationOwner != rhs._destinationOwner {return false}
     if lhs._exchangeData != rhs._exchangeData {return false}
     if lhs.isWithdrawal != rhs.isWithdrawal {return false}
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
-    if lhs._destinationOwner != rhs._destinationOwner {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3086,6 +3252,90 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
     if lhs.quarks != rhs.quarks {return false}
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
     if lhs._exchangeData != rhs._exchangeData {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_PublicDistributionMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PublicDistributionMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "source"),
+    2: .same(proto: "distributions"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._source) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.distributions) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._source {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if !self.distributions.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.distributions, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_PublicDistributionMetadata, rhs: Code_Transaction_V2_PublicDistributionMetadata) -> Bool {
+    if lhs._source != rhs._source {return false}
+    if lhs.distributions != rhs.distributions {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Transaction_V2_PublicDistributionMetadata.Distribution: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Code_Transaction_V2_PublicDistributionMetadata.protoMessageName + ".Distribution"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "destination"),
+    2: .same(proto: "quarks"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._destination) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.quarks) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._destination {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.quarks != 0 {
+      try visitor.visitSingularUInt64Field(value: self.quarks, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Transaction_V2_PublicDistributionMetadata.Distribution, rhs: Code_Transaction_V2_PublicDistributionMetadata.Distribution) -> Bool {
+    if lhs._destination != rhs._destination {return false}
+    if lhs.quarks != rhs.quarks {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

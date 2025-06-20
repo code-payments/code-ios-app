@@ -30,7 +30,7 @@ message Notification {
     }];
 
     // If a payment applies, the amount that was paid
-    common.v1.PaymentAmount payment_amount = 3;
+    common.v1.UsdcPaymentAmount payment_amount = 3;
 
     // The timestamp of this notification
     google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];

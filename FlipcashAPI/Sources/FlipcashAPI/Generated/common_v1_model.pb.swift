@@ -42,6 +42,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   case relationship // = 13
   case swap // = 14
   case associatedTokenAccount // = 15
+  case pool // = 16
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -66,6 +67,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case 13: self = .relationship
     case 14: self = .swap
     case 15: self = .associatedTokenAccount
+    case 16: self = .pool
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -88,6 +90,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     case .relationship: return 13
     case .swap: return 14
     case .associatedTokenAccount: return 15
+    case .pool: return 16
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -115,6 +118,7 @@ extension Code_Common_V1_AccountType: CaseIterable {
     .relationship,
     .swap,
     .associatedTokenAccount,
+    .pool,
   ]
 }
 
@@ -412,6 +416,7 @@ extension Code_Common_V1_AccountType: SwiftProtobuf._ProtoNameProviding {
     13: .same(proto: "RELATIONSHIP"),
     14: .same(proto: "SWAP"),
     15: .same(proto: "ASSOCIATED_TOKEN_ACCOUNT"),
+    16: .same(proto: "POOL"),
   ]
 }
 

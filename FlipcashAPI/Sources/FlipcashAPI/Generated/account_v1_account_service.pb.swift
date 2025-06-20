@@ -122,8 +122,8 @@ public struct Code_Account_V1_GetTokenAccountInfosRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The owner account, which can also be thought of as a parent account for this
-  /// RPC that links to one or more token accounts.
+  /// The owner account to fetch balances for, which can also be thought of as a
+  /// parent account for this RPC that links to one or more token accounts.
   public var owner: Code_Common_V1_SolanaAccountId {
     get {return _owner ?? Code_Common_V1_SolanaAccountId()}
     set {_owner = newValue}
@@ -133,9 +133,9 @@ public struct Code_Account_V1_GetTokenAccountInfosRequest {
   /// Clears the value of `owner`. Subsequent reads from it will return its default value.
   public mutating func clearOwner() {self._owner = nil}
 
-  /// The signature is of serialize(GetTokenAccountInfosRequest) without this field set
-  /// using the private key of the owner account. This provides an authentication
-  /// mechanism to the RPC.
+  /// The signature is of serialize(GetTokenAccountInfosRequest) without signature
+  /// fields set using the private key of the owner account. This provides
+  /// an authentication mechanism to the RPC.
   public var signature: Code_Common_V1_Signature {
     get {return _signature ?? Code_Common_V1_Signature()}
     set {_signature = newValue}
@@ -145,12 +145,42 @@ public struct Code_Account_V1_GetTokenAccountInfosRequest {
   /// Clears the value of `signature`. Subsequent reads from it will return its default value.
   public mutating func clearSignature() {self._signature = nil}
 
+  /// A requesting owner account that is requesting the balance for owner. Additional
+  /// metadata that is considered private will be provided, if applicable. An example
+  /// use case includes a user owner account requesting account info for a gift card
+  /// owner account.
+  public var requestingOwner: Code_Common_V1_SolanaAccountId {
+    get {return _requestingOwner ?? Code_Common_V1_SolanaAccountId()}
+    set {_requestingOwner = newValue}
+  }
+  /// Returns true if `requestingOwner` has been explicitly set.
+  public var hasRequestingOwner: Bool {return self._requestingOwner != nil}
+  /// Clears the value of `requestingOwner`. Subsequent reads from it will return its default value.
+  public mutating func clearRequestingOwner() {self._requestingOwner = nil}
+
+  /// The signature is of serialize(GetTokenAccountInfosRequest) without signature
+  /// fields set using the private key of the requesting_owner_signature account.
+  /// This provides an authentication mechanism to the RPC when requesting_owner is
+  /// present.
+  ///
+  /// This must be set when requesting_owner is present.
+  public var requestingOwnerSignature: Code_Common_V1_Signature {
+    get {return _requestingOwnerSignature ?? Code_Common_V1_Signature()}
+    set {_requestingOwnerSignature = newValue}
+  }
+  /// Returns true if `requestingOwnerSignature` has been explicitly set.
+  public var hasRequestingOwnerSignature: Bool {return self._requestingOwnerSignature != nil}
+  /// Clears the value of `requestingOwnerSignature`. Subsequent reads from it will return its default value.
+  public mutating func clearRequestingOwnerSignature() {self._requestingOwnerSignature = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _owner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _signature: Code_Common_V1_Signature? = nil
+  fileprivate var _requestingOwner: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _requestingOwnerSignature: Code_Common_V1_Signature? = nil
 }
 
 public struct Code_Account_V1_GetTokenAccountInfosResponse {
@@ -161,6 +191,9 @@ public struct Code_Account_V1_GetTokenAccountInfosResponse {
   public var result: Code_Account_V1_GetTokenAccountInfosResponse.Result = .ok
 
   public var tokenAccountInfos: Dictionary<String,Code_Account_V1_TokenAccountInfo> = [:]
+
+  /// The next index clients should use for POOL account types
+  public var nextPoolIndex: UInt64 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -330,6 +363,13 @@ public struct Code_Account_V1_TokenAccountInfo {
   public var hasCreatedAt: Bool {return _storage._createdAt != nil}
   /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
   public mutating func clearCreatedAt() {_uniqueStorage()._createdAt = nil}
+
+  /// For REMOTE_SEND_GIFT_CARD, if requesting_owner was provided, was
+  /// requesting_owner the issuer of the account.
+  public var isGiftCardIssuer: Bool {
+    get {return _storage._isGiftCardIssuer}
+    set {_uniqueStorage()._isGiftCardIssuer = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -678,6 +718,8 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "owner"),
     2: .same(proto: "signature"),
+    3: .standard(proto: "requesting_owner"),
+    4: .standard(proto: "requesting_owner_signature"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -688,6 +730,8 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._owner) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._requestingOwner) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._requestingOwnerSignature) }()
       default: break
       }
     }
@@ -704,12 +748,20 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
     try { if let v = self._signature {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    try { if let v = self._requestingOwner {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._requestingOwnerSignature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Account_V1_GetTokenAccountInfosRequest, rhs: Code_Account_V1_GetTokenAccountInfosRequest) -> Bool {
     if lhs._owner != rhs._owner {return false}
     if lhs._signature != rhs._signature {return false}
+    if lhs._requestingOwner != rhs._requestingOwner {return false}
+    if lhs._requestingOwnerSignature != rhs._requestingOwnerSignature {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -720,6 +772,7 @@ extension Code_Account_V1_GetTokenAccountInfosResponse: SwiftProtobuf.Message, S
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "result"),
     2: .standard(proto: "token_account_infos"),
+    3: .standard(proto: "next_pool_index"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -730,6 +783,7 @@ extension Code_Account_V1_GetTokenAccountInfosResponse: SwiftProtobuf.Message, S
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
       case 2: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Account_V1_TokenAccountInfo>.self, value: &self.tokenAccountInfos) }()
+      case 3: try { try decoder.decodeSingularUInt64Field(value: &self.nextPoolIndex) }()
       default: break
       }
     }
@@ -742,12 +796,16 @@ extension Code_Account_V1_GetTokenAccountInfosResponse: SwiftProtobuf.Message, S
     if !self.tokenAccountInfos.isEmpty {
       try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Account_V1_TokenAccountInfo>.self, value: self.tokenAccountInfos, fieldNumber: 2)
     }
+    if self.nextPoolIndex != 0 {
+      try visitor.visitSingularUInt64Field(value: self.nextPoolIndex, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Account_V1_GetTokenAccountInfosResponse, rhs: Code_Account_V1_GetTokenAccountInfosResponse) -> Bool {
     if lhs.result != rhs.result {return false}
     if lhs.tokenAccountInfos != rhs.tokenAccountInfos {return false}
+    if lhs.nextPoolIndex != rhs.nextPoolIndex {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -776,6 +834,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     12: .standard(proto: "original_exchange_data"),
     13: .same(proto: "mint"),
     17: .standard(proto: "created_at"),
+    18: .standard(proto: "is_gift_card_issuer"),
   ]
 
   fileprivate class _StorageClass {
@@ -792,6 +851,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
     var _originalExchangeData: Code_Transaction_V2_ExchangeData? = nil
     var _mint: Code_Common_V1_SolanaAccountId? = nil
     var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _isGiftCardIssuer: Bool = false
 
     #if swift(>=5.10)
       // This property is used as the initial default value for new instances of the type.
@@ -819,6 +879,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       _originalExchangeData = source._originalExchangeData
       _mint = source._mint
       _createdAt = source._createdAt
+      _isGiftCardIssuer = source._isGiftCardIssuer
     }
   }
 
@@ -850,6 +911,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._originalExchangeData) }()
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._mint) }()
         case 17: try { try decoder.decodeSingularMessageField(value: &_storage._createdAt) }()
+        case 18: try { try decoder.decodeSingularBoolField(value: &_storage._isGiftCardIssuer) }()
         default: break
         }
       }
@@ -901,6 +963,9 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
       try { if let v = _storage._createdAt {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
       } }()
+      if _storage._isGiftCardIssuer != false {
+        try visitor.visitSingularBoolField(value: _storage._isGiftCardIssuer, fieldNumber: 18)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -923,6 +988,7 @@ extension Code_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf
         if _storage._originalExchangeData != rhs_storage._originalExchangeData {return false}
         if _storage._mint != rhs_storage._mint {return false}
         if _storage._createdAt != rhs_storage._createdAt {return false}
+        if _storage._isGiftCardIssuer != rhs_storage._isGiftCardIssuer {return false}
         return true
       }
       if !storagesAreEqual {return false}
