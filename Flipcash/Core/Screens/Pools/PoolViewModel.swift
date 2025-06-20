@@ -21,6 +21,8 @@ class PoolViewModel: ObservableObject {
     
     @Published var isShowingCreatePoolFlow: Bool = false
     
+    @Published var createPoolButtonState: ButtonState = .normal
+    
     var canCreatePool: Bool {
         isEnteredPoolNameValid && (enteredPoolFiat?.usdc ?? 0) > 0
     }
@@ -59,12 +61,14 @@ class PoolViewModel: ObservableObject {
     
     private let container: Container
     private let ratesController: RatesController
+    private let poolController: PoolController
     
     // MARK: - Init -
     
     init(container: Container, sessionContainer: SessionContainer) {
         self.container       = container
         self.ratesController = sessionContainer.ratesController
+        self.poolController  = sessionContainer.poolController
     }
     
     // MARK: - Actions -
@@ -82,7 +86,31 @@ class PoolViewModel: ObservableObject {
     }
     
     func createPoolAction() {
+        guard let buyIn = enteredPoolFiat?.converted else {
+            return
+        }
         
+        createPoolButtonState = .loading
+        Task {
+            do {
+                let metadata = try await poolController.createPool(
+                    name: enteredPoolName,
+                    buyIn: buyIn
+                )
+                
+                createPoolButtonState = .success
+                try await Task.delay(milliseconds: 250)
+                
+                isShowingCreatePoolFlow = false
+                
+                try await Task.delay(milliseconds: 250)
+                createPoolButtonState = .normal
+                
+            } catch {
+                ErrorReporting.captureError(error)
+                createPoolButtonState = .normal
+            }
+        }
     }
     
     // MARK: - Navigation -

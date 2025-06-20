@@ -44,6 +44,9 @@ extension IntentMetadata {
             self = .sendPayment(PaymentMetadata(
                 exchangedFiat: try ExchangedFiat(meta.exchangeData)
             ))
+        case .publicDistribution(let meta):
+            // TODO: Implement
+            fatalError("Unimplemented")
         }
     }
 }

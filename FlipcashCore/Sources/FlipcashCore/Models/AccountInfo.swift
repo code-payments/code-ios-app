@@ -52,9 +52,11 @@ public struct AccountInfo: Equatable, Sendable {
     ///     as zero.
     public var exchangedFiat: ExchangedFiat?
     
+    public var nextPoolIndex: Int?
+    
     // MARK: - Init -
     
-    init(address: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, fiat: Fiat, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?) {
+    init(address: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, fiat: Fiat, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?) {
         self.address         = address
         self.owner           = owner
         self.authority       = authority
@@ -64,6 +66,7 @@ public struct AccountInfo: Equatable, Sendable {
         self.blockchainState = blockchainState
         self.claimState      = claimState
         self.exchangedFiat   = exchangedFiat
+        self.nextPoolIndex   = nextPoolIndex
     }
 }
 
@@ -218,7 +221,8 @@ extension AccountInfo {
             managementState: managementState,
             blockchainState: blockchainState,
             claimState: claimState,
-            exchangedFiat: exchangedFiat
+            exchangedFiat: exchangedFiat,
+            nextPoolIndex: nil
         )
     }
 }

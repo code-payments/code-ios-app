@@ -9,9 +9,9 @@ import Foundation
 
 extension FlipClient {
     
-    public func createPool(poolMetadata: PoolMetadata) async throws {
+    public func createPool(poolMetadata: PoolMetadata, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
-            poolService.createPool(poolMetadata: poolMetadata) { c.resume(with: $0) }
+            poolService.createPool(poolMetadata: poolMetadata, owner: owner) { c.resume(with: $0) }
         }
     }
     

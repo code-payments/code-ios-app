@@ -13,7 +13,7 @@ import SwiftProtobuf
 
 class PoolService: CodeService<Flipcash_Pool_V1_PoolNIOClient> {
     
-    func createPool(poolMetadata: PoolMetadata, completion: @Sendable @escaping (Result<(), ErrorCreatePool>) -> Void) {
+    func createPool(poolMetadata: PoolMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorCreatePool>) -> Void) {
         guard let rendezvous = poolMetadata.rendezvous else {
             completion(.failure(.poolMetadataMissingRendezvous))
             return
@@ -32,10 +32,11 @@ class PoolService: CodeService<Flipcash_Pool_V1_PoolNIOClient> {
                 }
                 $0.fundingDestination = poolMetadata.fundingAccount.proto
                 $0.isOpen             = true
-                $0.createdAt          = Google_Protobuf_Timestamp(date: .now)
-                
+                $0.createdAt          = Google_Protobuf_Timestamp(timeIntervalSince1970: floor(Date.now.timeIntervalSince1970))
             }
-            $0.auth = rendezvous.authFor(message: $0)
+            
+            $0.rendezvousSignature = $0.pool.sign(with: rendezvous)
+            $0.auth = owner.authFor(message: $0)
         }
         
         let call = service.createPool(request)

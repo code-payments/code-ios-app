@@ -41,6 +41,22 @@ struct CashLinkMetadataTable: Sendable {
     let canCancel    = Expression <Bool>      ("canCancel")
 }
 
+struct PoolTable: Sendable {
+    static let name = "pool"
+    
+    let table          = Table(Self.name)
+    let id             = Expression <PublicKey>    ("id")
+    let fundingAccount = Expression <PublicKey>    ("fundingAccount")
+    let creatorUserID  = Expression <UUID>         ("creatorUserID")
+    let creationDate   = Expression <Date>         ("creationDate")
+    let isOpen         = Expression <Bool>         ("isOpen")
+    let name           = Expression <String>       ("name")
+    let buyInQuarks    = Expression <UInt64>       ("buyInQuarks")
+    let buyInCurrency  = Expression <CurrencyCode> ("buyInCurrency")
+    let resolution     = Expression <Bool?>        ("resolution")
+    let privateKeySeed = Expression <Seed32?>      ("privateKeySeed")
+}
+
 extension Expression {
     func alias(_ alias: String) -> Expression<Datatype> {
         Expression(alias)
@@ -58,6 +74,7 @@ extension Database {
         let rateTable = RateTable()
         let activityTable = ActivityTable()
         let cashLinkMetadataTable = CashLinkMetadataTable()
+        let poolTable = PoolTable()
         
         try writer.transaction {
             try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
@@ -90,6 +107,21 @@ extension Database {
             })
         }
         
+        try writer.transaction {
+            try writer.run(poolTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(poolTable.id, primaryKey: true)
+                t.column(poolTable.fundingAccount)
+                t.column(poolTable.creatorUserID)
+                t.column(poolTable.creationDate)
+                t.column(poolTable.isOpen)
+                t.column(poolTable.name)
+                t.column(poolTable.buyInQuarks)
+                t.column(poolTable.buyInCurrency)
+                t.column(poolTable.resolution)
+                t.column(poolTable.privateKeySeed)
+            })
+        }
+        
         try createIndexesIfNeeded()
     }
     
@@ -114,13 +146,13 @@ extension UInt64: @retroactive Value {
     }
 }
 
-extension PublicKey: @retroactive Value {
+extension Key32: @retroactive Value {
     public static var declaredDatatype: String {
         Blob.declaredDatatype
     }
 
-    public static func fromDatatypeValue(_ dataValue: Blob) -> PublicKey {
-        PublicKey(dataValue.bytes)!
+    public static func fromDatatypeValue(_ dataValue: Blob) -> Key32 {
+        Key32(dataValue.bytes)!
     }
 
     public var datatypeValue: Blob {

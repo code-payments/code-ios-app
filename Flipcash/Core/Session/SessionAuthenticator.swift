@@ -144,12 +144,21 @@ final class SessionAuthenticator: ObservableObject {
             userID: initializedAccount.userID
         )
         
+        let poolController = PoolController(
+            container: container,
+            keyAccount: initializedAccount.keyAccount,
+            owner: owner,
+            userID: initializedAccount.userID,
+            database: database
+        )
+        
         return SessionContainer(
             session: session,
             database: database,
             ratesController: ratesController,
             historyController: historyController,
-            pushController: pushController
+            pushController: pushController,
+            poolController: poolController
         )
     }
     
@@ -303,6 +312,7 @@ struct SessionContainer {
     let ratesController: RatesController
     let historyController: HistoryController
     let pushController: PushController
+    let poolController: PoolController
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view

@@ -42,7 +42,7 @@ struct PoolSummaryScreen: View {
                                 )
                                 .font(.appDisplayMedium)
                                 
-                                Text("Pool buy in")
+                                Text("Pool Buy In")
                                     .font(.appTextMedium)
                                     .foregroundStyle(Color.textSecondary)
                             }
@@ -51,6 +51,7 @@ struct PoolSummaryScreen: View {
                         }
                     }
                 }
+                .padding(.horizontal, 20)
                 
                 Spacer()
                 

@@ -112,7 +112,7 @@ extension ExchangedFiat {
         )
     }
     
-    init(_ proto: Flipcash_Common_V1_PaymentAmount) throws {
+    init(_ proto: Flipcash_Common_V1_UsdcPaymentAmount) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
         
         self.init(

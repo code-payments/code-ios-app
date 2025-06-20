@@ -93,6 +93,10 @@ extension Derive.Path {
         Derive.Path("m/44'/501'/0'/0'")!
     }
     
+    public static func pool(index: Int) -> Derive.Path {
+        Derive.Path("m/44'/501'/0'/0'/7665'/\(index)")!
+    }
+    
     public static func relationship(domain: String) -> Derive.Path {
         Derive.Path("m/44'/501'/0'/0'/0'/0", password: domain)!
     }

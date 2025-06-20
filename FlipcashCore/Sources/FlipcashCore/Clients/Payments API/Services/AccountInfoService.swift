@@ -33,8 +33,11 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
                     }
                 }.first
                 
-                if let account {
+                if var account {
 //                    trace(.success, components: "Balance: \(account.fiat.formatted(suffix: " USD"))")
+                    if type == .primary {
+                        account.nextPoolIndex = Int(response.nextPoolIndex)
+                    }
                     completion(.success(account))
                 } else {
                     trace(.failure, components: "Account not in list of accounts returned: \(response.tokenAccountInfos)")
@@ -57,11 +60,13 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
 public enum AccountInfoType: Sendable {
     case primary
     case giftCard
+    case pool
     
     fileprivate var proto: Code_Common_V1_AccountType {
         switch self {
         case .primary:  return .primary
         case .giftCard: return .remoteSendGiftCard
+        case .pool:     return .pool
         }
     }
 }
