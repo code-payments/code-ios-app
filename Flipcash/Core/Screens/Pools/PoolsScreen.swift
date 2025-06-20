@@ -15,8 +15,15 @@ struct PoolsScreen: View {
     
     @StateObject private var viewModel: PoolViewModel
     
+    @StateObject private var updateablePools: Updateable<[PoolMetadata]>
+    
     private let container: Container
     private let sessionContainer: SessionContainer
+    private let database: Database
+    
+    private var pools: [PoolMetadata] {
+        updateablePools.value
+    }
     
     // MARK: - Init -
     
@@ -24,6 +31,8 @@ struct PoolsScreen: View {
         self._isPresented     = isPresented
         self.container        = container
         self.sessionContainer = sessionContainer
+        let database          = sessionContainer.database
+        self.database         = database
         
         _viewModel = StateObject(
             wrappedValue: PoolViewModel(
@@ -31,6 +40,10 @@ struct PoolsScreen: View {
                 sessionContainer: sessionContainer
             )
         )
+        
+        self._updateablePools = .init(wrappedValue: Updateable {
+            (try? database.getPools()) ?? []
+        })
     }
     
     // MARK: - Lifecycle -
@@ -45,7 +58,25 @@ struct PoolsScreen: View {
         NavigationStack {
             Background(color: .backgroundMain) {
                 VStack(spacing: 0) {
-                    emptyState()
+                    if pools.isEmpty {
+                        emptyState()
+                    } else {
+                        list()
+                    }
+                    
+                    CodeButton(
+                        style: .filled,
+                        title: "Create Pool",
+                        action: viewModel.startPoolCreationFlowAction
+                    )
+                    .sheet(isPresented: $viewModel.isShowingCreatePoolFlow) {
+                        EnterPoolNameScreen(
+                            isPresented: $viewModel.isShowingCreatePoolFlow,
+                            viewModel: viewModel
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
                 .navigationTitle("Pools")
                 .navigationBarTitleDisplayMode(.inline)
@@ -81,89 +112,52 @@ struct PoolsScreen: View {
             }
             
             Spacer()
+        }
+        .padding(20)
+        .foregroundStyle(Color.textMain)
+    }
+    
+    @ViewBuilder private func list() -> some View {
+        GeometryReader { g in
+            List {
+                Section {
+                    ForEach(pools) { pool in
+                        row(pool: pool)
+                    }
+                    
+                } header: {
+                    Text("Open")
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 5)
+                }
+                //.listSectionSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparatorTint(.rowSeparator)
+            }
+            .listStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+    
+    @ViewBuilder private func row(pool: PoolMetadata) -> some View {
+        Button {
             
-            CodeButton(
-                style: .filled,
-                title: "Create Pool",
-                action: viewModel.startPoolCreationFlowAction
-            )
-            .sheet(isPresented: $viewModel.isShowingCreatePoolFlow) {
-                EnterPoolNameScreen(
-                    isPresented: $viewModel.isShowingCreatePoolFlow,
-                    viewModel: viewModel
-                )
+        } label: {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(pool.name)
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+                    .multilineTextAlignment(.leading)
+                
+                Text("\(pool.buyIn.formatted(suffix: nil)) Buy In")
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textSecondary)
             }
         }
         .listRowBackground(Color.clear)
-        .foregroundStyle(Color.textMain)
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 15)
     }
-    
-//    @ViewBuilder private func list() -> some View {
-//        GeometryReader { g in
-//            List {
-//                Section {
-//                    if hasActivities {
-//                        ForEach(activities) { activity in
-//                            row(activity: activity)
-//                        }
-//                    } else {
-//                        emptyState()
-//                    }
-//                    
-//                } header: {
-//                    header(geometry: g)
-//                        .textCase(.none)
-//                }
-//                //.listSectionSeparator(.hidden)
-//                .listRowInsets(EdgeInsets())
-//                .listRowSeparatorTint(hasActivities ? .rowSeparator : .clear)
-//            }
-//            .listStyle(.grouped)
-//            .scrollContentBackground(.hidden)
-//        }
-//    }
-//    
-//    @ViewBuilder private func row(activity: Activity) -> some View {
-//        Button {
-//            if BetaFlags.shared.hasEnabled(.transactionDetails) {
-//                selectedActivity = activity
-//            } else {
-//                rowAction(activity: activity)
-//            }
-//        } label: {
-//            VStack {
-//                HStack {
-//                    Text(activity.title)
-//                        .font(.appTextMedium)
-//                        .foregroundStyle(Color.textMain)
-//                    Spacer()
-//                    AmountText(
-//                        flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
-//                        flagSize: .small,
-//                        content: activity.exchangedFiat.converted.formatted(suffix: nil)
-//                    )
-//                    .font(.appTextMedium)
-//                    .foregroundStyle(Color.textMain)
-//                }
-//                
-//                HStack {
-//                    Text(activity.date.formattedRelatively(useTimeForToday: true))
-//                        .font(.appTextSmall)
-//                        .foregroundStyle(Color.textSecondary)
-//                    Spacer()
-////                    if activity.exchangedFiat.converted.currencyCode != .usd {
-////                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
-////                            .font(.appTextSmall)
-////                            .foregroundStyle(Color.textSecondary)
-////                    }
-//                }
-//            }
-//        }
-//        .listRowBackground(Color.clear)
-//        .padding(.horizontal, 20)
-//        .padding(.vertical, 20)
-//    }
     
     // MARK: - Action -
     
