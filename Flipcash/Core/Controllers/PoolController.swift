@@ -17,6 +17,7 @@ class PoolController: ObservableObject {
     private let client: Client
     private let flipClient: FlipClient
     private let database: Database
+    private let poolVault: PoolVault
     
     // MARK: - Init -
     
@@ -27,17 +28,7 @@ class PoolController: ObservableObject {
         self.client     = container.client
         self.flipClient = container.flipClient
         self.database   = database
-    }
-    
-    // MARK: - Pool Accounts -
-    
-    private func poolAccountCluster(for index: Int) -> AccountCluster {
-        AccountCluster(
-            authority: .derive(
-                using: .pool(index: index),
-                mnemonic: keyAccount.mnemonic
-            )
-        )
+        self.poolVault  = PoolVault()
     }
     
     // MARK: - Pools -
@@ -53,12 +44,15 @@ class PoolController: ObservableObject {
         }
         
         let rendezvous = KeyPair.generate()!
-        let poolCluster = poolAccountCluster(for: nextIndex)
+        let poolAccount = PoolAccount(
+            mnemonic: keyAccount.mnemonic,
+            index: nextIndex
+        )
         
         let metadata = PoolMetadata(
             id: rendezvous.publicKey,
             rendezvous: rendezvous,
-            fundingAccount: poolCluster.vaultPublicKey,
+            fundingAccount: poolAccount.cluster.vaultPublicKey,
             creatorUserID: userID,
             creationDate: .now,
             isOpen: true,
@@ -72,7 +66,14 @@ class PoolController: ObservableObject {
             owner: owner.authority.keyPair
         )
         
-        try database.insertPool(metadata: metadata)
+        // Store pool private key so
+        // that we can retrieve on another
+        // device or across app installs
+        poolVault.insert(poolAccount)
+        
+        try database.transaction {
+            try $0.insertPool(metadata: metadata)
+        }
         
         return metadata
     }
