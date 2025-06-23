@@ -100,11 +100,20 @@ struct PoolsScreen: View {
             VStack(spacing: 10) {
                 Image.asset(.graphicPoolPlaceholder)
                     .overlay {
-                        Text("Will Jimmy and\nSally have a girl?")
-                            .font(.appTextLarge)
-                            .foregroundStyle(Color.white.opacity(0.5))
-                            .multilineTextAlignment(.center)
-                            .offset(y: -70)
+                        TextCarousel(
+                            interval: 3,
+                            items: [
+                                "Will Jack bring a\ndate to the wedding?",
+                                "Will David get a\ngirl's number tonight?",
+                                "Will Caitlin Clark win MVP?",
+                                "Will a major politician post\na cringy TikTok this week?",
+                                "Will uncle Tony tell a\njoke that no one laughs at?",
+                            ]
+                        )
+                        .font(.appTextLarge)
+                        .foregroundStyle(Color.white.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                        .offset(y: -80)
                     }
                 
                 Text("Create a pool, collect money from your friends, and then decide who was right!")
