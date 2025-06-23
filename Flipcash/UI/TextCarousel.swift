@@ -48,14 +48,14 @@ struct TextCarousel: View {
                     Text(item.text)
                         .transition(
                             .asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .top)),
-                                removal: .opacity.combined(with: .move(edge: .bottom))
+                                insertion: .opacity.combined(with: .offset(y: -25)),
+                                removal: .opacity.combined(with: .offset(y: 25))
                             )
                         )
                 }
             }
         }
-        .animation(.easeInOut, value: index)
+        .animation(.spring(dampingFraction: 0.5), value: index)
         .multilineTextAlignment(.center)
         .onReceive(timer) { input in
             index = nextIndex
