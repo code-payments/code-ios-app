@@ -34,8 +34,6 @@ class PoolController: ObservableObject {
         
         Task {
             try await syncPools()
-            
-            try deriveMissingRendezvousKeys()
         }
     }
     
@@ -43,6 +41,7 @@ class PoolController: ObservableObject {
     
     func syncPools() async throws {
         try await syncPools(since: nil)
+        try deriveMissingRendezvousKeys()
     }
     
     private func syncPools(since cursorID: ID? = nil) async throws {

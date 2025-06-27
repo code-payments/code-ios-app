@@ -42,7 +42,7 @@ struct PoolsScreen: View {
     // MARK: - Lifecycle -
     
     private func onAppear() {
-        
+        viewModel.syncPools()
     }
     
     // MARK: - Body -

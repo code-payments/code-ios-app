@@ -306,25 +306,6 @@ struct ScanScreen: View {
                 )
             }
             
-            if betaFlags.hasEnabled(.pools) {
-                LargeButton(
-                    title: "Pools",
-                    image: .asset(.pools),
-                    spacing: 12,
-                    maxWidth: 80,
-                    maxHeight: 80,
-                    fullWidth: true,
-                    aligment: .bottom,
-                    binding: $poolViewModel.isShowingPoolList
-                )
-                .sheet(isPresented: $poolViewModel.isShowingPoolList) {
-                    PoolsScreen(
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
-                }
-            }
-            
 //            LargeButton(
 //                title: "Send",
 //                image: .asset(.airplane),
@@ -361,6 +342,25 @@ struct ScanScreen: View {
                     container: container,
                     database: sessionContainer.database
                 )
+            }
+            
+            if betaFlags.hasEnabled(.pools) {
+                LargeButton(
+                    title: "Pools",
+                    image: .asset(.pools),
+                    spacing: 12,
+                    maxWidth: 80,
+                    maxHeight: 80,
+                    fullWidth: true,
+                    aligment: .bottom,
+                    binding: $poolViewModel.isShowingPoolList
+                )
+                .sheet(isPresented: $poolViewModel.isShowingPoolList) {
+                    PoolsScreen(
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
             }
         }
         .padding(.bottom, 10)

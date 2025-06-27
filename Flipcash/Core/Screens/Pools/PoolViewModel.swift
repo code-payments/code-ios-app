@@ -81,6 +81,14 @@ class PoolViewModel: ObservableObject {
         self.poolController  = poolController
     }
     
+    // MARK: - Pools -
+    
+    func syncPools() {
+        Task {
+            try await poolController.syncPools()
+        }
+    }
+    
     // MARK: - Create Actions -
     
     func startPoolCreationFlowAction() {
@@ -142,10 +150,6 @@ class PoolViewModel: ObservableObject {
     // MARK: - Presentation -
     
     func showPoolList() {
-        Task {
-            try await poolController.syncPools()
-        }
-        
         isShowingPoolList = true
     }
     

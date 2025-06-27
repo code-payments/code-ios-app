@@ -151,29 +151,49 @@ struct PoolDetailsScreen: View {
             
             Spacer()
             
-            VStack(spacing: 20) {
+            VStack(spacing: 0) {
                 HStack {
-                    VoteButton(
-                        state: stateForYes,
-                        name: "Yes",
-                        fiat: amountOnYes,
-                    ) {
-                        showingConfirmationForBetOutcome = .yes
+                    VStack(spacing: 0) {
+                        VoteButton(
+                            state: stateForYes,
+                            name: "Yes",
+                            fiat: amountOnYes,
+                        ) {
+                            showingConfirmationForBetOutcome = .yes
+                        }
+                        .disabled(hasUserBet)
+                        .zIndex(1)
+                        
+                        YouVotedBadge()
+                            .offset(y: -Metrics.boxRadius)
+                            .zIndex(0)
+                            .opacity(userBet?.selectedOutcome == .yes ? 1 : 0)
                     }
-                    .disabled(hasUserBet)
                     
-                    VoteButton(
-                        state: stateForNo,
-                        name: "No",
-                        fiat: amountOnNo
-                    ) {
-                        showingConfirmationForBetOutcome = .no
+                    VStack(spacing: 0) {
+                        VoteButton(
+                            state: stateForNo,
+                            name: "No",
+                            fiat: amountOnNo
+                        ) {
+                            showingConfirmationForBetOutcome = .no
+                        }
+                        .disabled(hasUserBet)
+                        .zIndex(1)
+                        
+                        YouVotedBadge()
+                            .offset(y: -Metrics.boxRadius)
+                            .zIndex(0)
+                            .opacity(userBet?.selectedOutcome == .no ? 1 : 0)
                     }
-                    .disabled(hasUserBet)
                 }
-                Text("Tap to buy in")
-                    .font(.appDisplayXS)
-                    .foregroundStyle(Color.textSecondary)
+                
+                if !hasUserBet {
+                    Text("Tap to buy in")
+                        .font(.appDisplayXS)
+                        .foregroundStyle(Color.textSecondary)
+                        .padding(.top, -20) // Offset for YouVotedBadge
+                }
             }
             
             Spacer()
@@ -210,7 +230,8 @@ struct PoolDetailsScreen: View {
             }
         }
         .multilineTextAlignment(.center)
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
         .sheet(item: $showingConfirmationForBetOutcome) { outcome in
             PartialSheet {
                 ModalSwipeToBet(
@@ -243,6 +264,31 @@ struct PoolDetailsScreen: View {
     }
 }
 
+private struct YouVotedBadge: View {
+    var body: some View {
+        VStack {
+            Text("You said")
+                .font(.appTextSmall)
+                .offset(y: Metrics.boxRadius * 0.4)
+        }
+        .foregroundStyle(.white.opacity(0.6))
+        .frame(width: 90, height: 45)
+        .background(
+            RoundedRectangle(cornerRadius: Metrics.boxRadius)
+                .fill(Color.extraLightFill)
+                .strokeBorder(Color.lightStroke, lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
+        )
+    }
+}
+
+// MARK: - Colors -
+
+extension Color {
+    static let extraLightFill = Color(r: 12, g: 37, b: 24)
+    static let winnerGreen    = Color(r: 67, g: 144, b: 84)
+    static let lightStroke    = Color.textSecondary.opacity(0.15)
+}
+
 // MARK: - VoteButton -
 
 private struct VoteButton: View {
@@ -255,7 +301,7 @@ private struct VoteButton: View {
     private var strokeColor: Color {
         switch state {
         case .normal:
-            Metrics.inputFieldStrokeColor(highlighted: false)
+            .lightStroke
         case .selected:
             .clear
         case .winner:
@@ -266,11 +312,11 @@ private struct VoteButton: View {
     private var fillColor: Color {
         switch state {
         case .normal:
-            .white.opacity(0.05)
+            .extraLightFill
         case .selected:
             .white
         case .winner:
-            Color(r: 67, g: 144, b: 84)
+            .winnerGreen
         }
     }
     
@@ -303,12 +349,12 @@ private struct VoteButton: View {
                     .font(.appTextSmall)
             }
             .foregroundStyle(textColor)
-            .frame(height: 120)
+            .frame(height: 150)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: Metrics.buttonRadius * 2)
-                    .strokeBorder(strokeColor, lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
+                RoundedRectangle(cornerRadius: Metrics.boxRadius)
                     .fill(fillColor)
+                    .strokeBorder(strokeColor, lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
             )
         }
     }
