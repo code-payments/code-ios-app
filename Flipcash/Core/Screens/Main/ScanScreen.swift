@@ -15,6 +15,7 @@ struct ScanScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
+    @ObservedObject private var poolViewModel: PoolViewModel
     
     @StateObject private var viewModel: ScanViewModel
     
@@ -23,7 +24,7 @@ struct ScanScreen: View {
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var isShowingGive: Bool = false
-    @State private var isShowingPools: Bool = false
+//    @State private var isShowingPools: Bool = false
 //    @State private var isShowingSend: Bool = false
     
     @State private var sendButtonState: ButtonState = .normal
@@ -64,6 +65,7 @@ struct ScanScreen: View {
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
+        self.poolViewModel    = sessionContainer.poolViewModel
         
         _viewModel = .init(
             wrappedValue: ScanViewModel(
@@ -313,11 +315,10 @@ struct ScanScreen: View {
                     maxHeight: 80,
                     fullWidth: true,
                     aligment: .bottom,
-                    binding: $isShowingPools
+                    binding: $poolViewModel.isShowingPoolList
                 )
-                .sheet(isPresented: $isShowingPools) {
+                .sheet(isPresented: $poolViewModel.isShowingPoolList) {
                     PoolsScreen(
-                        isPresented: $isShowingPools,
                         container: container,
                         sessionContainer: sessionContainer
                     )

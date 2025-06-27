@@ -69,6 +69,7 @@ extension Route {
         
         case login
         case cash
+        case pool
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -76,7 +77,7 @@ extension Route {
                 return nil
             }
             
-            let components = url.pathComponents
+//            let components = url.pathComponents
             
             // Handle any paths that use the last path component
             switch url.lastPathComponent {
@@ -84,6 +85,8 @@ extension Route {
                 return .login
             case "cash", "c":
                 return .cash
+            case "pool", "p":
+                return .pool
             default:
                 return .unknown(url.lastPathComponent)
             }

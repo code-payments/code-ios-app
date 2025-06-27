@@ -114,12 +114,13 @@ struct PoolDetailsScreen: View {
             if let pool {
                 poolDetails(pool: pool)
             } else {
-                LoadingView(color: .white)
+                VStack {
+                    LoadingView(color: .white)
+                }
             }
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        
     }
     
     @ViewBuilder private func poolDetails(pool: PoolMetadata) -> some View {

@@ -15,15 +15,23 @@ class PoolViewModel: ObservableObject {
 
     @Published var createPoolPath: [CreatePoolPath] = []
     
+    @Published var poolListPath: [PoolListPath] = []
+    
     @Published var enteredPoolName: String = ""
     
     @Published var enteredPoolAmount: String = ""
     
-    @Published var isShowingCreatePoolFlow: Bool = false
-    
     @Published var createPoolButtonState: ButtonState = .normal
     
-    @Published var selectedRendezvous: KeyPair?
+    @Published var isShowingCreatePoolFlow: Bool = false
+    
+    @Published var isShowingPoolList: Bool = false {
+        didSet {
+            if !isShowingPoolList {
+                poolListPath = []
+            }
+        }
+    }
     
     var canCreatePool: Bool {
         isEnteredPoolNameValid && (enteredPoolFiat?.usdc ?? 0) > 0
@@ -67,15 +75,17 @@ class PoolViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, sessionContainer: SessionContainer) {
+    init(container: Container, ratesController: RatesController, poolController: PoolController) {
         self.container       = container
-        self.ratesController = sessionContainer.ratesController
-        self.poolController  = sessionContainer.poolController
+        self.ratesController = ratesController
+        self.poolController  = poolController
     }
     
     // MARK: - Create Actions -
     
     func startPoolCreationFlowAction() {
+        enteredPoolName = ""
+        enteredPoolAmount = ""
         isShowingCreatePoolFlow = true
     }
     
@@ -119,7 +129,7 @@ class PoolViewModel: ObservableObject {
     // MARK: - Pool Actions -
     
     func selectPoolAction(rendezvous: KeyPair) {
-        selectedRendezvous = rendezvous
+        navigateToPoolDetails(rendezvous: rendezvous)
     }
     
     func betAction(rendezvous: KeyPair, outcome: BetOutcome) async throws {
@@ -129,7 +139,29 @@ class PoolViewModel: ObservableObject {
         )
     }
     
-    // MARK: - Navigation -
+    // MARK: - Presentation -
+    
+    func showPoolList() {
+        Task {
+            try await poolController.syncPools()
+        }
+        
+        isShowingPoolList = true
+    }
+    
+    func openPoolFromDeeplink(rendezvous: KeyPair) {
+        Task {
+            try await poolController.updatePool(
+                poolID: rendezvous.publicKey,
+                rendezvous: rendezvous
+            )
+        }
+        
+        navigateToPoolDetails(rendezvous: rendezvous)
+        showPoolList()
+    }
+    
+    // MARK: - Create Pool Navigation -
     
     private func navigateToEnterPoolAmount() {
         createPoolPath.append(.enterPoolAmount)
@@ -138,6 +170,12 @@ class PoolViewModel: ObservableObject {
     private func navigateToPoolSummary() {
         createPoolPath.append(.poolSummary)
     }
+    
+    // MARK: - Pool List Navigation -
+    
+    private func navigateToPoolDetails(rendezvous: KeyPair) {
+        poolListPath.append(.poolDetails(rendezvous))
+    }
 }
 
 // MARK: - Path -
@@ -145,4 +183,8 @@ class PoolViewModel: ObservableObject {
 enum CreatePoolPath {
     case enterPoolAmount
     case poolSummary
+}
+
+enum PoolListPath: Hashable {
+    case poolDetails(KeyPair)
 }

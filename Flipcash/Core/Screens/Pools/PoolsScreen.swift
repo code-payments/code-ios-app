@@ -11,14 +11,13 @@ import FlipcashCore
 
 struct PoolsScreen: View {
     
-    @Binding var isPresented: Bool
-    
-    @StateObject private var viewModel: PoolViewModel
+    @ObservedObject private var viewModel: PoolViewModel
     
     @StateObject private var updateablePools: Updateable<[PoolContainer]>
     
     private let container: Container
     private let sessionContainer: SessionContainer
+    private let session: Session
     private let database: Database
     
     private var pools: [PoolContainer] {
@@ -27,19 +26,13 @@ struct PoolsScreen: View {
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self._isPresented     = isPresented
+    init(container: Container, sessionContainer: SessionContainer) {
         self.container        = container
         self.sessionContainer = sessionContainer
+        self.session          = sessionContainer.session
+        self.viewModel        = sessionContainer.poolViewModel
         let database          = sessionContainer.database
         self.database         = database
-        
-        _viewModel = StateObject(
-            wrappedValue: PoolViewModel(
-                container: container,
-                sessionContainer: sessionContainer
-            )
-        )
         
         _updateablePools = .init(wrappedValue: Updateable {
             (try? database.getPools()) ?? []
@@ -55,7 +48,7 @@ struct PoolsScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $viewModel.poolListPath) {
             Background(color: .backgroundMain) {
                 VStack(spacing: 0) {
                     if pools.isEmpty {
@@ -82,12 +75,23 @@ struct PoolsScreen: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        ToolbarCloseButton(binding: $isPresented)
+                        ToolbarCloseButton(binding: $viewModel.isShowingPoolList)
                     }
                 }
             }
             .ignoresSafeArea(.keyboard)
             .onAppear(perform: onAppear)
+            .navigationDestination(for: PoolListPath.self) { path in
+                switch path {
+                case .poolDetails(let rendezvous):
+                    PoolDetailsScreen(
+                        userID: session.userID,
+                        poolRendezvous: rendezvous,
+                        database: database,
+                        viewModel: viewModel
+                    )
+                }
+            }
         }
     }
     
@@ -146,14 +150,6 @@ struct PoolsScreen: View {
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
-        .sheet(item: $viewModel.selectedRendezvous) { rendezvous in
-            PoolDetailsScreen(
-                userID: sessionContainer.session.userID,
-                poolRendezvous: rendezvous,
-                database: database,
-                viewModel: viewModel
-            )
-        }
     }
     
     @ViewBuilder private func row(poolContainer: PoolContainer) -> some View {
@@ -187,15 +183,6 @@ struct PoolsScreen: View {
     }
     
     // MARK: - Action -
-    
-//    private func rowAction(activity: Activity) {
-//        if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
-//            cancelCashLinkAction(
-//                activity: activity,
-//                metadata: cashLinkMetadata
-//            )
-//        }
-//    }
     
     private func createPoolAction() {
         

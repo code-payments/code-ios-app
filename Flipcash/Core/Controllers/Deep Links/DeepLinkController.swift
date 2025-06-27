@@ -68,9 +68,17 @@ final class DeepLinkController {
             {
                 let giftCard = GiftCardCluster(mnemonic: mnemonic)
                 return actionForReceiveRemoteSend(giftCard: giftCard)
-            } else {
-//                ErrorReporting.captureError(Error.failedToParseGiftCard, id: "giftCard")
             }
+            
+        case .pool:
+            if
+                let rendezvousSeed = route.fragments[.entropy],
+                let seed = Seed32(base58: rendezvousSeed.value)
+            {
+                let rendezvous = KeyPair(seed: seed)
+                return actionForOpenPool(rendezvous: rendezvous)
+            }
+            
             
         case .unknown:
             break
@@ -89,6 +97,13 @@ final class DeepLinkController {
     private func actionForReceiveRemoteSend(giftCard: GiftCardCluster) -> DeepLinkAction {
         DeepLinkAction(
             kind: .receiveCashLink(giftCard),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+    
+    private func actionForOpenPool(rendezvous: KeyPair) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .pool(rendezvous),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -157,6 +172,11 @@ struct DeepLinkAction {
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 container.session.receiveCashLink(giftCard: giftCard)
             }
+            
+        case .pool(let rendezvous):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                container.poolViewModel.openPoolFromDeeplink(rendezvous: rendezvous)
+            }
         }
     }
 }
@@ -167,6 +187,7 @@ extension DeepLinkAction {
     enum Kind {
         case accessKey(MnemonicPhrase)
         case receiveCashLink(GiftCardCluster)
+        case pool(KeyPair)
     }
 }
 
