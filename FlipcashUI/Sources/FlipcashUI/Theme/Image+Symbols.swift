@@ -64,6 +64,8 @@ public enum SystemSymbol: String {
     case speakerSlash = "speaker.slash.fill"
     
     case lockDashed = "lock.app.dashed"
+    
+    case person = "person.fill"
 }
 
 // MARK: - Symbol -

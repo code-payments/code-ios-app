@@ -154,27 +154,45 @@ struct PoolsScreen: View {
     
     @ViewBuilder private func row(poolContainer: PoolContainer) -> some View {
         let pool = poolContainer.metadata
+        let isHost = pool.creatorUserID == session.userID
+        
         Button {
             if let rendezvous = pool.rendezvous {
                 viewModel.selectPoolAction(rendezvous: rendezvous)
             }
         } label: {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(pool.name)
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                    .multilineTextAlignment(.leading)
-                
-                HStack(spacing: 8) {
-                    if pool.rendezvous == nil {
-                        Text("Missing Rendezvous")
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.textError)
-                    }
-                    Text("\(poolContainer.amountInPool.formatted(suffix: nil)) in pool so far")
-                        .font(.appTextMedium)
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    if isHost {
+                        HStack(spacing: 5) {
+                            Image.system(.person)
+                                .font(.appTextSmall)
+                            Text("Host")
+                                .font(.appTextMedium)
+                        }
                         .foregroundStyle(Color.textSecondary)
+                    }
+                    
+                    Text(pool.name)
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textMain)
+                        .multilineTextAlignment(.leading)
+                    
+                    HStack(spacing: 8) {
+                        if pool.rendezvous == nil {
+                            Text("Missing Rendezvous")
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textError)
+                        }
+                        Text("\(poolContainer.amountInPool.formatted(suffix: nil)) in pool so far")
+                            .font(.appTextMedium)
+                            .foregroundStyle(Color.textSecondary)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Image.system(.chevronRight)
+                    .foregroundStyle(Color.textSecondary)
             }
         }
         .listRowBackground(Color.clear)
