@@ -9,15 +9,27 @@ import Foundation
 
 extension FlipClient {
     
-    public func createPool(poolMetadata: PoolMetadata, owner: KeyPair) async throws {
+    public func fetchPools(owner: KeyPair, pageSize: Int, since cursor: ID?) async throws -> [PoolDescription] {
         try await withCheckedThrowingContinuation { c in
-            poolService.createPool(poolMetadata: poolMetadata, owner: owner) { c.resume(with: $0) }
+            poolService.fetchPools(owner: owner, pageSize: pageSize, since: cursor) { c.resume(with: $0) }
         }
     }
     
     public func fetchPool(poolID: PublicKey) async throws -> PoolDescription {
         try await withCheckedThrowingContinuation { c in
             poolService.fetchPool(poolID: poolID) { c.resume(with: $0) }
+        }
+    }
+    
+    public func createPool(poolMetadata: PoolMetadata, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            poolService.createPool(poolMetadata: poolMetadata, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func createBet(poolRendezvous: KeyPair, betMetadata: BetMetadata, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            poolService.createBet(poolRendezvous: poolRendezvous, betMetadata: betMetadata, owner: owner) { c.resume(with: $0) }
         }
     }
 }

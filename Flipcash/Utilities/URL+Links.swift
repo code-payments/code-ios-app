@@ -17,6 +17,10 @@ extension URL {
         URL(string: "https://send.flipcash.com/c/#/e=\(mnemonic.base58EncodedEntropy)")!
     }
     
+    static func poolLink(rendezvous: KeyPair) -> URL {
+        URL(string: "https://fun.flipcash.com/p/#/e=\(rendezvous.seed!.base58)")!
+    }
+    
     static var privacyPolicy: URL {
         URL(string: "https://www.flipcash.com/privacy")!
     }

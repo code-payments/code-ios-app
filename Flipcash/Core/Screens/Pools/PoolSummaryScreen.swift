@@ -62,6 +62,7 @@ struct PoolSummaryScreen: View {
                         .multilineTextAlignment(.center)
                     
                     CodeButton(
+                        state: viewModel.createPoolButtonState,
                         style: .filled,
                         title: "Create Pool",
                         disabled: !viewModel.canCreatePool,

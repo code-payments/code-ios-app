@@ -26,6 +26,16 @@ public protocol Flipcash_Pool_V1_PoolClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Flipcash_Pool_V1_GetPoolRequest, Flipcash_Pool_V1_GetPoolResponse>
 
+  func getPagedPools(
+    _ request: Flipcash_Pool_V1_GetPagedPoolsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Pool_V1_GetPagedPoolsRequest, Flipcash_Pool_V1_GetPagedPoolsResponse>
+
+  func closePool(
+    _ request: Flipcash_Pool_V1_ClosePoolRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Pool_V1_ClosePoolRequest, Flipcash_Pool_V1_ClosePoolResponse>
+
   func resolvePool(
     _ request: Flipcash_Pool_V1_ResolvePoolRequest,
     callOptions: CallOptions?
@@ -78,11 +88,47 @@ extension Flipcash_Pool_V1_PoolClientProtocol {
     )
   }
 
+  /// GetPagedPools gets all pools for a user over a paging API
+  ///
+  /// Note: Only bet summaries are provided in the response
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetPagedPools.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getPagedPools(
+    _ request: Flipcash_Pool_V1_GetPagedPoolsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Pool_V1_GetPagedPoolsRequest, Flipcash_Pool_V1_GetPagedPoolsResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Pool_V1_PoolClientMetadata.Methods.getPagedPools.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPagedPoolsInterceptors() ?? []
+    )
+  }
+
+  /// ClosePool closes a pool from additional bets
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to ClosePool.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func closePool(
+    _ request: Flipcash_Pool_V1_ClosePoolRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Pool_V1_ClosePoolRequest, Flipcash_Pool_V1_ClosePoolResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Pool_V1_PoolClientMetadata.Methods.closePool.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeClosePoolInterceptors() ?? []
+    )
+  }
+
   /// ResolvePool resolves a pool by declaring the pool's outcome. The pool creator
   /// resolves a pool by calling this RPC first, then SubmitIntent to distribute funds
   /// to the winning participants.
-  ///
-  /// Note: If the pool is not closed, it will be closed after execution of this RPC.
   ///
   /// - Parameters:
   ///   - request: Request to send to ResolvePool.
@@ -106,8 +152,6 @@ extension Flipcash_Pool_V1_PoolClientProtocol {
   ///  1. Intent ID == Bet.id
   ///  2. Payment amount == PoolMetadata.buy_in
   ///  3. Payment destination == PoolMetadata.funding_destination
-  /// Bets without payment, or with invalid intents, will not be visible in the
-  /// PoolMetadata when calling GetPool.
   ///
   /// - Parameters:
   ///   - request: Request to send to MakeBet.
@@ -198,6 +242,16 @@ public protocol Flipcash_Pool_V1_PoolAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipcash_Pool_V1_GetPoolRequest, Flipcash_Pool_V1_GetPoolResponse>
 
+  func makeGetPagedPoolsCall(
+    _ request: Flipcash_Pool_V1_GetPagedPoolsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Pool_V1_GetPagedPoolsRequest, Flipcash_Pool_V1_GetPagedPoolsResponse>
+
+  func makeClosePoolCall(
+    _ request: Flipcash_Pool_V1_ClosePoolRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Pool_V1_ClosePoolRequest, Flipcash_Pool_V1_ClosePoolResponse>
+
   func makeResolvePoolCall(
     _ request: Flipcash_Pool_V1_ResolvePoolRequest,
     callOptions: CallOptions?
@@ -240,6 +294,30 @@ extension Flipcash_Pool_V1_PoolAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetPoolInterceptors() ?? []
+    )
+  }
+
+  public func makeGetPagedPoolsCall(
+    _ request: Flipcash_Pool_V1_GetPagedPoolsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Pool_V1_GetPagedPoolsRequest, Flipcash_Pool_V1_GetPagedPoolsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Pool_V1_PoolClientMetadata.Methods.getPagedPools.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPagedPoolsInterceptors() ?? []
+    )
+  }
+
+  public func makeClosePoolCall(
+    _ request: Flipcash_Pool_V1_ClosePoolRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Pool_V1_ClosePoolRequest, Flipcash_Pool_V1_ClosePoolResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Pool_V1_PoolClientMetadata.Methods.closePool.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeClosePoolInterceptors() ?? []
     )
   }
 
@@ -294,6 +372,30 @@ extension Flipcash_Pool_V1_PoolAsyncClientProtocol {
     )
   }
 
+  public func getPagedPools(
+    _ request: Flipcash_Pool_V1_GetPagedPoolsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Pool_V1_GetPagedPoolsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Pool_V1_PoolClientMetadata.Methods.getPagedPools.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPagedPoolsInterceptors() ?? []
+    )
+  }
+
+  public func closePool(
+    _ request: Flipcash_Pool_V1_ClosePoolRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Pool_V1_ClosePoolResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Pool_V1_PoolClientMetadata.Methods.closePool.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeClosePoolInterceptors() ?? []
+    )
+  }
+
   public func resolvePool(
     _ request: Flipcash_Pool_V1_ResolvePoolRequest,
     callOptions: CallOptions? = nil
@@ -344,6 +446,12 @@ public protocol Flipcash_Pool_V1_PoolClientInterceptorFactoryProtocol: Sendable 
   /// - Returns: Interceptors to use when invoking 'getPool'.
   func makeGetPoolInterceptors() -> [ClientInterceptor<Flipcash_Pool_V1_GetPoolRequest, Flipcash_Pool_V1_GetPoolResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'getPagedPools'.
+  func makeGetPagedPoolsInterceptors() -> [ClientInterceptor<Flipcash_Pool_V1_GetPagedPoolsRequest, Flipcash_Pool_V1_GetPagedPoolsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'closePool'.
+  func makeClosePoolInterceptors() -> [ClientInterceptor<Flipcash_Pool_V1_ClosePoolRequest, Flipcash_Pool_V1_ClosePoolResponse>]
+
   /// - Returns: Interceptors to use when invoking 'resolvePool'.
   func makeResolvePoolInterceptors() -> [ClientInterceptor<Flipcash_Pool_V1_ResolvePoolRequest, Flipcash_Pool_V1_ResolvePoolResponse>]
 
@@ -358,6 +466,8 @@ public enum Flipcash_Pool_V1_PoolClientMetadata {
     methods: [
       Flipcash_Pool_V1_PoolClientMetadata.Methods.createPool,
       Flipcash_Pool_V1_PoolClientMetadata.Methods.getPool,
+      Flipcash_Pool_V1_PoolClientMetadata.Methods.getPagedPools,
+      Flipcash_Pool_V1_PoolClientMetadata.Methods.closePool,
       Flipcash_Pool_V1_PoolClientMetadata.Methods.resolvePool,
       Flipcash_Pool_V1_PoolClientMetadata.Methods.makeBet,
     ]
@@ -373,6 +483,18 @@ public enum Flipcash_Pool_V1_PoolClientMetadata {
     public static let getPool = GRPCMethodDescriptor(
       name: "GetPool",
       path: "/flipcash.pool.v1.Pool/GetPool",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPagedPools = GRPCMethodDescriptor(
+      name: "GetPagedPools",
+      path: "/flipcash.pool.v1.Pool/GetPagedPools",
+      type: GRPCCallType.unary
+    )
+
+    public static let closePool = GRPCMethodDescriptor(
+      name: "ClosePool",
+      path: "/flipcash.pool.v1.Pool/ClosePool",
       type: GRPCCallType.unary
     )
 
@@ -400,11 +522,17 @@ public protocol Flipcash_Pool_V1_PoolProvider: CallHandlerProvider {
   /// GetPool gets pool metadata by its ID
   func getPool(request: Flipcash_Pool_V1_GetPoolRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Pool_V1_GetPoolResponse>
 
+  /// GetPagedPools gets all pools for a user over a paging API
+  ///
+  /// Note: Only bet summaries are provided in the response
+  func getPagedPools(request: Flipcash_Pool_V1_GetPagedPoolsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Pool_V1_GetPagedPoolsResponse>
+
+  /// ClosePool closes a pool from additional bets
+  func closePool(request: Flipcash_Pool_V1_ClosePoolRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Pool_V1_ClosePoolResponse>
+
   /// ResolvePool resolves a pool by declaring the pool's outcome. The pool creator
   /// resolves a pool by calling this RPC first, then SubmitIntent to distribute funds
   /// to the winning participants.
-  ///
-  /// Note: If the pool is not closed, it will be closed after execution of this RPC.
   func resolvePool(request: Flipcash_Pool_V1_ResolvePoolRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Pool_V1_ResolvePoolResponse>
 
   /// MakeBet creates a new bet against a pool. Pool participants make a bet by
@@ -413,8 +541,6 @@ public protocol Flipcash_Pool_V1_PoolProvider: CallHandlerProvider {
   ///  1. Intent ID == Bet.id
   ///  2. Payment amount == PoolMetadata.buy_in
   ///  3. Payment destination == PoolMetadata.funding_destination
-  /// Bets without payment, or with invalid intents, will not be visible in the
-  /// PoolMetadata when calling GetPool.
   func makeBet(request: Flipcash_Pool_V1_MakeBetRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Pool_V1_MakeBetResponse>
 }
 
@@ -446,6 +572,24 @@ extension Flipcash_Pool_V1_PoolProvider {
         responseSerializer: ProtobufSerializer<Flipcash_Pool_V1_GetPoolResponse>(),
         interceptors: self.interceptors?.makeGetPoolInterceptors() ?? [],
         userFunction: self.getPool(request:context:)
+      )
+
+    case "GetPagedPools":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Pool_V1_GetPagedPoolsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Pool_V1_GetPagedPoolsResponse>(),
+        interceptors: self.interceptors?.makeGetPagedPoolsInterceptors() ?? [],
+        userFunction: self.getPagedPools(request:context:)
+      )
+
+    case "ClosePool":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Pool_V1_ClosePoolRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Pool_V1_ClosePoolResponse>(),
+        interceptors: self.interceptors?.makeClosePoolInterceptors() ?? [],
+        userFunction: self.closePool(request:context:)
       )
 
     case "ResolvePool":
@@ -490,11 +634,23 @@ public protocol Flipcash_Pool_V1_PoolAsyncProvider: CallHandlerProvider, Sendabl
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Pool_V1_GetPoolResponse
 
+  /// GetPagedPools gets all pools for a user over a paging API
+  ///
+  /// Note: Only bet summaries are provided in the response
+  func getPagedPools(
+    request: Flipcash_Pool_V1_GetPagedPoolsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Pool_V1_GetPagedPoolsResponse
+
+  /// ClosePool closes a pool from additional bets
+  func closePool(
+    request: Flipcash_Pool_V1_ClosePoolRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Pool_V1_ClosePoolResponse
+
   /// ResolvePool resolves a pool by declaring the pool's outcome. The pool creator
   /// resolves a pool by calling this RPC first, then SubmitIntent to distribute funds
   /// to the winning participants.
-  ///
-  /// Note: If the pool is not closed, it will be closed after execution of this RPC.
   func resolvePool(
     request: Flipcash_Pool_V1_ResolvePoolRequest,
     context: GRPCAsyncServerCallContext
@@ -506,8 +662,6 @@ public protocol Flipcash_Pool_V1_PoolAsyncProvider: CallHandlerProvider, Sendabl
   ///  1. Intent ID == Bet.id
   ///  2. Payment amount == PoolMetadata.buy_in
   ///  3. Payment destination == PoolMetadata.funding_destination
-  /// Bets without payment, or with invalid intents, will not be visible in the
-  /// PoolMetadata when calling GetPool.
   func makeBet(
     request: Flipcash_Pool_V1_MakeBetRequest,
     context: GRPCAsyncServerCallContext
@@ -551,6 +705,24 @@ extension Flipcash_Pool_V1_PoolAsyncProvider {
         wrapping: { try await self.getPool(request: $0, context: $1) }
       )
 
+    case "GetPagedPools":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Pool_V1_GetPagedPoolsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Pool_V1_GetPagedPoolsResponse>(),
+        interceptors: self.interceptors?.makeGetPagedPoolsInterceptors() ?? [],
+        wrapping: { try await self.getPagedPools(request: $0, context: $1) }
+      )
+
+    case "ClosePool":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Pool_V1_ClosePoolRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Pool_V1_ClosePoolResponse>(),
+        interceptors: self.interceptors?.makeClosePoolInterceptors() ?? [],
+        wrapping: { try await self.closePool(request: $0, context: $1) }
+      )
+
     case "ResolvePool":
       return GRPCAsyncServerHandler(
         context: context,
@@ -585,6 +757,14 @@ public protocol Flipcash_Pool_V1_PoolServerInterceptorFactoryProtocol: Sendable 
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetPoolInterceptors() -> [ServerInterceptor<Flipcash_Pool_V1_GetPoolRequest, Flipcash_Pool_V1_GetPoolResponse>]
 
+  /// - Returns: Interceptors to use when handling 'getPagedPools'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetPagedPoolsInterceptors() -> [ServerInterceptor<Flipcash_Pool_V1_GetPagedPoolsRequest, Flipcash_Pool_V1_GetPagedPoolsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'closePool'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeClosePoolInterceptors() -> [ServerInterceptor<Flipcash_Pool_V1_ClosePoolRequest, Flipcash_Pool_V1_ClosePoolResponse>]
+
   /// - Returns: Interceptors to use when handling 'resolvePool'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeResolvePoolInterceptors() -> [ServerInterceptor<Flipcash_Pool_V1_ResolvePoolRequest, Flipcash_Pool_V1_ResolvePoolResponse>]
@@ -601,6 +781,8 @@ public enum Flipcash_Pool_V1_PoolServerMetadata {
     methods: [
       Flipcash_Pool_V1_PoolServerMetadata.Methods.createPool,
       Flipcash_Pool_V1_PoolServerMetadata.Methods.getPool,
+      Flipcash_Pool_V1_PoolServerMetadata.Methods.getPagedPools,
+      Flipcash_Pool_V1_PoolServerMetadata.Methods.closePool,
       Flipcash_Pool_V1_PoolServerMetadata.Methods.resolvePool,
       Flipcash_Pool_V1_PoolServerMetadata.Methods.makeBet,
     ]
@@ -616,6 +798,18 @@ public enum Flipcash_Pool_V1_PoolServerMetadata {
     public static let getPool = GRPCMethodDescriptor(
       name: "GetPool",
       path: "/flipcash.pool.v1.Pool/GetPool",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPagedPools = GRPCMethodDescriptor(
+      name: "GetPagedPools",
+      path: "/flipcash.pool.v1.Pool/GetPagedPools",
+      type: GRPCCallType.unary
+    )
+
+    public static let closePool = GRPCMethodDescriptor(
+      name: "ClosePool",
+      path: "/flipcash.pool.v1.Pool/ClosePool",
       type: GRPCCallType.unary
     )
 

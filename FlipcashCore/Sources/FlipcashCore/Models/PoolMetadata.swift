@@ -8,6 +8,37 @@
 import Foundation
 import FlipcashCoreAPI
 
+public struct PoolDescription: Sendable, Equatable, Hashable {
+    
+    public let metadata: PoolMetadata
+    public let signature: Signature
+    public let bets: [BetDescription]
+    public let cursor: ID?
+    public let additionalInfo: PoolInfo
+    
+    public init(metadata: PoolMetadata, signature: Signature, bets: [BetDescription], cursor: ID?, additionalInfo: PoolInfo) {
+        self.metadata       = metadata
+        self.signature      = signature
+        self.bets           = bets
+        self.cursor         = cursor
+        self.additionalInfo = additionalInfo
+    }
+}
+
+public struct PoolInfo: Sendable, Equatable, Hashable {
+    public let betCountYes: Int
+    public let betCountNo: Int
+    public let derivationIndex: Int
+    public let isFundingDestinationInitialized: Bool
+    
+    public init(betCountYes: Int, betCountNo: Int, derivationIndex: Int, isFundingDestinationInitialized: Bool) {
+        self.betCountYes = betCountYes
+        self.betCountNo = betCountNo
+        self.derivationIndex = derivationIndex
+        self.isFundingDestinationInitialized = isFundingDestinationInitialized
+    }
+}
+
 public struct PoolMetadata: Identifiable, Sendable, Equatable, Hashable {
     
     public let id: PublicKey
@@ -19,7 +50,7 @@ public struct PoolMetadata: Identifiable, Sendable, Equatable, Hashable {
     public let buyIn: Fiat
     public let resolution: PoolResoltion?
     
-    public let rendezvous: KeyPair?
+    public var rendezvous: KeyPair?
     
     public init(id: PublicKey, rendezvous: KeyPair?, fundingAccount: PublicKey, creatorUserID: UserID, creationDate: Date, isOpen: Bool, name: String, buyIn: Fiat, resolution: PoolResoltion?) {
         self.id = id
@@ -41,6 +72,12 @@ public enum PoolResoltion: Sendable, Equatable, Hashable {
 
 // MARK: - Errors -
 
+extension PoolDescription {
+    enum Error: Swift.Error {
+        case invalidSignature
+    }
+}
+
 extension PoolMetadata {
     enum Error: Swift.Error {
         case invalidPublicKey
@@ -49,6 +86,30 @@ extension PoolMetadata {
 }
 
 // MARK: - Proto -
+
+extension PoolDescription {
+    init(_ proto: Flipcash_Pool_V1_PoolMetadata) throws {
+        guard let signature = Signature(proto.rendezvousSignature.value) else {
+            throw Error.invalidSignature
+        }
+        
+        // TODO: Filter out any unpaid bets
+//        let betProtos = proto.bets.filter { $0.isIntentSubmitted }
+        
+        self.init(
+            metadata: try PoolMetadata(proto.verifiedMetadata),
+            signature: signature,
+            bets: try proto.bets.map { try BetDescription($0) },
+            cursor: ID(data: proto.pagingToken.value),
+            additionalInfo: .init(
+                betCountYes: Int(proto.betSummary.booleanSummary.numYes),
+                betCountNo: Int(proto.betSummary.booleanSummary.numNo),
+                derivationIndex: Int(proto.derivationIndex),
+                isFundingDestinationInitialized: proto.isFundingDestinationInitialized
+            )
+        )
+    }
+}
 
 extension PoolMetadata {
     init(_ proto: Flipcash_Pool_V1_SignedPoolMetadata) throws {

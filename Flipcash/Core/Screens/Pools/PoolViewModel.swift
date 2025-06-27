@@ -23,6 +23,8 @@ class PoolViewModel: ObservableObject {
     
     @Published var createPoolButtonState: ButtonState = .normal
     
+    @Published var selectedRendezvous: KeyPair?
+    
     var canCreatePool: Bool {
         isEnteredPoolNameValid && (enteredPoolFiat?.usdc ?? 0) > 0
     }
@@ -71,7 +73,7 @@ class PoolViewModel: ObservableObject {
         self.poolController  = sessionContainer.poolController
     }
     
-    // MARK: - Actions -
+    // MARK: - Create Actions -
     
     func startPoolCreationFlowAction() {
         isShowingCreatePoolFlow = true
@@ -93,10 +95,11 @@ class PoolViewModel: ObservableObject {
         createPoolButtonState = .loading
         Task {
             do {
-                let metadata = try await poolController.createPool(
+                try await poolController.createPool(
                     name: enteredPoolName,
                     buyIn: buyIn
                 )
+                try await Task.delay(milliseconds: 250)
                 
                 createPoolButtonState = .success
                 try await Task.delay(milliseconds: 250)
@@ -111,6 +114,19 @@ class PoolViewModel: ObservableObject {
                 createPoolButtonState = .normal
             }
         }
+    }
+    
+    // MARK: - Pool Actions -
+    
+    func selectPoolAction(rendezvous: KeyPair) {
+        selectedRendezvous = rendezvous
+    }
+    
+    func betAction(rendezvous: KeyPair, outcome: BetOutcome) async throws {
+        try await poolController.createBet(
+            poolRendezvous: rendezvous,
+            outcome: outcome
+        )
     }
     
     // MARK: - Navigation -

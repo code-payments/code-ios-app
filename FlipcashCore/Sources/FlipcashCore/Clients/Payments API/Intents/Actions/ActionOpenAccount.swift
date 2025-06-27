@@ -15,12 +15,12 @@ struct ActionOpenAccount: ActionType {
     var serverParameter: ServerParameter?
     var signer: KeyPair?
 
-    let kind: Kind
+    let kind: AccountKind
     let cluster: AccountCluster
     
     static let configCountRequirement: Int = 0
     
-    init(kind: Kind, cluster: AccountCluster) {
+    init(kind: AccountKind, cluster: AccountCluster) {
         self.id      = 0
         self.kind    = kind
         self.cluster = cluster
@@ -28,13 +28,6 @@ struct ActionOpenAccount: ActionType {
     
     func compactMessages() throws -> [CompactMessage] {
         []
-    }
-}
-
-extension ActionOpenAccount {
-    enum Kind {
-        case primary
-        case giftCard
     }
 }
 
@@ -56,11 +49,12 @@ extension ActionOpenAccount {
     }
 }
 
-extension ActionOpenAccount.Kind {
+extension AccountKind {
     var proto: Code_Common_V1_AccountType {
         switch self {
         case .primary:  return .primary
         case .giftCard: return .remoteSendGiftCard
+        case .pool:     return .pool
         }
     }
 }

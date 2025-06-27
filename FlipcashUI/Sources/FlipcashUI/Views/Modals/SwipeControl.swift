@@ -208,22 +208,14 @@ public struct SwipeControl: View {
 
 public enum Style {
     
-    case blue
-    case black
-    case purple
+    case green
     
-    private static let railColorBlue: Color   = Color(r: 17,  g: 20,  b: 42)
-    private static let railColorBlack: Color  = Color(r: 32,  g: 29,  b: 29)
-    private static let railColorPurple: Color = Color(r: 36,  g: 26,  b: 75)
+    private static let railColorGreen: Color = Color(r: 25, g: 41, b: 31)
     
     var railColor: Color {
         switch self {
-        case .blue:
-            return Self.railColorBlue
-        case .black:
-            return Self.railColorBlack
-        case .purple:
-            return Self.railColorPurple
+        case .green:
+            return Self.railColorGreen
         }
     }
 }
@@ -268,7 +260,7 @@ struct SwipeControl_Previews: PreviewProvider {
         Background(color: .backgroundMain) {
             VStack {
                 Spacer()
-                SwipeControl(style: .black, text: "Swipe to Pay", action: { try await Task.delay(seconds: 2) })
+                SwipeControl(style: .green, text: "Swipe to Pay", action: { try await Task.delay(seconds: 2) })
             }
             .padding(20)
         }

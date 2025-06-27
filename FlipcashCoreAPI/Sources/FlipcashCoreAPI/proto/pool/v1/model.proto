@@ -26,6 +26,12 @@ message Resolution {
 
         // The yes/no outcome the creator has chosen as the winning outcome
         bool boolean_resolution = 1;
+
+        // A refund to all participants. No outcome was decided
+        Refund refund_resolution = 2;
+    }
+
+    message Refund {
     }
 }
 
@@ -56,6 +62,9 @@ message SignedPoolMetadata {
 
     // Timestamp pool was created at
     google.protobuf.Timestamp created_at = 8 [(validate.rules).timestamp.required = true];
+
+    // Timestamp the pool was closed at
+    google.protobuf.Timestamp closed_at = 9;
 }
 
 // Pool metadata
@@ -65,8 +74,24 @@ message PoolMetadata {
     // Signature of the SignedPoolMetadata message with the rendezvous public key of the pool
     common.v1.Signature rendezvous_signature = 2 [(validate.rules).message.required = true];
 
-    // The set of bets (with verified payment) made against this pool
-    repeated BetMetadata bets = 3;
+    // The set of bets made against this pool
+    repeated BetMetadata bets = 3 [(validate.rules).repeated = {
+        max_items: 1024
+    }];
+
+    // Consolidated summary of bets made against this pool
+    BetSummary bet_summary = 7 [(validate.rules).message.required = true];
+
+    // Paging token specific to each user that enables access to paging APIs
+    common.v1.PagingToken paging_token = 4;
+
+    // Has the funding destination been initialized? Bet payments cannot be made
+    // until this has occurred.
+    bool is_funding_destination_initialized = 5;
+
+    // Derivation index used to derive the pool account's authority. This is only
+    // valid against authenticated RPCs made by the pool creator
+    uint64 derivation_index = 6;
 }
 
 // BetId uniquely identifies a bet via an intent ID
@@ -84,6 +109,21 @@ message BetOutcome {
 
         // The yes/no outcome the user has bet against
         bool boolean_outcome = 1;
+    }
+}
+
+// BetSummary contains a consolidated summary of bets made against a pool
+message BetSummary {
+    oneof kind {
+        option (validate.required) = true;
+
+        // The yes/no outcome the user has bet against
+        BooleanBetSummary boolean_summary = 1;
+    }
+
+    message BooleanBetSummary {
+        uint32 num_yes = 1;
+        uint32 num_no  = 2;
     }
 }
 
@@ -111,4 +151,7 @@ message BetMetadata {
 
      // Signature of the SignedBetMetadata message with the rendezvous public key of the pool
     common.v1.Signature rendezvous_signature = 2 [(validate.rules).message.required = true];
+
+    // Has the intent for bet payment been submitted?
+    bool is_intent_submitted = 3;
 }

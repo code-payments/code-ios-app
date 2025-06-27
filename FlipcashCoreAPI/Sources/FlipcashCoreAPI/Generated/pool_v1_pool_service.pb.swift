@@ -131,6 +131,8 @@ public struct Flipcash_Pool_V1_GetPoolRequest {
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
+  public var excludeBets: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -195,6 +197,198 @@ extension Flipcash_Pool_V1_GetPoolResponse.Result: CaseIterable {
   // The compiler won't synthesize support with the UNRECOGNIZED case.
   public static let allCases: [Flipcash_Pool_V1_GetPoolResponse.Result] = [
     .ok,
+    .notFound,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Flipcash_Pool_V1_GetPagedPoolsRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var queryOptions: Flipcash_Common_V1_QueryOptions {
+    get {return _queryOptions ?? Flipcash_Common_V1_QueryOptions()}
+    set {_queryOptions = newValue}
+  }
+  /// Returns true if `queryOptions` has been explicitly set.
+  public var hasQueryOptions: Bool {return self._queryOptions != nil}
+  /// Clears the value of `queryOptions`. Subsequent reads from it will return its default value.
+  public mutating func clearQueryOptions() {self._queryOptions = nil}
+
+  public var auth: Flipcash_Common_V1_Auth {
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _queryOptions: Flipcash_Common_V1_QueryOptions? = nil
+  fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
+}
+
+public struct Flipcash_Pool_V1_GetPagedPoolsResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipcash_Pool_V1_GetPagedPoolsResponse.Result = .ok
+
+  public var pools: [Flipcash_Pool_V1_PoolMetadata] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case notFound // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .notFound
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .notFound: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipcash_Pool_V1_GetPagedPoolsResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Pool_V1_GetPagedPoolsResponse.Result] = [
+    .ok,
+    .notFound,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Flipcash_Pool_V1_ClosePoolRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var id: Flipcash_Pool_V1_PoolId {
+    get {return _id ?? Flipcash_Pool_V1_PoolId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {return self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  public var closedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _closedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_closedAt = newValue}
+  }
+  /// Returns true if `closedAt` has been explicitly set.
+  public var hasClosedAt: Bool {return self._closedAt != nil}
+  /// Clears the value of `closedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearClosedAt() {self._closedAt = nil}
+
+  public var newRendezvousSignature: Flipcash_Common_V1_Signature {
+    get {return _newRendezvousSignature ?? Flipcash_Common_V1_Signature()}
+    set {_newRendezvousSignature = newValue}
+  }
+  /// Returns true if `newRendezvousSignature` has been explicitly set.
+  public var hasNewRendezvousSignature: Bool {return self._newRendezvousSignature != nil}
+  /// Clears the value of `newRendezvousSignature`. Subsequent reads from it will return its default value.
+  public mutating func clearNewRendezvousSignature() {self._newRendezvousSignature = nil}
+
+  public var auth: Flipcash_Common_V1_Auth {
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Flipcash_Pool_V1_PoolId? = nil
+  fileprivate var _closedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _newRendezvousSignature: Flipcash_Common_V1_Signature? = nil
+  fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
+}
+
+public struct Flipcash_Pool_V1_ClosePoolResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipcash_Pool_V1_ClosePoolResponse.Result = .ok
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case denied // = 1
+    case notFound // = 2
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .denied
+      case 2: self = .notFound
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .denied: return 1
+      case .notFound: return 2
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Flipcash_Pool_V1_ClosePoolResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Pool_V1_ClosePoolResponse.Result] = [
+    .ok,
+    .denied,
     .notFound,
   ]
 }
@@ -267,6 +461,7 @@ public struct Flipcash_Pool_V1_ResolvePoolResponse {
     case denied // = 1
     case notFound // = 2
     case differentOutcomeDeclared // = 3
+    case poolOpen // = 4
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -279,6 +474,7 @@ public struct Flipcash_Pool_V1_ResolvePoolResponse {
       case 1: self = .denied
       case 2: self = .notFound
       case 3: self = .differentOutcomeDeclared
+      case 4: self = .poolOpen
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -289,6 +485,7 @@ public struct Flipcash_Pool_V1_ResolvePoolResponse {
       case .denied: return 1
       case .notFound: return 2
       case .differentOutcomeDeclared: return 3
+      case .poolOpen: return 4
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -307,6 +504,7 @@ extension Flipcash_Pool_V1_ResolvePoolResponse.Result: CaseIterable {
     .denied,
     .notFound,
     .differentOutcomeDeclared,
+    .poolOpen,
   ]
 }
 
@@ -434,6 +632,12 @@ extension Flipcash_Pool_V1_CreatePoolResponse.Result: @unchecked Sendable {}
 extension Flipcash_Pool_V1_GetPoolRequest: @unchecked Sendable {}
 extension Flipcash_Pool_V1_GetPoolResponse: @unchecked Sendable {}
 extension Flipcash_Pool_V1_GetPoolResponse.Result: @unchecked Sendable {}
+extension Flipcash_Pool_V1_GetPagedPoolsRequest: @unchecked Sendable {}
+extension Flipcash_Pool_V1_GetPagedPoolsResponse: @unchecked Sendable {}
+extension Flipcash_Pool_V1_GetPagedPoolsResponse.Result: @unchecked Sendable {}
+extension Flipcash_Pool_V1_ClosePoolRequest: @unchecked Sendable {}
+extension Flipcash_Pool_V1_ClosePoolResponse: @unchecked Sendable {}
+extension Flipcash_Pool_V1_ClosePoolResponse.Result: @unchecked Sendable {}
 extension Flipcash_Pool_V1_ResolvePoolRequest: @unchecked Sendable {}
 extension Flipcash_Pool_V1_ResolvePoolResponse: @unchecked Sendable {}
 extension Flipcash_Pool_V1_ResolvePoolResponse.Result: @unchecked Sendable {}
@@ -538,6 +742,7 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
   public static let protoMessageName: String = _protobuf_package + ".GetPoolRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "id"),
+    2: .standard(proto: "exclude_bets"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -547,6 +752,7 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularBoolField(value: &self.excludeBets) }()
       default: break
       }
     }
@@ -560,11 +766,15 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._id {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    if self.excludeBets != false {
+      try visitor.visitSingularBoolField(value: self.excludeBets, fieldNumber: 2)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Pool_V1_GetPoolRequest, rhs: Flipcash_Pool_V1_GetPoolRequest) -> Bool {
     if lhs._id != rhs._id {return false}
+    if lhs.excludeBets != rhs.excludeBets {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -616,6 +826,187 @@ extension Flipcash_Pool_V1_GetPoolResponse.Result: SwiftProtobuf._ProtoNameProvi
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "OK"),
     1: .same(proto: "NOT_FOUND"),
+  ]
+}
+
+extension Flipcash_Pool_V1_GetPagedPoolsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetPagedPoolsRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "query_options"),
+    2: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._queryOptions) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._queryOptions {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_GetPagedPoolsRequest, rhs: Flipcash_Pool_V1_GetPagedPoolsRequest) -> Bool {
+    if lhs._queryOptions != rhs._queryOptions {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_GetPagedPoolsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetPagedPoolsResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .same(proto: "pools"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.pools) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    if !self.pools.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.pools, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_GetPagedPoolsResponse, rhs: Flipcash_Pool_V1_GetPagedPoolsResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.pools != rhs.pools {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_GetPagedPoolsResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "NOT_FOUND"),
+  ]
+}
+
+extension Flipcash_Pool_V1_ClosePoolRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ClosePoolRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "id"),
+    2: .standard(proto: "closed_at"),
+    3: .standard(proto: "new_rendezvous_signature"),
+    4: .same(proto: "auth"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._closedAt) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._newRendezvousSignature) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._closedAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._newRendezvousSignature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_ClosePoolRequest, rhs: Flipcash_Pool_V1_ClosePoolRequest) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs._closedAt != rhs._closedAt {return false}
+    if lhs._newRendezvousSignature != rhs._newRendezvousSignature {return false}
+    if lhs._auth != rhs._auth {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_ClosePoolResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ClosePoolResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_ClosePoolResponse, rhs: Flipcash_Pool_V1_ClosePoolResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_ClosePoolResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "DENIED"),
+    2: .same(proto: "NOT_FOUND"),
   ]
 }
 
@@ -711,6 +1102,7 @@ extension Flipcash_Pool_V1_ResolvePoolResponse.Result: SwiftProtobuf._ProtoNameP
     1: .same(proto: "DENIED"),
     2: .same(proto: "NOT_FOUND"),
     3: .same(proto: "DIFFERENT_OUTCOME_DECLARED"),
+    4: .same(proto: "POOL_OPEN"),
   ]
 }
 

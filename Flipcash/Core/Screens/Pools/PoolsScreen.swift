@@ -15,15 +15,13 @@ struct PoolsScreen: View {
     
     @StateObject private var viewModel: PoolViewModel
     
-    @StateObject private var updateablePools: Updateable<[PoolMetadata]>
-    
-    @State private var selectedPoolID: PublicKey?
+    @StateObject private var updateablePools: Updateable<[PoolContainer]>
     
     private let container: Container
     private let sessionContainer: SessionContainer
     private let database: Database
     
-    private var pools: [PoolMetadata] {
+    private var pools: [PoolContainer] {
         updateablePools.value
     }
     
@@ -101,13 +99,13 @@ struct PoolsScreen: View {
                 Image.asset(.graphicPoolPlaceholder)
                     .overlay {
                         TextCarousel(
-                            interval: 3,
+                            interval: 2,
                             items: [
-                                "Will Jack bring a\ndate to the wedding?",
+                                "Will Joe and Sally\nhave a baby girl?",
                                 "Will David get a\ngirl's number tonight?",
-                                "Will Caitlin Clark win MVP?",
-                                "Will a major politician post\na cringy TikTok this week?",
-                                "Will uncle Tony tell a\njoke that no one laughs at?",
+                                "Will Jack bring a\ndate to the wedding?",
+                                "Will Caleb dunk\nthis basketball?",
+                                "Will Jill text her\nex before dawn?",
                             ]
                         )
                         .font(.appTextLarge)
@@ -132,8 +130,8 @@ struct PoolsScreen: View {
         GeometryReader { g in
             List {
                 Section {
-                    ForEach(pools) { pool in
-                        row(pool: pool)
+                    ForEach(pools) { poolContainer in
+                        row(poolContainer: poolContainer)
                     }
                     
                 } header: {
@@ -148,17 +146,22 @@ struct PoolsScreen: View {
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
-        .sheet(item: $selectedPoolID) { poolID in
+        .sheet(item: $viewModel.selectedRendezvous) { rendezvous in
             PoolDetailsScreen(
-                poolID: poolID,
-                database: database
+                userID: sessionContainer.session.userID,
+                poolRendezvous: rendezvous,
+                database: database,
+                viewModel: viewModel
             )
         }
     }
     
-    @ViewBuilder private func row(pool: PoolMetadata) -> some View {
+    @ViewBuilder private func row(poolContainer: PoolContainer) -> some View {
+        let pool = poolContainer.metadata
         Button {
-            selectedPoolID = pool.id
+            if let rendezvous = pool.rendezvous {
+                viewModel.selectPoolAction(rendezvous: rendezvous)
+            }
         } label: {
             VStack(alignment: .leading, spacing: 5) {
                 Text(pool.name)
@@ -166,9 +169,16 @@ struct PoolsScreen: View {
                     .foregroundStyle(Color.textMain)
                     .multilineTextAlignment(.leading)
                 
-                Text("\(pool.buyIn.formatted(suffix: nil)) Buy In")
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textSecondary)
+                HStack(spacing: 8) {
+                    if pool.rendezvous == nil {
+                        Text("Missing Rendezvous")
+                            .font(.appTextMedium)
+                            .foregroundStyle(Color.textError)
+                    }
+                    Text("\(poolContainer.amountInPool.formatted(suffix: nil)) in pool so far")
+                        .font(.appTextMedium)
+                        .foregroundStyle(Color.textSecondary)
+                }
             }
         }
         .listRowBackground(Color.clear)
@@ -189,5 +199,11 @@ struct PoolsScreen: View {
     
     private func createPoolAction() {
         
+    }
+}
+
+extension KeyPair: Identifiable {
+    public var id: PublicKey {
+        publicKey
     }
 }

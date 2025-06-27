@@ -14,4 +14,10 @@ extension KeyPair {
         let seed = Seed32(hash)!
         return KeyPair(seed: seed)
     }
+    
+    public static func deriveBetID(poolID: PublicKey, userID: UUID) -> KeyPair {
+        let hash = SHA256.digest(poolID.data + userID.data)
+        let seed = Seed32(hash)!
+        return KeyPair(seed: seed)
+    }
 }

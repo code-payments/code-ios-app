@@ -61,7 +61,7 @@ extension ID: Comparable {
 
 extension ID: CustomStringConvertible {
     public var description: String {
-        uuid.uuidString
+        data.hexString()
     }
 }
 

@@ -16,17 +16,23 @@ final class IntentCreateAccount: IntentType {
     
     var actionGroup: ActionGroup
     
-    init(owner: AccountCluster) {
+    init(owner: AccountCluster, kind: AccountKind) {
         self.id = PublicKey.generate()!
         self.owner = owner
         
         self.actionGroup = ActionGroup(actions: [
             ActionOpenAccount(
-                kind: .primary,
+                kind: kind,
                 cluster: owner
             )
         ])
     }
+}
+
+public enum AccountKind {
+    case primary
+    case giftCard
+    case pool
 }
 
 // MARK: - Proto -

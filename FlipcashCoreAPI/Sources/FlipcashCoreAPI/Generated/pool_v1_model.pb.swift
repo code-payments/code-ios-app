@@ -51,11 +51,22 @@ public struct Flipcash_Pool_V1_Resolution {
     set {kind = .booleanResolution(newValue)}
   }
 
+  /// A refund to all participants. No outcome was decided
+  public var refundResolution: Flipcash_Pool_V1_Resolution.Refund {
+    get {
+      if case .refundResolution(let v)? = kind {return v}
+      return Flipcash_Pool_V1_Resolution.Refund()
+    }
+    set {kind = .refundResolution(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Kind: Equatable {
     /// The yes/no outcome the creator has chosen as the winning outcome
     case booleanResolution(Bool)
+    /// A refund to all participants. No outcome was decided
+    case refundResolution(Flipcash_Pool_V1_Resolution.Refund)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipcash_Pool_V1_Resolution.OneOf_Kind, rhs: Flipcash_Pool_V1_Resolution.OneOf_Kind) -> Bool {
@@ -67,9 +78,24 @@ public struct Flipcash_Pool_V1_Resolution {
         guard case .booleanResolution(let l) = lhs, case .booleanResolution(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
+      case (.refundResolution, .refundResolution): return {
+        guard case .refundResolution(let l) = lhs, case .refundResolution(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
       }
     }
   #endif
+  }
+
+  public struct Refund {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
   }
 
   public init() {}
@@ -146,6 +172,16 @@ public struct Flipcash_Pool_V1_SignedPoolMetadata {
   /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
   public mutating func clearCreatedAt() {self._createdAt = nil}
 
+  /// Timestamp the pool was closed at
+  public var closedAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _closedAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_closedAt = newValue}
+  }
+  /// Returns true if `closedAt` has been explicitly set.
+  public var hasClosedAt: Bool {return self._closedAt != nil}
+  /// Clears the value of `closedAt`. Subsequent reads from it will return its default value.
+  public mutating func clearClosedAt() {self._closedAt = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -156,6 +192,7 @@ public struct Flipcash_Pool_V1_SignedPoolMetadata {
   fileprivate var _fundingDestination: Flipcash_Common_V1_PublicKey? = nil
   fileprivate var _resolution: Flipcash_Pool_V1_Resolution? = nil
   fileprivate var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+  fileprivate var _closedAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
 /// Pool metadata
@@ -165,33 +202,69 @@ public struct Flipcash_Pool_V1_PoolMetadata {
   // methods supported on all messages.
 
   public var verifiedMetadata: Flipcash_Pool_V1_SignedPoolMetadata {
-    get {return _verifiedMetadata ?? Flipcash_Pool_V1_SignedPoolMetadata()}
-    set {_verifiedMetadata = newValue}
+    get {return _storage._verifiedMetadata ?? Flipcash_Pool_V1_SignedPoolMetadata()}
+    set {_uniqueStorage()._verifiedMetadata = newValue}
   }
   /// Returns true if `verifiedMetadata` has been explicitly set.
-  public var hasVerifiedMetadata: Bool {return self._verifiedMetadata != nil}
+  public var hasVerifiedMetadata: Bool {return _storage._verifiedMetadata != nil}
   /// Clears the value of `verifiedMetadata`. Subsequent reads from it will return its default value.
-  public mutating func clearVerifiedMetadata() {self._verifiedMetadata = nil}
+  public mutating func clearVerifiedMetadata() {_uniqueStorage()._verifiedMetadata = nil}
 
   /// Signature of the SignedPoolMetadata message with the rendezvous public key of the pool
   public var rendezvousSignature: Flipcash_Common_V1_Signature {
-    get {return _rendezvousSignature ?? Flipcash_Common_V1_Signature()}
-    set {_rendezvousSignature = newValue}
+    get {return _storage._rendezvousSignature ?? Flipcash_Common_V1_Signature()}
+    set {_uniqueStorage()._rendezvousSignature = newValue}
   }
   /// Returns true if `rendezvousSignature` has been explicitly set.
-  public var hasRendezvousSignature: Bool {return self._rendezvousSignature != nil}
+  public var hasRendezvousSignature: Bool {return _storage._rendezvousSignature != nil}
   /// Clears the value of `rendezvousSignature`. Subsequent reads from it will return its default value.
-  public mutating func clearRendezvousSignature() {self._rendezvousSignature = nil}
+  public mutating func clearRendezvousSignature() {_uniqueStorage()._rendezvousSignature = nil}
 
-  /// The set of bets (with verified payment) made against this pool
-  public var bets: [Flipcash_Pool_V1_BetMetadata] = []
+  /// The set of bets made against this pool
+  public var bets: [Flipcash_Pool_V1_BetMetadata] {
+    get {return _storage._bets}
+    set {_uniqueStorage()._bets = newValue}
+  }
+
+  /// Consolidated summary of bets made against this pool
+  public var betSummary: Flipcash_Pool_V1_BetSummary {
+    get {return _storage._betSummary ?? Flipcash_Pool_V1_BetSummary()}
+    set {_uniqueStorage()._betSummary = newValue}
+  }
+  /// Returns true if `betSummary` has been explicitly set.
+  public var hasBetSummary: Bool {return _storage._betSummary != nil}
+  /// Clears the value of `betSummary`. Subsequent reads from it will return its default value.
+  public mutating func clearBetSummary() {_uniqueStorage()._betSummary = nil}
+
+  /// Paging token specific to each user that enables access to paging APIs
+  public var pagingToken: Flipcash_Common_V1_PagingToken {
+    get {return _storage._pagingToken ?? Flipcash_Common_V1_PagingToken()}
+    set {_uniqueStorage()._pagingToken = newValue}
+  }
+  /// Returns true if `pagingToken` has been explicitly set.
+  public var hasPagingToken: Bool {return _storage._pagingToken != nil}
+  /// Clears the value of `pagingToken`. Subsequent reads from it will return its default value.
+  public mutating func clearPagingToken() {_uniqueStorage()._pagingToken = nil}
+
+  /// Has the funding destination been initialized? Bet payments cannot be made
+  /// until this has occurred.
+  public var isFundingDestinationInitialized: Bool {
+    get {return _storage._isFundingDestinationInitialized}
+    set {_uniqueStorage()._isFundingDestinationInitialized = newValue}
+  }
+
+  /// Derivation index used to derive the pool account's authority. This is only
+  /// valid against authenticated RPCs made by the pool creator
+  public var derivationIndex: UInt64 {
+    get {return _storage._derivationIndex}
+    set {_uniqueStorage()._derivationIndex = newValue}
+  }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _verifiedMetadata: Flipcash_Pool_V1_SignedPoolMetadata? = nil
-  fileprivate var _rendezvousSignature: Flipcash_Common_V1_Signature? = nil
+  fileprivate var _storage = _StorageClass.defaultInstance
 }
 
 /// BetId uniquely identifies a bet via an intent ID
@@ -243,6 +316,61 @@ public struct Flipcash_Pool_V1_BetOutcome {
       }
     }
   #endif
+  }
+
+  public init() {}
+}
+
+/// BetSummary contains a consolidated summary of bets made against a pool
+public struct Flipcash_Pool_V1_BetSummary {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var kind: Flipcash_Pool_V1_BetSummary.OneOf_Kind? = nil
+
+  /// The yes/no outcome the user has bet against
+  public var booleanSummary: Flipcash_Pool_V1_BetSummary.BooleanBetSummary {
+    get {
+      if case .booleanSummary(let v)? = kind {return v}
+      return Flipcash_Pool_V1_BetSummary.BooleanBetSummary()
+    }
+    set {kind = .booleanSummary(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Kind: Equatable {
+    /// The yes/no outcome the user has bet against
+    case booleanSummary(Flipcash_Pool_V1_BetSummary.BooleanBetSummary)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipcash_Pool_V1_BetSummary.OneOf_Kind, rhs: Flipcash_Pool_V1_BetSummary.OneOf_Kind) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.booleanSummary, .booleanSummary): return {
+        guard case .booleanSummary(let l) = lhs, case .booleanSummary(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      }
+    }
+  #endif
+  }
+
+  public struct BooleanBetSummary {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var numYes: UInt32 = 0
+
+    public var numNo: UInt32 = 0
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
   }
 
   public init() {}
@@ -340,6 +468,9 @@ public struct Flipcash_Pool_V1_BetMetadata {
   /// Clears the value of `rendezvousSignature`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousSignature() {self._rendezvousSignature = nil}
 
+  /// Has the intent for bet payment been submitted?
+  public var isIntentSubmitted: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -352,11 +483,15 @@ public struct Flipcash_Pool_V1_BetMetadata {
 extension Flipcash_Pool_V1_PoolId: @unchecked Sendable {}
 extension Flipcash_Pool_V1_Resolution: @unchecked Sendable {}
 extension Flipcash_Pool_V1_Resolution.OneOf_Kind: @unchecked Sendable {}
+extension Flipcash_Pool_V1_Resolution.Refund: @unchecked Sendable {}
 extension Flipcash_Pool_V1_SignedPoolMetadata: @unchecked Sendable {}
 extension Flipcash_Pool_V1_PoolMetadata: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetId: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetOutcome: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetOutcome.OneOf_Kind: @unchecked Sendable {}
+extension Flipcash_Pool_V1_BetSummary: @unchecked Sendable {}
+extension Flipcash_Pool_V1_BetSummary.OneOf_Kind: @unchecked Sendable {}
+extension Flipcash_Pool_V1_BetSummary.BooleanBetSummary: @unchecked Sendable {}
 extension Flipcash_Pool_V1_SignedBetMetadata: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetMetadata: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
@@ -401,6 +536,7 @@ extension Flipcash_Pool_V1_Resolution: SwiftProtobuf.Message, SwiftProtobuf._Mes
   public static let protoMessageName: String = _protobuf_package + ".Resolution"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "boolean_resolution"),
+    2: .standard(proto: "refund_resolution"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -417,6 +553,19 @@ extension Flipcash_Pool_V1_Resolution: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.kind = .booleanResolution(v)
         }
       }()
+      case 2: try {
+        var v: Flipcash_Pool_V1_Resolution.Refund?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .refundResolution(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .refundResolution(v)
+        }
+      }()
       default: break
       }
     }
@@ -427,14 +576,41 @@ extension Flipcash_Pool_V1_Resolution: SwiftProtobuf.Message, SwiftProtobuf._Mes
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if case .booleanResolution(let v)? = self.kind {
+    switch self.kind {
+    case .booleanResolution?: try {
+      guard case .booleanResolution(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularBoolField(value: v, fieldNumber: 1)
-    } }()
+    }()
+    case .refundResolution?: try {
+      guard case .refundResolution(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Pool_V1_Resolution, rhs: Flipcash_Pool_V1_Resolution) -> Bool {
     if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_Resolution.Refund: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Pool_V1_Resolution.protoMessageName + ".Refund"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let _ = try decoder.nextFieldNumber() {
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_Resolution.Refund, rhs: Flipcash_Pool_V1_Resolution.Refund) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -451,6 +627,7 @@ extension Flipcash_Pool_V1_SignedPoolMetadata: SwiftProtobuf.Message, SwiftProto
     6: .standard(proto: "is_open"),
     7: .same(proto: "resolution"),
     8: .standard(proto: "created_at"),
+    9: .standard(proto: "closed_at"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -467,6 +644,7 @@ extension Flipcash_Pool_V1_SignedPoolMetadata: SwiftProtobuf.Message, SwiftProto
       case 6: try { try decoder.decodeSingularBoolField(value: &self.isOpen) }()
       case 7: try { try decoder.decodeSingularMessageField(value: &self._resolution) }()
       case 8: try { try decoder.decodeSingularMessageField(value: &self._createdAt) }()
+      case 9: try { try decoder.decodeSingularMessageField(value: &self._closedAt) }()
       default: break
       }
     }
@@ -501,6 +679,9 @@ extension Flipcash_Pool_V1_SignedPoolMetadata: SwiftProtobuf.Message, SwiftProto
     try { if let v = self._createdAt {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     } }()
+    try { if let v = self._closedAt {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -513,6 +694,7 @@ extension Flipcash_Pool_V1_SignedPoolMetadata: SwiftProtobuf.Message, SwiftProto
     if lhs.isOpen != rhs.isOpen {return false}
     if lhs._resolution != rhs._resolution {return false}
     if lhs._createdAt != rhs._createdAt {return false}
+    if lhs._closedAt != rhs._closedAt {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -524,43 +706,119 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
     1: .standard(proto: "verified_metadata"),
     2: .standard(proto: "rendezvous_signature"),
     3: .same(proto: "bets"),
+    7: .standard(proto: "bet_summary"),
+    4: .standard(proto: "paging_token"),
+    5: .standard(proto: "is_funding_destination_initialized"),
+    6: .standard(proto: "derivation_index"),
   ]
 
+  fileprivate class _StorageClass {
+    var _verifiedMetadata: Flipcash_Pool_V1_SignedPoolMetadata? = nil
+    var _rendezvousSignature: Flipcash_Common_V1_Signature? = nil
+    var _bets: [Flipcash_Pool_V1_BetMetadata] = []
+    var _betSummary: Flipcash_Pool_V1_BetSummary? = nil
+    var _pagingToken: Flipcash_Common_V1_PagingToken? = nil
+    var _isFundingDestinationInitialized: Bool = false
+    var _derivationIndex: UInt64 = 0
+
+    #if swift(>=5.10)
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+    #else
+      static let defaultInstance = _StorageClass()
+    #endif
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _verifiedMetadata = source._verifiedMetadata
+      _rendezvousSignature = source._rendezvousSignature
+      _bets = source._bets
+      _betSummary = source._betSummary
+      _pagingToken = source._pagingToken
+      _isFundingDestinationInitialized = source._isFundingDestinationInitialized
+      _derivationIndex = source._derivationIndex
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._verifiedMetadata) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._rendezvousSignature) }()
-      case 3: try { try decoder.decodeRepeatedMessageField(value: &self.bets) }()
-      default: break
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._verifiedMetadata) }()
+        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._rendezvousSignature) }()
+        case 3: try { try decoder.decodeRepeatedMessageField(value: &_storage._bets) }()
+        case 4: try { try decoder.decodeSingularMessageField(value: &_storage._pagingToken) }()
+        case 5: try { try decoder.decodeSingularBoolField(value: &_storage._isFundingDestinationInitialized) }()
+        case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._derivationIndex) }()
+        case 7: try { try decoder.decodeSingularMessageField(value: &_storage._betSummary) }()
+        default: break
+        }
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._verifiedMetadata {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._rendezvousSignature {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    if !self.bets.isEmpty {
-      try visitor.visitRepeatedMessageField(value: self.bets, fieldNumber: 3)
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._verifiedMetadata {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      try { if let v = _storage._rendezvousSignature {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+      } }()
+      if !_storage._bets.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._bets, fieldNumber: 3)
+      }
+      try { if let v = _storage._pagingToken {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+      } }()
+      if _storage._isFundingDestinationInitialized != false {
+        try visitor.visitSingularBoolField(value: _storage._isFundingDestinationInitialized, fieldNumber: 5)
+      }
+      if _storage._derivationIndex != 0 {
+        try visitor.visitSingularUInt64Field(value: _storage._derivationIndex, fieldNumber: 6)
+      }
+      try { if let v = _storage._betSummary {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Pool_V1_PoolMetadata, rhs: Flipcash_Pool_V1_PoolMetadata) -> Bool {
-    if lhs._verifiedMetadata != rhs._verifiedMetadata {return false}
-    if lhs._rendezvousSignature != rhs._rendezvousSignature {return false}
-    if lhs.bets != rhs.bets {return false}
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._verifiedMetadata != rhs_storage._verifiedMetadata {return false}
+        if _storage._rendezvousSignature != rhs_storage._rendezvousSignature {return false}
+        if _storage._bets != rhs_storage._bets {return false}
+        if _storage._betSummary != rhs_storage._betSummary {return false}
+        if _storage._pagingToken != rhs_storage._pagingToken {return false}
+        if _storage._isFundingDestinationInitialized != rhs_storage._isFundingDestinationInitialized {return false}
+        if _storage._derivationIndex != rhs_storage._derivationIndex {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -641,6 +899,92 @@ extension Flipcash_Pool_V1_BetOutcome: SwiftProtobuf.Message, SwiftProtobuf._Mes
   }
 }
 
+extension Flipcash_Pool_V1_BetSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BetSummary"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "boolean_summary"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Pool_V1_BetSummary.BooleanBetSummary?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .booleanSummary(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .booleanSummary(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .booleanSummary(let v)? = self.kind {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_BetSummary, rhs: Flipcash_Pool_V1_BetSummary) -> Bool {
+    if lhs.kind != rhs.kind {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_BetSummary.BooleanBetSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Pool_V1_BetSummary.protoMessageName + ".BooleanBetSummary"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "num_yes"),
+    2: .standard(proto: "num_no"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.numYes) }()
+      case 2: try { try decoder.decodeSingularUInt32Field(value: &self.numNo) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.numYes != 0 {
+      try visitor.visitSingularUInt32Field(value: self.numYes, fieldNumber: 1)
+    }
+    if self.numNo != 0 {
+      try visitor.visitSingularUInt32Field(value: self.numNo, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_BetSummary.BooleanBetSummary, rhs: Flipcash_Pool_V1_BetSummary.BooleanBetSummary) -> Bool {
+    if lhs.numYes != rhs.numYes {return false}
+    if lhs.numNo != rhs.numNo {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Flipcash_Pool_V1_SignedBetMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SignedBetMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
@@ -706,6 +1050,7 @@ extension Flipcash_Pool_V1_BetMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "verified_metadata"),
     2: .standard(proto: "rendezvous_signature"),
+    3: .standard(proto: "is_intent_submitted"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -716,6 +1061,7 @@ extension Flipcash_Pool_V1_BetMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._verifiedMetadata) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._rendezvousSignature) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.isIntentSubmitted) }()
       default: break
       }
     }
@@ -732,12 +1078,16 @@ extension Flipcash_Pool_V1_BetMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
     try { if let v = self._rendezvousSignature {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    if self.isIntentSubmitted != false {
+      try visitor.visitSingularBoolField(value: self.isIntentSubmitted, fieldNumber: 3)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Pool_V1_BetMetadata, rhs: Flipcash_Pool_V1_BetMetadata) -> Bool {
     if lhs._verifiedMetadata != rhs._verifiedMetadata {return false}
     if lhs._rendezvousSignature != rhs._rendezvousSignature {return false}
+    if lhs.isIntentSubmitted != rhs.isIntentSubmitted {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

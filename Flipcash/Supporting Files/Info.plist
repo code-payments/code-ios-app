@@ -20,7 +20,7 @@
 		</dict>
 	</array>
 	<key>SQLiteVersion</key>
-	<integer>2</integer>
+	<integer>3</integer>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

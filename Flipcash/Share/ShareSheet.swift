@@ -71,7 +71,7 @@ struct ShareSheet: UIViewControllerRepresentable {
 
 private extension UIApplication {
     var rootViewController: UIViewController? {
-        currentKeyWindow?.rootViewController
+        currentKeyWindow?.rootViewController?.topMostController
     }
     
     var currentKeyWindow: UIWindow? {

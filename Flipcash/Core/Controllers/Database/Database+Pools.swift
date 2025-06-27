@@ -11,9 +11,9 @@ import SQLite
 
 extension Database {
     
-    // MARK: - Get -
+    // MARK: - Get Pool -
     
-    func getPool(poolID: PublicKey) throws -> PoolMetadata? {
+    func getPool(poolID: PublicKey) throws -> PoolContainer? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             p.id,
@@ -25,45 +25,58 @@ extension Database {
             p.buyInQuarks,
             p.buyInCurrency,
             p.resolution,
-            p.privateKeySeed
+            p.rendezvousSeed,
+        
+            p.betsCountYes,
+            p.betsCountNo,
+            p.derivationIndex,
+            p.isFundingDestinationInitialized
         FROM pool p
         WHERE p.id = ?
         LIMIT 1;
         """, bindings: Blob(bytes: poolID.bytes))
         
-        let pTable = PoolTable()
+        let t = PoolTable()
         
         let pools = try statement.map { row in
             var rendezvous: KeyPair?
-            if let seed = row[pTable.privateKeySeed] {
+            if let seed = row[t.rendezvousSeed] {
                 rendezvous = KeyPair(seed: seed)
             }
             
             var resolution: PoolResoltion?
-            if let result = row[pTable.resolution] {
+            if let result = row[t.resolution] {
                 resolution = result ? .yes : .no
             }
             
-            return PoolMetadata(
-                id: row[pTable.id],
-                rendezvous: rendezvous,
-                fundingAccount: row[pTable.fundingAccount],
-                creatorUserID: row[pTable.creatorUserID],
-                creationDate: row[pTable.creationDate],
-                isOpen: row[pTable.isOpen],
-                name: row[pTable.name],
-                buyIn: Fiat(
-                    quarks: row[pTable.buyInQuarks],
-                    currencyCode: row[pTable.buyInCurrency]
+            return PoolContainer(
+                metadata: PoolMetadata(
+                    id:             row[t.id],
+                    rendezvous:     rendezvous,
+                    fundingAccount: row[t.fundingAccount],
+                    creatorUserID:  row[t.creatorUserID],
+                    creationDate:   row[t.creationDate],
+                    isOpen:         row[t.isOpen],
+                    name:           row[t.name],
+                    buyIn: Fiat(
+                        quarks:       row[t.buyInQuarks],
+                        currencyCode: row[t.buyInCurrency]
+                    ),
+                    resolution: resolution
                 ),
-                resolution: resolution
+                info: PoolInfo(
+                    betCountYes:                     row[t.betsCountYes],
+                    betCountNo:                      row[t.betsCountNo],
+                    derivationIndex:                 row[t.derivationIndex],
+                    isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
+                )
             )
         }
         
         return pools.first
     }
     
-    func getPools() throws -> [PoolMetadata] {
+    func getPools() throws -> [PoolContainer] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             p.id,
@@ -75,81 +88,217 @@ extension Database {
             p.buyInQuarks,
             p.buyInCurrency,
             p.resolution,
-            p.privateKeySeed
-            
-        FROM pool p
+            p.rendezvousSeed,
         
+            p.betsCountYes,
+            p.betsCountNo,
+            p.derivationIndex,
+            p.isFundingDestinationInitialized
+        FROM pool p
         ORDER BY p.creationDate DESC
         LIMIT 1024;
         """)
         
-        let pTable = PoolTable()
+        let t = PoolTable()
         
         let pools = try statement.map { row in
             var rendezvous: KeyPair?
-            if let seed = row[pTable.privateKeySeed] {
+            if let seed = row[t.rendezvousSeed] {
                 rendezvous = KeyPair(seed: seed)
             }
             
             var resolution: PoolResoltion?
-            if let result = row[pTable.resolution] {
+            if let result = row[t.resolution] {
                 resolution = result ? .yes : .no
             }
             
-            return PoolMetadata(
-                id: row[pTable.id],
-                rendezvous: rendezvous,
-                fundingAccount: row[pTable.fundingAccount],
-                creatorUserID: row[pTable.creatorUserID],
-                creationDate: row[pTable.creationDate],
-                isOpen: row[pTable.isOpen],
-                name: row[pTable.name],
-                buyIn: Fiat(
-                    quarks: row[pTable.buyInQuarks],
-                    currencyCode: row[pTable.buyInCurrency]
+            
+            return PoolContainer(
+                metadata: PoolMetadata(
+                    id:             row[t.id],
+                    rendezvous:     rendezvous,
+                    fundingAccount: row[t.fundingAccount],
+                    creatorUserID:  row[t.creatorUserID],
+                    creationDate:   row[t.creationDate],
+                    isOpen:         row[t.isOpen],
+                    name:           row[t.name],
+                    buyIn: Fiat(
+                        quarks:       row[t.buyInQuarks],
+                        currencyCode: row[t.buyInCurrency]
+                    ),
+                    resolution: resolution
                 ),
-                resolution: resolution
+                info: PoolInfo(
+                    betCountYes:                     row[t.betsCountYes],
+                    betCountNo:                      row[t.betsCountNo],
+                    derivationIndex:                 row[t.derivationIndex],
+                    isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
+                )
             )
         }
         
         return pools
     }
     
-    // MARK: - Insert -
-    
-    func insertPools(pools: [PoolMetadata]) throws {
-        try pools.forEach {
-            try insertPool(metadata: $0)
+    func getHostedPoolsWithoutRendezvousKeys(hostID: UUID) throws -> [(PublicKey, Int)] {
+        let statement = try reader.prepareRowIterator("""
+        SELECT
+            p.id,
+            p.derivationIndex
+        FROM
+            pool p
+        WHERE
+            creatorUserID = ? AND rendezvousSeed IS NULL
+        LIMIT 1024;
+        """, bindings: hostID.uuidString)
+        
+        let t = PoolTable()
+        
+        let pools = try statement.map { row in
+            (row[t.id], row[t.derivationIndex])
         }
+        
+        return pools
     }
     
-    func insertPool(metadata: PoolMetadata) throws {
-        let table = PoolTable()
+    // MARK: - Insert Pools -
+    
+    func insertPool(metadata: PoolMetadata, additionalInfo: PoolInfo) throws {
+        let t = PoolTable()
         var setters: [Setter] = [
-            table.id             <- metadata.id,
-            table.fundingAccount <- metadata.fundingAccount,
-            table.creatorUserID  <- metadata.creatorUserID,
-            table.creationDate   <- metadata.creationDate,
-            table.isOpen         <- metadata.isOpen,
-            table.name           <- metadata.name,
-            table.buyInQuarks    <- metadata.buyIn.quarks,
-            table.buyInCurrency  <- metadata.buyIn.currencyCode,
+            t.id             <- metadata.id,
+            t.fundingAccount <- metadata.fundingAccount,
+            t.creatorUserID  <- metadata.creatorUserID,
+            t.creationDate   <- metadata.creationDate,
+            t.isOpen         <- metadata.isOpen,
+            t.name           <- metadata.name,
+            t.buyInQuarks    <- metadata.buyIn.quarks,
+            t.buyInCurrency  <- metadata.buyIn.currencyCode,
+            
+            t.betsCountYes                    <- additionalInfo.betCountYes,
+            t.betsCountNo                     <- additionalInfo.betCountNo,
+            t.derivationIndex                 <- additionalInfo.derivationIndex,
+            t.isFundingDestinationInitialized <- additionalInfo.isFundingDestinationInitialized,
         ]
         
         if let resolution = metadata.resolution {
             setters.append(
-                table.resolution <- (resolution == .yes) ? true : false
+                t.resolution <- (resolution == .yes) ? true : false
             )
         }
         
         if let keyPair = metadata.rendezvous {
             setters.append(
-                table.privateKeySeed <- keyPair.seed,
+                t.rendezvousSeed <- keyPair.seed,
             )
         }
         
         try writer.run(
-            table.table.upsert(setters, onConflictOf: table.id)
+            t.table.upsert(setters, onConflictOf: t.id)
+        )
+    }
+    
+    func setRendezvousForPool(rendezvous: KeyPair) throws {
+        let t = PoolTable()
+        try writer.run(
+            t.table
+                .filter(t.id == rendezvous.publicKey)
+                .update(t.rendezvousSeed <- rendezvous.seed)
+        )
+    }
+    
+    // MARK: - Get Bets -
+
+    func getBets(poolID: PublicKey) throws -> [BetMetadata] {
+        let statement = try reader.prepareRowIterator("""
+        SELECT
+            b.id,
+            b.userID,
+            b.payoutDestination,
+            b.betDate,
+            b.selectedOutcome
+        FROM
+            bet b
+        WHERE b.poolID = ?;
+        """, bindings: Blob(bytes: poolID.bytes))
+        
+        let t = BetTable()
+        
+        let pools = try statement.map { row in
+            BetMetadata(
+                id: row[t.id],
+                userID: row[t.userID],
+                payoutDestination: row[t.payoutDestination],
+                betDate: row[t.betDate],
+                selectedOutcome: row[t.selectedOutcome] == 1 ? .yes : .no
+            )
+        }
+        
+        return pools
+    }
+    
+    // MARK: - Insert Bets -
+    
+    func insertBets(poolID: PublicKey, bets: [BetMetadata]) throws {
+        try bets.forEach {
+            try insertBet(poolID: poolID, metadata: $0)
+        }
+    }
+    
+    func insertBet(poolID: PublicKey, metadata: BetMetadata) throws {
+        let t = BetTable()
+        let setters: [Setter] = [
+            t.id                <- metadata.id,
+            t.poolID            <- poolID,
+            t.userID            <- metadata.userID,
+            t.payoutDestination <- metadata.payoutDestination,
+            t.betDate           <- metadata.betDate,
+            t.selectedOutcome   <- metadata.selectedOutcome.intValue,
+            t.isFulfilled       <- false,
+        ]
+        
+        try writer.run(
+            t.table.upsert(setters, onConflictOf: t.id)
+        )
+    }
+    
+    func setBetFulfilled(betID: PublicKey) throws {
+        let t = BetTable()
+        try writer.run(
+            t.table
+                .filter(t.id == betID)
+                .update(t.isFulfilled <- true)
+        )
+    }
+}
+
+struct PoolContainer: Identifiable, Sendable, Equatable, Hashable {
+    
+    let metadata: PoolMetadata
+    let info: PoolInfo
+    
+    var id: PublicKey {
+        metadata.id
+    }
+    
+    var amountInPool: Fiat {
+        Fiat(
+            quarks: metadata.buyIn.quarks * UInt64(info.betCountYes + info.betCountNo),
+            currencyCode: metadata.buyIn.currencyCode
+        )
+    }
+    
+    var amountOnYes: Fiat {
+        Fiat(
+            quarks: metadata.buyIn.quarks * UInt64(info.betCountYes),
+            currencyCode: metadata.buyIn.currencyCode
+        )
+    }
+    
+    var amountOnNo: Fiat {
+        Fiat(
+            quarks: metadata.buyIn.quarks * UInt64(info.betCountNo),
+            currencyCode: metadata.buyIn.currencyCode
         )
     }
 }

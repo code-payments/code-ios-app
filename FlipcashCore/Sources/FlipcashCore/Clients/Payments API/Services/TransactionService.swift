@@ -20,10 +20,13 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Account Creation -
     
-    func createAccounts(with owner: AccountCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func createAccounts(with owner: AccountCluster, kind: AccountKind, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
-        let intent = IntentCreateAccount(owner: owner)
+        let intent = IntentCreateAccount(
+            owner: owner,
+            kind: kind
+        )
         
         submit(intent: intent, owner: owner.authority.keyPair) { result in
             switch result {
