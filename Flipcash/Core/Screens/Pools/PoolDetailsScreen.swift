@@ -18,6 +18,8 @@ struct PoolDetailsScreen: View {
     
     @State private var showingConfirmationForBetOutcome: BetOutcome?
     
+    @State private var dialogItem: DialogItem?
+    
     private let userID: UserID
     private let poolRendezvous: KeyPair
     private let database: Database
@@ -121,6 +123,7 @@ struct PoolDetailsScreen: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .dialog(item: $dialogItem)
     }
     
     @ViewBuilder private func poolDetails(pool: PoolMetadata) -> some View {
@@ -204,7 +207,24 @@ struct PoolDetailsScreen: View {
                         style: .filled,
                         title: "Declare the Outcome"
                     ) {
-                        
+                        dialogItem = .init(
+                            style: .standard,
+                            title: "What was the winning outcome?",
+                            subtitle: nil,
+                            dismissable: true,
+                            actions: {
+                                .standard("Yes") {
+                                    
+                                };
+                                .standard("No") {
+                                    
+                                };
+                                .outline("Tie (Refund Everyone)") {
+                                    
+                                };
+                                .cancel()
+                            }
+                        )
                     }
                     
                     CodeButton(

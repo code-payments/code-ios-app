@@ -29,6 +29,14 @@ public struct DialogAction {
         )
     }
     
+    public static func outline(_ title: String, action: @escaping DialogActionHandler) -> Self {
+        self.init(
+            kind: .outline,
+            title: title,
+            action: action
+        )
+    }
+    
     public static func subtle(_ title: String, action: @escaping DialogActionHandler) -> Self {
         self.init(
             kind: .subtle,
@@ -79,12 +87,14 @@ extension DialogAction {
         case standard
         case subtle
         case destructive
+        case outline
         
         var buttonStyle: DialogButton.Style {
             switch self {
             case .standard:    return .primary
             case .subtle:      return .subtle
             case .destructive: return .destructive
+            case .outline:     return .outline
             }
         }
         
@@ -93,6 +103,7 @@ extension DialogAction {
             case .standard:    return 10
             case .subtle:      return 0
             case .destructive: return 10
+            case .outline:     return 10
             }
         }
         
@@ -101,6 +112,7 @@ extension DialogAction {
             case .standard:    return 10
             case .subtle:      return 0
             case .destructive: return 10
+            case .outline:     return 10
             }
         }
         
@@ -109,6 +121,7 @@ extension DialogAction {
             case .standard:    return .white
             case .subtle:      return .clear
             case .destructive: return .white
+            case .outline:     return .clear
             }
         }
     }

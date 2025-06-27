@@ -26,7 +26,7 @@ extension Color {
     
     public static let bannerDark          = Color(r: 15,  g: 12,  b: 31)
     public static let bannerError         = Color(r: 188, g: 52,  b: 52)
-    public static let bannerInfo          = Color(r: 0,   g: 26,  b: 12)
+    public static let bannerInfo          = Color(r: 26,  g: 49,  b: 37)
     public static let bannerWarning       = Color(r: 241, g: 171, b: 31)
     public static let bannerSuccess       = Color(r: 9,   g: 85,  b: 11)
     

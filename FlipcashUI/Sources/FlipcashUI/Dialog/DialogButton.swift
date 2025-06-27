@@ -33,7 +33,7 @@ public struct DialogButton: View {
     public var body: some View {
         Group {
             switch style {
-            case .primary, .secondary, .destructive:
+            case .primary, .secondary, .destructive, .outline:
                 button()
                     .buttonStyle(CustomStyle(style: style, isDisabled: isDisabled()))
                 
@@ -113,6 +113,7 @@ extension DialogButton {
         case secondary
         case destructive
         case subtle
+        case outline
     }
 }
 
@@ -128,7 +129,21 @@ private extension DialogButton {
             configuration.label
                 .background(background(style: style))
                 .foregroundColor(textColor())
-                .overlay(configuration.isPressed ? Color.black.opacity(0.3) : Color.black.opacity(0))
+                .overlay(overlay(isPressed: configuration.isPressed))
+                .contentShape(RoundedRectangle(cornerRadius: Metrics.buttonRadius))
+        }
+        
+        @ViewBuilder private func overlay(isPressed: Bool) -> some View {
+            switch style {
+            case .primary, .secondary, .destructive:
+                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    .fill(isPressed ? Color.black.opacity(0.3) : Color.black.opacity(0))
+            case .outline:
+                RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                    .fill(isPressed ? Color.white.opacity(0.15) : Color.black.opacity(0))
+            case .subtle:
+                fatalError()
+            }
         }
         
         @ViewBuilder private func background(style: DialogButton.Style) -> some View {
@@ -140,6 +155,15 @@ private extension DialogButton {
                 } else {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(Color.action)
+                }
+                
+            case .outline:
+                if isDisabled {
+                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                        .stroke(Color.backgroundRow.opacity(0.6), lineWidth: Metrics.buttonLineWidth)
+                } else {
+                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                        .stroke(Color.textMain.opacity(0.6), lineWidth: Metrics.buttonLineWidth)
                 }
                 
             case .subtle:
@@ -161,6 +185,13 @@ private extension DialogButton {
                     return .textActionDisabled
                 } else {
                     return .bannerError
+                }
+                
+            case .outline:
+                if isDisabled {
+                    return .backgroundRow.opacity(0.6)
+                } else {
+                    return .textMain.opacity(0.6)
                 }
                 
             case .subtle:
