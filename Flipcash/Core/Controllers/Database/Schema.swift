@@ -45,21 +45,22 @@ struct PoolTable: Sendable {
     static let name = "pool"
     
     let table                           = Table(Self.name)
-    let id                              = Expression <PublicKey>     ("id")
-    let rendezvousSeed                  = Expression <Seed32?>       ("rendezvousSeed")
-    let fundingAccount                  = Expression <PublicKey>     ("fundingAccount")
-    let creatorUserID                   = Expression <UUID>          ("creatorUserID")
-    let creationDate                    = Expression <Date>          ("creationDate")
-    let isOpen                          = Expression <Bool>          ("isOpen")
-    let name                            = Expression <String>        ("name")
-    let buyInQuarks                     = Expression <UInt64>        ("buyInQuarks")
-    let buyInCurrency                   = Expression <CurrencyCode>  ("buyInCurrency")
-    let resolution                      = Expression <Bool?>         ("resolution")
+    let id                              = Expression <PublicKey>      ("id")
+    let rendezvousSeed                  = Expression <Seed32?>        ("rendezvousSeed")
+    let fundingAccount                  = Expression <PublicKey>      ("fundingAccount")
+    let creatorUserID                   = Expression <UUID>           ("creatorUserID")
+    let creationDate                    = Expression <Date>           ("creationDate")
+    let closedDate                      = Expression <Date?>          ("closedDate")
+    let isOpen                          = Expression <Bool>           ("isOpen")
+    let name                            = Expression <String>         ("name")
+    let buyInQuarks                     = Expression <UInt64>         ("buyInQuarks")
+    let buyInCurrency                   = Expression <CurrencyCode>   ("buyInCurrency")
+    let resolution                      = Expression <PoolResoltion?> ("resolution")
     
-    let betsCountYes                    = Expression <Int>           ("betsCountYes")
-    let betsCountNo                     = Expression <Int>           ("betsCountNo")
-    let derivationIndex                 = Expression <Int>           ("derivationIndex")
-    let isFundingDestinationInitialized = Expression <Bool>          ("isFundingDestinationInitialized")
+    let betsCountYes                    = Expression <Int>            ("betsCountYes")
+    let betsCountNo                     = Expression <Int>            ("betsCountNo")
+    let derivationIndex                 = Expression <Int>            ("derivationIndex")
+    let isFundingDestinationInitialized = Expression <Bool>           ("isFundingDestinationInitialized")
 }
 
 struct BetTable: Sendable {
@@ -132,6 +133,7 @@ extension Database {
                 t.column(poolTable.fundingAccount)
                 t.column(poolTable.creatorUserID)
                 t.column(poolTable.creationDate)
+                t.column(poolTable.closedDate)
                 t.column(poolTable.isOpen)
                 t.column(poolTable.name)
                 t.column(poolTable.buyInQuarks)
@@ -209,5 +211,19 @@ extension CurrencyCode: @retroactive Value {
 
     public var datatypeValue: String {
         rawValue
+    }
+}
+
+extension PoolResoltion: @retroactive Value {
+    public static var declaredDatatype: String {
+        Int64.declaredDatatype
+    }
+
+    public static func fromDatatypeValue(_ dataValue: Int64) -> PoolResoltion {
+        PoolResoltion(intValue: Int(dataValue))!
+    }
+
+    public var datatypeValue: Int64 {
+        Int64(intValue)
     }
 }

@@ -24,37 +24,14 @@ public struct BetMetadata: Sendable, Equatable, Hashable {
     public let userID: UserID
     public let payoutDestination: PublicKey
     public let betDate: Date
-    public let selectedOutcome: BetOutcome
+    public let selectedOutcome: PoolResoltion
     
-    public init(id: PublicKey, userID: UserID, payoutDestination: PublicKey, betDate: Date, selectedOutcome: BetOutcome) {
+    public init(id: PublicKey, userID: UserID, payoutDestination: PublicKey, betDate: Date, selectedOutcome: PoolResoltion) {
         self.id = id
         self.userID = userID
         self.payoutDestination = payoutDestination
         self.betDate = betDate
         self.selectedOutcome = selectedOutcome
-    }
-}
-
-public enum BetOutcome: Sendable, Equatable, Hashable, Identifiable {
-    case yes
-    case no
-    
-    public var id: BetOutcome {
-        self
-    }
-    
-    public var boolValue: Bool {
-        switch self {
-        case .no:  return false
-        case .yes: return true
-        }
-    }
-    
-    public var intValue: Int {
-        switch self {
-        case .no:  return 0
-        case .yes: return 1
-        }
     }
 }
 
@@ -97,7 +74,7 @@ extension BetMetadata {
             throw Error.invalidPublicKey
         }
         
-        let outcome: BetOutcome
+        let outcome: PoolResoltion
         switch proto.selectedOutcome.kind {
         case .booleanOutcome(let value):
             outcome = value ? .yes : .no

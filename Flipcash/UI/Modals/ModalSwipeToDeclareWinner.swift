@@ -11,7 +11,7 @@ import FlipcashCore
 
 public struct ModalSwipeToDeclareWinner: View {
     
-    public let outcome: DeclaredOutcome
+    public let outcome: PoolResoltion
     public let amount: Fiat
     public let swipeText: String
     public let cancelTitle: String
@@ -21,7 +21,7 @@ public struct ModalSwipeToDeclareWinner: View {
     
     // MARK: - Init -
     
-    public init(outcome: DeclaredOutcome, amount: Fiat, swipeText: String, cancelTitle: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
+    public init(outcome: PoolResoltion, amount: Fiat, swipeText: String, cancelTitle: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
         self.outcome       = outcome
         self.amount        = amount
         self.swipeText     = swipeText
@@ -85,23 +85,15 @@ public struct ModalSwipeToDeclareWinner: View {
     }
 }
 
-// MARK: - DeclaredOutcome -
+// MARK: - PoolResoltion -
 
-public enum DeclaredOutcome: Identifiable {
-    
-    case yes
-    case no
-    case tie
-    
-    public var id: String {
-        text
-    }
+extension PoolResoltion {
     
     var strokeColor: Color {
         switch self {
         case .yes, .no:
             Color(r: 77, g: 153, b: 97)
-        case .tie:
+        case .refund:
             .lightStroke
         }
     }
@@ -110,7 +102,7 @@ public enum DeclaredOutcome: Identifiable {
         switch self {
         case .yes, .no:
             .winnerGreen
-        case .tie:
+        case .refund:
             .extraLightFill
         }
     }
@@ -121,7 +113,7 @@ public enum DeclaredOutcome: Identifiable {
             "Yes"
         case .no:
             "No"
-        case .tie:
+        case .refund:
             "Tie"
         }
     }
@@ -132,7 +124,7 @@ public enum DeclaredOutcome: Identifiable {
             "Each winner receives"
         case .no:
             "Each winner receives"
-        case .tie:
+        case .refund:
             "Everyone receives"
         }
     }

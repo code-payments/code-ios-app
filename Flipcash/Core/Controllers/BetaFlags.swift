@@ -87,6 +87,7 @@ extension BetaFlags {
         case transactionDetails
         case vibrateOnScan
         case pools
+        case showMissingRendezvous
         
         var id: String {
             localizedTitle
@@ -100,6 +101,8 @@ extension BetaFlags {
                 return "Vibrate on scan"
             case .pools:
                 return "Pools"
+            case .showMissingRendezvous:
+                return "Show Missing Rendezvous"
             }
         }
         
@@ -111,6 +114,8 @@ extension BetaFlags {
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
             case .pools:
                 return "If enabled, a new 'Pools' button will become available on the camera screen"
+            case .showMissingRendezvous:
+                return "If enabled, pools that have a missing rendezvous key will show a flag in the list"
             }
         }
     }

@@ -55,6 +55,7 @@ public enum SystemSymbol: String {
     case paste = "arrow.turn.left.down"
     case touchID = "touchid"
     case faceID = "faceid"
+    case trophy = "trophy.fill"
     
     case chevronDown = "chevron.down"
     case chevronRight = "chevron.right"

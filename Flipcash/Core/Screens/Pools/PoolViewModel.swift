@@ -136,13 +136,20 @@ class PoolViewModel: ObservableObject {
     
     // MARK: - Pool Actions -
     
-    func selectPoolAction(rendezvous: KeyPair) {
-        navigateToPoolDetails(rendezvous: rendezvous)
+    func selectPoolAction(poolID: PublicKey) {
+        navigateToPoolDetails(poolID: poolID)
     }
     
-    func betAction(rendezvous: KeyPair, outcome: BetOutcome) async throws {
+    func betAction(rendezvous: KeyPair, outcome: PoolResoltion) async throws {
         try await poolController.createBet(
             poolRendezvous: rendezvous,
+            outcome: outcome
+        )
+    }
+    
+    func declarOutcomeAction(poolMetadata: PoolMetadata, outcome: PoolResoltion) async throws {
+        try await poolController.declareOutcome(
+            poolMetadata: poolMetadata,
             outcome: outcome
         )
     }
@@ -161,7 +168,7 @@ class PoolViewModel: ObservableObject {
             )
         }
         
-        navigateToPoolDetails(rendezvous: rendezvous)
+        navigateToPoolDetails(poolID: rendezvous.publicKey)
         showPoolList()
     }
     
@@ -177,8 +184,8 @@ class PoolViewModel: ObservableObject {
     
     // MARK: - Pool List Navigation -
     
-    private func navigateToPoolDetails(rendezvous: KeyPair) {
-        poolListPath.append(.poolDetails(rendezvous))
+    private func navigateToPoolDetails(poolID: PublicKey) {
+        poolListPath.append(.poolDetails(poolID))
     }
 }
 
@@ -190,5 +197,5 @@ enum CreatePoolPath {
 }
 
 enum PoolListPath: Hashable {
-    case poolDetails(KeyPair)
+    case poolDetails(PublicKey)
 }

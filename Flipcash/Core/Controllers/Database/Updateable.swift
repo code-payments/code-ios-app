@@ -12,9 +12,11 @@ class Updateable<T>: ObservableObject {
     @Published private(set) var value: T
     
     private let valueBlock: () -> T
+    private let didSet: (() -> Void)?
     
-    init(_ valueBlock: @escaping () -> T) {
+    init(_ valueBlock: @escaping () -> T, didSet: (() -> Void)? = nil) {
         self.valueBlock = valueBlock
+        self.didSet = didSet
         
         let start = Date.now
         self.value = valueBlock()

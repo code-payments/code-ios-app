@@ -20,6 +20,7 @@ extension Database {
             p.fundingAccount,
             p.creatorUserID,
             p.creationDate,
+            p.closedDate,
             p.isOpen,
             p.name,
             p.buyInQuarks,
@@ -44,11 +45,6 @@ extension Database {
                 rendezvous = KeyPair(seed: seed)
             }
             
-            var resolution: PoolResoltion?
-            if let result = row[t.resolution] {
-                resolution = result ? .yes : .no
-            }
-            
             return PoolContainer(
                 metadata: PoolMetadata(
                     id:             row[t.id],
@@ -56,13 +52,14 @@ extension Database {
                     fundingAccount: row[t.fundingAccount],
                     creatorUserID:  row[t.creatorUserID],
                     creationDate:   row[t.creationDate],
+                    closedDate:     row[t.closedDate],
                     isOpen:         row[t.isOpen],
                     name:           row[t.name],
                     buyIn: Fiat(
                         quarks:       row[t.buyInQuarks],
                         currencyCode: row[t.buyInCurrency]
                     ),
-                    resolution: resolution
+                    resolution: row[t.resolution]
                 ),
                 info: PoolInfo(
                     betCountYes:                     row[t.betsCountYes],
@@ -83,6 +80,7 @@ extension Database {
             p.fundingAccount,
             p.creatorUserID,
             p.creationDate,
+            p.closedDate,
             p.isOpen,
             p.name,
             p.buyInQuarks,
@@ -107,12 +105,6 @@ extension Database {
                 rendezvous = KeyPair(seed: seed)
             }
             
-            var resolution: PoolResoltion?
-            if let result = row[t.resolution] {
-                resolution = result ? .yes : .no
-            }
-            
-            
             return PoolContainer(
                 metadata: PoolMetadata(
                     id:             row[t.id],
@@ -120,13 +112,14 @@ extension Database {
                     fundingAccount: row[t.fundingAccount],
                     creatorUserID:  row[t.creatorUserID],
                     creationDate:   row[t.creationDate],
+                    closedDate:     row[t.closedDate],
                     isOpen:         row[t.isOpen],
                     name:           row[t.name],
                     buyIn: Fiat(
                         quarks:       row[t.buyInQuarks],
                         currencyCode: row[t.buyInCurrency]
                     ),
-                    resolution: resolution
+                    resolution: row[t.resolution]
                 ),
                 info: PoolInfo(
                     betCountYes:                     row[t.betsCountYes],
@@ -170,6 +163,7 @@ extension Database {
             t.fundingAccount <- metadata.fundingAccount,
             t.creatorUserID  <- metadata.creatorUserID,
             t.creationDate   <- metadata.creationDate,
+            t.closedDate     <- metadata.closedDate,
             t.isOpen         <- metadata.isOpen,
             t.name           <- metadata.name,
             t.buyInQuarks    <- metadata.buyIn.quarks,
@@ -183,7 +177,7 @@ extension Database {
         
         if let resolution = metadata.resolution {
             setters.append(
-                t.resolution <- (resolution == .yes) ? true : false
+                t.resolution <- resolution
             )
         }
         
@@ -310,6 +304,20 @@ struct PoolContainer: Identifiable, Sendable, Equatable, Hashable {
             quarks: amountInPool.quarks / UInt64(countOnNo),
             currencyCode: metadata.buyIn.currencyCode
         )
+    }
+    
+    var winningPayout: Fiat? {
+        if let resolution = metadata.resolution {
+            switch resolution {
+            case .yes:
+                return winningsForYes
+            case .no:
+                return winningsForNo
+            case .refund:
+                return metadata.buyIn
+            }
+        }
+        return nil
     }
     
     var amountOnYes: Fiat {

@@ -86,19 +86,7 @@ class PoolService: CodeService<Flipcash_Pool_V1_PoolNIOClient> {
         trace(.send, components: "Pool ID: \(poolMetadata.id.base58)")
         
         let request = Flipcash_Pool_V1_CreatePoolRequest.with {
-            $0.pool = .with {
-                $0.id      = .with { $0.value = poolMetadata.id.data }
-                $0.creator = poolMetadata.creatorUserID.proto
-                $0.name    = poolMetadata.name
-                $0.buyIn   = .with {
-                    $0.nativeAmount = poolMetadata.buyIn.doubleValue
-                    $0.currency     = poolMetadata.buyIn.currencyCode.rawValue
-                }
-                $0.fundingDestination = poolMetadata.fundingAccount.proto
-                $0.isOpen             = true
-                $0.createdAt          = .now
-            }
-            
+            $0.pool = poolMetadata.signedMetadata
             $0.rendezvousSignature = $0.pool.sign(with: rendezvous)
             $0.auth = owner.authFor(message: $0)
         }
@@ -106,6 +94,73 @@ class PoolService: CodeService<Flipcash_Pool_V1_PoolNIOClient> {
         let call = service.createPool(request)
         call.handle(on: queue) { response in
             let error = ErrorCreatePool(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Pool ID: \(poolMetadata.id.base58)", "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func closePool(poolMetadata: PoolMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorClosePool>) -> Void) {
+        guard let rendezvous = poolMetadata.rendezvous else {
+            completion(.failure(.poolMetadataMissingRendezvous))
+            return
+        }
+        
+        trace(.send, components: "Pool ID: \(poolMetadata.id.base58)")
+        
+        let request = Flipcash_Pool_V1_ClosePoolRequest.with {
+            $0.id = .with { $0.value = poolMetadata.id.data }
+            if let closedDate = poolMetadata.closedDate {
+                $0.closedAt = .from(date: closedDate, stripNanos: true)
+            }
+            let proto = poolMetadata.signedMetadata
+            $0.newRendezvousSignature = proto.sign(with: rendezvous)
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.closePool(request)
+        call.handle(on: queue) { response in
+            let error = ErrorClosePool(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Pool ID: \(poolMetadata.id.base58)", "Error: \(error)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
+    
+    func resolvePool(poolMetadata: PoolMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorResolvePool>) -> Void) {
+        guard let rendezvous = poolMetadata.rendezvous else {
+            completion(.failure(.poolMetadataMissingRendezvous))
+            return
+        }
+        
+        trace(.send, components: "Pool ID: \(poolMetadata.id.base58)")
+        
+        let request = Flipcash_Pool_V1_ResolvePoolRequest.with {
+            $0.id = .with { $0.value = poolMetadata.id.data }
+            if let resolution = poolMetadata.resolution {
+                $0.resolution = resolution.proto
+            }
+            $0.newRendezvousSignature = poolMetadata.signedMetadata.sign(with: rendezvous)
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.resolvePool(request)
+        call.handle(on: queue) { response in
+            let error = ErrorResolvePool(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 trace(.success)
                 completion(.success(()))
@@ -129,7 +184,7 @@ class PoolService: CodeService<Flipcash_Pool_V1_PoolNIOClient> {
             $0.bet = .with {
                 $0.betID             = .with { $0.value = betMetadata.id.data }
                 $0.userID            = betMetadata.userID.proto
-                $0.selectedOutcome   = .with { $0.booleanOutcome = betMetadata.selectedOutcome.boolValue }
+                $0.selectedOutcome   = .with { $0.booleanOutcome = betMetadata.selectedOutcome.boolValue! }
                 $0.payoutDestination = betMetadata.payoutDestination.proto
                 $0.ts                = .now
             }
@@ -159,7 +214,15 @@ class PoolService: CodeService<Flipcash_Pool_V1_PoolNIOClient> {
 
 extension Google_Protobuf_Timestamp {
     static var now: Google_Protobuf_Timestamp {
-        Google_Protobuf_Timestamp(timeIntervalSince1970: floor(Date.now.timeIntervalSince1970))
+        .from(date: .now, stripNanos: true)
+    }
+    
+    static func from(date: Date, stripNanos: Bool) -> Self {
+        var ts = Google_Protobuf_Timestamp(date: date)
+        if stripNanos {
+            ts.nanos = 0
+        }
+        return ts
     }
 }
 
@@ -172,6 +235,12 @@ public enum ErrorFetchPools: Int, Error {
     case failedToParsePool = -2
 }
 
+public enum ErrorFetchPool: Int, Error {
+    case ok
+    case notFound
+    case unknown = -1
+}
+
 public enum ErrorCreatePool: Int, Error {
     case ok
     case rendezvousExists
@@ -180,10 +249,22 @@ public enum ErrorCreatePool: Int, Error {
     case poolMetadataMissingRendezvous = -2
 }
 
-public enum ErrorFetchPool: Int, Error {
+public enum ErrorClosePool: Int, Error {
     case ok
+    case denied
     case notFound
     case unknown = -1
+    case poolMetadataMissingRendezvous = -2
+}
+
+public enum ErrorResolvePool: Int, Error {
+    case ok
+    case denied
+    case notFound
+    case differentOutcomeDeclared
+    case poolOpen
+    case unknown = -1
+    case poolMetadataMissingRendezvous = -2
 }
 
 public enum ErrorCreateBet: Int, Error {

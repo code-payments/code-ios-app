@@ -27,6 +27,18 @@ extension FlipClient {
         }
     }
     
+    public func closePool(poolMetadata: PoolMetadata, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            poolService.closePool(poolMetadata: poolMetadata, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func resolvePool(poolMetadata: PoolMetadata, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            poolService.resolvePool(poolMetadata: poolMetadata, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func createBet(poolRendezvous: KeyPair, betMetadata: BetMetadata, owner: KeyPair) async throws {
         try await withCheckedThrowingContinuation { c in
             poolService.createBet(poolRendezvous: poolRendezvous, betMetadata: betMetadata, owner: owner) { c.resume(with: $0) }

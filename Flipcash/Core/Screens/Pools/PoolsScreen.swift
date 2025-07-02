@@ -83,10 +83,10 @@ struct PoolsScreen: View {
             .onAppear(perform: onAppear)
             .navigationDestination(for: PoolListPath.self) { path in
                 switch path {
-                case .poolDetails(let rendezvous):
+                case .poolDetails(let poolID):
                     PoolDetailsScreen(
                         userID: session.userID,
-                        poolRendezvous: rendezvous,
+                        poolID: poolID,
                         database: database,
                         viewModel: viewModel
                     )
@@ -131,25 +131,46 @@ struct PoolsScreen: View {
     }
     
     @ViewBuilder private func list() -> some View {
+        let openPools      = pools.filter { $0.metadata.resolution == nil }
+        let completedPools = pools.filter { $0.metadata.resolution != nil }
         GeometryReader { g in
             List {
-                Section {
-                    ForEach(pools) { poolContainer in
-                        row(poolContainer: poolContainer)
-                    }
-                    
-                } header: {
-                    Text("Open")
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 5)
+                if !openPools.isEmpty {
+                    section(
+                        name: "Open",
+                        pools: openPools
+                    )
                 }
-                //.listSectionSeparator(.hidden)
-                .listRowInsets(EdgeInsets())
-                .listRowSeparatorTint(.rowSeparator)
+                
+                if !completedPools.isEmpty {
+                    section(
+                        name: "Completed",
+                        pools: completedPools
+                    )
+                }
             }
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
+    }
+    
+    @ViewBuilder private func section(name: String, pools: [PoolContainer]) -> some View {
+        Section {
+            ForEach(pools) { poolContainer in
+                row(poolContainer: poolContainer)
+            }
+        } header: {
+            Text(name)
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+//                .textCase(nil)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 10)
+                .padding(.top, 20)
+        }
+        //.listSectionSeparator(.hidden)
+        .listRowInsets(EdgeInsets())
+        .listRowSeparatorTint(.rowSeparator)
     }
     
     @ViewBuilder private func row(poolContainer: PoolContainer) -> some View {
@@ -157,9 +178,7 @@ struct PoolsScreen: View {
         let isHost = pool.creatorUserID == session.userID
         
         Button {
-            if let rendezvous = pool.rendezvous {
-                viewModel.selectPoolAction(rendezvous: rendezvous)
-            }
+            viewModel.selectPoolAction(poolID: pool.id)
         } label: {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 5) {
@@ -174,21 +193,52 @@ struct PoolsScreen: View {
                     }
                     
                     Text(pool.name)
-                        .font(.appTextMedium)
+                        .font(.appTextLarge)
                         .foregroundStyle(Color.textMain)
                         .multilineTextAlignment(.leading)
                     
                     HStack(spacing: 8) {
-                        if pool.rendezvous == nil {
+                        if BetaFlags.shared.hasEnabled(.showMissingRendezvous), pool.rendezvous == nil {
                             Text("Missing Rendezvous")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textError)
                         }
-                        Text("\(poolContainer.amountInPool.formatted(suffix: nil)) in pool so far")
-                            .font(.appTextMedium)
-                            .foregroundStyle(Color.textSecondary)
+                        
+                        if let resolution = pool.resolution {
+                            Text("Result: \(resolution.name)")
+                                .font(.appTextSmall)
+                                .foregroundStyle(Color.textMain.opacity(0.5))
+                                .padding(.horizontal, 6)
+                                .frame(height: 26)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(Color.white.opacity(0.11))
+                                }
+                            
+                            if let payout = poolContainer.winningPayout {
+                                HStack(spacing: 5) {
+                                    Image.system(.trophy)
+                                        .font(.appTextHeading)
+                                    Text(payout.formatted(suffix: nil))
+                                        .font(.appTextSmall)
+                                }
+                                .padding(.horizontal, 6)
+                                .frame(height: 26)
+                                .foregroundStyle(Color(r: 115, g: 234, b: 164))
+                                .background {
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(Color(r: 44, g: 77, b: 54))
+                                }
+                            }
+                            
+                        } else {
+                            Text("\(poolContainer.amountInPool.formatted(suffix: nil)) in pool so far")
+                                .font(.appTextMedium)
+                                .foregroundStyle(Color.textSecondary)
+                        }
                     }
                 }
+                .padding(.top, 2)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 
                 Image.system(.chevronRight)
@@ -199,11 +249,15 @@ struct PoolsScreen: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 15)
     }
-    
-    // MARK: - Action -
-    
-    private func createPoolAction() {
-        
+}
+
+extension PoolResoltion {
+    var name: String {
+        switch self {
+        case .yes:    return "Yes"
+        case .no:     return "No"
+        case .refund: return "Tie"
+        }
     }
 }
 

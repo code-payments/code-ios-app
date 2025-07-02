@@ -16,13 +16,13 @@ struct PoolDetailsScreen: View {
     @StateObject private var updateablePool: Updateable<PoolContainer?>
     @StateObject private var updateableBets: Updateable<[BetMetadata]>
     
-    @State private var showingConfirmationForBetOutcome: BetOutcome?
-    @State private var showingDeclareOutcome: DeclaredOutcome?
+    @State private var showingConfirmationForBetOutcome: PoolResoltion?
+    @State private var showingDeclareOutcome: PoolResoltion?
     
     @State private var dialogItem: DialogItem?
     
     private let userID: UserID
-    private let poolRendezvous: KeyPair
+    private let poolID: PublicKey
     private let database: Database
     
     private var poolContainer: PoolContainer? {
@@ -43,6 +43,10 @@ struct PoolDetailsScreen: View {
     
     private var isHost: Bool {
         pool?.creatorUserID == userID
+    }
+    
+    private var hasResolution: Bool {
+        pool?.resolution != nil
     }
     
     private var userBet: BetMetadata? {
@@ -115,18 +119,18 @@ struct PoolDetailsScreen: View {
     
     // MARK: - Init -
     
-    init(userID: UserID, poolRendezvous: KeyPair, database: Database, viewModel: PoolViewModel) {
-        self.userID         = userID
-        self.poolRendezvous = poolRendezvous
-        self.database       = database
-        self.viewModel      = viewModel
+    init(userID: UserID, poolID: PublicKey, database: Database, viewModel: PoolViewModel) {
+        self.userID    = userID
+        self.poolID    = poolID
+        self.database  = database
+        self.viewModel = viewModel
         
         _updateablePool = .init(wrappedValue: Updateable {
-            try? database.getPool(poolID: poolRendezvous.publicKey)
+            try? database.getPool(poolID: poolID)
         })
         
         _updateableBets = .init(wrappedValue: Updateable {
-            (try? database.getBets(poolID: poolRendezvous.publicKey)) ?? []
+            (try? database.getBets(poolID: poolID)) ?? []
         })
     }
     
@@ -167,7 +171,7 @@ struct PoolDetailsScreen: View {
                 .font(.appDisplayMedium)
                 
                 Text("in pool so far")
-                    .font(.appTextMedium)
+                    .font(.appTextLarge)
                     .foregroundStyle(Color.textSecondary)
             }
             .padding(.horizontal, 20)
@@ -212,7 +216,7 @@ struct PoolDetailsScreen: View {
                     }
                 }
                 
-                if !hasUserBet {
+                if !hasResolution && !hasUserBet {
                     Text("Tap to buy in")
                         .font(.appDisplayXS)
                         .foregroundStyle(Color.textSecondary)
@@ -222,51 +226,13 @@ struct PoolDetailsScreen: View {
             
             Spacer()
             
-            if isHost {
-                VStack(spacing: 0) {
-                    CodeButton(
-                        style: .filled,
-                        title: "Declare the Outcome"
-                    ) {
-                        dialogItem = .init(
-                            style: .standard,
-                            title: "What was the winning outcome?",
-                            subtitle: nil,
-                            dismissable: true,
-                            actions: {
-                                .standard("Yes") {
-                                    showingDeclareOutcome = .yes
-                                };
-                                .standard("No") {
-                                    showingDeclareOutcome = .no
-                                };
-                                .outline("Tie (Refund Everyone)") {
-                                    showingDeclareOutcome = .tie
-                                };
-                                .cancel()
-                            }
-                        )
-                    }
-                    
-                    CodeButton(
-                        style: .subtle,
-                        title: "Share Pool With Friends",
-                        action: sharePoolAction
-                    )
-                }
-                .padding(.bottom, -20)
+            if let resolution = pool.resolution {
+                bottomViewForResoultion(resolution: resolution)
             } else {
-                VStack(spacing: 25) {
-                    Text("As the pool host, you will decide the outcome of the pool in your sole discretion")
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                        .multilineTextAlignment(.center)
-                    
-                    CodeButton(
-                        style: .filled,
-                        title: "Share Pool With Friends",
-                        action: sharePoolAction
-                    )
+                if isHost {
+                    bottomViewForHost()
+                } else {
+                    bottomView(pool: pool)
                 }
             }
         }
@@ -281,10 +247,15 @@ struct PoolDetailsScreen: View {
                     swipeText: "Swipe To Pay",
                     cancelTitle: "Cancel"
                 ) {
+                    guard let rendezvous = pool.rendezvous else {
+                        return
+                    }
+                    
                     try await viewModel.betAction(
-                        rendezvous: poolRendezvous,
+                        rendezvous: rendezvous,
                         outcome: outcome
                     )
+                    
                 } dismissAction: {
                     showingConfirmationForBetOutcome = nil
                 } cancelAction: {
@@ -300,6 +271,10 @@ struct PoolDetailsScreen: View {
                     swipeText: "Swipe To Pay",
                     cancelTitle: "Cancel"
                 ) {
+                    try await viewModel.declarOutcomeAction(
+                        poolMetadata: pool,
+                        outcome: outcome
+                    )
                     
                 } dismissAction: {
                     showingDeclareOutcome = nil
@@ -310,13 +285,92 @@ struct PoolDetailsScreen: View {
         }
     }
     
-    private func winningsForDeclaredOutcome(_ outcome: DeclaredOutcome) -> Fiat {
+    @ViewBuilder private func bottomViewForResoultion(resolution: PoolResoltion) -> some View {
+        VStack {
+            if resolution == .refund {
+                Text("Tie")
+                    .font(.appDisplaySmall)
+                    .foregroundStyle(Color.textMain)
+            }
+            
+            Group {
+                switch resolution {
+                case .yes:
+                    Text("Each winner received \(winningsForYes.formatted(suffix: nil))")
+                case .no:
+                    Text("Each winner received \(winningsForNo.formatted(suffix: nil))")
+                case .refund:
+                    Text("Everyone got their money back")
+                }
+            }
+            .font(.appTextMedium)
+            .foregroundStyle(Color.textSecondary)
+        }
+        
+        Spacer()
+    }
+    
+    @ViewBuilder private func bottomView(pool: PoolMetadata) -> some View {
+        VStack(spacing: 25) {
+            Text("The person who created the pool gets to decide the outcome of the pool in their sole discretion")
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+            
+            // Pool rendezvous is required
+            // to create the share link
+            if pool.rendezvous != nil {
+                CodeButton(
+                    style: .filled,
+                    title: "Share Pool With Friends",
+                    action: sharePoolAction
+                )
+            }
+        }
+    }
+    
+    @ViewBuilder private func bottomViewForHost() -> some View {
+        VStack(spacing: 0) {
+            CodeButton(
+                style: .filled,
+                title: "Declare the Outcome"
+            ) {
+                dialogItem = .init(
+                    style: .standard,
+                    title: "What was the winning outcome?",
+                    subtitle: nil,
+                    dismissable: true,
+                    actions: {
+                        .standard("Yes") {
+                            showingDeclareOutcome = .yes
+                        };
+                        .standard("No") {
+                            showingDeclareOutcome = .no
+                        };
+                        .outline("Tie (Refund Everyone)") {
+                            showingDeclareOutcome = .refund
+                        };
+                        .cancel()
+                    }
+                )
+            }
+            
+            CodeButton(
+                style: .subtle,
+                title: "Share Pool With Friends",
+                action: sharePoolAction
+            )
+        }
+        .padding(.bottom, -20)
+    }
+    
+    private func winningsForDeclaredOutcome(_ outcome: PoolResoltion) -> Fiat {
         switch outcome {
         case .yes:
             winningsForYes
         case .no:
             winningsForNo
-        case .tie:
+        case .refund:
             buyIn
         }
     }

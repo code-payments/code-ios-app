@@ -45,19 +45,21 @@ public struct PoolMetadata: Identifiable, Sendable, Equatable, Hashable {
     public let fundingAccount: PublicKey
     public let creatorUserID: UserID
     public let creationDate: Date
-    public let isOpen: Bool
     public let name: String
     public let buyIn: Fiat
-    public let resolution: PoolResoltion?
     
+    public var isOpen: Bool
+    public var closedDate: Date?
     public var rendezvous: KeyPair?
+    public var resolution: PoolResoltion?
     
-    public init(id: PublicKey, rendezvous: KeyPair?, fundingAccount: PublicKey, creatorUserID: UserID, creationDate: Date, isOpen: Bool, name: String, buyIn: Fiat, resolution: PoolResoltion?) {
+    public init(id: PublicKey, rendezvous: KeyPair?, fundingAccount: PublicKey, creatorUserID: UserID, creationDate: Date, closedDate: Date?, isOpen: Bool, name: String, buyIn: Fiat, resolution: PoolResoltion?) {
         self.id = id
         self.rendezvous = rendezvous
         self.fundingAccount = fundingAccount
         self.creatorUserID = creatorUserID
         self.creationDate = creationDate
+        self.closedDate = closedDate
         self.isOpen = isOpen
         self.name = name
         self.buyIn = buyIn
@@ -65,9 +67,40 @@ public struct PoolMetadata: Identifiable, Sendable, Equatable, Hashable {
     }
 }
 
-public enum PoolResoltion: Sendable, Equatable, Hashable {
+public enum PoolResoltion: Identifiable, Sendable, Equatable, Hashable {
+    
     case yes
     case no
+    case refund
+    
+    public var id: Int {
+        intValue
+    }
+    
+    public var boolValue: Bool? {
+        switch self {
+        case .no:     return false
+        case .yes:    return true
+        case .refund: return nil
+        }
+    }
+    
+    public var intValue: Int {
+        switch self {
+        case .no:     return 0
+        case .yes:    return 1
+        case .refund: return 2
+        }
+    }
+    
+    public init?(intValue: Int) {
+        switch intValue {
+        case 0: self = .no
+        case 1: self = .yes
+        case 2: self = .refund
+        default: return nil
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -86,6 +119,21 @@ extension PoolMetadata {
 }
 
 // MARK: - Proto -
+
+extension PoolResoltion {
+    var proto: Flipcash_Pool_V1_Resolution {
+        .with {
+            switch self {
+            case .yes:
+                $0.kind = .booleanResolution(true)
+            case .no:
+                $0.kind = .booleanResolution(false)
+            case .refund:
+                $0.kind = .refundResolution(.init())
+            }
+        }
+    }
+}
 
 extension PoolDescription {
     init(_ proto: Flipcash_Pool_V1_PoolMetadata) throws {
@@ -112,6 +160,30 @@ extension PoolDescription {
 }
 
 extension PoolMetadata {
+    
+    var signedMetadata: Flipcash_Pool_V1_SignedPoolMetadata {
+        .with {
+            $0.id      = .with { $0.value = id.data }
+            $0.creator = creatorUserID.proto
+            $0.name    = name
+            $0.buyIn   = .with {
+                $0.nativeAmount = buyIn.doubleValue
+                $0.currency     = buyIn.currencyCode.rawValue
+            }
+            $0.fundingDestination = fundingAccount.proto
+            $0.isOpen             = isOpen
+            $0.createdAt          = .from(date: creationDate, stripNanos: true)
+            
+            if let resolution = resolution {
+                $0.resolution = resolution.proto
+            }
+            
+            if let closedDate {
+                $0.closedAt = .from(date: closedDate, stripNanos: true)
+            }
+        }
+    }
+    
     init(_ proto: Flipcash_Pool_V1_SignedPoolMetadata) throws {
         guard
             let id = PublicKey(proto.id.value),
@@ -121,8 +193,13 @@ extension PoolMetadata {
         }
         
         var resolution: PoolResoltion?
-        if proto.hasResolution {
-            resolution = proto.resolution.booleanResolution ? .yes : .no
+        if proto.hasResolution, let kind = proto.resolution.kind {
+            switch kind {
+            case .booleanResolution(let bool):
+                resolution = bool ? .yes : .no
+            case .refundResolution:
+                resolution = .refund
+            }
         }
         
         self.init(
@@ -131,6 +208,7 @@ extension PoolMetadata {
             fundingAccount: fundingAccount,
             creatorUserID: try UserID(data: proto.creator.value),
             creationDate: proto.createdAt.date,
+            closedDate: proto.hasClosedAt ? proto.closedAt.date : nil,
             isOpen: proto.isOpen,
             name: proto.name,
             buyIn: try Fiat(

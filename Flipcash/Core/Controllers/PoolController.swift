@@ -164,7 +164,8 @@ class PoolController: ObservableObject {
     
     // TODO: Insert pool from link
     
-    func updatePool(poolID: PublicKey, rendezvous: KeyPair? = nil) async throws {
+    @discardableResult
+    func updatePool(poolID: PublicKey, rendezvous: KeyPair? = nil) async throws -> PoolMetadata {
         let pool = try await flipClient.fetchPool(poolID: poolID)
         
         var metadata = pool.metadata
@@ -176,6 +177,8 @@ class PoolController: ObservableObject {
             try $0.insertPool(metadata: metadata, additionalInfo: pool.additionalInfo)
             try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets.map { $0.metadata })
         }
+        
+        return metadata
     }
     
     func createPool(name: String, buyIn: Fiat) async throws {
@@ -199,6 +202,7 @@ class PoolController: ObservableObject {
             fundingAccount: poolAccount.cluster.vaultPublicKey,
             creatorUserID: userID,
             creationDate: .now,
+            closedDate: nil,
             isOpen: true,
             name: name,
             buyIn: buyIn,
@@ -219,14 +223,14 @@ class PoolController: ObservableObject {
         
         // We don't want to surface any errors
         // from the update call during pool creation
-        try? await updatePool(
+        _ = try? await updatePool(
             poolID: metadata.id,
             rendezvous: metadata.rendezvous
         )
     }
     
     @discardableResult
-    func createBet(poolRendezvous: KeyPair, outcome: BetOutcome) async throws -> BetMetadata {
+    func createBet(poolRendezvous: KeyPair, outcome: PoolResoltion) async throws -> BetMetadata {
         let poolID = poolRendezvous.publicKey
         
         let betKeyPair = KeyPair.deriveBetID(
@@ -255,9 +259,45 @@ class PoolController: ObservableObject {
 //            try $0.setBetFulfilled(betID: betID)
 //        }
         
-        try? await updatePool(poolID: poolID)
+        _ = try? await updatePool(poolID: poolID)
         
         return metadata
+    }
+    
+    func declareOutcome(poolMetadata: PoolMetadata, outcome: PoolResoltion) async throws {
+        
+        var updatedMetadata = poolMetadata
+        if poolMetadata.isOpen {
+            updatedMetadata.isOpen     = false
+            updatedMetadata.closedDate = .now
+            
+            // First, close voting on the pool
+            try await flipClient.closePool(
+                poolMetadata: updatedMetadata,
+                owner: ownerKeyPair
+            )
+        }
+        
+//        try await flipClient.fetchPool(poolID: updatedMetadata.id)
+        
+
+        
+        // After closing, the pool rendezvous signature
+        // was updated so we need to update our local
+        // pool metadata
+//        let closedPool = try await updatePool(poolID: poolMetadata.id)
+        
+        updatedMetadata.resolution = outcome
+        
+        // Declare the pool outcome
+        try await flipClient.resolvePool(
+            poolMetadata: updatedMetadata,
+            owner: ownerKeyPair
+        )
+        
+        // After the pool is resolved, it is updated so
+        // so we'll need to refresh local pool metadata
+        try await updatePool(poolID: poolMetadata.id)
     }
 }
 
