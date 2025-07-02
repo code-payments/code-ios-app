@@ -288,16 +288,40 @@ struct PoolContainer: Identifiable, Sendable, Equatable, Hashable {
         )
     }
     
+    var countOnYes: Int {
+        info.betCountYes
+    }
+    
+    var countOnNo: Int {
+        info.betCountNo
+    }
+    
+    var winningsForYes: Fiat? {
+        guard countOnYes > 0 else { return nil }
+        return Fiat(
+            quarks: amountInPool.quarks / UInt64(countOnYes),
+            currencyCode: metadata.buyIn.currencyCode
+        )
+    }
+    
+    var winningsForNo: Fiat? {
+        guard countOnNo > 0 else { return nil }
+        return Fiat(
+            quarks: amountInPool.quarks / UInt64(countOnNo),
+            currencyCode: metadata.buyIn.currencyCode
+        )
+    }
+    
     var amountOnYes: Fiat {
         Fiat(
-            quarks: metadata.buyIn.quarks * UInt64(info.betCountYes),
+            quarks: metadata.buyIn.quarks * UInt64(countOnYes),
             currencyCode: metadata.buyIn.currencyCode
         )
     }
     
     var amountOnNo: Fiat {
         Fiat(
-            quarks: metadata.buyIn.quarks * UInt64(info.betCountNo),
+            quarks: metadata.buyIn.quarks * UInt64(countOnNo),
             currencyCode: metadata.buyIn.currencyCode
         )
     }

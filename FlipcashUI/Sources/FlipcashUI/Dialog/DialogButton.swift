@@ -191,7 +191,7 @@ private extension DialogButton {
                 if isDisabled {
                     return .backgroundRow.opacity(0.6)
                 } else {
-                    return .textMain.opacity(0.6)
+                    return .textMain
                 }
                 
             case .subtle:

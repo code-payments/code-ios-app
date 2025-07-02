@@ -17,6 +17,7 @@ struct PoolDetailsScreen: View {
     @StateObject private var updateableBets: Updateable<[BetMetadata]>
     
     @State private var showingConfirmationForBetOutcome: BetOutcome?
+    @State private var showingDeclareOutcome: DeclaredOutcome?
     
     @State private var dialogItem: DialogItem?
     
@@ -52,6 +53,22 @@ struct PoolDetailsScreen: View {
         userBet != nil
     }
     
+    private var countOnYes: Int {
+        poolContainer?.countOnYes ?? 0
+    }
+    
+    private var countOnNo: Int {
+        poolContainer?.countOnNo ?? 0
+    }
+    
+    private var winningsForYes: Fiat {
+        poolContainer?.winningsForYes ?? 0
+    }
+    
+    private var winningsForNo: Fiat {
+        poolContainer?.winningsForNo ?? 0
+    }
+    
     private var amountOnYes: Fiat {
         poolContainer?.amountOnYes ?? 0
     }
@@ -62,6 +79,10 @@ struct PoolDetailsScreen: View {
     
     private var amountInPool: Fiat {
         poolContainer?.amountInPool ?? 0
+    }
+    
+    private var buyIn: Fiat {
+        poolContainer?.metadata.buyIn ?? 0
     }
     
     private var stateForYes: VoteButton.State {
@@ -214,13 +235,13 @@ struct PoolDetailsScreen: View {
                             dismissable: true,
                             actions: {
                                 .standard("Yes") {
-                                    
+                                    showingDeclareOutcome = .yes
                                 };
                                 .standard("No") {
-                                    
+                                    showingDeclareOutcome = .no
                                 };
                                 .outline("Tie (Refund Everyone)") {
-                                    
+                                    showingDeclareOutcome = .tie
                                 };
                                 .cancel()
                             }
@@ -270,6 +291,33 @@ struct PoolDetailsScreen: View {
                     showingConfirmationForBetOutcome = nil
                 }
             }
+        }
+        .sheet(item: $showingDeclareOutcome) { outcome in
+            PartialSheet {
+                ModalSwipeToDeclareWinner(
+                    outcome: outcome,
+                    amount: winningsForDeclaredOutcome(outcome),
+                    swipeText: "Swipe To Pay",
+                    cancelTitle: "Cancel"
+                ) {
+                    
+                } dismissAction: {
+                    showingDeclareOutcome = nil
+                } cancelAction: {
+                    showingDeclareOutcome = nil
+                }
+            }
+        }
+    }
+    
+    private func winningsForDeclaredOutcome(_ outcome: DeclaredOutcome) -> Fiat {
+        switch outcome {
+        case .yes:
+            winningsForYes
+        case .no:
+            winningsForNo
+        case .tie:
+            buyIn
         }
     }
     
@@ -374,7 +422,7 @@ private struct VoteButton: View {
             .background(
                 RoundedRectangle(cornerRadius: Metrics.boxRadius)
                     .fill(fillColor)
-                    .strokeBorder(strokeColor, lineWidth: Metrics.inputFieldBorderWidth(highlighted: false))
+                    .strokeBorder(strokeColor, lineWidth: 1)
             )
         }
     }
