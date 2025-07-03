@@ -30,10 +30,10 @@ struct EnterPoolAmountScreen: View {
             EnterAmountView(
                 mode: .currency,
                 enteredAmount: $viewModel.enteredPoolAmount,
-                subtitle: .custom("Pool buy in amount"),
+                subtitle: .singleTransactionLimit,
                 actionState: .constant(.normal),
                 actionEnabled: { _ in
-                    viewModel.enteredPoolFiat != nil
+                    viewModel.enteredPoolFiat != nil && (viewModel.enteredPoolFiat?.usdc.quarks ?? 0) > 0
                 },
                 action: viewModel.submitPoolAmountAction,
                 currencySelectionAction: showCurrencySelection
@@ -48,8 +48,9 @@ struct EnterPoolAmountScreen: View {
                 )
             }
         }
-        .navigationTitle("Set Entry Amount")
+        .navigationTitle("Cost to Join")
         .navigationBarTitleDisplayMode(.inline)
+        .dialog(item: $viewModel.dialogItem)
     }
     
     // MARK: - Actions -

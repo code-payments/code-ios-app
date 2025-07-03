@@ -37,6 +37,14 @@ public struct EnterAmountView: View {
         return balance
     }
     
+    private var maxTransactionAmount: Fiat {
+        guard let limit = session.singleTransactionLimit else {
+            return 0
+        }
+        
+        return limit
+    }
+    
     // MARK: - Init -
     
     init(
@@ -80,6 +88,12 @@ public struct EnterAmountView: View {
                     }
                     
                     switch subtitle {
+                    case .singleTransactionLimit:
+                        Text("Enter up to \(maxTransactionAmount.formatted(suffix: nil))")
+                            .fixedSize()
+                            .foregroundColor(.textSecondary)
+                            .font(.appTextMedium)
+                        
                     case .balanceWithLimits:
                         Text("Enter up to \(maxEnterAmount.formatted(suffix: nil))")
                             .fixedSize()
@@ -153,6 +167,7 @@ extension EnterAmountView {
 
 extension EnterAmountView {
     enum Subtitle {
+        case singleTransactionLimit
         case balanceWithLimits
         case custom(String)
     }

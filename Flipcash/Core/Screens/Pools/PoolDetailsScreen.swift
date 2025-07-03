@@ -170,7 +170,7 @@ struct PoolDetailsScreen: View {
                 )
                 .font(.appDisplayMedium)
                 
-                Text("in pool so far")
+                Text(hasResolution ? "was in pool" : "in pool so far")
                     .font(.appTextLarge)
                     .foregroundStyle(Color.textSecondary)
             }
@@ -268,7 +268,7 @@ struct PoolDetailsScreen: View {
                 ModalSwipeToDeclareWinner(
                     outcome: outcome,
                     amount: winningsForDeclaredOutcome(outcome),
-                    swipeText: "Swipe To Pay",
+                    swipeText: "Swipe To Confirm",
                     cancelTitle: "Cancel"
                 ) {
                     try await viewModel.declarOutcomeAction(
@@ -287,12 +287,6 @@ struct PoolDetailsScreen: View {
     
     @ViewBuilder private func bottomViewForResoultion(resolution: PoolResoltion) -> some View {
         VStack {
-            if resolution == .refund {
-                Text("Tie")
-                    .font(.appDisplaySmall)
-                    .foregroundStyle(Color.textMain)
-            }
-            
             Group {
                 switch resolution {
                 case .yes:

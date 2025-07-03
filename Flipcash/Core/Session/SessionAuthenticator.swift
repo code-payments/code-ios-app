@@ -154,6 +154,7 @@ final class SessionAuthenticator: ObservableObject {
         
         let poolViewModel = PoolViewModel(
             container: container,
+            session: session,
             ratesController: ratesController,
             poolController: poolController
         )

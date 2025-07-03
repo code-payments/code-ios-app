@@ -64,6 +64,20 @@ class Session: ObservableObject {
         return limit.nextTransaction
     }
     
+    var singleTransactionLimit: Fiat? {
+        guard let limits else {
+            return nil
+        }
+        
+        let rate = ratesController.rateForEntryCurrency()
+        
+        guard let limit = limits.sendLimitFor(currency: rate.currency) else {
+            return nil
+        }
+        
+        return limit.maxPerTransaction
+    }
+    
     var isShowingBill: Bool {
         billState.bill != nil
     }

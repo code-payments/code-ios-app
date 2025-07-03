@@ -33,12 +33,21 @@ class PoolViewModel: ObservableObject {
         }
     }
     
+    @Published var dialogItem: DialogItem?
+    
     var canCreatePool: Bool {
         isEnteredPoolNameValid && (enteredPoolFiat?.usdc ?? 0) > 0
     }
     
+    var enteredPoolNameSantized: String {
+        enteredPoolName
+            .replacingOccurrences(of: "\n", with: "")
+            .replacingOccurrences(of: "\r", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
     var isEnteredPoolNameValid: Bool {
-        enteredPoolName.count > 3
+        enteredPoolNameSantized.count > 3
     }
     
     var enteredPoolFiat: ExchangedFiat? {
@@ -70,13 +79,15 @@ class PoolViewModel: ObservableObject {
     }
     
     private let container: Container
+    private let session: Session
     private let ratesController: RatesController
     private let poolController: PoolController
     
     // MARK: - Init -
     
-    init(container: Container, ratesController: RatesController, poolController: PoolController) {
+    init(container: Container, session: Session, ratesController: RatesController, poolController: PoolController) {
         self.container       = container
+        self.session         = session
         self.ratesController = ratesController
         self.poolController  = poolController
     }
@@ -102,6 +113,15 @@ class PoolViewModel: ObservableObject {
     }
     
     func submitPoolAmountAction() {
+        guard let buyIn = enteredPoolFiat?.converted else {
+            return
+        }
+        
+        guard let limit = session.singleTransactionLimit, buyIn.quarks <= limit.quarks else {
+            showPoolCostTooHighError()
+            return
+        }
+        
         navigateToPoolSummary()
     }
     
@@ -114,7 +134,7 @@ class PoolViewModel: ObservableObject {
         Task {
             do {
                 try await poolController.createPool(
-                    name: enteredPoolName,
+                    name: enteredPoolNameSantized,
                     buyIn: buyIn
                 )
                 try await Task.delay(milliseconds: 250)
@@ -186,6 +206,19 @@ class PoolViewModel: ObservableObject {
     
     private func navigateToPoolDetails(poolID: PublicKey) {
         poolListPath.append(.poolDetails(poolID))
+    }
+    
+    // MARK: - Errors -
+    
+    private func showPoolCostTooHighError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Cost Limit Too High",
+            subtitle: "Your pool's cost to join is too high. Enter a smaller amount and try again.",
+            dismissable: true
+        ) {
+            .okay(kind: .standard)
+        }
     }
 }
 

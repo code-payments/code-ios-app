@@ -27,8 +27,8 @@ struct PoolSummaryScreen: View {
                 Spacer()
                 
                 VStack(spacing: 40) {
-                    Text(viewModel.enteredPoolName)
-                        .font(.appTextLarge)
+                    Text(viewModel.enteredPoolNameSantized)
+                        .font(.appTextXL)
                         .foregroundStyle(Color.textMain)
                     
                     if let poolBuyIn = viewModel.enteredPoolFiat?.converted {
@@ -42,7 +42,7 @@ struct PoolSummaryScreen: View {
                                 )
                                 .font(.appDisplayMedium)
                                 
-                                Text("Pool Buy In")
+                                Text("to join")
                                     .font(.appTextMedium)
                                     .foregroundStyle(Color.textSecondary)
                             }
@@ -64,7 +64,7 @@ struct PoolSummaryScreen: View {
                     CodeButton(
                         state: viewModel.createPoolButtonState,
                         style: .filled,
-                        title: "Create Pool",
+                        title: "Create a New Pool",
                         disabled: !viewModel.canCreatePool,
                         action: viewModel.createPoolAction
                     )

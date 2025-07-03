@@ -50,11 +50,11 @@ struct EnterPoolNameScreen: View {
                     VStack(spacing: 10) {
                         Text("Pose a Yes or No question")
                             .font(.appTextMedium)
-                            .foregroundStyle(Color.textMain)
-                        
-                        Text("\"Is Johnny going to hit a home run?\"")
-                            .font(.appTextSmall)
                             .foregroundStyle(Color.textSecondary)
+                        
+//                        Text("\"Is Johnny going to hit a home run?\"")
+//                            .font(.appTextSmall)
+//                            .foregroundStyle(Color.textSecondary)
                     }
                     .multilineTextAlignment(.center)
                     
@@ -74,7 +74,7 @@ struct EnterPoolNameScreen: View {
                 .padding(20)
             }
             .onAppear(perform: onAppear)
-            .navigationTitle("Create Pool")
+            .navigationTitle("Pose a Question")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
