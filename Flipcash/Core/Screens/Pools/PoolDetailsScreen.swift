@@ -333,6 +333,12 @@ struct PoolDetailsScreen: View {
         VStack(spacing: 0) {
             CodeButton(
                 style: .filled,
+                title: "Share Pool With Friends",
+                action: sharePoolAction
+            )
+            
+            CodeButton(
+                style: .subtle,
                 title: "Declare the Outcome"
             ) {
                 dialogItem = .init(
@@ -354,12 +360,6 @@ struct PoolDetailsScreen: View {
                     }
                 )
             }
-            
-            CodeButton(
-                style: .subtle,
-                title: "Share Pool With Friends",
-                action: sharePoolAction
-            )
         }
         .padding(.bottom, -20)
     }
