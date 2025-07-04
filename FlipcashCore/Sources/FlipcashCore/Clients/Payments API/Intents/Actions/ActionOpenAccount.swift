@@ -16,14 +16,18 @@ struct ActionOpenAccount: ActionType {
     var signer: KeyPair?
 
     let kind: AccountKind
+    let owner: PublicKey
     let cluster: AccountCluster
+    let derivationIndex: Int
     
     static let configCountRequirement: Int = 0
     
-    init(kind: AccountKind, cluster: AccountCluster) {
-        self.id      = 0
-        self.kind    = kind
-        self.cluster = cluster
+    init(kind: AccountKind, owner: PublicKey, cluster: AccountCluster, derivationIndex: Int) {
+        self.id              = 0
+        self.kind            = kind
+        self.owner           = owner
+        self.cluster         = cluster
+        self.derivationIndex = derivationIndex
     }
     
     func compactMessages() throws -> [CompactMessage] {
@@ -38,8 +42,8 @@ extension ActionOpenAccount {
         .with {
             $0.id = UInt32(id)
             $0.openAccount = .with {
-                $0.index              = 0
-                $0.owner              = cluster.authorityPublicKey.solanaAccountID
+                $0.index              = UInt64(derivationIndex)
+                $0.owner              = owner.solanaAccountID
                 $0.accountType        = kind.proto
                 $0.authority          = cluster.authorityPublicKey.solanaAccountID
                 $0.token              = cluster.vaultPublicKey.solanaAccountID

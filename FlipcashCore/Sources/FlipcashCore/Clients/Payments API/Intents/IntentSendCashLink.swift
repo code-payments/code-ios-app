@@ -27,7 +27,9 @@ final class IntentSendCashLink: IntentType {
         
         let openGiftCardAction = ActionOpenAccount(
             kind: .giftCard,
-            cluster: giftCard.cluster
+            owner: giftCard.cluster.authorityPublicKey,
+            cluster: giftCard.cluster,
+            derivationIndex: 0
         )
         
         let transferAction = ActionTransfer(

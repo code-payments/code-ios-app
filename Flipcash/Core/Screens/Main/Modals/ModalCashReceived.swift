@@ -39,6 +39,7 @@ public struct ModalCashReceived: View {
                 canScale: false
             )
             .font(.appDisplayMedium)
+            .foregroundStyle(Color.textMain)
             
             VStack {
                 CodeButton(

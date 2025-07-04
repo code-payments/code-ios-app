@@ -169,6 +169,7 @@ struct PoolDetailsScreen: View {
                     canScale: false
                 )
                 .font(.appDisplayMedium)
+                .foregroundStyle(Color.textMain)
                 
                 Text(hasResolution ? "was in pool" : "in pool so far")
                     .font(.appTextLarge)
@@ -215,13 +216,27 @@ struct PoolDetailsScreen: View {
                             .opacity(userBet?.selectedOutcome == .no ? 1 : 0)
                     }
                 }
-                
-                if !hasResolution && !hasUserBet {
-                    Text("Tap to buy in")
-                        .font(.appDisplayXS)
+            }
+            
+            Spacer()
+            
+            if !hasResolution && !hasUserBet {
+                VStack {
+                    Text("Tap Yes or No to buy in")
+                        .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
-                        .padding(.top, -20) // Offset for YouVotedBadge
+                    
+                    AmountText(
+                        flagStyle: buyIn.currencyCode.flagStyle,
+                        flagSize: .small,
+                        content: buyIn.formatted(suffix: nil),
+                        showChevron: false,
+                        canScale: false
+                    )
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
                 }
+                .padding(.top, -40) // Offset for YouVotedBadge
             }
             
             Spacer()

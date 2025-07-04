@@ -41,6 +41,7 @@ struct PoolSummaryScreen: View {
                                     canScale: false
                                 )
                                 .font(.appDisplayMedium)
+                                .foregroundStyle(Color.textMain)
                                 
                                 Text("to join")
                                     .font(.appTextMedium)

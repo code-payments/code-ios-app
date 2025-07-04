@@ -11,9 +11,9 @@ import Combine
 
 extension Client {
  
-    public func createAccounts(with owner: AccountCluster, kind: AccountKind) async throws {
+    public func createAccounts(owner: KeyPair, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int) async throws {
         _ = try await withCheckedThrowingContinuation { c in
-            transactionService.createAccounts(with: owner, kind: kind) { c.resume(with: $0) }
+            transactionService.createAccounts(owner: owner, cluster: cluster, kind: kind, derivationIndex: derivationIndex) { c.resume(with: $0) }
         }
     }
     

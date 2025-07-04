@@ -63,6 +63,7 @@ struct WithdrawSummaryScreen: View {
                                     canScale: false
                                 )
                                 .font(.appDisplayMedium)
+                                .foregroundStyle(Color.textMain)
                                 
                                 Spacer()
                                 

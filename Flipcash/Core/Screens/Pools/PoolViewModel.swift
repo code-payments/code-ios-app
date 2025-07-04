@@ -133,11 +133,13 @@ class PoolViewModel: ObservableObject {
         createPoolButtonState = .loading
         Task {
             do {
-                try await poolController.createPool(
+                let poolID = try await poolController.createPool(
                     name: enteredPoolNameSantized,
                     buyIn: buyIn
                 )
                 try await Task.delay(milliseconds: 250)
+                
+                navigateToPoolDetails(poolID: poolID)
                 
                 createPoolButtonState = .success
                 try await Task.delay(milliseconds: 250)

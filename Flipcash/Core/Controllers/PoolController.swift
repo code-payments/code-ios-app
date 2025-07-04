@@ -181,7 +181,7 @@ class PoolController: ObservableObject {
         return metadata
     }
     
-    func createPool(name: String, buyIn: Fiat) async throws {
+    func createPool(name: String, buyIn: Fiat) async throws -> PublicKey {
         let info = try await client.fetchAccountInfo(
             type: .primary,
             owner: ownerKeyPair
@@ -209,11 +209,14 @@ class PoolController: ObservableObject {
             resolution: nil
         )
         
-        // TODO: Create blockchain accounts
-//        try await client.createAccounts(
-//            with: poolAccount.cluster,
-//            kind: .pool
-//        )
+        // Create the blockchain accounts
+        // for this pool cluster
+        try await client.createAccounts(
+            owner: ownerKeyPair,
+            cluster: poolAccount.cluster,
+            kind: .pool,
+            derivationIndex: poolAccount.index
+        )
         
         // Create pool metadata
         try await flipClient.createPool(
@@ -227,6 +230,8 @@ class PoolController: ObservableObject {
             poolID: metadata.id,
             rendezvous: metadata.rendezvous
         )
+        
+        return metadata.id
     }
     
     @discardableResult

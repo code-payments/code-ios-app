@@ -20,15 +20,17 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Account Creation -
     
-    func createAccounts(with owner: AccountCluster, kind: AccountKind, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func createAccounts(owner: KeyPair, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         let intent = IntentCreateAccount(
-            owner: owner,
-            kind: kind
+            owner: owner.publicKey,
+            cluster: cluster,
+            kind: kind,
+            derivationIndex: derivationIndex
         )
         
-        submit(intent: intent, owner: owner.authority.keyPair) { result in
+        submit(intent: intent, owner: owner) { result in
             switch result {
             case .success(_):
                 trace(.success)

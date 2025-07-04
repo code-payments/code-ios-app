@@ -42,6 +42,7 @@ public struct ModalSwipeToBet: View {
                     content: fiat.formatted(suffix: nil)
                 )
                 .font(.appDisplayMedium)
+                .foregroundStyle(Color.textMain)
                 .padding(.top, 20)
                 
                 Text(subtext)

@@ -225,8 +225,10 @@ final class SessionAuthenticator: ObservableObject {
             // Create VM accounts first, this is a no-op
             // if the accounts have been previously created
             try await client.createAccounts(
-                with: cluster,
-                kind: .primary
+                owner: cluster.authority.keyPair,
+                cluster: cluster,
+                kind: .primary,
+                derivationIndex: 0
             )
             
             if isRegistration {
