@@ -262,12 +262,8 @@ struct PoolDetailsScreen: View {
                     swipeText: "Swipe To Pay",
                     cancelTitle: "Cancel"
                 ) {
-                    guard let rendezvous = pool.rendezvous else {
-                        return
-                    }
-                    
                     try await viewModel.betAction(
-                        rendezvous: rendezvous,
+                        poolMetadata: pool,
                         outcome: outcome
                     )
                     

@@ -18,19 +18,23 @@ class PoolController: ObservableObject {
     private let flipClient: FlipClient
     private let database: Database
     
+    private let ratesController: RatesController
+    
     private var ownerKeyPair: KeyPair {
         owner.authority.keyPair
     }
     
     // MARK: - Init -
     
-    init(container: Container, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID, database: Database) {
+    init(container: Container, ratesController: RatesController, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID, database: Database) {
         self.keyAccount = keyAccount
         self.owner      = owner
         self.userID     = userID
         self.client     = container.client
         self.flipClient = container.flipClient
         self.database   = database
+        
+        self.ratesController = ratesController
         
         Task {
             try await syncPools()
@@ -79,8 +83,8 @@ class PoolController: ObservableObject {
         if !pools.isEmpty {
             try database.transaction {
                 for pool in pools {
-                    try $0.insertPool(metadata: pool.metadata, additionalInfo: pool.additionalInfo)
-                    try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets.map { $0.metadata })
+                    try $0.insertPool(pool: pool)
+                    try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets)
                 }
             }
             
@@ -174,8 +178,8 @@ class PoolController: ObservableObject {
         }
         
         try database.transaction {
-            try $0.insertPool(metadata: metadata, additionalInfo: pool.additionalInfo)
-            try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets.map { $0.metadata })
+            try $0.insertPool(pool: pool)
+            try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets)
         }
         
         return metadata
@@ -235,34 +239,58 @@ class PoolController: ObservableObject {
     }
     
     @discardableResult
-    func createBet(poolRendezvous: KeyPair, outcome: PoolResoltion) async throws -> BetMetadata {
-        let poolID = poolRendezvous.publicKey
+    func createBet(poolMetadata: PoolMetadata, outcome: PoolResoltion) async throws -> BetMetadata {
+        let poolID = poolMetadata.id
         
+        // Bet IDs are always deterministically derived
+        // so any subsequent payment attempts use the
+        // same betID (ie. retries, etc)
         let betKeyPair = KeyPair.deriveBetID(
             poolID: poolID,
             userID: userID
         )
         
+        let betID = betKeyPair.publicKey
+        
+        // 1. Create the bet on the server before
+        // the payment is made
         let metadata = BetMetadata(
-            id: betKeyPair.publicKey,
+            id: betID,
             userID: userID,
             payoutDestination: owner.vaultPublicKey,
             betDate: .now,
             selectedOutcome: outcome
         )
         
+        guard let rendezvous = poolMetadata.rendezvous else {
+            throw Error.poolRendezvousMissing
+        }
+        
         try await flipClient.createBet(
-            poolRendezvous: poolRendezvous,
+            poolRendezvous: rendezvous,
             betMetadata: metadata,
             owner: ownerKeyPair
         )
         
-        // TODO: Pay for bet
+        // 2. Get the current conversion rate
+        // and pay for the bet buyIn
+        guard let rate = ratesController.rate(for: poolMetadata.buyIn.currencyCode) else {
+            throw Error.exchangeRateUnavailable
+        }
         
-        // TODO: Fulfill bet in database
-//        try database.transaction {
-//            try $0.setBetFulfilled(betID: betID)
-//        }
+        let exchangedFiat = try ExchangedFiat(
+            converted: poolMetadata.buyIn,
+            rate: rate
+        )
+        
+        // 3. Pay for the bet. Any failure here can
+        // be retried with the existing bet ID
+        try await client.transfer(
+            exchangedFiat: exchangedFiat,
+            owner: owner,
+            destination: poolMetadata.fundingAccount,
+            rendezvous: betID // NOT the pool rendezvous, it's the intentID
+        )
         
         _ = try? await updatePool(poolID: poolID)
         
@@ -311,6 +339,8 @@ class PoolController: ObservableObject {
 extension PoolController {
     enum Error: Swift.Error {
         case nextPoolIndexNotFound
+        case exchangeRateUnavailable
+        case poolRendezvousMissing
     }
 }
 
@@ -319,6 +349,7 @@ extension PoolController {
 extension PoolController {
     static let mock = PoolController(
         container: .mock,
+        ratesController: .mock,
         keyAccount: .mock,
         owner: .mock,
         userID: UUID(),

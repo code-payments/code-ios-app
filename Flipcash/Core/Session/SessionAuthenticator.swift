@@ -146,6 +146,7 @@ final class SessionAuthenticator: ObservableObject {
         
         let poolController = PoolController(
             container: container,
+            ratesController: ratesController,
             keyAccount: initializedAccount.keyAccount,
             owner: owner,
             userID: initializedAccount.userID,

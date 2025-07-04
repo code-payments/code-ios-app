@@ -162,9 +162,9 @@ class PoolViewModel: ObservableObject {
         navigateToPoolDetails(poolID: poolID)
     }
     
-    func betAction(rendezvous: KeyPair, outcome: PoolResoltion) async throws {
+    func betAction(poolMetadata: PoolMetadata, outcome: PoolResoltion) async throws {
         try await poolController.createBet(
-            poolRendezvous: rendezvous,
+            poolMetadata: poolMetadata,
             outcome: outcome
         )
     }

@@ -12,10 +12,12 @@ public struct BetDescription: Sendable, Equatable, Hashable {
     
     public let metadata: BetMetadata
     public let signature: Signature
+    public let isFulfilled: Bool
     
-    public init(metadata: BetMetadata, signature: Signature) {
-        self.metadata  = metadata
-        self.signature = signature
+    public init(metadata: BetMetadata, signature: Signature, isFulfilled: Bool) {
+        self.metadata    = metadata
+        self.signature   = signature
+        self.isFulfilled = isFulfilled
     }
 }
 
@@ -60,7 +62,8 @@ extension BetDescription {
         
         self.init(
             metadata: try BetMetadata(proto.verifiedMetadata),
-            signature: signature
+            signature: signature,
+            isFulfilled: proto.isIntentSubmitted
         )
     }
 }

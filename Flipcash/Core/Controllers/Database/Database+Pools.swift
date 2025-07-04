@@ -156,7 +156,10 @@ extension Database {
     
     // MARK: - Insert Pools -
     
-    func insertPool(metadata: PoolMetadata, additionalInfo: PoolInfo) throws {
+    func insertPool(pool: PoolDescription) throws {
+        let metadata       = pool.metadata
+        let additionalInfo = pool.additionalInfo
+        
         let t = PoolTable()
         var setters: [Setter] = [
             t.id             <- metadata.id,
@@ -233,13 +236,14 @@ extension Database {
     
     // MARK: - Insert Bets -
     
-    func insertBets(poolID: PublicKey, bets: [BetMetadata]) throws {
+    func insertBets(poolID: PublicKey, bets: [BetDescription]) throws {
         try bets.forEach {
-            try insertBet(poolID: poolID, metadata: $0)
+            try insertBet(poolID: poolID, bet: $0)
         }
     }
     
-    func insertBet(poolID: PublicKey, metadata: BetMetadata) throws {
+    func insertBet(poolID: PublicKey, bet: BetDescription) throws {
+        let metadata = bet.metadata
         let t = BetTable()
         let setters: [Setter] = [
             t.id                <- metadata.id,
@@ -248,7 +252,7 @@ extension Database {
             t.payoutDestination <- metadata.payoutDestination,
             t.betDate           <- metadata.betDate,
             t.selectedOutcome   <- metadata.selectedOutcome.intValue,
-            t.isFulfilled       <- false,
+            t.isFulfilled       <- bet.isFulfilled,
         ]
         
         try writer.run(
