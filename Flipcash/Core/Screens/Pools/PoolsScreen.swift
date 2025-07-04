@@ -13,14 +13,14 @@ struct PoolsScreen: View {
     
     @ObservedObject private var viewModel: PoolViewModel
     
-    @StateObject private var updateablePools: Updateable<[PoolContainer]>
+    @StateObject private var updateablePools: Updateable<[StoredPool]>
     
     private let container: Container
     private let sessionContainer: SessionContainer
     private let session: Session
     private let database: Database
     
-    private var pools: [PoolContainer] {
+    private var pools: [StoredPool] {
         updateablePools.value
     }
     
@@ -131,8 +131,8 @@ struct PoolsScreen: View {
     }
     
     @ViewBuilder private func list() -> some View {
-        let openPools      = pools.filter { $0.metadata.resolution == nil }
-        let completedPools = pools.filter { $0.metadata.resolution != nil }
+        let openPools      = pools.filter { $0.resolution == nil }
+        let completedPools = pools.filter { $0.resolution != nil }
         GeometryReader { g in
             List {
                 if !openPools.isEmpty {
@@ -154,10 +154,10 @@ struct PoolsScreen: View {
         }
     }
     
-    @ViewBuilder private func section(name: String, pools: [PoolContainer]) -> some View {
+    @ViewBuilder private func section(name: String, pools: [StoredPool]) -> some View {
         Section {
-            ForEach(pools) { poolContainer in
-                row(poolContainer: poolContainer)
+            ForEach(pools) { pool in
+                row(pool: pool)
             }
         } header: {
             Text(name)
@@ -173,8 +173,7 @@ struct PoolsScreen: View {
         .listRowSeparatorTint(.rowSeparator)
     }
     
-    @ViewBuilder private func row(poolContainer: PoolContainer) -> some View {
-        let pool = poolContainer.metadata
+    @ViewBuilder private func row(pool: StoredPool) -> some View {
         let isHost = pool.creatorUserID == session.userID
         
         Button {
@@ -215,7 +214,7 @@ struct PoolsScreen: View {
                                         .fill(Color.white.opacity(0.11))
                                 }
                             
-                            if let payout = poolContainer.winningPayout {
+                            if let payout = pool.winningPayout {
                                 HStack(spacing: 5) {
                                     Image.system(.trophy)
                                         .font(.appTextHeading)
@@ -232,7 +231,7 @@ struct PoolsScreen: View {
                             }
                             
                         } else {
-                            Text("\(poolContainer.amountInPool.formatted(suffix: nil)) in pool so far")
+                            Text("\(pool.amountInPool.formatted(suffix: nil)) in pool so far")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                         }
@@ -258,11 +257,5 @@ extension PoolResoltion {
         case .no:     return "No"
         case .refund: return "Tie"
         }
-    }
-}
-
-extension KeyPair: Identifiable {
-    public var id: PublicKey {
-        publicKey
     }
 }

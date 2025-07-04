@@ -13,7 +13,7 @@ extension Database {
     
     // MARK: - Get Pool -
     
-    func getPool(poolID: PublicKey) throws -> PoolContainer? {
+    func getPool(poolID: PublicKey) throws -> StoredPool? {
         let statement = try reader.prepareRowIterator("""
         SELECT
             p.id,
@@ -45,35 +45,33 @@ extension Database {
                 rendezvous = KeyPair(seed: seed)
             }
             
-            return PoolContainer(
-                metadata: PoolMetadata(
-                    id:             row[t.id],
-                    rendezvous:     rendezvous,
-                    fundingAccount: row[t.fundingAccount],
-                    creatorUserID:  row[t.creatorUserID],
-                    creationDate:   row[t.creationDate],
-                    closedDate:     row[t.closedDate],
-                    isOpen:         row[t.isOpen],
-                    name:           row[t.name],
-                    buyIn: Fiat(
-                        quarks:       row[t.buyInQuarks],
-                        currencyCode: row[t.buyInCurrency]
-                    ),
-                    resolution: row[t.resolution]
+            return StoredPool(
+                id:             row[t.id],
+                fundingAccount: row[t.fundingAccount],
+                creatorUserID:  row[t.creatorUserID],
+                creationDate:   row[t.creationDate],
+                name:           row[t.name],
+                buyIn: Fiat(
+                    quarks:       row[t.buyInQuarks],
+                    currencyCode: row[t.buyInCurrency]
                 ),
-                info: PoolInfo(
-                    betCountYes:                     row[t.betsCountYes],
-                    betCountNo:                      row[t.betsCountNo],
-                    derivationIndex:                 row[t.derivationIndex],
-                    isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
-                )
+                
+                isOpen:         row[t.isOpen],
+                closedDate:     row[t.closedDate],
+                rendezvous:     rendezvous,
+                resolution: row[t.resolution],
+                
+                betCountYes:                     row[t.betsCountYes],
+                betCountNo:                      row[t.betsCountNo],
+                derivationIndex:                 row[t.derivationIndex],
+                isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
             )
         }
         
         return pools.first
     }
     
-    func getPools() throws -> [PoolContainer] {
+    func getPools() throws -> [StoredPool] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             p.id,
@@ -105,28 +103,26 @@ extension Database {
                 rendezvous = KeyPair(seed: seed)
             }
             
-            return PoolContainer(
-                metadata: PoolMetadata(
-                    id:             row[t.id],
-                    rendezvous:     rendezvous,
-                    fundingAccount: row[t.fundingAccount],
-                    creatorUserID:  row[t.creatorUserID],
-                    creationDate:   row[t.creationDate],
-                    closedDate:     row[t.closedDate],
-                    isOpen:         row[t.isOpen],
-                    name:           row[t.name],
-                    buyIn: Fiat(
-                        quarks:       row[t.buyInQuarks],
-                        currencyCode: row[t.buyInCurrency]
-                    ),
-                    resolution: row[t.resolution]
+            return StoredPool(
+                id:             row[t.id],
+                fundingAccount: row[t.fundingAccount],
+                creatorUserID:  row[t.creatorUserID],
+                creationDate:   row[t.creationDate],
+                name:           row[t.name],
+                buyIn: Fiat(
+                    quarks:       row[t.buyInQuarks],
+                    currencyCode: row[t.buyInCurrency]
                 ),
-                info: PoolInfo(
-                    betCountYes:                     row[t.betsCountYes],
-                    betCountNo:                      row[t.betsCountNo],
-                    derivationIndex:                 row[t.derivationIndex],
-                    isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
-                )
+                
+                isOpen:         row[t.isOpen],
+                closedDate:     row[t.closedDate],
+                rendezvous:     rendezvous,
+                resolution: row[t.resolution],
+                
+                betCountYes:                     row[t.betsCountYes],
+                betCountNo:                      row[t.betsCountNo],
+                derivationIndex:                 row[t.derivationIndex],
+                isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
             )
         }
         
@@ -268,96 +264,6 @@ extension Database {
             t.table
                 .filter(t.id == betID)
                 .update(t.isFulfilled <- true)
-        )
-    }
-}
-
-// MARK: - Models -
-
-struct StoredBet: Identifiable, Sendable, Equatable, Hashable {
-    let id: PublicKey
-    let userID: UserID
-    let payoutDestination: PublicKey
-    let betDate: Date
-    let selectedOutcome: PoolResoltion
-    
-    let isFulfilled: Bool
-    
-    init(id: PublicKey, userID: UserID, payoutDestination: PublicKey, betDate: Date, selectedOutcome: PoolResoltion, isFulfilled: Bool) {
-        self.id = id
-        self.userID = userID
-        self.payoutDestination = payoutDestination
-        self.betDate = betDate
-        self.selectedOutcome = selectedOutcome
-        self.isFulfilled = isFulfilled
-    }
-}
-
-struct PoolContainer: Identifiable, Sendable, Equatable, Hashable {
-    
-    let metadata: PoolMetadata
-    let info: PoolInfo
-    
-    var id: PublicKey {
-        metadata.id
-    }
-    
-    var amountInPool: Fiat {
-        Fiat(
-            quarks: metadata.buyIn.quarks * UInt64(info.betCountYes + info.betCountNo),
-            currencyCode: metadata.buyIn.currencyCode
-        )
-    }
-    
-    var countOnYes: Int {
-        info.betCountYes
-    }
-    
-    var countOnNo: Int {
-        info.betCountNo
-    }
-    
-    var winningsForYes: Fiat? {
-        guard countOnYes > 0 else { return nil }
-        return Fiat(
-            quarks: amountInPool.quarks / UInt64(countOnYes),
-            currencyCode: metadata.buyIn.currencyCode
-        )
-    }
-    
-    var winningsForNo: Fiat? {
-        guard countOnNo > 0 else { return nil }
-        return Fiat(
-            quarks: amountInPool.quarks / UInt64(countOnNo),
-            currencyCode: metadata.buyIn.currencyCode
-        )
-    }
-    
-    var winningPayout: Fiat? {
-        if let resolution = metadata.resolution {
-            switch resolution {
-            case .yes:
-                return winningsForYes
-            case .no:
-                return winningsForNo
-            case .refund:
-                return metadata.buyIn
-            }
-        }
-        return nil
-    }
-    
-    var amountOnYes: Fiat {
-        Fiat(
-            quarks: metadata.buyIn.quarks * UInt64(countOnYes),
-            currencyCode: metadata.buyIn.currencyCode
-        )
-    }
-    
-    var amountOnNo: Fiat {
-        Fiat(
-            quarks: metadata.buyIn.quarks * UInt64(countOnNo),
-            currencyCode: metadata.buyIn.currencyCode
         )
     }
 }

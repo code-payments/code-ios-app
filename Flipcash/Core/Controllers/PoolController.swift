@@ -239,8 +239,8 @@ class PoolController: ObservableObject {
     }
     
     @discardableResult
-    func createBet(poolMetadata: PoolMetadata, outcome: PoolResoltion) async throws -> BetMetadata {
-        let poolID = poolMetadata.id
+    func createBet(pool: StoredPool, outcome: PoolResoltion) async throws -> BetMetadata {
+        let poolID = pool.id
         
         // Bet IDs are always deterministically derived
         // so any subsequent payment attempts use the
@@ -262,7 +262,7 @@ class PoolController: ObservableObject {
             selectedOutcome: outcome
         )
         
-        guard let rendezvous = poolMetadata.rendezvous else {
+        guard let rendezvous = pool.rendezvous else {
             throw Error.poolRendezvousMissing
         }
         
@@ -274,12 +274,12 @@ class PoolController: ObservableObject {
         
         // 2. Get the current conversion rate
         // and pay for the bet buyIn
-        guard let rate = ratesController.rate(for: poolMetadata.buyIn.currencyCode) else {
+        guard let rate = ratesController.rate(for: pool.buyIn.currencyCode) else {
             throw Error.exchangeRateUnavailable
         }
         
         let exchangedFiat = try ExchangedFiat(
-            converted: poolMetadata.buyIn,
+            converted: pool.buyIn,
             rate: rate
         )
         
@@ -288,7 +288,7 @@ class PoolController: ObservableObject {
         try await client.transfer(
             exchangedFiat: exchangedFiat,
             owner: owner,
-            destination: poolMetadata.fundingAccount,
+            destination: pool.fundingAccount,
             rendezvous: betID // NOT the pool rendezvous, it's the intentID
         )
         
@@ -297,40 +297,26 @@ class PoolController: ObservableObject {
         return metadata
     }
     
-    func declareOutcome(poolMetadata: PoolMetadata, outcome: PoolResoltion) async throws {
-        
-        var updatedMetadata = poolMetadata
-        if poolMetadata.isOpen {
-            updatedMetadata.isOpen     = false
-            updatedMetadata.closedDate = .now
+    func declareOutcome(pool: StoredPool, outcome: PoolResoltion) async throws {
+        let closingMetadata = pool.metadataToClose(resolution: outcome)
+        if pool.isOpen {
             
             // First, close voting on the pool
             try await flipClient.closePool(
-                poolMetadata: updatedMetadata,
+                poolMetadata: closingMetadata,
                 owner: ownerKeyPair
             )
         }
         
-//        try await flipClient.fetchPool(poolID: updatedMetadata.id)
-        
-
-        
-        // After closing, the pool rendezvous signature
-        // was updated so we need to update our local
-        // pool metadata
-//        let closedPool = try await updatePool(poolID: poolMetadata.id)
-        
-        updatedMetadata.resolution = outcome
-        
         // Declare the pool outcome
         try await flipClient.resolvePool(
-            poolMetadata: updatedMetadata,
+            poolMetadata: closingMetadata,
             owner: ownerKeyPair
         )
         
         // After the pool is resolved, it is updated so
         // so we'll need to refresh local pool metadata
-        try await updatePool(poolID: poolMetadata.id)
+        try await updatePool(poolID: pool.id)
     }
 }
 

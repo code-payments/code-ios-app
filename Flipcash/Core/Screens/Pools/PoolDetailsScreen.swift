@@ -13,7 +13,7 @@ struct PoolDetailsScreen: View {
     
     @ObservedObject private var viewModel: PoolViewModel
     
-    @StateObject private var updateablePool: Updateable<PoolContainer?>
+    @StateObject private var updateablePool: Updateable<StoredPool?>
     @StateObject private var updateableBets: Updateable<[StoredBet]>
     
     @State private var showingConfirmationForBetOutcome: PoolResoltion?
@@ -25,16 +25,8 @@ struct PoolDetailsScreen: View {
     private let poolID: PublicKey
     private let database: Database
     
-    private var poolContainer: PoolContainer? {
+    private var pool: StoredPool? {
         updateablePool.value
-    }
-    
-    private var pool: PoolMetadata? {
-        poolContainer?.metadata
-    }
-    
-    private var poolInfo: PoolInfo? {
-        poolContainer?.info
     }
     
     private var bets: [StoredBet] {
@@ -61,35 +53,35 @@ struct PoolDetailsScreen: View {
     }
     
     private var countOnYes: Int {
-        poolContainer?.countOnYes ?? 0
+        pool?.betCountYes ?? 0
     }
     
     private var countOnNo: Int {
-        poolContainer?.countOnNo ?? 0
+        pool?.betCountNo ?? 0
     }
     
     private var winningsForYes: Fiat {
-        poolContainer?.winningsForYes ?? 0
+        pool?.winningsForYes ?? 0
     }
     
     private var winningsForNo: Fiat {
-        poolContainer?.winningsForNo ?? 0
+        pool?.winningsForNo ?? 0
     }
     
     private var amountOnYes: Fiat {
-        poolContainer?.amountOnYes ?? 0
+        pool?.amountOnYes ?? 0
     }
     
     private var amountOnNo: Fiat {
-        poolContainer?.amountOnNo ?? 0
+        pool?.amountOnNo ?? 0
     }
     
     private var amountInPool: Fiat {
-        poolContainer?.amountInPool ?? 0
+        pool?.amountInPool ?? 0
     }
     
     private var buyIn: Fiat {
-        poolContainer?.metadata.buyIn ?? 0
+        pool?.buyIn ?? 0
     }
     
     private var stateForYes: VoteButton.State {
@@ -154,7 +146,7 @@ struct PoolDetailsScreen: View {
         .dialog(item: $dialogItem)
     }
     
-    @ViewBuilder private func poolDetails(pool: PoolMetadata) -> some View {
+    @ViewBuilder private func poolDetails(pool: StoredPool) -> some View {
         VStack {
             Spacer()
             
@@ -266,7 +258,7 @@ struct PoolDetailsScreen: View {
                     cancelTitle: "Cancel"
                 ) {
                     try await viewModel.betAction(
-                        poolMetadata: pool,
+                        pool: pool,
                         outcome: outcome
                     )
                     
@@ -286,7 +278,7 @@ struct PoolDetailsScreen: View {
                     cancelTitle: "Cancel"
                 ) {
                     try await viewModel.declarOutcomeAction(
-                        poolMetadata: pool,
+                        pool: pool,
                         outcome: outcome
                     )
                     
@@ -318,7 +310,7 @@ struct PoolDetailsScreen: View {
         Spacer()
     }
     
-    @ViewBuilder private func bottomView(pool: PoolMetadata) -> some View {
+    @ViewBuilder private func bottomView(pool: StoredPool) -> some View {
         VStack(spacing: 25) {
             Text("The person who created the pool gets to decide the outcome of the pool in their sole discretion")
                 .font(.appTextSmall)
