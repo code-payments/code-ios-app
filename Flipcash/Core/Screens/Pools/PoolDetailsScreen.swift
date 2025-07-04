@@ -14,7 +14,7 @@ struct PoolDetailsScreen: View {
     @ObservedObject private var viewModel: PoolViewModel
     
     @StateObject private var updateablePool: Updateable<PoolContainer?>
-    @StateObject private var updateableBets: Updateable<[BetMetadata]>
+    @StateObject private var updateableBets: Updateable<[StoredBet]>
     
     @State private var showingConfirmationForBetOutcome: PoolResoltion?
     @State private var showingDeclareOutcome: PoolResoltion?
@@ -37,7 +37,7 @@ struct PoolDetailsScreen: View {
         poolContainer?.info
     }
     
-    private var bets: [BetMetadata] {
+    private var bets: [StoredBet] {
         updateableBets.value
     }
     
@@ -49,8 +49,11 @@ struct PoolDetailsScreen: View {
         pool?.resolution != nil
     }
     
-    private var userBet: BetMetadata? {
-        bets.filter { $0.userID == userID }.first
+    private var userBet: StoredBet? {
+        // Disregard existing user bets that
+        // are not fulfilled. Subsequent bet
+        // will replace existing ones
+        bets.filter { $0.isFulfilled && $0.userID == userID }.first
     }
     
     private var hasUserBet: Bool {

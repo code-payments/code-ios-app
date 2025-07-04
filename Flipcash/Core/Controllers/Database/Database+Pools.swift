@@ -206,14 +206,15 @@ extension Database {
     
     // MARK: - Get Bets -
 
-    func getBets(poolID: PublicKey) throws -> [BetMetadata] {
+    func getBets(poolID: PublicKey) throws -> [StoredBet] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             b.id,
             b.userID,
             b.payoutDestination,
             b.betDate,
-            b.selectedOutcome
+            b.selectedOutcome,
+            b.isFulfilled
         FROM
             bet b
         WHERE b.poolID = ?;
@@ -222,12 +223,13 @@ extension Database {
         let t = BetTable()
         
         let pools = try statement.map { row in
-            BetMetadata(
-                id: row[t.id],
-                userID: row[t.userID],
+            StoredBet(
+                id:                row[t.id],
+                userID:            row[t.userID],
                 payoutDestination: row[t.payoutDestination],
-                betDate: row[t.betDate],
-                selectedOutcome: row[t.selectedOutcome] == 1 ? .yes : .no
+                betDate:           row[t.betDate],
+                selectedOutcome:   row[t.selectedOutcome] == 1 ? .yes : .no,
+                isFulfilled:       row[t.isFulfilled]
             )
         }
         
@@ -267,6 +269,27 @@ extension Database {
                 .filter(t.id == betID)
                 .update(t.isFulfilled <- true)
         )
+    }
+}
+
+// MARK: - Models -
+
+struct StoredBet: Identifiable, Sendable, Equatable, Hashable {
+    let id: PublicKey
+    let userID: UserID
+    let payoutDestination: PublicKey
+    let betDate: Date
+    let selectedOutcome: PoolResoltion
+    
+    let isFulfilled: Bool
+    
+    init(id: PublicKey, userID: UserID, payoutDestination: PublicKey, betDate: Date, selectedOutcome: PoolResoltion, isFulfilled: Bool) {
+        self.id = id
+        self.userID = userID
+        self.payoutDestination = payoutDestination
+        self.betDate = betDate
+        self.selectedOutcome = selectedOutcome
+        self.isFulfilled = isFulfilled
     }
 }
 
