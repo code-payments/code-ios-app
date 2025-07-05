@@ -174,14 +174,12 @@ struct PoolsScreen: View {
     }
     
     @ViewBuilder private func row(pool: StoredPool) -> some View {
-        let isHost = pool.creatorUserID == session.userID
-        
         Button {
             viewModel.selectPoolAction(poolID: pool.id)
         } label: {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 5) {
-                    if isHost {
+                    if pool.isHost {
                         HStack(spacing: 5) {
                             Image.system(.person)
                                 .font(.appTextSmall)
@@ -204,30 +202,10 @@ struct PoolsScreen: View {
                         }
                         
                         if let resolution = pool.resolution {
-                            Text("Result: \(resolution.name)")
-                                .font(.appTextSmall)
-                                .foregroundStyle(Color.textMain.opacity(0.5))
-                                .padding(.horizontal, 6)
-                                .frame(height: 26)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .fill(Color.white.opacity(0.11))
-                                }
+                            ResolutionBadge(resolution: resolution)
                             
-                            if pool.resolution != .refund, let payout = pool.payout {
-                                HStack(spacing: 5) {
-                                    Image.system(.trophy)
-                                        .font(.appTextHeading)
-                                    Text(payout.formatted(suffix: nil))
-                                        .font(.appTextSmall)
-                                }
-                                .padding(.horizontal, 6)
-                                .frame(height: 26)
-                                .foregroundStyle(Color(r: 115, g: 234, b: 164))
-                                .background {
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .fill(Color(r: 44, g: 77, b: 54))
-                                }
+                            if case .won(let amount) = pool.userOutcome {
+                                WinBadge(amount: amount)
                             }
                             
                         } else {
@@ -247,6 +225,56 @@ struct PoolsScreen: View {
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)
         .padding(.vertical, 15)
+    }
+}
+
+// MARK: - ResolutionBadge -
+
+struct ResolutionBadge: View {
+    
+    let resolution: PoolResoltion
+    
+    init(resolution: PoolResoltion) {
+        self.resolution = resolution
+    }
+    
+    var body: some View {
+        Text("Result: \(resolution.name)")
+            .font(.appTextSmall)
+            .foregroundStyle(Color.textMain.opacity(0.5))
+            .padding(.horizontal, 6)
+            .frame(height: 26)
+            .background {
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.white.opacity(0.11))
+            }
+    }
+}
+
+// MARK: - WinBadge -
+
+struct WinBadge: View {
+    
+    let amount: Fiat
+    
+    init(amount: Fiat) {
+        self.amount = amount
+    }
+    
+    var body: some View {
+        HStack(spacing: 5) {
+            Image.system(.trophy)
+                .font(.appTextHeading)
+            Text(amount.formatted(suffix: nil))
+                .font(.appTextSmall)
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 26)
+        .foregroundStyle(Color(r: 115, g: 234, b: 164))
+        .background {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color(r: 44, g: 77, b: 54))
+        }
     }
 }
 

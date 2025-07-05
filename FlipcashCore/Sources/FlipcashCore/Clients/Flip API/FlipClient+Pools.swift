@@ -15,9 +15,9 @@ extension FlipClient {
         }
     }
     
-    public func fetchPool(poolID: PublicKey) async throws -> PoolDescription {
+    public func fetchPool(poolID: PublicKey, owner: KeyPair) async throws -> PoolDescription {
         try await withCheckedThrowingContinuation { c in
-            poolService.fetchPool(poolID: poolID) { c.resume(with: $0) }
+            poolService.fetchPool(poolID: poolID, owner: owner) { c.resume(with: $0) }
         }
     }
     

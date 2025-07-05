@@ -48,11 +48,12 @@ class PoolService: CodeService<Flipcash_Pool_V1_PoolNIOClient> {
         }
     }
     
-    func fetchPool(poolID: PublicKey, completion: @Sendable @escaping (Result<PoolDescription, Error>) -> Void) {
+    func fetchPool(poolID: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<PoolDescription, Error>) -> Void) {
         trace(.send, components: "Pool ID: \(poolID.base58)")
         
         let request = Flipcash_Pool_V1_GetPoolRequest.with {
             $0.id = .with { $0.value = poolID.data }
+            $0.auth = owner.authFor(message: $0)
         }
         
         let call = service.getPool(request)
@@ -245,6 +246,7 @@ public enum ErrorCreatePool: Int, Error {
     case ok
     case rendezvousExists
     case fundingDestinationExists
+    case denied
     case unknown = -1
     case poolMetadataMissingRendezvous = -2
 }
@@ -273,6 +275,7 @@ public enum ErrorCreateBet: Int, Error {
     case poolClosed
     case multipleBets
     case maxBetsReceived
+    case betOutcomeSolidified
     case unknown = -1
 }
 

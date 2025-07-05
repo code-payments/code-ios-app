@@ -52,6 +52,7 @@ struct PoolTable: Sendable {
     let creationDate                    = Expression <Date>           ("creationDate")
     let closedDate                      = Expression <Date?>          ("closedDate")
     let isOpen                          = Expression <Bool>           ("isOpen")
+    let isHost                          = Expression <Bool>           ("isHost")
     let name                            = Expression <String>         ("name")
     let buyInQuarks                     = Expression <UInt64>         ("buyInQuarks")
     let buyInCurrency                   = Expression <CurrencyCode>   ("buyInCurrency")
@@ -61,6 +62,9 @@ struct PoolTable: Sendable {
     let betsCountNo                     = Expression <Int>            ("betsCountNo")
     let derivationIndex                 = Expression <Int>            ("derivationIndex")
     let isFundingDestinationInitialized = Expression <Bool>           ("isFundingDestinationInitialized")
+    let userOutcome                     = Expression <Int>            ("userOutcome")
+    let userOutcomeQuarks               = Expression <UInt64>         ("userOutcomeQuarks")
+    let userOutcomeCurrency             = Expression <CurrencyCode>   ("userOutcomeCurrency")
 }
 
 struct BetTable: Sendable {
@@ -135,6 +139,7 @@ extension Database {
                 t.column(poolTable.creationDate)
                 t.column(poolTable.closedDate)
                 t.column(poolTable.isOpen)
+                t.column(poolTable.isHost)
                 t.column(poolTable.name)
                 t.column(poolTable.buyInQuarks)
                 t.column(poolTable.buyInCurrency)
@@ -145,6 +150,9 @@ extension Database {
                 t.column(poolTable.betsCountNo)
                 t.column(poolTable.derivationIndex)
                 t.column(poolTable.isFundingDestinationInitialized)
+                t.column(poolTable.userOutcome)
+                t.column(poolTable.userOutcomeQuarks)
+                t.column(poolTable.userOutcomeCurrency)
             })
         }
         

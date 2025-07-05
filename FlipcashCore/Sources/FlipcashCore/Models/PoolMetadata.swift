@@ -30,12 +30,14 @@ public struct PoolInfo: Sendable, Equatable, Hashable {
     public let betCountNo: Int
     public let derivationIndex: Int
     public let isFundingDestinationInitialized: Bool
+    public let userOutcome: UserOutcome
     
-    public init(betCountYes: Int, betCountNo: Int, derivationIndex: Int, isFundingDestinationInitialized: Bool) {
+    public init(betCountYes: Int, betCountNo: Int, derivationIndex: Int, isFundingDestinationInitialized: Bool, userOutcome: UserOutcome) {
         self.betCountYes = betCountYes
         self.betCountNo = betCountNo
         self.derivationIndex = derivationIndex
         self.isFundingDestinationInitialized = isFundingDestinationInitialized
+        self.userOutcome = userOutcome
     }
 }
 
@@ -64,6 +66,47 @@ public struct PoolMetadata: Identifiable, Sendable, Equatable, Hashable {
         self.name = name
         self.buyIn = buyIn
         self.resolution = resolution
+    }
+}
+
+public enum UserOutcome: Sendable, Equatable, Hashable {
+    
+    case none
+    case won(Fiat)
+    case lost(Fiat)
+    case refunded(Fiat)
+    
+    public init(intValue: Int, amount: Fiat?) {
+        switch intValue {
+        case 0:
+            self = .none
+        case 1:
+            self = .won(amount!)
+        case 2:
+            self = .lost(amount!)
+        case 3:
+            self = .refunded(amount!)
+        default:
+            fatalError("Invalid UserOutcome value")
+        }
+    }
+    
+    public var intValue: Int {
+        switch self {
+        case .none:     return 0
+        case .won:      return 1
+        case .lost:     return 2
+        case .refunded: return 3
+        }
+    }
+    
+    public var amount: Fiat? {
+        switch self {
+        case .none:            return nil
+        case .won(let a):      return a
+        case .lost(let a):     return a
+        case .refunded(let a): return a
+        }
     }
 }
 
@@ -135,6 +178,43 @@ extension PoolResoltion {
     }
 }
 
+extension UserOutcome {
+    init(_ proto: Flipcash_Pool_V1_UserPoolSummary) throws {
+        guard let outcome = proto.outcome else {
+            self = .none
+            return
+        }
+        
+        switch outcome {
+        case .none:
+            self = .none
+        case .win(let result):
+            self = .won(
+                try Fiat(
+                    fiatDecimal: Decimal(result.amountWon.nativeAmount),
+                    currencyCode: try CurrencyCode(currencyCode: result.amountWon.currency)
+                )
+            )
+            
+        case .lose(let result):
+            self = .lost(
+                try Fiat(
+                    fiatDecimal: Decimal(result.amountLost.nativeAmount),
+                    currencyCode: try CurrencyCode(currencyCode: result.amountLost.currency)
+                )
+            )
+            
+        case .refund(let result):
+            self = .refunded(
+                try Fiat(
+                    fiatDecimal: Decimal(result.amountRefunded.nativeAmount),
+                    currencyCode: try CurrencyCode(currencyCode: result.amountRefunded.currency)
+                )
+            )
+        }
+    }
+}
+
 extension PoolDescription {
     init(_ proto: Flipcash_Pool_V1_PoolMetadata) throws {
         guard let signature = Signature(proto.rendezvousSignature.value) else {
@@ -153,7 +233,8 @@ extension PoolDescription {
                 betCountYes: Int(proto.betSummary.booleanSummary.numYes),
                 betCountNo: Int(proto.betSummary.booleanSummary.numNo),
                 derivationIndex: Int(proto.derivationIndex),
-                isFundingDestinationInitialized: proto.isFundingDestinationInitialized
+                isFundingDestinationInitialized: proto.isFundingDestinationInitialized,
+                userOutcome: try UserOutcome(proto.userSummary)
             )
         )
     }

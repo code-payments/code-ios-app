@@ -33,10 +33,6 @@ struct PoolDetailsScreen: View {
         updateableBets.value
     }
     
-    private var isHost: Bool {
-        pool?.creatorUserID == userID
-    }
-    
     private var hasResolution: Bool {
         pool?.resolution != nil
     }
@@ -235,7 +231,7 @@ struct PoolDetailsScreen: View {
             if let resolution = pool.resolution {
                 bottomViewForResoultion(pool: pool, resolution: resolution)
             } else {
-                if isHost {
+                if pool.isHost {
                     bottomViewForHost()
                 } else {
                     bottomView(pool: pool)

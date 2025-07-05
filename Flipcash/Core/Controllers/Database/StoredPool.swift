@@ -18,6 +18,7 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
     public let buyIn: Fiat
 
     public var isOpen: Bool
+    public var isHost: Bool
     public var closedDate: Date?
     public var rendezvous: KeyPair?
     public var resolution: PoolResoltion?
@@ -26,6 +27,7 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
     public let betCountNo: Int
     public let derivationIndex: Int
     public let isFundingDestinationInitialized: Bool
+    public let userOutcome: UserOutcome
     
     var amountInPool: Fiat {
         Fiat(

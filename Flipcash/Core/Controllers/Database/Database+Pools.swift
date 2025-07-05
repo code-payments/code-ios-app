@@ -22,6 +22,7 @@ extension Database {
             p.creationDate,
             p.closedDate,
             p.isOpen,
+            p.isHost,
             p.name,
             p.buyInQuarks,
             p.buyInCurrency,
@@ -31,7 +32,10 @@ extension Database {
             p.betsCountYes,
             p.betsCountNo,
             p.derivationIndex,
-            p.isFundingDestinationInitialized
+            p.isFundingDestinationInitialized,
+            p.userOutcome,
+            p.userOutcomeQuarks,
+            p.userOutcomeCurrency
         FROM pool p
         WHERE p.id = ?
         LIMIT 1;
@@ -57,18 +61,37 @@ extension Database {
                 ),
                 
                 isOpen:         row[t.isOpen],
+                isHost:         row[t.isHost],
                 closedDate:     row[t.closedDate],
                 rendezvous:     rendezvous,
-                resolution: row[t.resolution],
+                resolution:     row[t.resolution],
                 
                 betCountYes:                     row[t.betsCountYes],
                 betCountNo:                      row[t.betsCountNo],
                 derivationIndex:                 row[t.derivationIndex],
-                isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
+                isFundingDestinationInitialized: row[t.isFundingDestinationInitialized],
+                userOutcome:                     userOutcome(for: row, t: t)
             )
         }
         
         return pools.first
+    }
+    
+    private func userOutcome(for row: RowIterator.Element, t: PoolTable) -> UserOutcome {
+        let userOutcomeInt = row[t.userOutcome]
+        
+        let userOutcome: UserOutcome
+        if userOutcomeInt != UserOutcome.none.intValue {
+            let amount = Fiat(
+                quarks:       row[t.userOutcomeQuarks],
+                currencyCode: row[t.userOutcomeCurrency]
+            )
+            userOutcome = UserOutcome(intValue: userOutcomeInt, amount: amount)
+        } else {
+            userOutcome = .none
+        }
+        
+        return userOutcome
     }
     
     func getPools() throws -> [StoredPool] {
@@ -80,6 +103,7 @@ extension Database {
             p.creationDate,
             p.closedDate,
             p.isOpen,
+            p.isHost,
             p.name,
             p.buyInQuarks,
             p.buyInCurrency,
@@ -89,7 +113,10 @@ extension Database {
             p.betsCountYes,
             p.betsCountNo,
             p.derivationIndex,
-            p.isFundingDestinationInitialized
+            p.isFundingDestinationInitialized,
+            p.userOutcome,
+            p.userOutcomeQuarks,
+            p.userOutcomeCurrency
         FROM pool p
         ORDER BY p.creationDate DESC
         LIMIT 1024;
@@ -115,6 +142,7 @@ extension Database {
                 ),
                 
                 isOpen:         row[t.isOpen],
+                isHost:         row[t.isHost],
                 closedDate:     row[t.closedDate],
                 rendezvous:     rendezvous,
                 resolution: row[t.resolution],
@@ -122,14 +150,15 @@ extension Database {
                 betCountYes:                     row[t.betsCountYes],
                 betCountNo:                      row[t.betsCountNo],
                 derivationIndex:                 row[t.derivationIndex],
-                isFundingDestinationInitialized: row[t.isFundingDestinationInitialized]
+                isFundingDestinationInitialized: row[t.isFundingDestinationInitialized],
+                userOutcome:                     userOutcome(for: row, t: t)
             )
         }
         
         return pools
     }
     
-    func getHostedPoolsWithoutRendezvousKeys(hostID: UUID) throws -> [(PublicKey, Int)] {
+    func getHostedPoolsWithoutRendezvousKeys() throws -> [(PublicKey, Int)] {
         let statement = try reader.prepareRowIterator("""
         SELECT
             p.id,
@@ -137,9 +166,9 @@ extension Database {
         FROM
             pool p
         WHERE
-            creatorUserID = ? AND rendezvousSeed IS NULL
+            p.isHost AND p.rendezvousSeed IS NULL
         LIMIT 1024;
-        """, bindings: hostID.uuidString)
+        """)
         
         let t = PoolTable()
         
@@ -152,7 +181,7 @@ extension Database {
     
     // MARK: - Insert Pools -
     
-    func insertPool(pool: PoolDescription, rendezvous: KeyPair?) throws {
+    func insertPool(pool: PoolDescription, rendezvous: KeyPair?, currentUserID: UserID) throws {
         let metadata       = pool.metadata
         let additionalInfo = pool.additionalInfo
         
@@ -164,6 +193,7 @@ extension Database {
             t.creationDate   <- metadata.creationDate,
             t.closedDate     <- metadata.closedDate,
             t.isOpen         <- metadata.isOpen,
+            t.isHost         <- currentUserID == metadata.creatorUserID,
             t.name           <- metadata.name,
             t.buyInQuarks    <- metadata.buyIn.quarks,
             t.buyInCurrency  <- metadata.buyIn.currencyCode,
@@ -172,7 +202,15 @@ extension Database {
             t.betsCountNo                     <- additionalInfo.betCountNo,
             t.derivationIndex                 <- additionalInfo.derivationIndex,
             t.isFundingDestinationInitialized <- additionalInfo.isFundingDestinationInitialized,
+            t.userOutcome                     <- additionalInfo.userOutcome.intValue,
         ]
+        
+        if let outcomeAmount = additionalInfo.userOutcome.amount {
+            setters.append(contentsOf: [
+                t.userOutcomeQuarks   <- outcomeAmount.quarks,
+                t.userOutcomeCurrency <- outcomeAmount.currencyCode,
+            ])
+        }
         
         if let resolution = metadata.resolution {
             setters.append(

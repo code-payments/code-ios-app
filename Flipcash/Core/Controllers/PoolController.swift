@@ -83,7 +83,7 @@ class PoolController: ObservableObject {
         if !pools.isEmpty {
             try database.transaction {
                 for pool in pools {
-                    try $0.insertPool(pool: pool, rendezvous: nil)
+                    try $0.insertPool(pool: pool, rendezvous: nil, currentUserID: userID)
                     try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets)
                 }
             }
@@ -95,7 +95,7 @@ class PoolController: ObservableObject {
     }
     
     private func deriveMissingRendezvousKeys() throws {
-        guard let keysAndIndexes = try? database.getHostedPoolsWithoutRendezvousKeys(hostID: userID), !keysAndIndexes.isEmpty else {
+        guard let keysAndIndexes = try? database.getHostedPoolsWithoutRendezvousKeys(), !keysAndIndexes.isEmpty else {
             print("[PoolController] Rendezvous keys up-to-date")
             return
         }
@@ -166,13 +166,11 @@ class PoolController: ObservableObject {
     
     // MARK: - Pools -
     
-    // TODO: Insert pool from link
-    
     func updatePool(poolID: PublicKey, rendezvous: KeyPair? = nil) async throws {
-        let pool = try await flipClient.fetchPool(poolID: poolID)
+        let pool = try await flipClient.fetchPool(poolID: poolID, owner: ownerKeyPair)
         
         try database.transaction {
-            try $0.insertPool(pool: pool, rendezvous: rendezvous)
+            try $0.insertPool(pool: pool, rendezvous: rendezvous, currentUserID: userID)
             try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets)
         }
     }
