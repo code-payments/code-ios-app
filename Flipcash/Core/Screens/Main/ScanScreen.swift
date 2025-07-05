@@ -344,23 +344,21 @@ struct ScanScreen: View {
                 )
             }
             
-            if betaFlags.hasEnabled(.pools) {
-                LargeButton(
-                    title: "Pools",
-                    image: .asset(.pools),
-                    spacing: 12,
-                    maxWidth: 80,
-                    maxHeight: 80,
-                    fullWidth: true,
-                    aligment: .bottom,
-                    binding: $poolViewModel.isShowingPoolList
+            LargeButton(
+                title: "Pools",
+                image: .asset(.pools),
+                spacing: 12,
+                maxWidth: 80,
+                maxHeight: 80,
+                fullWidth: true,
+                aligment: .bottom,
+                binding: $poolViewModel.isShowingPoolList
+            )
+            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
+                PoolsScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
                 )
-                .sheet(isPresented: $poolViewModel.isShowingPoolList) {
-                    PoolsScreen(
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
-                }
             }
         }
         .padding(.bottom, 10)
