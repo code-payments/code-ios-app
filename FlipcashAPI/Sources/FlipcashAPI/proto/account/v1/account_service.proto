@@ -67,6 +67,12 @@ message GetTokenAccountInfosRequest {
     //
     // This must be set when requesting_owner is present.
     common.v1.Signature requesting_owner_signature = 4;
+
+    // Filter to apply to limit response sizes
+    oneof Filter {
+        common.v1.SolanaAccountId filter_by_token_address = 10;
+        common.v1.AccountType     filter_by_account_type  = 11;
+    }
 }
 
 message GetTokenAccountInfosResponse {

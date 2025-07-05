@@ -75,6 +75,7 @@ public struct Flipcash_Pool_V1_CreatePoolResponse {
     case ok // = 0
     case rendezvousExists // = 1
     case fundingDestinationExists // = 2
+    case denied // = 3
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -86,6 +87,7 @@ public struct Flipcash_Pool_V1_CreatePoolResponse {
       case 0: self = .ok
       case 1: self = .rendezvousExists
       case 2: self = .fundingDestinationExists
+      case 3: self = .denied
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -95,6 +97,7 @@ public struct Flipcash_Pool_V1_CreatePoolResponse {
       case .ok: return 0
       case .rendezvousExists: return 1
       case .fundingDestinationExists: return 2
+      case .denied: return 3
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -112,6 +115,7 @@ extension Flipcash_Pool_V1_CreatePoolResponse.Result: CaseIterable {
     .ok,
     .rendezvousExists,
     .fundingDestinationExists,
+    .denied,
   ]
 }
 
@@ -133,11 +137,22 @@ public struct Flipcash_Pool_V1_GetPoolRequest {
 
   public var excludeBets: Bool = false
 
+  /// Optional auth to include user-specific pool metadata
+  public var auth: Flipcash_Common_V1_Auth {
+    get {return _auth ?? Flipcash_Common_V1_Auth()}
+    set {_auth = newValue}
+  }
+  /// Returns true if `auth` has been explicitly set.
+  public var hasAuth: Bool {return self._auth != nil}
+  /// Clears the value of `auth`. Subsequent reads from it will return its default value.
+  public mutating func clearAuth() {self._auth = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _id: Flipcash_Pool_V1_PoolId? = nil
+  fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
 }
 
 public struct Flipcash_Pool_V1_GetPoolResponse {
@@ -577,6 +592,7 @@ public struct Flipcash_Pool_V1_MakeBetResponse {
     case poolClosed // = 2
     case multipleBets // = 3
     case maxBetsReceived // = 4
+    case betOutcomeSolidified // = 5
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -590,6 +606,7 @@ public struct Flipcash_Pool_V1_MakeBetResponse {
       case 2: self = .poolClosed
       case 3: self = .multipleBets
       case 4: self = .maxBetsReceived
+      case 5: self = .betOutcomeSolidified
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -601,6 +618,7 @@ public struct Flipcash_Pool_V1_MakeBetResponse {
       case .poolClosed: return 2
       case .multipleBets: return 3
       case .maxBetsReceived: return 4
+      case .betOutcomeSolidified: return 5
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -620,6 +638,7 @@ extension Flipcash_Pool_V1_MakeBetResponse.Result: CaseIterable {
     .poolClosed,
     .multipleBets,
     .maxBetsReceived,
+    .betOutcomeSolidified,
   ]
 }
 
@@ -735,6 +754,7 @@ extension Flipcash_Pool_V1_CreatePoolResponse.Result: SwiftProtobuf._ProtoNamePr
     0: .same(proto: "OK"),
     1: .same(proto: "RENDEZVOUS_EXISTS"),
     2: .same(proto: "FUNDING_DESTINATION_EXISTS"),
+    3: .same(proto: "DENIED"),
   ]
 }
 
@@ -743,6 +763,7 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "id"),
     2: .standard(proto: "exclude_bets"),
+    3: .same(proto: "auth"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -753,6 +774,7 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.excludeBets) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
       default: break
       }
     }
@@ -769,12 +791,16 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
     if self.excludeBets != false {
       try visitor.visitSingularBoolField(value: self.excludeBets, fieldNumber: 2)
     }
+    try { if let v = self._auth {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Pool_V1_GetPoolRequest, rhs: Flipcash_Pool_V1_GetPoolRequest) -> Bool {
     if lhs._id != rhs._id {return false}
     if lhs.excludeBets != rhs.excludeBets {return false}
+    if lhs._auth != rhs._auth {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1199,5 +1225,6 @@ extension Flipcash_Pool_V1_MakeBetResponse.Result: SwiftProtobuf._ProtoNameProvi
     2: .same(proto: "POOL_CLOSED"),
     3: .same(proto: "MULTIPLE_BETS"),
     4: .same(proto: "MAX_BETS_RECEIVED"),
+    5: .same(proto: "BET_OUTCOME_SOLIDIFIED"),
   ]
 }

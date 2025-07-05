@@ -73,10 +73,10 @@ message UsdcPaymentAmount {
     string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3,4}$" }];
 
     // The amount in the native currency that was paid
-    double native_amount = 2 [(validate.rules).double.gt = 0];
+    double native_amount = 2 [(validate.rules).double.gte = 0];
 
     // The amount in quarks of USDC that was paid
-    uint64 quarks = 3 [(validate.rules).uint64.gt = 0];
+    uint64 quarks = 3;
 }
 
 // FiatPaymentAmount defines an amount of fiat
@@ -85,7 +85,7 @@ message FiatPaymentAmount {
     string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3,4}$" }];
 
     // The amount in the native currency that was paid
-    double native_amount = 2 [(validate.rules).double.gt = 0];
+    double native_amount = 2 [(validate.rules).double.gte = 0];
 }
 
 message PagingToken {

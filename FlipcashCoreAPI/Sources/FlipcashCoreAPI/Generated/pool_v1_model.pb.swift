@@ -236,6 +236,17 @@ public struct Flipcash_Pool_V1_PoolMetadata {
   /// Clears the value of `betSummary`. Subsequent reads from it will return its default value.
   public mutating func clearBetSummary() {_uniqueStorage()._betSummary = nil}
 
+  /// User-specific summary data related to this pool. This is provided against
+  /// authenticated RPCs
+  public var userSummary: Flipcash_Pool_V1_UserPoolSummary {
+    get {return _storage._userSummary ?? Flipcash_Pool_V1_UserPoolSummary()}
+    set {_uniqueStorage()._userSummary = newValue}
+  }
+  /// Returns true if `userSummary` has been explicitly set.
+  public var hasUserSummary: Bool {return _storage._userSummary != nil}
+  /// Clears the value of `userSummary`. Subsequent reads from it will return its default value.
+  public mutating func clearUserSummary() {_uniqueStorage()._userSummary = nil}
+
   /// Paging token specific to each user that enables access to paging APIs
   public var pagingToken: Flipcash_Common_V1_PagingToken {
     get {return _storage._pagingToken ?? Flipcash_Common_V1_PagingToken()}
@@ -329,7 +340,7 @@ public struct Flipcash_Pool_V1_BetSummary {
 
   public var kind: Flipcash_Pool_V1_BetSummary.OneOf_Kind? = nil
 
-  /// The yes/no outcome the user has bet against
+  /// The yes/no outcome users have bet in the pool
   public var booleanSummary: Flipcash_Pool_V1_BetSummary.BooleanBetSummary {
     get {
       if case .booleanSummary(let v)? = kind {return v}
@@ -338,10 +349,20 @@ public struct Flipcash_Pool_V1_BetSummary {
     set {kind = .booleanSummary(newValue)}
   }
 
+  /// The total fiat paid for bets against the pool
+  public var totalAmountBet: Flipcash_Common_V1_FiatPaymentAmount {
+    get {return _totalAmountBet ?? Flipcash_Common_V1_FiatPaymentAmount()}
+    set {_totalAmountBet = newValue}
+  }
+  /// Returns true if `totalAmountBet` has been explicitly set.
+  public var hasTotalAmountBet: Bool {return self._totalAmountBet != nil}
+  /// Clears the value of `totalAmountBet`. Subsequent reads from it will return its default value.
+  public mutating func clearTotalAmountBet() {self._totalAmountBet = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Kind: Equatable {
-    /// The yes/no outcome the user has bet against
+    /// The yes/no outcome users have bet in the pool
     case booleanSummary(Flipcash_Pool_V1_BetSummary.BooleanBetSummary)
 
   #if !swift(>=4.1)
@@ -371,6 +392,165 @@ public struct Flipcash_Pool_V1_BetSummary {
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public init() {}
+  }
+
+  public init() {}
+
+  fileprivate var _totalAmountBet: Flipcash_Common_V1_FiatPaymentAmount? = nil
+}
+
+public struct Flipcash_Pool_V1_UserPoolSummary {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The outcome for the user for a pool
+  public var outcome: Flipcash_Pool_V1_UserPoolSummary.OneOf_Outcome? = nil
+
+  public var none: Flipcash_Pool_V1_UserPoolSummary.NoOutcome {
+    get {
+      if case .none(let v)? = outcome {return v}
+      return Flipcash_Pool_V1_UserPoolSummary.NoOutcome()
+    }
+    set {outcome = .none(newValue)}
+  }
+
+  public var win: Flipcash_Pool_V1_UserPoolSummary.WinOutcome {
+    get {
+      if case .win(let v)? = outcome {return v}
+      return Flipcash_Pool_V1_UserPoolSummary.WinOutcome()
+    }
+    set {outcome = .win(newValue)}
+  }
+
+  public var lose: Flipcash_Pool_V1_UserPoolSummary.LoseOutcome {
+    get {
+      if case .lose(let v)? = outcome {return v}
+      return Flipcash_Pool_V1_UserPoolSummary.LoseOutcome()
+    }
+    set {outcome = .lose(newValue)}
+  }
+
+  public var refund: Flipcash_Pool_V1_UserPoolSummary.RefundOutcome {
+    get {
+      if case .refund(let v)? = outcome {return v}
+      return Flipcash_Pool_V1_UserPoolSummary.RefundOutcome()
+    }
+    set {outcome = .refund(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  /// The outcome for the user for a pool
+  public enum OneOf_Outcome: Equatable {
+    case none(Flipcash_Pool_V1_UserPoolSummary.NoOutcome)
+    case win(Flipcash_Pool_V1_UserPoolSummary.WinOutcome)
+    case lose(Flipcash_Pool_V1_UserPoolSummary.LoseOutcome)
+    case refund(Flipcash_Pool_V1_UserPoolSummary.RefundOutcome)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipcash_Pool_V1_UserPoolSummary.OneOf_Outcome, rhs: Flipcash_Pool_V1_UserPoolSummary.OneOf_Outcome) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.none, .none): return {
+        guard case .none(let l) = lhs, case .none(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.win, .win): return {
+        guard case .win(let l) = lhs, case .win(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.lose, .lose): return {
+        guard case .lose(let l) = lhs, case .lose(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.refund, .refund): return {
+        guard case .refund(let l) = lhs, case .refund(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
+      }
+    }
+  #endif
+  }
+
+  /// Pool isn't resolved, so no user outcome is available
+  public struct NoOutcome {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  /// User is a winner in the pool
+  public struct WinOutcome {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var amountWon: Flipcash_Common_V1_FiatPaymentAmount {
+      get {return _amountWon ?? Flipcash_Common_V1_FiatPaymentAmount()}
+      set {_amountWon = newValue}
+    }
+    /// Returns true if `amountWon` has been explicitly set.
+    public var hasAmountWon: Bool {return self._amountWon != nil}
+    /// Clears the value of `amountWon`. Subsequent reads from it will return its default value.
+    public mutating func clearAmountWon() {self._amountWon = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _amountWon: Flipcash_Common_V1_FiatPaymentAmount? = nil
+  }
+
+  /// User is a loser in the pool
+  public struct LoseOutcome {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var amountLost: Flipcash_Common_V1_FiatPaymentAmount {
+      get {return _amountLost ?? Flipcash_Common_V1_FiatPaymentAmount()}
+      set {_amountLost = newValue}
+    }
+    /// Returns true if `amountLost` has been explicitly set.
+    public var hasAmountLost: Bool {return self._amountLost != nil}
+    /// Clears the value of `amountLost`. Subsequent reads from it will return its default value.
+    public mutating func clearAmountLost() {self._amountLost = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _amountLost: Flipcash_Common_V1_FiatPaymentAmount? = nil
+  }
+
+  /// User was refunded
+  public struct RefundOutcome {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var amountRefunded: Flipcash_Common_V1_FiatPaymentAmount {
+      get {return _amountRefunded ?? Flipcash_Common_V1_FiatPaymentAmount()}
+      set {_amountRefunded = newValue}
+    }
+    /// Returns true if `amountRefunded` has been explicitly set.
+    public var hasAmountRefunded: Bool {return self._amountRefunded != nil}
+    /// Clears the value of `amountRefunded`. Subsequent reads from it will return its default value.
+    public mutating func clearAmountRefunded() {self._amountRefunded = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _amountRefunded: Flipcash_Common_V1_FiatPaymentAmount? = nil
   }
 
   public init() {}
@@ -492,6 +672,12 @@ extension Flipcash_Pool_V1_BetOutcome.OneOf_Kind: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetSummary: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetSummary.OneOf_Kind: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetSummary.BooleanBetSummary: @unchecked Sendable {}
+extension Flipcash_Pool_V1_UserPoolSummary: @unchecked Sendable {}
+extension Flipcash_Pool_V1_UserPoolSummary.OneOf_Outcome: @unchecked Sendable {}
+extension Flipcash_Pool_V1_UserPoolSummary.NoOutcome: @unchecked Sendable {}
+extension Flipcash_Pool_V1_UserPoolSummary.WinOutcome: @unchecked Sendable {}
+extension Flipcash_Pool_V1_UserPoolSummary.LoseOutcome: @unchecked Sendable {}
+extension Flipcash_Pool_V1_UserPoolSummary.RefundOutcome: @unchecked Sendable {}
 extension Flipcash_Pool_V1_SignedBetMetadata: @unchecked Sendable {}
 extension Flipcash_Pool_V1_BetMetadata: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
@@ -707,6 +893,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
     2: .standard(proto: "rendezvous_signature"),
     3: .same(proto: "bets"),
     7: .standard(proto: "bet_summary"),
+    8: .standard(proto: "user_summary"),
     4: .standard(proto: "paging_token"),
     5: .standard(proto: "is_funding_destination_initialized"),
     6: .standard(proto: "derivation_index"),
@@ -717,6 +904,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
     var _rendezvousSignature: Flipcash_Common_V1_Signature? = nil
     var _bets: [Flipcash_Pool_V1_BetMetadata] = []
     var _betSummary: Flipcash_Pool_V1_BetSummary? = nil
+    var _userSummary: Flipcash_Pool_V1_UserPoolSummary? = nil
     var _pagingToken: Flipcash_Common_V1_PagingToken? = nil
     var _isFundingDestinationInitialized: Bool = false
     var _derivationIndex: UInt64 = 0
@@ -738,6 +926,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
       _rendezvousSignature = source._rendezvousSignature
       _bets = source._bets
       _betSummary = source._betSummary
+      _userSummary = source._userSummary
       _pagingToken = source._pagingToken
       _isFundingDestinationInitialized = source._isFundingDestinationInitialized
       _derivationIndex = source._derivationIndex
@@ -766,6 +955,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
         case 5: try { try decoder.decodeSingularBoolField(value: &_storage._isFundingDestinationInitialized) }()
         case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._derivationIndex) }()
         case 7: try { try decoder.decodeSingularMessageField(value: &_storage._betSummary) }()
+        case 8: try { try decoder.decodeSingularMessageField(value: &_storage._userSummary) }()
         default: break
         }
       }
@@ -799,6 +989,9 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
       try { if let v = _storage._betSummary {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
       } }()
+      try { if let v = _storage._userSummary {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -812,6 +1005,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
         if _storage._rendezvousSignature != rhs_storage._rendezvousSignature {return false}
         if _storage._bets != rhs_storage._bets {return false}
         if _storage._betSummary != rhs_storage._betSummary {return false}
+        if _storage._userSummary != rhs_storage._userSummary {return false}
         if _storage._pagingToken != rhs_storage._pagingToken {return false}
         if _storage._isFundingDestinationInitialized != rhs_storage._isFundingDestinationInitialized {return false}
         if _storage._derivationIndex != rhs_storage._derivationIndex {return false}
@@ -903,6 +1097,7 @@ extension Flipcash_Pool_V1_BetSummary: SwiftProtobuf.Message, SwiftProtobuf._Mes
   public static let protoMessageName: String = _protobuf_package + ".BetSummary"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "boolean_summary"),
+    10: .standard(proto: "total_amount_bet"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -924,6 +1119,7 @@ extension Flipcash_Pool_V1_BetSummary: SwiftProtobuf.Message, SwiftProtobuf._Mes
           self.kind = .booleanSummary(v)
         }
       }()
+      case 10: try { try decoder.decodeSingularMessageField(value: &self._totalAmountBet) }()
       default: break
       }
     }
@@ -937,11 +1133,15 @@ extension Flipcash_Pool_V1_BetSummary: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try { if case .booleanSummary(let v)? = self.kind {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    try { if let v = self._totalAmountBet {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Pool_V1_BetSummary, rhs: Flipcash_Pool_V1_BetSummary) -> Bool {
     if lhs.kind != rhs.kind {return false}
+    if lhs._totalAmountBet != rhs._totalAmountBet {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -980,6 +1180,239 @@ extension Flipcash_Pool_V1_BetSummary.BooleanBetSummary: SwiftProtobuf.Message, 
   public static func ==(lhs: Flipcash_Pool_V1_BetSummary.BooleanBetSummary, rhs: Flipcash_Pool_V1_BetSummary.BooleanBetSummary) -> Bool {
     if lhs.numYes != rhs.numYes {return false}
     if lhs.numNo != rhs.numNo {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_UserPoolSummary: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".UserPoolSummary"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "none"),
+    2: .same(proto: "win"),
+    3: .same(proto: "lose"),
+    4: .same(proto: "refund"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Pool_V1_UserPoolSummary.NoOutcome?
+        var hadOneofValue = false
+        if let current = self.outcome {
+          hadOneofValue = true
+          if case .none(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.outcome = .none(v)
+        }
+      }()
+      case 2: try {
+        var v: Flipcash_Pool_V1_UserPoolSummary.WinOutcome?
+        var hadOneofValue = false
+        if let current = self.outcome {
+          hadOneofValue = true
+          if case .win(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.outcome = .win(v)
+        }
+      }()
+      case 3: try {
+        var v: Flipcash_Pool_V1_UserPoolSummary.LoseOutcome?
+        var hadOneofValue = false
+        if let current = self.outcome {
+          hadOneofValue = true
+          if case .lose(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.outcome = .lose(v)
+        }
+      }()
+      case 4: try {
+        var v: Flipcash_Pool_V1_UserPoolSummary.RefundOutcome?
+        var hadOneofValue = false
+        if let current = self.outcome {
+          hadOneofValue = true
+          if case .refund(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.outcome = .refund(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.outcome {
+    case .none?: try {
+      guard case .none(let v)? = self.outcome else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .win?: try {
+      guard case .win(let v)? = self.outcome else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case .lose?: try {
+      guard case .lose(let v)? = self.outcome else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
+    case .refund?: try {
+      guard case .refund(let v)? = self.outcome else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_UserPoolSummary, rhs: Flipcash_Pool_V1_UserPoolSummary) -> Bool {
+    if lhs.outcome != rhs.outcome {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_UserPoolSummary.NoOutcome: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Pool_V1_UserPoolSummary.protoMessageName + ".NoOutcome"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let _ = try decoder.nextFieldNumber() {
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_UserPoolSummary.NoOutcome, rhs: Flipcash_Pool_V1_UserPoolSummary.NoOutcome) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_UserPoolSummary.WinOutcome: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Pool_V1_UserPoolSummary.protoMessageName + ".WinOutcome"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "amount_won"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._amountWon) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._amountWon {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_UserPoolSummary.WinOutcome, rhs: Flipcash_Pool_V1_UserPoolSummary.WinOutcome) -> Bool {
+    if lhs._amountWon != rhs._amountWon {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_UserPoolSummary.LoseOutcome: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Pool_V1_UserPoolSummary.protoMessageName + ".LoseOutcome"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "amount_lost"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._amountLost) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._amountLost {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_UserPoolSummary.LoseOutcome, rhs: Flipcash_Pool_V1_UserPoolSummary.LoseOutcome) -> Bool {
+    if lhs._amountLost != rhs._amountLost {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Pool_V1_UserPoolSummary.RefundOutcome: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Pool_V1_UserPoolSummary.protoMessageName + ".RefundOutcome"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "amount_refunded"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._amountRefunded) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._amountRefunded {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Pool_V1_UserPoolSummary.RefundOutcome, rhs: Flipcash_Pool_V1_UserPoolSummary.RefundOutcome) -> Bool {
+    if lhs._amountRefunded != rhs._amountRefunded {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

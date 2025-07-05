@@ -37,6 +37,8 @@ service Pool {
     //  1. Intent ID == Bet.id
     //  2. Payment amount == PoolMetadata.buy_in
     //  3. Payment destination == PoolMetadata.funding_destination
+    // Bets can be changed as long as payment has not been received. Clients must
+    // use the same Bet ID when updating their bet.
     rpc MakeBet(MakeBetRequest) returns (MakeBetResponse);
 }
 
@@ -54,6 +56,7 @@ message CreatePoolResponse {
         OK                         = 0;
         RENDEZVOUS_EXISTS          = 1;
         FUNDING_DESTINATION_EXISTS = 2;
+        DENIED                     = 3;
     }
 }
 
@@ -61,6 +64,9 @@ message GetPoolRequest {
     PoolId id = 1;
 
     bool exclude_bets = 2;
+
+    // Optional auth to include user-specific pool metadata
+    common.v1.Auth auth = 3;
 }
 
 message GetPoolResponse {
@@ -144,10 +150,11 @@ message MakeBetRequest {
 message MakeBetResponse {
     Result result = 1;
     enum Result {
-        OK                = 0;
-        POOL_NOT_FOUND    = 1;
-        POOL_CLOSED       = 2;
-        MULTIPLE_BETS     = 3;
-        MAX_BETS_RECEIVED = 4;
+        OK                     = 0;
+        POOL_NOT_FOUND         = 1;
+        POOL_CLOSED            = 2;
+        MULTIPLE_BETS          = 3;
+        MAX_BETS_RECEIVED      = 4;
+        BET_OUTCOME_SOLIDIFIED = 5;
     }
 }

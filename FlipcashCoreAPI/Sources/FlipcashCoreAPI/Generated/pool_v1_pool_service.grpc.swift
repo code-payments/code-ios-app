@@ -152,6 +152,8 @@ extension Flipcash_Pool_V1_PoolClientProtocol {
   ///  1. Intent ID == Bet.id
   ///  2. Payment amount == PoolMetadata.buy_in
   ///  3. Payment destination == PoolMetadata.funding_destination
+  /// Bets can be changed as long as payment has not been received. Clients must
+  /// use the same Bet ID when updating their bet.
   ///
   /// - Parameters:
   ///   - request: Request to send to MakeBet.
@@ -541,6 +543,8 @@ public protocol Flipcash_Pool_V1_PoolProvider: CallHandlerProvider {
   ///  1. Intent ID == Bet.id
   ///  2. Payment amount == PoolMetadata.buy_in
   ///  3. Payment destination == PoolMetadata.funding_destination
+  /// Bets can be changed as long as payment has not been received. Clients must
+  /// use the same Bet ID when updating their bet.
   func makeBet(request: Flipcash_Pool_V1_MakeBetRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Pool_V1_MakeBetResponse>
 }
 
@@ -662,6 +666,8 @@ public protocol Flipcash_Pool_V1_PoolAsyncProvider: CallHandlerProvider, Sendabl
   ///  1. Intent ID == Bet.id
   ///  2. Payment amount == PoolMetadata.buy_in
   ///  3. Payment destination == PoolMetadata.funding_destination
+  /// Bets can be changed as long as payment has not been received. Clients must
+  /// use the same Bet ID when updating their bet.
   func makeBet(
     request: Flipcash_Pool_V1_MakeBetRequest,
     context: GRPCAsyncServerCallContext

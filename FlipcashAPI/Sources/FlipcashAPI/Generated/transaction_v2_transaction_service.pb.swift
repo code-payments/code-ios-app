@@ -1228,7 +1228,7 @@ public struct Code_Transaction_V2_ReceivePaymentsPubliclyMetadata {
 ///
 /// for distribution in distributions[:len(distributions)-1]
 ///   actions.push_back(NoPrivacyTransferAction(POOL, distribution.destination, distributions.quarks))
-/// actions.push_back(NoPrivacyWithdrawAction(POOL, distributions[:len(distributions)-1].destination, distributions[:len(distributions)-1].quarks))
+/// actions.push_back(NoPrivacyWithdrawAction(POOL, distributions[len(distributions)-1].destination, distributions[len(distributions)-1].quarks))
 ///
 /// Notes:
 ///  - All funds must distributed. The balance of the pool must be zero at the end of the intent

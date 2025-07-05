@@ -82,6 +82,10 @@ message PoolMetadata {
     // Consolidated summary of bets made against this pool
     BetSummary bet_summary = 7 [(validate.rules).message.required = true];
 
+    // User-specific summary data related to this pool. This is provided against
+    // authenticated RPCs
+    UserPoolSummary user_summary = 8;
+
     // Paging token specific to each user that enables access to paging APIs
     common.v1.PagingToken paging_token = 4;
 
@@ -117,13 +121,47 @@ message BetSummary {
     oneof kind {
         option (validate.required) = true;
 
-        // The yes/no outcome the user has bet against
+        // The yes/no outcome users have bet in the pool
         BooleanBetSummary boolean_summary = 1;
     }
 
     message BooleanBetSummary {
         uint32 num_yes = 1;
         uint32 num_no  = 2;
+    }
+
+    // The total fiat paid for bets against the pool
+    common.v1.FiatPaymentAmount total_amount_bet = 10 [(validate.rules).message.required = true];
+}
+
+message UserPoolSummary {
+    // The outcome for the user for a pool
+    oneof outcome {
+        option (validate.required) = true;
+
+        NoOutcome     none = 1;
+        WinOutcome    win = 2;
+        LoseOutcome   lose = 3;
+        RefundOutcome refund = 4;
+    }
+
+    // Pool isn't resolved, so no user outcome is available
+    message NoOutcome {
+    }
+
+    // User is a winner in the pool
+    message WinOutcome {
+        common.v1.FiatPaymentAmount amount_won = 1 [(validate.rules).message.required = true];
+    }
+
+     // User is a loser in the pool
+    message LoseOutcome {
+        common.v1.FiatPaymentAmount amount_lost = 1 [(validate.rules).message.required = true];
+    }
+
+    // User was refunded
+    message RefundOutcome {
+        common.v1.FiatPaymentAmount amount_refunded = 1 [(validate.rules).message.required = true];
     }
 }
 

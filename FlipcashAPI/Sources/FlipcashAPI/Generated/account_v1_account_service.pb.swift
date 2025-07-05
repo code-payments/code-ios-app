@@ -173,7 +173,51 @@ public struct Code_Account_V1_GetTokenAccountInfosRequest {
   /// Clears the value of `requestingOwnerSignature`. Subsequent reads from it will return its default value.
   public mutating func clearRequestingOwnerSignature() {self._requestingOwnerSignature = nil}
 
+  /// Filter to apply to limit response sizes
+  public var filter: Code_Account_V1_GetTokenAccountInfosRequest.OneOf_Filter? = nil
+
+  public var filterByTokenAddress: Code_Common_V1_SolanaAccountId {
+    get {
+      if case .filterByTokenAddress(let v)? = filter {return v}
+      return Code_Common_V1_SolanaAccountId()
+    }
+    set {filter = .filterByTokenAddress(newValue)}
+  }
+
+  public var filterByAccountType: Code_Common_V1_AccountType {
+    get {
+      if case .filterByAccountType(let v)? = filter {return v}
+      return .unknown
+    }
+    set {filter = .filterByAccountType(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  /// Filter to apply to limit response sizes
+  public enum OneOf_Filter: Equatable {
+    case filterByTokenAddress(Code_Common_V1_SolanaAccountId)
+    case filterByAccountType(Code_Common_V1_AccountType)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Code_Account_V1_GetTokenAccountInfosRequest.OneOf_Filter, rhs: Code_Account_V1_GetTokenAccountInfosRequest.OneOf_Filter) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.filterByTokenAddress, .filterByTokenAddress): return {
+        guard case .filterByTokenAddress(let l) = lhs, case .filterByTokenAddress(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.filterByAccountType, .filterByAccountType): return {
+        guard case .filterByAccountType(let l) = lhs, case .filterByAccountType(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
+      }
+    }
+  #endif
+  }
 
   public init() {}
 
@@ -618,6 +662,7 @@ extension Code_Account_V1_IsCodeAccountRequest: @unchecked Sendable {}
 extension Code_Account_V1_IsCodeAccountResponse: @unchecked Sendable {}
 extension Code_Account_V1_IsCodeAccountResponse.Result: @unchecked Sendable {}
 extension Code_Account_V1_GetTokenAccountInfosRequest: @unchecked Sendable {}
+extension Code_Account_V1_GetTokenAccountInfosRequest.OneOf_Filter: @unchecked Sendable {}
 extension Code_Account_V1_GetTokenAccountInfosResponse: @unchecked Sendable {}
 extension Code_Account_V1_GetTokenAccountInfosResponse.Result: @unchecked Sendable {}
 extension Code_Account_V1_TokenAccountInfo: @unchecked Sendable {}
@@ -720,6 +765,8 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
     2: .same(proto: "signature"),
     3: .standard(proto: "requesting_owner"),
     4: .standard(proto: "requesting_owner_signature"),
+    10: .standard(proto: "filter_by_token_address"),
+    11: .standard(proto: "filter_by_account_type"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -732,6 +779,27 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
       case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._requestingOwner) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._requestingOwnerSignature) }()
+      case 10: try {
+        var v: Code_Common_V1_SolanaAccountId?
+        var hadOneofValue = false
+        if let current = self.filter {
+          hadOneofValue = true
+          if case .filterByTokenAddress(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.filter = .filterByTokenAddress(v)
+        }
+      }()
+      case 11: try {
+        var v: Code_Common_V1_AccountType?
+        try decoder.decodeSingularEnumField(value: &v)
+        if let v = v {
+          if self.filter != nil {try decoder.handleConflictingOneOf()}
+          self.filter = .filterByAccountType(v)
+        }
+      }()
       default: break
       }
     }
@@ -754,6 +822,17 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
     try { if let v = self._requestingOwnerSignature {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
+    switch self.filter {
+    case .filterByTokenAddress?: try {
+      guard case .filterByTokenAddress(let v)? = self.filter else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+    }()
+    case .filterByAccountType?: try {
+      guard case .filterByAccountType(let v)? = self.filter else { preconditionFailure() }
+      try visitor.visitSingularEnumField(value: v, fieldNumber: 11)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -762,6 +841,7 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
     if lhs._signature != rhs._signature {return false}
     if lhs._requestingOwner != rhs._requestingOwner {return false}
     if lhs._requestingOwnerSignature != rhs._requestingOwnerSignature {return false}
+    if lhs.filter != rhs.filter {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
