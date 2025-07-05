@@ -29,6 +29,16 @@ extension Client {
         }
     }
     
+    public func distributePoolWinnings(source: AccountCluster, distributions: [PoolDistribution], owner: KeyPair) async throws {
+        _ = try await withCheckedThrowingContinuation { c in
+            transactionService.distributePoolWinnings(
+                source: source,
+                distributions: distributions,
+                owner: owner
+            ) { c.resume(with: $0) }
+        }
+    }
+    
     public func withdraw(exchangedFiat: ExchangedFiat, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(

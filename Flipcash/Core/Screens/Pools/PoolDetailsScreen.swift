@@ -60,21 +60,13 @@ struct PoolDetailsScreen: View {
         pool?.betCountNo ?? 0
     }
     
-    private var winningsForYes: Fiat {
-        pool?.winningsForYes ?? 0
-    }
-    
-    private var winningsForNo: Fiat {
-        pool?.winningsForNo ?? 0
-    }
-    
-    private var amountOnYes: Fiat {
-        pool?.amountOnYes ?? 0
-    }
-    
-    private var amountOnNo: Fiat {
-        pool?.amountOnNo ?? 0
-    }
+//    private var amountOnYes: Fiat {
+//        pool?.amountOnYes ?? 0
+//    }
+//    
+//    private var amountOnNo: Fiat {
+//        pool?.amountOnNo ?? 0
+//    }
     
     private var amountInPool: Fiat {
         pool?.amountInPool ?? 0
@@ -181,7 +173,7 @@ struct PoolDetailsScreen: View {
                         VoteButton(
                             state: stateForYes,
                             name: "Yes",
-                            fiat: amountOnYes,
+                            count: countOnYes,
                         ) {
                             showingConfirmationForBetOutcome = .yes
                         }
@@ -198,7 +190,7 @@ struct PoolDetailsScreen: View {
                         VoteButton(
                             state: stateForNo,
                             name: "No",
-                            fiat: amountOnNo
+                            count: countOnNo
                         ) {
                             showingConfirmationForBetOutcome = .no
                         }
@@ -217,19 +209,23 @@ struct PoolDetailsScreen: View {
             
             if !hasResolution && !hasUserBet {
                 VStack {
-                    Text("Tap Yes or No to buy in")
+                    Text("Tap Yes or No to buy in for ")
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
+                    +
+                    Text(buyIn.formatted(suffix: nil))
+                        .font(.appTextSmall)
+                        .foregroundStyle(Color.textMain)
                     
-                    AmountText(
-                        flagStyle: buyIn.currencyCode.flagStyle,
-                        flagSize: .small,
-                        content: buyIn.formatted(suffix: nil),
-                        showChevron: false,
-                        canScale: false
-                    )
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
+//                    AmountText(
+//                        flagStyle: buyIn.currencyCode.flagStyle,
+//                        flagSize: .small,
+//                        content: buyIn.formatted(suffix: nil),
+//                        showChevron: false,
+//                        canScale: false
+//                    )
+//                    .font(.appTextMedium)
+//                    .foregroundStyle(Color.textMain)
                 }
                 .padding(.top, -40) // Offset for YouVotedBadge
             }
@@ -237,7 +233,7 @@ struct PoolDetailsScreen: View {
             Spacer()
             
             if let resolution = pool.resolution {
-                bottomViewForResoultion(resolution: resolution)
+                bottomViewForResoultion(pool: pool, resolution: resolution)
             } else {
                 if isHost {
                     bottomViewForHost()
@@ -273,7 +269,7 @@ struct PoolDetailsScreen: View {
             PartialSheet {
                 ModalSwipeToDeclareWinner(
                     outcome: outcome,
-                    amount: winningsForDeclaredOutcome(outcome),
+                    amount: pool.payoutFor(resolution: outcome),
                     swipeText: "Swipe To Confirm",
                     cancelTitle: "Cancel"
                 ) {
@@ -291,14 +287,24 @@ struct PoolDetailsScreen: View {
         }
     }
     
-    @ViewBuilder private func bottomViewForResoultion(resolution: PoolResoltion) -> some View {
+    @ViewBuilder private func bottomViewForResoultion(pool: StoredPool, resolution: PoolResoltion) -> some View {
         VStack {
+            if resolution == .refund {
+                Text("Tie")
+                    .font(.appDisplaySmall)
+                    .foregroundStyle(Color.textMain)
+            }
+            
+            let winnerCount = pool.winnerCount(for: resolution)
+            let payout = pool.payoutFor(resolution: resolution)
             Group {
                 switch resolution {
-                case .yes:
-                    Text("Each winner received \(winningsForYes.formatted(suffix: nil))")
-                case .no:
-                    Text("Each winner received \(winningsForNo.formatted(suffix: nil))")
+                case .yes, .no:
+                    if winnerCount == 1 {
+                        Text("The winner received \(payout.formatted(suffix: nil))")
+                    } else {
+                        Text("Each winner received \(payout.formatted(suffix: nil))")
+                    }
                 case .refund:
                     Text("Everyone got their money back")
                 }
@@ -364,17 +370,6 @@ struct PoolDetailsScreen: View {
         .padding(.bottom, -20)
     }
     
-    private func winningsForDeclaredOutcome(_ outcome: PoolResoltion) -> Fiat {
-        switch outcome {
-        case .yes:
-            winningsForYes
-        case .no:
-            winningsForNo
-        case .refund:
-            buyIn
-        }
-    }
-    
     // MARK: - Actions -
     
     private func sharePoolAction() {
@@ -417,7 +412,7 @@ private struct VoteButton: View {
     
     let state: State
     let name: String
-    let fiat: Fiat
+    let count: Int
     let action: () -> Void
     
     private var strokeColor: Color {
@@ -453,11 +448,11 @@ private struct VoteButton: View {
         }
     }
     
-    init(state: State, name: String, fiat: Fiat, action: @escaping () -> Void) {
-        self.state      = state
-        self.name       = name
-        self.fiat       = fiat
-        self.action     = action
+    init(state: State, name: String, count: Int, action: @escaping () -> Void) {
+        self.state  = state
+        self.name   = name
+        self.count  = count
+        self.action = action
     }
     
     var body: some View {
@@ -467,7 +462,7 @@ private struct VoteButton: View {
             VStack {
                 Text(name)
                     .font(.appDisplaySmall)
-                Text(fiat.formatted(suffix: nil))
+                Text("\(count) \(count == 1 ? "person" : "people")")
                     .font(.appTextSmall)
             }
             .foregroundStyle(textColor)

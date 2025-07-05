@@ -83,7 +83,7 @@ class PoolController: ObservableObject {
         if !pools.isEmpty {
             try database.transaction {
                 for pool in pools {
-                    try $0.insertPool(pool: pool)
+                    try $0.insertPool(pool: pool, rendezvous: nil)
                     try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets)
                 }
             }
@@ -168,21 +168,13 @@ class PoolController: ObservableObject {
     
     // TODO: Insert pool from link
     
-    @discardableResult
-    func updatePool(poolID: PublicKey, rendezvous: KeyPair? = nil) async throws -> PoolMetadata {
+    func updatePool(poolID: PublicKey, rendezvous: KeyPair? = nil) async throws {
         let pool = try await flipClient.fetchPool(poolID: poolID)
         
-        var metadata = pool.metadata
-        if let rendezvous, rendezvous.publicKey == poolID {
-            metadata.rendezvous = rendezvous
-        }
-        
         try database.transaction {
-            try $0.insertPool(pool: pool)
+            try $0.insertPool(pool: pool, rendezvous: rendezvous)
             try $0.insertBets(poolID: pool.metadata.id, bets: pool.bets)
         }
-        
-        return metadata
     }
     
     func createPool(name: String, buyIn: Fiat) async throws -> PublicKey {
@@ -230,7 +222,7 @@ class PoolController: ObservableObject {
         
         // We don't want to surface any errors
         // from the update call during pool creation
-        _ = try? await updatePool(
+        try? await updatePool(
             poolID: metadata.id,
             rendezvous: metadata.rendezvous
         )
@@ -292,21 +284,22 @@ class PoolController: ObservableObject {
             rendezvous: betID // NOT the pool rendezvous, it's the intentID
         )
         
-        _ = try? await updatePool(poolID: poolID)
+        try? await updatePool(poolID: poolID)
         
         return metadata
     }
     
     func declareOutcome(pool: StoredPool, outcome: PoolResoltion) async throws {
-        let closingMetadata = pool.metadataToClose(resolution: outcome)
+        var closingMetadata = pool.metadataToClose(resolution: nil)
         if pool.isOpen {
-            
             // First, close voting on the pool
             try await flipClient.closePool(
                 poolMetadata: closingMetadata,
                 owner: ownerKeyPair
             )
         }
+
+        closingMetadata.resolution = outcome
         
         // Declare the pool outcome
         try await flipClient.resolvePool(
@@ -314,9 +307,75 @@ class PoolController: ObservableObject {
             owner: ownerKeyPair
         )
         
-        // After the pool is resolved, it is updated so
-        // so we'll need to refresh local pool metadata
+        // After the pool is closed, we'll need to
+        // ensure that we have the most up-to-date
+        // bets, otherwise the distribution will fail
         try await updatePool(poolID: pool.id)
+        
+        let poolAccount = PoolAccount(
+            mnemonic: keyAccount.mnemonic,
+            index: pool.derivationIndex
+        )
+        
+        // Determine which bets need to be paid out
+        let distributionBets = try database.betsToDistribute(
+            for: pool.id,
+            outcome: outcome
+        )
+        
+        // Obtain the latest pool balance; we can't
+        // rely on the exchange rates so we have to
+        // divide the existing balance in quarks
+        let poolBalance = try await client.fetchLinkedAccountBalance(
+            owner: ownerKeyPair,
+            account: poolAccount.cluster.vaultPublicKey
+        )
+        
+        // Calculate all the distribution amounts
+        // based on the bets that were placed and
+        // need to be paid out
+        let distributions = distributions(
+            for: distributionBets,
+            poolBalance: poolBalance
+        )
+        
+        // Distribute the winnings to all betting
+        // accounts in the pool
+        try await client.distributePoolWinnings(
+            source: poolAccount.cluster,
+            distributions: distributions,
+            owner: ownerKeyPair
+        )
+        
+        trace(.success, components: "Distributions: \n\(distributions.map { "\($0.amount.quarks.formatted()): \($0.destination.base58)" }.joined(separator: "\n"))")
+    }
+    
+    private func distributions(for bets: [StoredBet], poolBalance: Fiat) -> [PoolDistribution] {
+        // Calculate distributions based on the total pool balance
+        // and the number of winning bets to pay out
+        let count              = UInt64(bets.count)
+        let distributionQuarks = poolBalance.quarks / count
+        let remainderQuarks    = poolBalance.quarks % count
+            
+        var distributions: [PoolDistribution] = bets.map {
+            .init(
+                destination: $0.payoutDestination,
+                amount: Fiat(
+                    quarks: distributionQuarks,
+                    currencyCode: poolBalance.currencyCode
+                )
+            )
+        }
+        
+        // Assign the remainder to the last distribution
+        if remainderQuarks > 0, let lastDistribution = distributions.last {
+            distributions[distributions.count - 1].amount = Fiat(
+                quarks: lastDistribution.amount.quarks + remainderQuarks,
+                currencyCode: lastDistribution.amount.currencyCode
+            )
+        }
+        
+        return distributions
     }
 }
 

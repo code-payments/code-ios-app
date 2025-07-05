@@ -34,62 +34,70 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
         )
     }
     
-    var winningsForYes: Fiat? {
-        guard betCountYes > 0 else { return nil }
-        return Fiat(
-            quarks: amountInPool.quarks / UInt64(betCountYes),
-            currencyCode: buyIn.currencyCode
-        )
-    }
-    
-    var winningsForNo: Fiat? {
-        guard betCountNo > 0 else { return nil }
-        return Fiat(
-            quarks: amountInPool.quarks / UInt64(betCountNo),
-            currencyCode: buyIn.currencyCode
-        )
-    }
-    
-    var winningPayout: Fiat? {
+    var payout: Fiat? {
         if let resolution = resolution {
-            switch resolution {
-            case .yes:
-                return winningsForYes
-            case .no:
-                return winningsForNo
-            case .refund:
-                return buyIn
-            }
+            return payoutFor(resolution: resolution)
         }
         return nil
     }
     
-    var amountOnYes: Fiat {
-        Fiat(
-            quarks: buyIn.quarks * UInt64(betCountYes),
+//    var amountOnYes: Fiat {
+//        Fiat(
+//            quarks: buyIn.quarks * UInt64(betCountYes),
+//            currencyCode: buyIn.currencyCode
+//        )
+//    }
+//    
+//    var amountOnNo: Fiat {
+//        Fiat(
+//            quarks: buyIn.quarks * UInt64(betCountNo),
+//            currencyCode: buyIn.currencyCode
+//        )
+//    }
+    
+    func payoutFor(resolution: PoolResoltion) -> Fiat {
+        let winnerCount = winnerCount(for: resolution)
+        return Fiat(
+            quarks: amountInPool.quarks / UInt64(winnerCount),
             currencyCode: buyIn.currencyCode
         )
     }
     
-    var amountOnNo: Fiat {
-        Fiat(
-            quarks: buyIn.quarks * UInt64(betCountNo),
-            currencyCode: buyIn.currencyCode
-        )
+    func winnerCount(for resolution: PoolResoltion) -> Int {
+        let totalBets = betCountYes + betCountNo
+        
+        switch resolution {
+        case .yes:
+            guard betCountYes > 0 else {
+                return totalBets
+            }
+            
+            return betCountYes
+            
+        case .no:
+            guard betCountNo > 0 else {
+                return totalBets
+            }
+            
+            return betCountNo
+            
+        case .refund:
+            return totalBets
+        }
     }
 }
 
 // MARK: - Metadata -
 
 extension StoredPool {
-    func metadataToClose(resolution: PoolResoltion) -> PoolMetadata {
+    func metadataToClose(resolution: PoolResoltion?) -> PoolMetadata {
         .init(
             id: id,
             rendezvous: rendezvous,
             fundingAccount: fundingAccount,
             creatorUserID: creatorUserID,
             creationDate: creationDate,
-            closedDate: .now,
+            closedDate: closedDate ?? .now,
             isOpen: false,
             name: name,
             buyIn: buyIn,

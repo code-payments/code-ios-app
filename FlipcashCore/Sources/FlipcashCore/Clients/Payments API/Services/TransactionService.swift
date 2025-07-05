@@ -68,6 +68,27 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
+    func distributePoolWinnings(source: AccountCluster, distributions: [PoolDistribution], owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        trace(.send)
+        
+        let intent = IntentDistributePoolWinnings(
+            source: source,
+            distributions: distributions
+        )
+        
+        submit(intent: intent, owner: owner) { result in
+            switch result {
+            case .success(_):
+                trace(.success)
+                completion(.success(()))
+                
+            case .failure(let error):
+                trace(.failure, components: "Error: \(error)")
+                completion(.failure(error))
+            }
+        }
+    }
+    
     func withdraw(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
@@ -437,6 +458,17 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
 }
 
 // MARK: - Types -
+
+public struct PoolDistribution {
+    
+    public let destination: PublicKey
+    public var amount: Fiat
+    
+    public init(destination: PublicKey, amount: Fiat) {
+        self.destination = destination
+        self.amount = amount
+    }
+}
 
 public struct DestinationMetadata: Sendable {
     

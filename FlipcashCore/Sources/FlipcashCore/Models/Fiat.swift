@@ -68,6 +68,10 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
+    public static func zero(currencyCode: CurrencyCode) -> Fiat {
+        Fiat(quarks: 0 as UInt64, currencyCode: currencyCode)
+    }
+    
     // MARK: - Fee -
     
     public func calculateFee(bps: Int) -> Fiat {

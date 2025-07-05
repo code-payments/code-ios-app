@@ -214,7 +214,7 @@ struct PoolsScreen: View {
                                         .fill(Color.white.opacity(0.11))
                                 }
                             
-                            if let payout = pool.winningPayout {
+                            if pool.resolution != .refund, let payout = pool.payout {
                                 HStack(spacing: 5) {
                                     Image.system(.trophy)
                                         .font(.appTextHeading)

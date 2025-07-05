@@ -152,7 +152,7 @@ extension Database {
     
     // MARK: - Insert Pools -
     
-    func insertPool(pool: PoolDescription) throws {
+    func insertPool(pool: PoolDescription, rendezvous: KeyPair?) throws {
         let metadata       = pool.metadata
         let additionalInfo = pool.additionalInfo
         
@@ -184,6 +184,14 @@ extension Database {
             setters.append(
                 t.rendezvousSeed <- keyPair.seed,
             )
+            
+        } else if let rendezvous, rendezvous.publicKey == metadata.id {
+            // When opening a pool from a deeplink, we'll the option to
+            // provide the rendezvous key directly, but we'll ensure that
+            // it matches the pool metadata ID first
+            setters.append(
+                t.rendezvousSeed <- rendezvous.seed,
+            )
         }
         
         try writer.run(
@@ -201,8 +209,33 @@ extension Database {
     }
     
     // MARK: - Get Bets -
-
-    func getBets(poolID: PublicKey) throws -> [StoredBet] {
+    
+    func betsToDistribute(for poolID: PublicKey, outcome: PoolResoltion) throws -> [StoredBet] {
+        // Fetch all pool bets filtered by outcome,
+        // in the event of of a tie, all bets will be
+        // returned and therefore paid out
+        let outcomeBets = try getBets(
+            poolID: poolID,
+            resolution: outcome
+        )
+        
+        // If outcome bets is empty that means the
+        // outcome had no bets and so we'll fetch
+        // all the bets for the pool, which will
+        // equivalent to a tie
+        if outcomeBets.isEmpty {
+            return try getBets(poolID: poolID)
+        }
+        
+        return outcomeBets
+    }
+    
+    func getBets(poolID: PublicKey, resolution: PoolResoltion? = nil) throws -> [StoredBet] {
+        var filter = ""
+        if let resolution, resolution != .refund {
+            filter = "AND b.selectedOutcome = \(resolution.intValue)"
+        }
+        
         let statement = try reader.prepareRowIterator("""
         SELECT
             b.id,
@@ -213,7 +246,7 @@ extension Database {
             b.isFulfilled
         FROM
             bet b
-        WHERE b.poolID = ?;
+        WHERE b.poolID = ? \(filter);
         """, bindings: Blob(bytes: poolID.bytes))
         
         let t = BetTable()
