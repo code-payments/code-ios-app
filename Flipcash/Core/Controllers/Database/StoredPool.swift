@@ -59,6 +59,13 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
     
     func payoutFor(resolution: PoolResoltion) -> Fiat {
         let winnerCount = winnerCount(for: resolution)
+        guard winnerCount > 0 else {
+            return Fiat(
+                quarks: 0 as UInt64,
+                currencyCode: buyIn.currencyCode
+            )
+        }
+        
         return Fiat(
             quarks: amountInPool.quarks / UInt64(winnerCount),
             currencyCode: buyIn.currencyCode

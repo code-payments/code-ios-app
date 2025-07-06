@@ -218,9 +218,7 @@ class PoolController: ObservableObject {
             owner: ownerKeyPair
         )
         
-        // We don't want to surface any errors
-        // from the update call during pool creation
-        try? await updatePool(
+        try await updatePool(
             poolID: metadata.id,
             rendezvous: metadata.rendezvous
         )
@@ -282,7 +280,7 @@ class PoolController: ObservableObject {
             rendezvous: betID // NOT the pool rendezvous, it's the intentID
         )
         
-        try? await updatePool(poolID: poolID)
+        try await updatePool(poolID: poolID)
         
         return metadata
     }
@@ -321,31 +319,36 @@ class PoolController: ObservableObject {
             outcome: outcome
         )
         
-        // Obtain the latest pool balance; we can't
-        // rely on the exchange rates so we have to
-        // divide the existing balance in quarks
-        let poolBalance = try await client.fetchLinkedAccountBalance(
-            owner: ownerKeyPair,
-            account: poolAccount.cluster.vaultPublicKey
-        )
-        
-        // Calculate all the distribution amounts
-        // based on the bets that were placed and
-        // need to be paid out
-        let distributions = distributions(
-            for: distributionBets,
-            poolBalance: poolBalance
-        )
-        
-        // Distribute the winnings to all betting
-        // accounts in the pool
-        try await client.distributePoolWinnings(
-            source: poolAccount.cluster,
-            distributions: distributions,
-            owner: ownerKeyPair
-        )
-        
-        trace(.success, components: "Distributions: \n\(distributions.map { "\($0.amount.quarks.formatted()): \($0.destination.base58)" }.joined(separator: "\n"))")
+        if distributionBets.count > 0 {
+            
+            // Obtain the latest pool balance; we can't
+            // rely on the exchange rates so we have to
+            // divide the existing balance in quarks
+            let poolBalance = try await client.fetchLinkedAccountBalance(
+                owner: ownerKeyPair,
+                account: poolAccount.cluster.vaultPublicKey
+            )
+            
+            // Calculate all the distribution amounts
+            // based on the bets that were placed and
+            // need to be paid out
+            let distributions = distributions(
+                for: distributionBets,
+                poolBalance: poolBalance
+            )
+            
+            // Distribute the winnings to all betting
+            // accounts in the pool
+            try await client.distributePoolWinnings(
+                source: poolAccount.cluster,
+                distributions: distributions,
+                owner: ownerKeyPair
+            )
+            
+            trace(.success, components: "Distributions: \n\(distributions.map { "\($0.amount.quarks.formatted()): \($0.destination.base58)" }.joined(separator: "\n"))")
+        } else {
+            trace(.success, components: "No distributions")
+        }
     }
     
     private func distributions(for bets: [StoredBet], poolBalance: Fiat) -> [PoolDistribution] {

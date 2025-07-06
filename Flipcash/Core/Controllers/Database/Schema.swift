@@ -63,8 +63,8 @@ struct PoolTable: Sendable {
     let derivationIndex                 = Expression <Int>            ("derivationIndex")
     let isFundingDestinationInitialized = Expression <Bool>           ("isFundingDestinationInitialized")
     let userOutcome                     = Expression <Int>            ("userOutcome")
-    let userOutcomeQuarks               = Expression <UInt64>         ("userOutcomeQuarks")
-    let userOutcomeCurrency             = Expression <CurrencyCode>   ("userOutcomeCurrency")
+    let userOutcomeQuarks               = Expression <UInt64?>        ("userOutcomeQuarks")
+    let userOutcomeCurrency             = Expression <CurrencyCode?>  ("userOutcomeCurrency")
 }
 
 struct BetTable: Sendable {

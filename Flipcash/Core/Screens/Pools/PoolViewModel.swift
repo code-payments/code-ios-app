@@ -103,8 +103,13 @@ class PoolViewModel: ObservableObject {
     // MARK: - Create Actions -
     
     func startPoolCreationFlowAction() {
-        enteredPoolName = ""
+        
+        // Reset all state before
+        // pool creation starts
+        enteredPoolName   = ""
         enteredPoolAmount = ""
+        createPoolPath    = []
+        
         isShowingCreatePoolFlow = true
     }
     
@@ -163,17 +168,27 @@ class PoolViewModel: ObservableObject {
     }
     
     func betAction(pool: StoredPool, outcome: PoolResoltion) async throws {
-        try await poolController.createBet(
-            pool: pool,
-            outcome: outcome
-        )
+        do {
+            try await poolController.createBet(
+                pool: pool,
+                outcome: outcome
+            )
+        } catch {
+            ErrorReporting.captureError(error)
+            throw error
+        }
     }
     
     func declarOutcomeAction(pool: StoredPool, outcome: PoolResoltion) async throws {
-        try await poolController.declareOutcome(
-            pool: pool,
-            outcome: outcome
-        )
+        do {
+            try await poolController.declareOutcome(
+                pool: pool,
+                outcome: outcome
+            )
+        } catch {
+            ErrorReporting.captureError(error)
+            throw error
+        }
     }
     
     // MARK: - Presentation -

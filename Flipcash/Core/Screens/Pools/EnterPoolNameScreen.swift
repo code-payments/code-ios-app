@@ -35,7 +35,7 @@ struct EnterPoolNameScreen: View {
                     
                     Spacer()
                     
-                    TextField("", text: $viewModel.enteredPoolName, prompt: Text(""), axis: .vertical)
+                    TextField("", text: $viewModel.enteredPoolName, prompt: Text("Question"), axis: .vertical)
                         .lineLimit(1...)
                         .focused($isFocused)
                         .font(.appDisplaySmall)

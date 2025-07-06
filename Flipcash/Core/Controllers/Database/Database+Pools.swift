@@ -83,8 +83,8 @@ extension Database {
         let userOutcome: UserOutcome
         if userOutcomeInt != UserOutcome.none.intValue {
             let amount = Fiat(
-                quarks:       row[t.userOutcomeQuarks],
-                currencyCode: row[t.userOutcomeCurrency]
+                quarks:       row[t.userOutcomeQuarks] ?? 0,
+                currencyCode: row[t.userOutcomeCurrency] ?? .usd
             )
             userOutcome = UserOutcome(intValue: userOutcomeInt, amount: amount)
         } else {
