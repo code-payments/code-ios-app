@@ -210,15 +210,24 @@ class PoolViewModel: ObservableObject {
     }
     
     func openPoolFromDeeplink(rendezvous: KeyPair) {
-        Task {
-            try await poolController.updatePool(
-                poolID: rendezvous.publicKey,
-                rendezvous: rendezvous
-            )
-        }
+        updatePool(
+            poolID: rendezvous.publicKey,
+            rendezvous: rendezvous
+        )
         
         navigateToPoolDetails(poolID: rendezvous.publicKey)
         showPoolList()
+    }
+    
+    // MARK: - Updates -
+    
+    func updatePool(poolID: PublicKey, rendezvous: KeyPair?) {
+        Task {
+            try await poolController.updatePool(
+                poolID: poolID,
+                rendezvous: rendezvous
+            )
+        }
     }
     
     // MARK: - Create Pool Navigation -

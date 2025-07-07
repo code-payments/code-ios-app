@@ -8,7 +8,7 @@
 
 import Foundation
 
-public class Poller {
+public class Poller: ObservableObject {
     
     private let timer: Timer
     
@@ -26,6 +26,7 @@ public class Poller {
     }
     
     deinit {
+        print("Deallocating Poller...")
         timer.invalidate()
     }
 }

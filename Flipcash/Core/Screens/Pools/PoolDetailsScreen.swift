@@ -15,6 +15,7 @@ struct PoolDetailsScreen: View {
     
     @StateObject private var updateablePool: Updateable<StoredPool?>
     @StateObject private var updateableBets: Updateable<[StoredBet]>
+    @StateObject private var poller: Poller
     
     @State private var showingDeclareOutcome: PoolResoltion?
     
@@ -113,6 +114,12 @@ struct PoolDetailsScreen: View {
         
         _updateableBets = .init(wrappedValue: Updateable {
             (try? database.getBets(poolID: poolID)) ?? []
+        })
+        
+        _poller = .init(wrappedValue: Poller(seconds: 10, fireImmediately: true) { [weak viewModel] in
+            Task { @MainActor in
+                viewModel?.updatePool(poolID: poolID, rendezvous: nil)
+            }
         })
     }
     
