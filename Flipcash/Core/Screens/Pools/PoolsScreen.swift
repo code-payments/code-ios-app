@@ -160,10 +160,8 @@ struct PoolsScreen: View {
                 row(pool: pool)
             }
         } header: {
-            Text(name)
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-//                .textCase(nil)
+            HeadingBadge(title: name)
+                .textCase(nil)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 10)
                 .padding(.top, 20)
@@ -225,6 +223,29 @@ struct PoolsScreen: View {
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)
         .padding(.vertical, 15)
+    }
+}
+
+// MARK: - HeadingBadge -
+
+struct HeadingBadge: View {
+    
+    let title: String
+    
+    init(title: String) {
+        self.title = title
+    }
+    
+    var body: some View {
+        Text(title)
+            .font(.appTextMedium)
+            .foregroundStyle(Color.textMain.opacity(0.5))
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .background {
+                RoundedRectangle(cornerRadius: 99)
+                    .fill(Color.white.opacity(0.12))
+            }
     }
 }
 
