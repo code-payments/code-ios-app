@@ -380,7 +380,15 @@ struct PoolDetailsScreen: View {
             return
         }
         
-        ShareSheet.present(url: .poolLink(rendezvous: rendezvous))
+        let info = PoolInfo(
+            name: pool.name,
+            amount: pool.amountInPool.formatted(suffix: nil),
+            yesCount: pool.betCountYes,
+            noCount: pool.betCountNo
+        )
+        
+        print("\(info)")
+        ShareSheet.present(url: .poolLink(rendezvous: rendezvous, info: info))
     }
 }
 

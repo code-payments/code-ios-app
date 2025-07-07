@@ -1,34 +1,40 @@
 {
-    "applinks": {
-        "apps": [],
-        "details": [
-            {
-                "appIDs": [
-                    "SC677X4LH6.com.flipcash.ios"
-                ],
-                "components": [
-                    {
-                        "/": "/login",
-                        "#": "/e=?*",
-                        "comment": "Support for login"
-                    },
-                    {
-                        "/": "/cash",
-                        "#": "/e=?*",
-                        "comment": "Support for sends"
-                    },
-                    {
-                        "/": "/c",
-                        "#": "/e=?*",
-                        "comment": "Support for sends"
-                    }
-                ]
-            }
-        ]
-    },
-    "webcredentials": {
-        "apps": [
-            "SC677X4LH6.com.flipcash.ios"
-        ]
-    }
+   "applinks": {
+      "apps": [],
+      "details": [
+         {
+            "appIDs": [
+               "SC677X4LH6.com.flipcash.ios"
+            ],
+            "components": [
+               {
+                  "/": "/login",
+                  "#": "/e=?*",
+                  "comment": "Support for login"
+               },
+               {
+                  "/": "/cash/*",
+                  "comment": "Support for sends"
+               },
+               {
+                  "/": "/c/*",
+                  "comment": "Support for sends"
+               },
+               {
+                  "/": "/pool/*",
+                  "comment": "Support for pools"
+               },
+               {
+                  "/": "/p/*",
+                  "comment": "Support for pools"
+               }
+            ]
+         }
+      ]
+   },
+   "webcredentials": {
+      "apps": [
+         "SC677X4LH6.com.flipcash.ios"
+      ]
+   }
 }
