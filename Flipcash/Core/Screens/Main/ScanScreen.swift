@@ -290,7 +290,7 @@ struct ScanScreen: View {
     @ViewBuilder private func bottomBar() -> some View {
         HStack(alignment: .bottom) {
             LargeButton(
-                title: "Cash",
+                title: "Send",
                 image: .asset(.cash),
                 spacing: 12,
                 maxWidth: 80,
@@ -324,6 +324,23 @@ struct ScanScreen: View {
 //                )
 //            }
             
+            LargeButton(
+                title: "Pool",
+                image: .asset(.pools),
+                spacing: 12,
+                maxWidth: 80,
+                maxHeight: 80,
+                fullWidth: true,
+                aligment: .bottom,
+                binding: $poolViewModel.isShowingPoolList
+            )
+            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
+                PoolsScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
+            
             ToastContainer(toast: toast) {
                 LargeButton(
                     title: "Balance",
@@ -341,23 +358,6 @@ struct ScanScreen: View {
                     isPresented: $isShowingBalance,
                     container: container,
                     database: sessionContainer.database
-                )
-            }
-            
-            LargeButton(
-                title: "Pools",
-                image: .asset(.pools),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom,
-                binding: $poolViewModel.isShowingPoolList
-            )
-            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
-                PoolsScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
                 )
             }
         }

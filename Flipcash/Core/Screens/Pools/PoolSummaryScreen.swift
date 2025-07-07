@@ -65,7 +65,7 @@ struct PoolSummaryScreen: View {
                     CodeButton(
                         state: viewModel.createPoolButtonState,
                         style: .filled,
-                        title: "Create a New Pool",
+                        title: "Create Your Pool",
                         disabled: !viewModel.canCreatePool,
                         action: viewModel.createPoolAction
                     )

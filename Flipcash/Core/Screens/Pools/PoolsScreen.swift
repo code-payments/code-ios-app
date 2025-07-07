@@ -59,7 +59,7 @@ struct PoolsScreen: View {
                     
                     CodeButton(
                         style: .filled,
-                        title: "Create Pool",
+                        title: "Create a New Pool",
                         action: viewModel.startPoolCreationFlowAction
                     )
                     .sheet(isPresented: $viewModel.isShowingCreatePoolFlow) {

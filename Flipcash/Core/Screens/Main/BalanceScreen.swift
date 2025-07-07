@@ -161,15 +161,9 @@ struct BalanceScreen: View {
                         .foregroundStyle(Color.textMain)
                         .frame(maxWidth: .infinity)
                         
-                        if isBalanceBaseCurrency {
-                            Text("Your balance is held in US dollar stablecoins")
-                                .font(.appTextSmall)
-                                .foregroundStyle(Color.textSecondary)
-                        } else {
-                            Text("\(balance.usdc.formatted(suffix: nil)) of US dollar stablecoins")
-                                .font(.appTextSmall)
-                                .foregroundStyle(Color.textSecondary)
-                        }
+                        Text("Your balance is held in US dollar stablecoins")
+                            .font(.appTextSmall)
+                            .foregroundStyle(Color.textSecondary)
                         
                         Spacer()
                     }
