@@ -18,6 +18,7 @@ class PoolController: ObservableObject {
     private let flipClient: FlipClient
     private let database: Database
     
+    private let session: Session
     private let ratesController: RatesController
     
     private var ownerKeyPair: KeyPair {
@@ -26,14 +27,15 @@ class PoolController: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, ratesController: RatesController, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID, database: Database) {
+    init(container: Container, session: Session, ratesController: RatesController, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID, database: Database) {
         self.keyAccount = keyAccount
         self.owner      = owner
         self.userID     = userID
         self.client     = container.client
         self.flipClient = container.flipClient
         self.database   = database
-        
+
+        self.session         = session
         self.ratesController = ratesController
         
         Task {
@@ -275,6 +277,8 @@ class PoolController: ObservableObject {
         
         try await updatePool(poolID: poolID)
         
+        session.updatePostTransaction()
+        
         return metadata
     }
     
@@ -338,6 +342,8 @@ class PoolController: ObservableObject {
                 owner: ownerKeyPair
             )
             
+            session.updatePostTransaction()
+            
             trace(.success, components: "Distributions: \n\(distributions.map { "\($0.amount.quarks.formatted()): \($0.destination.base58)" }.joined(separator: "\n"))")
         } else {
             trace(.success, components: "No distributions")
@@ -388,6 +394,7 @@ extension PoolController {
 extension PoolController {
     static let mock = PoolController(
         container: .mock,
+        session: .mock,
         ratesController: .mock,
         keyAccount: .mock,
         owner: .mock,
