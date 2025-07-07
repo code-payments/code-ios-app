@@ -262,14 +262,7 @@ class PoolController: ObservableObject {
         
         // 2. Get the current conversion rate
         // and pay for the bet buyIn
-        guard let rate = ratesController.rate(for: pool.buyIn.currencyCode) else {
-            throw Error.exchangeRateUnavailable
-        }
-        
-        let exchangedFiat = try ExchangedFiat(
-            converted: pool.buyIn,
-            rate: rate
-        )
+        let exchangedFiat = try ratesController.exchangedFiat(for: pool.buyIn)
         
         // 3. Pay for the bet. Any failure here can
         // be retried with the existing bet ID

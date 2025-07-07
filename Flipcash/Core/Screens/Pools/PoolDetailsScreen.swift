@@ -16,10 +16,9 @@ struct PoolDetailsScreen: View {
     @StateObject private var updateablePool: Updateable<StoredPool?>
     @StateObject private var updateableBets: Updateable<[StoredBet]>
     
-    @State private var showingConfirmationForBetOutcome: PoolResoltion?
     @State private var showingDeclareOutcome: PoolResoltion?
     
-    @State private var dialogItem: DialogItem?
+    @State private var localDialogItem: DialogItem?
     
     private let userID: UserID
     private let poolID: PublicKey
@@ -131,7 +130,8 @@ struct PoolDetailsScreen: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .dialog(item: $dialogItem)
+        .dialog(item: $localDialogItem)
+        .dialog(item: $viewModel.dialogItem)
     }
     
     @ViewBuilder private func poolDetails(pool: StoredPool) -> some View {
@@ -171,7 +171,7 @@ struct PoolDetailsScreen: View {
                             name: "Yes",
                             count: countOnYes,
                         ) {
-                            showingConfirmationForBetOutcome = .yes
+                            viewModel.selectBetAction(outcome: .yes, for: pool)
                         }
                         .disabled(hasUserBet)
                         .zIndex(1)
@@ -188,7 +188,7 @@ struct PoolDetailsScreen: View {
                             name: "No",
                             count: countOnNo
                         ) {
-                            showingConfirmationForBetOutcome = .no
+                            viewModel.selectBetAction(outcome: .no, for: pool)
                         }
                         .disabled(hasUserBet)
                         .zIndex(1)
@@ -241,7 +241,7 @@ struct PoolDetailsScreen: View {
         .multilineTextAlignment(.center)
         .padding(.horizontal, 20)
         .padding(.bottom, 20)
-        .sheet(item: $showingConfirmationForBetOutcome) { outcome in
+        .sheet(item: $viewModel.isShowingBetConfirmation) { outcome in
             PartialSheet {
                 ModalSwipeToBet(
                     fiat: pool.buyIn,
@@ -255,9 +255,9 @@ struct PoolDetailsScreen: View {
                     )
                     
                 } dismissAction: {
-                    showingConfirmationForBetOutcome = nil
+                    viewModel.isShowingBetConfirmation = nil
                 } cancelAction: {
-                    showingConfirmationForBetOutcome = nil
+                    viewModel.isShowingBetConfirmation = nil
                 }
             }
         }
@@ -343,7 +343,7 @@ struct PoolDetailsScreen: View {
                 style: .subtle,
                 title: "Declare the Outcome"
             ) {
-                dialogItem = .init(
+                localDialogItem = .init(
                     style: .standard,
                     title: "What was the winning outcome?",
                     subtitle: nil,
@@ -376,6 +376,8 @@ struct PoolDetailsScreen: View {
         ShareSheet.present(url: .poolLink(rendezvous: rendezvous))
     }
 }
+
+// MARK: - YouVotedBadge -
 
 private struct YouVotedBadge: View {
     var body: some View {

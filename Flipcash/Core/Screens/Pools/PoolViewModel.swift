@@ -25,6 +25,8 @@ class PoolViewModel: ObservableObject {
     
     @Published var isShowingCreatePoolFlow: Bool = false
     
+    @Published var isShowingBetConfirmation: PoolResoltion?
+    
     @Published var isShowingPoolList: Bool = false {
         didSet {
             if !isShowingPoolList {
@@ -62,20 +64,17 @@ class PoolViewModel: ObservableObject {
         
         let currency = ratesController.entryCurrency
         
-        guard let rate = ratesController.rate(for: currency) else {
-            trace(.failure, components: "[Withdraw] Rate not found for: \(currency)")
-            return nil
-        }
-        
-        guard let converted = try? Fiat(fiatDecimal: amount, currencyCode: currency) else {
+        guard let enteredFiat = try? Fiat(fiatDecimal: amount, currencyCode: currency) else {
             trace(.failure, components: "[Withdraw] Invalid amount for entry")
             return nil
         }
         
-        return try! ExchangedFiat(
-            converted: converted,
-            rate: rate
-        )
+        guard let exchangedFiat = try? ratesController.exchangedFiat(for: enteredFiat) else {
+            trace(.failure, components: "[Withdraw] Rate not found for: \(currency)")
+            return nil
+        }
+        
+        return exchangedFiat
     }
     
     private let container: Container
@@ -167,6 +166,19 @@ class PoolViewModel: ObservableObject {
         navigateToPoolDetails(poolID: poolID)
     }
     
+    func selectBetAction(outcome: PoolResoltion, for pool: StoredPool) {
+        guard let exchangedBuyIn = try? ratesController.exchangedFiat(for: pool.buyIn) else {
+            return
+        }
+        
+        guard session.hasSufficientFunds(for: exchangedBuyIn) else {
+            showInsufficientBalanceError()
+            return
+        }
+        
+        isShowingBetConfirmation = outcome
+    }
+    
     func betAction(pool: StoredPool, outcome: PoolResoltion) async throws {
         do {
             try await poolController.createBet(
@@ -236,6 +248,25 @@ class PoolViewModel: ObservableObject {
         ) {
             .okay(kind: .standard)
         }
+    }
+    
+    private func showInsufficientBalanceError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Insufficient Balance",
+            subtitle: "You need more funds to join this Pool",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+}
+
+// MARK: - Error -
+
+extension PoolViewModel {
+    enum Error: Swift.Error {
+        case insufficientFundsForBet
     }
 }
 

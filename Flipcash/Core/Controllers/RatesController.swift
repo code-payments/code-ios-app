@@ -81,6 +81,27 @@ class RatesController: ObservableObject {
     func rate(for currency: CurrencyCode) -> Rate? {
         try? database.rate(for: currency)
     }
+    
+    func exchangedFiat(for amount: Fiat) throws -> ExchangedFiat {
+        guard let rate = rate(for: amount.currencyCode) else {
+            throw Error.exchangeRateUnavailable
+        }
+        
+        let exchangedFiat = try ExchangedFiat(
+            converted: amount,
+            rate: rate
+        )
+        
+        return exchangedFiat
+    }
+}
+
+// MARK: - Errors -
+
+extension RatesController {
+    enum Error: Swift.Error {
+        case exchangeRateUnavailable
+    }
 }
 
 // MARK: - LocalDefaults -
