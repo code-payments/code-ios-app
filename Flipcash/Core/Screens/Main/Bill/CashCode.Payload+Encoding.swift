@@ -91,7 +91,7 @@ extension CashCode.Payload {
         return data
     }
     
-    private func encode() -> Data {
+    func encode() -> Data {
         switch value {
         case .fiat(let fiat):
             return Self.encode(

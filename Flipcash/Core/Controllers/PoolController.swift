@@ -329,10 +329,7 @@ class PoolController: ObservableObject {
             // Calculate all the distribution amounts
             // based on the bets that were placed and
             // need to be paid out
-            let distributions = distributions(
-                for: distributionBets,
-                poolBalance: poolBalance
-            )
+            let distributions = distributionBets.distributePool(balance: poolBalance)
             
             // Distribute the winnings to all betting
             // accounts in the pool
@@ -349,29 +346,23 @@ class PoolController: ObservableObject {
             trace(.success, components: "No distributions")
         }
     }
-    
-    private func distributions(for bets: [StoredBet], poolBalance: Fiat) -> [PoolDistribution] {
+}
+
+extension Array where Element == StoredBet {
+    func distributePool(balance: Fiat) -> [PoolDistribution] {
         // Calculate distributions based on the total pool balance
         // and the number of winning bets to pay out
-        let count              = UInt64(bets.count)
-        let distributionQuarks = poolBalance.quarks / count
-        let remainderQuarks    = poolBalance.quarks % count
+        let count              = UInt64(self.count)
+        let distributionQuarks = balance.quarks / count
+        let remainderQuarks    = balance.quarks % count
             
-        var distributions: [PoolDistribution] = bets.map {
+        let distributions: [PoolDistribution] = self.enumerated().map { index, bet in
             .init(
-                destination: $0.payoutDestination,
+                destination: bet.payoutDestination,
                 amount: Fiat(
-                    quarks: distributionQuarks,
-                    currencyCode: poolBalance.currencyCode
+                    quarks: distributionQuarks + (index < remainderQuarks ? 1 : 0),
+                    currencyCode: balance.currencyCode
                 )
-            )
-        }
-        
-        // Assign the remainder to the last distribution
-        if remainderQuarks > 0, let lastDistribution = distributions.last {
-            distributions[distributions.count - 1].amount = Fiat(
-                quarks: lastDistribution.amount.quarks + remainderQuarks,
-                currencyCode: lastDistribution.amount.currencyCode
             )
         }
         
