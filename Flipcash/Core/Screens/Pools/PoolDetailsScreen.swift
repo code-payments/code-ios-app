@@ -382,7 +382,7 @@ struct PoolDetailsScreen: View {
         
         let info = PoolInfo(
             name: pool.name,
-            amount: pool.amountInPool.formatted(suffix: nil),
+            amount: pool.buyIn.formatted(suffix: nil),
             yesCount: pool.betCountYes,
             noCount: pool.betCountNo
         )
