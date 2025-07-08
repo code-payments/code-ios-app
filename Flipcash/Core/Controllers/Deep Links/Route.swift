@@ -77,10 +77,14 @@ extension Route {
                 return nil
             }
             
-//            let components = url.pathComponents
+            let components = url.pathComponents
+            
+            guard !components.isEmpty else {
+                return nil
+            }
             
             // Handle any paths that use the last path component
-            switch url.lastPathComponent {
+            switch components[0] {
             case "login":
                 return .login
             case "cash", "c":
