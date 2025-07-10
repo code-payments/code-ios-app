@@ -284,7 +284,7 @@ extension Database {
             b.isFulfilled
         FROM
             bet b
-        WHERE b.poolID = ? \(filter);
+        WHERE b.isFulfilled = 1 AND b.poolID = ? \(filter);
         """, bindings: Blob(bytes: poolID.bytes))
         
         let t = BetTable()
