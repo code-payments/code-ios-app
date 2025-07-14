@@ -103,16 +103,9 @@ class OnboardingViewModel: ObservableObject {
                 // Store onboarding mnemonic is it has
                 // been saved to photos so we can resume
                 // the flow if the account isn't paid for
-                Keychain.onboardingMnemonic = mnemonic
+//                Keychain.onboardingMnemonic = mnemonic
                 
-                try await Task.delay(milliseconds: 150)
-                accessKeyButtonState = .success
-                try await Task.delay(milliseconds: 400)
-                
-                navigateToBuyAccountScreen()
-                
-                try await Task.delay(milliseconds: 500)
-                accessKeyButtonState = .normal
+                try await completeAccountCreation()
                 
             } catch {
                 accessKeyButtonState = .normal
@@ -139,65 +132,83 @@ class OnboardingViewModel: ObservableObject {
             dismissable: true
         ) {
             .destructive("Yes, I Wrote Them Down") { [weak self] in
-                self?.navigateToBuyAccountScreen()
+                Task {
+                    try await self?.completeAccountCreation()
+                }
             };
             .cancel()
         }
     }
     
-    func buyAccountAction() {
-        buyAccountButtonState = .loading
-        let mnemonic = inflightMnemonic
-        Task {
-            let owner    = mnemonic.solanaKeyPair()
-            let product  = IAPProduct.createAccount
-            let uniqueID = UUID()
-            
-            do {
-                let result = try await storeController.pay(
-                    for: product,
-                    owner: owner,
-                    uniqueID: uniqueID
-                )
-                
-                switch result {
-                case .success(let purchase, let finishTransaction):
-                    try await registerAccount(
-                        for: purchase,
-                        finishTransaction: finishTransaction,
-                        mnemonic: mnemonic,
-                        uniqueID: uniqueID
-                    )
-                    
-                case .pending:
-                    setPurchasePending(
-                        for: mnemonic,
-                        product: product,
-                        uniqueID: uniqueID
-                    )
-                    
-                case .failed, .cancelled:
-                    break
-                }
-                
-                try await Task.delay(milliseconds: 350)
-                buyAccountButtonState = .normal
-                
-            } catch {
-                ErrorReporting.captureError(error)
-                
-                dialogItem = .init(
-                    style: .destructive,
-                    title: "Something Went Wrong",
-                    subtitle: "We couldn't create your account. Please try again.",
-                    dismissable: true
-                ) {
-                    .okay(kind: .destructive)
-                }
-                buyAccountButtonState = .normal
-            }
+    private func completeAccountCreation() async throws {
+        accessKeyButtonState = .loading
+        defer {
+            accessKeyButtonState = .normal
         }
+        
+        try await registerAccount(mnemonic: inflightMnemonic)
+        
+        try await Task.delay(milliseconds: 150)
+        accessKeyButtonState = .success
+        try await Task.delay(milliseconds: 400)
+        
+        navigateToPushPermissionsScreen()
+        
+        try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
+    
+//    func buyAccountAction() {
+//        buyAccountButtonState = .loading
+//        let mnemonic = inflightMnemonic
+//        Task {
+//            let owner    = mnemonic.solanaKeyPair()
+//            let product  = IAPProduct.createAccount
+//            let uniqueID = UUID()
+//            
+//            do {
+//                let result = try await storeController.pay(
+//                    for: product,
+//                    owner: owner,
+//                    uniqueID: uniqueID
+//                )
+//                
+//                switch result {
+//                case .success(let purchase, let finishTransaction):
+//                    try await registerAccount(
+//                        for: purchase,
+//                        finishTransaction: finishTransaction,
+//                        mnemonic: mnemonic
+//                    )
+//                    
+//                case .pending:
+//                    setPurchasePending(
+//                        for: mnemonic,
+//                        product: product,
+//                        uniqueID: uniqueID
+//                    )
+//                    
+//                case .failed, .cancelled:
+//                    break
+//                }
+//                
+//                try await Task.delay(milliseconds: 350)
+//                buyAccountButtonState = .normal
+//                
+//            } catch {
+//                ErrorReporting.captureError(error)
+//                
+//                dialogItem = .init(
+//                    style: .destructive,
+//                    title: "Something Went Wrong",
+//                    subtitle: "We couldn't create your account. Please try again.",
+//                    dismissable: true
+//                ) {
+//                    .okay(kind: .destructive)
+//                }
+//                buyAccountButtonState = .normal
+//            }
+//        }
+//    }
     
     func allowCameraAccessAction() {
         Task {
@@ -238,7 +249,7 @@ class OnboardingViewModel: ObservableObject {
     
     // MARK: - Purchase -
     
-    private func registerAccount(for purchase: StoreController.Purchase, finishTransaction: StoreController.FinishTransaction, mnemonic: MnemonicPhrase, uniqueID: UUID) async throws {
+    private func registerAccount(mnemonic: MnemonicPhrase) async throws {
         // Reset onboarding mnemonic after
         // the account has been paid for and
         // is being registered
@@ -246,25 +257,9 @@ class OnboardingViewModel: ObservableObject {
         
         let owner = mnemonic.solanaKeyPair()
         
-        let price = purchase.price?.doubleValue ?? -1
-        let currency = purchase.currencyCode ?? "nil"
-        
-        Analytics.createAccountPayment(
-            price: price,
-            currency: currency,
-            owner: owner.publicKey
-        )
+        Analytics.createAccount(owner: owner.publicKey)
         
         try await flipClient.register(owner: owner)
-        try await flipClient.completePurchase(
-            receipt: purchase.receipt,
-            productID: purchase.productID,
-            price: price,
-            currency: currency,
-            owner: owner
-        )
-        
-        await finishTransaction()
         
         let account = try await sessionAuthenticator.initialize(
             using: mnemonic,
@@ -272,12 +267,48 @@ class OnboardingViewModel: ObservableObject {
         )
         
         initializedAccount = account
-        
-        buyAccountButtonState = .success
-        try await Task.delay(seconds: 1)
-        
-        navigateToPushPermissionsScreen()
     }
+    
+//    private func registerAccount(for purchase: StoreController.Purchase, finishTransaction: StoreController.FinishTransaction, mnemonic: MnemonicPhrase) async throws {
+//        // Reset onboarding mnemonic after
+//        // the account has been paid for and
+//        // is being registered
+//        Keychain.onboardingMnemonic = nil
+//        
+//        let owner = mnemonic.solanaKeyPair()
+//        
+//        let price = purchase.price?.doubleValue ?? -1
+//        let currency = purchase.currencyCode ?? "nil"
+//        
+//        Analytics.createAccountPayment(
+//            price: price,
+//            currency: currency,
+//            owner: owner.publicKey
+//        )
+//        
+//        try await flipClient.register(owner: owner)
+//        try await flipClient.completePurchase(
+//            receipt: purchase.receipt,
+//            productID: purchase.productID,
+//            price: price,
+//            currency: currency,
+//            owner: owner
+//        )
+//        
+//        await finishTransaction()
+//        
+//        let account = try await sessionAuthenticator.initialize(
+//            using: mnemonic,
+//            isRegistration: true
+//        )
+//        
+//        initializedAccount = account
+//        
+//        buyAccountButtonState = .success
+//        try await Task.delay(seconds: 1)
+//        
+//        navigateToPushPermissionsScreen()
+//    }
     
     // MARK: - Account Creation -
     
@@ -337,18 +368,17 @@ class OnboardingViewModel: ObservableObject {
                     return false
                 }
                 
-                Task {
-                    do {
-                        try await registerAccount(
-                            for: purchase,
-                            finishTransaction: finishTransaction,
-                            mnemonic: pendingPurchase.mnemonic,
-                            uniqueID: pendingPurchase.uniqueID
-                        )
-                    } catch {
-                        ErrorReporting.captureError(error)
-                    }
-                }
+//                Task {
+//                    do {
+//                        try await registerAccount(
+//                            for: purchase,
+//                            finishTransaction: finishTransaction,
+//                            mnemonic: pendingPurchase.mnemonic
+//                        )
+//                    } catch {
+//                        ErrorReporting.captureError(error)
+//                    }
+//                }
                 
                 UserDefaults.pendingPurchase = nil
                 return true

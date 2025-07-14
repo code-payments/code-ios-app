@@ -62,7 +62,7 @@ struct BuyAccountScreen: View {
                     style: .filled,
                     title: "Purchase Your Account",
                     disabled: !isPriceAvailable,
-                    action: viewModel.buyAccountAction
+                    action: {}//viewModel.buyAccountAction
                 )
             }
             .ignoresSafeArea(.keyboard)

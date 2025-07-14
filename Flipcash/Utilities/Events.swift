@@ -46,12 +46,10 @@ extension Analytics {
         track(event: .cancelPendingPurchase)
     }
     
-    static func createAccountPayment(price: Double, currency: String, owner: PublicKey) {
+    static func createAccount(owner: PublicKey) {
         track(
-            event: .createAccountPayment,
+            event: .createAccount,
             properties: [
-                .fiat: price,
-                .currency: currency.lowercased(),
                 .ownerPublicKey: owner.base58,
             ]
         )
@@ -124,12 +122,12 @@ extension Analytics {
 
 extension Analytics {
     enum Name: String {
-        case createAccountPayment = "Create Account Payment"
-        case withdrawal           = "Withdrawal"
-        case sendCashLink         = "Send Cash Link"
-        case receiveCashLink      = "Receive Cash Link"
-        case grabBill             = "Grab Bill"
-        case giveBill             = "Give Bill"
+        case createAccount   = "Create Account"
+        case withdrawal      = "Withdrawal"
+        case sendCashLink    = "Send Cash Link"
+        case receiveCashLink = "Receive Cash Link"
+        case grabBill        = "Grab Bill"
+        case giveBill        = "Give Bill"
         
         case cancelPendingPurchase = "Cancel Pending Purchase"
     }
