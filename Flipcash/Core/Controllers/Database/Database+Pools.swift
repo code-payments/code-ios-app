@@ -118,7 +118,7 @@ extension Database {
             p.userOutcomeQuarks,
             p.userOutcomeCurrency
         FROM pool p
-        ORDER BY p.creationDate DESC
+        ORDER BY p.closedDate DESC, p.creationDate DESC
         LIMIT 1024;
         """)
         
