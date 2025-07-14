@@ -44,16 +44,17 @@ class PushController: ObservableObject {
             // There's no point trying to retrieve the firebase token
             // if we're not authorized to send push as the call will
             // not return anything
-            guard await Self.fetchStatus() != .notDetermined else {
-                return
-            }
-            
-            do {
-                let token = try await Messaging.messaging().token()
-                trace(.note, components: "Uploading existing Firebase token from .messaging().token()")
-                try await addFirebaseToken(token)
-            } catch {
-                trace(.failure, components: "No stored Firebase token. Is this a fresh launch?")
+            if await Self.fetchStatus() == .notDetermined {
+                try await authorizeAndRegister()
+                
+            } else {
+                do {
+                    let token = try await Messaging.messaging().token()
+                    trace(.note, components: "Uploading existing Firebase token from .messaging().token()")
+                    try await addFirebaseToken(token)
+                } catch {
+                    trace(.failure, components: "No stored Firebase token. Is this a fresh launch?")
+                }
             }
         }
 //        resetAppBadgeCount()
