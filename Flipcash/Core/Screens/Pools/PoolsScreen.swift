@@ -193,23 +193,46 @@ struct PoolsScreen: View {
                         .multilineTextAlignment(.leading)
                     
                     HStack(spacing: 8) {
-                        if BetaFlags.shared.hasEnabled(.showMissingRendezvous), pool.rendezvous == nil {
-                            Text("Missing Rendezvous")
-                                .font(.appTextMedium)
-                                .foregroundStyle(Color.textError)
-                        }
-                        
                         if let resolution = pool.resolution {
                             ResolutionBadge(resolution: resolution)
                             
-                            if case .won(let amount) = pool.userOutcome {
-                                WinBadge(amount: amount)
+                            switch pool.userOutcome {
+                            case .none:
+                                EmptyView()
+                            case .won(let amount):
+                                ResultBadge(
+                                    style: .won,
+                                    text: "Won",
+                                    amount: amount
+                                )
+                                
+                            case .lost(let amount):
+                                ResultBadge(
+                                    style: .lost,
+                                    text: "Lost",
+                                    amount: amount
+                                )
+                                
+                            case .refunded:
+                                ResultBadge(
+                                    style: .tied,
+                                    text: "Tie",
+                                    amount: nil
+                                )
                             }
                             
                         } else {
                             Text("\(pool.amountInPool.formatted(suffix: nil)) in pool so far")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
+                        }
+                        
+                        if BetaFlags.shared.hasEnabled(.showMissingRendezvous), pool.rendezvous == nil {
+                            ResultBadge(
+                                style: .lost,
+                                text: "Missing Rendezvous",
+                                amount: nil
+                            )
                         }
                     }
                 }
@@ -272,29 +295,64 @@ struct ResolutionBadge: View {
     }
 }
 
-// MARK: - WinBadge -
+// MARK: - ResultBadge -
 
-struct WinBadge: View {
+extension Color {
+    static let badgeWonBackground    = Color(r: 44, g: 77, b: 54)
+    static let badgeLostBackground   = Color(r: 64, g: 44, b: 35)
+    static let badgeNormalBackground = Color(r: 33, g: 50, b: 40)
+}
+
+struct ResultBadge: View {
     
-    let amount: Fiat
+    let style: Style
+    let text: String
+    let amount: Fiat?
     
-    init(amount: Fiat) {
+    init(style: Style, text: String, amount: Fiat?) {
+        self.style  = style
+        self.text   = text
         self.amount = amount
     }
     
     var body: some View {
         HStack(spacing: 5) {
-            Image.system(.trophy)
-                .font(.appTextHeading)
-            Text(amount.formatted(suffix: nil))
-                .font(.appTextSmall)
+            Text(text)
+            if let amount {
+                Text(amount.formatted(suffix: nil))
+            }
         }
+        .font(.appTextSmall)
         .padding(.horizontal, 6)
         .frame(height: 26)
-        .foregroundStyle(Color(r: 115, g: 234, b: 164))
+        .foregroundStyle(style.textColor)
         .background {
             RoundedRectangle(cornerRadius: 5)
-                .fill(Color(r: 44, g: 77, b: 54))
+                .fill(style.backgroundColor)
+        }
+    }
+}
+
+extension ResultBadge {
+    enum Style {
+        case won
+        case lost
+        case tied
+        
+        var textColor: Color {
+            switch self {
+            case .won:  return Color(r: 115, g: 234, b: 164)
+            case .lost: return Color(r: 214, g: 94,  b: 89)
+            case .tied: return .textMain.opacity(0.5)
+            }
+        }
+        
+        var backgroundColor: Color {
+            switch self {
+            case .won:  return .badgeWonBackground
+            case .lost: return .badgeLostBackground
+            case .tied: return .badgeNormalBackground
+            }
         }
     }
 }
