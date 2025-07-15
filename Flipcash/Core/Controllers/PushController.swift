@@ -22,7 +22,7 @@ class PushController: ObservableObject {
     private let delegate: NotificationDelegate
     
     private var apnsToken: Data?
-    private var firebaseToken: String?
+    private var uploadedFirebaseToken: String?
     
     // MARK: - Init -
     
@@ -48,13 +48,10 @@ class PushController: ObservableObject {
                 try await authorizeAndRegister()
                 
             } else {
-                do {
-                    let token = try await Messaging.messaging().token()
-                    trace(.note, components: "Uploading existing Firebase token from .messaging().token()")
-                    try await addFirebaseToken(token)
-                } catch {
-                    trace(.failure, components: "No stored Firebase token. Is this a fresh launch?")
-                }
+                // Triggering APNS registration invokes the
+                // didReceiveRemoteNotificationToken function
+                // which will uploaded the new push token
+                registerAPNS()
             }
         }
 //        resetAppBadgeCount()
@@ -64,16 +61,23 @@ class PushController: ObservableObject {
         trace(.warning, components: "Received APNs token: \(token.hexString())")
         apnsToken = token
         Messaging.messaging().setAPNSToken(token, type: .unknown)
+        
+        Task {
+            let token = try await Messaging.messaging().token()
+            try await didReceiveFirebaseToken(token: token)
+        }
     }
     
     func prepareForLogout() {
         Task {
-            guard let token = firebaseToken else {
+            guard let token = uploadedFirebaseToken else {
                 return
             }
             
             try await deleteFirebaseToken(token)
         }
+        
+        unregisterAPNS()
     }
     
     // MARK: - Badge -
@@ -98,17 +102,23 @@ class PushController: ObservableObject {
     // MARK: - Firebase -
     
     private func didReceiveFirebaseToken(token: String?) async throws {
-        firebaseToken = token
-        if let firebaseToken {
-            trace(.success, components: "APNS: Firebase token received. Sending to server...", "Token: \(firebaseToken)")
+        guard let token else {
+            uploadedFirebaseToken = nil
+            trace(.warning, components: "APNS: Firebase token cleared.")
+            return
+        }
+        
+        if uploadedFirebaseToken != token {
+            trace(.success, components: "APNS: New Firebase token received. Sending to server...", "Token: \(token)")
             try await client.addToken(
-                token: firebaseToken,
+                token: token,
                 installationID: try await Self.installationID(),
                 owner: owner
             )
+            uploadedFirebaseToken = token // Cache uploaded token
             
         } else {
-            trace(.warning, components: "APNS: Firebase token cleared.")
+            trace(.note, components: "APNS: Received a token but it's identical to uploaded token.")
         }
     }
     
@@ -129,16 +139,20 @@ class PushController: ObservableObject {
     
     // MARK: - Authorization -
     
-    func authorizeAndRegister() async throws {
+    private func authorizeAndRegister() async throws {
         if await Self.fetchStatus() == .notDetermined {
             try await center.requestAuthorization(options: [.alert, .badge, .sound])
         }
         
-        await register()
+        registerAPNS()
     }
     
-    private func register() async {
+    private func registerAPNS() {
         UIApplication.shared.registerForRemoteNotifications()
+    }
+    
+    private func unregisterAPNS() {
+        UIApplication.shared.unregisterForRemoteNotifications()
     }
 }
 
