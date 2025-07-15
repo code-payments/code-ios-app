@@ -144,6 +144,7 @@ class PoolViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 250)
                 
                 navigateToPoolDetails(poolID: poolID)
+                Analytics.poolCreated(id: poolID)
                 
                 createPoolButtonState = .success
                 try await Task.delay(milliseconds: 250)
@@ -185,6 +186,9 @@ class PoolViewModel: ObservableObject {
                 pool: pool,
                 outcome: outcome
             )
+            
+            Analytics.poolPlaceBet(id: pool.id)
+            
         } catch {
             ErrorReporting.captureError(error)
             throw error
@@ -197,6 +201,9 @@ class PoolViewModel: ObservableObject {
                 pool: pool,
                 outcome: outcome
             )
+            
+            Analytics.poolDeclareOutcome(id: pool.id)
+            
         } catch {
             ErrorReporting.captureError(error)
             throw error
@@ -217,6 +224,8 @@ class PoolViewModel: ObservableObject {
         
         navigateToPoolDetails(poolID: rendezvous.publicKey)
         showPoolList()
+        
+        Analytics.poolOpenedFromDeeplink(id: rendezvous.publicKey)
     }
     
     // MARK: - Updates -

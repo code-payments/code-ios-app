@@ -8,39 +8,17 @@
 import Foundation
 import FlipcashCore
 
+// MARK: - General -
+
+extension Analytics {
+    static func buttonTapped(name: Name) {
+        track(event: name)
+    }
+}
 
 // MARK: - Account -
 
 extension Analytics {
-//    static func logout() {
-//        track(.logout)
-//    }
-    
-//    static func login(ownerPublicKey: PublicKey, autoCompleteCount: Int, inputChangeCount: Int) {
-//        track(.login, properties: [
-//            .ownerPublicKey: ownerPublicKey.base58,
-//            .autoCompleteCount: autoCompleteCount,
-//            .inputChangeCount: inputChangeCount,
-//        ])
-//    }
-    
-//    static func loginByRetry(count: Int) {
-//        track(.loginByRetry, properties: [
-//            .retryCount: count,
-//        ])
-//    }
-    
-//    static func createAccount(isSuccessful: Bool, ownerPublicKey: PublicKey?, error: Error?) {
-//        var properties: [Property: AnalyticsValue] = [
-//            .result: isSuccessful,
-//        ]
-//        
-//        if let ownerPublicKey = ownerPublicKey {
-//            properties[.ownerPublicKey] = ownerPublicKey.base58
-//        }
-//        
-//        track(.createAccount, properties: properties, error: error)
-//    }
     
     static func cancelPendingPurchase() {
         track(event: .cancelPendingPurchase)
@@ -53,6 +31,34 @@ extension Analytics {
                 .ownerPublicKey: owner.base58,
             ]
         )
+    }
+}
+
+// MARK: - Pools -
+
+extension Analytics {
+    static func poolOpenedFromDeeplink(id: PublicKey) {
+        track(event: .poolOpened, properties: [
+            .id: id.base58
+        ])
+    }
+    
+    static func poolCreated(id: PublicKey) {
+        track(event: .poolCreated, properties: [
+            .id: id.base58
+        ])
+    }
+    
+    static func poolPlaceBet(id: PublicKey) {
+        track(event: .poolPlaceBet, properties: [
+            .id: id.base58
+        ])
+    }
+    
+    static func poolDeclareOutcome(id: PublicKey) {
+        track(event: .poolDeclareOutcome, properties: [
+            .id: id.base58
+        ])
     }
 }
 
@@ -129,6 +135,20 @@ extension Analytics {
         case grabBill        = "Grab Bill"
         case giveBill        = "Give Bill"
         
+        case buttonCreateAccount  = "Button: Create Account"
+        case buttonSaveAccessKey  = "Button: Save Access Key"
+        case buttonWroteAccessKey = "Button: Wrote Access Key"
+        case buttonAllowCamera    = "Button: Allow Camera"
+        case buttonAllowPush      = "Button: Allow Push"
+        case buttonSkipPush       = "Button: Skip Push"
+        
+        case completeOnboarding   = "Complete Onboarding"
+        
+        case poolOpened           = "Pool: Opened From Deeplink"
+        case poolCreated          = "Pool: Created"
+        case poolDeclareOutcome   = "Pool: Declare Outcome"
+        case poolPlaceBet         = "Pool: Place Bet"
+        
         case cancelPendingPurchase = "Cancel Pending Purchase"
     }
 }
@@ -136,6 +156,7 @@ extension Analytics {
 extension Analytics {
     enum Property: String {
         
+        case id                = "ID"
         case ownerPublicKey    = "Owner Public Key"
         case autoCompleteCount = "Auto-complete count"
         case inputChangeCount  = "Input change count"

@@ -69,27 +69,10 @@ class OnboardingViewModel: ObservableObject {
         } else {
             inflightMnemonic = MnemonicPhrase.generate(.words12)
         }
+        
         navigateToAccessKey()
-//        Task {
-//            loginButtonState = .loading
-//            defer {
-//                loginButtonState = .normal
-//            }
-//            let account  = try await initialize(
-//                using: mnemonic,
-//                isRegistration: true
-//            )
-//            
-//            // Prevent server race condition for airdrop
-//            try await Task.delay(seconds: 1)
-//            
-//            _ = try await client.airdrop(
-//                type: .getFirstCrypto,
-//                owner: account.keyAccount.derivedKey.keyPair
-//            )
-//            
-//            completeLogin(with: account)
-//        }
+
+        Analytics.buttonTapped(name: .buttonCreateAccount)
     }
     
     func saveToPhotosAction() {
@@ -122,6 +105,8 @@ class OnboardingViewModel: ObservableObject {
                 }
             }
         }
+        
+        Analytics.buttonTapped(name: .buttonSaveAccessKey)
     }
     
     func wroteDownAction() {
@@ -135,6 +120,8 @@ class OnboardingViewModel: ObservableObject {
                 Task {
                     try await self?.completeAccountCreation()
                 }
+                
+                Analytics.buttonTapped(name: .buttonWroteAccessKey)
             };
             .cancel()
         }
@@ -221,6 +208,8 @@ class OnboardingViewModel: ObservableObject {
             } catch {}
             completeOnboardingAndLogin()
         }
+        
+        Analytics.buttonTapped(name: .buttonAllowCamera)
     }
     
     func cancelPendingPurchaseAction() {
@@ -241,10 +230,14 @@ class OnboardingViewModel: ObservableObject {
             } catch {}
             navigateToCameraAccessScreen()
         }
+        
+        Analytics.buttonTapped(name: .buttonAllowPush)
     }
     
     func skipPushPermissionsAction() {
         navigateToCameraAccessScreen()
+        
+        Analytics.buttonTapped(name: .buttonSkipPush)
     }
     
     // MARK: - Purchase -
@@ -318,6 +311,8 @@ class OnboardingViewModel: ObservableObject {
         }
         
         sessionAuthenticator.completeLogin(with: initializedAccount)
+        
+        Analytics.track(event: .completeOnboarding)
     }
     
     // MARK: - Pending Transactions -
