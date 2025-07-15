@@ -200,18 +200,22 @@ struct PoolsScreen: View {
                             case .none:
                                 EmptyView()
                             case .won(let amount):
-                                ResultBadge(
-                                    style: .won,
-                                    text: "Won",
-                                    amount: amount
-                                )
+                                if amount.quarks > 0 {
+                                    ResultBadge(
+                                        style: .won,
+                                        text: "Won",
+                                        amount: amount
+                                    )
+                                }
                                 
                             case .lost(let amount):
-                                ResultBadge(
-                                    style: .lost,
-                                    text: "Lost",
-                                    amount: amount
-                                )
+                                if amount.quarks > 0 {
+                                    ResultBadge(
+                                        style: .lost,
+                                        text: "Lost",
+                                        amount: amount
+                                    )
+                                }
                                 
                             case .refunded:
                                 ResultBadge(
