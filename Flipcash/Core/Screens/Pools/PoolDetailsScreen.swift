@@ -21,6 +21,8 @@ struct PoolDetailsScreen: View {
     
     @State private var localDialogItem: DialogItem?
     
+    @State private var confettiTrigger: Int = 0
+    
     private let userID: UserID
     private let poolID: PublicKey
     private let database: Database
@@ -54,6 +56,21 @@ struct PoolDetailsScreen: View {
     
     private var countOnNo: Int {
         pool?.betCountNo ?? 0
+    }
+    
+    private var isWinner: Bool {
+        guard let resolution = pool?.resolution else {
+            return false
+        }
+        
+        switch resolution {
+        case .yes:
+            return userBet?.selectedOutcome == .yes
+        case .no:
+            return userBet?.selectedOutcome == .no
+        case .refund:
+            return false
+        }
     }
     
 //    private var amountOnYes: Fiat {
@@ -204,6 +221,17 @@ struct PoolDetailsScreen: View {
                             .offset(y: -Metrics.boxRadius)
                             .zIndex(0)
                             .opacity(userBet?.selectedOutcome == .no ? 1 : 0)
+                    }
+                }
+                .background {
+                    ConfettiBox(trigger: $confettiTrigger)
+                }
+                .onAppear {
+                    if BetaFlags.shared.hasEnabled(.enableConfetti) && isWinner {
+                        Task {
+                            try await Task.delay(milliseconds: 500)
+                            confettiTrigger += 1
+                        }
                     }
                 }
             }

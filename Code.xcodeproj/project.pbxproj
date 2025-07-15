@@ -230,6 +230,7 @@
 		9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9ACC074F28342BF1001F0081 /* Guards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC074E28342BF1001F0081 /* Guards.swift */; };
 		9ACE172B27E6287D00ACA047 /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 9ACE172A27E6287D00ACA047 /* Mixpanel */; };
+		9ACF9AD32E26D62300BF4F82 /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */; };
 		9ACFA004261DFDA6007F97B4 /* Environment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA003261DFDA6007F97B4 /* Environment.swift */; };
 		9ACFA30C2A4A0FAD0057A5DF /* Abacus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA30B2A4A0FAD0057A5DF /* Abacus.swift */; };
 		9ACFA30E2A4B3C0B0057A5DF /* SavedLoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACFA30D2A4B3C0B0057A5DF /* SavedLoginScreen.swift */; };
@@ -650,6 +651,7 @@
 				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
 				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
 				9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */,
+				9ACF9AD32E26D62300BF4F82 /* ConfettiSwiftUI in Frameworks */,
 				9ADEF1C52DD50BDE001B260A /* FirebaseCrashlytics in Frameworks */,
 				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
@@ -1340,6 +1342,7 @@
 				9ADEF1C82DD50BDE001B260A /* FirebaseMessaging */,
 				9ADEF1D62DD627C0001B260A /* Bugsnag */,
 				9ADEF1D82DD627C6001B260A /* Mixpanel */,
+				9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -1728,6 +1731,7 @@
 				9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */,
 				9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */,
 				9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -4517,6 +4521,14 @@
 				minimumVersion = 4.2.5;
 			};
 		};
+		9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/simibac/ConfettiSwiftUI";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.3;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -4655,6 +4667,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9ACE172927E6287C00ACA047 /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
 			productName = Mixpanel;
+		};
+		9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */;
+			productName = ConfettiSwiftUI;
 		};
 		9AD1265D2DA98ADC0048141F /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;
