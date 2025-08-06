@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package flipcash.email.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/email/v1;emailpb";
+option java_package = "com.codeinc.flipcash.gen.email.v1";
+option objc_class_prefix = "FPBEmailV1";
+
+import "common/v1/common.proto";
+import "email/v1/model.proto";
+import "validate/validate.proto";
+
+service EmailVerification {
+    // SendVerificationCode sends a verification code to the provided email address.
+    // If an active verification is already taking place, the existing code will be
+    // resent.
+    rpc SendVerificationCode(SendVerificationCodeRequest) returns (SendVerificationCodeResponse);
+
+    // CheckVerificationCode validates a verification code. On success, the email
+    // address is linked to the user.
+    rpc CheckVerificationCode(CheckVerificationCodeRequest) returns (CheckVerificationCodeResponse);
+}
+
+message SendVerificationCodeRequest {
+    // The email address to send a verification code to
+    EmailAddress email_address = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message SendVerificationCodeResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        // Email is denied
+        DENIED = 1;
+        // Email is rate limited (eg. by IP, email address, user, etc) and was not sent.
+        RATE_LIMITED = 2;
+        // The email address is not real
+        INVALID_EMAIL_ADDRESS = 3;
+    }
+}
+
+message CheckVerificationCodeRequest {
+    // The email address being verified
+    EmailAddress email_address = 1 [(validate.rules).message.required = true];
+
+    // The verification code received via email
+    VerificationCode code = 2 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 3 [(validate.rules).message.required = true];
+}
+
+message CheckVerificationCodeResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+        DENIED = 1;
+        // The call is rate limited (eg. by IP, email address, etc). The code is
+        // not verified.
+        RATE_LIMITED = 2;
+        // The provided verification code is invalid. The user may retry
+        // enterring the code if this is received. When max attempts are
+        // received, NO_VERIFICATION will be returned.
+        INVALID_CODE = 3;
+        // There is no verification in progress for the email address. Several
+        // reasons this can occur include a verification being expired or having
+        // reached a maximum check threshold. The client must initiate a new
+        // verification using SendVerificationCode.
+        NO_VERIFICATION = 4;
+    }
+}

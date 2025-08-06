@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package flipcash.profile.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/profile/v1;profilepb";
+option java_package = "com.codeinc.flipcash.gen.profile.v1";
+option objc_class_prefix = "FPBProfileV1";
+
+import "common/v1/common.proto";
+import "profile/v1/model.proto";
+import "validate/validate.proto";
+
+service Profile {
+	rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+
+	rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
+
+	// LinkSocialAccount links a social account to a user
+	rpc LinkSocialAccount(LinkSocialAccountRequest) returns (LinkSocialAccountResponse);
+
+	// UnlinkSocialAccount removes a social account link from a user
+	rpc UnlinkSocialAccount(UnlinkSocialAccountRequest) returns (UnlinkSocialAccountResponse);
+}
+
+message GetProfileRequest {
+	common.v1.UserId user_id = 1 [(validate.rules).message.required = true];
+
+	// Optional auth to retrieve private profile information for self
+	common.v1.Auth auth = 2;
+}
+
+message GetProfileResponse {
+	Result result = 1;
+	enum Result {
+		OK        = 0;
+		NOT_FOUND = 1;
+	}
+
+	// UserProfile, if found.
+	//
+	// Some fields may or may not be set, depending on the scope of request
+	// in the future.
+	UserProfile user_profile = 2;
+}
+
+message SetDisplayNameRequest {
+	// DisplayName is the new name to set.
+	string display_name = 1 [(validate.rules).string = {
+		min_len: 1
+		max_len: 64
+	}];
+
+	common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message SetDisplayNameResponse {
+	Result result = 1;
+	enum Result {
+		OK                   = 0;
+		INVALID_DISPLAY_NAME = 1;
+		DENIED               = 2;
+	}
+}
+
+message LinkSocialAccountRequest {
+	LinkingToken linking_token = 1 [(validate.rules).message.required = true];
+
+	message LinkingToken {
+		oneof type {
+			option (validate.required) = true;
+
+			XLinkingToken x = 1;
+		}
+
+		message XLinkingToken {
+			// X access token from the OAuth 2.0 flow
+			string access_token = 1[(validate.rules).string = {
+				min_len: 1
+				max_len: 4096 // todo: arbitrary
+			}];
+		}
+	}
+
+	common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message LinkSocialAccountResponse {
+	Result result = 1;
+	enum Result {
+		OK                    = 0;
+		INVALID_LINKING_TOKEN = 1;
+		EXISTING_LINK         = 2;
+		DENIED                = 3;
+	}
+
+	SocialProfile social_profile = 2;
+}
+
+message UnlinkSocialAccountRequest {
+	oneof social_identifier {
+		option (validate.required) = true;
+
+		string x_user_id = 1 [(validate.rules).string = {
+			max_len: 32
+		}];
+	}
+
+	common.v1.Auth auth = 10 [(validate.rules).message.required = true];
+}
+
+message UnlinkSocialAccountResponse {
+	Result result = 1;
+	enum Result {
+		OK     = 0;
+		DENIED = 1;
+	}
+}

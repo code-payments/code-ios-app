@@ -247,12 +247,24 @@ public struct Flipcash_Account_V1_GetUserFlagsRequest {
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
 
+  public var platform: Flipcash_Common_V1_Platform = .unknown
+
+  public var countryCode: Flipcash_Common_V1_CountryCode {
+    get {return _countryCode ?? Flipcash_Common_V1_CountryCode()}
+    set {_countryCode = newValue}
+  }
+  /// Returns true if `countryCode` has been explicitly set.
+  public var hasCountryCode: Bool {return self._countryCode != nil}
+  /// Clears the value of `countryCode`. Subsequent reads from it will return its default value.
+  public mutating func clearCountryCode() {self._countryCode = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _userID: Flipcash_Common_V1_UserId? = nil
   fileprivate var _auth: Flipcash_Common_V1_Auth? = nil
+  fileprivate var _countryCode: Flipcash_Common_V1_CountryCode? = nil
 }
 
 public struct Flipcash_Account_V1_GetUserFlagsResponse {
@@ -329,10 +341,73 @@ public struct Flipcash_Account_V1_UserFlags {
   /// Is this user associated with a Flipcash staff member?
   public var isStaff: Bool = false
 
+  /// Does this user require IAP for registration in the account creation flow?
+  public var requiresIapForRegistration: Bool = false
+
+  /// The set of supported on ramp providers for the user, based on their platform
+  /// and locale if provided
+  public var supportedOnRampProviders: [Flipcash_Account_V1_UserFlags.OnRampProvider] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OnRampProvider: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case unknown // = 0
+    case coinbaseVirtual // = 1
+    case coinbasePhysicalDebit // = 2
+    case coinbasePhysicalCredit // = 3
+    case cryptoWallet // = 4
+    case phantom // = 5
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .unknown
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .unknown
+      case 1: self = .coinbaseVirtual
+      case 2: self = .coinbasePhysicalDebit
+      case 3: self = .coinbasePhysicalCredit
+      case 4: self = .cryptoWallet
+      case 5: self = .phantom
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .unknown: return 0
+      case .coinbaseVirtual: return 1
+      case .coinbasePhysicalDebit: return 2
+      case .coinbasePhysicalCredit: return 3
+      case .cryptoWallet: return 4
+      case .phantom: return 5
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
 
   public init() {}
 }
+
+#if swift(>=4.2)
+
+extension Flipcash_Account_V1_UserFlags.OnRampProvider: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Account_V1_UserFlags.OnRampProvider] = [
+    .unknown,
+    .coinbaseVirtual,
+    .coinbasePhysicalDebit,
+    .coinbasePhysicalCredit,
+    .cryptoWallet,
+    .phantom,
+  ]
+}
+
+#endif  // swift(>=4.2)
 
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipcash_Account_V1_RegisterRequest: @unchecked Sendable {}
@@ -345,6 +420,7 @@ extension Flipcash_Account_V1_GetUserFlagsRequest: @unchecked Sendable {}
 extension Flipcash_Account_V1_GetUserFlagsResponse: @unchecked Sendable {}
 extension Flipcash_Account_V1_GetUserFlagsResponse.Result: @unchecked Sendable {}
 extension Flipcash_Account_V1_UserFlags: @unchecked Sendable {}
+extension Flipcash_Account_V1_UserFlags.OnRampProvider: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -540,6 +616,8 @@ extension Flipcash_Account_V1_GetUserFlagsRequest: SwiftProtobuf.Message, SwiftP
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "user_id"),
     2: .same(proto: "auth"),
+    3: .same(proto: "platform"),
+    4: .standard(proto: "country_code"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -550,6 +628,8 @@ extension Flipcash_Account_V1_GetUserFlagsRequest: SwiftProtobuf.Message, SwiftP
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._userID) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 3: try { try decoder.decodeSingularEnumField(value: &self.platform) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._countryCode) }()
       default: break
       }
     }
@@ -566,12 +646,20 @@ extension Flipcash_Account_V1_GetUserFlagsRequest: SwiftProtobuf.Message, SwiftP
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
+    if self.platform != .unknown {
+      try visitor.visitSingularEnumField(value: self.platform, fieldNumber: 3)
+    }
+    try { if let v = self._countryCode {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Account_V1_GetUserFlagsRequest, rhs: Flipcash_Account_V1_GetUserFlagsRequest) -> Bool {
     if lhs._userID != rhs._userID {return false}
     if lhs._auth != rhs._auth {return false}
+    if lhs.platform != rhs.platform {return false}
+    if lhs._countryCode != rhs._countryCode {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -631,6 +719,8 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "is_registered_account"),
     2: .standard(proto: "is_staff"),
+    3: .standard(proto: "requires_iap_for_registration"),
+    4: .standard(proto: "supported_on_ramp_providers"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -641,6 +731,8 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularBoolField(value: &self.isRegisteredAccount) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.isStaff) }()
+      case 3: try { try decoder.decodeSingularBoolField(value: &self.requiresIapForRegistration) }()
+      case 4: try { try decoder.decodeRepeatedEnumField(value: &self.supportedOnRampProviders) }()
       default: break
       }
     }
@@ -653,13 +745,32 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.isStaff != false {
       try visitor.visitSingularBoolField(value: self.isStaff, fieldNumber: 2)
     }
+    if self.requiresIapForRegistration != false {
+      try visitor.visitSingularBoolField(value: self.requiresIapForRegistration, fieldNumber: 3)
+    }
+    if !self.supportedOnRampProviders.isEmpty {
+      try visitor.visitPackedEnumField(value: self.supportedOnRampProviders, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Account_V1_UserFlags, rhs: Flipcash_Account_V1_UserFlags) -> Bool {
     if lhs.isRegisteredAccount != rhs.isRegisteredAccount {return false}
     if lhs.isStaff != rhs.isStaff {return false}
+    if lhs.requiresIapForRegistration != rhs.requiresIapForRegistration {return false}
+    if lhs.supportedOnRampProviders != rhs.supportedOnRampProviders {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
+}
+
+extension Flipcash_Account_V1_UserFlags.OnRampProvider: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "UNKNOWN"),
+    1: .same(proto: "COINBASE_VIRTUAL"),
+    2: .same(proto: "COINBASE_PHYSICAL_DEBIT"),
+    3: .same(proto: "COINBASE_PHYSICAL_CREDIT"),
+    4: .same(proto: "CRYPTO_WALLET"),
+    5: .same(proto: "PHANTOM"),
+  ]
 }

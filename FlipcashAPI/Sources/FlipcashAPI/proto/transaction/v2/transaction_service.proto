@@ -96,7 +96,7 @@ message SubmitIntentRequest {
         // The set of all ordered actions required to fulfill the intent
         repeated Action actions = 4 [(validate.rules).repeated = {
             min_items: 1
-            max_items: 256 // Arbitrary
+            max_items: 1024 // Arbitrary
         }];
 
         // The signature is of serialize(SubmitActions) without this field set using the
@@ -116,7 +116,7 @@ message SubmitIntentRequest {
         // The signature for a virtual instruction is the hash of the marshalled instruction.
         repeated common.v1.Signature signatures = 1 [(validate.rules).repeated = {
             min_items: 1
-            max_items: 256 // Assumes at most 1 client signatures per action
+            max_items: 1024 // Assumes at most 1 client signatures per action
         }];
     }
 }

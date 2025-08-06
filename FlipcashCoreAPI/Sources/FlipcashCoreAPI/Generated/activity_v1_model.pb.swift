@@ -220,6 +220,22 @@ public struct Flipcash_Activity_V1_Notification {
     set {additionalMetadata = .depositedUsdc(newValue)}
   }
 
+  public var paidUsdc: Flipcash_Activity_V1_PaidUsdcNotificationMetadata {
+    get {
+      if case .paidUsdc(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_PaidUsdcNotificationMetadata()
+    }
+    set {additionalMetadata = .paidUsdc(newValue)}
+  }
+
+  public var distributedUsdc: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata {
+    get {
+      if case .distributedUsdc(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_DistributedUsdcNotificationMetadata()
+    }
+    set {additionalMetadata = .distributedUsdc(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Additional metadata for this notification specific to the notification
@@ -230,6 +246,8 @@ public struct Flipcash_Activity_V1_Notification {
     case withdrewUsdc(Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata)
     case sentUsdc(Flipcash_Activity_V1_SentUsdcNotificationMetadata)
     case depositedUsdc(Flipcash_Activity_V1_DepositedUsdcNotificationMetadata)
+    case paidUsdc(Flipcash_Activity_V1_PaidUsdcNotificationMetadata)
+    case distributedUsdc(Flipcash_Activity_V1_DistributedUsdcNotificationMetadata)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata, rhs: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata) -> Bool {
@@ -259,6 +277,14 @@ public struct Flipcash_Activity_V1_Notification {
       }()
       case (.depositedUsdc, .depositedUsdc): return {
         guard case .depositedUsdc(let l) = lhs, case .depositedUsdc(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.paidUsdc, .paidUsdc): return {
+        guard case .paidUsdc(let l) = lhs, case .paidUsdc(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.distributedUsdc, .distributedUsdc): return {
+        guard case .distributedUsdc(let l) = lhs, case .distributedUsdc(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -349,6 +375,132 @@ public struct Flipcash_Activity_V1_DepositedUsdcNotificationMetadata {
   public init() {}
 }
 
+public struct Flipcash_Activity_V1_PaidUsdcNotificationMetadata {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var paymentMetadata: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata? = nil
+
+  public var pool: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata {
+    get {
+      if case .pool(let v)? = paymentMetadata {return v}
+      return Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata()
+    }
+    set {paymentMetadata = .pool(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_PaymentMetadata: Equatable {
+    case pool(Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata, rhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.pool, .pool): return {
+        guard case .pool(let l) = lhs, case .pool(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      }
+    }
+  #endif
+  }
+
+  /// Payment metadata for betting pools
+  public struct PoolPaymentMetadata {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The pool that was entered for this payment
+    public var poolID: Flipcash_Pool_V1_PoolId {
+      get {return _poolID ?? Flipcash_Pool_V1_PoolId()}
+      set {_poolID = newValue}
+    }
+    /// Returns true if `poolID` has been explicitly set.
+    public var hasPoolID: Bool {return self._poolID != nil}
+    /// Clears the value of `poolID`. Subsequent reads from it will return its default value.
+    public mutating func clearPoolID() {self._poolID = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _poolID: Flipcash_Pool_V1_PoolId? = nil
+  }
+
+  public init() {}
+}
+
+public struct Flipcash_Activity_V1_DistributedUsdcNotificationMetadata {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var distributionMetadata: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata? = nil
+
+  public var pool: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata {
+    get {
+      if case .pool(let v)? = distributionMetadata {return v}
+      return Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata()
+    }
+    set {distributionMetadata = .pool(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_DistributionMetadata: Equatable {
+    case pool(Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata)
+
+  #if !swift(>=4.1)
+    public static func ==(lhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata, rhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata) -> Bool {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch (lhs, rhs) {
+      case (.pool, .pool): return {
+        guard case .pool(let l) = lhs, case .pool(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      }
+    }
+  #endif
+  }
+
+  /// Distribution metadata for betting pools
+  public struct PoolDistributionMetadata {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The pool where funds were distributed from
+    public var poolID: Flipcash_Pool_V1_PoolId {
+      get {return _poolID ?? Flipcash_Pool_V1_PoolId()}
+      set {_poolID = newValue}
+    }
+    /// Returns true if `poolID` has been explicitly set.
+    public var hasPoolID: Bool {return self._poolID != nil}
+    /// Clears the value of `poolID`. Subsequent reads from it will return its default value.
+    public mutating func clearPoolID() {self._poolID = nil}
+
+    /// The outcome for this pool for the user that indicates the reason for
+    /// receiving the distribution.
+    public var outcome: Flipcash_Pool_V1_UserOutcome = .unknownOutcoe
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _poolID: Flipcash_Pool_V1_PoolId? = nil
+  }
+
+  public init() {}
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Flipcash_Activity_V1_ActivityFeedType: @unchecked Sendable {}
 extension Flipcash_Activity_V1_NotificationState: @unchecked Sendable {}
@@ -361,6 +513,12 @@ extension Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata: @unchecked Send
 extension Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata: @unchecked Sendable {}
 extension Flipcash_Activity_V1_SentUsdcNotificationMetadata: @unchecked Sendable {}
 extension Flipcash_Activity_V1_DepositedUsdcNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -428,6 +586,8 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     8: .standard(proto: "withdrew_usdc"),
     9: .standard(proto: "sent_usdc"),
     11: .standard(proto: "deposited_usdc"),
+    12: .standard(proto: "paid_usdc"),
+    13: .standard(proto: "distributed_usdc"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -519,6 +679,32 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .depositedUsdc(v)
         }
       }()
+      case 12: try {
+        var v: Flipcash_Activity_V1_PaidUsdcNotificationMetadata?
+        var hadOneofValue = false
+        if let current = self.additionalMetadata {
+          hadOneofValue = true
+          if case .paidUsdc(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.additionalMetadata = .paidUsdc(v)
+        }
+      }()
+      case 13: try {
+        var v: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata?
+        var hadOneofValue = false
+        if let current = self.additionalMetadata {
+          hadOneofValue = true
+          if case .distributedUsdc(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.additionalMetadata = .distributedUsdc(v)
+        }
+      }()
       default: break
       }
     }
@@ -567,9 +753,21 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     if self.state != .unknown {
       try visitor.visitSingularEnumField(value: self.state, fieldNumber: 10)
     }
-    try { if case .depositedUsdc(let v)? = self.additionalMetadata {
+    switch self.additionalMetadata {
+    case .depositedUsdc?: try {
+      guard case .depositedUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
-    } }()
+    }()
+    case .paidUsdc?: try {
+      guard case .paidUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
+    }()
+    case .distributedUsdc?: try {
+      guard case .distributedUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
+    }()
+    default: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -717,6 +915,180 @@ extension Flipcash_Activity_V1_DepositedUsdcNotificationMetadata: SwiftProtobuf.
   }
 
   public static func ==(lhs: Flipcash_Activity_V1_DepositedUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_DepositedUsdcNotificationMetadata) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PaidUsdcNotificationMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "pool"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata?
+        var hadOneofValue = false
+        if let current = self.paymentMetadata {
+          hadOneofValue = true
+          if case .pool(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.paymentMetadata = .pool(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .pool(let v)? = self.paymentMetadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata) -> Bool {
+    if lhs.paymentMetadata != rhs.paymentMetadata {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Activity_V1_PaidUsdcNotificationMetadata.protoMessageName + ".PoolPaymentMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "pool_id"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._poolID) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._poolID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata, rhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata) -> Bool {
+    if lhs._poolID != rhs._poolID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DistributedUsdcNotificationMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "pool"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata?
+        var hadOneofValue = false
+        if let current = self.distributionMetadata {
+          hadOneofValue = true
+          if case .pool(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.distributionMetadata = .pool(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .pool(let v)? = self.distributionMetadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata) -> Bool {
+    if lhs.distributionMetadata != rhs.distributionMetadata {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.protoMessageName + ".PoolDistributionMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "pool_id"),
+    2: .same(proto: "outcome"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._poolID) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.outcome) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._poolID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.outcome != .unknownOutcoe {
+      try visitor.visitSingularEnumField(value: self.outcome, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata, rhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata) -> Bool {
+    if lhs._poolID != rhs._poolID {return false}
+    if lhs.outcome != rhs.outcome {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

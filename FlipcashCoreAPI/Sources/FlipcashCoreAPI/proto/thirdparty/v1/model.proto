@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package flipcash.thirdparty.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/thirdparty/v1;thirdpartypb";
+option java_package = "com.codeinc.flipcash.gen.thirdparty.v1";
+option objc_class_prefix = "FPBThirdPartyV1";
+
+import "validate/validate.proto";
+
+enum Provider {
+    UNKNOWN  = 0;
+    COINBASE = 1;
+}
+
+message ApiKey {
+    Provider provider = 1 [(validate.rules).enum = {in: [1]}];
+
+    string value = 2 [(validate.rules).string = {
+        min_len: 36
+        max_len: 36
+    }];
+}
+
+message Jwt {
+    string value = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 1024 // Arbitrary
+    }];
+}

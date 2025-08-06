@@ -90,7 +90,7 @@ extension Flipcash_Pool_V1_PoolClientProtocol {
 
   /// GetPagedPools gets all pools for a user over a paging API
   ///
-  /// Note: Only bet summaries are provided in the response
+  /// Note: Only consolidated metadata is provided in the response
   ///
   /// - Parameters:
   ///   - request: Request to send to GetPagedPools.
@@ -526,7 +526,7 @@ public protocol Flipcash_Pool_V1_PoolProvider: CallHandlerProvider {
 
   /// GetPagedPools gets all pools for a user over a paging API
   ///
-  /// Note: Only bet summaries are provided in the response
+  /// Note: Only consolidated metadata is provided in the response
   func getPagedPools(request: Flipcash_Pool_V1_GetPagedPoolsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Pool_V1_GetPagedPoolsResponse>
 
   /// ClosePool closes a pool from additional bets
@@ -640,7 +640,7 @@ public protocol Flipcash_Pool_V1_PoolAsyncProvider: CallHandlerProvider, Sendabl
 
   /// GetPagedPools gets all pools for a user over a paging API
   ///
-  /// Note: Only bet summaries are provided in the response
+  /// Note: Only consolidated metadata is provided in the response
   func getPagedPools(
     request: Flipcash_Pool_V1_GetPagedPoolsRequest,
     context: GRPCAsyncServerCallContext

@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package flipcash.profile.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/profile/v1;profilepb";
+option java_package = "com.codeinc.flipcash.gen.profile.v1";
+option objc_class_prefix = "FPBProfileV1";
+
+import "email/v1/model.proto";
+import "phone/v1/model.proto";
+import "validate/validate.proto";
+
+message UserProfile {
+	// Display name is the display name of the user (if found).
+	string display_name = 1 [(validate.rules).string = {
+		min_len: 0
+		max_len: 64
+	}];
+
+	// Social profiles are links to external social accounts
+	repeated SocialProfile social_profiles = 2 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 1
+    }];
+
+
+    // Phone number linked to this user. This is private and will only be returned
+    // when the requesting user asks for their own profile
+    phone.v1.PhoneNumber phone_number = 3;
+
+    // Email address linked to this user. This is private and will only be returned
+    // when the requesting user asks for their own profile
+    email.v1.EmailAddress email_address = 4;
+}
+
+message SocialProfile {
+	oneof type {
+		option (validate.required) = true;
+
+		XProfile x = 1;
+	}
+}
+
+message XProfile {
+    // The user's ID on X
+    string id = 1 [(validate.rules).string = {
+        min_len: 1
+        max_len: 32
+    }];
+
+    // The user's username on X
+    string username = 2 [(validate.rules).string = {
+        min_len: 1
+        max_len: 15
+    }];
+
+    // The user's friendly name on X
+    string name = 3 [(validate.rules).string = {
+        max_len: 256
+    }];
+
+	// The user's description on X
+	string description = 4 [(validate.rules).string = {
+        max_len: 4096 // todo: arbitrary
+    }];
+
+    // URL to the user's X profile picture
+    string profile_pic_url = 5 [(validate.rules).string = {
+        min_len: 1
+        max_len: 2048 // todo: arbitrary
+    }];
+
+    // The type of X verification associated with the user
+    VerifiedType verified_type = 6;
+    enum VerifiedType {
+        NONE       = 0;
+        BLUE       = 1;
+        BUSINESS   = 2;
+        GOVERNMENT = 3;
+    }
+
+    // The number of followers the user has on X
+    uint32 follower_count = 7;    
+}

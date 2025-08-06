@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package flipcash.event.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/event/v1;eventpb";
+option java_package = "com.codeinc.flipcash.gen.events.v1";
+option objc_class_prefix = "FPBEventV1";
+
+import "event/v1/model.proto";
+import "common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+service EventStreaming {
+    // StreamEvents streams events for the requesting user.
+    rpc StreamEvents(stream StreamEventsRequest) returns (stream StreamEventsResponse);
+
+    // ForwardEvents is an internal RPC for forwarding events to another server.
+    rpc ForwardEvents(ForwardEventsRequest) returns (ForwardEventsResponse);
+}
+
+message StreamEventsRequest {
+    oneof type {
+        option (validate.required) = true;
+
+        Params     params = 1;
+        ClientPong pong   = 2;
+    }
+
+    message Params {
+        common.v1.Auth auth = 1 [(validate.rules).message.required = true];
+
+        // ts contains the time for stream open.
+        //
+        // It is used primarily as a nonce for auth. Server may reject
+        // timestamps that are too far in the future or past.
+        google.protobuf.Timestamp ts = 2 [(validate.rules).timestamp.required = true];
+    }
+}
+
+message StreamEventsResponse {
+    oneof type {
+        option (validate.required) = true;
+
+        ServerPing  ping   = 1;
+        StreamError error  = 2;
+        EventBatch  events = 3;
+    }
+
+    message StreamError {
+        Code code = 1;
+        enum Code {
+            DENIED            = 0;
+            INVALID_TIMESTAMP = 1;
+        }
+    }
+}
+
+message ForwardEventsRequest {
+    UserEventBatch user_events = 1 [(validate.rules).message.required = true];
+}
+
+message ForwardEventsResponse {
+    Result result = 1;
+    enum Result {
+        OK     = 0;
+        DENIED = 1;
+    }
+}

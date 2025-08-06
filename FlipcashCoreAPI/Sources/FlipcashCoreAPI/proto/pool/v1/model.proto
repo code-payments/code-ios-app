@@ -7,6 +7,7 @@ option java_package = "com.codeinc.flipcash.gen.pool.v1";
 option objc_class_prefix = "FPBPoolV1";
 
 import "common/v1/common.proto";
+import "profile/v1/model.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
@@ -96,6 +97,9 @@ message PoolMetadata {
     // Derivation index used to derive the pool account's authority. This is only
     // valid against authenticated RPCs made by the pool creator
     uint64 derivation_index = 6;
+
+    // The creator's user profile
+    profile.v1.UserProfile creator_profile = 9;
 }
 
 // BetId uniquely identifies a bet via an intent ID
@@ -152,9 +156,11 @@ message UserPoolSummary {
     // User is a winner in the pool
     message WinOutcome {
         common.v1.FiatPaymentAmount amount_won = 1 [(validate.rules).message.required = true];
+
+        common.v1.FiatPaymentAmount total_amount_received = 2 [(validate.rules).message.required = true];
     }
 
-     // User is a loser in the pool
+    // User is a loser in the pool
     message LoseOutcome {
         common.v1.FiatPaymentAmount amount_lost = 1 [(validate.rules).message.required = true];
     }
@@ -163,6 +169,19 @@ message UserPoolSummary {
     message RefundOutcome {
         common.v1.FiatPaymentAmount amount_refunded = 1 [(validate.rules).message.required = true];
     }
+}
+
+// UserOutcome is an enum of states for user outcomes in a pool
+enum UserOutcome {
+    UNKNOWN_OUTCOE = 0;
+    // Pool isn't resolved, so no user outcome is available
+    NO_OUTCOME     = 1;
+    // User is a winner in the pool
+    WIN_OUTCOME    = 2;
+    // User is a loser in the pool
+    LOSE_OUTCOME   = 3;
+    // User was refunded
+    REFUND_OUTCOME = 4;
 }
 
 // Bet metadata signed by the rendezvous key
@@ -192,4 +211,7 @@ message BetMetadata {
 
     // Has the intent for bet payment been submitted?
     bool is_intent_submitted = 3;
+
+    // The better's user profile
+    profile.v1.UserProfile better_profile = 4;
 }

@@ -20,6 +20,67 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
+/// UserOutcome is an enum of states for user outcomes in a pool
+public enum Flipcash_Pool_V1_UserOutcome: SwiftProtobuf.Enum {
+  public typealias RawValue = Int
+  case unknownOutcoe // = 0
+
+  /// Pool isn't resolved, so no user outcome is available
+  case noOutcome // = 1
+
+  /// User is a winner in the pool
+  case winOutcome // = 2
+
+  /// User is a loser in the pool
+  case loseOutcome // = 3
+
+  /// User was refunded
+  case refundOutcome // = 4
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .unknownOutcoe
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .unknownOutcoe
+    case 1: self = .noOutcome
+    case 2: self = .winOutcome
+    case 3: self = .loseOutcome
+    case 4: self = .refundOutcome
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .unknownOutcoe: return 0
+    case .noOutcome: return 1
+    case .winOutcome: return 2
+    case .loseOutcome: return 3
+    case .refundOutcome: return 4
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+}
+
+#if swift(>=4.2)
+
+extension Flipcash_Pool_V1_UserOutcome: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Pool_V1_UserOutcome] = [
+    .unknownOutcoe,
+    .noOutcome,
+    .winOutcome,
+    .loseOutcome,
+    .refundOutcome,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 /// PoolId uniquely identifies a pool via a rendezvous public key
 public struct Flipcash_Pool_V1_PoolId {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -271,6 +332,16 @@ public struct Flipcash_Pool_V1_PoolMetadata {
     set {_uniqueStorage()._derivationIndex = newValue}
   }
 
+  /// The creator's user profile
+  public var creatorProfile: Flipcash_Profile_V1_UserProfile {
+    get {return _storage._creatorProfile ?? Flipcash_Profile_V1_UserProfile()}
+    set {_uniqueStorage()._creatorProfile = newValue}
+  }
+  /// Returns true if `creatorProfile` has been explicitly set.
+  public var hasCreatorProfile: Bool {return _storage._creatorProfile != nil}
+  /// Clears the value of `creatorProfile`. Subsequent reads from it will return its default value.
+  public mutating func clearCreatorProfile() {_uniqueStorage()._creatorProfile = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -502,11 +573,21 @@ public struct Flipcash_Pool_V1_UserPoolSummary {
     /// Clears the value of `amountWon`. Subsequent reads from it will return its default value.
     public mutating func clearAmountWon() {self._amountWon = nil}
 
+    public var totalAmountReceived: Flipcash_Common_V1_FiatPaymentAmount {
+      get {return _totalAmountReceived ?? Flipcash_Common_V1_FiatPaymentAmount()}
+      set {_totalAmountReceived = newValue}
+    }
+    /// Returns true if `totalAmountReceived` has been explicitly set.
+    public var hasTotalAmountReceived: Bool {return self._totalAmountReceived != nil}
+    /// Clears the value of `totalAmountReceived`. Subsequent reads from it will return its default value.
+    public mutating func clearTotalAmountReceived() {self._totalAmountReceived = nil}
+
     public var unknownFields = SwiftProtobuf.UnknownStorage()
 
     public init() {}
 
     fileprivate var _amountWon: Flipcash_Common_V1_FiatPaymentAmount? = nil
+    fileprivate var _totalAmountReceived: Flipcash_Common_V1_FiatPaymentAmount? = nil
   }
 
   /// User is a loser in the pool
@@ -651,15 +732,27 @@ public struct Flipcash_Pool_V1_BetMetadata {
   /// Has the intent for bet payment been submitted?
   public var isIntentSubmitted: Bool = false
 
+  /// The better's user profile
+  public var betterProfile: Flipcash_Profile_V1_UserProfile {
+    get {return _betterProfile ?? Flipcash_Profile_V1_UserProfile()}
+    set {_betterProfile = newValue}
+  }
+  /// Returns true if `betterProfile` has been explicitly set.
+  public var hasBetterProfile: Bool {return self._betterProfile != nil}
+  /// Clears the value of `betterProfile`. Subsequent reads from it will return its default value.
+  public mutating func clearBetterProfile() {self._betterProfile = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _verifiedMetadata: Flipcash_Pool_V1_SignedBetMetadata? = nil
   fileprivate var _rendezvousSignature: Flipcash_Common_V1_Signature? = nil
+  fileprivate var _betterProfile: Flipcash_Profile_V1_UserProfile? = nil
 }
 
 #if swift(>=5.5) && canImport(_Concurrency)
+extension Flipcash_Pool_V1_UserOutcome: @unchecked Sendable {}
 extension Flipcash_Pool_V1_PoolId: @unchecked Sendable {}
 extension Flipcash_Pool_V1_Resolution: @unchecked Sendable {}
 extension Flipcash_Pool_V1_Resolution.OneOf_Kind: @unchecked Sendable {}
@@ -685,6 +778,16 @@ extension Flipcash_Pool_V1_BetMetadata: @unchecked Sendable {}
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "flipcash.pool.v1"
+
+extension Flipcash_Pool_V1_UserOutcome: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "UNKNOWN_OUTCOE"),
+    1: .same(proto: "NO_OUTCOME"),
+    2: .same(proto: "WIN_OUTCOME"),
+    3: .same(proto: "LOSE_OUTCOME"),
+    4: .same(proto: "REFUND_OUTCOME"),
+  ]
+}
 
 extension Flipcash_Pool_V1_PoolId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PoolId"
@@ -897,6 +1000,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
     4: .standard(proto: "paging_token"),
     5: .standard(proto: "is_funding_destination_initialized"),
     6: .standard(proto: "derivation_index"),
+    9: .standard(proto: "creator_profile"),
   ]
 
   fileprivate class _StorageClass {
@@ -908,6 +1012,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
     var _pagingToken: Flipcash_Common_V1_PagingToken? = nil
     var _isFundingDestinationInitialized: Bool = false
     var _derivationIndex: UInt64 = 0
+    var _creatorProfile: Flipcash_Profile_V1_UserProfile? = nil
 
     #if swift(>=5.10)
       // This property is used as the initial default value for new instances of the type.
@@ -930,6 +1035,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
       _pagingToken = source._pagingToken
       _isFundingDestinationInitialized = source._isFundingDestinationInitialized
       _derivationIndex = source._derivationIndex
+      _creatorProfile = source._creatorProfile
     }
   }
 
@@ -956,6 +1062,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
         case 6: try { try decoder.decodeSingularUInt64Field(value: &_storage._derivationIndex) }()
         case 7: try { try decoder.decodeSingularMessageField(value: &_storage._betSummary) }()
         case 8: try { try decoder.decodeSingularMessageField(value: &_storage._userSummary) }()
+        case 9: try { try decoder.decodeSingularMessageField(value: &_storage._creatorProfile) }()
         default: break
         }
       }
@@ -992,6 +1099,9 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
       try { if let v = _storage._userSummary {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
       } }()
+      try { if let v = _storage._creatorProfile {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1009,6 +1119,7 @@ extension Flipcash_Pool_V1_PoolMetadata: SwiftProtobuf.Message, SwiftProtobuf._M
         if _storage._pagingToken != rhs_storage._pagingToken {return false}
         if _storage._isFundingDestinationInitialized != rhs_storage._isFundingDestinationInitialized {return false}
         if _storage._derivationIndex != rhs_storage._derivationIndex {return false}
+        if _storage._creatorProfile != rhs_storage._creatorProfile {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -1314,6 +1425,7 @@ extension Flipcash_Pool_V1_UserPoolSummary.WinOutcome: SwiftProtobuf.Message, Sw
   public static let protoMessageName: String = Flipcash_Pool_V1_UserPoolSummary.protoMessageName + ".WinOutcome"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "amount_won"),
+    2: .standard(proto: "total_amount_received"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1323,6 +1435,7 @@ extension Flipcash_Pool_V1_UserPoolSummary.WinOutcome: SwiftProtobuf.Message, Sw
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._amountWon) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._totalAmountReceived) }()
       default: break
       }
     }
@@ -1336,11 +1449,15 @@ extension Flipcash_Pool_V1_UserPoolSummary.WinOutcome: SwiftProtobuf.Message, Sw
     try { if let v = self._amountWon {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    try { if let v = self._totalAmountReceived {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Flipcash_Pool_V1_UserPoolSummary.WinOutcome, rhs: Flipcash_Pool_V1_UserPoolSummary.WinOutcome) -> Bool {
     if lhs._amountWon != rhs._amountWon {return false}
+    if lhs._totalAmountReceived != rhs._totalAmountReceived {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1484,6 +1601,7 @@ extension Flipcash_Pool_V1_BetMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
     1: .standard(proto: "verified_metadata"),
     2: .standard(proto: "rendezvous_signature"),
     3: .standard(proto: "is_intent_submitted"),
+    4: .standard(proto: "better_profile"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1495,6 +1613,7 @@ extension Flipcash_Pool_V1_BetMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
       case 1: try { try decoder.decodeSingularMessageField(value: &self._verifiedMetadata) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._rendezvousSignature) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isIntentSubmitted) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._betterProfile) }()
       default: break
       }
     }
@@ -1514,6 +1633,9 @@ extension Flipcash_Pool_V1_BetMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
     if self.isIntentSubmitted != false {
       try visitor.visitSingularBoolField(value: self.isIntentSubmitted, fieldNumber: 3)
     }
+    try { if let v = self._betterProfile {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1521,6 +1643,7 @@ extension Flipcash_Pool_V1_BetMetadata: SwiftProtobuf.Message, SwiftProtobuf._Me
     if lhs._verifiedMetadata != rhs._verifiedMetadata {return false}
     if lhs._rendezvousSignature != rhs._rendezvousSignature {return false}
     if lhs.isIntentSubmitted != rhs.isIntentSubmitted {return false}
+    if lhs._betterProfile != rhs._betterProfile {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

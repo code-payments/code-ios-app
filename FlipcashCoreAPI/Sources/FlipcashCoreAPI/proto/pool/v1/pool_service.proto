@@ -20,7 +20,7 @@ service Pool {
 
     // GetPagedPools gets all pools for a user over a paging API
     //
-    // Note: Only bet summaries are provided in the response
+    // Note: Only consolidated metadata is provided in the response
     rpc GetPagedPools(GetPagedPoolsRequest) returns (GetPagedPoolsResponse);
 
     // ClosePool closes a pool from additional bets
@@ -63,10 +63,14 @@ message CreatePoolResponse {
 message GetPoolRequest {
     PoolId id = 1;
 
+    // If true, only a consolidated bet summary will be provided
     bool exclude_bets = 2;
 
     // Optional auth to include user-specific pool metadata
     common.v1.Auth auth = 3;
+
+    // If true, user profiles will be provided alongside pools and bets
+    bool include_user_profiles = 4;
 }
 
 message GetPoolResponse {

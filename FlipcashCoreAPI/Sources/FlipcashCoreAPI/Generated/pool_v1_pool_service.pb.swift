@@ -135,6 +135,7 @@ public struct Flipcash_Pool_V1_GetPoolRequest {
   /// Clears the value of `id`. Subsequent reads from it will return its default value.
   public mutating func clearID() {self._id = nil}
 
+  /// If true, only a consolidated bet summary will be provided
   public var excludeBets: Bool = false
 
   /// Optional auth to include user-specific pool metadata
@@ -146,6 +147,9 @@ public struct Flipcash_Pool_V1_GetPoolRequest {
   public var hasAuth: Bool {return self._auth != nil}
   /// Clears the value of `auth`. Subsequent reads from it will return its default value.
   public mutating func clearAuth() {self._auth = nil}
+
+  /// If true, user profiles will be provided alongside pools and bets
+  public var includeUserProfiles: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -764,6 +768,7 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
     1: .same(proto: "id"),
     2: .standard(proto: "exclude_bets"),
     3: .same(proto: "auth"),
+    4: .standard(proto: "include_user_profiles"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -775,6 +780,7 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
       case 2: try { try decoder.decodeSingularBoolField(value: &self.excludeBets) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._auth) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.includeUserProfiles) }()
       default: break
       }
     }
@@ -794,6 +800,9 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
     try { if let v = self._auth {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if self.includeUserProfiles != false {
+      try visitor.visitSingularBoolField(value: self.includeUserProfiles, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -801,6 +810,7 @@ extension Flipcash_Pool_V1_GetPoolRequest: SwiftProtobuf.Message, SwiftProtobuf.
     if lhs._id != rhs._id {return false}
     if lhs.excludeBets != rhs.excludeBets {return false}
     if lhs._auth != rhs._auth {return false}
+    if lhs.includeUserProfiles != rhs.includeUserProfiles {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

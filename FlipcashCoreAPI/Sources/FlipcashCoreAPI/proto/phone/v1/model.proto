@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package flipcash.phone.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/phone/v1;phonepb";
+option java_package = "com.codeinc.flipcash.gen.phone.v1";
+option objc_class_prefix = "FPBPhoneV1";
+
+import "validate/validate.proto";
+
+// PhoneNumber is an E.164 phone number
+message PhoneNumber {
+    // Regex provided by Twilio here: https://www.twilio.com/docs/glossary/what-e164#regex-matching-for-e164
+    string value = 1 [(validate.rules).string.pattern = "^\\+[1-9]\\d{1,14}$"];
+}
+
+// VerificationCode is a 4-10 digit numerical code for verification
+message VerificationCode {
+    string value = 2 [(validate.rules).string = {
+        pattern: "^[0-9]{4,10}$"
+    }];
+}

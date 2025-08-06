@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package flipcash.thirdparty.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/thirdparty/v1;thirdpartypb";
+option java_package = "com.codeinc.flipcash.gen.thirdparty.v1";
+option objc_class_prefix = "FPBThirdPartyV1";
+
+import "common/v1/common.proto";
+import "thirdparty/v1/model.proto";
+import "validate/validate.proto";
+
+service ThirdParty {
+    // GetJwt gets a JWT for auth against a third part
+    rpc GetJwt(GetJwtRequest) returns (GetJwtResponse);
+}
+
+message GetJwtRequest {
+    ApiKey api_key = 1 [(validate.rules).message.required = true];
+    
+    string method = 2 [(validate.rules).string = {
+        min_len: 3
+        max_len: 4
+    }];
+
+    string host = 3 [(validate.rules).string = {
+        min_len: 1
+        max_len: 1024
+    }];
+
+    string path = 4 [(validate.rules).string = {
+        min_len: 1
+        max_len: 1024
+    }];
+
+    common.v1.Auth auth = 5 [(validate.rules).message.required = true];
+}
+
+message GetJwtResponse {
+    Result result = 1;
+    enum Result {
+        OK                          = 0;
+        DENIED                      = 1;
+        UNSUPPORTED_PROVIDER        = 2;
+        INVALID_API_KEY             = 3;
+        PHONE_VERIFICATION_REQUIRED = 4;
+        EMAIL_VERIFICATION_REQUIRED = 5;
+    }
+
+    Jwt jwt = 2;
+}

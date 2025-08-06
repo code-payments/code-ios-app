@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package flipcash.email.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/email/v1;emailpb";
+option java_package = "com.codeinc.flipcash.gen.email.v1";
+option objc_class_prefix = "FPBEmailV1";
+
+import "validate/validate.proto";
+
+// EmailAddress is an email address
+message EmailAddress {
+    string value = 1 [(validate.rules).string.pattern = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"];
+}
+
+// VerificationCode is a 4-10 digit numerical code for verification
+message VerificationCode {
+    string value = 2 [(validate.rules).string = {
+        pattern: "^[0-9]{4,10}$"
+    }];
+}

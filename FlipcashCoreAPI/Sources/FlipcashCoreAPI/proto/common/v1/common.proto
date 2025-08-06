@@ -134,3 +134,11 @@ message Response {
         ERROR = 1;
     }
 }
+
+message CountryCode {
+    // ISO 3166-1 Alpha-2
+    string value = 1 [(validate.rules).string = {
+        min_len: 2
+        max_len: 2
+    }];
+}
