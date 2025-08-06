@@ -24,6 +24,7 @@ public class FlipClient: ObservableObject {
     internal let iapService: IAPService
     internal let pushService: PushService
     internal let poolService: PoolService
+    internal let thirdPartyService: ThirdPartyService
     
     // MARK: - Init -
     
@@ -35,11 +36,12 @@ public class FlipClient: ObservableObject {
             port: network.port
         )
         
-        self.accountService  = AccountService(channel: channel, queue: queue)
-        self.activityService = ActivityService(channel: channel, queue: queue)
-        self.iapService      = IAPService(channel: channel, queue: queue)
-        self.pushService     = PushService(channel: channel, queue: queue)
-        self.poolService     = PoolService(channel: channel, queue: queue)
+        self.accountService    = AccountService(channel: channel, queue: queue)
+        self.activityService   = ActivityService(channel: channel, queue: queue)
+        self.iapService        = IAPService(channel: channel, queue: queue)
+        self.pushService       = PushService(channel: channel, queue: queue)
+        self.poolService       = PoolService(channel: channel, queue: queue)
+        self.thirdPartyService = ThirdPartyService(channel: channel, queue: queue)
     }
     
     deinit {

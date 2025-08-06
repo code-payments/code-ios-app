@@ -52,6 +52,8 @@ extension Activity {
         case withdrew     = 3
         case cashLink     = 4
         case deposited    = 5
+        case paid         = 6
+        case distributed  = 7
         case unknown
     }
 }
@@ -116,6 +118,10 @@ extension Activity.Kind {
                 self = .cashLink
             case .depositedUsdc:
                 self = .deposited
+            case .paidUsdc:
+                self = .paid
+            case .distributedUsdc:
+                self = .distributed
             }
             
         } else {
@@ -128,7 +134,7 @@ extension Activity.Metadata {
     init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
         if let proto {
             switch proto {
-            case .welcomeBonus, .gaveUsdc, .receivedUsdc, .withdrewUsdc, .depositedUsdc:
+            case .welcomeBonus, .gaveUsdc, .receivedUsdc, .withdrewUsdc, .depositedUsdc, .paidUsdc, .distributedUsdc:
                 return nil
             case .sentUsdc(let metadata):
                 self = .cashLink(.init(metadata))

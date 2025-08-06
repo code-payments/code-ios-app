@@ -37,5 +37,10 @@
 		<key>apiKey</key>
 		<string>$(FLIPCASH_MIXPANEL)</string>
 	</dict>
+    <key>coinbase</key>
+    <dict>
+        <key>apiKey</key>
+        <string>$(FLIPCASH_COINBASE)</string>
+    </dict>
 </dict>
 </plist>
