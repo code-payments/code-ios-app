@@ -146,7 +146,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // hasn't been running) results in a double call making
         // it hang for ~10 seconds. Still uncertain of the exact
         // cause of the problem
-        if hasBeenBackgrounded {
+        if hasBeenBackgrounded && action?.preventUserInterfaceReset == false {
             
             // Reset the view in the event that the app handles
             // any deep links to ensure a consistent experience

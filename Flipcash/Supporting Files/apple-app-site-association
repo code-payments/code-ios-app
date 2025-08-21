@@ -27,6 +27,10 @@
                {
                   "/": "/p/*",
                   "comment": "Support for pools"
+               },
+               {
+                  "/": "/verify/*",
+                  "comment": "Support for email verification"
                }
             ]
          }

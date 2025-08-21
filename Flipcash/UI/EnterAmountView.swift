@@ -45,6 +45,15 @@ public struct EnterAmountView: View {
         return limit
     }
     
+    private var currency: CurrencyCode {
+        switch mode {
+        case .currency:
+            rateController.entryCurrency
+        case .onramp:
+            rateController.onrampCurrency
+        }
+    }
+    
     // MARK: - Init -
     
     init(
@@ -79,8 +88,8 @@ public struct EnterAmountView: View {
                         AmountField(
                             content: $enteredAmount,
                             defaultValue: mode.defaultValue,
-                            prefix: .flagStyle(rateController.entryCurrency.flagStyle),
-                            formatter: mode.formatter(with: rateController.entryCurrency),
+                            prefix: .flagStyle(currency.flagStyle),
+                            formatter: mode.formatter(with: currency),
                             suffix: nil,
                             showChevron: currencySelectionAction != nil
                         )
@@ -141,10 +150,11 @@ extension EnterAmountView {
     enum Mode {
         
         case currency
+        case onramp
         
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency:
+            case .currency, .onramp:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
@@ -152,12 +162,14 @@ extension EnterAmountView {
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
             case .currency: return .number("0")
+            case .onramp:   return .number("0")
             }
         }
         
         fileprivate var actionName: String {
             switch self {
             case .currency:  return "Next"
+            case .onramp:    return "Add Cash with Apple Pay"
             }
         }
     }

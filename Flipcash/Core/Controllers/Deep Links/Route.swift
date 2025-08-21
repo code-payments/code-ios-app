@@ -70,6 +70,7 @@ extension Route {
         case login
         case cash
         case pool
+        case verifyEmail
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -91,6 +92,8 @@ extension Route {
                 return .cash
             case "pool", "p":
                 return .pool
+            case "verify":
+                return .verifyEmail
             default:
                 return .unknown(url.lastPathComponent)
             }

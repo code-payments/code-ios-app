@@ -79,6 +79,30 @@ final class DeepLinkController {
                 return actionForOpenPool(rendezvous: rendezvous)
             }
             
+        case .verifyEmail:
+            if
+                let code = route.properties["code"],
+                let email = route.properties["email"]
+            {
+                var clientData: String? = route.properties["clientData"]
+                if let c = clientData, c.isEmpty {
+                    clientData = nil
+                }
+                
+                var action = actionForVerificationCode(
+                    email: email,
+                    code: code,
+                    clientData: clientData
+                )
+
+                // Only prevent user interface reset when
+                // the onboarding flow is midflight.
+                if case .loggedIn(let container) = sessionAuthenticator.state, container.onrampViewModel.isMidlight {
+                    action.preventUserInterfaceReset = true
+                }
+                
+                return action
+            }
             
         case .unknown:
             break
@@ -107,6 +131,19 @@ final class DeepLinkController {
             sessionAuthenticator: sessionAuthenticator
         )
     }
+    
+    private func actionForVerificationCode(email: String, code: String, clientData: String?) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .verifyEmail(
+                .init(
+                    email: email,
+                    code: code,
+                    clientData: clientData
+                )
+            ),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
 }
 
 extension DeepLinkController {
@@ -120,6 +157,8 @@ extension DeepLinkController {
 
 @MainActor
 struct DeepLinkAction {
+    
+    var preventUserInterfaceReset: Bool = false
     
     let kind: Kind
     
@@ -177,6 +216,11 @@ struct DeepLinkAction {
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 container.poolViewModel.openPoolFromDeeplink(rendezvous: rendezvous)
             }
+            
+        case .verifyEmail(let description):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                container.onrampViewModel.confirmEmailFromDeeplinkAction(verification: description)
+            }
         }
     }
 }
@@ -188,6 +232,17 @@ extension DeepLinkAction {
         case accessKey(MnemonicPhrase)
         case receiveCashLink(GiftCardCluster)
         case pool(KeyPair)
+        case verifyEmail(VerificationDescription)
+    }
+}
+
+struct VerificationDescription: Identifiable {
+    var email: String
+    var code: String
+    var clientData: String?
+    
+    var id: String {
+        "\(email):\(code)"
     }
 }
 

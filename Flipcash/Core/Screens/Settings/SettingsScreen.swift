@@ -17,6 +17,7 @@ struct SettingsScreen: View {
     @Binding public var isPresented: Bool
     
     @State private var isShowingWithdrawFlow = false
+    @State private var isShowingAddCashFlow = false
     @State private var isShowingAccountSelection = false
     @State private var isShowingLogoutConfirmation = false
     @State private var isShowingAccessKey = false
@@ -120,6 +121,17 @@ struct SettingsScreen: View {
             .sheet(isPresented: $isShowingWithdrawFlow) {
                 WithdrawDescriptionScreen(
                     isPresented: $isShowingWithdrawFlow,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
+            
+            row(asset: .withdraw, title: "Add Cash") {
+                isShowingAddCashFlow.toggle()
+            }
+            .sheet(isPresented: $isShowingAddCashFlow) {
+                AddCashScreen(
+                    isPresented: $isShowingAddCashFlow,
                     container: container,
                     sessionContainer: sessionContainer
                 )

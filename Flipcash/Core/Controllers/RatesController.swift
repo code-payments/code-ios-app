@@ -23,6 +23,12 @@ class RatesController: ObservableObject {
         }
     }
     
+    @Published var onrampCurrency: CurrencyCode = .usd {
+        willSet {
+            LocalDefaults.onrampCurrency = newValue
+        }
+    }
+    
     private let client: Client
     private let database: Database
     
@@ -42,8 +48,13 @@ class RatesController: ObservableObject {
             LocalDefaults.balanceCurrency = .local() ?? .usd
         }
         
+        if LocalDefaults.onrampCurrency == nil {
+            LocalDefaults.onrampCurrency = .usd
+        }
+        
         entryCurrency   = LocalDefaults.entryCurrency!
         balanceCurrency = LocalDefaults.balanceCurrency!
+        onrampCurrency  = LocalDefaults.onrampCurrency!
         
         registerPoller()
     }
@@ -112,6 +123,9 @@ private enum LocalDefaults {
     
     @Defaults(.balanceCurrency)
     static var balanceCurrency: CurrencyCode?
+    
+    @Defaults(.onrampCurrency)
+    static var onrampCurrency: CurrencyCode?
 }
 
 extension RatesController {

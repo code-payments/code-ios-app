@@ -37,6 +37,10 @@ extension URL {
     static var settings: URL {
         URL(string: UIApplication.openSettingsURLString)!
     }
+    
+    static var mail: URL {
+        URL(string: "message://")!
+    }
 }
 
 extension URL {
@@ -45,6 +49,12 @@ extension URL {
     @MainActor
     static func openSettings() {
         URL.settings.openWithApplication()
+    }
+    
+    @available(iOSApplicationExtension, unavailable)
+    @MainActor
+    static func openMail() {
+        URL.mail.openWithApplication()
     }
     
     @available(iOSApplicationExtension, unavailable)

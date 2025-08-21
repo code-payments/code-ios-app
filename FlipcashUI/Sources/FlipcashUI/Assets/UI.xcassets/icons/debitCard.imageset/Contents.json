@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "debigCard.pdf",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

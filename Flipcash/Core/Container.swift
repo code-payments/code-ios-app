@@ -19,6 +19,7 @@ class Container {
     let storeController: StoreController
     let betaFlags: BetaFlags
     let preferences: Preferences
+    let notificationController: NotificationController
     
     lazy var sessionAuthenticator = SessionAuthenticator(container: self)
     lazy var deepLinkController   = DeepLinkController(sessionAuthenticator: sessionAuthenticator)
@@ -30,12 +31,13 @@ class Container {
     init() {
         Self.configureFirebase()
         
-        self.client          = Client(network: .mainNet)
-        self.flipClient      = FlipClient(network: .mainNet)
-        self.accountManager  = AccountManager()
-        self.storeController = StoreController()
-        self.betaFlags       = BetaFlags.shared
-        self.preferences     = Preferences()
+        self.client                 = Client(network: .mainNet)
+        self.flipClient             = FlipClient(network: .mainNet)
+        self.accountManager         = AccountManager()
+        self.storeController        = StoreController()
+        self.betaFlags              = BetaFlags.shared
+        self.preferences            = Preferences()
+        self.notificationController = NotificationController()
         
         _ = sessionAuthenticator
     }
@@ -48,6 +50,7 @@ class Container {
             .environmentObject(storeController)
             .environmentObject(betaFlags)
             .environmentObject(preferences)
+            .environmentObject(notificationController)
     }
     
     static func configureFirebase() {

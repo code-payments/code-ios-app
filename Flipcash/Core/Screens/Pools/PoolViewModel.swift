@@ -298,3 +298,9 @@ enum CreatePoolPath {
 enum PoolListPath: Hashable {
     case poolDetails(PublicKey)
 }
+
+// MARK: - Mock -
+
+extension PoolViewModel {
+    static let mock: PoolViewModel = .init(container: .mock, session: .mock, ratesController: .mock, poolController: .mock)
+}

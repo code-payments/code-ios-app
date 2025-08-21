@@ -69,7 +69,17 @@ class Session: ObservableObject {
             return nil
         }
         
-        let rate = ratesController.rateForEntryCurrency()
+        return singleTransactionLimitFor(currency: ratesController.entryCurrency)
+    }
+    
+    func singleTransactionLimitFor(currency: CurrencyCode) -> Fiat? {
+        guard let limits else {
+            return nil
+        }
+        
+        guard let rate = ratesController.rate(for: currency) else {
+            return nil
+        }
         
         guard let limit = limits.sendLimitFor(currency: rate.currency) else {
             return nil

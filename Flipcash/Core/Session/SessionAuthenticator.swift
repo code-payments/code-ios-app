@@ -161,6 +161,13 @@ final class SessionAuthenticator: ObservableObject {
             poolController: poolController
         )
         
+        let onrampViewModel = OnrampViewModel(
+            container: container,
+            session: session,
+            ratesController: ratesController,
+            owner: owner.authority.keyPair
+        )
+        
         return SessionContainer(
             session: session,
             database: database,
@@ -168,7 +175,8 @@ final class SessionAuthenticator: ObservableObject {
             historyController: historyController,
             pushController: pushController,
             poolController: poolController,
-            poolViewModel: poolViewModel
+            poolViewModel: poolViewModel,
+            onrampViewModel: onrampViewModel
         )
     }
     
@@ -329,6 +337,7 @@ struct SessionContainer {
     let pushController: PushController
     let poolController: PoolController
     let poolViewModel: PoolViewModel
+    let onrampViewModel: OnrampViewModel
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
@@ -337,6 +346,9 @@ struct SessionContainer {
             .environmentObject(historyController)
             .environmentObject(pushController)
     }
+    
+    @MainActor
+    static let mock: SessionContainer = .init(session: .mock, database: .mock, ratesController: .mock, historyController: .mock, pushController: .mock, poolController: .mock, poolViewModel: .mock, onrampViewModel: .mock)
 }
 
 extension View {

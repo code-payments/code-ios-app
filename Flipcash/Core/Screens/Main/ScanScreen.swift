@@ -16,6 +16,7 @@ struct ScanScreen: View {
     
     @ObservedObject private var session: Session
     @ObservedObject private var poolViewModel: PoolViewModel
+    @ObservedObject private var onrampViewModel: OnrampViewModel
     
     @StateObject private var viewModel: ScanViewModel
     
@@ -66,6 +67,7 @@ struct ScanScreen: View {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         self.poolViewModel    = sessionContainer.poolViewModel
+        self.onrampViewModel  = sessionContainer.onrampViewModel
         
         _viewModel = .init(
             wrappedValue: ScanViewModel(
@@ -132,6 +134,22 @@ struct ScanScreen: View {
                 )
             }
             .interactiveDismissDisabled()
+        }
+        .sheet(item: $onrampViewModel.emailVerificationDescription) { verification in
+            AddCashScreen(
+                isPresented: Binding(
+                    get: {
+                        onrampViewModel.emailVerificationDescription != nil
+                    },
+                    set: { presented in
+                        if !presented {
+                            onrampViewModel.emailVerificationDescription = nil
+                        }
+                    }
+                ),
+                container: container,
+                sessionContainer: sessionContainer
+            )
         }
         .dialog(item: $session.dialogItem)
     }
@@ -371,5 +389,11 @@ struct ScanScreen: View {
 //        if let action = session.billState.secondaryAction {
 //            action.action()
 //        }
+    }
+}
+
+extension String: Identifiable {
+    public var id: String {
+        self
     }
 }

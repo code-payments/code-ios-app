@@ -214,10 +214,6 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
     }
 }
 
-extension NSNotification.Name {
-    static let pushNotificationReceived = Notification.Name("com.flipcash.pushController.notificationReceived")
-}
-
 extension PushController {
     static let mock: PushController = PushController(owner: .mock, client: .mock)
 }
