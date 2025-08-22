@@ -27,6 +27,7 @@ public class FlipClient: ObservableObject {
     internal let thirdPartyService: ThirdPartyService
     internal let phoneService: PhoneService
     internal let emailService: EmailService
+    internal let profileService: ProfileService
     
     // MARK: - Init -
     
@@ -46,6 +47,7 @@ public class FlipClient: ObservableObject {
         self.thirdPartyService = ThirdPartyService(channel: channel, queue: queue)
         self.phoneService      = PhoneService(channel: channel, queue: queue)
         self.emailService      = EmailService(channel: channel, queue: queue)
+        self.profileService    = ProfileService(channel: channel, queue: queue)
     }
     
     deinit {

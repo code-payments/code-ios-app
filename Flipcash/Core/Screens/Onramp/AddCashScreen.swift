@@ -85,14 +85,19 @@ struct AddCashScreen: View {
                 switch path {
                 case .enterPhoneNumber:
                     EnterPhoneScreen(viewModel: viewModel)
+                        .interactiveDismissDisabled()
                 case .confirmPhoneNumberCode:
                     ConfirmPhoneScreen(viewModel: viewModel)
+                        .interactiveDismissDisabled()
                 case .enterEmail:
                     EnterEmailScreen(viewModel: viewModel)
+                        .interactiveDismissDisabled()
                 case .confirmEmailCode:
                     ConfirmEmailScreen(viewModel: viewModel)
+                        .interactiveDismissDisabled()
                 case .enterAmount:
                     OnrampAmountScreen(viewModel: viewModel)
+                        .interactiveDismissDisabled()
                 }
             }
             .ignoresSafeArea(.keyboard)

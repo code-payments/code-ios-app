@@ -27,6 +27,8 @@ class Session: ObservableObject {
     @Published var toast: Toast? = nil
     
     @Published var dialogItem: DialogItem?
+    
+    @Published var profile: Profile?
 
     let keyAccount: KeyAccount
     let owner: AccountCluster
@@ -94,6 +96,7 @@ class Session: ObservableObject {
     
     private let container: Container
     private let client: Client
+    private let flipClient: FlipClient
     private let ratesController: RatesController
     private let historyController: HistoryController
     
@@ -109,6 +112,7 @@ class Session: ObservableObject {
     init(container: Container, historyController: HistoryController, ratesController: RatesController, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
+        self.flipClient        = container.flipClient
         self.ratesController   = ratesController
         self.historyController = historyController
         self.keyAccount        = keyAccount
@@ -117,10 +121,20 @@ class Session: ObservableObject {
         
         registerPoller()
         attemptAirdrop()
+        
+        Task {
+            try await updateProfile()
+        }
     }
     
     func prepareForLogout() {
         
+    }
+    
+    // MARK: - Profile -
+    
+    func updateProfile() async throws {
+        profile = try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
     }
     
     // MARK: - Login -

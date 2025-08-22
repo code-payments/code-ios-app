@@ -12,7 +12,13 @@ import FlipcashCore
 @MainActor
 class OnrampViewModel: ObservableObject {
     
-    @Published var onrampPath: [OnrampPath] = []
+    @Published var onrampPath: [OnrampPath] = [] {
+        didSet {
+            if onrampPath.isEmpty && !oldValue.isEmpty {
+                reset()
+            }
+        }
+    }
     
     @Published var emailVerificationDescription: VerificationDescription? {
         didSet {
@@ -114,6 +120,14 @@ class OnrampViewModel: ObservableObject {
     
     private let phoneFormatter = PhoneFormatter()
     
+    private var isPhoneVerified: Bool {
+        session.profile?.isPhoneVerified ?? false
+    }
+    
+    private var isEmailVerified: Bool {
+        session.profile?.isEmailVerified ?? false
+    }
+    
     // MARK: - Init -
     
     init(container: Container, session: Session, ratesController: RatesController, owner: KeyPair) {
@@ -177,13 +191,30 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Navigation -
+    
+    private func navigateToNext(from origin: Origin) {
+        if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
+            onrampPath.append(.enterPhoneNumber)
+            return
+        }
+        
+        if origin.rawValue < Origin.email.rawValue, !isEmailVerified {
+            onrampPath.append(.enterEmail)
+            return
+        }
+        
+        onrampPath.append(.enterAmount)
+    }
+    
     // MARK: - Actions -
     
     func addCashWithDebitCardAction() {
         reset()
         isMidlight = true
+        navigateToNext(from: .root)
 //        onrampPath.append(.enterEmail)
-        onrampPath.append(.enterPhoneNumber)
+//        onrampPath.append(.enterPhoneNumber)
     }
     
     func sendPhoneNumberCodeAction() {
@@ -261,11 +292,14 @@ class OnrampViewModel: ObservableObject {
                     code: enteredCode,
                     owner: owner
                 )
+                
+                try? await session.updateProfile()
+                
                 try await Task.delay(milliseconds: 500)
                 confirmCodeButtonState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                onrampPath.append(.enterEmail)
+                navigateToNext(from: .phone)
                 
                 try await Task.delay(milliseconds: 500)
             }
@@ -355,11 +389,13 @@ class OnrampViewModel: ObservableObject {
                     owner: owner
                 )
                 
+                try? await session.updateProfile()
+                
                 try await Task.delay(milliseconds: 500)
                 confirmEmailButtonState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                onrampPath.append(.enterAmount)
+                navigateToNext(from: .email)
                 
                 try await Task.delay(milliseconds: 500)
             }
@@ -530,6 +566,12 @@ enum OnrampPath {
     case enterEmail
     case confirmEmailCode
     case enterAmount
+}
+
+private enum Origin: Int {
+    case root
+    case phone
+    case email
 }
 
 // MARK: - CharacterSet -
