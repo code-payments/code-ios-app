@@ -21,8 +21,8 @@ class ThirdPartyService: CodeService<Flipcash_Thirdparty_V1_ThirdPartyNIOClient>
                 $0.value    = apiKey
             }
             $0.method = "POST"
-            $0.host   = "api.developer.coinbase.com"
-            $0.path   = "onramp/v2/onramp/order"
+            $0.host   = "api.cdp.coinbase.com/"
+            $0.path   = "platform/v2/onramp/orders"
             $0.auth   = owner.authFor(message: $0)
         }
         

@@ -32,7 +32,7 @@ struct OnrampAmountScreen: View {
                 mode: .onramp,
                 enteredAmount: $viewModel.enteredAmount,
                 subtitle: .singleTransactionLimit,
-                actionState: .constant(.normal),
+                actionState: $viewModel.payButtonState,
                 actionEnabled: { _ in
                     viewModel.enteredFiat != nil
                 },
@@ -47,6 +47,16 @@ struct OnrampAmountScreen: View {
                     kind: .entry,
                     ratesController: ratesController
                 )
+            }
+            .overlay {
+                if let order = viewModel.coinbaseOrder {
+                    ApplePayWebView(url: order.paymentLink.url) { event in
+                        viewModel.didReceiveApplePayEvent(event: event)
+                    }
+                    .frame(width: 300, height: 300)
+                    .opacity(0)
+                }
+                
             }
         }
         .navigationTitle("Amount to Add")

@@ -41,7 +41,7 @@ struct AddCashScreen: View {
                         
                         // Header
                         VStack(spacing: 30) {
-                            Image.asset(.depositCircle)
+                            Image.asset(.addCircle)
                             
                             Text("Add cash to your Flipcash wallet")
                                 .font(.appTextMedium)
@@ -97,6 +97,9 @@ struct AddCashScreen: View {
                         .interactiveDismissDisabled()
                 case .enterAmount:
                     OnrampAmountScreen(viewModel: viewModel)
+                        .interactiveDismissDisabled()
+                case .success:
+                    OnrampSuccessScreen(viewModel: viewModel)
                         .interactiveDismissDisabled()
                 }
             }

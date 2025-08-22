@@ -28,6 +28,8 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
+    @Published var coinbaseOrder: OnrampOrderResponse?
+    
     @Published var dialogItem: DialogItem?
     
     @Published var enteredCode: String = ""
@@ -46,6 +48,7 @@ class OnrampViewModel: ObservableObject {
     @Published private(set) var region: Region
     @Published private(set) var enteredPhone: String = ""
     
+    @Published var payButtonState: ButtonState = .normal
     @Published private(set) var sendCodeButtonState: ButtonState = .normal
     @Published private(set) var sendEmailCodeState: ButtonState = .normal
     @Published private(set) var confirmCodeButtonState: ButtonState = .normal
@@ -118,6 +121,8 @@ class OnrampViewModel: ObservableObject {
     private let flipClient: FlipClient
     private let owner: KeyPair
     
+    private lazy var coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
+    
     private let phoneFormatter = PhoneFormatter()
     
     private var isPhoneVerified: Bool {
@@ -130,11 +135,11 @@ class OnrampViewModel: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, session: Session, ratesController: RatesController, owner: KeyPair) {
+    init(container: Container, session: Session, ratesController: RatesController) {
         self.container = container
         self.session = session
         self.ratesController = ratesController
-        self.owner = owner
+        self.owner = session.ownerKeyPair
         self.flipClient = container.flipClient
         
         _region = Published(initialValue: phoneFormatter.currentRegion)
@@ -150,7 +155,7 @@ class OnrampViewModel: ObservableObject {
         isResending = false
         isMidlight  = false
         
-        onrampPath = []
+        navigateToRoot()
     }
     
     func setRegion(_ region: Region) {
@@ -192,6 +197,10 @@ class OnrampViewModel: ObservableObject {
     }
     
     // MARK: - Navigation -
+    
+    func navigateToRoot() {
+        onrampPath = []
+    }
     
     private func navigateToNext(from origin: Origin) {
         if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
@@ -383,13 +392,15 @@ class OnrampViewModel: ObservableObject {
             
             do {
 //                try await Task.delay(milliseconds: 500)
-                try await flipClient.checkEmailCode(
-                    email: verification.email,
-                    code: verification.code,
-                    owner: owner
-                )
-                
-                try? await session.updateProfile()
+                if !isEmailVerified {
+                    try await flipClient.checkEmailCode(
+                        email: verification.email,
+                        code: verification.code,
+                        owner: owner
+                    )
+                    
+                    try? await session.updateProfile()
+                }
                 
                 try await Task.delay(milliseconds: 500)
                 confirmEmailButtonState = .success
@@ -439,6 +450,90 @@ class OnrampViewModel: ObservableObject {
             showAmountTooLargeError()
             return
         }
+        
+        guard let profile = session.profile, profile.canCreateCoinbaseOrder else {
+            trace(.failure, components: "Failed to create Coinbase order. Profile is missing phone or email.")
+            return
+        }
+        
+        createOnrampOrder(
+            profile: profile,
+            exchangedFiat: exchangedFiat
+        )
+    }
+    
+    // MARK: - Coinbase -
+    
+    private func createOnrampOrder(profile: Profile, exchangedFiat: ExchangedFiat) {
+        let id       = UUID()
+        let email    = profile.email!
+        let phone    = profile.phone!.e164
+        let userRef  = "\(email):\(phone)"
+        let orderRef = "\(userRef):\(id)"
+        
+        Task {
+            payButtonState = .loading
+//            defer {
+//                payButtonState = .normal
+//            }
+            
+            let f = NumberFormatter()
+            f.numberStyle = .decimal
+            f.minimumFractionDigits = 2
+            f.maximumFractionDigits = 2
+            
+            let response = try await coinbase.createOrder(request: .init(
+                paymentAmount: nil,
+                paymentCurrency: "USD",
+                purchaseAmount: f.string(from: exchangedFiat.converted.decimalValue),
+                purchaseCurrency: "USDC",
+                isQuote: false,
+                destinationAddress: session.owner.depositPublicKey,
+                email: email,
+                phoneNumber: phone,
+                partnerOrderRef: orderRef,
+                partnerUserRef: "sandbox-\(userRef)",
+                phoneNumberVerifiedAt: .now,
+                agreementAcceptedAt: .now
+            ))
+            
+            coinbaseOrder = response
+        }
+    }
+    
+    func didReceiveApplePayEvent(event: ApplePayEvent) {
+        trace(.warning, components: "[Coinbase]: \(event.event?.rawValue ?? "unknown")")
+        switch event.event {
+        case .loadPending:
+            break
+        case .loadSuccess:
+            break
+        case .loadError:
+            payButtonState = .normal            
+        case .commitSuccess:
+            break
+        case .commitError:
+            break
+        case .pollingStart:
+            break
+        case .pollingSuccess:
+            onrampPath = [.success]
+        case .pollingError:
+            break
+        case .cancelled:
+            payButtonState = .normal
+        case .none:
+            break
+        }
+    }
+    
+    private func fetchCoinbaseJWT() async throws -> String {
+        let coinbaseApiKey = try! InfoPlist.value(for: "coinbase").value(for: "apiKey").string()
+        
+        return try await flipClient.fetchCoinbaseOnrampJWT(
+            apiKey: coinbaseApiKey,
+            owner: owner
+        )
     }
     
     // MARK: - Clipboard -
@@ -566,12 +661,22 @@ enum OnrampPath {
     case enterEmail
     case confirmEmailCode
     case enterAmount
+    case success
 }
 
 private enum Origin: Int {
     case root
     case phone
     case email
+    case payment
+}
+
+// MARK: - Profile -
+
+extension Profile {
+    var canCreateCoinbaseOrder: Bool {
+        phone != nil && email?.isEmpty == false
+    }
 }
 
 // MARK: - CharacterSet -
@@ -586,7 +691,6 @@ extension OnrampViewModel {
     static let mock: OnrampViewModel = .init(
         container: .mock,
         session: .mock,
-        ratesController: .mock,
-        owner: .mock
+        ratesController: .mock
     )
 }

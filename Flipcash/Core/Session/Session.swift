@@ -30,6 +30,8 @@ class Session: ObservableObject {
     
     @Published var profile: Profile?
 
+    @Published var coinbaseOrder: OnrampOrderResponse?
+
     let keyAccount: KeyAccount
     let owner: AccountCluster
     let userID: UserID
@@ -67,11 +69,7 @@ class Session: ObservableObject {
     }
     
     var singleTransactionLimit: Fiat? {
-        guard let limits else {
-            return nil
-        }
-        
-        return singleTransactionLimitFor(currency: ratesController.entryCurrency)
+        singleTransactionLimitFor(currency: ratesController.entryCurrency)
     }
     
     func singleTransactionLimitFor(currency: CurrencyCode) -> Fiat? {

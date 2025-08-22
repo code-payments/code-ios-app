@@ -130,6 +130,8 @@ public enum Asset: String, Sendable {
     case debitCard
     case debitWallet
     case emailSent
+    case addCircle
+    case successCircle
     
     // Flipchat
     

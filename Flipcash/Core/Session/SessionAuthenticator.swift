@@ -164,8 +164,7 @@ final class SessionAuthenticator: ObservableObject {
         let onrampViewModel = OnrampViewModel(
             container: container,
             session: session,
-            ratesController: ratesController,
-            owner: owner.authority.keyPair
+            ratesController: ratesController
         )
         
         return SessionContainer(
