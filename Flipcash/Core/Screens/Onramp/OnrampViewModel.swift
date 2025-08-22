@@ -148,9 +148,10 @@ class OnrampViewModel: ObservableObject {
     // MARK: - Setters -
     
     private func reset() {
-        enteredPhone = ""
-        enteredCode  = ""
-        enteredEmail = ""
+        enteredPhone  = ""
+        enteredCode   = ""
+        enteredEmail  = ""
+        enteredAmount = ""
         
         isResending = false
         isMidlight  = false
