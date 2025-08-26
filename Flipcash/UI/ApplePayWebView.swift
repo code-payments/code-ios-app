@@ -128,6 +128,7 @@ extension ApplePayWebView {
         }
 
         deinit {
+            print("[WEBVIEW] Deallocating ApplePayWevView coordinator")
             contentController?.removeScriptMessageHandler(forName: .messageHandlerName)
         }
     }

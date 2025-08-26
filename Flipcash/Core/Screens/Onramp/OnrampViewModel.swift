@@ -156,6 +156,8 @@ class OnrampViewModel: ObservableObject {
         isResending = false
         isMidlight  = false
         
+        coinbaseOrder = nil
+        
         navigateToRoot()
     }
     
@@ -457,32 +459,31 @@ class OnrampViewModel: ObservableObject {
             return
         }
         
-        createOnrampOrder(
-            profile: profile,
-            exchangedFiat: exchangedFiat
-        )
+        Task {
+            try await createOnrampOrder(
+                profile: profile,
+                exchangedFiat: exchangedFiat
+            )
+        }
     }
     
     // MARK: - Coinbase -
     
-    private func createOnrampOrder(profile: Profile, exchangedFiat: ExchangedFiat) {
+    private func createOnrampOrder(profile: Profile, exchangedFiat: ExchangedFiat) async throws {
         let id       = UUID()
         let email    = profile.email!
         let phone    = profile.phone!.e164
         let userRef  = "\(email):\(phone)"
         let orderRef = "\(userRef):\(id)"
         
-        Task {
-            payButtonState = .loading
-//            defer {
-//                payButtonState = .normal
-//            }
-            
-            let f = NumberFormatter()
-            f.numberStyle = .decimal
-            f.minimumFractionDigits = 2
-            f.maximumFractionDigits = 2
-            
+        payButtonState = .loading
+        
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 2
+        
+        do {
             let response = try await coinbase.createOrder(request: .init(
                 paymentAmount: nil,
                 paymentCurrency: "USD",
@@ -499,6 +500,9 @@ class OnrampViewModel: ObservableObject {
             ))
             
             coinbaseOrder = response
+            
+        } catch {
+            payButtonState = .normal
         }
     }
     
@@ -514,13 +518,13 @@ class OnrampViewModel: ObservableObject {
         case .commitSuccess:
             break
         case .commitError:
-            break
+            payButtonState = .normal
         case .pollingStart:
             break
         case .pollingSuccess:
             onrampPath = [.success]
         case .pollingError:
-            break
+            payButtonState = .normal
         case .cancelled:
             payButtonState = .normal
         case .none:
