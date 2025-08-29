@@ -19,6 +19,8 @@ struct BalanceScreen: View {
     
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingDepositScreen: Bool = false
+    @State private var isShowingAddCashScreen: Bool = false
+    @State private var isShowingWithdrawFlow: Bool = false
     
     @State private var dialogItem: DialogItem?
     
@@ -44,14 +46,18 @@ struct BalanceScreen: View {
         balance.converted.currencyCode == .usd
     }
     
+    private let container: Container
+    private let sessionContainer: SessionContainer
     private let database: Database
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, container: Container, database: Database) {
-        self._isPresented = isPresented
-        let database      = database
-        self.database     = database
+    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
+        self._isPresented     = isPresented
+        let database          = sessionContainer.database
+        self.container        = container
+        self.sessionContainer = sessionContainer
+        self.database         = database
         
         self._updateableActivities = .init(wrappedValue: Updateable {
             (try? database.getActivities()) ?? []
@@ -102,20 +108,21 @@ struct BalanceScreen: View {
         .dialog(item: $dialogItem)
     }
     
-    @ViewBuilder private func emptyState() -> some View {
-        VStack(spacing: 30) {
-            Text("Ask a friend to give you some cash with Flipcash, or deposit USDC from your crypto exchange or another crypto wallet")
+    @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {
+        VStack {
+            Text("Tap above to Add Cash to your wallet")
                 .font(.appTextMedium)
+                .foregroundStyle(Color.textSecondary)
                 .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
             
-            CodeButton(style: .filled, title: "Deposit Funds") {
-                isShowingDepositScreen.toggle()
-            }
+//            CodeButton(style: .filled, title: "Deposit Funds") {
+//                isShowingDepositScreen.toggle()
+//            }
         }
+        .frame(height: geometry.globalHeight * (1 - proportion - 0.1))
         .listRowBackground(Color.clear)
-        .foregroundStyle(Color.textMain)
         .padding(.horizontal, 20)
-        .padding(.top, 60)
     }
     
     @ViewBuilder private func list() -> some View {
@@ -127,7 +134,7 @@ struct BalanceScreen: View {
                             row(activity: activity)
                         }
                     } else {
-                        emptyState()
+                        emptyState(geometry: g)
                     }
                     
                 } header: {
@@ -144,41 +151,80 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func header(geometry: GeometryProxy) -> some View {
-        Button {
-            isShowingCurrencySelection.toggle()
-        } label: {
-            VStack {
-                GeometryReader { g in
-                    VStack {
-                        Spacer()
-                        
-                        AmountText(
-                            flagStyle: balance.converted.currencyCode.flagStyle,
-                            content: balance.converted.formatted(suffix: nil),
-                            showChevron: true
-                        )
-                        .font(.appDisplayMedium)
-                        .foregroundStyle(Color.textMain)
-                        .frame(maxWidth: .infinity)
-                        
-                        Text("Your balance is held in US dollar stablecoins")
-                            .font(.appTextSmall)
-                            .foregroundStyle(Color.textSecondary)
-                        
-                        Spacer()
+        VStack(spacing: 10) {
+            Button {
+                isShowingCurrencySelection.toggle()
+            } label: {
+                VStack {
+                    GeometryReader { g in
+                        VStack {
+                            Spacer()
+                            
+                            AmountText(
+                                flagStyle: balance.converted.currencyCode.flagStyle,
+                                content: balance.converted.formatted(suffix: nil),
+                                showChevron: true
+                            )
+                            .font(.appDisplayMedium)
+                            .foregroundStyle(Color.textMain)
+                            .frame(maxWidth: .infinity)
+                            
+                            Text("Your balance is held in US dollar stablecoins")
+                                .font(.appTextSmall)
+                                .foregroundStyle(Color.textSecondary)
+                            
+                            Spacer()
+                        }
+                        .offset(x: 0, y: max(0, (g.globalMinY - 100) * -proportion))
                     }
-                    .offset(x: 0, y: max(0, (g.globalMinY - 100) * -proportion))
                 }
             }
-            .frame(height: geometry.globalHeight * proportion)
+            .sheet(isPresented: $isShowingCurrencySelection) {
+                CurrencySelectionScreen(
+                    isPresented: $isShowingCurrencySelection,
+                    kind: .balance,
+                    ratesController: ratesController
+                )
+            }
+            
+            // Buttons
+            HStack(spacing: 10) {
+                CodeButton(
+                    style: .filledMedium,
+                    title: "Add Cash"
+                ) {
+                    if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
+                        isShowingAddCashScreen = true
+                    } else {
+                        isShowingDepositScreen = true
+                    }
+                }
+                .sheet(isPresented: $isShowingAddCashScreen) {
+                    AddCashScreen(
+                        isPresented: $isShowingAddCashScreen,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
+                
+                CodeButton(
+                    style: .filledMediumSecondary,
+                    title: "Withdraw"
+                ) {
+                    isShowingWithdrawFlow.toggle()
+                }
+                .sheet(isPresented: $isShowingWithdrawFlow) {
+                    WithdrawDescriptionScreen(
+                        isPresented: $isShowingWithdrawFlow,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
+            }
+            .padding(.bottom, 10)
+            .padding(.horizontal, 20)
         }
-        .sheet(isPresented: $isShowingCurrencySelection) {
-            CurrencySelectionScreen(
-                isPresented: $isShowingCurrencySelection,
-                kind: .balance,
-                ratesController: ratesController
-            )
-        }
+        .frame(height: geometry.globalHeight * proportion)
     }
     
     @ViewBuilder private func row(activity: Activity) -> some View {

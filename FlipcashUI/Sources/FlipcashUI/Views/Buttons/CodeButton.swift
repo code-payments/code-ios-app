@@ -43,7 +43,7 @@ public struct CodeButton: View {
     public var body: some View {
         Group {
             switch style {
-            case .bordered, .filled, .filledDestructive, .filledMedium, .filledThin:
+            case .bordered, .filled, .filledDestructive, .filledMedium, .filledThin, .filledSecondary, .filledMediumSecondary:
                 button()
                     .buttonStyle(CustomStyle(style: style, isDisabled: isDisabled()))
                 
@@ -110,7 +110,7 @@ public struct CodeButton: View {
         switch style {
         case .bordered:
             return .textMain
-        case .filled, .filledDestructive, .filledMedium, .filledThin, .subtle:
+        case .filled, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary:
             return .textSecondary
         }
     }
@@ -119,9 +119,9 @@ public struct CodeButton: View {
         switch style {
         case .filledThin:
             return Metrics.buttonHeightThin
-        case .filledMedium:
+        case .filledMedium, .filledMediumSecondary:
             return 55
-        case .bordered, .filled, .filledDestructive, .subtle:
+        case .bordered, .filled, .filledDestructive, .subtle, .filledSecondary:
             return Metrics.buttonHeight
         }
     }
@@ -133,8 +133,10 @@ extension CodeButton {
     public enum Style {
         case bordered
         case filled
+        case filledSecondary
         case filledDestructive
         case filledMedium
+        case filledMediumSecondary
         case filledThin
         case subtle
     }
@@ -175,6 +177,15 @@ private extension CodeButton {
                         .fill(Color.action)
                 }
                 
+            case .filledSecondary, .filledMediumSecondary:
+                if isDisabled {
+                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                        .fill(Color.actionDisabled)
+                } else {
+                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                        .fill(Color(r: 55, g: 71, b: 62))
+                }
+                
             case .subtle:
                 fatalError()
             }
@@ -201,6 +212,13 @@ private extension CodeButton {
                     return .textActionDisabled
                 } else {
                     return .textAction
+                }
+                
+            case .filledSecondary, .filledMediumSecondary:
+                if isDisabled {
+                    return Color(r: 19, g: 30, b: 24)
+                } else {
+                    return .textMain
                 }
                 
             case .subtle:

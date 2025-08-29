@@ -229,7 +229,6 @@ final class SessionAuthenticator: ObservableObject {
         
         do {
             let userID: UserID
-            let userFlags: UserFlags
             
             // Create VM accounts first, this is a no-op
             // if the accounts have been previously created
@@ -241,11 +240,9 @@ final class SessionAuthenticator: ObservableObject {
             )
             
             if isRegistration {
-                userID    = try await flipClient.register(owner: keyAccount.owner)
-                userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: keyAccount.owner)
+                userID = try await flipClient.register(owner: keyAccount.owner)
             } else {
-                userID    = try await flipClient.login(owner: keyAccount.owner)
-                userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: keyAccount.owner)
+                userID = try await flipClient.login(owner: keyAccount.owner)
             }
             
             accountManager.set(

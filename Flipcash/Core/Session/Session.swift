@@ -29,6 +29,7 @@ class Session: ObservableObject {
     @Published var dialogItem: DialogItem?
     
     @Published var profile: Profile?
+    @Published var userFlags: UserFlags?
 
     @Published var coinbaseOrder: OnrampOrderResponse?
 
@@ -92,6 +93,12 @@ class Session: ObservableObject {
         billState.bill != nil
     }
     
+    var hasCoinbaseOnramp: Bool {
+        userFlags?.onrampProviders.contains(.coinbasePhysicalCredit) == true ||
+        userFlags?.onrampProviders.contains(.coinbasePhysicalDebit) == true ||
+        userFlags?.onrampProviders.contains(.coinbaseVirtual) == true
+    }
+    
     private let container: Container
     private let client: Client
     private let flipClient: FlipClient
@@ -129,10 +136,14 @@ class Session: ObservableObject {
         
     }
     
-    // MARK: - Profile -
+    // MARK: - Info -
     
     func updateProfile() async throws {
         profile = try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
+    }
+    
+    func updateUserFlags() async throws {
+        userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
     }
     
     // MARK: - Login -

@@ -375,7 +375,7 @@ struct ScanScreen: View {
                 BalanceScreen(
                     isPresented: $isShowingBalance,
                     container: container,
-                    database: sessionContainer.database
+                    sessionContainer: sessionContainer
                 )
             }
         }

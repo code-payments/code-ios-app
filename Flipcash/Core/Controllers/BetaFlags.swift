@@ -88,6 +88,7 @@ extension BetaFlags {
         case vibrateOnScan
         case showMissingRendezvous
         case enableConfetti
+        case enableCoinbase
         
         var id: String {
             localizedTitle
@@ -103,6 +104,8 @@ extension BetaFlags {
                 return "Show Missing Rendezvous"
             case .enableConfetti:
                 return "Enable Confetti Cannon"
+            case .enableCoinbase:
+                return "Enable Coinbase"
             }
         }
         
@@ -116,6 +119,8 @@ extension BetaFlags {
                 return "If enabled, pools that have a missing rendezvous key will show a flag in the list"
             case .enableConfetti:
                 return "If enabled, confetti cannon will blast confetti on winning pools"
+            case .enableCoinbase:
+                return "If enabled, Coinbase onramp will be available regardless of region"
             }
         }
     }

@@ -55,52 +55,51 @@ public struct Row<Content>: View where Content: View {
     }
 }
 
-public struct NavigationRow<Content, Destination>: View where Content: View, Destination: View {
+public struct NavigationRow<Content, Path>: View where Content: View {
+    
+    @Binding var path: [Path]
     
     public var insets: EdgeInsets
     public var disabled: Bool
     public var accessory: RowAccessory?
-    public var destination: () -> Destination
+    public var pathItem: Path
     public var content: () -> Content
-    public var action: VoidAction
     
     // MARK: - Init -
     
-    public init(insets: EdgeInsets, disabled: Bool = false, accessory: RowAccessory? = nil, @ViewBuilder destination: @escaping () -> Destination, @ViewBuilder content: @escaping () -> Content, action: VoidAction? = nil) {
-        self.insets = insets
-        self.disabled = disabled
+    public init(path: Binding<[Path]>, insets: EdgeInsets, disabled: Bool = false, accessory: RowAccessory? = nil, pathItem: Path, @ViewBuilder content: @escaping () -> Content) {
+        self._path     = path
+        self.insets    = insets
+        self.disabled  = disabled
         self.accessory = accessory
-        self.destination = destination
-        self.content = content
-        self.action = action ?? {}
+        self.pathItem  = pathItem
+        self.content   = content
     }
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button(action: action, label: {
-                NavigationLink {
-                    destination()
-                } label: {
-                    HStack(spacing: 12) {
-                        content()
-                        if let accessory {
-                            switch accessory {
-                            case .chevron:
-                                Spacer()
-                                Image.system(.chevronRight)
-                                    .renderingMode(.template)
-                            case .loader(let color):
-                                Spacer()
-                                LoadingView(color: color)
-                            }
+            Button {
+                path.append(pathItem)
+            } label: {
+                HStack(spacing: 12) {
+                    content()
+                    if let accessory {
+                        switch accessory {
+                        case .chevron:
+                            Spacer()
+                            Image.system(.chevronRight)
+                                .renderingMode(.template)
+                        case .loader(let color):
+                            Spacer()
+                            LoadingView(color: color)
                         }
                     }
-                    .padding(.leading, insets.leading)
-                    .padding(.bottom, insets.bottom)
-                    .padding(.trailing, insets.trailing)
-                    .padding(.top, insets.top)
                 }
-            })
+                .padding(.leading, insets.leading)
+                .padding(.bottom, insets.bottom)
+                .padding(.trailing, insets.trailing)
+                .padding(.top, insets.top)
+            }
             .disabled(disabled)
             .vSeparator(color: .rowSeparator, position: .bottom)
         }

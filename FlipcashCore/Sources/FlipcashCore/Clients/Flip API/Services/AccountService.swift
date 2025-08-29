@@ -74,12 +74,8 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         call.handle(on: queue) { response in
             let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
-                let flags = UserFlags(
-                    isRegistered: response.userFlags.isRegisteredAccount,
-                    isStaff: response.userFlags.isStaff
-                )
                 trace(.success)
-                completion(.success(flags))
+                completion(.success(UserFlags(response.userFlags)))
             } else {
                 trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
                 completion(.failure(error))
@@ -96,6 +92,47 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
 public struct UserFlags: Sendable {
     public let isRegistered: Bool
     public let isStaff: Bool
+    public let onrampProviders: [OnRampProvider]
+}
+
+extension UserFlags {
+    public enum OnRampProvider: Int, Sendable {
+        case unknown
+        case coinbaseVirtual
+        case coinbasePhysicalDebit
+        case coinbasePhysicalCredit
+        case cryptoWallet
+        case phantom
+    }
+        
+    init(_ proto: Flipcash_Account_V1_UserFlags) {
+        self.init(
+            isRegistered: proto.isRegisteredAccount,
+            isStaff: proto.isStaff,
+            onrampProviders: proto.supportedOnRampProviders.map { OnRampProvider($0) }
+        )
+    }
+}
+
+extension UserFlags.OnRampProvider {
+    init(_ proto: Flipcash_Account_V1_UserFlags.OnRampProvider) {
+        switch proto {
+        case .unknown:
+            self = .unknown
+        case .coinbaseVirtual:
+            self = .coinbaseVirtual
+        case .coinbasePhysicalDebit:
+            self = .coinbasePhysicalDebit
+        case .coinbasePhysicalCredit:
+            self = .coinbasePhysicalCredit
+        case .cryptoWallet:
+            self = .cryptoWallet
+        case .phantom:
+            self = .phantom
+        case .UNRECOGNIZED:
+            self = .unknown
+        }
+    }
 }
 
 // MARK: - Errors -

@@ -16,6 +16,8 @@ struct SettingsScreen: View {
     
     @Binding public var isPresented: Bool
     
+    @State private var path: [SettingsPath] = []
+    
     @State private var isShowingWithdrawFlow = false
     @State private var isShowingAddCashFlow = false
     @State private var isShowingAccountSelection = false
@@ -50,7 +52,7 @@ struct SettingsScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Background(color: .backgroundMain) {
                 VStack(alignment: .center, spacing: 0) {
                     
@@ -94,6 +96,42 @@ struct SettingsScreen: View {
                     }
                     .frame(height: 100)
                     
+                    // Buttons
+                    HStack(spacing: 10) {
+                        CodeButton(
+                            style: .filledMedium,
+                            title: "Add Cash"
+                        ) {
+                            if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
+                                isShowingAddCashFlow.toggle()
+                            } else {
+                                path = [.depositUSDC]
+                            }
+                        }
+                        .sheet(isPresented: $isShowingAddCashFlow) {
+                            AddCashScreen(
+                                isPresented: $isShowingAddCashFlow,
+                                container: container,
+                                sessionContainer: sessionContainer
+                            )
+                        }
+                        
+                        CodeButton(
+                            style: .filledMediumSecondary,
+                            title: "Withdraw"
+                        ) {
+                            isShowingWithdrawFlow.toggle()
+                        }
+                        .sheet(isPresented: $isShowingWithdrawFlow) {
+                            WithdrawDescriptionScreen(
+                                isPresented: $isShowingWithdrawFlow,
+                                container: container,
+                                sessionContainer: sessionContainer
+                            )
+                        }
+                    }
+                    .padding(.bottom, 10)
+                    
                     // Content
                     ScrollBox(color: .backgroundMain) {
                         ScrollView(showsIndicators: false) {
@@ -109,51 +147,53 @@ struct SettingsScreen: View {
                 .padding(.horizontal, 20)
             }
             .navigationBarHidden(true)
+            .navigationDestination(for: SettingsPath.self) { path in
+                switch path {
+                case .myAccount:
+                    myAccountScreen()
+                case .depositUSDC:
+                    DepositDescriptionScreen(session: session)
+                case .appSettings:
+                    appSettingsScreen()
+                case .betaFlagss:
+                    BetaFlagsScreen(container: container)
+                }
+            }
         }
     }
     
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             
-            row(asset: .withdraw, title: "Withdraw") {
-                isShowingWithdrawFlow.toggle()
-            }
-            .sheet(isPresented: $isShowingWithdrawFlow) {
-                WithdrawDescriptionScreen(
-                    isPresented: $isShowingWithdrawFlow,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-            }
+            navigationRow(
+                path: $path,
+                asset: .myAccount,
+                title: "My Account",
+                pathItem: .myAccount
+            )
             
-            row(asset: .withdraw, title: "Add Cash") {
-                isShowingAddCashFlow.toggle()
-            }
-            .sheet(isPresented: $isShowingAddCashFlow) {
-                AddCashScreen(
-                    isPresented: $isShowingAddCashFlow,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-            }
+            navigationRow(
+                path: $path,
+                asset: .deposit,
+                title: "Deposit USDC",
+                pathItem: .depositUSDC
+            )
             
-            navigationRow(asset: .deposit, title: "Deposit") {
-                DepositDescriptionScreen(session: session)
-//                DepositScreen(session: session)
-            }
-            
-            navigationRow(asset: .myAccount, title: "My Account") {
-                myAccountScreen()
-            }
-            
-            navigationRow(asset: .settings, title: "App Settings") {
-                appSettingsScreen()
-            }
+            navigationRow(
+                path: $path,
+                asset: .settings,
+                title: "App Settings",
+                pathItem: .appSettings
+            )
             
             if betaFlags.accessGranted {
-                navigationRow(asset: .debug, title: "Beta Flags", badge: betaBadge()) {
-                    BetaFlagsScreen(container: container)
-                }
+                navigationRow(
+                    path: $path,
+                    asset: .debug,
+                    title: "Beta Features",
+                    badge: betaBadge(),
+                    pathItem: .betaFlagss
+                )
                 
                 row(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge()) {
                     isShowingAccountSelection.toggle()
@@ -314,8 +354,8 @@ struct SettingsScreen: View {
     
     // MARK: - Utilities -
     
-    @ViewBuilder private func navigationRow<D>(asset: Asset, title: String, badge: Badge? = nil, @ViewBuilder destination: @escaping () -> D) -> some View where D: View {
-        NavigationRow(insets: insets, destination: destination) {
+    @ViewBuilder private func navigationRow(path: Binding<[SettingsPath]>, asset: Asset, title: String, badge: Badge? = nil, pathItem: SettingsPath) -> some View {
+        NavigationRow(path: path, insets: insets, pathItem: pathItem) {
             Image.asset(asset)
                 .frame(minWidth: 45)
             Text(title)
@@ -388,5 +428,14 @@ struct SettingsScreen: View {
             
             sessionAuthenticator.logout()
         }
+    }
+}
+
+extension SettingsScreen {
+    enum SettingsPath {
+        case myAccount
+        case depositUSDC
+        case appSettings
+        case betaFlagss
     }
 }
