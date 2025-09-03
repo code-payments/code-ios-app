@@ -12,6 +12,9 @@ import FlipcashCore
 @MainActor
 class OnrampViewModel: ObservableObject {
     
+    @Published var isShowingPresetScreen: Bool = false
+    @Published var isShowingVerificationInfoScreen: Bool = false
+    
     @Published var onrampPath: [OnrampPath] = [] {
         didSet {
             if onrampPath.isEmpty && !oldValue.isEmpty {
@@ -35,6 +38,7 @@ class OnrampViewModel: ObservableObject {
     @Published var enteredCode: String = ""
     @Published var enteredEmail: String = ""
     @Published var enteredAmount: String = ""
+    @Published var selectedPreset: Int?
     
     @Published private(set) var isMidlight: Bool = false { // Ensure it's set to FALSE on success of onramp
         didSet {
@@ -57,12 +61,16 @@ class OnrampViewModel: ObservableObject {
     let codeLength = 6
     
     var enteredFiat: ExchangedFiat? {
-        guard !enteredAmount.isEmpty else {
-            return nil
+        var amount: String = ""
+        
+        if !enteredAmount.isEmpty {
+            amount = enteredAmount
+        } else if let selectedPreset {
+            amount = "\(selectedPreset)"
         }
         
-        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
-            trace(.failure, components: "[Onramp] Failed to parse amount string: \(enteredAmount)")
+        guard let amount = NumberFormatter.decimal(from: amount) else {
+            trace(.failure, components: "[Onramp] Failed to parse amount string: \(amount)")
             return nil
         }
         
@@ -115,6 +123,10 @@ class OnrampViewModel: ObservableObject {
         return e.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
     }
     
+    var hasSelectedPreset: Bool {
+        selectedPreset != nil
+    }
+    
     private let container: Container
     private let session: Session
     private let ratesController: RatesController
@@ -131,6 +143,10 @@ class OnrampViewModel: ObservableObject {
     
     private var isEmailVerified: Bool {
         session.profile?.isEmailVerified ?? false
+    }
+    
+    private var isAccountVerified: Bool {
+        isPhoneVerified && isEmailVerified
     }
     
     // MARK: - Init -
@@ -157,6 +173,7 @@ class OnrampViewModel: ObservableObject {
         isMidlight  = false
         
         coinbaseOrder = nil
+        selectedPreset = nil
         
         navigateToRoot()
     }
@@ -199,13 +216,79 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
+    var adjustingSelectedPreset: Binding<GridAmounts.SelectedAction?> {
+        Binding { [weak self] in
+            guard let preset = self?.selectedPreset else { return nil }
+            return .amount(preset)
+            
+        } set: { [weak self] newValue in
+            guard let self = self else { return }
+            switch newValue {
+            case .amount(let amount):
+                self.selectedPreset = amount
+            case .more:
+                break
+            case .none:
+                break
+            }
+        }
+    }
+    
+    // MARK: - Root -
+    
+//    func rootView(presented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) -> AnyView {
+//        if isShowingVerificationFlow {
+//            return AnyView(
+//                VerifyInfoScreen(viewModel: self)
+//            )
+//        } else {
+//            return AnyView(
+//                PartialSheet(background: .backgroundMain) {
+//                    PresetAddCashScreen(
+//                        isPresented: presented,
+//                        container: container,
+//                        sessionContainer: sessionContainer
+//                    )
+//                }
+//            )
+//        }
+//    }
+    
+    func applePayWebView() -> AnyView {
+        if let order = coinbaseOrder {
+            AnyView(
+                ApplePayWebView(url: order.paymentLink.url) { [weak self] event in
+                    self?.didReceiveApplePayEvent(event: event)
+                }
+                .frame(width: 300, height: 300)
+                .opacity(0)
+            )
+        } else {
+            AnyView(EmptyView())
+        }
+    }
+    
     // MARK: - Navigation -
+    
+    func presentRoot() {
+        reset()
+        isShowingPresetScreen = true
+    }
     
     func navigateToRoot() {
         onrampPath = []
     }
     
-    private func navigateToNext(from origin: Origin) {
+    func navigateToInitialVerification() {
+        navigateToAmount(from: .info)
+    }
+    
+    private func navigateToAmount(from origin: Origin) {
+        if origin.rawValue < Origin.info.rawValue, (!isPhoneVerified || !isEmailVerified) {
+            onrampPath.append(.info)
+            return
+        }
+        
         if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
             onrampPath.append(.enterPhoneNumber)
             return
@@ -216,7 +299,30 @@ class OnrampViewModel: ObservableObject {
             return
         }
         
-        onrampPath.append(.enterAmount)
+        navigateToVerificationOrPurchase()
+    }
+    
+    private func setVerificationFlowVisible(_ visible: Bool) {
+        if isShowingVerificationInfoScreen && visible {
+            isShowingVerificationInfoScreen = false
+            isShowingPresetScreen = true
+        } else {
+            isShowingVerificationInfoScreen = true
+            isShowingPresetScreen = false
+        }
+    }
+    
+    private func navigateToVerificationOrPurchase() {
+        // If we need to verify the phone or
+        // email, we'll need to open up the
+        // verification flow, otherwise, we
+        // can jump straight to the purchase
+        if isAccountVerified {
+            setVerificationFlowVisible(false)
+            amountEnteredAction()
+        } else {
+            setVerificationFlowVisible(true)
+        }
     }
     
     // MARK: - Actions -
@@ -224,9 +330,17 @@ class OnrampViewModel: ObservableObject {
     func addCashWithDebitCardAction() {
         reset()
         isMidlight = true
-        navigateToNext(from: .root)
+        navigateToAmount(from: .root)
 //        onrampPath.append(.enterEmail)
 //        onrampPath.append(.enterPhoneNumber)
+    }
+    
+    func presetSelectedAction() {
+        let selectedPreset = selectedPreset
+        reset()
+        self.selectedPreset = selectedPreset
+        
+        navigateToVerificationOrPurchase()
     }
     
     func sendPhoneNumberCodeAction() {
@@ -311,7 +425,7 @@ class OnrampViewModel: ObservableObject {
                 confirmCodeButtonState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                navigateToNext(from: .phone)
+                navigateToAmount(from: .phone)
                 
                 try await Task.delay(milliseconds: 500)
             }
@@ -409,7 +523,7 @@ class OnrampViewModel: ObservableObject {
                 confirmEmailButtonState = .success
                 
                 try await Task.delay(milliseconds: 500)
-                navigateToNext(from: .email)
+                navigateToAmount(from: .email)
                 
                 try await Task.delay(milliseconds: 500)
             }
@@ -506,7 +620,7 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
-    func didReceiveApplePayEvent(event: ApplePayEvent) {
+    private func didReceiveApplePayEvent(event: ApplePayEvent) {
         trace(.warning, components: "[Coinbase]: \(event.event?.rawValue ?? "unknown")")
         switch event.event {
         case .loadPending:
@@ -661,6 +775,7 @@ class OnrampViewModel: ObservableObject {
 // MARK: - Path -
 
 enum OnrampPath {
+    case info
     case enterPhoneNumber
     case confirmPhoneNumberCode
     case enterEmail
@@ -671,6 +786,7 @@ enum OnrampPath {
 
 private enum Origin: Int {
     case root
+    case info
     case phone
     case email
     case payment

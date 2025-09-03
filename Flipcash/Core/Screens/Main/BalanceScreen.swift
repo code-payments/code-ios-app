@@ -17,9 +17,10 @@ struct BalanceScreen: View {
     @EnvironmentObject var ratesController: RatesController
     @EnvironmentObject var historyController: HistoryController
     
+    @ObservedObject private var onrampViewModel: OnrampViewModel
+    
     @State private var isShowingCurrencySelection: Bool = false
     @State private var isShowingDepositScreen: Bool = false
-    @State private var isShowingAddCashScreen: Bool = false
     @State private var isShowingWithdrawFlow: Bool = false
     
     @State private var dialogItem: DialogItem?
@@ -57,6 +58,7 @@ struct BalanceScreen: View {
         let database          = sessionContainer.database
         self.container        = container
         self.sessionContainer = sessionContainer
+        self.onrampViewModel  = sessionContainer.onrampViewModel
         self.database         = database
         
         self._updateableActivities = .init(wrappedValue: Updateable {
@@ -194,17 +196,22 @@ struct BalanceScreen: View {
                     title: "Add Cash"
                 ) {
                     if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
-                        isShowingAddCashScreen = true
+                        onrampViewModel.presentRoot()
                     } else {
                         isShowingDepositScreen = true
                     }
                 }
-                .sheet(isPresented: $isShowingAddCashScreen) {
-                    AddCashScreen(
-                        isPresented: $isShowingAddCashScreen,
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
+                .sheet(isPresented: $onrampViewModel.isShowingVerificationInfoScreen) {
+                    VerifyInfoScreen(viewModel: onrampViewModel)
+                }
+                .sheet(isPresented: $onrampViewModel.isShowingPresetScreen) {
+                    PartialSheet(background: .backgroundMain) {
+                        PresetAddCashScreen(
+                            isPresented: $onrampViewModel.isShowingPresetScreen,
+                            container: container,
+                            sessionContainer: sessionContainer
+                        )
+                    }
                 }
                 
                 CodeButton(

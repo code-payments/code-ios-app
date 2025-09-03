@@ -15,7 +15,11 @@ public struct PartialSheet<T>: View where T: View {
     public let canAccessBackground: Bool
     public let content: () -> T
     
-    @State private var displayHeight: CGFloat = 0
+    @State private var displayHeight: CGFloat = 0 {
+        didSet {
+            print("Partial sheet \(displayHeight)")
+        }
+    }
     
     public init(background: Color = .backgroundMain, canDismiss: Bool = true, canAccessBackground: Bool = false, @ViewBuilder content: @escaping () -> T) {
         self.background = background

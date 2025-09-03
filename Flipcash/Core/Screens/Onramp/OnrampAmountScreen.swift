@@ -49,14 +49,7 @@ struct OnrampAmountScreen: View {
                 )
             }
             .overlay {
-                if let order = viewModel.coinbaseOrder {
-                    ApplePayWebView(url: order.paymentLink.url) { event in
-                        viewModel.didReceiveApplePayEvent(event: event)
-                    }
-                    .frame(width: 300, height: 300)
-                    .opacity(0)
-                }
-                
+                viewModel.applePayWebView()
             }
         }
         .navigationTitle("Amount to Add")

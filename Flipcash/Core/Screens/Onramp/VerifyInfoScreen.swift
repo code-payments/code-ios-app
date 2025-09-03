@@ -1,5 +1,5 @@
 //
-//  AddCashScreen.swift
+//  VerifyInfoScreen.swift
 //  Code
 //
 //  Created by Dima Bart on 2021-03-02.
@@ -9,22 +9,14 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct AddCashScreen: View {
-    
-    @Binding var isPresented: Bool
+struct VerifyInfoScreen: View {
     
     @ObservedObject private var viewModel: OnrampViewModel
     
-    private let container: Container
-    private let session: Session
-    
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self._isPresented = isPresented
-        self.container    = container
-        self.session      = sessionContainer.session
-        self.viewModel    = sessionContainer.onrampViewModel
+    init(viewModel: OnrampViewModel) {
+        self.viewModel = viewModel
     }
     
     // MARK: - Body -
@@ -35,54 +27,42 @@ struct AddCashScreen: View {
                 VStack(alignment: .center, spacing: 20) {
                     Spacer()
                     
-                    VStack(spacing: 60) {
+                    VStack(spacing: 20) {
+                        Image.asset(.verifyIdentity)
                         
-                        // Header
-                        VStack(spacing: 30) {
-                            Image.asset(.addCircle)
-                            
-                            Text("Add cash to your Flipcash wallet")
-                                .font(.appTextMedium)
-                                .foregroundColor(.textSecondary)
-                                .multilineTextAlignment(.center)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+                        Text("Verify Your Phone Number and Email to Continue")
+                            .font(.appDisplaySmall)
+                            .foregroundStyle(Color.textMain)
                         
-                        // Buttons
-                        VStack(spacing: 15) {
-                            BorderedButton(
-                                image: .asset(.debitCard),
-                                title: "Debit Card with Apple Pay",
-                                subtitle: "Add cash to your wallet from your debit card",
-                                action: viewModel.addCashWithDebitCardAction
-                            )
-                            
-                            BorderedButton(
-                                image: .asset(.debitWallet),
-                                title: "Crypto Wallet",
-                                subtitle: "Deposit USDC from your crypto wallet"
-                            ) {
-                                
-                            }
-                        }
+                        Text("This will allow you to add funds from your debit card")
+                            .foregroundStyle(Color.textSecondary)
                     }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20) // Additional 20pts
                     
                     Spacer()
+                    
+                    CodeButton(
+                        style: .filled,
+                        title: "Next"
+                    ) {
+                        viewModel.navigateToInitialVerification()
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
             }
-            .navigationTitle("Add Cash")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $isPresented)
+                    ToolbarCloseButton(binding: $viewModel.isShowingVerificationInfoScreen)
                 }
             }
             .navigationDestination(for: OnrampPath.self) { path in
                 switch path {
                 case .info:
-                    EmptyView()
+                    VerifyInfoScreen(viewModel: viewModel)
                 case .enterPhoneNumber:
                     EnterPhoneScreen(viewModel: viewModel)
                         .interactiveDismissDisabled()
