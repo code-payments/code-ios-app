@@ -12,8 +12,16 @@ import FlipcashCore
 @MainActor
 class OnrampViewModel: ObservableObject {
     
-    @Published var isShowingPresetScreen: Bool = false
-    @Published var isShowingVerificationInfoScreen: Bool = false
+    @Published var isOnrampPresented: Bool = false
+    
+    @Published var isShowingVerificationFlow: Bool = false {
+        didSet {
+            UIApplication.isInterfaceResetDisabled = isShowingVerificationFlow
+            print("[Onramp] UI Reset: \(isShowingVerificationFlow ? "disabled" : "enabled")")
+        }
+    }
+    
+    @Published var isShowingAmountEntryScreen: Bool = false
     
     @Published var onrampPath: [OnrampPath] = [] {
         didSet {
@@ -38,12 +46,12 @@ class OnrampViewModel: ObservableObject {
     @Published var enteredCode: String = ""
     @Published var enteredEmail: String = ""
     @Published var enteredAmount: String = ""
-    @Published var selectedPreset: Int?
     
-    @Published private(set) var isMidlight: Bool = false { // Ensure it's set to FALSE on success of onramp
+    @Published var selectedPreset: Int? {
         didSet {
-            UIApplication.isInterfaceResetDisabled = isMidlight
-            print("[Onramp] Setting user interface disabled: \(isMidlight ? "yes" : "no")")
+            if selectedPreset != nil {
+                enteredAmount = ""
+            }
         }
     }
     
@@ -123,8 +131,8 @@ class OnrampViewModel: ObservableObject {
         return e.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
     }
     
-    var hasSelectedPreset: Bool {
-        selectedPreset != nil
+    var hasSelectedAmount: Bool {
+        selectedPreset != nil || enteredFiat != nil
     }
     
     private let container: Container
@@ -170,7 +178,6 @@ class OnrampViewModel: ObservableObject {
         enteredAmount = ""
         
         isResending = false
-        isMidlight  = false
         
         coinbaseOrder = nil
         selectedPreset = nil
@@ -272,7 +279,7 @@ class OnrampViewModel: ObservableObject {
     
     func presentRoot() {
         reset()
-        isShowingPresetScreen = true
+        isOnrampPresented = true
     }
     
     func navigateToRoot() {
@@ -302,26 +309,16 @@ class OnrampViewModel: ObservableObject {
         navigateToVerificationOrPurchase()
     }
     
-    private func setVerificationFlowVisible(_ visible: Bool) {
-        if isShowingVerificationInfoScreen && visible {
-            isShowingVerificationInfoScreen = false
-            isShowingPresetScreen = true
-        } else {
-            isShowingVerificationInfoScreen = true
-            isShowingPresetScreen = false
-        }
-    }
-    
     private func navigateToVerificationOrPurchase() {
         // If we need to verify the phone or
         // email, we'll need to open up the
         // verification flow, otherwise, we
         // can jump straight to the purchase
         if isAccountVerified {
-            setVerificationFlowVisible(false)
-            amountEnteredAction()
+            isShowingVerificationFlow = false
+            createOrder()
         } else {
-            setVerificationFlowVisible(true)
+            isShowingVerificationFlow = true
         }
     }
     
@@ -329,18 +326,45 @@ class OnrampViewModel: ObservableObject {
     
     func addCashWithDebitCardAction() {
         reset()
-        isMidlight = true
         navigateToAmount(from: .root)
 //        onrampPath.append(.enterEmail)
 //        onrampPath.append(.enterPhoneNumber)
     }
     
-    func presetSelectedAction() {
-        let selectedPreset = selectedPreset
+    func addWithApplePayAction() {
+        let selectedPreset  = selectedPreset
+        let enteredAmount   = enteredAmount
         reset()
         self.selectedPreset = selectedPreset
+        self.enteredAmount  = enteredAmount
         
         navigateToVerificationOrPurchase()
+    }
+    
+    func customAmountAction() {
+        selectedPreset = nil
+        isShowingAmountEntryScreen = true
+    }
+    
+    func customAmountEnteredAction() {
+        guard let exchangedFiat = enteredFiat else {
+            return
+        }
+        
+        guard let limit = session.singleTransactionLimitFor(currency: exchangedFiat.converted.currencyCode) else {
+            return
+        }
+        
+        guard exchangedFiat.converted.quarks <= limit.quarks else {
+            showAmountTooLargeError()
+            return
+        }
+        
+        isShowingAmountEntryScreen = false
+        
+        Task {
+            addWithApplePayAction()
+        }
     }
     
     func sendPhoneNumberCodeAction() {
@@ -495,7 +519,8 @@ class OnrampViewModel: ObservableObject {
         // Check to see if the user is already in the
         // verification flow. If not, we'll skip them
         // over to the email confirmation screen
-        if !isMidlight {
+        if !isShowingVerificationFlow {
+            // TODO: Verify this works
             emailVerificationDescription = verification
             onrampPath = [.confirmEmailCode]
             enteredEmail = verification.email
@@ -554,22 +579,14 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
-    func amountEnteredAction() {
+    // MARK: - Coinbase -
+    
+    private func createOrder() {
         guard let exchangedFiat = enteredFiat else {
             return
         }
         
-        guard let limit = session.singleTransactionLimitFor(currency: exchangedFiat.converted.currencyCode) else {
-            return
-        }
-        
-        guard exchangedFiat.converted.quarks <= limit.quarks else {
-            showAmountTooLargeError()
-            return
-        }
-        
         guard let profile = session.profile, profile.canCreateCoinbaseOrder else {
-            trace(.failure, components: "Failed to create Coinbase order. Profile is missing phone or email.")
             return
         }
         
@@ -580,8 +597,6 @@ class OnrampViewModel: ObservableObject {
             )
         }
     }
-    
-    // MARK: - Coinbase -
     
     private func createOnrampOrder(profile: Profile, exchangedFiat: ExchangedFiat) async throws {
         let id       = UUID()
@@ -636,7 +651,12 @@ class OnrampViewModel: ObservableObject {
         case .pollingStart:
             break
         case .pollingSuccess:
-            onrampPath = [.success]
+            Task {
+                try await Task.delay(milliseconds: 2000)
+                payButtonState = .success
+                try await Task.delay(milliseconds: 500)
+                showPurchaseSuccessful()
+            }
         case .pollingError:
             payButtonState = .normal
         case .cancelled:
@@ -683,6 +703,19 @@ class OnrampViewModel: ObservableObject {
     }
     
     // MARK: - Errors -
+    
+    private func showPurchaseSuccessful() {
+        dialogItem = .init(
+            style: .success,
+            title: "Success! Your Cash Is On Its Way",
+            subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
+            dismissable: true,
+        ) {
+            .dismiss(kind: .standard) { [weak self] in
+                self?.isOnrampPresented = false
+            }
+        }
+    }
     
     private func showGenericError() {
         dialogItem = .init(

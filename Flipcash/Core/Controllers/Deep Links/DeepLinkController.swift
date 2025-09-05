@@ -97,7 +97,7 @@ final class DeepLinkController {
 
                 // Only prevent user interface reset when
                 // the onboarding flow is midflight.
-                if case .loggedIn(let container) = sessionAuthenticator.state, container.onrampViewModel.isMidlight {
+                if case .loggedIn(let container) = sessionAuthenticator.state, container.onrampViewModel.isShowingVerificationFlow {
                     action.preventUserInterfaceReset = true
                 }
                 

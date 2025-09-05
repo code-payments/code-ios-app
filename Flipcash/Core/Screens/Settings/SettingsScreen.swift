@@ -16,10 +16,11 @@ struct SettingsScreen: View {
     
     @Binding public var isPresented: Bool
     
+    @ObservedObject private var onrampViewModel: OnrampViewModel
+    
     @State private var path: [SettingsPath] = []
     
     @State private var isShowingWithdrawFlow = false
-    @State private var isShowingAddCashFlow = false
     @State private var isShowingAccountSelection = false
     @State private var isShowingLogoutConfirmation = false
     @State private var isShowingAccessKey = false
@@ -46,6 +47,7 @@ struct SettingsScreen: View {
         self.container = container
         self.sessionAuthenticator = container.sessionAuthenticator
         self.sessionContainer = sessionContainer
+        self.onrampViewModel = sessionContainer.onrampViewModel
         self.session = sessionContainer.session
     }
     
@@ -103,17 +105,19 @@ struct SettingsScreen: View {
                             title: "Add Cash"
                         ) {
                             if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
-                                isShowingAddCashFlow.toggle()
+                                onrampViewModel.presentRoot()
                             } else {
                                 path = [.depositUSDC]
                             }
                         }
-                        .sheet(isPresented: $isShowingAddCashFlow) {
-                            AddCashScreen(
-                                isPresented: $isShowingAddCashFlow,
-                                container: container,
-                                sessionContainer: sessionContainer
-                            )
+                        .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
+                            PartialSheet(background: .backgroundMain) {
+                                PresetAddCashScreen(
+                                    isPresented: $onrampViewModel.isOnrampPresented,
+                                    container: container,
+                                    sessionContainer: sessionContainer
+                                )
+                            }
                         }
                         
                         CodeButton(

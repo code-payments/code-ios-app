@@ -55,6 +55,14 @@ public struct DialogAction {
     
     // MARK: - Pre-baked -
     
+    public static func dismiss(kind: Kind, action: @escaping DialogActionHandler = {}) -> Self {
+        self.init(
+            kind: kind,
+            title: "Dismiss",
+            action: action
+        )
+    }
+    
     public static func okay(kind: Kind, action: @escaping DialogActionHandler = {}) -> Self {
         self.init(
             kind: kind,

@@ -43,7 +43,7 @@ public struct CodeButton: View {
     public var body: some View {
         Group {
             switch style {
-            case .bordered, .filled, .filledDestructive, .filledMedium, .filledThin, .filledSecondary, .filledMediumSecondary:
+            case .bordered, .filled, .filledApplePay, .filledDestructive, .filledMedium, .filledThin, .filledSecondary, .filledMediumSecondary:
                 button()
                     .buttonStyle(CustomStyle(style: style, isDisabled: isDisabled()))
                 
@@ -68,10 +68,8 @@ public struct CodeButton: View {
                                 .resizable()
                                 .frame(width: 20, height: 20, alignment: .center)
                         }
-                        Text(title)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
-                            .minimumScaleFactor(0.8)
+                        
+                        titleView()
                     }
                     
                 case .loading:
@@ -102,6 +100,29 @@ public struct CodeButton: View {
         }
     }
     
+    @ViewBuilder private func titleView() -> some View {
+        switch style {
+        case .filledApplePay:
+            HStack(spacing: 4) {
+                Text("\(title) with ")
+                HStack(spacing: 2) {
+                    Image(systemName: "applelogo")
+                        .offset(y: -1)
+                    Text("Pay")
+                }
+            }
+            .lineLimit(1)
+            .multilineTextAlignment(.center)
+            .minimumScaleFactor(0.8)
+            
+        case .filled, .bordered, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary:
+            Text(title)
+                .lineLimit(1)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.8)
+        }
+    }
+    
     private func isDisabled() -> Bool {
         disabled || !state.isNormal
     }
@@ -110,7 +131,7 @@ public struct CodeButton: View {
         switch style {
         case .bordered:
             return .textMain
-        case .filled, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary:
+        case .filled, .filledApplePay, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary:
             return .textSecondary
         }
     }
@@ -121,7 +142,7 @@ public struct CodeButton: View {
             return Metrics.buttonHeightThin
         case .filledMedium, .filledMediumSecondary:
             return 55
-        case .bordered, .filled, .filledDestructive, .subtle, .filledSecondary:
+        case .bordered, .filled, .filledApplePay, .filledDestructive, .subtle, .filledSecondary:
             return Metrics.buttonHeight
         }
     }
@@ -133,6 +154,7 @@ extension CodeButton {
     public enum Style {
         case bordered
         case filled
+        case filledApplePay
         case filledSecondary
         case filledDestructive
         case filledMedium
@@ -168,7 +190,7 @@ private extension CodeButton {
                         .stroke(Color.textMain, lineWidth: Metrics.buttonLineWidth)
                 }
                 
-            case .filled, .filledDestructive, .filledMedium, .filledThin:
+            case .filled, .filledApplePay, .filledDestructive, .filledMedium, .filledThin:
                 if isDisabled {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(Color.actionDisabled)
@@ -207,7 +229,7 @@ private extension CodeButton {
                     return .bannerError
                 }
                 
-            case .filled, .filledMedium, .filledThin:
+            case .filled, .filledApplePay, .filledMedium, .filledThin:
                 if isDisabled {
                     return .textActionDisabled
                 } else {

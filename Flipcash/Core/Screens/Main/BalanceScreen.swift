@@ -201,13 +201,10 @@ struct BalanceScreen: View {
                         isShowingDepositScreen = true
                     }
                 }
-                .sheet(isPresented: $onrampViewModel.isShowingVerificationInfoScreen) {
-                    VerifyInfoScreen(viewModel: onrampViewModel)
-                }
-                .sheet(isPresented: $onrampViewModel.isShowingPresetScreen) {
+                .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
                     PartialSheet(background: .backgroundMain) {
                         PresetAddCashScreen(
-                            isPresented: $onrampViewModel.isShowingPresetScreen,
+                            isPresented: $onrampViewModel.isOnrampPresented,
                             container: container,
                             sessionContainer: sessionContainer
                         )

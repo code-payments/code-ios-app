@@ -134,7 +134,7 @@ public struct EnterAmountView: View {
             
             CodeButton(
                 state: actionState,
-                style: .filled,
+                style: mode.buttonStyle,
                 title: mode.actionName,
                 disabled: !actionEnabled(enteredAmount),
                 action: action
@@ -169,7 +169,14 @@ extension EnterAmountView {
         fileprivate var actionName: String {
             switch self {
             case .currency:  return "Next"
-            case .onramp:    return "Add Cash with Apple Pay"
+            case .onramp:    return "Add Cash"
+            }
+        }
+        
+        fileprivate var buttonStyle: CodeButton.Style {
+            switch self {
+            case .currency:  return .filled
+            case .onramp:    return .filledApplePay
             }
         }
     }

@@ -34,16 +34,22 @@ struct PresetAddCashScreen: View {
             Background(color: .backgroundMain) {
                 VStack(alignment: .center, spacing: 20) {
                     GridAmounts(selected: viewModel.adjustingSelectedPreset) { action in
-                        
+                        switch action {
+                        case .amount:
+                            break
+                        case .more:
+                            viewModel.customAmountAction()
+                        }
                     }
+                    .padding(.bottom, 10)
                     
                     CodeButton(
-                        style: .filled, 
-                        title: "Add Cash with Apple Pay",
-                        disabled: !viewModel.hasSelectedPreset
-                    ) {
-                        viewModel.presetSelectedAction()
-                    }
+                        state: viewModel.payButtonState,
+                        style: .filledApplePay,
+                        title: "Add",
+                        disabled: !viewModel.hasSelectedAmount,
+                        action: viewModel.addWithApplePayAction
+                    )
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -55,11 +61,18 @@ struct PresetAddCashScreen: View {
                     }
                 }
                 .ignoresSafeArea(.keyboard)
+                .dialog(item: $viewModel.dialogItem)
             }
             .overlay {
                 viewModel.applePayWebView()
             }
+            .sheet(isPresented: $viewModel.isShowingVerificationFlow) {
+                VerifyInfoScreen(viewModel: viewModel)
+            }
+            .sheet(isPresented: $viewModel.isShowingAmountEntryScreen) {
+                OnrampAmountScreen(viewModel: viewModel)
+            }
         }
-        .frame(height: 320)
+        .frame(height: 300)
     }
 }

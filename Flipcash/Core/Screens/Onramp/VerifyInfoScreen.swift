@@ -31,11 +31,12 @@ struct VerifyInfoScreen: View {
                         Image.asset(.verifyIdentity)
                         
                         Text("Verify Your Phone Number and Email to Continue")
-                            .font(.appDisplaySmall)
+                            .font(.appTextLarge)
                             .foregroundStyle(Color.textMain)
                         
                         Text("This will allow you to add funds from your debit card")
                             .foregroundStyle(Color.textSecondary)
+                            .font(.appTextMedium)
                     }
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20) // Additional 20pts
@@ -56,7 +57,7 @@ struct VerifyInfoScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $viewModel.isShowingVerificationInfoScreen)
+                    ToolbarCloseButton(binding: $viewModel.isShowingVerificationFlow)
                 }
             }
             .navigationDestination(for: OnrampPath.self) { path in
