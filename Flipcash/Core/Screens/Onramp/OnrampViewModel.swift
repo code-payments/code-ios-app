@@ -656,6 +656,8 @@ class OnrampViewModel: ObservableObject {
                 payButtonState = .success
                 try await Task.delay(milliseconds: 500)
                 showPurchaseSuccessful()
+                try await Task.delay(milliseconds: 200)
+                payButtonState = .normal
             }
         case .pollingError:
             payButtonState = .normal
