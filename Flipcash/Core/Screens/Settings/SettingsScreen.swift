@@ -102,14 +102,9 @@ struct SettingsScreen: View {
                     HStack(spacing: 10) {
                         CodeButton(
                             style: .filledMedium,
-                            title: "Add Cash"
-                        ) {
-                            if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
-                                onrampViewModel.presentRoot()
-                            } else {
-                                path = [.depositUSDC]
-                            }
-                        }
+                            title: "Add Cash",
+                            action: presentOnramp
+                        )
                         .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
                             PartialSheet(background: .backgroundMain) {
                                 PresetAddCashScreen(
@@ -415,6 +410,14 @@ struct SettingsScreen: View {
     }
     
     // MARK: - Actions -
+    
+    private func presentOnramp() {
+        if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
+            onrampViewModel.presentRoot()
+        } else {
+            path = [.depositUSDC]
+        }
+    }
     
     private func switchAccount(to account: AccountDescription) {
         Task {

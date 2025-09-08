@@ -320,7 +320,9 @@ struct ScanScreen: View {
             .sheet(isPresented: $isShowingGive) {
                 GiveScreen(
                     isPresented: $isShowingGive,
-                    kind: .cash
+                    kind: .cash,
+                    container: container,
+                    sessionContainer: sessionContainer
                 )
             }
             

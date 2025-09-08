@@ -16,13 +16,15 @@ struct GiveScreen: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
     
+    @ObservedObject private var onrampViewModel: OnrampViewModel
+    
     @State private var enteredAmount: String = ""
     @State private var actionState: ButtonState = .normal
+    
     @State private var isShowingCurrencySelection: Bool = false
+    @State private var isShowingDepositScreen: Bool = false
     
     @State private var dialogItem: DialogItem?
-    
-    private let kind: Kind
     
     private var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
@@ -49,11 +51,18 @@ struct GiveScreen: View {
         return try! ExchangedFiat(converted: converted, rate: rate)
     }
     
+    private let kind: Kind
+    private let container: Container
+    private let sessionContainer: SessionContainer
+    
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, kind: Kind) {
-        self._isPresented = isPresented
-        self.kind         = kind
+    init(isPresented: Binding<Bool>, kind: Kind, container: Container, sessionContainer: SessionContainer) {
+        self._isPresented     = isPresented
+        self.kind             = kind
+        self.container        = container
+        self.sessionContainer = sessionContainer
+        self.onrampViewModel  = sessionContainer.onrampViewModel
     }
     
     // MARK: - Body -
@@ -88,6 +97,18 @@ struct GiveScreen: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
+                }
+            }
+            .navigationDestination(isPresented: $isShowingDepositScreen) {
+                DepositDescriptionScreen(session: session)
+            }
+            .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
+                PartialSheet(background: .backgroundMain) {
+                    PresetAddCashScreen(
+                        isPresented: $onrampViewModel.isOnrampPresented,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
                 }
             }
         }
@@ -137,16 +158,27 @@ struct GiveScreen: View {
         isShowingCurrencySelection.toggle()
     }
     
+    private func presentOnramp() {
+        if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
+            onrampViewModel.presentRoot()
+        } else {
+            isShowingDepositScreen = true
+        }
+    }
+    
     // MARK: - Errors -
     
     private func showInsufficientBalanceError() {
         dialogItem = .init(
             style: .destructive,
-            title: "Insufficient Balance",
-            subtitle: "Please enter a lower amount and try again",
+            title: "You Need More Cash",
+            subtitle: "Please add more cash, or try again with a lower amount",
             dismissable: true
         ) {
-            .okay(kind: .destructive)
+            .destructive("Add More Cash") {
+                presentOnramp()
+            };
+            .dismiss(kind: .subtle)
         }
     }
     

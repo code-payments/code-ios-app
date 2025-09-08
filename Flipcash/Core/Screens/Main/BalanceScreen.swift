@@ -193,14 +193,9 @@ struct BalanceScreen: View {
             HStack(spacing: 10) {
                 CodeButton(
                     style: .filledMedium,
-                    title: "Add Cash"
-                ) {
-                    if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
-                        onrampViewModel.presentRoot()
-                    } else {
-                        isShowingDepositScreen = true
-                    }
-                }
+                    title: "Add Cash",
+                    action: presentOnramp
+                )
                 .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
                     PartialSheet(background: .backgroundMain) {
                         PresetAddCashScreen(
@@ -273,6 +268,14 @@ struct BalanceScreen: View {
     }
     
     // MARK: - Action -
+    
+    private func presentOnramp() {
+        if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
+            onrampViewModel.presentRoot()
+        } else {
+            isShowingDepositScreen = true
+        }
+    }
     
     private func rowAction(activity: Activity) {
         if let cashLinkMetadata = activity.cancellableCashLinkMetadata {
