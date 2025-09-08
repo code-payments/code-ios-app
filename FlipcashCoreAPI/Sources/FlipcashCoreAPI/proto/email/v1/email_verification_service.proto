@@ -17,8 +17,11 @@ service EmailVerification {
     rpc SendVerificationCode(SendVerificationCodeRequest) returns (SendVerificationCodeResponse);
 
     // CheckVerificationCode validates a verification code. On success, the email
-    // address is linked to the user.
+    // address is linked to the user. Any previous links are overwritten.
     rpc CheckVerificationCode(CheckVerificationCodeRequest) returns (CheckVerificationCodeResponse);
+    
+    // Unlink removes the link of an email address from a user.
+    rpc Unlink(UnlinkRequest) returns (UnlinkResponse);
 }
 
 message SendVerificationCodeRequest {
@@ -26,6 +29,11 @@ message SendVerificationCodeRequest {
     EmailAddress email_address = 1 [(validate.rules).message.required = true];
 
     common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+
+    // Additional client data that is sent in the deep link
+    string client_data = 3 [(validate.rules).string = {
+        max_len: 1024
+    }];
 }
 
 message SendVerificationCodeResponse {
@@ -69,4 +77,19 @@ message CheckVerificationCodeResponse {
         // verification using SendVerificationCode.
         NO_VERIFICATION = 4;
     }
+}
+
+message UnlinkRequest {
+    // The email address to unlink
+    EmailAddress email_address = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message UnlinkResponse {
+    Result result = 1;
+	enum Result {
+		OK     = 0;
+		DENIED = 1;
+	}
 }

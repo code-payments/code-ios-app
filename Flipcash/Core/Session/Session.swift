@@ -142,6 +142,26 @@ class Session: ObservableObject {
         profile = try await flipClient.fetchProfile(userID: userID, owner: ownerKeyPair)
     }
     
+    func unlinkProfile() async throws {
+        if let profile {
+            if let email = profile.email {
+                try await flipClient.unlinkEmail(
+                    email: email,
+                    owner: ownerKeyPair
+                )
+            }
+            
+            if let phone = profile.phone {
+                try await flipClient.unlinkPhone(
+                    phone: phone.e164,
+                    owner: ownerKeyPair
+                )
+            }
+        }
+        
+        try await updateProfile()
+    }
+    
     func updateUserFlags() async throws {
         userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
     }

@@ -61,6 +61,30 @@ class PhoneService: CodeService<Flipcash_Phone_V1_PhoneVerificationNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func unlinkPhone(phone: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorUnlinkPhone>) -> Void) {
+        trace(.send, components: "Phone: \(phone)")
+        
+        let request = Flipcash_Phone_V1_UnlinkRequest.with {
+            $0.phoneNumber = .with { $0.value = phone }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.unlink(request)
+        call.handle(on: queue) { response in
+            let error = ErrorUnlinkPhone(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Phone: \(phone)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -96,9 +120,19 @@ public enum ErrorCheckVerificationCode: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorUnlinkPhone: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Phone_V1_PhoneVerificationClientInterceptorFactoryProtocol {
+    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Phone_V1_UnlinkRequest, FlipcashCoreAPI.Flipcash_Phone_V1_UnlinkResponse>] {
+        makeInterceptors()
+    }
+    
     func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Phone_V1_SendVerificationCodeRequest, FlipcashCoreAPI.Flipcash_Phone_V1_SendVerificationCodeResponse>] {
         makeInterceptors()
     }

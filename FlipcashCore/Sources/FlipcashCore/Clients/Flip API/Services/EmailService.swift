@@ -60,6 +60,30 @@ class EmailService: CodeService<Flipcash_Email_V1_EmailVerificationNIOClient> {
             completion(.failure(.unknown))
         }
     }
+    
+    func unlinkEmail(email: String, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorUnlinkEmail>) -> Void) {
+        trace(.send, components: "Email: \(email)")
+        
+        let request = Flipcash_Email_V1_UnlinkRequest.with {
+            $0.emailAddress = .with { $0.value = email }
+            $0.auth = owner.authFor(message: $0)
+        }
+        
+        let call = service.unlink(request)
+        call.handle(on: queue) { response in
+            let error = ErrorUnlinkEmail(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(()))
+            } else {
+                trace(.failure, components: "Email: \(email)")
+                completion(.failure(error))
+            }
+            
+        } failure: { error in
+            completion(.failure(.unknown))
+        }
+    }
 }
 
 // MARK: - Errors -
@@ -92,9 +116,19 @@ public enum ErrorCheckEmailCode: Int, Error {
     case unknown = -1
 }
 
+public enum ErrorUnlinkEmail: Int, Error {
+    case ok
+    case denied
+    case unknown = -1
+}
+
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Email_V1_EmailVerificationClientInterceptorFactoryProtocol {
+    func makeUnlinkInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Email_V1_UnlinkRequest, FlipcashCoreAPI.Flipcash_Email_V1_UnlinkResponse>] {
+        makeInterceptors()
+    }
+    
     func makeSendVerificationCodeInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Email_V1_SendVerificationCodeRequest, FlipcashCoreAPI.Flipcash_Email_V1_SendVerificationCodeResponse>] {
         makeInterceptors()
     }

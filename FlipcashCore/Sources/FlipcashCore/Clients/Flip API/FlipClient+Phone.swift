@@ -20,4 +20,10 @@ extension FlipClient {
             phoneService.checkVerificationCode(phone: phone, code: code, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func unlinkPhone(phone: String, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            phoneService.unlinkPhone(phone: phone, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

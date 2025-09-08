@@ -20,4 +20,10 @@ extension FlipClient {
             emailService.checkEmailCode(email: email, code: code, owner: owner) { c.resume(with: $0) }
         }
     }
+    
+    public func unlinkEmail(email: String, owner: KeyPair) async throws {
+        try await withCheckedThrowingContinuation { c in
+            emailService.unlinkEmail(email: email, owner: owner) { c.resume(with: $0) }
+        }
+    }
 }

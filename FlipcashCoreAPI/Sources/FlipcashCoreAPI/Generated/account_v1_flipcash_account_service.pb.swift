@@ -348,6 +348,10 @@ public struct Flipcash_Account_V1_UserFlags {
   /// and locale if provided
   public var supportedOnRampProviders: [Flipcash_Account_V1_UserFlags.OnRampProvider] = []
 
+  /// The preferred on ramp provider for this user. If the value is UNKNOWN, client
+  /// should show the list of all supported providers.
+  public var preferredOnRampProvider: Flipcash_Account_V1_UserFlags.OnRampProvider = .unknown
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OnRampProvider: SwiftProtobuf.Enum {
@@ -721,6 +725,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     2: .standard(proto: "is_staff"),
     3: .standard(proto: "requires_iap_for_registration"),
     4: .standard(proto: "supported_on_ramp_providers"),
+    5: .standard(proto: "preferred_on_ramp_provider"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -733,6 +738,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 2: try { try decoder.decodeSingularBoolField(value: &self.isStaff) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.requiresIapForRegistration) }()
       case 4: try { try decoder.decodeRepeatedEnumField(value: &self.supportedOnRampProviders) }()
+      case 5: try { try decoder.decodeSingularEnumField(value: &self.preferredOnRampProvider) }()
       default: break
       }
     }
@@ -751,6 +757,9 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if !self.supportedOnRampProviders.isEmpty {
       try visitor.visitPackedEnumField(value: self.supportedOnRampProviders, fieldNumber: 4)
     }
+    if self.preferredOnRampProvider != .unknown {
+      try visitor.visitSingularEnumField(value: self.preferredOnRampProvider, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -759,6 +768,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.isStaff != rhs.isStaff {return false}
     if lhs.requiresIapForRegistration != rhs.requiresIapForRegistration {return false}
     if lhs.supportedOnRampProviders != rhs.supportedOnRampProviders {return false}
+    if lhs.preferredOnRampProvider != rhs.preferredOnRampProvider {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

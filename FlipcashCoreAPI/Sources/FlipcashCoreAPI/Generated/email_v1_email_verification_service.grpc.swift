@@ -25,6 +25,11 @@ public protocol Flipcash_Email_V1_EmailVerificationClientProtocol: GRPCClient {
     _ request: Flipcash_Email_V1_CheckVerificationCodeRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipcash_Email_V1_CheckVerificationCodeRequest, Flipcash_Email_V1_CheckVerificationCodeResponse>
+
+  func unlink(
+    _ request: Flipcash_Email_V1_UnlinkRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse>
 }
 
 extension Flipcash_Email_V1_EmailVerificationClientProtocol {
@@ -53,7 +58,7 @@ extension Flipcash_Email_V1_EmailVerificationClientProtocol {
   }
 
   /// CheckVerificationCode validates a verification code. On success, the email
-  /// address is linked to the user.
+  /// address is linked to the user. Any previous links are overwritten.
   ///
   /// - Parameters:
   ///   - request: Request to send to CheckVerificationCode.
@@ -68,6 +73,24 @@ extension Flipcash_Email_V1_EmailVerificationClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCheckVerificationCodeInterceptors() ?? []
+    )
+  }
+
+  /// Unlink removes the link of an email address from a user.
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to Unlink.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func unlink(
+    _ request: Flipcash_Email_V1_UnlinkRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Email_V1_EmailVerificationClientMetadata.Methods.unlink.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUnlinkInterceptors() ?? []
     )
   }
 }
@@ -143,6 +166,11 @@ public protocol Flipcash_Email_V1_EmailVerificationAsyncClientProtocol: GRPCClie
     _ request: Flipcash_Email_V1_CheckVerificationCodeRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipcash_Email_V1_CheckVerificationCodeRequest, Flipcash_Email_V1_CheckVerificationCodeResponse>
+
+  func makeUnlinkCall(
+    _ request: Flipcash_Email_V1_UnlinkRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -178,6 +206,18 @@ extension Flipcash_Email_V1_EmailVerificationAsyncClientProtocol {
       interceptors: self.interceptors?.makeCheckVerificationCodeInterceptors() ?? []
     )
   }
+
+  public func makeUnlinkCall(
+    _ request: Flipcash_Email_V1_UnlinkRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Email_V1_EmailVerificationClientMetadata.Methods.unlink.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUnlinkInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -203,6 +243,18 @@ extension Flipcash_Email_V1_EmailVerificationAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeCheckVerificationCodeInterceptors() ?? []
+    )
+  }
+
+  public func unlink(
+    _ request: Flipcash_Email_V1_UnlinkRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Email_V1_UnlinkResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Email_V1_EmailVerificationClientMetadata.Methods.unlink.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeUnlinkInterceptors() ?? []
     )
   }
 }
@@ -231,6 +283,9 @@ public protocol Flipcash_Email_V1_EmailVerificationClientInterceptorFactoryProto
 
   /// - Returns: Interceptors to use when invoking 'checkVerificationCode'.
   func makeCheckVerificationCodeInterceptors() -> [ClientInterceptor<Flipcash_Email_V1_CheckVerificationCodeRequest, Flipcash_Email_V1_CheckVerificationCodeResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'unlink'.
+  func makeUnlinkInterceptors() -> [ClientInterceptor<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse>]
 }
 
 public enum Flipcash_Email_V1_EmailVerificationClientMetadata {
@@ -240,6 +295,7 @@ public enum Flipcash_Email_V1_EmailVerificationClientMetadata {
     methods: [
       Flipcash_Email_V1_EmailVerificationClientMetadata.Methods.sendVerificationCode,
       Flipcash_Email_V1_EmailVerificationClientMetadata.Methods.checkVerificationCode,
+      Flipcash_Email_V1_EmailVerificationClientMetadata.Methods.unlink,
     ]
   )
 
@@ -255,6 +311,12 @@ public enum Flipcash_Email_V1_EmailVerificationClientMetadata {
       path: "/flipcash.email.v1.EmailVerification/CheckVerificationCode",
       type: GRPCCallType.unary
     )
+
+    public static let unlink = GRPCMethodDescriptor(
+      name: "Unlink",
+      path: "/flipcash.email.v1.EmailVerification/Unlink",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -268,8 +330,11 @@ public protocol Flipcash_Email_V1_EmailVerificationProvider: CallHandlerProvider
   func sendVerificationCode(request: Flipcash_Email_V1_SendVerificationCodeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Email_V1_SendVerificationCodeResponse>
 
   /// CheckVerificationCode validates a verification code. On success, the email
-  /// address is linked to the user.
+  /// address is linked to the user. Any previous links are overwritten.
   func checkVerificationCode(request: Flipcash_Email_V1_CheckVerificationCodeRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Email_V1_CheckVerificationCodeResponse>
+
+  /// Unlink removes the link of an email address from a user.
+  func unlink(request: Flipcash_Email_V1_UnlinkRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Email_V1_UnlinkResponse>
 }
 
 extension Flipcash_Email_V1_EmailVerificationProvider {
@@ -302,6 +367,15 @@ extension Flipcash_Email_V1_EmailVerificationProvider {
         userFunction: self.checkVerificationCode(request:context:)
       )
 
+    case "Unlink":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Email_V1_UnlinkRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Email_V1_UnlinkResponse>(),
+        interceptors: self.interceptors?.makeUnlinkInterceptors() ?? [],
+        userFunction: self.unlink(request:context:)
+      )
+
     default:
       return nil
     }
@@ -323,11 +397,17 @@ public protocol Flipcash_Email_V1_EmailVerificationAsyncProvider: CallHandlerPro
   ) async throws -> Flipcash_Email_V1_SendVerificationCodeResponse
 
   /// CheckVerificationCode validates a verification code. On success, the email
-  /// address is linked to the user.
+  /// address is linked to the user. Any previous links are overwritten.
   func checkVerificationCode(
     request: Flipcash_Email_V1_CheckVerificationCodeRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Email_V1_CheckVerificationCodeResponse
+
+  /// Unlink removes the link of an email address from a user.
+  func unlink(
+    request: Flipcash_Email_V1_UnlinkRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Email_V1_UnlinkResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -367,6 +447,15 @@ extension Flipcash_Email_V1_EmailVerificationAsyncProvider {
         wrapping: { try await self.checkVerificationCode(request: $0, context: $1) }
       )
 
+    case "Unlink":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Email_V1_UnlinkRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Email_V1_UnlinkResponse>(),
+        interceptors: self.interceptors?.makeUnlinkInterceptors() ?? [],
+        wrapping: { try await self.unlink(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -382,6 +471,10 @@ public protocol Flipcash_Email_V1_EmailVerificationServerInterceptorFactoryProto
   /// - Returns: Interceptors to use when handling 'checkVerificationCode'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeCheckVerificationCodeInterceptors() -> [ServerInterceptor<Flipcash_Email_V1_CheckVerificationCodeRequest, Flipcash_Email_V1_CheckVerificationCodeResponse>]
+
+  /// - Returns: Interceptors to use when handling 'unlink'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeUnlinkInterceptors() -> [ServerInterceptor<Flipcash_Email_V1_UnlinkRequest, Flipcash_Email_V1_UnlinkResponse>]
 }
 
 public enum Flipcash_Email_V1_EmailVerificationServerMetadata {
@@ -391,6 +484,7 @@ public enum Flipcash_Email_V1_EmailVerificationServerMetadata {
     methods: [
       Flipcash_Email_V1_EmailVerificationServerMetadata.Methods.sendVerificationCode,
       Flipcash_Email_V1_EmailVerificationServerMetadata.Methods.checkVerificationCode,
+      Flipcash_Email_V1_EmailVerificationServerMetadata.Methods.unlink,
     ]
   )
 
@@ -404,6 +498,12 @@ public enum Flipcash_Email_V1_EmailVerificationServerMetadata {
     public static let checkVerificationCode = GRPCMethodDescriptor(
       name: "CheckVerificationCode",
       path: "/flipcash.email.v1.EmailVerification/CheckVerificationCode",
+      type: GRPCCallType.unary
+    )
+
+    public static let unlink = GRPCMethodDescriptor(
+      name: "Unlink",
+      path: "/flipcash.email.v1.EmailVerification/Unlink",
       type: GRPCCallType.unary
     )
   }

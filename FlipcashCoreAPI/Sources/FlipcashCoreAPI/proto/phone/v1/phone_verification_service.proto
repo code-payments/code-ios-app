@@ -17,8 +17,11 @@ service PhoneVerification {
     rpc SendVerificationCode(SendVerificationCodeRequest) returns (SendVerificationCodeResponse);
 
     // CheckVerificationCode validates a verification code. On success, the phone number
-    // is linked to the user.
+    // is linked to the user. Any previous links are overwritten.
     rpc CheckVerificationCode(CheckVerificationCodeRequest) returns (CheckVerificationCodeResponse);
+
+     // Unlink removes the link of a phone number from a user.
+    rpc Unlink(UnlinkRequest) returns (UnlinkResponse);
 }
 
 message SendVerificationCodeRequest {
@@ -75,4 +78,19 @@ message CheckVerificationCodeResponse {
         // verification using SendVerificationCode.
         NO_VERIFICATION = 4;
     }
+}
+
+message UnlinkRequest {
+    // The phone number to unlink
+    PhoneNumber phone_number = 1 [(validate.rules).message.required = true];
+
+    common.v1.Auth auth = 2 [(validate.rules).message.required = true];
+}
+
+message UnlinkResponse {
+    Result result = 1;
+	enum Result {
+		OK     = 0;
+		DENIED = 1;
+	}
 }

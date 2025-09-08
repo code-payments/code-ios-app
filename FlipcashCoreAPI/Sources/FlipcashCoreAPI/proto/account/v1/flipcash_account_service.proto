@@ -92,12 +92,6 @@ message UserFlags {
 	// Does this user require IAP for registration in the account creation flow?
 	bool requires_iap_for_registration = 3;
 
-	// The set of supported on ramp providers for the user, based on their platform
-	// and locale if provided
-	repeated OnRampProvider supported_on_ramp_providers = 4 [(validate.rules).repeated = {
-		min_items: 0
-		max_items: 256
-	}];
 	enum OnRampProvider {
 		UNKNOWN                  = 0;
 		COINBASE_VIRTUAL         = 1;
@@ -106,4 +100,15 @@ message UserFlags {
 		CRYPTO_WALLET            = 4;
 		PHANTOM                  = 5;
 	}
+
+	// The set of supported on ramp providers for the user, based on their platform
+	// and locale if provided
+	repeated OnRampProvider supported_on_ramp_providers = 4 [(validate.rules).repeated = {
+		min_items: 0
+		max_items: 256
+	}];
+	
+	// The preferred on ramp provider for this user. If the value is UNKNOWN, client
+	// should show the list of all supported providers.
+	OnRampProvider preferred_on_ramp_provider = 5;
 }
