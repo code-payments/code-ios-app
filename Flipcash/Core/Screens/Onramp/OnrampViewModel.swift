@@ -243,24 +243,6 @@ class OnrampViewModel: ObservableObject {
     
     // MARK: - Root -
     
-//    func rootView(presented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) -> AnyView {
-//        if isShowingVerificationFlow {
-//            return AnyView(
-//                VerifyInfoScreen(viewModel: self)
-//            )
-//        } else {
-//            return AnyView(
-//                PartialSheet(background: .backgroundMain) {
-//                    PresetAddCashScreen(
-//                        isPresented: presented,
-//                        container: container,
-//                        sessionContainer: sessionContainer
-//                    )
-//                }
-//            )
-//        }
-//    }
-    
     func applePayWebView() -> AnyView {
         if let order = coinbaseOrder {
             AnyView(
@@ -327,8 +309,6 @@ class OnrampViewModel: ObservableObject {
     func addCashWithDebitCardAction() {
         reset()
         navigateToAmount(from: .root)
-//        onrampPath.append(.enterEmail)
-//        onrampPath.append(.enterPhoneNumber)
     }
     
     func addWithApplePayAction() {
@@ -400,6 +380,7 @@ class OnrampViewModel: ObservableObject {
             }
             
             catch {
+                ErrorReporting.captureError(error)
                 showGenericError()
             }
         }
@@ -415,10 +396,14 @@ class OnrampViewModel: ObservableObject {
             isResending = false
         }
         
-        try await flipClient.sendVerificationCode(
-            phone: phone.e164,
-            owner: owner
-        )
+        do {
+            try await flipClient.sendVerificationCode(
+                phone: phone.e164,
+                owner: owner
+            )
+        } catch {
+            ErrorReporting.captureError(error)
+        }
     }
     
     func confirmPhoneNumberCodeAction() {
@@ -461,6 +446,10 @@ class OnrampViewModel: ObservableObject {
             catch ErrorCheckVerificationCode.noVerification {
                 showGenericError()
             }
+            
+            catch {
+                ErrorReporting.captureError(error)
+            }
         }
     }
     
@@ -494,6 +483,7 @@ class OnrampViewModel: ObservableObject {
             }
             
             catch {
+                ErrorReporting.captureError(error)
                 showGenericError()
             }
         }
@@ -509,10 +499,14 @@ class OnrampViewModel: ObservableObject {
             isResending = false
         }
         
-        try await flipClient.sendEmailVerification(
-            email: enteredEmail,
-            owner: owner
-        )
+        do {
+            try await flipClient.sendEmailVerification(
+                email: enteredEmail,
+                owner: owner
+            )
+        } catch {
+            ErrorReporting.captureError(error)
+        }
     }
     
     func confirmEmailFromDeeplinkAction(verification: VerificationDescription) {
@@ -574,6 +568,7 @@ class OnrampViewModel: ObservableObject {
             }
             
             catch {
+                ErrorReporting.captureError(error)
                 showGenericError()
             }
         }
@@ -631,6 +626,7 @@ class OnrampViewModel: ObservableObject {
             coinbaseOrder = response
             
         } catch {
+            ErrorReporting.captureError(error)
             payButtonState = .normal
         }
     }
