@@ -65,9 +65,17 @@ public final class Coinbase {
         guard let http = response as? HTTPURLResponse else {
             throw Error.invalidResponse
         }
+        
         guard (200..<300).contains(http.statusCode) else {
-            print("[COINBASE] \(http.statusCode): \(String(data: data, encoding: .utf8) ?? "nil")")
-            throw Error.badStatus(code: http.statusCode, body: data)
+            if var errorResponse = try? decoder.decode(OnrampErrorResponse.self, from: data) {
+                errorResponse.errorCode = http.statusCode
+                print("[COINBASE]: \(errorResponse)")
+                throw errorResponse
+                
+            } else {
+                print("[COINBASE] \(http.statusCode): \(String(data: data, encoding: .utf8) ?? "nil")")
+                throw Error.badStatus(code: http.statusCode, body: data)
+            }
         }
         
         // 6. Decode
@@ -100,6 +108,13 @@ extension Coinbase {
 }
 
 // MARK: - Models -
+
+public struct OnrampErrorResponse: Error, Decodable {
+    public var errorCode: Int?
+    public var correlationId: String
+    public var errorMessage: String
+    public var errorType: String
+}
 
 public struct OnrampOrderRequest: Encodable {
 
