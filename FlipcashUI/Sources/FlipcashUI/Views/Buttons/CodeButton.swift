@@ -103,12 +103,14 @@ public struct CodeButton: View {
     @ViewBuilder private func titleView() -> some View {
         switch style {
         case .filledApplePay:
-            HStack(spacing: 4) {
-                Text("\(title) with ")
-                HStack(spacing: 2) {
+            HStack(spacing: 1) {
+                Text("\(title) With ")
+                HStack(spacing: 1) {
                     Image(systemName: "applelogo")
+                        .font(.system(size: 14, weight: .semibold))
                         .offset(y: -1)
                     Text("Pay")
+                        .font(.system(size: 16, weight: .semibold))
                 }
             }
             .lineLimit(1)

@@ -52,8 +52,8 @@ struct PresetAddCashScreen: View {
                     )
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .navigationTitle("Add Cash with Debit Card")
+                .padding(.vertical, 20)
+                .navigationTitle("Add Cash With Debit Card")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
@@ -73,6 +73,6 @@ struct PresetAddCashScreen: View {
                 OnrampAmountScreen(viewModel: viewModel)
             }
         }
-        .frame(height: 300)
+        .frame(height: 320)
     }
 }
