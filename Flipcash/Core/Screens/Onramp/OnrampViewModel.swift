@@ -304,6 +304,13 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
+    private func resetIdentityAndVerify() {
+        Task {
+            try await session.unlinkProfile()
+            navigateToVerificationOrPurchase()
+        }
+    }
+    
     // MARK: - Actions -
     
     func addCashWithDebitCardAction() {
@@ -625,7 +632,18 @@ class OnrampViewModel: ObservableObject {
             
             coinbaseOrder = response
             
-        } catch {
+        }
+        
+        catch let error as OnrampErrorResponse {
+            if error.errorType == "guest_region_forbidden" {
+                resetIdentityAndVerify()
+            }
+            
+            ErrorReporting.captureError(error)
+            payButtonState = .normal
+        }
+        
+        catch {
             ErrorReporting.captureError(error)
             payButtonState = .normal
         }
