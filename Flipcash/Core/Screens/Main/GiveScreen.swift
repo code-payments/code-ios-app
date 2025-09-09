@@ -32,7 +32,7 @@ struct GiveScreen: View {
         }
         
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
-            trace(.failure, components: "[Give] Failed to parse amount string: \(enteredAmount)")
+//            trace(.failure, components: "[Give] Failed to parse amount string: \(enteredAmount)")
             return nil
         }
         

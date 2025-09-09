@@ -141,7 +141,7 @@ public struct ApplePayEvent: Codable {
         Event(rawValue: name)
     }
     
-    public enum Event: String {
+    public enum Event: String, Error {
         case loadPending    = "onramp_api.load_pending"
         case loadSuccess    = "onramp_api.load_success"
         case loadError      = "onramp_api.load_error"

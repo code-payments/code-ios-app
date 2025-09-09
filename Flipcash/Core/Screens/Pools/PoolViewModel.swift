@@ -58,7 +58,7 @@ class PoolViewModel: ObservableObject {
         }
         
         guard let amount = NumberFormatter.decimal(from: enteredPoolAmount) else {
-            trace(.failure, components: "[Withdraw] Failed to parse amount string: \(enteredPoolAmount)")
+//            trace(.failure, components: "[Withdraw] Failed to parse amount string: \(enteredPoolAmount)")
             return nil
         }
         

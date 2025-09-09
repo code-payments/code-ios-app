@@ -78,7 +78,7 @@ class OnrampViewModel: ObservableObject {
         }
         
         guard let amount = NumberFormatter.decimal(from: amount) else {
-            trace(.failure, components: "[Onramp] Failed to parse amount string: \(amount)")
+//            trace(.failure, components: "[Onramp] Failed to parse amount string: \(amount)")
             return nil
         }
         
@@ -144,6 +144,8 @@ class OnrampViewModel: ObservableObject {
     private lazy var coinbase = Coinbase(configuration: .init(bearerTokenProvider: fetchCoinbaseJWT))
     
     private let phoneFormatter = PhoneFormatter()
+    
+    private var hasResetIdentity: Bool = false
     
     private var isPhoneVerified: Bool {
         session.profile?.isPhoneVerified ?? false
@@ -251,6 +253,7 @@ class OnrampViewModel: ObservableObject {
                 }
                 .frame(width: 300, height: 300)
                 .opacity(0)
+                .id(order.id)
             )
         } else {
             AnyView(EmptyView())
@@ -304,11 +307,19 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
-    private func resetIdentityAndVerify() {
+    private func resetIdentityAndVerify() -> Bool {
+        guard !hasResetIdentity else {
+            return false
+        }
+        
+        hasResetIdentity = true
+        
         Task {
             try await session.unlinkProfile()
             navigateToVerificationOrPurchase()
         }
+        
+        return true
     }
     
     // MARK: - Actions -
@@ -631,12 +642,25 @@ class OnrampViewModel: ObservableObject {
             ))
             
             coinbaseOrder = response
-            
         }
         
         catch let error as OnrampErrorResponse {
-            if error.errorType == "guest_region_forbidden" {
-                resetIdentityAndVerify()
+            if error.errorType == .guestRegionForbidden {
+                let resetStarted = resetIdentityAndVerify()
+                // In the event that reset identity has been
+                // ignored (ie. the reset already happened, etc)
+                // we'll want to show the error
+                if !resetStarted {
+                    showCoinbaseError(
+                        title: error.title,
+                        subtitle: error.subtitle
+                    )
+                }
+            } else if error.errorType != .unknown {
+                showCoinbaseError(
+                    title: error.title,
+                    subtitle: error.subtitle
+                )
             }
             
             ErrorReporting.captureError(error)
@@ -651,17 +675,30 @@ class OnrampViewModel: ObservableObject {
     
     private func didReceiveApplePayEvent(event: ApplePayEvent) {
         trace(.warning, components: "[Coinbase]: \(event.event?.rawValue ?? "unknown")")
+        
+        func handleEventError(_ event: ApplePayEvent) {
+            payButtonState = .normal
+            coinbaseOrder = nil
+            
+            showGenericError() { [weak self] in
+                self?.isOnrampPresented = false
+            }
+            
+            ErrorReporting.captureError(event.event!)
+        }
+        
         switch event.event {
         case .loadPending:
             break
         case .loadSuccess:
             break
         case .loadError:
-            payButtonState = .normal            
+            handleEventError(event)
+            
         case .commitSuccess:
             break
         case .commitError:
-            payButtonState = .normal
+            handleEventError(event)
         case .pollingStart:
             break
         case .pollingSuccess:
@@ -674,8 +711,9 @@ class OnrampViewModel: ObservableObject {
                 payButtonState = .normal
             }
         case .pollingError:
-            payButtonState = .normal
+            handleEventError(event)
         case .cancelled:
+            coinbaseOrder = nil
             payButtonState = .normal
         case .none:
             break
@@ -720,6 +758,17 @@ class OnrampViewModel: ObservableObject {
     
     // MARK: - Errors -
     
+    private func showCoinbaseError(title: String, subtitle: String) {
+        dialogItem = .init(
+            style: .destructive,
+            title: title,
+            subtitle: subtitle,
+            dismissable: true,
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+    
     private func showPurchaseSuccessful() {
         dialogItem = .init(
             style: .success,
@@ -727,20 +776,20 @@ class OnrampViewModel: ObservableObject {
             subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
             dismissable: true,
         ) {
-            .dismiss(kind: .standard) { [weak self] in
+            .okay(kind: .standard) { [weak self] in
                 self?.isOnrampPresented = false
             }
         }
     }
     
-    private func showGenericError() {
+    private func showGenericError(action: @escaping DialogAction.DialogActionHandler = {}) {
         dialogItem = .init(
             style: .destructive,
             title: "Something Went Wrong",
             subtitle: "Please try again later",
             dismissable: true,
         ) {
-            .okay(kind: .standard)
+            .okay(kind: .destructive, action: action)
         }
     }
     
@@ -751,7 +800,7 @@ class OnrampViewModel: ObservableObject {
             subtitle: "Please enter a smaller amount",
             dismissable: true,
         ) {
-            .okay(kind: .standard)
+            .okay(kind: .destructive)
         }
     }
     
@@ -762,7 +811,7 @@ class OnrampViewModel: ObservableObject {
             subtitle: "Please use a different phone number and try again",
             dismissable: true,
         ) {
-            .okay(kind: .standard)
+            .okay(kind: .destructive)
         }
     }
     
@@ -773,7 +822,7 @@ class OnrampViewModel: ObservableObject {
             subtitle: "Please enter a different email and try again",
             dismissable: true,
         ) {
-            .okay(kind: .standard)
+            .okay(kind: .destructive)
         }
     }
     
@@ -784,7 +833,7 @@ class OnrampViewModel: ObservableObject {
             subtitle: "Please enter the verification code that was sent to your phone number or request a new code",
             dismissable: true,
         ) {
-            .okay(kind: .standard)
+            .okay(kind: .destructive)
         }
     }
     

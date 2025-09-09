@@ -39,7 +39,7 @@ class WithdrawViewModel: ObservableObject {
         }
         
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
-            trace(.failure, components: "[Withdraw] Failed to parse amount string: \(enteredAmount)")
+//            trace(.failure, components: "[Withdraw] Failed to parse amount string: \(enteredAmount)")
             return nil
         }
         

@@ -110,10 +110,116 @@ extension Coinbase {
 // MARK: - Models -
 
 public struct OnrampErrorResponse: Error, Decodable {
+    
     public var errorCode: Int?
     public var correlationId: String
     public var errorMessage: String
-    public var errorType: String
+    public var errorType: ErrorType
+    
+    public var title: String {
+        errorType.title
+    }
+    
+    public var subtitle: String {
+        errorType.subtitle
+    }
+    
+    public enum ErrorType: String, Decodable {
+        case invalidCard                  = "ERROR_CODE_GUEST_INVALID_CARD"
+        case transactionLimit             = "ERROR_CODE_GUEST_TRANSACTION_LIMIT"
+        case transactionCount             = "ERROR_CODE_GUEST_TRANSACTION_COUNT"
+        case cardRiskDeclined             = "ERROR_CODE_GUEST_CARD_RISK_DECLINED"
+        case permissionDenied             = "ERROR_CODE_GUEST_PERMISSION_DENIED"
+        case guestRegionMismatch          = "ERROR_CODE_GUEST_REGION_MISMATCH"
+        case guestRegionForbidden         = "ERROR_CODE_GUEST_REGION_FORBIDDEN"
+        
+        case cardSoftDeclined             = "ERROR_CODE_GUEST_CARD_SOFT_DECLINED"
+        case cardHardDeclined             = "ERROR_CODE_GUEST_CARD_HARD_DECLINED"
+        case guestTransactionBuyFailed    = "ERROR_CODE_GUEST_TRANSACTION_BUY_FAILED"
+        case guestTransactionSendFailed   = "ERROR_CODE_GUEST_TRANSACTION_SEND_FAILED"
+        
+        case guestCardInsufficientBalance = "ERROR_CODE_GUEST_CARD_INSUFFICIENT_BALANCE"
+        case guestCardPrepaidDeclined     = "ERROR_CODE_GUEST_CARD_PREPAID_DECLINED"
+        
+        case transactionValidationFailed  = "ERROR_CODE_GUEST_TRANSACTION_AVS_VALIDATION_FAILED"
+        case transactionFailed            = "ERROR_CODE_GUEST_TRANSACTION_TRANSACTION_FAILED"
+        
+        case networkNotTradable           = "ERROR_CODE_NETWORK_NOT_TRADABLE"
+        case `internal`                   = "ERROR_CODE_INTERNAL"
+        case invalidRequest               = "ERROR_CODE_INVALID_REQUEST"
+        
+        case applePayNotSetup             = "ERROR_CODE_GUEST_APPLE_PAY_NOT_SETUP"
+
+        case unknown                      = "UNKNOWN"
+        
+        public var title: String {
+                switch self {
+                case .invalidCard:
+                    return "Debit Cards Only"
+                case .transactionLimit:
+                    return "Weekly Limit Exceeded"
+                case .transactionCount:
+                    return "Maximum Purchases Reached"
+                case .cardRiskDeclined, .permissionDenied:
+                    return "Something Went Wrong"
+                case .guestTransactionSendFailed, .invalidRequest:
+                    return "Something Went Wrong"
+                case .transactionFailed, .internal:
+                    return "Something Went Wrong"
+                case .guestRegionMismatch, .guestRegionForbidden, .networkNotTradable:
+                    return "Your Region Isn't Supported"
+                case .cardSoftDeclined, .cardHardDeclined, .guestTransactionBuyFailed:
+                    return "Card Declined"
+                case .guestCardInsufficientBalance:
+                    return "Insufficient Funds"
+                case .guestCardPrepaidDeclined:
+                    return "Card Not Supported"
+                case .transactionValidationFailed:
+                    return "Billing Address Invalid"
+                case .applePayNotSetup:
+                    return "Apple Pay Not Set Up"
+                case .unknown:
+                    return "Something Went Wrong"
+                }
+            }
+            
+        public var subtitle: String {
+                switch self {
+                case .invalidCard:
+                    return "This transaction was declined. Please make sure you are using a debit card and the billing address is correct"
+                case .transactionLimit:
+                    return "You can only add up to $1,800 per week"
+                case .transactionCount:
+                    return "Each user is limited to 5 purchases total. To add more funds, please purchase USDC on an exchange and deposit it into your account"
+                case .cardRiskDeclined, .permissionDenied:
+                    return "Something went wrong. Please contact support"
+                case .guestRegionMismatch, .guestRegionForbidden, .networkNotTradable:
+                    return "This feature isn't currently available in your region"
+                case .cardSoftDeclined, .cardHardDeclined, .guestTransactionBuyFailed:
+                    return "This transaction was declined by your bank. Please try again with a different card"
+                case .guestTransactionSendFailed, .invalidRequest:
+                    return "We are working with the Coinbase team to resolve the issue. Your card will be refunded in the meantime. Please try again later"
+                case .guestCardInsufficientBalance:
+                    return "Please make sure you have enough funds in the account linked to your debit card and try again"
+                case .guestCardPrepaidDeclined:
+                    return "Prepaid debit cards are not supported. Please try again with another debit card"
+                case .transactionValidationFailed:
+                    return "Please check that your billing address is correct and try again"
+                case .transactionFailed, .internal:
+                    return "The Coinbase team has been notified and is investigating the issue. Your funds will arrive once resolved. We appreciate your patience"
+                case .applePayNotSetup:
+                    return "It looks like you don't have a debit card linked to Apple Pay. Please link a card and try again"
+                case .unknown:
+                    return "Please try again later"
+                }
+            }
+        
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            let rawValue = try container.decode(String.self)
+            self = ErrorType(rawValue: rawValue.uppercased()) ?? .unknown
+        }
+    }
 }
 
 public struct OnrampOrderRequest: Encodable {
