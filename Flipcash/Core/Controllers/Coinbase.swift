@@ -217,7 +217,10 @@ public struct OnrampErrorResponse: Error, Decodable {
         public init(from decoder: Decoder) throws {
             let container = try decoder.singleValueContainer()
             let rawValue = try container.decode(String.self)
-            self = ErrorType(rawValue: rawValue.uppercased()) ?? .unknown
+            self = (
+                ErrorType(rawValue: rawValue.uppercased()) ??
+                ErrorType(rawValue: "ERROR_CODE_\(rawValue.uppercased())")
+            ) ?? .unknown
         }
     }
 }
