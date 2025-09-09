@@ -88,7 +88,7 @@ struct EnterPhoneScreen: View {
         .navigationTitle("Verify Phone Number")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            isFocused.toggle()
+            isFocused = true
         }
     }
     

@@ -101,6 +101,15 @@ struct BalanceScreen: View {
                         }
                     }
                 }
+                .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
+                    PartialSheet(background: .backgroundMain) {
+                        PresetAddCashScreen(
+                            isPresented: $onrampViewModel.isOnrampPresented,
+                            container: container,
+                            sessionContainer: sessionContainer
+                        )
+                    }
+                }
             }
             .onAppear(perform: onAppear)
             .navigationDestination(isPresented: $isShowingDepositScreen) {
@@ -196,15 +205,6 @@ struct BalanceScreen: View {
                     title: "Add Cash",
                     action: presentOnramp
                 )
-                .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
-                    PartialSheet(background: .backgroundMain) {
-                        PresetAddCashScreen(
-                            isPresented: $onrampViewModel.isOnrampPresented,
-                            container: container,
-                            sessionContainer: sessionContainer
-                        )
-                    }
-                }
                 
                 CodeButton(
                     style: .filledMediumSecondary,
