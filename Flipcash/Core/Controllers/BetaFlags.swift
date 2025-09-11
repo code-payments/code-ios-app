@@ -89,6 +89,7 @@ extension BetaFlags {
         case showMissingRendezvous
         case enableConfetti
         case enableCoinbase
+        case coinbaseSandbox
         
         var id: String {
             localizedTitle
@@ -106,6 +107,8 @@ extension BetaFlags {
                 return "Enable Confetti Cannon"
             case .enableCoinbase:
                 return "Enable Coinbase"
+            case .coinbaseSandbox:
+                return "Coinbase Sandbox"
             }
         }
         
@@ -121,6 +124,8 @@ extension BetaFlags {
                 return "If enabled, confetti cannon will blast confetti on winning pools"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
+            case .coinbaseSandbox:
+                return "If enabled, all Coinbase transactions will go through the sandbox environment"
             }
         }
     }

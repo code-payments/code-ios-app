@@ -625,6 +625,8 @@ class OnrampViewModel: ObservableObject {
         f.minimumFractionDigits = 2
         f.maximumFractionDigits = 2
         
+        let ref = BetaFlags.shared.hasEnabled(.coinbaseSandbox) ? "sandbox-\(userRef)" : userRef
+        
         do {
             let response = try await coinbase.createOrder(request: .init(
                 paymentAmount: nil,
@@ -636,7 +638,7 @@ class OnrampViewModel: ObservableObject {
                 email: email,
                 phoneNumber: phone,
                 partnerOrderRef: orderRef,
-                partnerUserRef: "sandbox-\(userRef)",
+                partnerUserRef: ref,
                 phoneNumberVerifiedAt: .now,
                 agreementAcceptedAt: .now
             ))
@@ -704,6 +706,7 @@ class OnrampViewModel: ObservableObject {
         case .pollingSuccess:
             Task {
                 try await Task.delay(milliseconds: 2000)
+                coinbaseOrder = nil
                 payButtonState = .success
                 try await Task.delay(milliseconds: 500)
                 showPurchaseSuccessful()
