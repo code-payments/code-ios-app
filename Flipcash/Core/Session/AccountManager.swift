@@ -11,6 +11,11 @@ import FlipcashCore
 @MainActor
 class AccountManager {
     
+    enum SortCritieria {
+        case creationDate
+        case lastSeen
+    }
+    
     var accountCount: Int {
         Keychain.historicalAccounts?.count ?? 0
     }
@@ -37,13 +42,18 @@ class AccountManager {
     
     init() {}
     
-    func fetchHistorical() -> [AccountDescription] {
+    func fetchHistorical(sortBy criteria: SortCritieria = .creationDate) -> [AccountDescription] {
         guard let map = Keychain.historicalAccounts else {
             return []
         }
         
         return Array(map.values).sorted { lhs, rhs in
-            lhs.creationDate > rhs.creationDate
+            switch criteria {
+            case .creationDate:
+                lhs.creationDate > rhs.creationDate
+            case .lastSeen:
+                lhs.lastSeen > rhs.lastSeen
+            }
         }
     }
     
@@ -71,6 +81,7 @@ class AccountManager {
         
         if var historicalAccounts = Keychain.historicalAccounts {
             if var oldDescription = historicalAccounts[key] {
+                print("[ACCOUNT MANAGER] Upsert: \(oldDescription.account.mnemonic.name)")
                 oldDescription.lastSeen = .now
                 oldDescription.deletionDate = nil // Undelete
                 historicalAccounts[key] = oldDescription

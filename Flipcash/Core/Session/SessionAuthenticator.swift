@@ -54,10 +54,17 @@ final class SessionAuthenticator: ObservableObject {
             )
             
             self.completeLogin(with: initializedAccount)
+        } didFindRecentAccount: { [weak self] keyAccount in
+            Task {
+                if let account = try await self?.initialize(using: keyAccount.mnemonic, isRegistration: false) {
+                    self?.completeLogin(with: account)
+                    Analytics.autoLoginComplete()
+                }
+            }
         }
     }
     
-    private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void) {
+    private func initializeState(count: Int = 0, didAuthenticate: @escaping (UserAccount) -> Void, didFindRecentAccount: @escaping (KeyAccount) -> Void) {
         trace(.warning)
         
         let userAccount = accountManager.fetchCurrentUserAccount()
@@ -71,9 +78,10 @@ final class SessionAuthenticator: ObservableObject {
             
         } else {
             
-//            if !accountManager.fetchHistorical().isEmpty {
-//                state = .pending
-//            } else {
+            if let recentAccount = accountManager.fetchHistorical(sortBy: .lastSeen).first {
+                didFindRecentAccount(recentAccount.account)
+            } else {
+                
                 state = .loggedOut
                 
                 // Only attempt to recover if there was an
@@ -93,7 +101,8 @@ final class SessionAuthenticator: ObservableObject {
                             let nextCount = count + 1
                             initializeState(
                                 count: nextCount,
-                                didAuthenticate: didAuthenticate
+                                didAuthenticate: didAuthenticate,
+                                didFindRecentAccount: didFindRecentAccount
                             )
                             
 //                            ErrorReporting.breadcrumb(
@@ -107,7 +116,7 @@ final class SessionAuthenticator: ObservableObject {
 //                        Analytics.unintentialLogout()
                     }
                 }
-//            }
+            }
         }
     }
     

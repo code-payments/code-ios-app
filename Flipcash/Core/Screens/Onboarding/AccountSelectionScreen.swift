@@ -69,7 +69,7 @@ struct AccountSelectionScreen: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .bottom, spacing: 10) {
-                        Text(account.accountName)
+                        Text(account.mnemonic.name)
                         if account.isNotFound {
                             Badge(decoration: .circle(.textError), text: "Not Found")
                         }
@@ -225,19 +225,6 @@ class HistoricalAccount: Identifiable {
     
     private(set) var balance: Fiat = 0
     private(set) var isNotFound: Bool = false
-    
-    var accountName: String {
-        [
-            mnemonic.words[0],
-            mnemonic.words[5],
-            mnemonic.words[11],
-        ]
-        .sorted()
-        .map {
-            $0.capitalized
-        }
-        .joined(separator: " ")
-    }
 
     init(details: AccountDescription) {
         self.details  = details
@@ -251,5 +238,20 @@ class HistoricalAccount: Identifiable {
     
     func setNotFound() {
         isNotFound = true
+    }
+}
+
+extension MnemonicPhrase {
+    var name: String {
+        [
+            words[0],
+            words[5],
+            words[11],
+        ]
+        .sorted()
+        .map {
+            $0.capitalized
+        }
+        .joined(separator: " ")
     }
 }

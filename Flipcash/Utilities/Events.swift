@@ -11,6 +11,10 @@ import FlipcashCore
 // MARK: - General -
 
 extension Analytics {
+    static func autoLoginComplete() {
+        track(event: .autoLoginComplete)
+    }
+    
     static func buttonTapped(name: Name) {
         track(event: name)
     }
@@ -142,6 +146,7 @@ extension Analytics {
         case buttonAllowPush      = "Button: Allow Push"
         case buttonSkipPush       = "Button: Skip Push"
         
+        case autoLoginComplete    = "Auto-login complete"
         case completeOnboarding   = "Complete Onboarding"
         
         case poolOpened           = "Pool: Opened From Deeplink"
