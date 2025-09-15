@@ -344,22 +344,22 @@ struct ScanScreen: View {
 //                )
 //            }
             
-            LargeButton(
-                title: "Pool",
-                image: .asset(.pools),
-                spacing: 12,
-                maxWidth: 80,
-                maxHeight: 80,
-                fullWidth: true,
-                aligment: .bottom,
-                binding: $poolViewModel.isShowingPoolList
-            )
-            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
-                PoolsScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-            }
+//            LargeButton(
+//                title: "Pool",
+//                image: .asset(.pools),
+//                spacing: 12,
+//                maxWidth: 80,
+//                maxHeight: 80,
+//                fullWidth: true,
+//                aligment: .bottom,
+//                binding: $poolViewModel.isShowingPoolList
+//            )
+//            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
+//                PoolsScreen(
+//                    container: container,
+//                    sessionContainer: sessionContainer
+//                )
+//            }
             
             ToastContainer(toast: toast) {
                 LargeButton(
