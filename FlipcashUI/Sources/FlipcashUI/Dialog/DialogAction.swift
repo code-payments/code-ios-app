@@ -13,12 +13,14 @@ public struct DialogAction {
     
     public let kind: Kind
     public let title: String
+    public let options: Dialog.Options
     public let action: DialogActionHandler
     
-    init(kind: Kind, title: String, action: @escaping DialogActionHandler) {
-        self.kind   = kind
-        self.title  = title
-        self.action = action
+    init(kind: Kind, title: String, options: Dialog.Options = [], action: @escaping DialogActionHandler) {
+        self.kind    = kind
+        self.title   = title
+        self.action  = action
+        self.options = options
     }
     
     public static func standard(_ title: String, action: @escaping DialogActionHandler) -> Self {
@@ -63,10 +65,11 @@ public struct DialogAction {
         )
     }
     
-    public static func okay(kind: Kind, action: @escaping DialogActionHandler = {}) -> Self {
+    public static func okay(kind: Kind, options: Dialog.Options = [], action: @escaping DialogActionHandler = {}) -> Self {
         self.init(
             kind: kind,
             title: "OK",
+            options: options,
             action: action
         )
     }
