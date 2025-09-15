@@ -113,6 +113,7 @@ struct GiveScreen: View {
             }
         }
         .dialog(item: $dialogItem)
+        .dialog(item: $onrampViewModel.purchaseSuccess)
     }
     
     // MARK: - Actions -

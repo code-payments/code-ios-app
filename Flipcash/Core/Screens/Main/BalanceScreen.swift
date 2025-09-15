@@ -117,6 +117,7 @@ struct BalanceScreen: View {
             }
         }
         .dialog(item: $dialogItem)
+        .dialog(item: $onrampViewModel.purchaseSuccess)
     }
     
     @ViewBuilder private func emptyState(geometry: GeometryProxy) -> some View {

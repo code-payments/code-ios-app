@@ -225,6 +225,7 @@ struct SettingsScreen: View {
         .font(.appDisplayXS)
         .foregroundColor(.textMain)
         .dialog(item: $dialogItem)
+        .dialog(item: $onrampViewModel.purchaseSuccess)
     }
     
     // MARK: - My Account -

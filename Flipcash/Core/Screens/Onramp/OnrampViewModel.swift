@@ -43,6 +43,8 @@ class OnrampViewModel: ObservableObject {
     
     @Published var dialogItem: DialogItem?
     
+    @Published var purchaseSuccess: DialogItem?
+    
     @Published var enteredCode: String = ""
     @Published var enteredEmail: String = ""
     @Published var enteredAmount: String = ""
@@ -709,9 +711,19 @@ class OnrampViewModel: ObservableObject {
                 coinbaseOrder = nil
                 payButtonState = .success
                 try await Task.delay(milliseconds: 500)
-                showPurchaseSuccessful()
-                try await Task.delay(milliseconds: 200)
+                isOnrampPresented = false
+                try await Task.delay(milliseconds: 650)
                 payButtonState = .normal
+                purchaseSuccess = .init(
+                    style: .success,
+                    title: "Success! Your Cash Is On Its Way",
+                    subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
+                    dismissable: true,
+                ) {
+                    .okay(kind: .standard, options: .priorityAction) { [weak self] in
+                        self?.isOnrampPresented = false
+                    }
+                }
             }
         case .pollingError:
             handleEventError(event)
@@ -772,18 +784,18 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
-    private func showPurchaseSuccessful() {
-        dialogItem = .init(
-            style: .success,
-            title: "Success! Your Cash Is On Its Way",
-            subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-            dismissable: true,
-        ) {
-            .okay(kind: .standard) { [weak self] in
-                self?.isOnrampPresented = false
-            }
-        }
-    }
+//    private func showPurchaseSuccessful() {
+//        dialogItem = .init(
+//            style: .success,
+//            title: "Success! Your Cash Is On Its Way",
+//            subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
+//            dismissable: true,
+//        ) {
+//            .okay(kind: .standard, options: .priorityAction) { [weak self] in
+//                self?.isOnrampPresented = false
+//            }
+//        }
+//    }
     
     private func showGenericError(action: @escaping DialogAction.DialogActionHandler = {}) {
         dialogItem = .init(
