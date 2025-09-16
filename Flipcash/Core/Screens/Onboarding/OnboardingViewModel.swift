@@ -137,9 +137,10 @@ class OnboardingViewModel: ObservableObject {
         
         try await Task.delay(milliseconds: 150)
         accessKeyButtonState = .success
-        try await Task.delay(milliseconds: 400)
+        try await Task.delay(milliseconds: 500)
         
-        navigateToPushPermissionsScreen()
+        completeOnboardingAndLogin()
+//        navigateToPushPermissionsScreen()
         
         try await Task.delay(milliseconds: 500) // Delay deferred state change
     }
@@ -225,9 +226,9 @@ class OnboardingViewModel: ObservableObject {
     
     func allowPushPermissionsAction() {
         Task {
-            do {
-                try await PushController.authorize()
-            } catch {}
+//            do {
+//                try await PushController.authorize()
+//            } catch {}
             navigateToCameraAccessScreen()
         }
         

@@ -713,6 +713,9 @@ class OnrampViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 isOnrampPresented = false
                 try await Task.delay(milliseconds: 650)
+                
+                let status = await PushController.fetchStatus()
+                
                 payButtonState = .normal
                 purchaseSuccess = .init(
                     style: .success,
@@ -720,8 +723,22 @@ class OnrampViewModel: ObservableObject {
                     subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
                     dismissable: true,
                 ) {
-                    .okay(kind: .standard, options: .priorityAction) { [weak self] in
-                        self?.isOnrampPresented = false
+                    if status == .notDetermined {
+                        .standard("Notify Me") { [weak self] in
+                            self?.isOnrampPresented = false
+                            Task {
+                                do {
+                                    try await PushController.authorizeAndRegister()
+                                } catch {}
+                            }
+                        };
+                        .dismiss(kind: .subtle) { [weak self] in
+                            self?.isOnrampPresented = false
+                        }
+                    } else {
+                        .okay(kind: .standard, options: .priorityAction) { [weak self] in
+                            self?.isOnrampPresented = false
+                        }
                     }
                 }
             }

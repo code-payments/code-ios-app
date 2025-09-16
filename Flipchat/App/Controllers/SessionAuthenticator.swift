@@ -278,7 +278,7 @@ final class SessionAuthenticator: ObservableObject {
     private func initializeSession(state: AuthenticatedState) {
         Task {
             // 1. Push permissions
-            async let _ = try state.pushController.authorizeAndRegister()
+//            async let _ = try state.pushController.authorizeAndRegister()
             
             // 2. Update user flags
             let flags = try await state.session.updateUserFlags()

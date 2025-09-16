@@ -45,7 +45,8 @@ class PushController: ObservableObject {
             // if we're not authorized to send push as the call will
             // not return anything
             if await Self.fetchStatus() == .notDetermined {
-                try await authorizeAndRegister()
+//                try await authorizeAndRegister()
+                // Do nothing
                 
             } else {
                 // Triggering APNS registration invokes the
@@ -157,8 +158,9 @@ class PushController: ObservableObject {
 }
 
 extension PushController {
-    static func authorize() async throws {
+    static func authorizeAndRegister() async throws {
         try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
+        UIApplication.shared.registerForRemoteNotifications()
     }
     
     static func fetchStatus() async -> UNAuthorizationStatus {
