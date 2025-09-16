@@ -234,7 +234,27 @@ class Session: ObservableObject {
     }
     
     func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> Bool {
-        exchangedFiat.usdc.quarks > 0 && exchangedFiat.usdc.quarks <= balance.quarks
+        hasSufficientFundsWithDelta(for: exchangedFiat).0
+    }
+    
+    func hasSufficientFundsWithDelta(for exchangedFiat: ExchangedFiat) -> (Bool, ExchangedFiat?) {
+        guard exchangedFiat.usdc.quarks > 0 else {
+            return (false, nil)
+        }
+        
+        if balance.quarks < exchangedFiat.usdc.quarks {
+            assert(exchangedEntryBalance.converted.currencyCode == exchangedFiat.converted.currencyCode)
+            let delta = try! ExchangedFiat(
+                converted: Fiat(
+                    quarks: exchangedFiat.converted.quarks - exchangedEntryBalance.converted.quarks,
+                    currencyCode: exchangedFiat.converted.currencyCode
+                ),
+                rate: exchangedEntryBalance.rate
+            )
+            return (false, delta)
+        } else {
+            return (exchangedFiat.usdc.quarks <= balance.quarks, nil)
+        }
     }
     
     // MARK: - Poller -

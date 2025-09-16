@@ -123,8 +123,14 @@ struct GiveScreen: View {
             return
         }
         
-        guard session.hasSufficientFunds(for: exchangedFiat) else {
-            showInsufficientBalanceError()
+        let (hasSufficientFunds, delta) = session.hasSufficientFundsWithDelta(for: exchangedFiat)
+        
+        guard hasSufficientFunds else {
+            if let delta {
+                showYoureShortError(amount: delta)
+            } else {
+                showInsufficientBalanceError()
+            }
             return
         }
         
@@ -174,6 +180,20 @@ struct GiveScreen: View {
             style: .destructive,
             title: "You Need More Cash",
             subtitle: "Please add more cash, or try again with a lower amount",
+            dismissable: true
+        ) {
+            .destructive("Add More Cash") {
+                presentOnramp()
+            };
+            .dismiss(kind: .subtle)
+        }
+    }
+    
+    private func showYoureShortError(amount: ExchangedFiat) {
+        dialogItem = .init(
+            style: .destructive,
+            title: "You're \(amount.converted.formatted(suffix: nil)) Short",
+            subtitle: "Add more cash, or try again with a lower amount",
             dismissable: true
         ) {
             .destructive("Add More Cash") {
