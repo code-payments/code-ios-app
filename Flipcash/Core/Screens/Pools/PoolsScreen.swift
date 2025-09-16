@@ -15,6 +15,8 @@ struct PoolsScreen: View {
     
     @StateObject private var updateablePools: Updateable<[StoredPool]>
     
+    @State private var dialogItem: DialogItem? = nil
+    
     private let container: Container
     private let sessionContainer: SessionContainer
     private let session: Session
@@ -59,15 +61,25 @@ struct PoolsScreen: View {
                     
                     CodeButton(
                         style: .filled,
-                        title: "Create a New Pool",
-                        action: viewModel.startPoolCreationFlowAction
-                    )
-                    .sheet(isPresented: $viewModel.isShowingCreatePoolFlow) {
-                        EnterPoolNameScreen(
-                            isPresented: $viewModel.isShowingCreatePoolFlow,
-                            viewModel: viewModel
+                        title: "Create a New Pool"
+//                        action: viewModel.startPoolCreationFlowAction
+                    ) {
+                        dialogItem = .init(
+                            style: .destructive,
+                            title: "Pools Feature Winding Down",
+                            subtitle: "New pools cannot be created. Existing pools should be closed out",
+                            dismissable: true,
+                            actions: {
+                                .okay(kind: .standard)
+                            }
                         )
                     }
+//                    .sheet(isPresented: $viewModel.isShowingCreatePoolFlow) {
+//                        EnterPoolNameScreen(
+//                            isPresented: $viewModel.isShowingCreatePoolFlow,
+//                            viewModel: viewModel
+//                        )
+//                    }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                 }
@@ -79,6 +91,7 @@ struct PoolsScreen: View {
                     }
                 }
             }
+            .dialog(item: $dialogItem)
             .ignoresSafeArea(.keyboard)
             .onAppear(perform: onAppear)
             .navigationDestination(for: PoolListPath.self) { path in

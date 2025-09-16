@@ -17,6 +17,7 @@ struct SettingsScreen: View {
     @Binding public var isPresented: Bool
     
     @ObservedObject private var onrampViewModel: OnrampViewModel
+    @ObservedObject private var poolViewModel: PoolViewModel
     
     @State private var path: [SettingsPath] = []
     
@@ -48,6 +49,7 @@ struct SettingsScreen: View {
         self.sessionAuthenticator = container.sessionAuthenticator
         self.sessionContainer = sessionContainer
         self.onrampViewModel = sessionContainer.onrampViewModel
+        self.poolViewModel = sessionContainer.poolViewModel
         self.session = sessionContainer.session
     }
     
@@ -150,6 +152,8 @@ struct SettingsScreen: View {
                 switch path {
                 case .myAccount:
                     myAccountScreen()
+                case .advancedFeatures:
+                    advancedFeaturesScreen()
                 case .depositUSDC:
                     DepositDescriptionScreen(session: session)
                 case .appSettings:
@@ -173,16 +177,16 @@ struct SettingsScreen: View {
             
             navigationRow(
                 path: $path,
-                asset: .deposit,
-                title: "Deposit USDC",
-                pathItem: .depositUSDC
+                asset: .settings,
+                title: "App Settings",
+                pathItem: .appSettings
             )
             
             navigationRow(
                 path: $path,
-                asset: .settings,
-                title: "App Settings",
-                pathItem: .appSettings
+                asset: .sliders,
+                title: "Advanced Features",
+                pathItem: .advancedFeatures
             )
             
             if betaFlags.accessGranted {
@@ -226,6 +230,45 @@ struct SettingsScreen: View {
         .foregroundColor(.textMain)
         .dialog(item: $dialogItem)
         .dialog(item: $onrampViewModel.purchaseSuccess)
+    }
+    
+    // MARK: - Advanced Features -
+    
+    @ViewBuilder private func advancedFeaturesScreen() -> some View {
+        Background(color: .backgroundMain) {
+            ScrollBox(color: .backgroundMain) {
+                ScrollView(showsIndicators: false) {
+                    advancedFeaturesList()
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .navigationTitle("Advanced Features")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    @ViewBuilder private func advancedFeaturesList() -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            
+            navigationRow(
+                path: $path,
+                asset: .deposit,
+                title: "Deposit USDC",
+                pathItem: .depositUSDC
+            )
+            
+            row(asset: .key, title: "Pools") {
+                poolViewModel.isShowingPoolList = true
+            }
+            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
+                PoolsScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
+        }
+        .font(.appDisplayXS)
+        .foregroundColor(.textMain)
     }
     
     // MARK: - My Account -
@@ -442,6 +485,7 @@ struct SettingsScreen: View {
 extension SettingsScreen {
     enum SettingsPath {
         case myAccount
+        case advancedFeatures
         case depositUSDC
         case appSettings
         case betaFlagss
