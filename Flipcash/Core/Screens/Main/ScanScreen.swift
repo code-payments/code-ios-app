@@ -308,7 +308,7 @@ struct ScanScreen: View {
     @ViewBuilder private func bottomBar() -> some View {
         HStack(alignment: .bottom) {
             LargeButton(
-                title: "Send",
+                title: "Give",
                 image: .asset(.cash),
                 spacing: 12,
                 maxWidth: 80,
@@ -363,7 +363,7 @@ struct ScanScreen: View {
             
             ToastContainer(toast: toast) {
                 LargeButton(
-                    title: "Balance",
+                    title: "Wallet",
                     image: .asset(.history),
                     spacing: 12,
                     maxWidth: 80,

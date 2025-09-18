@@ -80,7 +80,7 @@ struct BalanceScreen: View {
                 VStack(spacing: 0) {
                     list()
                 }
-                .navigationTitle("Balance")
+                .navigationTitle("Wallet")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {

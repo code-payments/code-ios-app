@@ -129,6 +129,7 @@ class Session: ObservableObject {
         
         Task {
             try await updateProfile()
+            try await updateUserFlags()
         }
     }
     
@@ -164,6 +165,7 @@ class Session: ObservableObject {
     
     func updateUserFlags() async throws {
         userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
+        print(userFlags)
     }
     
     // MARK: - Login -
@@ -474,7 +476,7 @@ class Session: ObservableObject {
         
         let payload = operation.payload
         
-        var primaryAction: BillState.PrimaryAction? = .init(asset: .airplane, title: "Send") { [weak self, weak operation] in
+        var primaryAction: BillState.PrimaryAction? = .init(asset: .airplane, title: "Send as a Link") { [weak self, weak operation] in
             if let operation, let self {
                 // Disable scanning of the bill
                 // while the share sheet is up

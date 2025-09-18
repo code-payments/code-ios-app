@@ -719,7 +719,7 @@ class OnrampViewModel: ObservableObject {
                 payButtonState = .normal
                 purchaseSuccess = .init(
                     style: .success,
-                    title: "Success! Your Cash Is On Its Way",
+                    title: "Your Cash Will Be Available Soon",
                     subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
                     dismissable: true,
                 ) {
