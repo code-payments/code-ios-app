@@ -67,6 +67,8 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
         
         let request = Flipcash_Account_V1_GetUserFlagsRequest.with {
             $0.userID = userID.proto
+            $0.platform = .apple
+            $0.countryCode = .with { $0.value = Locale.current.identifier }
             $0.auth = owner.authFor(message: $0)
         }
         
