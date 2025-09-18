@@ -41,6 +41,7 @@ struct PresetAddCashScreen: View {
                             viewModel.customAmountAction()
                         }
                     }
+                    .disabled(viewModel.payButtonState == .loading)
                     .padding(.bottom, 10)
                     
                     CodeButton(
