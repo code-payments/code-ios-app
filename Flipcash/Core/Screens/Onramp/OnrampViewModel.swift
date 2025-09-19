@@ -360,6 +360,11 @@ class OnrampViewModel: ObservableObject {
             return
         }
         
+        guard exchangedFiat.converted.decimalValue >= 5.00 else {
+            showAmountTooSmallError()
+            return
+        }
+        
         isShowingAmountEntryScreen = false
         
         Task {
@@ -822,6 +827,17 @@ class OnrampViewModel: ObservableObject {
             dismissable: true,
         ) {
             .okay(kind: .destructive, action: action)
+        }
+    }
+    
+    private func showAmountTooSmallError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "$5 Minimum Purchase",
+            subtitle: "Please enter an amount of $5 or higher",
+            dismissable: true,
+        ) {
+            .okay(kind: .destructive)
         }
     }
     
