@@ -157,6 +157,7 @@
 		9A83DCCE2D8A653D00E38B84 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9A83DCCD2D8A653D00E38B84 /* SQLite */; };
 		9A88672127345419005F1113 /* SessionAuthenticator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672027345419005F1113 /* SessionAuthenticator.swift */; };
 		9A88672427359B56005F1113 /* NotificationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A88672327359B56005F1113 /* NotificationController.swift */; };
+		9A8A219C2E7B253A00C12594 /* TweetNacl in Frameworks */ = {isa = PBXBuildFile; productRef = 9A8A219B2E7B253A00C12594 /* TweetNacl */; };
 		9A8B265A2C10F156009FB349 /* TooltipViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26592C10F156009FB349 /* TooltipViewModel.swift */; };
 		9A8B265F2C18AC74009FB349 /* BiometricsAuthScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B265E2C18AC74009FB349 /* BiometricsAuthScreen.swift */; };
 		9A8B26612C1A32BC009FB349 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8B26602C1A32BB009FB349 /* Preferences.swift */; };
@@ -647,6 +648,7 @@
 			files = (
 				9ADEF1C92DD50BDE001B260A /* FirebaseMessaging in Frameworks */,
 				9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */,
+				9A8A219C2E7B253A00C12594 /* TweetNacl in Frameworks */,
 				9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */,
 				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
 				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
@@ -1343,6 +1345,7 @@
 				9ADEF1D62DD627C0001B260A /* Bugsnag */,
 				9ADEF1D82DD627C6001B260A /* Mixpanel */,
 				9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */,
+				9A8A219B2E7B253A00C12594 /* TweetNacl */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -1732,6 +1735,7 @@
 				9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */,
 				9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
+				9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -4497,6 +4501,14 @@
 				kind = branch;
 			};
 		};
+		9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/bitmark-inc/tweetnacl-swiftwrap";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
 		9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher";
@@ -4580,6 +4592,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A9499D62CFB829300DC219B /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
+		};
+		9A8A219B2E7B253A00C12594 /* TweetNacl */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */;
+			productName = TweetNacl;
 		};
 		9A8D9A3E2D78C2E200E755B9 /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;

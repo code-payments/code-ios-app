@@ -176,9 +176,12 @@ final class SessionAuthenticator: ObservableObject {
             ratesController: ratesController
         )
         
+        let walletConnection = WalletConnection()
+        
         return SessionContainer(
             session: session,
             database: database,
+            walletConnection: walletConnection,
             ratesController: ratesController,
             historyController: historyController,
             pushController: pushController,
@@ -337,6 +340,7 @@ struct SessionContainer {
     
     let session: Session
     let database: Database
+    let walletConnection: WalletConnection
     let ratesController: RatesController
     let historyController: HistoryController
     let pushController: PushController
@@ -347,13 +351,14 @@ struct SessionContainer {
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
             .environmentObject(session)
+            .environmentObject(walletConnection)
             .environmentObject(ratesController)
             .environmentObject(historyController)
             .environmentObject(pushController)
     }
     
     @MainActor
-    static let mock: SessionContainer = .init(session: .mock, database: .mock, ratesController: .mock, historyController: .mock, pushController: .mock, poolController: .mock, poolViewModel: .mock, onrampViewModel: .mock)
+    static let mock: SessionContainer = .init(session: .mock, database: .mock, walletConnection: .mock, ratesController: .mock, historyController: .mock, pushController: .mock, poolController: .mock, poolViewModel: .mock, onrampViewModel: .mock)
 }
 
 extension View {

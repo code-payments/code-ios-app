@@ -23,6 +23,10 @@ final class DeepLinkController {
     
     func handle(open url: URL) -> DeepLinkAction? {
         
+        if case .loggedIn(let container) = sessionAuthenticator.state {
+            container.walletConnection.didReceiveURL(url: url)
+        }
+        
         // Hadle jump subdomains by forwarding the underlying
         // URL to the correct handler. Don't perform any
         // other action on jump subdomains.
@@ -48,7 +52,7 @@ final class DeepLinkController {
             return nil
         }
         
-        trace(.warning, components: "Deep link: \(url.absoluteString)")
+        trace(.note, components: "Deep link: \(url.absoluteString)")
         
         switch route.path {
         case .login:

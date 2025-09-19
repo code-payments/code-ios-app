@@ -15,6 +15,8 @@ enum SecureKey: String {
     case onboardingMnemonic = "com.flipcash.account.onboardingMnemonic"
     case betaFlagsEnabled   = "com.flipcash.betaFlags.enabled"
     
+    case connectedWalletSession = "com.flipcash.wallet.connectedSession"
+    
 //    case restricted = "com.code.account.restricted"
 }
 

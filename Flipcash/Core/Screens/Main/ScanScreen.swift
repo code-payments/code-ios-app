@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FlipcashUI
+import FlipcashCore
 
 struct ScanScreen: View {
     
@@ -369,9 +370,12 @@ struct ScanScreen: View {
                     maxWidth: 80,
                     maxHeight: 80,
                     fullWidth: true,
-                    aligment: .bottom,
-                    binding: $isShowingBalance
-                )
+                    aligment: .bottom
+//                    ,
+//                    binding: $isShowingBalance
+                ) {
+                    sessionContainer.walletConnection.connectToPhantom()
+                }
             }
             .sheet(isPresented: $isShowingBalance) {
                 BalanceScreen(
