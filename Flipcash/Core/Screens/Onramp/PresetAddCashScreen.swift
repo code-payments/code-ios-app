@@ -62,7 +62,6 @@ struct PresetAddCashScreen: View {
                     }
                 }
                 .ignoresSafeArea(.keyboard)
-                .dialog(item: $viewModel.dialogItem)
             }
             .overlay {
                 viewModel.applePayWebView()
