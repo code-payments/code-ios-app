@@ -186,6 +186,8 @@ class OnrampViewModel: ObservableObject {
         coinbaseOrder = nil
         selectedPreset = nil
         
+        payButtonState = .normal
+        
         navigateToRoot()
     }
     
