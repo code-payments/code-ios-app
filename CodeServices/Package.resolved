@@ -163,6 +163,24 @@
       }
     },
     {
+      "identity" : "secp256k1.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Boilertalk/secp256k1.swift.git",
+      "state" : {
+        "revision" : "cd187c632fb812fd93711a9f7e644adb7e5f97f0",
+        "version" : "0.1.7"
+      }
+    },
+    {
+      "identity" : "solana-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/dbart01/solana-swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "8716ddd28d8e1aaa3efa60b0dbca3b0f89217e63"
+      }
+    },
+    {
       "identity" : "sqlite.swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/dbart01/SQLite.swift",
@@ -295,6 +313,15 @@
       "state" : {
         "revision" : "807f73ce09a9b9723f12385e592b4e0aaebd3336",
         "version" : "1.3.0"
+      }
+    },
+    {
+      "identity" : "task-retrying-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bigearsenal/task-retrying-swift.git",
+      "state" : {
+        "revision" : "208f1e8dfa93022a7d39ab5b334d5f43a934d4b1",
+        "version" : "2.0.0"
       }
     },
     {

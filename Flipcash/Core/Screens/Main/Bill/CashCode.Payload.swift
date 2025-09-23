@@ -68,19 +68,33 @@ extension Data {
     static let nonceLength: Int = 10
     
     static var nonce: Data {
-        var data = Data(count: nonceLength)
-        let result = data.withUnsafeMutableBytes { (pointer: UnsafeMutableRawBufferPointer) in
-            SecRandomCopyBytes(kSecRandomDefault, nonceLength, pointer.baseAddress!)
-        }
-        
-        if result == errSecSuccess {
-            return data
-        } else {
+        do {
+            return try secRandom(nonceLength)
+        } catch {
             let uuid = UUID().uuid
             return Data([
                 uuid.0, uuid.1, uuid.2, uuid.3, uuid.4,
                 uuid.5, uuid.6, uuid.7, uuid.8, uuid.9,
             ])
         }
+    }
+    
+    static func secRandom(_ byteCount: Int) throws -> Data {
+        var data = Data(count: byteCount)
+        let result = data.withUnsafeMutableBytes { (pointer: UnsafeMutableRawBufferPointer) in
+            SecRandomCopyBytes(kSecRandomDefault, byteCount, pointer.baseAddress!)
+        }
+        
+        guard result == errSecSuccess else {
+            throw Error.randomBytesUnavailable
+        }
+        
+        return data
+    }
+}
+
+extension Data {
+    enum Error: Swift.Error {
+        case randomBytesUnavailable
     }
 }

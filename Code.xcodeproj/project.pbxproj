@@ -98,6 +98,7 @@
 		9A1CE1DF2C92163000B596CC /* DirectMessageViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1CE1DE2C92163000B596CC /* DirectMessageViewModel.swift */; };
 		9A1EBC5226246EFD003F8B19 /* String+Padding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5126246EFD003F8B19 /* String+Padding.swift */; };
 		9A1EBC5A26246FA8003F8B19 /* String+PaddingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1EBC5926246FA8003F8B19 /* String+PaddingTests.swift */; };
+		9A2396762E7DE27500D70699 /* SolanaSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 9A2396752E7DE27500D70699 /* SolanaSwift */; };
 		9A27FD472C0F487E00221457 /* DownloadScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A27FD462C0F487E00221457 /* DownloadScreen.swift */; };
 		9A2A3A8B25C32F0D007A8C50 /* RedundancyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2A3A8A25C32F0D007A8C50 /* RedundancyContainer.swift */; };
 		9A2A3A9225C32F95007A8C50 /* RedundancyContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2A3A9125C32F95007A8C50 /* RedundancyContainerTests.swift */; };
@@ -656,6 +657,7 @@
 				9ACF9AD32E26D62300BF4F82 /* ConfettiSwiftUI in Frameworks */,
 				9ADEF1C52DD50BDE001B260A /* FirebaseCrashlytics in Frameworks */,
 				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
+				9A2396762E7DE27500D70699 /* SolanaSwift in Frameworks */,
 				9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */,
 				9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */,
 				9ADEF1D92DD627C6001B260A /* Mixpanel in Frameworks */,
@@ -1346,6 +1348,7 @@
 				9ADEF1D82DD627C6001B260A /* Mixpanel */,
 				9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */,
 				9A8A219B2E7B253A00C12594 /* TweetNacl */,
+				9A2396752E7DE27500D70699 /* SolanaSwift */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -1736,6 +1739,7 @@
 				9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
 				9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */,
+				9A2396742E7DE27500D70699 /* XCRemoteSwiftPackageReference "solana-swift" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -4477,6 +4481,14 @@
 				minimumVersion = 10.24.0;
 			};
 		};
+		9A2396742E7DE27500D70699 /* XCRemoteSwiftPackageReference "solana-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/dbart01/solana-swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mironal/TwitterAPIKit";
@@ -4568,6 +4580,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A1A827528660A6F00A4979F /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		9A2396752E7DE27500D70699 /* SolanaSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A2396742E7DE27500D70699 /* XCRemoteSwiftPackageReference "solana-swift" */;
+			productName = SolanaSwift;
 		};
 		9A340F652D6E1591003858F4 /* TwitterAPIKit */ = {
 			isa = XCSwiftPackageProductDependency;
