@@ -14,9 +14,11 @@ import SolanaSwift
 @MainActor
 public final class WalletConnection: ObservableObject {
     
-    @Published private var session: ConnectedWalletSession?
+    @Published var isShowingAmountEntry: Bool = false
     
-    @Published private var dialogItem: DialogItem?
+    @Published var dialogItem: DialogItem?
+    
+    @Published private(set) var session: ConnectedWalletSession?
     
     var publicKey: FlipcashCore.PublicKey {
         box.publicKey
@@ -115,11 +117,8 @@ public final class WalletConnection: ObservableObject {
             
             Keychain.connectedWalletSession = session
             self.session = session
-            
-            Task {
-                try await Task.delay(seconds: 1)
-                await requestTransfer(usdc: 0.1)
-            }
+
+            isShowingAmountEntry = true
         }
     }
     
@@ -187,7 +186,6 @@ public final class WalletConnection: ObservableObject {
     func connectToPhantom() {
         let nonce = UUID().uuidString
         
-        #warning("Fix /verify endpoint")
         var c = URLComponents(string: "https://phantom.app/ul/v1/connect")!
         c.queryItems = [
             URLQueryItem(name: "app_url",                    value: "https://flipcash.com"),
@@ -202,7 +200,7 @@ public final class WalletConnection: ObservableObject {
     
     /// Uses Phantom `signAllTransactions` (replaces deprecated `signAndSendTransaction`) to sign a single
     /// TokenProgram.transferChecked for a USDC (SPL Token) transfer. Phantom returns signed tx; your backend/client should broadcast it.
-    func requestTransfer(usdc: Decimal) async {
+    func requestTransfer(usdc: Fiat) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             print("[WalletConnection] Error: no connected session")
             return
@@ -226,7 +224,7 @@ public final class WalletConnection: ObservableObject {
             var transaction = try TransactionBuilder.usdcTransfer(
                 fromOwner: walletOwner,
                 toOwner: depositAddress,
-                amount: usdc,
+                quarks: usdc.quarks,
                 shouldCreateTokenAccount: !destinationExists,
                 recentBlockhash: recentBlockhash
             )
@@ -249,7 +247,6 @@ public final class WalletConnection: ObservableObject {
             // Docs: https://docs.phantom.com/phantom-deeplinks/provider-methods/signalltransactions
             // Build Phantom signAllTransactions deeplink
             var c = URLComponents(string: "https://phantom.app/ul/v1/signAllTransactions")!
-            #warning("Fix /verify endpoint")
             c.queryItems = [
                 URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
                 URLQueryItem(name: "nonce",                      value: nonce),
@@ -267,6 +264,7 @@ public final class WalletConnection: ObservableObject {
             
         } catch {
             print("[WalletConnection] requestTransfer error: \(error)")
+            throw error
         }
     }
 }
@@ -433,7 +431,7 @@ public struct WalletSession: Codable {
 
 // MARK: - ConnectedWalletSession -
 
-private struct ConnectedWalletSession: Codable {
+struct ConnectedWalletSession: Codable {
     public let secretKey: Seed32
     public let walletPublicKey: FlipcashCore.PublicKey
     public let sessionToken: String

@@ -13,9 +13,10 @@ struct BalanceScreen: View {
     
     @Binding var isPresented: Bool
     
-    @EnvironmentObject var session: Session
-    @EnvironmentObject var ratesController: RatesController
-    @EnvironmentObject var historyController: HistoryController
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var ratesController: RatesController
+    @EnvironmentObject private var historyController: HistoryController
+    @EnvironmentObject private var notificationController: NotificationController
     
     @ObservedObject private var onrampViewModel: OnrampViewModel
     
@@ -80,13 +81,6 @@ struct BalanceScreen: View {
                 VStack(spacing: 0) {
                     list()
                 }
-                .navigationTitle("Wallet")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        ToolbarCloseButton(binding: $isPresented)
-                    }
-                }
                 .sheet(item: $selectedActivity) { activity in
                     PartialSheet(background: .backgroundMain) {
                         TransactionDetailsModal(
@@ -101,6 +95,13 @@ struct BalanceScreen: View {
                         }
                     }
                 }
+                .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
+                    AddCashScreen(
+                        isPresented: $onrampViewModel.isMethodSelectionPresented,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
                 .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
                     PartialSheet(background: .backgroundMain) {
                         PresetAddCashScreen(
@@ -112,8 +113,18 @@ struct BalanceScreen: View {
                 }
             }
             .onAppear(perform: onAppear)
+            .navigationTitle("Wallet")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $isShowingDepositScreen) {
                 DepositDescriptionScreen(session: session)
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
+                }
+            }
+            .onChange(of: notificationController.pushWillPresent) { _, _ in
+                historyController.sync()
             }
         }
         .dialog(item: $dialogItem)
@@ -271,11 +282,7 @@ struct BalanceScreen: View {
     // MARK: - Action -
     
     private func presentOnramp() {
-        if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
-            onrampViewModel.presentRoot()
-        } else {
-            isShowingDepositScreen = true
-        }
+        onrampViewModel.presentRoot()
     }
     
     private func rowAction(activity: Activity) {

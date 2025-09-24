@@ -195,6 +195,10 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         
         Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
         
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .pushNotificationWillPresent, object: nil)
+        }
+        
         return [.badge, .list, .sound, .banner]
     }
     

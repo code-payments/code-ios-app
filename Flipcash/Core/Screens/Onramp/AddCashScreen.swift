@@ -14,6 +14,7 @@ struct AddCashScreen: View {
     @Binding var isPresented: Bool
     
     @ObservedObject private var viewModel: OnrampViewModel
+    @ObservedObject private var walletConnection: WalletConnection
     
     private let container: Container
     private let session: Session
@@ -21,16 +22,17 @@ struct AddCashScreen: View {
     // MARK: - Init -
     
     init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self._isPresented = isPresented
-        self.container    = container
-        self.session      = sessionContainer.session
-        self.viewModel    = sessionContainer.onrampViewModel
+        self._isPresented     = isPresented
+        self.container        = container
+        self.session          = sessionContainer.session
+        self.viewModel        = sessionContainer.onrampViewModel
+        self.walletConnection = sessionContainer.walletConnection
     }
     
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack(path: $viewModel.onrampPath) {
+        NavigationStack {
             Background(color: .backgroundMain) {
                 VStack(alignment: .center, spacing: 20) {
                     Spacer()
@@ -50,20 +52,31 @@ struct AddCashScreen: View {
                         
                         // Buttons
                         VStack(spacing: 15) {
-                            BorderedButton(
-                                image: .asset(.debitCard),
-                                title: "Debit Card with Apple Pay",
-                                subtitle: "Add cash to your wallet from your debit card",
-                                action: viewModel.addCashWithDebitCardAction
-                            )
-                            
-                            BorderedButton(
-                                image: .asset(.debitWallet),
-                                title: "Crypto Wallet",
-                                subtitle: "Deposit USDC from your crypto wallet"
-                            ) {
-                                
+                            if session.userFlags?.hasCoinbase == true {
+                                BorderedButton(
+                                    image: .asset(.debitCard),
+                                    title: "Apple Pay",
+                                    subtitle: "Add cash to your wallet from your debit card",
+                                    action: viewModel.addCashWithDebitCardAction
+                                )
                             }
+                            
+                            if session.userFlags?.hasPhantom == true {
+                                BorderedButton(
+                                    image: .asset(.phantom),
+                                    title: "Phantom Wallet",
+                                    subtitle: "Deposit USDC from your Phantom wallet",
+                                    action: walletConnection.connectToPhantom
+                                )
+                            }
+                            
+//                            BorderedButton(
+//                                image: .asset(.debitWallet),
+//                                title: "Crypto Wallet",
+//                                subtitle: "Deposit USDC from your crypto wallet"
+//                            ) {
+//                                
+//                            }
                         }
                     }
                     
@@ -72,38 +85,26 @@ struct AddCashScreen: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
             }
-            .navigationTitle("Add Cash")
+            .navigationTitle("Select Method")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
-            .navigationDestination(for: OnrampPath.self) { path in
-                switch path {
-                case .info:
-                    EmptyView()
-                case .enterPhoneNumber:
-                    EnterPhoneScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
-                case .confirmPhoneNumberCode:
-                    ConfirmPhoneScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
-                case .enterEmail:
-                    EnterEmailScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
-                case .confirmEmailCode:
-                    ConfirmEmailScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
-                case .enterAmount:
-                    OnrampAmountScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
-                case .success:
-                    OnrampSuccessScreen(viewModel: viewModel)
-                        .interactiveDismissDisabled()
+            .ignoresSafeArea(.keyboard)
+            .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
+                NavigationStack {
+                    EnterWalletAmountScreen { usdc in
+                        try await walletConnection.requestTransfer(usdc: usdc)
+                        walletConnection.isShowingAmountEntry = false
+                    }
+                    .toolbar {
+                        ToolbarCloseButton(binding: $walletConnection.isShowingAmountEntry)
+                    }
                 }
             }
-            .ignoresSafeArea(.keyboard)
+            .dialog(item: $walletConnection.dialogItem)
         }
     }
 }

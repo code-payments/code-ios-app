@@ -14,7 +14,7 @@ extension PublicKey {
 }
 
 enum TransactionBuilder {
-    static func usdcTransfer(fromOwner: PublicKey, toOwner: PublicKey, amount: Decimal, shouldCreateTokenAccount: Bool, recentBlockhash: String) throws -> Transaction {
+    static func usdcTransfer(fromOwner: PublicKey, toOwner: PublicKey, quarks: UInt64, shouldCreateTokenAccount: Bool, recentBlockhash: String) throws -> Transaction {
         var instructions: [TransactionInstruction] = []
         
         // Derive associated token accounts
@@ -50,7 +50,7 @@ enum TransactionBuilder {
                 destination: usdcATADestination,
                 owner: fromOwner,
                 multiSigners: [],
-                amount: UInt64((amount.doubleValue * 1_000_000).rounded()),
+                amount: quarks,
                 decimals: 6
             )
         )

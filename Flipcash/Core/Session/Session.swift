@@ -94,9 +94,11 @@ class Session: ObservableObject {
     }
     
     var hasCoinbaseOnramp: Bool {
-        userFlags?.onrampProviders.contains(.coinbasePhysicalCredit) == true ||
-        userFlags?.onrampProviders.contains(.coinbasePhysicalDebit) == true ||
-        userFlags?.onrampProviders.contains(.coinbaseVirtual) == true
+        BetaFlags.shared.hasEnabled(.enableCoinbase) || userFlags?.hasCoinbase == true
+    }
+    
+    var hasPreferredOnrampProvider: Bool {
+        userFlags?.hasPreferredOnrampProvider == true
     }
     
     private let container: Container

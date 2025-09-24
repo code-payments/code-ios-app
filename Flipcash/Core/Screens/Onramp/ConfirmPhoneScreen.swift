@@ -110,7 +110,7 @@ struct ConfirmPhoneScreen: View {
                 viewModel.confirmPhoneNumberCodeAction()
             }
         }
-        .onChange(of: notificationController.didBecomeActive) { _ in
+        .onChange(of: notificationController.didBecomeActive) { _, _ in
             viewModel.pasteCodeFromClipboardIfPossible()
         }
     }

@@ -370,12 +370,9 @@ struct ScanScreen: View {
                     maxWidth: 80,
                     maxHeight: 80,
                     fullWidth: true,
-                    aligment: .bottom
-//                    ,
-//                    binding: $isShowingBalance
-                ) {
-                    sessionContainer.walletConnection.connectToPhantom()
-                }
+                    aligment: .bottom,
+                    binding: $isShowingBalance
+                )
             }
             .sheet(isPresented: $isShowingBalance) {
                 BalanceScreen(

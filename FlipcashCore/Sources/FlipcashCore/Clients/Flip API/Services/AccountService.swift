@@ -70,6 +70,7 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
             $0.platform = .apple
             
             if let countryCode = Locale.current.region?.identifier {
+//                $0.countryCode = .with { $0.value = "us"}
                 $0.countryCode = .with { $0.value = countryCode }
             }
             
@@ -99,6 +100,25 @@ public struct UserFlags: Sendable {
     public let isRegistered: Bool
     public let isStaff: Bool
     public let onrampProviders: [OnRampProvider]
+    public let preferredOnrampProvider: OnRampProvider
+    
+    public var hasPreferredOnrampProvider: Bool {
+        preferredOnrampProvider != .unknown
+    }
+    
+    public var hasCoinbase: Bool {
+        onrampProviders.contains(.coinbaseVirtual) ||
+        onrampProviders.contains(.coinbasePhysicalDebit) ||
+        onrampProviders.contains(.coinbasePhysicalCredit)
+    }
+    
+    public var hasPhantom: Bool {
+        onrampProviders.contains(.phantom)
+    }
+    
+    public var hasOtherCryptoWallets: Bool {
+        onrampProviders.contains(.cryptoWallet)
+    }
 }
 
 extension UserFlags {
@@ -115,7 +135,8 @@ extension UserFlags {
         self.init(
             isRegistered: proto.isRegisteredAccount,
             isStaff: proto.isStaff,
-            onrampProviders: proto.supportedOnRampProviders.map { OnRampProvider($0) }
+            onrampProviders: proto.supportedOnRampProviders.map { OnRampProvider($0) },
+            preferredOnrampProvider: OnRampProvider(proto.preferredOnRampProvider)
         )
     }
 }

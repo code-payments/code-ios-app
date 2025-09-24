@@ -102,6 +102,13 @@ struct GiveScreen: View {
             .navigationDestination(isPresented: $isShowingDepositScreen) {
                 DepositDescriptionScreen(session: session)
             }
+            .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
+                AddCashScreen(
+                    isPresented: $onrampViewModel.isMethodSelectionPresented,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
             .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
                 PartialSheet(background: .backgroundMain) {
                     PresetAddCashScreen(
@@ -166,11 +173,7 @@ struct GiveScreen: View {
     }
     
     private func presentOnramp() {
-        if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
-            onrampViewModel.presentRoot()
-        } else {
-            isShowingDepositScreen = true
-        }
+        onrampViewModel.presentRoot()
     }
     
     // MARK: - Errors -

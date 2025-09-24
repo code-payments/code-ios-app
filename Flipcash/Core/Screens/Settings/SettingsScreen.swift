@@ -107,6 +107,13 @@ struct SettingsScreen: View {
                             title: "Add Cash",
                             action: presentOnramp
                         )
+                        .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
+                            AddCashScreen(
+                                isPresented: $onrampViewModel.isMethodSelectionPresented,
+                                container: container,
+                                sessionContainer: sessionContainer
+                            )
+                        }
                         .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
                             PartialSheet(background: .backgroundMain) {
                                 PresetAddCashScreen(
@@ -456,11 +463,7 @@ struct SettingsScreen: View {
     // MARK: - Actions -
     
     private func presentOnramp() {
-        if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasCoinbaseOnramp {
-            onrampViewModel.presentRoot()
-        } else {
-            path = [.depositUSDC]
-        }
+        onrampViewModel.presentRoot()
     }
     
     private func switchAccount(to account: AccountDescription) {
