@@ -134,13 +134,6 @@ public final class WalletConnection: ObservableObject {
                             let rawData  = Data(rawBytes)
                             let txBase64 = rawData.base64EncodedString()
                             
-                            do {
-                                let result = try await solanaClient.apiClient.simulateTransaction(transaction: txBase64, configs: .init(encoding: "base64")!)
-                                print("Simulation passed: \(result)")
-                            } catch {
-                                print("Simulation failed: \(error)")
-                            }
-                            
                             let signature = try await solanaClient.apiClient.sendTransaction(
                                 transaction: txBase64,
                                 configs: .init(encoding: "base64")!
@@ -149,6 +142,7 @@ public final class WalletConnection: ObservableObject {
                             print("[WalletConnection] Transaction sent: \(signature)")
                             
                         } catch {
+                            ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
                             print("[WalletConnection] Transaction failed to send: \(error)")
                         }
                     }
