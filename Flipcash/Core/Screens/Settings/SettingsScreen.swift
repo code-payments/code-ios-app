@@ -257,12 +257,14 @@ struct SettingsScreen: View {
     @ViewBuilder private func advancedFeaturesList() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             
-            navigationRow(
-                path: $path,
+            row(
+//                path: $path,
                 asset: .deposit,
                 title: "Deposit USDC",
-                pathItem: .depositUSDC
-            )
+//                pathItem: .depositUSDC
+            ) {
+                onrampViewModel.presentMethodSelection()
+            }
             
             row(asset: .key, title: "Pools") {
                 poolViewModel.isShowingPoolList = true

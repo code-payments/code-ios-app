@@ -16,6 +16,8 @@ struct AddCashScreen: View {
     @ObservedObject private var viewModel: OnrampViewModel
     @ObservedObject private var walletConnection: WalletConnection
     
+    @State private var isShowingDepositScreen: Bool = false
+    
     private let container: Container
     private let session: Session
     
@@ -55,11 +57,19 @@ struct AddCashScreen: View {
                         )
                     }
                     
+                    row(
+                        image: .debitWallet,
+                        name: "Crypto Wallet"
+                    ) {
+                        isShowingDepositScreen = true
+                    }
+                    
                     Spacer()
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
             }
+            .ignoresSafeArea(.keyboard)
             .navigationTitle("Select Method")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -67,7 +77,9 @@ struct AddCashScreen: View {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
-            .ignoresSafeArea(.keyboard)
+            .navigationDestination(isPresented: $isShowingDepositScreen) {
+                DepositDescriptionScreen(session: session)
+            }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
                     EnterWalletAmountScreen { usdc in
@@ -143,13 +155,13 @@ struct AddCashScreen: View {
                                 )
                             }
                             
-//                            BorderedButton(
-//                                image: .asset(.debitWallet),
-//                                title: "Crypto Wallet",
-//                                subtitle: "Deposit USDC from your crypto wallet"
-//                            ) {
-//
-//                            }
+                            BorderedButton(
+                                image: .asset(.debitWallet),
+                                title: "Crypto Wallet",
+                                subtitle: "Deposit USDC from your crypto wallet"
+                            ) {
+                                isShowingDepositScreen = true
+                            }
                         }
                     }
                     
@@ -158,6 +170,7 @@ struct AddCashScreen: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
             }
+            .ignoresSafeArea(.keyboard)
             .navigationTitle("Select Method")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -165,7 +178,9 @@ struct AddCashScreen: View {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
-            .ignoresSafeArea(.keyboard)
+            .navigationDestination(isPresented: $isShowingDepositScreen) {
+                DepositDescriptionScreen(session: session)
+            }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
                     EnterWalletAmountScreen { usdc in

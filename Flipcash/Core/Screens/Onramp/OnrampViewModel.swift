@@ -277,6 +277,11 @@ class OnrampViewModel: ObservableObject {
         }
     }
     
+    func presentMethodSelection() {
+        reset()
+        isMethodSelectionPresented = true
+    }
+    
     func navigateToRoot() {
         onrampPath = []
     }
