@@ -124,6 +124,7 @@ struct BalanceScreen: View {
                 }
             }
             .onChange(of: notificationController.pushWillPresent) { _, _ in
+                session.updateBalance()
                 historyController.sync()
             }
         }
