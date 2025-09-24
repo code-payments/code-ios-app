@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FlipcashUI
 import FlipcashCore
 import TweetNacl
 import SolanaSwift
@@ -14,6 +15,8 @@ import SolanaSwift
 public final class WalletConnection: ObservableObject {
     
     @Published private var session: ConnectedWalletSession?
+    
+    @Published private var dialogItem: DialogItem?
     
     var publicKey: FlipcashCore.PublicKey {
         box.publicKey
@@ -49,44 +52,133 @@ public final class WalletConnection: ObservableObject {
     // MARK: - Receive -
     
     func didReceiveURL(url: URL) {
-        if let response = try? WalletResponseConnect(url: url) {
-            didConnect(response: response)
+        guard var encryptedResponse = try? EncryptedWalletResponse(url: url) else {
+            return
         }
-    }
-    
-    private func didConnect(response: WalletResponseConnect) {
+        
+        let component = url.pathComponents.last
         do {
-            let result = try box.decrypt(
-                sealed: .init(
-                    data: response.data,
-                    nonce: response.nonce
-                ),
-                encryptionPublicKey: response.encryptionPublicKey
-            )
-            
-            if let walletSession = WalletSession(
-                walletPublicKey: result.publicKey,
-                sessionToken: result.session
-            ) {
-                print("[WalletConnection] Connected to: \(result.publicKey), Session: \(result.session)")
-                let session = ConnectedWalletSession(
-                    secretKey: box.secretKey,
-                    walletPublicKey: walletSession.walletPublicKey,
-                    sessionToken: walletSession.sessionToken,
-                    phantomEncryptionPublicKey: response.encryptionPublicKey
+            switch component {
+            case "walletConnected":
+                guard let encryptionPublicKey = encryptedResponse.encryptionPublicKey else {
+                    return
+                }
+                
+                let response = try box.decrypt(
+                    type: WalletResponse.Connected.self,
+                    encryptedWalletResponse: encryptedResponse
                 )
                 
-                Keychain.connectedWalletSession = session
-                self.session = session
+                didConnect(
+                    response: response,
+                    encryptionPublicKey: encryptionPublicKey
+                )
                 
-                Task {
-                    try await Task.delay(seconds: 1)
-                    await requestTransfer(usdc: 1)
+            case "transactionSigned":
+                guard let session else {
+                    print("[WalletConnection] Received signed transactions but no active session found.")
+                    return
                 }
+                
+                encryptedResponse.encryptionPublicKey = session.phantomEncryptionPublicKey
+                
+                let response = try box.decrypt(
+                    type: WalletResponse.SignedTransactions.self,
+                    encryptedWalletResponse: encryptedResponse
+                )
+                
+                didSignTransactions(response.transactions)
+                
+            default:
+                print("[WalletConnection] Deep link path did not match known routes: \(component ?? "nil")")
+                return
             }
             
         } catch {
-            print("[WalletConnection] Did Connect (Error): \(error)")
+            print("[WalletConnection] Failed to decrypt: \(error)")
+            return
+        }
+    }
+    
+    private func didConnect(response: WalletResponse.Connected, encryptionPublicKey: Data) {
+        if let walletSession = WalletSession(
+            walletPublicKey: response.publicKey,
+            sessionToken: response.session
+        ) {
+            print("[WalletConnection] Connected to: \(response.publicKey), Session: \(response.session)")
+            let session = ConnectedWalletSession(
+                secretKey: box.secretKey,
+                walletPublicKey: walletSession.walletPublicKey,
+                sessionToken: walletSession.sessionToken,
+                phantomEncryptionPublicKey: encryptionPublicKey
+            )
+            
+            Keychain.connectedWalletSession = session
+            self.session = session
+            
+            Task {
+                try await Task.delay(seconds: 1)
+                await requestTransfer(usdc: 0.1)
+            }
+        }
+    }
+    
+    private func didSignTransactions(_ transactions: [String]) {
+        Task { [solanaClient] in
+            
+            await withTaskGroup(of: Void.self) { group in
+                transactions.forEach { txBase58 in
+                    group.addTask {
+                        do {
+                            // Decode base58 -> bytes -> Data
+                            let rawBytes = Base58.toBytes(txBase58)
+                            let rawData  = Data(rawBytes)
+                            let txBase64 = rawData.base64EncodedString()
+                            
+                            do {
+                                let result = try await solanaClient.apiClient.simulateTransaction(transaction: txBase64, configs: .init(encoding: "base64")!)
+                                print("Simulation passed: \(result)")
+                            } catch {
+                                print("Simulation failed: \(error)")
+                            }
+                            
+                            let signature = try await solanaClient.apiClient.sendTransaction(
+                                transaction: txBase64,
+                                configs: .init(encoding: "base64")!
+                            )
+                            
+                            print("[WalletConnection] Transaction sent: \(signature)")
+                            
+                        } catch {
+                            print("[WalletConnection] Transaction failed to send: \(error)")
+                        }
+                    }
+                }
+                
+                await group.waitForAll()
+            }
+            
+            let status = await PushController.fetchStatus()
+            
+            dialogItem = .init(
+                style: .success,
+                title: "Your Cash Will Be Available Soon",
+                subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
+                dismissable: true,
+            ) {
+                if status == .notDetermined {
+                    .standard("Notify Me") {
+                        Task {
+                            do {
+                                try await PushController.authorizeAndRegister()
+                            } catch {}
+                        }
+                    };
+                    .dismiss(kind: .subtle)
+                } else {
+                    .okay(kind: .standard)
+                }
+            }
         }
     }
     
@@ -101,7 +193,7 @@ public final class WalletConnection: ObservableObject {
             URLQueryItem(name: "app_url",                    value: "https://flipcash.com"),
             URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
             URLQueryItem(name: "cluster",                    value: "mainnet-beta"), // or "devnet"
-            URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/verify/walletConnected"),
+            URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/walletConnected"),
             URLQueryItem(name: "nonce",                      value: nonce)
         ]
         
@@ -129,7 +221,7 @@ public final class WalletConnection: ObservableObject {
                 tokenProgramId: PublicKey.tokenProgram
             )
             
-            let recentBlockhash = try await solanaClient.apiClient.getLatestBlockhash()
+            let recentBlockhash = try await solanaClient.apiClient.getLatestBlockhash(commitment: "finalized")
             
             var transaction = try TransactionBuilder.usdcTransfer(
                 fromOwner: walletOwner,
@@ -161,7 +253,7 @@ public final class WalletConnection: ObservableObject {
             c.queryItems = [
                 URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
                 URLQueryItem(name: "nonce",                      value: nonce),
-                URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/verify/transferComplete"),
+                URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/transactionSigned"),
                 URLQueryItem(name: "payload",                    value: payloadEncrypted)
             ]
 
@@ -206,31 +298,63 @@ extension WalletConnection {
         }
 
         // MARK: - Decrypt -
+        
+        /// Decrypts wallet's payload using X25519 public key (bytes) and returns the typed response
+        public func decrypt<T>(
+            type: T.Type,
+            encryptedWalletResponse: EncryptedWalletResponse
+        ) throws -> T where T: Decodable {
+            guard let encryptionPublicKey = encryptedWalletResponse.encryptionPublicKey else {
+                throw WalletConnectionError.decryptionFailed
+            }
+            
+            return try decrypt(
+                type: type,
+                sealed: .init(
+                    data: encryptedWalletResponse.data,
+                    nonce: encryptedWalletResponse.nonce
+                ),
+                encryptionPublicKey: encryptionPublicKey
+            )
+        }
+        
+        /// Decrypts wallet's payload using X25519 public key (bytes) and returns the typed response
+        public func decrypt<T>(
+            type: T.Type,
+            sealed: SealedData,
+            encryptionPublicKey: Data
+        ) throws -> T where T: Decodable {
+            let decrypted = try decrypt(
+                sealed: sealed,
+                encryptionPublicKey: encryptionPublicKey
+            )
+            
+            do {
+                return try decoder.decode(T.self, from: decrypted)
+            } catch {
+                throw WalletConnectionError.jsonDecodingFailed(underlying: error)
+            }
+        }
 
-        /// Decrypts wallet's payload using X25519 public key (bytes) and returns the typed response.
+        /// Decrypts wallet's payload using X25519 public key (bytes) and returns the decrypted data
         public func decrypt(
             sealed: SealedData,
             encryptionPublicKey: Data
-        ) throws -> WalletConnectionResponse {
-            // 1) Precompute shared key via X25519
+        ) throws -> Data {
+            // 1. Precompute shared key via X25519
             let sharedKey = try NaclBox.before(
                 publicKey: encryptionPublicKey,
                 secretKey: secretKey.data
             )
             
-            // 2) XSalsa20-Poly1305 open (NaCl secretbox)
-            let plaintext = try NaclSecretBox.open(
+            // 2. XSalsa20-Poly1305 open (NaCl secretbox)
+            let decrypted = try NaclSecretBox.open(
                 box: sealed.data,
                 nonce: sealed.nonce,
                 key: sharedKey
             )
             
-            // 3) Decode JSON → WalletConnectionResponse
-            do {
-                return try decoder.decode(WalletConnectionResponse.self, from: plaintext)
-            } catch {
-                throw WalletConnectionError.jsonDecodingFailed(underlying: error)
-            }
+            return decrypted
         }
         
         // MARK: - Encrypt -
@@ -269,18 +393,6 @@ public enum WalletConnectionError: Error, LocalizedError {
         case .decryptionFailed:          return "Failed to decrypt payload (MAC check failed)."
         case .jsonDecodingFailed(let e): return "Failed to decode JSON: \(e.localizedDescription)"
         }
-    }
-}
-
-// MARK: - WalletConnectionResponse -
-
-public struct WalletConnectionResponse: Decodable {
-    public let publicKey: String
-    public let session: String
-    
-    enum CodingKeys: String, CodingKey {
-        case publicKey = "public_key"
-        case session
     }
 }
 
