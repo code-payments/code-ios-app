@@ -32,6 +32,79 @@ struct AddCashScreen: View {
     // MARK: - Body -
     
     var body: some View {
+        alternateView()
+    }
+    
+    @ViewBuilder private func primaryView() -> some View {
+        NavigationStack {
+            Background(color: .backgroundMain) {
+                VStack(alignment: .center, spacing: 20) {
+                    if session.userFlags?.hasCoinbase == true {
+                        row(
+                            image: .debitCard,
+                            name: "Apple Pay",
+                            action: viewModel.addCashWithDebitCardAction
+                        )
+                    }
+                    
+                    if session.userFlags?.hasPhantom == true {
+                        row(
+                            image: .phantom,
+                            name: "Phantom",
+                            action: walletConnection.connectToPhantom
+                        )
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Select Method")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
+                }
+            }
+            .ignoresSafeArea(.keyboard)
+            .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
+                NavigationStack {
+                    EnterWalletAmountScreen { usdc in
+                        try await walletConnection.requestTransfer(usdc: usdc)
+                        walletConnection.isShowingAmountEntry = false
+                    }
+                    .toolbar {
+                        ToolbarCloseButton(binding: $walletConnection.isShowingAmountEntry)
+                    }
+                }
+            }
+            .dialog(item: $walletConnection.dialogItem)
+        }
+    }
+    
+    @ViewBuilder private func row(image: Asset, name: String, action: @escaping VoidAction) -> some View {
+        let insets = EdgeInsets(
+            top: 25,
+            leading: 0,
+            bottom: 25,
+            trailing: 0
+        )
+        
+        Row(insets: insets) {
+            Image.asset(image)
+                .frame(minWidth: 45)
+            Text(name)
+                .multilineTextAlignment(.leading)
+                .truncationMode(.tail)
+            Spacer()
+        } action: {
+            action()
+        }
+        .font(.appDisplayXS)
+    }
+    
+    @ViewBuilder private func alternateView() -> some View {
         NavigationStack {
             Background(color: .backgroundMain) {
                 VStack(alignment: .center, spacing: 20) {
@@ -75,7 +148,7 @@ struct AddCashScreen: View {
 //                                title: "Crypto Wallet",
 //                                subtitle: "Deposit USDC from your crypto wallet"
 //                            ) {
-//                                
+//
 //                            }
                         }
                     }
