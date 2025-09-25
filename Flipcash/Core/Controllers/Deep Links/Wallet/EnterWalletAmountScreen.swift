@@ -43,7 +43,7 @@ struct EnterWalletAmountScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
-                mode: .walletDeposit("Phantom"),
+                mode: .phantomDeposit,
                 enteredAmount: $enteredAmount,
                 subtitle: .singleTransactionLimit,
                 actionState: $actionState,

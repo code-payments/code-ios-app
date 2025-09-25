@@ -51,7 +51,7 @@ public struct EnterAmountView: View {
             rateController.entryCurrency
         case .onramp:
             rateController.onrampCurrency
-        case .walletDeposit:
+        case .walletDeposit, .phantomDeposit:
             .usd
         }
     }
@@ -151,29 +151,33 @@ public struct EnterAmountView: View {
 extension EnterAmountView {
     enum Mode {
         
+        case phantomDeposit
         case walletDeposit(String)
         case currency
         case onramp
         
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .onramp, .walletDeposit:
+            case .currency, .onramp, .walletDeposit, .phantomDeposit:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
         
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .walletDeposit: return .number("0")
-            case .currency:      return .number("0")
-            case .onramp:        return .number("0")
+            case .phantomDeposit: return .number("0")
+            case .walletDeposit:  return .number("0")
+            case .currency:       return .number("0")
+            case .onramp:         return .number("0")
             }
         }
         
         fileprivate var actionName: String {
             switch self {
+            case .phantomDeposit:
+                return "Confirm In"
             case .walletDeposit(let walletName):
-                return "Confirm in \(walletName)"
+                return "Confirm In \(walletName)"
             case .currency: return "Next"
             case .onramp:   return "Add Cash"
             }
@@ -181,9 +185,10 @@ extension EnterAmountView {
         
         fileprivate var buttonStyle: CodeButton.Style {
             switch self {
-            case .walletDeposit: return .filled
-            case .currency:      return .filled
-            case .onramp:        return .filledApplePay
+            case .phantomDeposit: return .filledCustom(Image.asset(.phantom), "Phantom")
+            case .walletDeposit:  return .filled
+            case .currency:       return .filled
+            case .onramp:         return .filledApplePay
             }
         }
     }
