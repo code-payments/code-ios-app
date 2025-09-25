@@ -90,6 +90,7 @@ extension BetaFlags {
         case enableConfetti
         case enableCoinbase
         case coinbaseSandbox
+        case skipIP
         
         var id: String {
             localizedTitle
@@ -109,6 +110,8 @@ extension BetaFlags {
                 return "Enable Coinbase"
             case .coinbaseSandbox:
                 return "Coinbase Sandbox"
+            case .skipIP:
+                return "Skip IP"
             }
         }
         
@@ -126,6 +129,8 @@ extension BetaFlags {
                 return "If enabled, Coinbase onramp will be available regardless of region"
             case .coinbaseSandbox:
                 return "If enabled, all Coinbase transactions will go through the sandbox environment"
+            case .skipIP:
+                return "If enabled, the IP address won't be sent for onramp requests"
             }
         }
     }

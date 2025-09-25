@@ -239,6 +239,7 @@ public struct OnrampOrderRequest: Encodable {
     public var partnerUserRef: String
     public var phoneNumberVerifiedAt: Date
     public var agreementAcceptedAt: Date
+    public var clientIp: String?
     
     public let destinationNetwork: String = "solana"
     public let paymentMethod: String = "GUEST_CHECKOUT_APPLE_PAY"
@@ -256,6 +257,51 @@ public struct OnrampOrderRequest: Encodable {
         self.partnerUserRef = partnerUserRef
         self.phoneNumberVerifiedAt = phoneNumberVerifiedAt
         self.agreementAcceptedAt = agreementAcceptedAt
+        
+        if !BetaFlags.shared.hasEnabled(.skipIP) {
+            self.clientIp = Self.getIPAddress()
+        }
+    }
+    
+    private static func getIPAddress() -> String? {
+        var address: String?
+
+        print("Looking for IP:")
+        // Get list of all interfaces
+        var ifaddr: UnsafeMutablePointer<ifaddrs>? = nil
+        if getifaddrs(&ifaddr) == 0 {
+            var ptr = ifaddr
+            while ptr != nil {
+                defer { ptr = ptr?.pointee.ifa_next }
+
+                guard let interface = ptr?.pointee else { continue }
+
+                // Check for IPv4 interface
+                let addrFamily = interface.ifa_addr.pointee.sa_family
+                if addrFamily == UInt8(AF_INET) {
+                    
+                    // Check for Cellular (pdp_ip0) not Wi-Fi (en0)
+                    let name = String(cString: interface.ifa_name)
+                    if name == "pdp_ip0" {
+                        var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                        getnameinfo(
+                            interface.ifa_addr,
+                            socklen_t(interface.ifa_addr.pointee.sa_len),
+                            &hostname,
+                            socklen_t(hostname.count),
+                            nil,
+                            0,
+                            NI_NUMERICHOST
+                        )
+                        address = String(cString: hostname)
+                        print("IP: \(address!)")
+                    }
+                }
+            }
+            freeifaddrs(ifaddr)
+        }
+
+        return address
     }
 }
 
