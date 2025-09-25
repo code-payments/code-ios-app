@@ -125,7 +125,7 @@ public final class WalletConnection: ObservableObject {
     private func didSignTransactions(_ transactions: [String]) {
         Task { [solanaClient] in
             
-            await withTaskGroup(of: Void.self) { group in
+            await withTaskGroup(of: Int.self) { group in
                 transactions.forEach { txBase58 in
                     group.addTask {
                         do {
@@ -140,36 +140,24 @@ public final class WalletConnection: ObservableObject {
                             )
                             
                             print("[WalletConnection] Transaction sent: \(signature)")
+                            return 0
                             
                         } catch {
                             ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
                             print("[WalletConnection] Transaction failed to send: \(error)")
+                            return 1
                         }
                     }
                 }
                 
-                await group.waitForAll()
-            }
-            
-            let status = await PushController.fetchStatus()
-            
-            dialogItem = .init(
-                style: .success,
-                title: "Your Cash Will Be Available Soon",
-                subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-                dismissable: true,
-            ) {
-                if status == .notDetermined {
-                    .standard("Notify Me") {
-                        Task {
-                            do {
-                                try await PushController.authorizeAndRegister()
-                            } catch {}
-                        }
-                    };
-                    .dismiss(kind: .subtle)
+                let errorCount = await group.reduce(into: 0) { partialResult, value in
+                    partialResult += value
+                }
+                
+                if errorCount == 0 {
+                    showSuccessDialog()
                 } else {
-                    .okay(kind: .standard)
+                    showSomethingWentWrongDialog()
                 }
             }
         }
@@ -259,6 +247,45 @@ public final class WalletConnection: ObservableObject {
         } catch {
             print("[WalletConnection] requestTransfer error: \(error)")
             throw error
+        }
+    }
+    
+    // MARK: - Dialogs -
+    
+    private func showSuccessDialog() {
+        Task {
+            let status = await PushController.fetchStatus()
+            
+            dialogItem = .init(
+                style: .success,
+                title: "Your Cash Will Be Available Soon",
+                subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
+                dismissable: true,
+            ) {
+                if status == .notDetermined {
+                    .standard("Notify Me") {
+                        Task {
+                            do {
+                                try await PushController.authorizeAndRegister()
+                            } catch {}
+                        }
+                    };
+                    .dismiss(kind: .subtle)
+                } else {
+                    .okay(kind: .standard)
+                }
+            }
+        }
+    }
+    
+    private func showSomethingWentWrongDialog() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Something Went Wrong",
+            subtitle: "Please check that you have enough SOL in your wallet to complete this transaction and try again",
+            dismissable: true,
+        ) {
+            .okay(kind: .destructive)
         }
     }
 }
