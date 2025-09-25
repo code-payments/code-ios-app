@@ -119,16 +119,16 @@ struct AddCashScreen: View {
     @ViewBuilder private func alternateView() -> some View {
         NavigationStack {
             Background(color: .backgroundMain) {
-                VStack(alignment: .center, spacing: 20) {
-                    Spacer()
-                    
-                    VStack(spacing: 60) {
+                VStack(alignment: .center) {
+                    VStack(spacing: 40) {
                         
                         // Header
-                        VStack(spacing: 30) {
-                            Image.asset(.addCircle)
+                        VStack(spacing: 40) {
+                            Image.asset(.solanaUSDC)
+                                // Offset the Solana badge on the bottom right
+                                .padding(.leading, 15)
                             
-                            Text("Add cash to your Flipcash wallet")
+                            Text("Add Solana USDC to your Flipcash wallet")
                                 .font(.appTextMedium)
                                 .foregroundColor(.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -141,7 +141,7 @@ struct AddCashScreen: View {
                                 BorderedButton(
                                     image: .asset(.debitCard),
                                     title: "Apple Pay",
-                                    subtitle: "Add cash to your wallet from your debit card",
+                                    subtitle: nil,//"Add cash to your wallet from your debit card",
                                     action: viewModel.addCashWithDebitCardAction
                                 )
                             }
@@ -150,15 +150,15 @@ struct AddCashScreen: View {
                                 BorderedButton(
                                     image: .asset(.phantom),
                                     title: "Phantom Wallet",
-                                    subtitle: "Deposit USDC from your Phantom wallet",
+                                    subtitle: nil,//"Deposit USDC from your Phantom wallet",
                                     action: walletConnection.connectToPhantom
                                 )
                             }
                             
                             BorderedButton(
                                 image: .asset(.debitWallet),
-                                title: "Crypto Wallet",
-                                subtitle: "Deposit USDC from your crypto wallet"
+                                title: "Manual Deposit",
+                                subtitle: nil,//"Deposit USDC from your crypto wallet"
                             ) {
                                 isShowingDepositScreen = true
                             }
@@ -168,7 +168,7 @@ struct AddCashScreen: View {
                     Spacer()
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 20)
+                .padding(.top, 50)
             }
             .ignoresSafeArea(.keyboard)
             .navigationTitle("Select Method")

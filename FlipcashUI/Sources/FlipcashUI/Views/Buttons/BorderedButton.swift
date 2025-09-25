@@ -16,11 +16,11 @@ public struct BorderedButton: View {
     public let action: () -> Void
     
     private var strokeColor: Color {
-        .lightStroke
+        Color(r: 40, g: 56, b: 46)
     }
     
     private var fillColor: Color {
-        .extraLightFill
+        Color(r: 29, g: 46, b: 35)
     }
     
     private var textColor: Color {
@@ -43,7 +43,7 @@ public struct BorderedButton: View {
         Button {
             action()
         } label: {
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 if let image {
                     image
                         .resizable()
@@ -54,7 +54,7 @@ public struct BorderedButton: View {
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.appTextMedium)
+                        .font(.appBarButton)
                         .foregroundStyle(Color.textMain)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if let subtitle {

@@ -135,6 +135,7 @@ public enum Asset: String, Sendable {
     case verifyIdentity
     case sliders
     case phantom
+    case solanaUSDC
     
     // Flipchat
     
