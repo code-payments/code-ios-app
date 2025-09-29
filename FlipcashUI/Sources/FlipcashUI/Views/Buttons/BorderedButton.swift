@@ -75,7 +75,7 @@ public struct BorderedButton: View {
             .frame(height: 70)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: Metrics.boxRadius)
+                RoundedRectangle(cornerRadius: 6)
                     .fill(fillColor)
                     .strokeBorder(strokeColor, lineWidth: 1)
             )
