@@ -186,7 +186,7 @@ struct BalanceScreen: View {
                             
                             AmountText(
                                 flagStyle: balance.converted.currencyCode.flagStyle,
-                                content: balance.converted.formatted(suffix: nil),
+                                content: balance.converted.formatted(truncated: true, suffix: nil),
                                 showChevron: true
                             )
                             .font(.appDisplayMedium)
