@@ -70,7 +70,7 @@ struct AddCashScreen: View {
                 .padding(.bottom, 20)
             }
             .ignoresSafeArea(.keyboard)
-            .navigationTitle("Select Method")
+            .navigationTitle("Deposit Solana USDC")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -171,7 +171,7 @@ struct AddCashScreen: View {
                 .padding(.top, 50)
             }
             .ignoresSafeArea(.keyboard)
-            .navigationTitle("Select Method")
+            .navigationTitle("Deposit Solana USDC")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
