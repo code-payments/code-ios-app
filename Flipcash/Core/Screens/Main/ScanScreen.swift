@@ -195,11 +195,11 @@ struct ScanScreen: View {
     @ViewBuilder private func authorizeView() -> some View {
         let goToSettings = directToSettingsForCamera == true
         VStack(spacing: 40) {
-            Text(goToSettings ? "You need to turn on Camera in Settings to scan Codes" : "Flipcash enables you to grab the digital cash displayed on another user's phone by pointing your camera at it")
+            Text(goToSettings ? "You need to turn on Camera in Settings to scan Codes" : "Start your camera to grab cash")
                 .frame(maxWidth: 260)
                 .multilineTextAlignment(.center)
             
-            BubbleButton(text: goToSettings ? "Open Settings" : "Next") {
+            BubbleButton(text: goToSettings ? "Open Settings" : "Start Camera") {
                 if goToSettings {
                     URL.openSettings()
                 } else {
