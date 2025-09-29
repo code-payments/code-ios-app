@@ -123,7 +123,7 @@ struct AddCashScreen: View {
                     VStack(spacing: 40) {
                         
                         // Header
-                        VStack(spacing: 40) {
+                        VStack(spacing: 30) {
                             Image.asset(.solanaUSDC)
                                 // Offset the Solana badge on the bottom right
                                 .padding(.leading, 15)
