@@ -95,7 +95,7 @@ class OnboardingViewModel: ObservableObject {
                 dialogItem = .init(
                     style: .destructive,
                     title: "Failed to Save",
-                    subtitle: "Please allow Flipchat access to Photos in Settings in order to save your Access Key.",
+                    subtitle: "Please allow Flipcash access to Photos in Settings in order to save your Access Key.",
                     dismissable: true
                 ) {
                     .destructive("Open Settings") {

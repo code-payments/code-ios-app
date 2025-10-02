@@ -18,7 +18,7 @@ struct Snapshot: View {
             VStack {
                 Spacer()
                 
-                Text("Warning! This image gives access to your Flipchat account. Do not share this image with anyone else. Keep it secure and safe.")
+                Text("Warning! This image gives access to your Flipcash account. Do not share this image with anyone else. Keep it secure and safe.")
                     .font(.appTextSmall)
                     .foregroundColor(.textError)
                     .fixedSize(horizontal: false, vertical: true)
