@@ -114,6 +114,7 @@
 		9A4283BC2A02B5B100792BFD /* ShareCashItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BB2A02B5B100792BFD /* ShareCashItem.swift */; };
 		9A4283BE2A02B9F200792BFD /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283BD2A02B9F200792BFD /* ShareSheet.swift */; };
 		9A4283C12A055C5400792BFD /* GiftCardVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4283C02A055C5400792BFD /* GiftCardVault.swift */; };
+		9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */ = {isa = PBXBuildFile; productRef = 9A444EE62E8C414D002B1E39 /* BigDecimal */; };
 		9A44E6862D08061200922066 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9A44E6852D08061200922066 /* StoreKit.framework */; };
 		9A476D4A2978884700C5B5CE /* Bugsnag in Frameworks */ = {isa = PBXBuildFile; productRef = 9A476D492978884700C5B5CE /* Bugsnag */; };
 		9A476D4C2978892600C5B5CE /* ErrorReporting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A476D4B2978892600C5B5CE /* ErrorReporting.swift */; };
@@ -654,6 +655,7 @@
 				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
 				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
 				9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */,
+				9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */,
 				9ACF9AD32E26D62300BF4F82 /* ConfettiSwiftUI in Frameworks */,
 				9ADEF1C52DD50BDE001B260A /* FirebaseCrashlytics in Frameworks */,
 				9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */,
@@ -1349,6 +1351,7 @@
 				9ACF9AD22E26D62300BF4F82 /* ConfettiSwiftUI */,
 				9A8A219B2E7B253A00C12594 /* TweetNacl */,
 				9A2396752E7DE27500D70699 /* SolanaSwift */,
+				9A444EE62E8C414D002B1E39 /* BigDecimal */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -1740,6 +1743,7 @@
 				9ACF9AD12E26D62300BF4F82 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
 				9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */,
 				9A2396742E7DE27500D70699 /* XCRemoteSwiftPackageReference "solana-swift" */,
+				9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
@@ -4505,6 +4509,14 @@
 				minimumVersion = 1.1.3;
 			};
 		};
+		9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mgriebling/BigDecimal";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.2;
+			};
+		};
 		9A476D482978884700C5B5CE /* XCRemoteSwiftPackageReference "bugsnag-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/bugsnag/bugsnag-cocoa";
@@ -4590,6 +4602,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9A340F642D6E1591003858F4 /* XCRemoteSwiftPackageReference "TwitterAPIKit" */;
 			productName = TwitterAPIKit;
+		};
+		9A444EE62E8C414D002B1E39 /* BigDecimal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */;
+			productName = BigDecimal;
 		};
 		9A476D492978884700C5B5CE /* Bugsnag */ = {
 			isa = XCSwiftPackageProductDependency;
