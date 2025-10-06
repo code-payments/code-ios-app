@@ -297,11 +297,13 @@ class OnrampViewModel: ObservableObject {
         }
         
         if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
+            Analytics.onrampShowEnterPhone()
             onrampPath.append(.enterPhoneNumber)
             return
         }
         
         if origin.rawValue < Origin.email.rawValue, !isEmailVerified {
+            Analytics.onrampShowEnterEmail()
             onrampPath.append(.enterEmail)
             return
         }
@@ -318,6 +320,7 @@ class OnrampViewModel: ObservableObject {
             isShowingVerificationFlow = false
             createOrder()
         } else {
+            Analytics.onrampShowVerificationInfo()
             isShowingVerificationFlow = true
         }
     }
@@ -358,6 +361,7 @@ class OnrampViewModel: ObservableObject {
     func customAmountAction() {
         selectedPreset = nil
         isShowingAmountEntryScreen = true
+        Analytics.onrampEnterCustomAmount()
     }
     
     func customAmountEnteredAction() {
@@ -407,6 +411,8 @@ class OnrampViewModel: ObservableObject {
                 
                 try await Task.delay(milliseconds: 500)
                 onrampPath.append(.confirmPhoneNumberCode)
+                
+                Analytics.onrampShowConfirmPhone()
                 
                 try await Task.delay(milliseconds: 500)
             }
@@ -513,6 +519,8 @@ class OnrampViewModel: ObservableObject {
                 
                 try await Task.delay(milliseconds: 500)
                 onrampPath.append(.confirmEmailCode)
+                
+                Analytics.onrampShowConfirmEmail()
                 
                 try await Task.delay(milliseconds: 500)
             }
@@ -622,6 +630,12 @@ class OnrampViewModel: ObservableObject {
         
         guard let profile = session.profile, profile.canCreateCoinbaseOrder else {
             return
+        }
+        
+        if let selectedPreset {
+            Analytics.onrampInvokePayment(amount: exchangedFiat.usdc)
+        } else {
+            Analytics.onrampInvokePaymentCustom(amount: exchangedFiat.usdc)
         }
         
         Task {
@@ -735,6 +749,12 @@ class OnrampViewModel: ObservableObject {
                 
                 let status = await PushController.fetchStatus()
                 
+                Analytics.onrampCompleted(
+                    amount: enteredFiat?.usdc,
+                    successful: true,
+                    error: nil
+                )
+                
                 payButtonState = .normal
                 purchaseSuccess = .init(
                     style: .success,
@@ -762,6 +782,11 @@ class OnrampViewModel: ObservableObject {
                 }
             }
         case .pollingError:
+            Analytics.onrampCompleted(
+                amount: nil,
+                successful: false,
+                error: nil
+            )
             handleEventError(event)
         case .cancelled:
             coinbaseOrder = nil

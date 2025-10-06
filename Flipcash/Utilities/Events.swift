@@ -128,6 +128,90 @@ extension Analytics {
     }
 }
 
+// MARK: - Onramp -
+
+extension Analytics {
+    static func onrampOpenedFromSettings() {
+        track(event: .onrampOpenedFromSettings)
+    }
+    
+    static func onrampOpenedFromGive() {
+        track(event: .onrampOpenedFromGive)
+    }
+    
+    static func onrampOpenedFromBalance() {
+        track(event: .onrampOpenedFromBalance)
+    }
+    
+    static func onrampShowVerificationInfo() {
+        track(event: .onrampShowVerificationInfo)
+    }
+    
+    static func onrampShowEnterPhone() {
+        track(event: .onrampShowEnterPhone)
+    }
+    
+    static func onrampShowConfirmPhone() {
+        track(event: .onrampShowConfirmPhone)
+    }
+    
+    static func onrampShowEnterEmail() {
+        track(event: .onrampShowEnterEmail)
+    }
+    
+    static func onrampShowConfirmEmail() {
+        track(event: .onrampShowConfirmEmail)
+    }
+    
+    static func onrampAmountPresetSelected(amount: Fiat) {
+        var properties: [Property: AnalyticsValue] = [:]
+        
+        properties[.fiat]     = amount.doubleValue
+        properties[.currency] = amount.currencyCode.rawValue
+        
+        track(event: .onrampPresetSelected, properties: properties)
+    }
+    
+    static func onrampEnterCustomAmount() {
+        track(event: .onrampEnterCustomAmount)
+    }
+    
+    static func onrampInvokePayment(amount: Fiat) {
+        var properties: [Property: AnalyticsValue] = [:]
+        
+        properties[.fiat]     = amount.doubleValue
+        properties[.currency] = amount.currencyCode.rawValue
+        
+        track(event: .onrampInvokePayment, properties: properties)
+    }
+    
+    static func onrampInvokePaymentCustom(amount: Fiat) {
+        var properties: [Property: AnalyticsValue] = [:]
+        
+        properties[.fiat]     = amount.doubleValue
+        properties[.currency] = amount.currencyCode.rawValue
+        
+        track(event: .onrampInvokePaymentCustom, properties: properties)
+    }
+    
+    static func onrampCompleted(amount: Fiat?, successful: Bool, error: Error?) {
+        var properties: [Property: AnalyticsValue] = [
+            .state: successful ? String.success : String.failure,
+        ]
+        
+        if let amount {
+            properties[.fiat]     = amount.doubleValue
+            properties[.currency] = amount.currencyCode.rawValue
+        }
+        
+        track(
+            event: .onrampCompleted,
+            properties: properties,
+            error: error
+        )
+    }
+}
+
 // MARK: - Definitions -
 
 extension Analytics {
@@ -153,6 +237,20 @@ extension Analytics {
         case poolCreated          = "Pool: Created"
         case poolDeclareOutcome   = "Pool: Declare Outcome"
         case poolPlaceBet         = "Pool: Place Bet"
+        
+        case onrampOpenedFromSettings    = "Onramp: Opened From Settings"
+        case onrampOpenedFromBalance     = "Onramp: Opened From Balance"
+        case onrampOpenedFromGive        = "Onramp: Opened From Give"
+        case onrampShowVerificationInfo  = "Onramp: Show Verification Info"
+        case onrampShowEnterPhone        = "Onramp: Show Enter Phone"
+        case onrampShowConfirmPhone      = "Onramp: Show Confirm Phone"
+        case onrampShowEnterEmail        = "Onramp: Show Enter Email"
+        case onrampShowConfirmEmail      = "Onramp: Show Confirm Email"
+        case onrampPresetSelected        = "Onramp: Amount Selected"
+        case onrampEnterCustomAmount     = "Onramp: Enter Custom Amount"
+        case onrampInvokePayment         = "Onramp: Invoke Payment"
+        case onrampInvokePaymentCustom   = "Onramp: Invoke Payment Custom"
+        case onrampCompleted             = "Onramp: Completed"
         
         case cancelPendingPurchase = "Cancel Pending Purchase"
     }

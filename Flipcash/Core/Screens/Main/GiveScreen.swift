@@ -174,6 +174,7 @@ struct GiveScreen: View {
     
     private func presentOnramp() {
         onrampViewModel.presentRoot()
+        Analytics.onrampOpenedFromGive()
     }
     
     // MARK: - Errors -

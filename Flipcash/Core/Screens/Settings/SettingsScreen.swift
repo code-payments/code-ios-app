@@ -466,6 +466,7 @@ struct SettingsScreen: View {
     
     private func presentOnramp() {
         onrampViewModel.presentRoot()
+        Analytics.onrampOpenedFromSettings()
     }
     
     private func switchAccount(to account: AccountDescription) {

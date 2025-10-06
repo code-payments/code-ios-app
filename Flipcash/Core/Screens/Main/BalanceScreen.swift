@@ -284,6 +284,7 @@ struct BalanceScreen: View {
     
     private func presentOnramp() {
         onrampViewModel.presentRoot()
+        Analytics.onrampOpenedFromBalance()
     }
     
     private func rowAction(activity: Activity) {
