@@ -54,6 +54,13 @@ public final class WalletConnection: ObservableObject {
     // MARK: - Receive -
     
     func didReceiveURL(url: URL) {
+        if let code = url.queryItemValue(for: "errorCode") {
+            if code == "4001" {
+                Analytics.walletCancel()
+            }
+            return
+        }
+        
         guard var encryptedResponse = try? EncryptedWalletResponse(url: url) else {
             return
         }
@@ -155,8 +162,10 @@ public final class WalletConnection: ObservableObject {
                 }
                 
                 if errorCount == 0 {
+                    Analytics.walletTransactionsSubmitted()
                     showSuccessDialog()
                 } else {
+                    Analytics.walletTransactionsFailed()
                     showSomethingWentWrongDialog()
                 }
             }
@@ -177,6 +186,7 @@ public final class WalletConnection: ObservableObject {
             URLQueryItem(name: "nonce",                      value: nonce)
         ]
         
+        Analytics.walletConnect()
         c.url!.openWithApplication()
     }
     
@@ -241,6 +251,7 @@ public final class WalletConnection: ObservableObject {
                 return
             }
 
+            Analytics.walletRequestAmount(amount: usdc)
             url.openWithApplication()
             print("[WalletConnection] Requested transfer of \(usdc) USDC to \(depositAddress.base58EncodedString)")
             

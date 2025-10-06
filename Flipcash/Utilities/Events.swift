@@ -212,6 +212,36 @@ extension Analytics {
     }
 }
 
+// MARK: - Wallet -
+
+extension Analytics {
+    
+    static func walletConnect() {
+        track(event: .walletConnect)
+    }
+    
+    static func walletRequestAmount(amount: Fiat) {
+        var properties: [Property: AnalyticsValue] = [:]
+        
+        properties[.fiat]     = amount.doubleValue
+        properties[.currency] = amount.currencyCode.rawValue
+        
+        track(event: .walletRequestAmount, properties: properties)
+    }
+    
+    static func walletTransactionsSubmitted() {
+        track(event: .walletTransactionsSubmitted)
+    }
+    
+    static func walletTransactionsFailed() {
+        track(event: .walletTransactionsFailed)
+    }
+    
+    static func walletCancel() {
+        track(event: .walletCancel)
+    }
+}
+
 // MARK: - Definitions -
 
 extension Analytics {
@@ -251,6 +281,12 @@ extension Analytics {
         case onrampInvokePayment         = "Onramp: Invoke Payment"
         case onrampInvokePaymentCustom   = "Onramp: Invoke Payment Custom"
         case onrampCompleted             = "Onramp: Completed"
+        
+        case walletConnect               = "Wallet: Connect"
+        case walletRequestAmount         = "Wallet: Request Amount"
+        case walletTransactionsSubmitted = "Wallet: Transactions Submitted"
+        case walletTransactionsFailed    = "Wallet: Transactions Failed"
+        case walletCancel                = "Wallet: Cancel"
         
         case cancelPendingPurchase = "Cancel Pending Purchase"
     }

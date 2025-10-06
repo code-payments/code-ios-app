@@ -71,3 +71,13 @@ extension URL {
         }
     }
 }
+
+extension URL {
+    func queryItemValue(for key: String) -> String? {
+        guard let components = URLComponents(url: self, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+        
+        return components.queryItems?.first(where: { $0.name == key })?.value
+    }
+}
