@@ -323,8 +323,8 @@ extension WalletConnection {
                 throw WalletConnectionError.keypairGenerationFailed
             }
             
-            self.publicKey = PublicKey(keyPair.publicKey)!
-            self.secretKey = Seed32(keyPair.secretKey)!
+            self.publicKey = try! PublicKey(keyPair.publicKey)
+            self.secretKey = try! Seed32(keyPair.secretKey)
         }
 
         // MARK: - Decrypt -
@@ -447,7 +447,7 @@ public struct WalletSession: Codable {
     public let sessionToken: String
     
     init?(walletPublicKey: String, sessionToken: String) {
-        guard let publicKey = FlipcashCore.PublicKey(base58: walletPublicKey) else {
+        guard let publicKey = try? PublicKey(base58: walletPublicKey) else {
             return nil
         }
         

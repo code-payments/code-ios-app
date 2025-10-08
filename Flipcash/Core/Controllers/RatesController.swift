@@ -100,7 +100,8 @@ class RatesController: ObservableObject {
         
         let exchangedFiat = try ExchangedFiat(
             converted: amount,
-            rate: rate
+            rate: rate,
+            mint: .usdc
         )
         
         return exchangedFiat

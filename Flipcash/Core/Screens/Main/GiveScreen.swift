@@ -48,7 +48,11 @@ struct GiveScreen: View {
             return nil
         }
         
-        return try! ExchangedFiat(converted: converted, rate: rate)
+        return try! ExchangedFiat(
+            converted: converted,
+            rate: rate,
+            mint: .usdc
+        )
     }
     
     private let kind: Kind

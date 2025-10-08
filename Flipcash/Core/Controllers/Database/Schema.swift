@@ -200,7 +200,7 @@ extension Key32: @retroactive Value {
     }
 
     public static func fromDatatypeValue(_ dataValue: Blob) -> Key32 {
-        Key32(dataValue.bytes)!
+        try! Key32(dataValue.bytes)
     }
 
     public var datatypeValue: Blob {

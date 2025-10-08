@@ -44,14 +44,16 @@ class Session: ObservableObject {
     var exchangedBalance: ExchangedFiat {
         try! ExchangedFiat(
             usdc: balance,
-            rate: ratesController.rateForBalanceCurrency()
+            rate: ratesController.rateForBalanceCurrency(),
+            mint: .usdc
         )
     }
     
     var exchangedEntryBalance: ExchangedFiat {
         try! ExchangedFiat(
             usdc: balance,
-            rate: ratesController.rateForEntryCurrency()
+            rate: ratesController.rateForEntryCurrency(),
+            mint: .usdc
         )
     }
     
@@ -253,7 +255,8 @@ class Session: ObservableObject {
                     quarks: exchangedFiat.converted.quarks - exchangedEntryBalance.converted.quarks,
                     currencyCode: exchangedFiat.converted.currencyCode
                 ),
-                rate: exchangedEntryBalance.rate
+                rate: exchangedEntryBalance.rate,
+                mint: .usdc
             )
             return (false, delta)
         } else {

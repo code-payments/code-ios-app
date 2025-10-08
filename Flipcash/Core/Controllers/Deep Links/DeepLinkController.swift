@@ -77,7 +77,7 @@ final class DeepLinkController {
         case .pool:
             if
                 let rendezvousSeed = route.fragments[.entropy],
-                let seed = Seed32(base58: rendezvousSeed.value)
+                let seed = try? Seed32(base58: rendezvousSeed.value)
             {
                 let rendezvous = KeyPair(seed: seed)
                 return actionForOpenPool(rendezvous: rendezvous)

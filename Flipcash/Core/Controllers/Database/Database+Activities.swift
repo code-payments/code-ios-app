@@ -86,8 +86,9 @@ extension Database {
                     usdc: Fiat(quarks: row[aTable.quarks], currencyCode: .usd),
                     converted: try Fiat(
                         fiatDecimal: Decimal(row[aTable.nativeAmount]),
-                        currencyCode: row[aTable.currency]
-                    )
+                        currencyCode: row[aTable.currency],
+                    ),
+                    mint: .usdc
                 ),
                 date: row[aTable.date],
                 metadata: metadata(for: kind, row: row)

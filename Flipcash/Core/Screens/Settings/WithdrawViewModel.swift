@@ -30,7 +30,7 @@ class WithdrawViewModel: ObservableObject {
     @Published var dialogItem: DialogItem?
     
     var enteredDestination: PublicKey? {
-        PublicKey(base58: enteredAddress)
+        try? PublicKey(base58: enteredAddress)
     }
     
     var enteredFiat: ExchangedFiat? {
@@ -55,7 +55,7 @@ class WithdrawViewModel: ObservableObject {
             return nil
         }
         
-        return try! ExchangedFiat(converted: converted, rate: rate)
+        return try! ExchangedFiat(converted: converted, rate: rate, mint: .usdc)
     }
     
     var negativeWithdrawableAmount: Fiat? {
@@ -214,7 +214,7 @@ class WithdrawViewModel: ObservableObject {
     func pasteFromClipboardAction() {
         guard
             let string = UIPasteboard.general.string,
-            let address = PublicKey(base58: string)
+            let address = try? PublicKey(base58: string)
         else {
             return
         }

@@ -98,7 +98,11 @@ class OnrampViewModel: ObservableObject {
             return nil
         }
         
-        return try! ExchangedFiat(converted: converted, rate: rate)
+        return try! ExchangedFiat(
+            converted: converted,
+            rate: rate,
+            mint: .usdc
+        )
     }
     
     var regionFlagStyle: Flag.Style {
