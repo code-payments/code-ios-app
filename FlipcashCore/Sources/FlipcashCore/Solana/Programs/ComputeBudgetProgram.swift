@@ -13,7 +13,7 @@ public enum ComputeBudgetProgram: CommandType {
 }
 
 extension ComputeBudgetProgram {
-    public static let address = PublicKey(base58: "ComputeBudget111111111111111111111111111111")!
+    public static let address = try! PublicKey(base58: "ComputeBudget111111111111111111111111111111")
 }
 
 extension ComputeBudgetProgram {

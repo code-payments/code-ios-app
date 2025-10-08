@@ -11,13 +11,13 @@ import Foundation
 extension KeyPair {
     public static func deriveRendezvousKey(from payload: Data) -> KeyPair {
         let hash = SHA256.digest(payload)
-        let seed = Seed32(hash)!
+        let seed = try! Seed32(hash)
         return KeyPair(seed: seed)
     }
     
     public static func deriveBetID(poolID: PublicKey, userID: UUID) -> KeyPair {
         let hash = SHA256.digest(poolID.data + userID.data)
-        let seed = Seed32(hash)!
+        let seed = try! Seed32(hash)
         return KeyPair(seed: seed)
     }
 }

@@ -13,7 +13,7 @@ public enum SplitterProgram {
 }
 
 extension SplitterProgram {
-    public static let address = PublicKey(base58: "spLit2eb13Tz93if6aJM136nUWki5PVUsoEjcUjwpwW")! // Mainnet
+    public static let address = try! PublicKey(base58: "spLit2eb13Tz93if6aJM136nUWki5PVUsoEjcUjwpwW") // Mainnet
 }
 
 //extension SplitterProgram {

@@ -67,16 +67,9 @@ extension ServerParameter {
             actionID: Int(proto.actionID),
             parameter: try Parameter(proto),
             configs: try proto.nonces.map {
-                guard
-                    let nonce = PublicKey($0.nonce.value),
-                    let blockhash = Hash($0.blockhash.value)
-                else {
-                    throw Error.deserializationFailed
-                }
-                
-                return Config(
-                    nonce: nonce,
-                    blockhash: blockhash
+                Config(
+                    nonce: try PublicKey($0.nonce.value),
+                    blockhash: try Hash($0.blockhash.value)
                 )
             }
         )
@@ -88,7 +81,7 @@ extension ServerParameter.Parameter {
         switch proto.type {
             
         case .feePayment(let param):
-            let optionalDestination = PublicKey(param.destination.value)!
+            let optionalDestination = try PublicKey(param.destination.value)
             self = .feePayment(optionalDestination)
             
         case .openAccount, .noPrivacyTransfer, .noPrivacyWithdraw, .none:

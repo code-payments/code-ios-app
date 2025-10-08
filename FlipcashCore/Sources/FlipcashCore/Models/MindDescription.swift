@@ -26,6 +26,6 @@ extension MintDescription: Identifiable {
 extension MintDescription {
     public static let usdc: MintDescription = .init(
         ticker: "USDC",
-        mint: PublicKey(base58: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")!
+        mint: try! PublicKey(base58: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
     )
 }

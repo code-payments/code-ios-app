@@ -285,7 +285,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                     case .invalidSignature(let signatureDetails):
                         return [
                             "Action index: \(signatureDetails.actionID)",
-                            "Invalid signature: \(Signature(signatureDetails.providedSignature.value)?.base58 ?? "nil")",
+                            "Invalid signature: \((try? Signature(signatureDetails.providedSignature.value).base58) ?? "nil")",
                             "Transaction bytes: \(signatureDetails.expectedTransaction.value.hexEncodedString())",
                         ]
                     default:
@@ -515,7 +515,7 @@ extension DestinationMetadata {
         
         init(owner: PublicKey) {
             self.owner = owner
-            self.token = AssociatedTokenAccount(owner: owner, mint: Mint.usdc).ata.publicKey
+            self.token = AssociatedTokenAccount(owner: owner, mint: PublicKey.usdc).ata.publicKey
             self.requiredResolution = true
         }
     }

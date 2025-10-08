@@ -18,9 +18,9 @@ public typealias PrivateKey = Key64
 public typealias Signature  = Key64
 
 extension Key32 {
-    public static let mock = Key32(base58: "EBDRoayCDDUvDgCimta45ajQeXbexv7aKqJubruqpyvu")!
+    public static let mock = try! Key32(base58: "EBDRoayCDDUvDgCimta45ajQeXbexv7aKqJubruqpyvu")
 }
 
 extension Key64 {
-    public static let mock = Key64(base58: "5WuSx6eLmz26LxLzeaAKabtQ9xTpFjjEo8v2rCWHsAcxnGxmLuSav5rgb1JfWqXP2SaqtjLPUNBEXYTfGYdufjmt")!
+    public static let mock = try! Key64(base58: "5WuSx6eLmz26LxLzeaAKabtQ9xTpFjjEo8v2rCWHsAcxnGxmLuSav5rgb1JfWqXP2SaqtjLPUNBEXYTfGYdufjmt")
 }

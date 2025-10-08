@@ -53,15 +53,11 @@ extension StreamMessage {
         
         switch message.kind {
         case .requestToGrabBill(let request):
-            guard
-                let account = PublicKey(request.requestorAccount.value),
-                let signature = Signature(message.sendMessageRequestSignature.value)
-            else {
-                throw Error.failedToParse
-            }
-            
             self.kind = .paymentRequest(
-                PaymentRequest(account: account, signature: signature)
+                PaymentRequest(
+                    account: try PublicKey(request.requestorAccount.value),
+                    signature: try Signature(message.sendMessageRequestSignature.value)
+                )
             )
             
         default:

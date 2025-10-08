@@ -140,7 +140,7 @@ extension SolanaTransaction {
             return nil // Mismatched data
         }
         
-        let signatures = payload.chunk(size: Signature.length, count: signatureCount) { Signature($0) }?.compactMap { $0 } ?? []
+        let signatures = payload.chunk(size: Signature.length, count: signatureCount) { try? Signature($0) }?.compactMap { $0 } ?? []
         let messageData = payload.tail(from: signatureCount * Signature.length)
         
         guard let message = Message(data: messageData) else {

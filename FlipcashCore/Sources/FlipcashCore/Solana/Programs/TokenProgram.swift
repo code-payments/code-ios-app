@@ -13,7 +13,7 @@ public enum TokenProgram: CommandType {
 }
 
 extension TokenProgram {
-    public static let address = PublicKey(base58: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")! // Mainnet
+    public static let address = try! PublicKey(base58: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") // Mainnet
 }
 
 extension TokenProgram {

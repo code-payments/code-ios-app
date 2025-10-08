@@ -91,7 +91,7 @@ extension Activity {
 extension Activity {
     init(_ proto: Flipcash_Activity_V1_Notification) throws {
         self.init(
-            id: PublicKey(proto.id.value)!,
+            id: try PublicKey(proto.id.value),
             state: .init(rawValue: proto.state.rawValue) ?? .unknown,
             kind: .init(proto.additionalMetadata),
             title: proto.localizedText,

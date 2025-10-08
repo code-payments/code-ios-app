@@ -63,7 +63,7 @@ extension PublicKey {
             program: VMProgram.address,
             seeds:
                 Data("code_vm".utf8),
-                Mint.usdc.data,
+                PublicKey.usdc.data,
                 PublicKey.timeAuthority.data,
                 lockout.bytes.data
         )
@@ -93,7 +93,7 @@ extension PublicKey {
             program: TimelockProgram.address,
             seeds:
                 Data("timelock_state".utf8),
-                Mint.usdc.data,
+                PublicKey.usdc.data,
                 PublicKey.timeAuthority.data,
                 owner.data,
                 lockout.bytes.data
@@ -170,7 +170,7 @@ extension PublicKey {
         digest.update(program.data)
         digest.update("ProgramDerivedAddress")
         
-        let publicKey = PublicKey(digest.digestBytes())!
+        let publicKey = try! PublicKey(digest.digestBytes())
         
         // Following the Solana SDK, we want to _reject_ the generated public key
         // if it's a valid compressed EdwardsPoint (on the curve).

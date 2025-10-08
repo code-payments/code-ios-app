@@ -56,13 +56,9 @@ extension BetMetadata {
 
 extension BetDescription {
     init(_ proto: Flipcash_Pool_V1_BetMetadata) throws {
-        guard let signature = Signature(proto.rendezvousSignature.value) else {
-            throw Error.invalidSignature
-        }
-        
         self.init(
             metadata: try BetMetadata(proto.verifiedMetadata),
-            signature: signature,
+            signature: try Signature(proto.rendezvousSignature.value),
             isFulfilled: proto.isIntentSubmitted
         )
     }
@@ -70,13 +66,6 @@ extension BetDescription {
 
 extension BetMetadata {
     init(_ proto: Flipcash_Pool_V1_SignedBetMetadata) throws {
-        guard
-            let id = PublicKey(proto.betID.value),
-            let payoutDestination = PublicKey(proto.payoutDestination.value)
-        else {
-            throw Error.invalidPublicKey
-        }
-        
         let outcome: PoolResoltion
         switch proto.selectedOutcome.kind {
         case .booleanOutcome(let value):
@@ -86,9 +75,9 @@ extension BetMetadata {
         }
         
         self.init(
-            id: id,
+            id: try PublicKey(proto.betID.value),
             userID: try UserID(data: proto.userID.value),
-            payoutDestination: payoutDestination,
+            payoutDestination: try PublicKey(proto.payoutDestination.value),
             betDate: proto.ts.date,
             selectedOutcome: outcome
         )

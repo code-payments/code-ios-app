@@ -55,14 +55,14 @@ extension Message {
         
         // Decode `accountKeys`
         let (accountCount, accountData) = ShortVec.decodeLength(payload)
-        guard let messageAccounts = accountData.chunk(size: PublicKey.length, count: accountCount, block: { PublicKey($0)! }) else {
+        guard let messageAccounts = accountData.chunk(size: PublicKey.length, count: accountCount, block: { try! PublicKey($0) }) else {
             return nil
         }
         
         payload = accountData.tail(from: PublicKey.length * accountCount)
         
         // Decode `recentBlockHash`
-        guard let hash = Hash(payload.consume(Hash.length)) else {
+        guard let hash = try? Hash(payload.consume(Hash.length)) else {
             return nil
         }
         

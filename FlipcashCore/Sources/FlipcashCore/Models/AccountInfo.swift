@@ -186,7 +186,6 @@ extension AccountInfo {
 extension AccountInfo {
     public init(_ info: Code_Account_V1_TokenAccountInfo) throws {
         guard
-            let address = PublicKey(info.address.value),
             let balanceSource = BalanceSource(info.balanceSource),
             let managementState = ManagementState(info.managementState),
             let blockchainState = BlockchainState(info.blockchainState),
@@ -195,8 +194,8 @@ extension AccountInfo {
             throw Error.parseFailed
         }
         
-        let owner = PublicKey(info.owner.value)
-        let authority = PublicKey(info.authority.value)
+        let owner = try PublicKey(info.owner.value)
+        let authority = try PublicKey(info.authority.value)
         
         let exchangedFiat: ExchangedFiat?
         
@@ -207,14 +206,14 @@ extension AccountInfo {
                     fx: Decimal(info.originalExchangeData.exchangeRate),
                     currency: try CurrencyCode(currencyCode: info.originalExchangeData.currency)
                 ),
-                mint: info.originalExchangeData.mint
+                mint: try PublicKey(info.originalExchangeData.mint.value)
             )
         } else {
             exchangedFiat = nil
         }
         
         self.init(
-            address: address,
+            address: try PublicKey(info.address.value),
             owner: owner,
             authority: authority,
             balanceSource: balanceSource,

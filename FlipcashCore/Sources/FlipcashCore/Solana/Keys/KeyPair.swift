@@ -25,7 +25,7 @@ public struct KeyPair: Equatable, Codable, Hashable, Sendable {
             return nil
         }
         
-        return PrivateKey(seed.bytes + publicKey.bytes)
+        return try? PrivateKey(seed.bytes + publicKey.bytes)
     }
     
     // MARK: - Init -
@@ -71,9 +71,9 @@ public struct KeyPair: Equatable, Codable, Hashable, Sendable {
             }
         }
         
-        self.seed = seed
-        self.publicKey = PublicKey(publicBytes)!
-        self.privateKey = PrivateKey(privateBytes)!
+        self.seed       = seed
+        self.publicKey  = try! PublicKey(publicBytes)
+        self.privateKey = try! PrivateKey(privateBytes)
     }
     
     // MARK: - Signing -
@@ -101,7 +101,7 @@ public struct KeyPair: Equatable, Codable, Hashable, Sendable {
             }
         }
         
-        return Signature(signData)!
+        return try! Signature(signData)
     }
     
     public func verify(signature: Signature, data: Data) -> Bool {

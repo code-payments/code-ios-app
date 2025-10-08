@@ -145,14 +145,8 @@ enum MintMetadataError: Swift.Error {
 
 extension MintMetadata {
     init(_ proto: Code_Currency_V1_Mint) throws {
-        guard
-            let address = PublicKey(proto.address.value)
-        else {
-            throw MintMetadataError.failedToParse
-        }
-        
         self.init(
-            address: address,
+            address: try PublicKey(proto.address.value),
             decimals: Int(proto.decimals),
             name: proto.name,
             symbol: proto.symbol,
@@ -166,16 +160,9 @@ extension MintMetadata {
 
 extension VMMetadata {
     init(_ proto: Code_Currency_V1_VmMetadata) throws {
-        guard
-            let vm = PublicKey(proto.vm.value),
-            let authority = PublicKey(proto.authority.value)
-        else {
-            throw MintMetadataError.failedToParse
-        }
-        
         self.init(
-            vm: vm,
-            authority: authority,
+            vm: try PublicKey(proto.vm.value),
+            authority: try PublicKey(proto.authority.value),
             lockDurationInDays: Int(proto.lockDurationInDays)
         )
     }
@@ -183,26 +170,14 @@ extension VMMetadata {
 
 extension LaunchpadMetadata {
     init(_ proto: Code_Currency_V1_LaunchpadMetadata) throws {
-        guard
-            let currencyConfig = PublicKey(proto.currencyConfig.value),
-            let liquidityPool  = PublicKey(proto.liquidityPool.value),
-            let seed           = PublicKey(proto.seed.value),
-            let authority      = PublicKey(proto.authority.value),
-            let mintVault      = PublicKey(proto.mintVault.value),
-            let coreMintVault  = PublicKey(proto.coreMintVault.value),
-            let coreMintFees   = PublicKey(proto.coreMintFees.value)
-        else {
-            throw MintMetadataError.failedToParse
-        }
-        
         self.init(
-            currencyConfig: currencyConfig,
-            liquidityPool: liquidityPool,
-            seed: seed,
-            authority: authority,
-            mintVault: mintVault,
-            coreMintVault: coreMintVault,
-            coreMintFees: coreMintFees,
+            currencyConfig: try PublicKey(proto.currencyConfig.value),
+            liquidityPool: try PublicKey(proto.liquidityPool.value),
+            seed: try PublicKey(proto.seed.value),
+            authority: try PublicKey(proto.authority.value),
+            mintVault: try PublicKey(proto.mintVault.value),
+            coreMintVault: try PublicKey(proto.coreMintVault.value),
+            coreMintFees: try PublicKey(proto.coreMintFees.value),
             supplyFromBonding: proto.supplyFromBonding,
             coreMintLocked: proto.coreMintLocked,
             sellFeeBps: Int(proto.sellFeeBps)

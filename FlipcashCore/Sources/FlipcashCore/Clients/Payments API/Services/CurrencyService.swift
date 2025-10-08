@@ -49,7 +49,7 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
             var mints: [PublicKey: MintMetadata] = [:]
             response.metadataByAddress.forEach { addressString, mint in
                 if
-                    let address = PublicKey(base58: addressString),
+                    let address = try? PublicKey(base58: addressString),
                     let metadata = try? MintMetadata(mint)
                 {
                     mints[address] = metadata

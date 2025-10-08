@@ -217,16 +217,9 @@ extension UserOutcome {
 
 extension PoolDescription {
     init(_ proto: Flipcash_Pool_V1_PoolMetadata) throws {
-        guard let signature = Signature(proto.rendezvousSignature.value) else {
-            throw Error.invalidSignature
-        }
-        
-        // TODO: Filter out any unpaid bets
-//        let betProtos = proto.bets.filter { $0.isIntentSubmitted }
-        
         self.init(
             metadata: try PoolMetadata(proto.verifiedMetadata),
-            signature: signature,
+            signature: try Signature(proto.rendezvousSignature.value),
             bets: try proto.bets.map { try BetDescription($0) },
             cursor: ID(data: proto.pagingToken.value),
             additionalInfo: .init(
@@ -266,13 +259,6 @@ extension PoolMetadata {
     }
     
     init(_ proto: Flipcash_Pool_V1_SignedPoolMetadata) throws {
-        guard
-            let id = PublicKey(proto.id.value),
-            let fundingAccount = PublicKey(proto.fundingDestination.value)
-        else {
-            throw Error.invalidPublicKey
-        }
-        
         var resolution: PoolResoltion?
         if proto.hasResolution, let kind = proto.resolution.kind {
             switch kind {
@@ -284,9 +270,9 @@ extension PoolMetadata {
         }
         
         self.init(
-            id: id,
+            id: try PublicKey(proto.id.value),
             rendezvous: nil,
-            fundingAccount: fundingAccount,
+            fundingAccount: try PublicKey(proto.fundingDestination.value),
             creatorUserID: try UserID(data: proto.creator.value),
             creationDate: proto.createdAt.date,
             closedDate: proto.hasClosedAt ? proto.closedAt.date : nil,

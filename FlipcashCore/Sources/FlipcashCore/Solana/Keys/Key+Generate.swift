@@ -21,7 +21,7 @@ extension Seed16 {
             return nil
         }
         
-        return Seed16(bytes)
+        return try? Seed16(bytes)
     }
 }
 
@@ -37,6 +37,6 @@ extension Seed32 {
             return nil
         }
         
-        return Seed32(bytes)
+        return try? Seed32(bytes)
     }
 }

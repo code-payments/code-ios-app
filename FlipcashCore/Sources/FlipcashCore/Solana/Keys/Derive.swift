@@ -31,7 +31,7 @@ public enum Derive {
         }
         
         return (
-            KeyPair(seed: Seed32(descriptor.key)!),
+            KeyPair(seed: try! Seed32(descriptor.key)),
             descriptor.chain
         )
     }
@@ -61,7 +61,7 @@ extension Derive {
             salt: salt
         )
         
-        return Key64(bytes)!
+        return try! Key64(bytes)
     }
     
     public static func keyPairUsingBIP39(path: Path, phrase: [String], password: String = "") -> KeyPair {

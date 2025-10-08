@@ -20,6 +20,6 @@ extension KeyType {
             return nil
         }
         
-        self.init(bytes)
+        try? self.init(bytes)
     }
 }

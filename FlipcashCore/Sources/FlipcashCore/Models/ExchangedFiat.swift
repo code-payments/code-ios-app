@@ -106,11 +106,6 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 extension ExchangedFiat {
     init(_ proto: Code_Transaction_V2_ExchangeData) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
-        
-        guard let mint = PublicKey(proto.mint.value) else {
-            throw Error.invalidMint
-        }
-        
         self.init(
             usdc: Fiat(
                 quarks: proto.quarks,
@@ -124,17 +119,12 @@ extension ExchangedFiat {
                 fx: Decimal(proto.exchangeRate),
                 currency: currency
             ),
-            mint: mint
+            mint: try PublicKey(proto.mint.value)
         )
     }
     
     init(_ proto: Flipcash_Common_V1_CryptoPaymentAmount) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
-        
-        guard let mint = PublicKey(proto.mint.value) else {
-            throw Error.invalidMint
-        }
-        
         self.init(
             usdc: Fiat(
                 quarks: proto.quarks,
@@ -144,7 +134,7 @@ extension ExchangedFiat {
                 fiatDecimal: Decimal(proto.nativeAmount),
                 currencyCode: currency
             ),
-            mint: mint
+            mint: try PublicKey(proto.mint.value)
             // Rate is auto-calculated based on converted / usdc
         )
     }

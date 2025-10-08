@@ -35,6 +35,6 @@ struct CompactMessage {
     
     func signature(owner: KeyPair) -> Signature {
         let hash = SHA256.digest(data)
-        return Signature(owner.sign(hash).data)!
+        return try! Signature(owner.sign(hash).data)
     }
 }

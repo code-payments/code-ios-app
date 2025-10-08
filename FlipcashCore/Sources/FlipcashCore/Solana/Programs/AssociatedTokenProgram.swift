@@ -13,7 +13,7 @@ public enum AssociatedTokenProgram: CommandType {
 }
 
 extension AssociatedTokenProgram {
-    public static let address = PublicKey(base58: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")! // Mainnet
+    public static let address = try! PublicKey(base58: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL") // Mainnet
 }
 
 extension AssociatedTokenProgram {

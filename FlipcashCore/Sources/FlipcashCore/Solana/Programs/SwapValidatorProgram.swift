@@ -13,7 +13,7 @@ public enum SwapValidatorProgram: CommandType {
 }
 
 extension SwapValidatorProgram {
-    public static let address = PublicKey(base58: "sWvA66HNNvgamibZe88v3NN5nQwE8tp3KitfViFjukA")!
+    public static let address = try! PublicKey(base58: "sWvA66HNNvgamibZe88v3NN5nQwE8tp3KitfViFjukA")
 }
 
 extension SwapValidatorProgram {

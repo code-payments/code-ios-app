@@ -85,14 +85,17 @@ extension MnemonicPhrase {
         let entropyBytes = try! Mnemonic.toEntropy(words)
         switch kind {
         case .words12:
-            return Key16(entropyBytes)!.base58
+            return try! Key16(entropyBytes).base58
         case .words24:
-            return Key32(entropyBytes)!.base58
+            return try! Key32(entropyBytes).base58
         }
     }
     
     public init?(base58EncodedEntropy: String) {
-        let entropyBytes = (Key32(base58: base58EncodedEntropy)?.bytes ?? Key16(base58: base58EncodedEntropy)?.bytes) ?? []
+        let entropyBytes = (
+            (try? Key32(base58: base58EncodedEntropy).bytes) ??
+            (try? Key16(base58: base58EncodedEntropy).bytes)
+        ) ?? []
         
         guard !entropyBytes.isEmpty else {
             return nil

@@ -22,7 +22,7 @@ public enum SysVar: String, CaseIterable {
 
 extension SysVar {
     public var address: PublicKey {
-        PublicKey(base58: rawValue)!
+        try! PublicKey(base58: rawValue)
     }
     
     public static var addresses: [PublicKey] {

@@ -13,7 +13,7 @@ public enum VMProgram: CommandType {
 }
 
 extension VMProgram {
-    public static let address = PublicKey(base58: "vmZ1WUq8SxjBWcaeTCvgJRZbS84R61uniFsQy5YMRTJ")!
+    public static let address = try! PublicKey(base58: "vmZ1WUq8SxjBWcaeTCvgJRZbS84R61uniFsQy5YMRTJ")
 }
 
 extension VMProgram {

@@ -16,7 +16,7 @@ public protocol KeyType {
     
     var bytes: [Byte] { get }
     
-    init?(_ bytes: [Byte])
+    init(_ bytes: [Byte]) throws
 }
 
 // MARK: - Data -
@@ -24,11 +24,11 @@ public protocol KeyType {
 extension KeyType {
     
     public static var zero: Self {
-        self.init([Byte].zeroed(with: Self.length))!
+        try! self.init([Byte].zeroed(with: Self.length))
     }
     
-    public init?(_ data: Data) {
-        self.init(data.bytes)
+    public init(_ data: Data) throws {
+        try self.init(data.bytes)
     }
     
     public var data: Data {
@@ -44,8 +44,8 @@ extension KeyType {
         Base58.fromBytes(bytes)
     }
     
-    public init?(base58: String) {
-        self.init(Base58.toBytes(base58))
+    public init(base58: String) throws {
+        try self.init(Base58.toBytes(base58))
     }
 }
 
@@ -57,9 +57,9 @@ public struct Key16: KeyType, Equatable, Codable, Hashable, Sendable {
     
     public let bytes: [Byte]
     
-    public init?(_ bytes: [Byte]) {
+    public init(_ bytes: [Byte]) throws {
         guard bytes.count == Self.length else {
-            return nil
+            throw KeyError.invalidKey
         }
 
         self.bytes = bytes
@@ -80,9 +80,9 @@ public struct Key32: KeyType, Equatable, Codable, Hashable, Sendable {
     
     public let bytes: [Byte]
     
-    public init?(_ bytes: [Byte]) {
+    public init(_ bytes: [Byte]) throws {
         guard bytes.count == Self.length else {
-            return nil
+            throw KeyError.invalidKey
         }
 
         self.bytes = bytes
@@ -108,10 +108,10 @@ public struct Key64: KeyType, Equatable, Codable, Hashable, Sendable {
     public static let length = 64
     
     public let bytes: [Byte]
-
-    public init?(_ bytes: [Byte]) {
+    
+    public init(_ bytes: [Byte]) throws {
         guard bytes.count == Self.length else {
-            return nil
+            throw KeyError.invalidKey
         }
 
         self.bytes = bytes
@@ -128,4 +128,8 @@ extension Key64: Identifiable {
     public var id: String {
         base58
     }
+}
+
+public enum KeyError: Swift.Error {
+    case invalidKey
 }
