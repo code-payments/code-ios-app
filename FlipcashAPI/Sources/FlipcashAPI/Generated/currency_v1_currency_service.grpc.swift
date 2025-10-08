@@ -20,6 +20,11 @@ public protocol Code_Currency_V1_CurrencyClientProtocol: GRPCClient {
     _ request: Code_Currency_V1_GetAllRatesRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>
+
+  func getMints(
+    _ request: Code_Currency_V1_GetMintsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Currency_V1_GetMintsRequest, Code_Currency_V1_GetMintsResponse>
 }
 
 extension Code_Currency_V1_CurrencyClientProtocol {
@@ -43,6 +48,24 @@ extension Code_Currency_V1_CurrencyClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
+    )
+  }
+
+  /// GetMints gets mint account metadata by address
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetMints.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getMints(
+    _ request: Code_Currency_V1_GetMintsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Currency_V1_GetMintsRequest, Code_Currency_V1_GetMintsResponse> {
+    return self.makeUnaryCall(
+      path: Code_Currency_V1_CurrencyClientMetadata.Methods.getMints.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMintsInterceptors() ?? []
     )
   }
 }
@@ -113,6 +136,11 @@ public protocol Code_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
     _ request: Code_Currency_V1_GetAllRatesRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>
+
+  func makeGetMintsCall(
+    _ request: Code_Currency_V1_GetMintsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Currency_V1_GetMintsRequest, Code_Currency_V1_GetMintsResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -136,6 +164,18 @@ extension Code_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
     )
   }
+
+  public func makeGetMintsCall(
+    _ request: Code_Currency_V1_GetMintsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Currency_V1_GetMintsRequest, Code_Currency_V1_GetMintsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Currency_V1_CurrencyClientMetadata.Methods.getMints.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMintsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -149,6 +189,18 @@ extension Code_Currency_V1_CurrencyAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
+    )
+  }
+
+  public func getMints(
+    _ request: Code_Currency_V1_GetMintsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Currency_V1_GetMintsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Currency_V1_CurrencyClientMetadata.Methods.getMints.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetMintsInterceptors() ?? []
     )
   }
 }
@@ -174,6 +226,9 @@ public protocol Code_Currency_V1_CurrencyClientInterceptorFactoryProtocol: Senda
 
   /// - Returns: Interceptors to use when invoking 'getAllRates'.
   func makeGetAllRatesInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getMints'.
+  func makeGetMintsInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetMintsRequest, Code_Currency_V1_GetMintsResponse>]
 }
 
 public enum Code_Currency_V1_CurrencyClientMetadata {
@@ -182,6 +237,7 @@ public enum Code_Currency_V1_CurrencyClientMetadata {
     fullName: "code.currency.v1.Currency",
     methods: [
       Code_Currency_V1_CurrencyClientMetadata.Methods.getAllRates,
+      Code_Currency_V1_CurrencyClientMetadata.Methods.getMints,
     ]
   )
 
@@ -189,6 +245,12 @@ public enum Code_Currency_V1_CurrencyClientMetadata {
     public static let getAllRates = GRPCMethodDescriptor(
       name: "GetAllRates",
       path: "/code.currency.v1.Currency/GetAllRates",
+      type: GRPCCallType.unary
+    )
+
+    public static let getMints = GRPCMethodDescriptor(
+      name: "GetMints",
+      path: "/code.currency.v1.Currency/GetMints",
       type: GRPCCallType.unary
     )
   }
@@ -201,6 +263,9 @@ public protocol Code_Currency_V1_CurrencyProvider: CallHandlerProvider {
   /// GetAllRates returns the exchange rates for the core mint token against all
   /// available currencies
   func getAllRates(request: Code_Currency_V1_GetAllRatesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Currency_V1_GetAllRatesResponse>
+
+  /// GetMints gets mint account metadata by address
+  func getMints(request: Code_Currency_V1_GetMintsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Currency_V1_GetMintsResponse>
 }
 
 extension Code_Currency_V1_CurrencyProvider {
@@ -224,6 +289,15 @@ extension Code_Currency_V1_CurrencyProvider {
         userFunction: self.getAllRates(request:context:)
       )
 
+    case "GetMints":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Currency_V1_GetMintsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Currency_V1_GetMintsResponse>(),
+        interceptors: self.interceptors?.makeGetMintsInterceptors() ?? [],
+        userFunction: self.getMints(request:context:)
+      )
+
     default:
       return nil
     }
@@ -242,6 +316,12 @@ public protocol Code_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Sen
     request: Code_Currency_V1_GetAllRatesRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Currency_V1_GetAllRatesResponse
+
+  /// GetMints gets mint account metadata by address
+  func getMints(
+    request: Code_Currency_V1_GetMintsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Currency_V1_GetMintsResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -272,6 +352,15 @@ extension Code_Currency_V1_CurrencyAsyncProvider {
         wrapping: { try await self.getAllRates(request: $0, context: $1) }
       )
 
+    case "GetMints":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Currency_V1_GetMintsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Currency_V1_GetMintsResponse>(),
+        interceptors: self.interceptors?.makeGetMintsInterceptors() ?? [],
+        wrapping: { try await self.getMints(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -283,6 +372,10 @@ public protocol Code_Currency_V1_CurrencyServerInterceptorFactoryProtocol: Senda
   /// - Returns: Interceptors to use when handling 'getAllRates'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetAllRatesInterceptors() -> [ServerInterceptor<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getMints'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetMintsInterceptors() -> [ServerInterceptor<Code_Currency_V1_GetMintsRequest, Code_Currency_V1_GetMintsResponse>]
 }
 
 public enum Code_Currency_V1_CurrencyServerMetadata {
@@ -291,6 +384,7 @@ public enum Code_Currency_V1_CurrencyServerMetadata {
     fullName: "code.currency.v1.Currency",
     methods: [
       Code_Currency_V1_CurrencyServerMetadata.Methods.getAllRates,
+      Code_Currency_V1_CurrencyServerMetadata.Methods.getMints,
     ]
   )
 
@@ -298,6 +392,12 @@ public enum Code_Currency_V1_CurrencyServerMetadata {
     public static let getAllRates = GRPCMethodDescriptor(
       name: "GetAllRates",
       path: "/code.currency.v1.Currency/GetAllRates",
+      type: GRPCCallType.unary
+    )
+
+    public static let getMints = GRPCMethodDescriptor(
+      name: "GetMints",
+      path: "/code.currency.v1.Currency/GetMints",
       type: GRPCCallType.unary
     )
   }

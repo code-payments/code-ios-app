@@ -67,16 +67,19 @@ enum Platform {
     GOOGLE  = 2;
 }
 
-// UsdcPaymentAmount defines an amount of USDC with currency exchange data
-message UsdcPaymentAmount {
+// CryptoPaymentAmount defines an amount of crypto with currency exchange data
+message CryptoPaymentAmount {
     // ISO 4217 alpha-3 currency code the payment was made in
     string currency = 1 [(validate.rules).string = { pattern: "^[a-z]{3,4}$" }];
 
     // The amount in the native currency that was paid
     double native_amount = 2 [(validate.rules).double.gte = 0];
 
-    // The amount in quarks of USDC that was paid
+    // The amount in quarks of crypto that was paid
     uint64 quarks = 3;
+
+    // The crypto mint that was paid
+    PublicKey mint = 4 [(validate.rules).message.required = true];
 }
 
 // FiatPaymentAmount defines an amount of fiat

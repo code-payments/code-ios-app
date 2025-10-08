@@ -31,7 +31,7 @@ message Notification {
     }];
 
     // If a payment applies, the amount that was paid
-    common.v1.UsdcPaymentAmount payment_amount = 3;
+    common.v1.CryptoPaymentAmount payment_amount = 3;
 
     // The timestamp of this notification
     google.protobuf.Timestamp ts = 4 [(validate.rules).timestamp.required = true];
@@ -41,30 +41,30 @@ message Notification {
 
     // Additional metadata for this notification specific to the notification
     oneof additional_metadata {
-        WelcomeBonusNotificationMetadata    welcome_bonus    = 5;
-        GaveUsdcNotificationMetadata        gave_usdc        = 6;
-        ReceivedUsdcNotificationMetadata    received_usdc    = 7;
-        WithdrewUsdcNotificationMetadata    withdrew_usdc    = 8;
-        SentUsdcNotificationMetadata        sent_usdc        = 9;
-        DepositedUsdcNotificationMetadata   deposited_usdc   = 11;
-        PaidUsdcNotificationMetadata        paid_usdc        = 12;
-        DistributedUsdcNotificationMetadata distributed_usdc = 13;
+        WelcomeBonusNotificationMetadata      welcome_bonus      = 5;
+        GaveCryptoNotificationMetadata        gave_crypto        = 6;
+        ReceivedCryptoNotificationMetadata    received_crypto    = 7;
+        WithdrewCryptoNotificationMetadata    withdrew_crypto    = 8;
+        SentCryptoNotificationMetadata        sent_crypto        = 9;
+        DepositedCryptoNotificationMetadata   deposited_crypto   = 11;
+        PaidCryptoNotificationMetadata        paid_crypto        = 12;
+        DistributedCryptoNotificationMetadata distributed_crypto = 13;
     }
 }
 
 message WelcomeBonusNotificationMetadata {
 }
 
-message GaveUsdcNotificationMetadata {
+message GaveCryptoNotificationMetadata {
 }
 
-message ReceivedUsdcNotificationMetadata {
+message ReceivedCryptoNotificationMetadata {
 }
 
-message WithdrewUsdcNotificationMetadata {
+message WithdrewCryptoNotificationMetadata {
 }
 
-message SentUsdcNotificationMetadata {
+message SentCryptoNotificationMetadata {
     // The vault of the gift card account that was created for the cash link
     common.v1.PublicKey vault = 1 [(validate.rules).message.required = true];
 
@@ -72,10 +72,10 @@ message SentUsdcNotificationMetadata {
     bool can_initiate_cancel_action = 2;
 }
 
-message DepositedUsdcNotificationMetadata {
+message DepositedCryptoNotificationMetadata {
 }
 
-message PaidUsdcNotificationMetadata {
+message PaidCryptoNotificationMetadata {
     oneof payment_metadata {
         option (validate.required) = true;
 
@@ -89,7 +89,7 @@ message PaidUsdcNotificationMetadata {
     }
 }
 
-message DistributedUsdcNotificationMetadata {
+message DistributedCryptoNotificationMetadata {
     oneof distribution_metadata {
         option (validate.required) = true;
 

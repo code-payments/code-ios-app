@@ -37,6 +37,32 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
             completion(.failure(error))
         }
     }
+    
+    func fetchMints(mints: [PublicKey], completion: @Sendable @escaping (Result<[PublicKey: MintMetadata], Error>) -> Void) {
+        trace(.send)
+        
+        var request = Code_Currency_V1_GetMintsRequest()
+        request.addresses = mints.map(\.solanaAccountID)
+        
+        let call = service.getMints(request)
+        call.handle(on: queue) { response in
+            var mints: [PublicKey: MintMetadata] = [:]
+            response.metadataByAddress.forEach { addressString, mint in
+                if
+                    let address = PublicKey(base58: addressString),
+                    let metadata = try? MintMetadata(mint)
+                {
+                    mints[address] = metadata
+                }
+            }
+            
+            trace(.success, components: "\(mints.count) mints")
+            completion(.success(mints))
+            
+        } failure: { error in
+            completion(.failure(error))
+        }
+    }
 }
 
 // MARK: - Types -
@@ -57,6 +83,10 @@ public enum ErrorRateHistory: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Currency_V1_CurrencyClientInterceptorFactoryProtocol {
+    func makeGetMintsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Currency_V1_GetMintsRequest, FlipcashAPI.Code_Currency_V1_GetMintsResponse>] {
+        makeInterceptors()
+    }
+    
     func makeGetAllRatesInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>] {
         makeInterceptors()
     }

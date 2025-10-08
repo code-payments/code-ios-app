@@ -613,6 +613,8 @@ public struct Code_Transaction_V2_CanWithdrawToAccountRequest {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  /// The destination account attempted to be withdrawn to. Can be an owner or
+  /// token account.
   public var account: Code_Common_V1_SolanaAccountId {
     get {return _account ?? Code_Common_V1_SolanaAccountId()}
     set {_account = newValue}
@@ -622,11 +624,24 @@ public struct Code_Transaction_V2_CanWithdrawToAccountRequest {
   /// Clears the value of `account`. Subsequent reads from it will return its default value.
   public mutating func clearAccount() {self._account = nil}
 
+  /// The mint that the withdraw will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _account: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 public struct Code_Transaction_V2_CanWithdrawToAccountResponse {
@@ -656,6 +671,8 @@ public struct Code_Transaction_V2_CanWithdrawToAccountResponse {
   /// the intent.
   ///
   /// This will be set when requires_initialization = true
+  ///
+  /// Note: The fee is always paid in the target mint.
   public var feeAmount: Code_Transaction_V2_ExchangeDataWithoutRate {
     get {return _feeAmount ?? Code_Transaction_V2_ExchangeDataWithoutRate()}
     set {_feeAmount = newValue}
@@ -1041,6 +1058,18 @@ public struct Code_Transaction_V2_OpenAccountsMetadata {
 
   public var accountSet: Code_Transaction_V2_OpenAccountsMetadata.AccountSet = .user
 
+  /// The mint that this action will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum AccountSet: SwiftProtobuf.Enum {
@@ -1076,6 +1105,8 @@ public struct Code_Transaction_V2_OpenAccountsMetadata {
   }
 
   public init() {}
+
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 #if swift(>=4.2)
@@ -1164,6 +1195,18 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   /// Is the payment going to a new gift card? Note is_withdrawal must be false.
   public var isRemoteSend: Bool = false
 
+  /// The mint that this intent will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1172,6 +1215,7 @@ public struct Code_Transaction_V2_SendPublicPaymentMetadata {
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _destinationOwner: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Receive funds into a user-owned account publicly. All use cases of this intent
@@ -1195,7 +1239,7 @@ public struct Code_Transaction_V2_ReceivePaymentsPubliclyMetadata {
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
-  /// The exact amount of core mint quarks being received
+  /// The exact amount of quarks being received
   public var quarks: UInt64 = 0
 
   /// Is the receipt of funds from a remote send gift card? Currently, this is
@@ -1214,12 +1258,25 @@ public struct Code_Transaction_V2_ReceivePaymentsPubliclyMetadata {
   /// Clears the value of `exchangeData`. Subsequent reads from it will return its default value.
   public mutating func clearExchangeData() {self._exchangeData = nil}
 
+  /// The mint that this intent will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _exchangeData: Code_Transaction_V2_ExchangeData? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Distribute funds from a pool account publicly to one or more user-owned accounts.
@@ -1250,6 +1307,18 @@ public struct Code_Transaction_V2_PublicDistributionMetadata {
 
   /// The set of distributions
   public var distributions: [Code_Transaction_V2_PublicDistributionMetadata.Distribution] = []
+
+  /// The mint that this intent will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1282,6 +1351,7 @@ public struct Code_Transaction_V2_PublicDistributionMetadata {
   public init() {}
 
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Action is a well-defined, ordered and small set of transactions or virtual instructions
@@ -1427,6 +1497,18 @@ public struct Code_Transaction_V2_OpenAccountAction {
   /// Clears the value of `authoritySignature`. Subsequent reads from it will return its default value.
   public mutating func clearAuthoritySignature() {self._authoritySignature = nil}
 
+  /// The mint that this action will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1435,6 +1517,7 @@ public struct Code_Transaction_V2_OpenAccountAction {
   fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _token: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _authoritySignature: Code_Common_V1_Signature? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Compact message signature required
@@ -1473,8 +1556,20 @@ public struct Code_Transaction_V2_NoPrivacyTransferAction {
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
-  /// The core mint quark amount to transfer
+  /// The quark amount to transfer
   public var amount: UInt64 = 0
+
+  /// The mint that this action will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1483,6 +1578,7 @@ public struct Code_Transaction_V2_NoPrivacyTransferAction {
   fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Compact message signature required
@@ -1521,7 +1617,7 @@ public struct Code_Transaction_V2_NoPrivacyWithdrawAction {
   /// Clears the value of `destination`. Subsequent reads from it will return its default value.
   public mutating func clearDestination() {self._destination = nil}
 
-  /// The intended core mint quark amount to withdraw
+  /// The quark amount to withdraw
   public var amount: UInt64 = 0
 
   /// Whether the account is closed afterwards. This is always true, since there
@@ -1533,6 +1629,18 @@ public struct Code_Transaction_V2_NoPrivacyWithdrawAction {
   /// account) that funded source.
   public var isAutoReturn: Bool = false
 
+  /// The mint that this action will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1540,6 +1648,7 @@ public struct Code_Transaction_V2_NoPrivacyWithdrawAction {
   fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _destination: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Compact message signature required
@@ -1571,8 +1680,20 @@ public struct Code_Transaction_V2_FeePaymentAction {
   /// Clears the value of `source`. Subsequent reads from it will return its default value.
   public mutating func clearSource() {self._source = nil}
 
-  /// The core mint quark amount to transfer
+  /// The quark amount to transfer
   public var amount: UInt64 = 0
+
+  /// The mint that this action will be operating against. For backwards
+  /// compatibility, if no mint is set, then it is assumed to be the core
+  /// mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -1610,6 +1731,7 @@ public struct Code_Transaction_V2_FeePaymentAction {
 
   fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
   fileprivate var _source: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 #if swift(>=4.2)
@@ -2030,9 +2152,23 @@ public struct Code_Transaction_V2_ExchangeData {
   /// truth for validating transaction transfer amounts.
   public var quarks: UInt64 = 0
 
+  /// The crypto mint that is being operated against for the exchange.
+  /// For backwards compatibility, if no mint is set, then it is assumed
+  /// to be the core mint.
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
 }
 
 public struct Code_Transaction_V2_ExchangeDataWithoutRate {
@@ -2711,6 +2847,7 @@ extension Code_Transaction_V2_CanWithdrawToAccountRequest: SwiftProtobuf.Message
   public static let protoMessageName: String = _protobuf_package + ".CanWithdrawToAccountRequest"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "account"),
+    2: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -2720,6 +2857,7 @@ extension Code_Transaction_V2_CanWithdrawToAccountRequest: SwiftProtobuf.Message
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._account) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -2733,11 +2871,15 @@ extension Code_Transaction_V2_CanWithdrawToAccountRequest: SwiftProtobuf.Message
     try { if let v = self._account {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_CanWithdrawToAccountRequest, rhs: Code_Transaction_V2_CanWithdrawToAccountRequest) -> Bool {
     if lhs._account != rhs._account {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3102,6 +3244,7 @@ extension Code_Transaction_V2_OpenAccountsMetadata: SwiftProtobuf.Message, Swift
   public static let protoMessageName: String = _protobuf_package + ".OpenAccountsMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "account_set"),
+    2: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3111,20 +3254,29 @@ extension Code_Transaction_V2_OpenAccountsMetadata: SwiftProtobuf.Message, Swift
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularEnumField(value: &self.accountSet) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if self.accountSet != .user {
       try visitor.visitSingularEnumField(value: self.accountSet, fieldNumber: 1)
     }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_OpenAccountsMetadata, rhs: Code_Transaction_V2_OpenAccountsMetadata) -> Bool {
     if lhs.accountSet != rhs.accountSet {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3146,6 +3298,7 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
     2: .standard(proto: "exchange_data"),
     3: .standard(proto: "is_withdrawal"),
     5: .standard(proto: "is_remote_send"),
+    7: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3160,6 +3313,7 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
       case 4: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.isRemoteSend) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._destinationOwner) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -3188,6 +3342,9 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
     try { if let v = self._destinationOwner {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     } }()
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3198,6 +3355,7 @@ extension Code_Transaction_V2_SendPublicPaymentMetadata: SwiftProtobuf.Message, 
     if lhs._exchangeData != rhs._exchangeData {return false}
     if lhs.isWithdrawal != rhs.isWithdrawal {return false}
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3210,6 +3368,7 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
     2: .same(proto: "quarks"),
     3: .standard(proto: "is_remote_send"),
     5: .standard(proto: "exchange_data"),
+    6: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3222,6 +3381,7 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
       case 2: try { try decoder.decodeSingularUInt64Field(value: &self.quarks) }()
       case 3: try { try decoder.decodeSingularBoolField(value: &self.isRemoteSend) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._exchangeData) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -3244,6 +3404,9 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
     try { if let v = self._exchangeData {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     } }()
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3252,6 +3415,7 @@ extension Code_Transaction_V2_ReceivePaymentsPubliclyMetadata: SwiftProtobuf.Mes
     if lhs.quarks != rhs.quarks {return false}
     if lhs.isRemoteSend != rhs.isRemoteSend {return false}
     if lhs._exchangeData != rhs._exchangeData {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3262,6 +3426,7 @@ extension Code_Transaction_V2_PublicDistributionMetadata: SwiftProtobuf.Message,
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "source"),
     2: .same(proto: "distributions"),
+    3: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3272,6 +3437,7 @@ extension Code_Transaction_V2_PublicDistributionMetadata: SwiftProtobuf.Message,
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       case 2: try { try decoder.decodeRepeatedMessageField(value: &self.distributions) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -3288,12 +3454,16 @@ extension Code_Transaction_V2_PublicDistributionMetadata: SwiftProtobuf.Message,
     if !self.distributions.isEmpty {
       try visitor.visitRepeatedMessageField(value: self.distributions, fieldNumber: 2)
     }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
   public static func ==(lhs: Code_Transaction_V2_PublicDistributionMetadata, rhs: Code_Transaction_V2_PublicDistributionMetadata) -> Bool {
     if lhs._source != rhs._source {return false}
     if lhs.distributions != rhs.distributions {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3462,6 +3632,7 @@ extension Code_Transaction_V2_OpenAccountAction: SwiftProtobuf.Message, SwiftPro
     4: .same(proto: "authority"),
     5: .same(proto: "token"),
     6: .standard(proto: "authority_signature"),
+    7: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3476,6 +3647,7 @@ extension Code_Transaction_V2_OpenAccountAction: SwiftProtobuf.Message, SwiftPro
       case 4: try { try decoder.decodeSingularMessageField(value: &self._authority) }()
       case 5: try { try decoder.decodeSingularMessageField(value: &self._token) }()
       case 6: try { try decoder.decodeSingularMessageField(value: &self._authoritySignature) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -3504,6 +3676,9 @@ extension Code_Transaction_V2_OpenAccountAction: SwiftProtobuf.Message, SwiftPro
     try { if let v = self._authoritySignature {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     } }()
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3514,6 +3689,7 @@ extension Code_Transaction_V2_OpenAccountAction: SwiftProtobuf.Message, SwiftPro
     if lhs._authority != rhs._authority {return false}
     if lhs._token != rhs._token {return false}
     if lhs._authoritySignature != rhs._authoritySignature {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3526,6 +3702,7 @@ extension Code_Transaction_V2_NoPrivacyTransferAction: SwiftProtobuf.Message, Sw
     2: .same(proto: "source"),
     3: .same(proto: "destination"),
     4: .same(proto: "amount"),
+    5: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3538,6 +3715,7 @@ extension Code_Transaction_V2_NoPrivacyTransferAction: SwiftProtobuf.Message, Sw
       case 2: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._destination) }()
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.amount) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -3560,6 +3738,9 @@ extension Code_Transaction_V2_NoPrivacyTransferAction: SwiftProtobuf.Message, Sw
     if self.amount != 0 {
       try visitor.visitSingularUInt64Field(value: self.amount, fieldNumber: 4)
     }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3568,6 +3749,7 @@ extension Code_Transaction_V2_NoPrivacyTransferAction: SwiftProtobuf.Message, Sw
     if lhs._source != rhs._source {return false}
     if lhs._destination != rhs._destination {return false}
     if lhs.amount != rhs.amount {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3582,6 +3764,7 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
     4: .same(proto: "amount"),
     5: .standard(proto: "should_close"),
     6: .standard(proto: "is_auto_return"),
+    7: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3596,6 +3779,7 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.amount) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.shouldClose) }()
       case 6: try { try decoder.decodeSingularBoolField(value: &self.isAutoReturn) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -3624,6 +3808,9 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
     if self.isAutoReturn != false {
       try visitor.visitSingularBoolField(value: self.isAutoReturn, fieldNumber: 6)
     }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3634,6 +3821,7 @@ extension Code_Transaction_V2_NoPrivacyWithdrawAction: SwiftProtobuf.Message, Sw
     if lhs.amount != rhs.amount {return false}
     if lhs.shouldClose != rhs.shouldClose {return false}
     if lhs.isAutoReturn != rhs.isAutoReturn {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -3646,6 +3834,7 @@ extension Code_Transaction_V2_FeePaymentAction: SwiftProtobuf.Message, SwiftProt
     2: .same(proto: "authority"),
     3: .same(proto: "source"),
     4: .same(proto: "amount"),
+    5: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -3658,6 +3847,7 @@ extension Code_Transaction_V2_FeePaymentAction: SwiftProtobuf.Message, SwiftProt
       case 2: try { try decoder.decodeSingularMessageField(value: &self._authority) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._source) }()
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.amount) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
@@ -3680,6 +3870,9 @@ extension Code_Transaction_V2_FeePaymentAction: SwiftProtobuf.Message, SwiftProt
     if self.amount != 0 {
       try visitor.visitSingularUInt64Field(value: self.amount, fieldNumber: 4)
     }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -3688,6 +3881,7 @@ extension Code_Transaction_V2_FeePaymentAction: SwiftProtobuf.Message, SwiftProt
     if lhs._authority != rhs._authority {return false}
     if lhs._source != rhs._source {return false}
     if lhs.amount != rhs.amount {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -4201,6 +4395,7 @@ extension Code_Transaction_V2_ExchangeData: SwiftProtobuf.Message, SwiftProtobuf
     2: .standard(proto: "exchange_rate"),
     3: .standard(proto: "native_amount"),
     4: .same(proto: "quarks"),
+    5: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -4213,12 +4408,17 @@ extension Code_Transaction_V2_ExchangeData: SwiftProtobuf.Message, SwiftProtobuf
       case 2: try { try decoder.decodeSingularDoubleField(value: &self.exchangeRate) }()
       case 3: try { try decoder.decodeSingularDoubleField(value: &self.nativeAmount) }()
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.quarks) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.currency.isEmpty {
       try visitor.visitSingularStringField(value: self.currency, fieldNumber: 1)
     }
@@ -4231,6 +4431,9 @@ extension Code_Transaction_V2_ExchangeData: SwiftProtobuf.Message, SwiftProtobuf
     if self.quarks != 0 {
       try visitor.visitSingularUInt64Field(value: self.quarks, fieldNumber: 4)
     }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -4239,6 +4442,7 @@ extension Code_Transaction_V2_ExchangeData: SwiftProtobuf.Message, SwiftProtobuf
     if lhs.exchangeRate != rhs.exchangeRate {return false}
     if lhs.nativeAmount != rhs.nativeAmount {return false}
     if lhs.quarks != rhs.quarks {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

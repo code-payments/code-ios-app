@@ -147,8 +147,8 @@ public struct Flipcash_Activity_V1_Notification {
   public var localizedText: String = String()
 
   /// If a payment applies, the amount that was paid
-  public var paymentAmount: Flipcash_Common_V1_UsdcPaymentAmount {
-    get {return _paymentAmount ?? Flipcash_Common_V1_UsdcPaymentAmount()}
+  public var paymentAmount: Flipcash_Common_V1_CryptoPaymentAmount {
+    get {return _paymentAmount ?? Flipcash_Common_V1_CryptoPaymentAmount()}
     set {_paymentAmount = newValue}
   }
   /// Returns true if `paymentAmount` has been explicitly set.
@@ -180,60 +180,60 @@ public struct Flipcash_Activity_V1_Notification {
     set {additionalMetadata = .welcomeBonus(newValue)}
   }
 
-  public var gaveUsdc: Flipcash_Activity_V1_GaveUsdcNotificationMetadata {
+  public var gaveCrypto: Flipcash_Activity_V1_GaveCryptoNotificationMetadata {
     get {
-      if case .gaveUsdc(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_GaveUsdcNotificationMetadata()
+      if case .gaveCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_GaveCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .gaveUsdc(newValue)}
+    set {additionalMetadata = .gaveCrypto(newValue)}
   }
 
-  public var receivedUsdc: Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata {
+  public var receivedCrypto: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata {
     get {
-      if case .receivedUsdc(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata()
+      if case .receivedCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .receivedUsdc(newValue)}
+    set {additionalMetadata = .receivedCrypto(newValue)}
   }
 
-  public var withdrewUsdc: Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata {
+  public var withdrewCrypto: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata {
     get {
-      if case .withdrewUsdc(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata()
+      if case .withdrewCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .withdrewUsdc(newValue)}
+    set {additionalMetadata = .withdrewCrypto(newValue)}
   }
 
-  public var sentUsdc: Flipcash_Activity_V1_SentUsdcNotificationMetadata {
+  public var sentCrypto: Flipcash_Activity_V1_SentCryptoNotificationMetadata {
     get {
-      if case .sentUsdc(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_SentUsdcNotificationMetadata()
+      if case .sentCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_SentCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .sentUsdc(newValue)}
+    set {additionalMetadata = .sentCrypto(newValue)}
   }
 
-  public var depositedUsdc: Flipcash_Activity_V1_DepositedUsdcNotificationMetadata {
+  public var depositedCrypto: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata {
     get {
-      if case .depositedUsdc(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_DepositedUsdcNotificationMetadata()
+      if case .depositedCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_DepositedCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .depositedUsdc(newValue)}
+    set {additionalMetadata = .depositedCrypto(newValue)}
   }
 
-  public var paidUsdc: Flipcash_Activity_V1_PaidUsdcNotificationMetadata {
+  public var paidCrypto: Flipcash_Activity_V1_PaidCryptoNotificationMetadata {
     get {
-      if case .paidUsdc(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_PaidUsdcNotificationMetadata()
+      if case .paidCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_PaidCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .paidUsdc(newValue)}
+    set {additionalMetadata = .paidCrypto(newValue)}
   }
 
-  public var distributedUsdc: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata {
+  public var distributedCrypto: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata {
     get {
-      if case .distributedUsdc(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_DistributedUsdcNotificationMetadata()
+      if case .distributedCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_DistributedCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .distributedUsdc(newValue)}
+    set {additionalMetadata = .distributedCrypto(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -241,13 +241,13 @@ public struct Flipcash_Activity_V1_Notification {
   /// Additional metadata for this notification specific to the notification
   public enum OneOf_AdditionalMetadata: Equatable {
     case welcomeBonus(Flipcash_Activity_V1_WelcomeBonusNotificationMetadata)
-    case gaveUsdc(Flipcash_Activity_V1_GaveUsdcNotificationMetadata)
-    case receivedUsdc(Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata)
-    case withdrewUsdc(Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata)
-    case sentUsdc(Flipcash_Activity_V1_SentUsdcNotificationMetadata)
-    case depositedUsdc(Flipcash_Activity_V1_DepositedUsdcNotificationMetadata)
-    case paidUsdc(Flipcash_Activity_V1_PaidUsdcNotificationMetadata)
-    case distributedUsdc(Flipcash_Activity_V1_DistributedUsdcNotificationMetadata)
+    case gaveCrypto(Flipcash_Activity_V1_GaveCryptoNotificationMetadata)
+    case receivedCrypto(Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata)
+    case withdrewCrypto(Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata)
+    case sentCrypto(Flipcash_Activity_V1_SentCryptoNotificationMetadata)
+    case depositedCrypto(Flipcash_Activity_V1_DepositedCryptoNotificationMetadata)
+    case paidCrypto(Flipcash_Activity_V1_PaidCryptoNotificationMetadata)
+    case distributedCrypto(Flipcash_Activity_V1_DistributedCryptoNotificationMetadata)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata, rhs: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata) -> Bool {
@@ -259,32 +259,32 @@ public struct Flipcash_Activity_V1_Notification {
         guard case .welcomeBonus(let l) = lhs, case .welcomeBonus(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.gaveUsdc, .gaveUsdc): return {
-        guard case .gaveUsdc(let l) = lhs, case .gaveUsdc(let r) = rhs else { preconditionFailure() }
+      case (.gaveCrypto, .gaveCrypto): return {
+        guard case .gaveCrypto(let l) = lhs, case .gaveCrypto(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.receivedUsdc, .receivedUsdc): return {
-        guard case .receivedUsdc(let l) = lhs, case .receivedUsdc(let r) = rhs else { preconditionFailure() }
+      case (.receivedCrypto, .receivedCrypto): return {
+        guard case .receivedCrypto(let l) = lhs, case .receivedCrypto(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.withdrewUsdc, .withdrewUsdc): return {
-        guard case .withdrewUsdc(let l) = lhs, case .withdrewUsdc(let r) = rhs else { preconditionFailure() }
+      case (.withdrewCrypto, .withdrewCrypto): return {
+        guard case .withdrewCrypto(let l) = lhs, case .withdrewCrypto(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.sentUsdc, .sentUsdc): return {
-        guard case .sentUsdc(let l) = lhs, case .sentUsdc(let r) = rhs else { preconditionFailure() }
+      case (.sentCrypto, .sentCrypto): return {
+        guard case .sentCrypto(let l) = lhs, case .sentCrypto(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.depositedUsdc, .depositedUsdc): return {
-        guard case .depositedUsdc(let l) = lhs, case .depositedUsdc(let r) = rhs else { preconditionFailure() }
+      case (.depositedCrypto, .depositedCrypto): return {
+        guard case .depositedCrypto(let l) = lhs, case .depositedCrypto(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.paidUsdc, .paidUsdc): return {
-        guard case .paidUsdc(let l) = lhs, case .paidUsdc(let r) = rhs else { preconditionFailure() }
+      case (.paidCrypto, .paidCrypto): return {
+        guard case .paidCrypto(let l) = lhs, case .paidCrypto(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
-      case (.distributedUsdc, .distributedUsdc): return {
-        guard case .distributedUsdc(let l) = lhs, case .distributedUsdc(let r) = rhs else { preconditionFailure() }
+      case (.distributedCrypto, .distributedCrypto): return {
+        guard case .distributedCrypto(let l) = lhs, case .distributedCrypto(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -296,7 +296,7 @@ public struct Flipcash_Activity_V1_Notification {
   public init() {}
 
   fileprivate var _id: Flipcash_Activity_V1_NotificationId? = nil
-  fileprivate var _paymentAmount: Flipcash_Common_V1_UsdcPaymentAmount? = nil
+  fileprivate var _paymentAmount: Flipcash_Common_V1_CryptoPaymentAmount? = nil
   fileprivate var _ts: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 }
 
@@ -310,7 +310,7 @@ public struct Flipcash_Activity_V1_WelcomeBonusNotificationMetadata {
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_GaveUsdcNotificationMetadata {
+public struct Flipcash_Activity_V1_GaveCryptoNotificationMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -320,7 +320,7 @@ public struct Flipcash_Activity_V1_GaveUsdcNotificationMetadata {
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata {
+public struct Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -330,7 +330,7 @@ public struct Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata {
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata {
+public struct Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -340,7 +340,7 @@ public struct Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata {
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_SentUsdcNotificationMetadata {
+public struct Flipcash_Activity_V1_SentCryptoNotificationMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -365,7 +365,7 @@ public struct Flipcash_Activity_V1_SentUsdcNotificationMetadata {
   fileprivate var _vault: Flipcash_Common_V1_PublicKey? = nil
 }
 
-public struct Flipcash_Activity_V1_DepositedUsdcNotificationMetadata {
+public struct Flipcash_Activity_V1_DepositedCryptoNotificationMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -375,17 +375,17 @@ public struct Flipcash_Activity_V1_DepositedUsdcNotificationMetadata {
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_PaidUsdcNotificationMetadata {
+public struct Flipcash_Activity_V1_PaidCryptoNotificationMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var paymentMetadata: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata? = nil
+  public var paymentMetadata: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.OneOf_PaymentMetadata? = nil
 
-  public var pool: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata {
+  public var pool: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata {
     get {
       if case .pool(let v)? = paymentMetadata {return v}
-      return Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata()
+      return Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata()
     }
     set {paymentMetadata = .pool(newValue)}
   }
@@ -393,10 +393,10 @@ public struct Flipcash_Activity_V1_PaidUsdcNotificationMetadata {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_PaymentMetadata: Equatable {
-    case pool(Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata)
+    case pool(Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata)
 
   #if !swift(>=4.1)
-    public static func ==(lhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata, rhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata) -> Bool {
+    public static func ==(lhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.OneOf_PaymentMetadata, rhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.OneOf_PaymentMetadata) -> Bool {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
@@ -436,17 +436,17 @@ public struct Flipcash_Activity_V1_PaidUsdcNotificationMetadata {
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_DistributedUsdcNotificationMetadata {
+public struct Flipcash_Activity_V1_DistributedCryptoNotificationMetadata {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var distributionMetadata: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata? = nil
+  public var distributionMetadata: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.OneOf_DistributionMetadata? = nil
 
-  public var pool: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata {
+  public var pool: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata {
     get {
       if case .pool(let v)? = distributionMetadata {return v}
-      return Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata()
+      return Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata()
     }
     set {distributionMetadata = .pool(newValue)}
   }
@@ -454,10 +454,10 @@ public struct Flipcash_Activity_V1_DistributedUsdcNotificationMetadata {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_DistributionMetadata: Equatable {
-    case pool(Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata)
+    case pool(Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata)
 
   #if !swift(>=4.1)
-    public static func ==(lhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata, rhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata) -> Bool {
+    public static func ==(lhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.OneOf_DistributionMetadata, rhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.OneOf_DistributionMetadata) -> Bool {
       // The use of inline closures is to circumvent an issue where the compiler
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
@@ -508,17 +508,17 @@ extension Flipcash_Activity_V1_NotificationId: @unchecked Sendable {}
 extension Flipcash_Activity_V1_Notification: @unchecked Sendable {}
 extension Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata: @unchecked Sendable {}
 extension Flipcash_Activity_V1_WelcomeBonusNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_GaveUsdcNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_SentUsdcNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_DepositedUsdcNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata.OneOf_PaymentMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.OneOf_DistributionMetadata: @unchecked Sendable {}
-extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_GaveCryptoNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_SentCryptoNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_DepositedCryptoNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_PaidCryptoNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_PaidCryptoNotificationMetadata.OneOf_PaymentMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_DistributedCryptoNotificationMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.OneOf_DistributionMetadata: @unchecked Sendable {}
+extension Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -581,13 +581,13 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     4: .same(proto: "ts"),
     10: .same(proto: "state"),
     5: .standard(proto: "welcome_bonus"),
-    6: .standard(proto: "gave_usdc"),
-    7: .standard(proto: "received_usdc"),
-    8: .standard(proto: "withdrew_usdc"),
-    9: .standard(proto: "sent_usdc"),
-    11: .standard(proto: "deposited_usdc"),
-    12: .standard(proto: "paid_usdc"),
-    13: .standard(proto: "distributed_usdc"),
+    6: .standard(proto: "gave_crypto"),
+    7: .standard(proto: "received_crypto"),
+    8: .standard(proto: "withdrew_crypto"),
+    9: .standard(proto: "sent_crypto"),
+    11: .standard(proto: "deposited_crypto"),
+    12: .standard(proto: "paid_crypto"),
+    13: .standard(proto: "distributed_crypto"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -614,95 +614,95 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
         }
       }()
       case 6: try {
-        var v: Flipcash_Activity_V1_GaveUsdcNotificationMetadata?
+        var v: Flipcash_Activity_V1_GaveCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .gaveUsdc(let m) = current {v = m}
+          if case .gaveCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .gaveUsdc(v)
+          self.additionalMetadata = .gaveCrypto(v)
         }
       }()
       case 7: try {
-        var v: Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata?
+        var v: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .receivedUsdc(let m) = current {v = m}
+          if case .receivedCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .receivedUsdc(v)
+          self.additionalMetadata = .receivedCrypto(v)
         }
       }()
       case 8: try {
-        var v: Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata?
+        var v: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .withdrewUsdc(let m) = current {v = m}
+          if case .withdrewCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .withdrewUsdc(v)
+          self.additionalMetadata = .withdrewCrypto(v)
         }
       }()
       case 9: try {
-        var v: Flipcash_Activity_V1_SentUsdcNotificationMetadata?
+        var v: Flipcash_Activity_V1_SentCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .sentUsdc(let m) = current {v = m}
+          if case .sentCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .sentUsdc(v)
+          self.additionalMetadata = .sentCrypto(v)
         }
       }()
       case 10: try { try decoder.decodeSingularEnumField(value: &self.state) }()
       case 11: try {
-        var v: Flipcash_Activity_V1_DepositedUsdcNotificationMetadata?
+        var v: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .depositedUsdc(let m) = current {v = m}
+          if case .depositedCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .depositedUsdc(v)
+          self.additionalMetadata = .depositedCrypto(v)
         }
       }()
       case 12: try {
-        var v: Flipcash_Activity_V1_PaidUsdcNotificationMetadata?
+        var v: Flipcash_Activity_V1_PaidCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .paidUsdc(let m) = current {v = m}
+          if case .paidCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .paidUsdc(v)
+          self.additionalMetadata = .paidCrypto(v)
         }
       }()
       case 13: try {
-        var v: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata?
+        var v: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .distributedUsdc(let m) = current {v = m}
+          if case .distributedCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .distributedUsdc(v)
+          self.additionalMetadata = .distributedCrypto(v)
         }
       }()
       default: break
@@ -732,20 +732,20 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
       guard case .welcomeBonus(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
-    case .gaveUsdc?: try {
-      guard case .gaveUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .gaveCrypto?: try {
+      guard case .gaveCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
-    case .receivedUsdc?: try {
-      guard case .receivedUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .receivedCrypto?: try {
+      guard case .receivedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     }()
-    case .withdrewUsdc?: try {
-      guard case .withdrewUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .withdrewCrypto?: try {
+      guard case .withdrewCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     }()
-    case .sentUsdc?: try {
-      guard case .sentUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .sentCrypto?: try {
+      guard case .sentCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     }()
     default: break
@@ -754,16 +754,16 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
       try visitor.visitSingularEnumField(value: self.state, fieldNumber: 10)
     }
     switch self.additionalMetadata {
-    case .depositedUsdc?: try {
-      guard case .depositedUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .depositedCrypto?: try {
+      guard case .depositedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
     }()
-    case .paidUsdc?: try {
-      guard case .paidUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .paidCrypto?: try {
+      guard case .paidCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
     }()
-    case .distributedUsdc?: try {
-      guard case .distributedUsdc(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .distributedCrypto?: try {
+      guard case .distributedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
     }()
     default: break
@@ -802,8 +802,8 @@ extension Flipcash_Activity_V1_WelcomeBonusNotificationMetadata: SwiftProtobuf.M
   }
 }
 
-extension Flipcash_Activity_V1_GaveUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GaveUsdcNotificationMetadata"
+extension Flipcash_Activity_V1_GaveCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GaveCryptoNotificationMetadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -815,14 +815,14 @@ extension Flipcash_Activity_V1_GaveUsdcNotificationMetadata: SwiftProtobuf.Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_GaveUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_GaveUsdcNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_GaveCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_GaveCryptoNotificationMetadata) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".ReceivedUsdcNotificationMetadata"
+extension Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReceivedCryptoNotificationMetadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -834,14 +834,14 @@ extension Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata: SwiftProtobuf.M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_ReceivedUsdcNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".WithdrewUsdcNotificationMetadata"
+extension Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".WithdrewCryptoNotificationMetadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -853,14 +853,14 @@ extension Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata: SwiftProtobuf.M
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_WithdrewUsdcNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_SentUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".SentUsdcNotificationMetadata"
+extension Flipcash_Activity_V1_SentCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SentCryptoNotificationMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "vault"),
     2: .standard(proto: "can_initiate_cancel_action"),
@@ -893,7 +893,7 @@ extension Flipcash_Activity_V1_SentUsdcNotificationMetadata: SwiftProtobuf.Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_SentUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_SentUsdcNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_SentCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_SentCryptoNotificationMetadata) -> Bool {
     if lhs._vault != rhs._vault {return false}
     if lhs.canInitiateCancelAction != rhs.canInitiateCancelAction {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -901,8 +901,8 @@ extension Flipcash_Activity_V1_SentUsdcNotificationMetadata: SwiftProtobuf.Messa
   }
 }
 
-extension Flipcash_Activity_V1_DepositedUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DepositedUsdcNotificationMetadata"
+extension Flipcash_Activity_V1_DepositedCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DepositedCryptoNotificationMetadata"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -914,14 +914,14 @@ extension Flipcash_Activity_V1_DepositedUsdcNotificationMetadata: SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_DepositedUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_DepositedUsdcNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata) -> Bool {
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".PaidUsdcNotificationMetadata"
+extension Flipcash_Activity_V1_PaidCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PaidCryptoNotificationMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "pool"),
   ]
@@ -933,7 +933,7 @@ extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata: SwiftProtobuf.Messa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata?
+        var v: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata?
         var hadOneofValue = false
         if let current = self.paymentMetadata {
           hadOneofValue = true
@@ -961,15 +961,15 @@ extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata: SwiftProtobuf.Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata) -> Bool {
     if lhs.paymentMetadata != rhs.paymentMetadata {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipcash_Activity_V1_PaidUsdcNotificationMetadata.protoMessageName + ".PoolPaymentMetadata"
+extension Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Activity_V1_PaidCryptoNotificationMetadata.protoMessageName + ".PoolPaymentMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "pool_id"),
   ]
@@ -997,15 +997,15 @@ extension Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata:
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata, rhs: Flipcash_Activity_V1_PaidUsdcNotificationMetadata.PoolPaymentMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata, rhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata) -> Bool {
     if lhs._poolID != rhs._poolID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".DistributedUsdcNotificationMetadata"
+extension Flipcash_Activity_V1_DistributedCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DistributedCryptoNotificationMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "pool"),
   ]
@@ -1017,7 +1017,7 @@ extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata: SwiftProtobu
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata?
+        var v: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata?
         var hadOneofValue = false
         if let current = self.distributionMetadata {
           hadOneofValue = true
@@ -1045,15 +1045,15 @@ extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata: SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata, rhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata) -> Bool {
     if lhs.distributionMetadata != rhs.distributionMetadata {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.protoMessageName + ".PoolDistributionMetadata"
+extension Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.protoMessageName + ".PoolDistributionMetadata"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .standard(proto: "pool_id"),
     2: .same(proto: "outcome"),
@@ -1086,7 +1086,7 @@ extension Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistribut
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata, rhs: Flipcash_Activity_V1_DistributedUsdcNotificationMetadata.PoolDistributionMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata, rhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata) -> Bool {
     if lhs._poolID != rhs._poolID {return false}
     if lhs.outcome != rhs.outcome {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}

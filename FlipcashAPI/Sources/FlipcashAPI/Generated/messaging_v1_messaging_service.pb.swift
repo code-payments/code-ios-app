@@ -430,8 +430,8 @@ public struct Code_Messaging_V1_RequestToGrabBill {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// Requestor is the virtual core mint token account on the VM to which a
-  /// payment should be sent.
+  /// Requestor is the virtual token account on the VM to which a payment
+  /// should be sent.
   public var requestorAccount: Code_Common_V1_SolanaAccountId {
     get {return _requestorAccount ?? Code_Common_V1_SolanaAccountId()}
     set {_requestorAccount = newValue}

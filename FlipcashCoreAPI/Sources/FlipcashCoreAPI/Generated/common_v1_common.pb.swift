@@ -194,8 +194,8 @@ public struct Flipcash_Common_V1_AppInstallId {
   public init() {}
 }
 
-/// UsdcPaymentAmount defines an amount of USDC with currency exchange data
-public struct Flipcash_Common_V1_UsdcPaymentAmount {
+/// CryptoPaymentAmount defines an amount of crypto with currency exchange data
+public struct Flipcash_Common_V1_CryptoPaymentAmount {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -206,12 +206,24 @@ public struct Flipcash_Common_V1_UsdcPaymentAmount {
   /// The amount in the native currency that was paid
   public var nativeAmount: Double = 0
 
-  /// The amount in quarks of USDC that was paid
+  /// The amount in quarks of crypto that was paid
   public var quarks: UInt64 = 0
+
+  /// The crypto mint that was paid
+  public var mint: Flipcash_Common_V1_PublicKey {
+    get {return _mint ?? Flipcash_Common_V1_PublicKey()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+
+  fileprivate var _mint: Flipcash_Common_V1_PublicKey? = nil
 }
 
 /// FiatPaymentAmount defines an amount of fiat
@@ -413,7 +425,7 @@ extension Flipcash_Common_V1_Auth.OneOf_Kind: @unchecked Sendable {}
 extension Flipcash_Common_V1_Auth.KeyPair: @unchecked Sendable {}
 extension Flipcash_Common_V1_UserId: @unchecked Sendable {}
 extension Flipcash_Common_V1_AppInstallId: @unchecked Sendable {}
-extension Flipcash_Common_V1_UsdcPaymentAmount: @unchecked Sendable {}
+extension Flipcash_Common_V1_CryptoPaymentAmount: @unchecked Sendable {}
 extension Flipcash_Common_V1_FiatPaymentAmount: @unchecked Sendable {}
 extension Flipcash_Common_V1_PagingToken: @unchecked Sendable {}
 extension Flipcash_Common_V1_QueryOptions: @unchecked Sendable {}
@@ -654,12 +666,13 @@ extension Flipcash_Common_V1_AppInstallId: SwiftProtobuf.Message, SwiftProtobuf.
   }
 }
 
-extension Flipcash_Common_V1_UsdcPaymentAmount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".UsdcPaymentAmount"
+extension Flipcash_Common_V1_CryptoPaymentAmount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CryptoPaymentAmount"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "currency"),
     2: .standard(proto: "native_amount"),
     3: .same(proto: "quarks"),
+    4: .same(proto: "mint"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -671,12 +684,17 @@ extension Flipcash_Common_V1_UsdcPaymentAmount: SwiftProtobuf.Message, SwiftProt
       case 1: try { try decoder.decodeSingularStringField(value: &self.currency) }()
       case 2: try { try decoder.decodeSingularDoubleField(value: &self.nativeAmount) }()
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.quarks) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if !self.currency.isEmpty {
       try visitor.visitSingularStringField(value: self.currency, fieldNumber: 1)
     }
@@ -686,13 +704,17 @@ extension Flipcash_Common_V1_UsdcPaymentAmount: SwiftProtobuf.Message, SwiftProt
     if self.quarks != 0 {
       try visitor.visitSingularUInt64Field(value: self.quarks, fieldNumber: 3)
     }
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Common_V1_UsdcPaymentAmount, rhs: Flipcash_Common_V1_UsdcPaymentAmount) -> Bool {
+  public static func ==(lhs: Flipcash_Common_V1_CryptoPaymentAmount, rhs: Flipcash_Common_V1_CryptoPaymentAmount) -> Bool {
     if lhs.currency != rhs.currency {return false}
     if lhs.nativeAmount != rhs.nativeAmount {return false}
     if lhs.quarks != rhs.quarks {return false}
+    if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

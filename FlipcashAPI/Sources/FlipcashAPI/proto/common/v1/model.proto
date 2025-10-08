@@ -12,26 +12,25 @@ import "validate/validate.proto";
 
 // AccountType associates a type to an account, which infers how an account is used
 // within the Code ecosystem.
-//
-// todo: Deprecate legacy accounts (temporary, buckets, legacy primary, relationship, swap)
 enum AccountType {
     UNKNOWN                  = 0;
     PRIMARY                  = 1;
-    TEMPORARY_INCOMING       = 2;
-    TEMPORARY_OUTGOING       = 3;
-    BUCKET_1_KIN             = 4;
-    BUCKET_10_KIN            = 5;
-    BUCKET_100_KIN           = 6;
-    BUCKET_1_000_KIN         = 7;
-    BUCKET_10_000_KIN        = 8;
-    BUCKET_100_000_KIN       = 9;
-    BUCKET_1_000_000_KIN     = 10;
-    LEGACY_PRIMARY_2022      = 11;
     REMOTE_SEND_GIFT_CARD    = 12;
-    RELATIONSHIP             = 13;
     SWAP                     = 14;
     ASSOCIATED_TOKEN_ACCOUNT = 15;
     POOL                     = 16;
+
+    reserved 2;  // Deprecated TEMPORARY_INCOMING
+    reserved 3;  // Deprecated TEMPORARY_OUTGOING
+    reserved 4;  // Deprecated BUCKET_1_KIN
+    reserved 5;  // Deprecated BUCKET_10_KIN
+    reserved 6;  // Deprecated BUCKET_100_KIN
+    reserved 7;  // Deprecated BUCKET_1_000_KIN
+    reserved 8;  // Deprecated BUCKET_10_000_KIN
+    reserved 9;  // Deprecated BUCKET_100_000_KIN
+    reserved 10; // Deprecated BUCKET_1_000_000_KIN
+    reserved 11; // Deprecated LEGACY_PRIMARY_2022
+    reserved 13; // Deprecated RELATIONSHIP
 }
 
 // SolanaAccountId is a raw binary Ed25519 public key for a Solana account

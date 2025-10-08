@@ -180,8 +180,8 @@ message MessageId {
 //
 // This message type is only initiated by clients.
 message RequestToGrabBill {
-    // Requestor is the virtual core mint token account on the VM to which a
-    // payment should be sent.
+    // Requestor is the virtual token account on the VM to which a payment
+    // should be sent.
     common.v1.SolanaAccountId requestor_account = 1 [(validate.rules).message.required = true];
 }
 

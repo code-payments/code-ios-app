@@ -117,7 +117,7 @@ public struct UserFlags: Sendable {
     }
     
     public var hasOtherCryptoWallets: Bool {
-        onrampProviders.contains(.cryptoWallet)
+        onrampProviders.contains(.manualDeposit)
     }
 }
 
@@ -127,8 +127,11 @@ extension UserFlags {
         case coinbaseVirtual
         case coinbasePhysicalDebit
         case coinbasePhysicalCredit
-        case cryptoWallet
+        case manualDeposit
         case phantom
+        case solflare
+        case backpack
+        case base
     }
         
     init(_ proto: Flipcash_Account_V1_UserFlags) {
@@ -152,10 +155,16 @@ extension UserFlags.OnRampProvider {
             self = .coinbasePhysicalDebit
         case .coinbasePhysicalCredit:
             self = .coinbasePhysicalCredit
-        case .cryptoWallet:
-            self = .cryptoWallet
+        case .manualDeposit:
+            self = .manualDeposit
         case .phantom:
             self = .phantom
+        case .solflare:
+            self = .solflare
+        case .backpack:
+            self = .backpack
+        case .base:
+            self = .base
         case .UNRECOGNIZED:
             self = .unknown
         }

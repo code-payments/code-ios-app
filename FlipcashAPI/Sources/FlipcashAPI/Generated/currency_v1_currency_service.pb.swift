@@ -114,10 +114,293 @@ extension Code_Currency_V1_GetAllRatesResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Code_Currency_V1_GetMintsRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var addresses: [Code_Common_V1_SolanaAccountId] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Code_Currency_V1_GetMintsResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Code_Currency_V1_GetMintsResponse.Result = .ok
+
+  public var metadataByAddress: Dictionary<String,Code_Currency_V1_Mint> = [:]
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case notFound // = 1
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      case 1: self = .notFound
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .notFound: return 1
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+}
+
+#if swift(>=4.2)
+
+extension Code_Currency_V1_GetMintsResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Code_Currency_V1_GetMintsResponse.Result] = [
+    .ok,
+    .notFound,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
+public struct Code_Currency_V1_Mint {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Token mint address
+  public var address: Code_Common_V1_SolanaAccountId {
+    get {return _storage._address ?? Code_Common_V1_SolanaAccountId()}
+    set {_uniqueStorage()._address = newValue}
+  }
+  /// Returns true if `address` has been explicitly set.
+  public var hasAddress: Bool {return _storage._address != nil}
+  /// Clears the value of `address`. Subsequent reads from it will return its default value.
+  public mutating func clearAddress() {_uniqueStorage()._address = nil}
+
+  /// The number of decimals configured for the mint
+  public var decimals: UInt32 {
+    get {return _storage._decimals}
+    set {_uniqueStorage()._decimals = newValue}
+  }
+
+  /// Currency name
+  public var name: String {
+    get {return _storage._name}
+    set {_uniqueStorage()._name = newValue}
+  }
+
+  /// Currency ticker symbol
+  public var symbol: String {
+    get {return _storage._symbol}
+    set {_uniqueStorage()._symbol = newValue}
+  }
+
+  /// Currency description
+  public var description_p: String {
+    get {return _storage._description_p}
+    set {_uniqueStorage()._description_p = newValue}
+  }
+
+  /// URL to currency image
+  public var imageURL: String {
+    get {return _storage._imageURL}
+    set {_uniqueStorage()._imageURL = newValue}
+  }
+
+  /// Available when a VM exists for the given mint, and can be used for deriving
+  /// VM deposit PDAs
+  ///
+  /// Note: Only currencies with a VM are useable for payments
+  public var vmMetadata: Code_Currency_V1_VmMetadata {
+    get {return _storage._vmMetadata ?? Code_Currency_V1_VmMetadata()}
+    set {_uniqueStorage()._vmMetadata = newValue}
+  }
+  /// Returns true if `vmMetadata` has been explicitly set.
+  public var hasVmMetadata: Bool {return _storage._vmMetadata != nil}
+  /// Clears the value of `vmMetadata`. Subsequent reads from it will return its default value.
+  public mutating func clearVmMetadata() {_uniqueStorage()._vmMetadata = nil}
+
+  /// Available when created by the launchpad via the currency creator program, and
+  /// can be used for calculating price, market cap, etc. based on the exponential
+  /// bonding curve
+  public var launchpadMetadata: Code_Currency_V1_LaunchpadMetadata {
+    get {return _storage._launchpadMetadata ?? Code_Currency_V1_LaunchpadMetadata()}
+    set {_uniqueStorage()._launchpadMetadata = newValue}
+  }
+  /// Returns true if `launchpadMetadata` has been explicitly set.
+  public var hasLaunchpadMetadata: Bool {return _storage._launchpadMetadata != nil}
+  /// Clears the value of `launchpadMetadata`. Subsequent reads from it will return its default value.
+  public mutating func clearLaunchpadMetadata() {_uniqueStorage()._launchpadMetadata = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+public struct Code_Currency_V1_VmMetadata {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// VM address
+  public var vm: Code_Common_V1_SolanaAccountId {
+    get {return _vm ?? Code_Common_V1_SolanaAccountId()}
+    set {_vm = newValue}
+  }
+  /// Returns true if `vm` has been explicitly set.
+  public var hasVm: Bool {return self._vm != nil}
+  /// Clears the value of `vm`. Subsequent reads from it will return its default value.
+  public mutating func clearVm() {self._vm = nil}
+
+  /// Authority that subsidizes and authorizes all transactions against the VM
+  public var authority: Code_Common_V1_SolanaAccountId {
+    get {return _authority ?? Code_Common_V1_SolanaAccountId()}
+    set {_authority = newValue}
+  }
+  /// Returns true if `authority` has been explicitly set.
+  public var hasAuthority: Bool {return self._authority != nil}
+  /// Clears the value of `authority`. Subsequent reads from it will return its default value.
+  public mutating func clearAuthority() {self._authority = nil}
+
+  /// Lock duration of Virtual Timelock Accounts on the VM, currently hardcoded
+  /// to 21 days
+  public var lockDurationInDays: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _vm: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
+}
+
+public struct Code_Currency_V1_LaunchpadMetadata {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The address of the currency config
+  public var currencyConfig: Code_Common_V1_SolanaAccountId {
+    get {return _currencyConfig ?? Code_Common_V1_SolanaAccountId()}
+    set {_currencyConfig = newValue}
+  }
+  /// Returns true if `currencyConfig` has been explicitly set.
+  public var hasCurrencyConfig: Bool {return self._currencyConfig != nil}
+  /// Clears the value of `currencyConfig`. Subsequent reads from it will return its default value.
+  public mutating func clearCurrencyConfig() {self._currencyConfig = nil}
+
+  /// The address of the liquidity pool
+  public var liquidityPool: Code_Common_V1_SolanaAccountId {
+    get {return _liquidityPool ?? Code_Common_V1_SolanaAccountId()}
+    set {_liquidityPool = newValue}
+  }
+  /// Returns true if `liquidityPool` has been explicitly set.
+  public var hasLiquidityPool: Bool {return self._liquidityPool != nil}
+  /// Clears the value of `liquidityPool`. Subsequent reads from it will return its default value.
+  public mutating func clearLiquidityPool() {self._liquidityPool = nil}
+
+  /// The random seed used during currency creation
+  public var seed: Code_Common_V1_SolanaAccountId {
+    get {return _seed ?? Code_Common_V1_SolanaAccountId()}
+    set {_seed = newValue}
+  }
+  /// Returns true if `seed` has been explicitly set.
+  public var hasSeed: Bool {return self._seed != nil}
+  /// Clears the value of `seed`. Subsequent reads from it will return its default value.
+  public mutating func clearSeed() {self._seed = nil}
+
+  /// The address of the authority for the currency
+  public var authority: Code_Common_V1_SolanaAccountId {
+    get {return _authority ?? Code_Common_V1_SolanaAccountId()}
+    set {_authority = newValue}
+  }
+  /// Returns true if `authority` has been explicitly set.
+  public var hasAuthority: Bool {return self._authority != nil}
+  /// Clears the value of `authority`. Subsequent reads from it will return its default value.
+  public mutating func clearAuthority() {self._authority = nil}
+
+  /// The address where this mint's tokens are locked against the liquidity pool
+  public var mintVault: Code_Common_V1_SolanaAccountId {
+    get {return _mintVault ?? Code_Common_V1_SolanaAccountId()}
+    set {_mintVault = newValue}
+  }
+  /// Returns true if `mintVault` has been explicitly set.
+  public var hasMintVault: Bool {return self._mintVault != nil}
+  /// Clears the value of `mintVault`. Subsequent reads from it will return its default value.
+  public mutating func clearMintVault() {self._mintVault = nil}
+
+  /// The address where core mint tokens are locked against the liquidity pool
+  public var coreMintVault: Code_Common_V1_SolanaAccountId {
+    get {return _coreMintVault ?? Code_Common_V1_SolanaAccountId()}
+    set {_coreMintVault = newValue}
+  }
+  /// Returns true if `coreMintVault` has been explicitly set.
+  public var hasCoreMintVault: Bool {return self._coreMintVault != nil}
+  /// Clears the value of `coreMintVault`. Subsequent reads from it will return its default value.
+  public mutating func clearCoreMintVault() {self._coreMintVault = nil}
+
+  /// The address where core mint fees are paid
+  public var coreMintFees: Code_Common_V1_SolanaAccountId {
+    get {return _coreMintFees ?? Code_Common_V1_SolanaAccountId()}
+    set {_coreMintFees = newValue}
+  }
+  /// Returns true if `coreMintFees` has been explicitly set.
+  public var hasCoreMintFees: Bool {return self._coreMintFees != nil}
+  /// Clears the value of `coreMintFees`. Subsequent reads from it will return its default value.
+  public mutating func clearCoreMintFees() {self._coreMintFees = nil}
+
+  /// Current circulating mint token supply in quarks
+  public var supplyFromBonding: UInt64 = 0
+
+  /// Current core mint quarks locked in the liquidity pool
+  public var coreMintLocked: UInt64 = 0
+
+  /// Precent fee for sells in basis points, currently hardcoded to 1%
+  public var sellFeeBps: UInt32 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _currencyConfig: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _liquidityPool: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _seed: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _authority: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _mintVault: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _coreMintVault: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _coreMintFees: Code_Common_V1_SolanaAccountId? = nil
+}
+
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Code_Currency_V1_GetAllRatesRequest: @unchecked Sendable {}
 extension Code_Currency_V1_GetAllRatesResponse: @unchecked Sendable {}
 extension Code_Currency_V1_GetAllRatesResponse.Result: @unchecked Sendable {}
+extension Code_Currency_V1_GetMintsRequest: @unchecked Sendable {}
+extension Code_Currency_V1_GetMintsResponse: @unchecked Sendable {}
+extension Code_Currency_V1_GetMintsResponse.Result: @unchecked Sendable {}
+extension Code_Currency_V1_Mint: @unchecked Sendable {}
+extension Code_Currency_V1_VmMetadata: @unchecked Sendable {}
+extension Code_Currency_V1_LaunchpadMetadata: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -213,4 +496,351 @@ extension Code_Currency_V1_GetAllRatesResponse.Result: SwiftProtobuf._ProtoNameP
     0: .same(proto: "OK"),
     1: .same(proto: "MISSING_DATA"),
   ]
+}
+
+extension Code_Currency_V1_GetMintsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetMintsRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "addresses"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.addresses) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.addresses.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.addresses, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Currency_V1_GetMintsRequest, rhs: Code_Currency_V1_GetMintsRequest) -> Bool {
+    if lhs.addresses != rhs.addresses {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Currency_V1_GetMintsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetMintsResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .standard(proto: "metadata_by_address"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Currency_V1_Mint>.self, value: &self.metadataByAddress) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    if !self.metadataByAddress.isEmpty {
+      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMessageMap<SwiftProtobuf.ProtobufString,Code_Currency_V1_Mint>.self, value: self.metadataByAddress, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Currency_V1_GetMintsResponse, rhs: Code_Currency_V1_GetMintsResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs.metadataByAddress != rhs.metadataByAddress {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Currency_V1_GetMintsResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
+    1: .same(proto: "NOT_FOUND"),
+  ]
+}
+
+extension Code_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Mint"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "address"),
+    2: .same(proto: "decimals"),
+    3: .same(proto: "name"),
+    4: .same(proto: "symbol"),
+    5: .same(proto: "description"),
+    6: .standard(proto: "image_url"),
+    7: .standard(proto: "vm_metadata"),
+    8: .standard(proto: "launchpad_metadata"),
+  ]
+
+  fileprivate class _StorageClass {
+    var _address: Code_Common_V1_SolanaAccountId? = nil
+    var _decimals: UInt32 = 0
+    var _name: String = String()
+    var _symbol: String = String()
+    var _description_p: String = String()
+    var _imageURL: String = String()
+    var _vmMetadata: Code_Currency_V1_VmMetadata? = nil
+    var _launchpadMetadata: Code_Currency_V1_LaunchpadMetadata? = nil
+
+    #if swift(>=5.10)
+      // This property is used as the initial default value for new instances of the type.
+      // The type itself is protecting the reference to its storage via CoW semantics.
+      // This will force a copy to be made of this reference when the first mutation occurs;
+      // hence, it is safe to mark this as `nonisolated(unsafe)`.
+      static nonisolated(unsafe) let defaultInstance = _StorageClass()
+    #else
+      static let defaultInstance = _StorageClass()
+    #endif
+
+    private init() {}
+
+    init(copying source: _StorageClass) {
+      _address = source._address
+      _decimals = source._decimals
+      _name = source._name
+      _symbol = source._symbol
+      _description_p = source._description_p
+      _imageURL = source._imageURL
+      _vmMetadata = source._vmMetadata
+      _launchpadMetadata = source._launchpadMetadata
+    }
+  }
+
+  fileprivate mutating func _uniqueStorage() -> _StorageClass {
+    if !isKnownUniquelyReferenced(&_storage) {
+      _storage = _StorageClass(copying: _storage)
+    }
+    return _storage
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    _ = _uniqueStorage()
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      while let fieldNumber = try decoder.nextFieldNumber() {
+        // The use of inline closures is to circumvent an issue where the compiler
+        // allocates stack space for every case branch when no optimizations are
+        // enabled. https://github.com/apple/swift-protobuf/issues/1034
+        switch fieldNumber {
+        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._address) }()
+        case 2: try { try decoder.decodeSingularUInt32Field(value: &_storage._decimals) }()
+        case 3: try { try decoder.decodeSingularStringField(value: &_storage._name) }()
+        case 4: try { try decoder.decodeSingularStringField(value: &_storage._symbol) }()
+        case 5: try { try decoder.decodeSingularStringField(value: &_storage._description_p) }()
+        case 6: try { try decoder.decodeSingularStringField(value: &_storage._imageURL) }()
+        case 7: try { try decoder.decodeSingularMessageField(value: &_storage._vmMetadata) }()
+        case 8: try { try decoder.decodeSingularMessageField(value: &_storage._launchpadMetadata) }()
+        default: break
+        }
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every if/case branch local when no optimizations
+      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+      // https://github.com/apple/swift-protobuf/issues/1182
+      try { if let v = _storage._address {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+      } }()
+      if _storage._decimals != 0 {
+        try visitor.visitSingularUInt32Field(value: _storage._decimals, fieldNumber: 2)
+      }
+      if !_storage._name.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._name, fieldNumber: 3)
+      }
+      if !_storage._symbol.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._symbol, fieldNumber: 4)
+      }
+      if !_storage._description_p.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._description_p, fieldNumber: 5)
+      }
+      if !_storage._imageURL.isEmpty {
+        try visitor.visitSingularStringField(value: _storage._imageURL, fieldNumber: 6)
+      }
+      try { if let v = _storage._vmMetadata {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+      } }()
+      try { if let v = _storage._launchpadMetadata {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      } }()
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Currency_V1_Mint, rhs: Code_Currency_V1_Mint) -> Bool {
+    if lhs._storage !== rhs._storage {
+      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
+        let _storage = _args.0
+        let rhs_storage = _args.1
+        if _storage._address != rhs_storage._address {return false}
+        if _storage._decimals != rhs_storage._decimals {return false}
+        if _storage._name != rhs_storage._name {return false}
+        if _storage._symbol != rhs_storage._symbol {return false}
+        if _storage._description_p != rhs_storage._description_p {return false}
+        if _storage._imageURL != rhs_storage._imageURL {return false}
+        if _storage._vmMetadata != rhs_storage._vmMetadata {return false}
+        if _storage._launchpadMetadata != rhs_storage._launchpadMetadata {return false}
+        return true
+      }
+      if !storagesAreEqual {return false}
+    }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Currency_V1_VmMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VmMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "vm"),
+    2: .same(proto: "authority"),
+    3: .standard(proto: "lock_duration_in_days"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._vm) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._authority) }()
+      case 3: try { try decoder.decodeSingularUInt32Field(value: &self.lockDurationInDays) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._vm {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._authority {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    if self.lockDurationInDays != 0 {
+      try visitor.visitSingularUInt32Field(value: self.lockDurationInDays, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Currency_V1_VmMetadata, rhs: Code_Currency_V1_VmMetadata) -> Bool {
+    if lhs._vm != rhs._vm {return false}
+    if lhs._authority != rhs._authority {return false}
+    if lhs.lockDurationInDays != rhs.lockDurationInDays {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Code_Currency_V1_LaunchpadMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LaunchpadMetadata"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .standard(proto: "currency_config"),
+    2: .standard(proto: "liquidity_pool"),
+    3: .same(proto: "seed"),
+    4: .same(proto: "authority"),
+    5: .standard(proto: "mint_vault"),
+    6: .standard(proto: "core_mint_vault"),
+    8: .standard(proto: "core_mint_fees"),
+    9: .standard(proto: "supply_from_bonding"),
+    10: .standard(proto: "core_mint_locked"),
+    12: .standard(proto: "sell_fee_bps"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._currencyConfig) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._liquidityPool) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._seed) }()
+      case 4: try { try decoder.decodeSingularMessageField(value: &self._authority) }()
+      case 5: try { try decoder.decodeSingularMessageField(value: &self._mintVault) }()
+      case 6: try { try decoder.decodeSingularMessageField(value: &self._coreMintVault) }()
+      case 8: try { try decoder.decodeSingularMessageField(value: &self._coreMintFees) }()
+      case 9: try { try decoder.decodeSingularUInt64Field(value: &self.supplyFromBonding) }()
+      case 10: try { try decoder.decodeSingularUInt64Field(value: &self.coreMintLocked) }()
+      case 12: try { try decoder.decodeSingularUInt32Field(value: &self.sellFeeBps) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._currencyConfig {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._liquidityPool {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try { if let v = self._seed {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if let v = self._authority {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    } }()
+    try { if let v = self._mintVault {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    } }()
+    try { if let v = self._coreMintVault {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    } }()
+    try { if let v = self._coreMintFees {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+    } }()
+    if self.supplyFromBonding != 0 {
+      try visitor.visitSingularUInt64Field(value: self.supplyFromBonding, fieldNumber: 9)
+    }
+    if self.coreMintLocked != 0 {
+      try visitor.visitSingularUInt64Field(value: self.coreMintLocked, fieldNumber: 10)
+    }
+    if self.sellFeeBps != 0 {
+      try visitor.visitSingularUInt32Field(value: self.sellFeeBps, fieldNumber: 12)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Currency_V1_LaunchpadMetadata, rhs: Code_Currency_V1_LaunchpadMetadata) -> Bool {
+    if lhs._currencyConfig != rhs._currencyConfig {return false}
+    if lhs._liquidityPool != rhs._liquidityPool {return false}
+    if lhs._seed != rhs._seed {return false}
+    if lhs._authority != rhs._authority {return false}
+    if lhs._mintVault != rhs._mintVault {return false}
+    if lhs._coreMintVault != rhs._coreMintVault {return false}
+    if lhs._coreMintFees != rhs._coreMintFees {return false}
+    if lhs.supplyFromBonding != rhs.supplyFromBonding {return false}
+    if lhs.coreMintLocked != rhs.coreMintLocked {return false}
+    if lhs.sellFeeBps != rhs.sellFeeBps {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }

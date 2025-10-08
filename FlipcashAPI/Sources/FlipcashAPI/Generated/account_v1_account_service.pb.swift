@@ -192,12 +192,21 @@ public struct Code_Account_V1_GetTokenAccountInfosRequest {
     set {filter = .filterByAccountType(newValue)}
   }
 
+  public var filterByMintAddress: Code_Common_V1_SolanaAccountId {
+    get {
+      if case .filterByMintAddress(let v)? = filter {return v}
+      return Code_Common_V1_SolanaAccountId()
+    }
+    set {filter = .filterByMintAddress(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Filter to apply to limit response sizes
   public enum OneOf_Filter: Equatable {
     case filterByTokenAddress(Code_Common_V1_SolanaAccountId)
     case filterByAccountType(Code_Common_V1_AccountType)
+    case filterByMintAddress(Code_Common_V1_SolanaAccountId)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Code_Account_V1_GetTokenAccountInfosRequest.OneOf_Filter, rhs: Code_Account_V1_GetTokenAccountInfosRequest.OneOf_Filter) -> Bool {
@@ -211,6 +220,10 @@ public struct Code_Account_V1_GetTokenAccountInfosRequest {
       }()
       case (.filterByAccountType, .filterByAccountType): return {
         guard case .filterByAccountType(let l) = lhs, case .filterByAccountType(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.filterByMintAddress, .filterByMintAddress): return {
+        guard case .filterByMintAddress(let l) = lhs, case .filterByMintAddress(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       default: return false
@@ -767,6 +780,7 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
     4: .standard(proto: "requesting_owner_signature"),
     10: .standard(proto: "filter_by_token_address"),
     11: .standard(proto: "filter_by_account_type"),
+    12: .standard(proto: "filter_by_mint_address"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -800,6 +814,19 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
           self.filter = .filterByAccountType(v)
         }
       }()
+      case 12: try {
+        var v: Code_Common_V1_SolanaAccountId?
+        var hadOneofValue = false
+        if let current = self.filter {
+          hadOneofValue = true
+          if case .filterByMintAddress(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.filter = .filterByMintAddress(v)
+        }
+      }()
       default: break
       }
     }
@@ -830,6 +857,10 @@ extension Code_Account_V1_GetTokenAccountInfosRequest: SwiftProtobuf.Message, Sw
     case .filterByAccountType?: try {
       guard case .filterByAccountType(let v)? = self.filter else { preconditionFailure() }
       try visitor.visitSingularEnumField(value: v, fieldNumber: 11)
+    }()
+    case .filterByMintAddress?: try {
+      guard case .filterByMintAddress(let v)? = self.filter else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
     }()
     case nil: break
     }

@@ -206,7 +206,8 @@ extension AccountInfo {
                 rate: .init(
                     fx: Decimal(info.originalExchangeData.exchangeRate),
                     currency: try CurrencyCode(currencyCode: info.originalExchangeData.currency)
-                )
+                ),
+                mint: info.originalExchangeData.mint
             )
         } else {
             exchangedFiat = nil

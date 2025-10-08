@@ -72,6 +72,7 @@ message GetTokenAccountInfosRequest {
     oneof Filter {
         common.v1.SolanaAccountId filter_by_token_address = 10;
         common.v1.AccountType     filter_by_account_type  = 11;
+        common.v1.SolanaAccountId filter_by_mint_address  = 12;
     }
 }
 
@@ -197,12 +198,6 @@ message TokenAccountInfo {
 
     // The token account's mint
     common.v1.SolanaAccountId mint = 13;
-
-    // Reserved for the number of decimals configured for the mint
-    reserved 14;
-
-    // Reserved for a user-friendly display name for the mint
-    reserved 15;
 
     // Deprecated relationship
     reserved 16;

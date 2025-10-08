@@ -360,8 +360,11 @@ public struct Flipcash_Account_V1_UserFlags {
     case coinbaseVirtual // = 1
     case coinbasePhysicalDebit // = 2
     case coinbasePhysicalCredit // = 3
-    case cryptoWallet // = 4
+    case manualDeposit // = 4
     case phantom // = 5
+    case solflare // = 6
+    case backpack // = 7
+    case base // = 8
     case UNRECOGNIZED(Int)
 
     public init() {
@@ -374,8 +377,11 @@ public struct Flipcash_Account_V1_UserFlags {
       case 1: self = .coinbaseVirtual
       case 2: self = .coinbasePhysicalDebit
       case 3: self = .coinbasePhysicalCredit
-      case 4: self = .cryptoWallet
+      case 4: self = .manualDeposit
       case 5: self = .phantom
+      case 6: self = .solflare
+      case 7: self = .backpack
+      case 8: self = .base
       default: self = .UNRECOGNIZED(rawValue)
       }
     }
@@ -386,8 +392,11 @@ public struct Flipcash_Account_V1_UserFlags {
       case .coinbaseVirtual: return 1
       case .coinbasePhysicalDebit: return 2
       case .coinbasePhysicalCredit: return 3
-      case .cryptoWallet: return 4
+      case .manualDeposit: return 4
       case .phantom: return 5
+      case .solflare: return 6
+      case .backpack: return 7
+      case .base: return 8
       case .UNRECOGNIZED(let i): return i
       }
     }
@@ -406,8 +415,11 @@ extension Flipcash_Account_V1_UserFlags.OnRampProvider: CaseIterable {
     .coinbaseVirtual,
     .coinbasePhysicalDebit,
     .coinbasePhysicalCredit,
-    .cryptoWallet,
+    .manualDeposit,
     .phantom,
+    .solflare,
+    .backpack,
+    .base,
   ]
 }
 
@@ -780,7 +792,10 @@ extension Flipcash_Account_V1_UserFlags.OnRampProvider: SwiftProtobuf._ProtoName
     1: .same(proto: "COINBASE_VIRTUAL"),
     2: .same(proto: "COINBASE_PHYSICAL_DEBIT"),
     3: .same(proto: "COINBASE_PHYSICAL_CREDIT"),
-    4: .same(proto: "CRYPTO_WALLET"),
+    4: .same(proto: "MANUAL_DEPOSIT"),
     5: .same(proto: "PHANTOM"),
+    6: .same(proto: "SOLFLARE"),
+    7: .same(proto: "BACKPACK"),
+    8: .same(proto: "BASE"),
   ]
 }

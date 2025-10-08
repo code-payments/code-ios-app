@@ -14,12 +14,18 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     public let usdc: Fiat
     public let converted: Fiat
     public let rate: Rate
+    public let mint: PublicKey
     
-    public init(converted: Fiat, rate: Rate) throws {
+    public init(converted: Fiat, rate: Rate, mint: PublicKey) throws {
         assert(converted.currencyCode == rate.currency, "Rate currency must match Fiat currency")
         
         if converted.currencyCode == .usd {
-            self.init(usdc: converted, converted: converted, rate: .oneToOne)
+            self.init(
+                usdc: converted,
+                converted: converted,
+                rate: .oneToOne,
+                mint: mint
+            )
         } else {
             let equivalentUSD = converted.decimalValue / rate.fx
             
@@ -34,39 +40,43 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             self.init(
                 usdc: usdc,
                 converted: converted,
-                rate: rate
+                rate: rate,
+                mint: mint
             )
         }
     }
     
-    public init(usdc: Fiat, rate: Rate) throws {
+    public init(usdc: Fiat, rate: Rate, mint: PublicKey) throws {
         self.init(
             usdc: usdc,
             converted: try Fiat(
                 fiatDecimal: usdc.decimalValue * rate.fx,
                 currencyCode: rate.currency
             ),
-            rate: rate
+            rate: rate,
+            mint: mint
         )
     }
     
-    public init(usdc: Fiat, converted: Fiat) {
+    public init(usdc: Fiat, converted: Fiat, mint: PublicKey) {
         self.init(
             usdc: usdc,
             converted: converted,
             rate: Rate(
                 fx: converted.decimalValue / usdc.decimalValue,
                 currency: converted.currencyCode
-            )
+            ),
+            mint: mint
         )
     }
     
-    private init(usdc: Fiat, converted: Fiat, rate: Rate) {
+    private init(usdc: Fiat, converted: Fiat, rate: Rate, mint: PublicKey) {
         assert(usdc.currencyCode == .usd, "ExchangeFiat usdc must be in USD")
         
         self.usdc = usdc
         self.converted = converted
         self.rate = rate
+        self.mint = mint
     }
     
     public func subtracting(fee: Fiat) throws -> ExchangedFiat {
@@ -85,7 +95,8 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 quarks: remainingQuarks,
                 currencyCode: .usd
             ),
-            rate: rate
+            rate: rate,
+            mint: mint
         )
     }
 }
@@ -95,6 +106,10 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 extension ExchangedFiat {
     init(_ proto: Code_Transaction_V2_ExchangeData) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
+        
+        guard let mint = PublicKey(proto.mint.value) else {
+            throw Error.invalidMint
+        }
         
         self.init(
             usdc: Fiat(
@@ -108,12 +123,17 @@ extension ExchangedFiat {
             rate: Rate(
                 fx: Decimal(proto.exchangeRate),
                 currency: currency
-            )
+            ),
+            mint: mint
         )
     }
     
-    init(_ proto: Flipcash_Common_V1_UsdcPaymentAmount) throws {
+    init(_ proto: Flipcash_Common_V1_CryptoPaymentAmount) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
+        
+        guard let mint = PublicKey(proto.mint.value) else {
+            throw Error.invalidMint
+        }
         
         self.init(
             usdc: Fiat(
@@ -123,7 +143,8 @@ extension ExchangedFiat {
             converted: try Fiat(
                 fiatDecimal: Decimal(proto.nativeAmount),
                 currencyCode: currency
-            )
+            ),
+            mint: mint
             // Rate is auto-calculated based on converted / usdc
         )
     }
@@ -145,6 +166,7 @@ extension ExchangedFiat {
     public enum Error: Swift.Error {
         case invalidCurrency
         case invalidNativeAmount
+        case invalidMint
         case feeLargerThanAmount
     }
 }

@@ -22,24 +22,11 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 
 /// AccountType associates a type to an account, which infers how an account is used
 /// within the Code ecosystem.
-///
-/// todo: Deprecate legacy accounts (temporary, buckets, legacy primary, relationship, swap)
 public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
   public typealias RawValue = Int
   case unknown // = 0
   case primary // = 1
-  case temporaryIncoming // = 2
-  case temporaryOutgoing // = 3
-  case bucket1Kin // = 4
-  case bucket10Kin // = 5
-  case bucket100Kin // = 6
-  case bucket1000Kin // = 7
-  case bucket10000Kin // = 8
-  case bucket100000Kin // = 9
-  case bucket1000000Kin // = 10
-  case legacyPrimary2022 // = 11
   case remoteSendGiftCard // = 12
-  case relationship // = 13
   case swap // = 14
   case associatedTokenAccount // = 15
   case pool // = 16
@@ -53,18 +40,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     switch rawValue {
     case 0: self = .unknown
     case 1: self = .primary
-    case 2: self = .temporaryIncoming
-    case 3: self = .temporaryOutgoing
-    case 4: self = .bucket1Kin
-    case 5: self = .bucket10Kin
-    case 6: self = .bucket100Kin
-    case 7: self = .bucket1000Kin
-    case 8: self = .bucket10000Kin
-    case 9: self = .bucket100000Kin
-    case 10: self = .bucket1000000Kin
-    case 11: self = .legacyPrimary2022
     case 12: self = .remoteSendGiftCard
-    case 13: self = .relationship
     case 14: self = .swap
     case 15: self = .associatedTokenAccount
     case 16: self = .pool
@@ -76,18 +52,7 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum {
     switch self {
     case .unknown: return 0
     case .primary: return 1
-    case .temporaryIncoming: return 2
-    case .temporaryOutgoing: return 3
-    case .bucket1Kin: return 4
-    case .bucket10Kin: return 5
-    case .bucket100Kin: return 6
-    case .bucket1000Kin: return 7
-    case .bucket10000Kin: return 8
-    case .bucket100000Kin: return 9
-    case .bucket1000000Kin: return 10
-    case .legacyPrimary2022: return 11
     case .remoteSendGiftCard: return 12
-    case .relationship: return 13
     case .swap: return 14
     case .associatedTokenAccount: return 15
     case .pool: return 16
@@ -104,18 +69,7 @@ extension Code_Common_V1_AccountType: CaseIterable {
   public static let allCases: [Code_Common_V1_AccountType] = [
     .unknown,
     .primary,
-    .temporaryIncoming,
-    .temporaryOutgoing,
-    .bucket1Kin,
-    .bucket10Kin,
-    .bucket100Kin,
-    .bucket1000Kin,
-    .bucket10000Kin,
-    .bucket100000Kin,
-    .bucket1000000Kin,
-    .legacyPrimary2022,
     .remoteSendGiftCard,
-    .relationship,
     .swap,
     .associatedTokenAccount,
     .pool,
@@ -402,18 +356,7 @@ extension Code_Common_V1_AccountType: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "UNKNOWN"),
     1: .same(proto: "PRIMARY"),
-    2: .same(proto: "TEMPORARY_INCOMING"),
-    3: .same(proto: "TEMPORARY_OUTGOING"),
-    4: .same(proto: "BUCKET_1_KIN"),
-    5: .same(proto: "BUCKET_10_KIN"),
-    6: .same(proto: "BUCKET_100_KIN"),
-    7: .same(proto: "BUCKET_1_000_KIN"),
-    8: .same(proto: "BUCKET_10_000_KIN"),
-    9: .same(proto: "BUCKET_100_000_KIN"),
-    10: .same(proto: "BUCKET_1_000_000_KIN"),
-    11: .same(proto: "LEGACY_PRIMARY_2022"),
     12: .same(proto: "REMOTE_SEND_GIFT_CARD"),
-    13: .same(proto: "RELATIONSHIP"),
     14: .same(proto: "SWAP"),
     15: .same(proto: "ASSOCIATED_TOKEN_ACCOUNT"),
     16: .same(proto: "POOL"),
