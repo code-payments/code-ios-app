@@ -51,18 +51,20 @@ struct GiveScreen: View {
         return try! ExchangedFiat(
             converted: converted,
             rate: rate,
-            mint: .usdc
+            mint: mint
         )
     }
     
+    private let mint: PublicKey
     private let kind: Kind
     private let container: Container
     private let sessionContainer: SessionContainer
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, kind: Kind, container: Container, sessionContainer: SessionContainer) {
+    init(isPresented: Binding<Bool>, mint: PublicKey, kind: Kind, container: Container, sessionContainer: SessionContainer) {
         self._isPresented     = isPresented
+        self.mint             = mint
         self.kind             = kind
         self.container        = container
         self.sessionContainer = sessionContainer

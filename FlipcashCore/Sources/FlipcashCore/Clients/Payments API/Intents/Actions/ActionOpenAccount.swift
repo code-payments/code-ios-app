@@ -17,15 +17,17 @@ struct ActionOpenAccount: ActionType {
 
     let kind: AccountKind
     let owner: PublicKey
+    let mint: PublicKey
     let cluster: AccountCluster
     let derivationIndex: Int
     
     static let configCountRequirement: Int = 0
     
-    init(kind: AccountKind, owner: PublicKey, cluster: AccountCluster, derivationIndex: Int) {
+    init(kind: AccountKind, owner: PublicKey, mint: PublicKey, cluster: AccountCluster, derivationIndex: Int) {
         self.id              = 0
         self.kind            = kind
         self.owner           = owner
+        self.mint            = mint
         self.cluster         = cluster
         self.derivationIndex = derivationIndex
     }
@@ -47,6 +49,7 @@ extension ActionOpenAccount {
                 $0.accountType        = kind.proto
                 $0.authority          = cluster.authorityPublicKey.solanaAccountID
                 $0.token              = cluster.vaultPublicKey.solanaAccountID
+                $0.mint               = mint.solanaAccountID
                 $0.authoritySignature = $0.sign(with: cluster.authority.keyPair)
             }
         }

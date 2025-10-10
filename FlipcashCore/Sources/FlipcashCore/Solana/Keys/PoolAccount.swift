@@ -25,7 +25,9 @@ public struct PoolAccount: Codable, Hashable, Equatable {
                 authority: .derive(
                     using: .pool(index: index),
                     mnemonic: mnemonic
-                )
+                ),
+                mint: .usdc,
+                timeAuthority: .usdcAuthority
             )
         )
     }

@@ -38,6 +38,21 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
         }
     }
     
+    func fetchMint(mint: PublicKey, completion: @Sendable @escaping (Result<MintMetadata, Error>) -> Void) {
+        fetchMints(mints: [mint]) {
+            switch $0 {
+            case .success(let mints):
+                if mints.count == 1 {
+                    completion(.success(mints.first!.value))
+                } else {
+                    completion(.failure(ErrorGeneric.unknown))
+                }
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+    
     func fetchMints(mints: [PublicKey], completion: @Sendable @escaping (Result<[PublicKey: MintMetadata], Error>) -> Void) {
         trace(.send)
         

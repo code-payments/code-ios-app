@@ -20,11 +20,12 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Account Creation -
     
-    func createAccounts(owner: KeyPair, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func createAccounts(owner: KeyPair, mint: PublicKey, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         let intent = IntentCreateAccount(
             owner: owner.publicKey,
+            mint: mint,
             cluster: cluster,
             kind: kind,
             derivationIndex: derivationIndex

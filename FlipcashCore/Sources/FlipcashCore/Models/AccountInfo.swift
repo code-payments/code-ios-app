@@ -14,6 +14,9 @@ public struct AccountInfo: Equatable, Sendable {
     /// The token account's address
     public var address: PublicKey
     
+    /// The token's mint
+    public var mint: PublicKey
+    
     /// The owner of the token account, which can also be thought of as a parent
     /// account that links to one or more token accounts. This is provided when
     /// available.
@@ -56,8 +59,9 @@ public struct AccountInfo: Equatable, Sendable {
     
     // MARK: - Init -
     
-    init(address: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, fiat: Fiat, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?) {
+    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, fiat: Fiat, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?) {
         self.address         = address
+        self.mint            = mint
         self.owner           = owner
         self.authority       = authority
         self.balanceSource   = balanceSource
@@ -214,6 +218,7 @@ extension AccountInfo {
         
         self.init(
             address: try PublicKey(info.address.value),
+            mint: try PublicKey(info.mint.value),
             owner: owner,
             authority: authority,
             balanceSource: balanceSource,

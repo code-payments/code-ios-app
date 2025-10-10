@@ -237,7 +237,11 @@ final class SessionAuthenticator: ObservableObject {
             derivedKey: derivedKey
         )
         
-        let cluster = AccountCluster(authority: derivedKey)
+        let cluster = AccountCluster(
+            authority: derivedKey,
+            mint: .usdc, // Initial account is always USDC
+            timeAuthority: .usdcAuthority
+        )
         
         do {
             let userID: UserID
@@ -246,6 +250,7 @@ final class SessionAuthenticator: ObservableObject {
             // if the accounts have been previously created
             try await client.createAccounts(
                 owner: cluster.authority.keyPair,
+                mint: .usdc, // USDC is the foundation mint
                 cluster: cluster,
                 kind: .primary,
                 derivationIndex: 0
@@ -441,7 +446,11 @@ struct InitializedAccount {
     
     fileprivate init(keyAccount: KeyAccount, userID: UserID) {
         self.keyAccount = keyAccount
-        self.owner = .init(authority: .derive(using: .primary(), mnemonic: keyAccount.mnemonic))
+        self.owner = .init(
+            authority: .derive(using: .primary(), mnemonic: keyAccount.mnemonic),
+            mint: .usdc, // Initial account is always USDC
+            timeAuthority: .usdcAuthority
+        )
         self.userID = userID
     }
 }

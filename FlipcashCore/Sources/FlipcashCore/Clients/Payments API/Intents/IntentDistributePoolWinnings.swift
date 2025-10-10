@@ -45,6 +45,7 @@ final class IntentDistributePoolWinnings: IntentType {
                 ActionWithdraw(
                     kind: .withdraw,
                     amount: lastDistribution.amount,
+                    mint: .usdc,
                     sourceCluster: source,
                     destination: lastDistribution.destination
                 )

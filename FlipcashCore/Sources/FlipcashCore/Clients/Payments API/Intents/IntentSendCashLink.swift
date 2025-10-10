@@ -28,6 +28,7 @@ final class IntentSendCashLink: IntentType {
         let openGiftCardAction = ActionOpenAccount(
             kind: .giftCard,
             owner: giftCard.cluster.authorityPublicKey,
+            mint: giftCard.mint,
             cluster: giftCard.cluster,
             derivationIndex: 0
         )
@@ -41,6 +42,7 @@ final class IntentSendCashLink: IntentType {
         let autoReturnAction = ActionWithdraw(
             kind: .cashLinkWithdraw(.init(isAutoReturn: true)),
             amount: exchangedFiat.usdc,
+            mint: giftCard.mint,
             sourceCluster: giftCard.cluster,
             destination: sourceCluster.vaultPublicKey
         )
@@ -61,6 +63,7 @@ extension IntentSendCashLink {
             $0.sendPublicPayment = .with {
                 $0.source       = sourceCluster.vaultPublicKey.solanaAccountID
                 $0.destination  = giftCard.cluster.vaultPublicKey.solanaAccountID
+                $0.mint         = exchangedFiat.mint.solanaAccountID
                 $0.exchangeData = .with {
                     $0.quarks       = exchangedFiat.usdc.quarks
                     $0.currency     = exchangedFiat.converted.currencyCode.rawValue

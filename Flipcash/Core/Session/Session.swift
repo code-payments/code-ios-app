@@ -661,7 +661,12 @@ class Session: ObservableObject {
     
     private func createCashLink(payload: CashCode.Payload, exchangedFiat: ExchangedFiat) async throws -> GiftCardCluster {
         do {
-            let giftCard = GiftCardCluster()
+            #warning("Add support for multi-timeAuthority")
+            let giftCard = GiftCardCluster(
+                mint: exchangedFiat.mint,
+                timeAuthority: .usdcAuthority
+            )
+            
             try await client.sendCashLink(
                 exchangedFiat: exchangedFiat,
                 ownerCluster: owner,
@@ -700,12 +705,13 @@ class Session: ObservableObject {
         updatePostTransaction()
     }
     
-    func receiveCashLink(giftCard: GiftCardCluster) {
+    func receiveCashLink(mnemonic: MnemonicPhrase) {
+        let giftCardKeyPair = DerivedKey.derive(using: .solana, mnemonic: mnemonic).keyPair
         Task {
             do {
                 let giftCardAccountInfo = try await client.fetchAccountInfo(
                     type: .giftCard,
-                    owner: giftCard.cluster.authority.keyPair
+                    owner: giftCardKeyPair
                 )
                 
                 guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
@@ -718,9 +724,50 @@ class Session: ObservableObject {
                     return
                 }
                 
+                // Fetch the mint metadata. We'll need it to create
+                // the account cluster. Authority, address and duration
+                // can all be different across VMs
+                let vmMint       = giftCardAccountInfo.mint
+                let mintMetadata = try await client.fetchMint(mint: vmMint)
+                
+                guard let vmMetadata = mintMetadata.vmMetadata else {
+                    throw Error.vmMetadataMissing
+                }
+                
+                let vmAuthority = vmMetadata.authority
+                
+                // Now that we have a mint from account infos,
+                // we can create the account cluster
+                let giftCard = GiftCardCluster(
+                    mnemonic: mnemonic,
+                    mint: vmMint,
+                    timeAuthority: vmMetadata.authority
+                )
+                
+                let mintCurrencyCluster = AccountCluster(
+                    authority: keyAccount.derivedKey,
+                    mint: vmMint,
+                    timeAuthority: vmMetadata.authority
+                )
+                
+                // We need to ensure the accounts for this mint
+                // are created. This call is a no-op is the
+                // account already exists
+                try await client.createAccounts(
+                    owner: ownerKeyPair,
+                    mint: vmMint,
+                    cluster: mintCurrencyCluster,
+                    kind: .primary,
+                    derivationIndex: 0
+                )
+                
+                // Deposit the gift card
                 try await client.receiveCashLink(
                     usdc: exchangedFiat.usdc,
-                    ownerCluster: owner,
+                    ownerCluster: owner.use(
+                        mint: vmMint,
+                        timeAuthority: vmAuthority
+                    ),
                     giftCard: giftCard
                 )
                 
@@ -757,7 +804,7 @@ class Session: ObservableObject {
                 )
                 
                 showCashLinkNotAvailable()
-                trace(.failure, components: "Failed to receive cash link for gift card: \(giftCard)")
+                trace(.failure, components: "Failed to receive cash link for gift card: \(giftCardKeyPair.publicKey)")
             }
         }
     }
@@ -857,6 +904,7 @@ class Session: ObservableObject {
 extension Session {
     enum Error: Swift.Error {
         case cashLinkCreationFailed
+        case vmMetadataMissing
     }
 }
 
@@ -898,7 +946,11 @@ extension Session {
         historyController: .mock,
         ratesController: .mock,
         keyAccount: .mock,
-        owner: .init(authority: .derive(using: .primary(), mnemonic: .mock)),
+        owner: .init(
+            authority: .derive(using: .primary(), mnemonic: .mock),
+            mint: .mock,
+            timeAuthority: .usdcAuthority
+        ),
         userID: UUID()
     )
 }

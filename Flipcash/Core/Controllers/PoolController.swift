@@ -209,6 +209,7 @@ class PoolController: ObservableObject {
         // for this pool cluster
         try await client.createAccounts(
             owner: ownerKeyPair,
+            mint: .usdc,
             cluster: poolAccount.cluster,
             kind: .pool,
             derivationIndex: poolAccount.index

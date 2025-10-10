@@ -25,12 +25,28 @@ public struct AccountCluster: Equatable, Codable, Hashable, Sendable {
         timelock.deposit.publicKey
     }
     
-    public init(authority: DerivedKey) {
+    public init(authority: DerivedKey, mint: PublicKey, timeAuthority: PublicKey) {
         self.authority = authority
-        self.timelock  = TimelockDerivedAccounts(owner: authority.keyPair.publicKey)
+        self.timelock  = TimelockDerivedAccounts(
+            owner: authority.keyPair.publicKey,
+            mint: mint,
+            timeAuthority: timeAuthority
+        )
+    }
+    
+    public func use(mint: PublicKey, timeAuthority: PublicKey) -> AccountCluster {
+        AccountCluster(
+            authority: authority,
+            mint: mint,
+            timeAuthority: timeAuthority
+        )
     }
 }
 
 extension AccountCluster {
-    public static let mock = AccountCluster(authority: .derive(using: .primary(), mnemonic: .mock))
+    public static let mock = AccountCluster(
+        authority: .derive(using: .primary(), mnemonic: .mock),
+        mint: .mock,
+        timeAuthority: .usdcAuthority
+    )
 }

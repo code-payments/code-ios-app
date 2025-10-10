@@ -14,22 +14,41 @@ public struct TimelockDerivedAccounts: Codable, Hashable, Equatable, Sendable {
     public static let dataVersion: Byte = 3
     
     public let owner: PublicKey
+    public let mint: PublicKey
+    public let timeAuthority: PublicKey
     public let state: ProgramDerivedAccount
     public let vault: ProgramDerivedAccount
     public let deposit: ProgramDerivedAccount
     
-    public init(owner: PublicKey) {
+    public init(owner: PublicKey, mint: PublicKey, timeAuthority: PublicKey) {
         
         let state: ProgramDerivedAccount
         let vault: ProgramDerivedAccount
         
-        state   = PublicKey.deriveTimelockStateAccount(owner: owner, lockout: Self.lockoutInDays)!
-        vault   = PublicKey.deriveTimelockVaultAccount(stateAccount: state.publicKey, version: Self.dataVersion)!
-        deposit = PublicKey.deriveDepositAccount(owner: owner, lockout: Self.lockoutInDays)!
+        state = PublicKey.deriveTimelockStateAccount(
+            owner: owner,
+            mint: mint,
+            timeAuthority: timeAuthority,
+            lockout: Self.lockoutInDays
+        )!
         
-        self.owner = owner
-        self.state = state
-        self.vault = vault
+        vault = PublicKey.deriveTimelockVaultAccount(
+            stateAccount: state.publicKey,
+            version: Self.dataVersion
+        )!
+        
+        deposit = PublicKey.deriveDepositAccount(
+            owner: owner,
+            mint: mint,
+            timeAuthority: timeAuthority,
+            lockout: Self.lockoutInDays
+        )!
+        
+        self.owner         = owner
+        self.mint          = mint
+        self.timeAuthority = timeAuthority
+        self.state         = state
+        self.vault         = vault
     }
 }
 
@@ -58,19 +77,19 @@ public struct ProgramDerivedAccount: Codable, Hashable, Equatable, Sendable  {
 // MARK: - VM Derivation -
 
 extension PublicKey {
-    private static func deriveVMAccount(lockout: Byte) -> ProgramDerivedAccount? {
+    private static func deriveVMAccount(mint: PublicKey, timeAuthority: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
         findProgramAddress(
             program: VMProgram.address,
             seeds:
                 Data("code_vm".utf8),
-                PublicKey.usdc.data,
-                PublicKey.timeAuthority.data,
+                mint.data,
+                timeAuthority.data,
                 lockout.bytes.data
         )
     }
     
-    public static func deriveDepositAccount(owner: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
-        guard let vmAccount = deriveVMAccount(lockout: lockout) else {
+    public static func deriveDepositAccount(owner: PublicKey, mint: PublicKey, timeAuthority: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
+        guard let vmAccount = deriveVMAccount(mint: mint, timeAuthority: timeAuthority, lockout: lockout) else {
             return nil
         }
         
@@ -88,13 +107,13 @@ extension PublicKey {
 // MARK: - Timelock Derivation -
 
 extension PublicKey {
-    public static func deriveTimelockStateAccount(owner: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
+    public static func deriveTimelockStateAccount(owner: PublicKey, mint: PublicKey, timeAuthority: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
         findProgramAddress(
             program: TimelockProgram.address,
             seeds:
                 Data("timelock_state".utf8),
-                PublicKey.usdc.data,
-                PublicKey.timeAuthority.data,
+                mint.data,
+                timeAuthority.data,
                 owner.data,
                 lockout.bytes.data
         )

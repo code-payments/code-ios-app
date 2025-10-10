@@ -70,8 +70,7 @@ final class DeepLinkController {
                 let entropy = route.fragments[.entropy],
                 let mnemonic = MnemonicPhrase(base58EncodedEntropy: entropy.value)
             {
-                let giftCard = GiftCardCluster(mnemonic: mnemonic)
-                return actionForReceiveRemoteSend(giftCard: giftCard)
+                return actionForReceiveRemoteSend(mnemonic: mnemonic)
             }
             
         case .pool:
@@ -122,9 +121,9 @@ final class DeepLinkController {
         )
     }
     
-    private func actionForReceiveRemoteSend(giftCard: GiftCardCluster) -> DeepLinkAction {
+    private func actionForReceiveRemoteSend(mnemonic: MnemonicPhrase) -> DeepLinkAction {
         DeepLinkAction(
-            kind: .receiveCashLink(giftCard),
+            kind: .receiveCashLink(mnemonic),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -211,9 +210,9 @@ struct DeepLinkAction {
                 sessionAuthenticator.switchAccount(to: mnemonic)
             }
             
-        case .receiveCashLink(let giftCard):
+        case .receiveCashLink(let mnemonic):
             if case .loggedIn(let container) = sessionAuthenticator.state {
-                container.session.receiveCashLink(giftCard: giftCard)
+                container.session.receiveCashLink(mnemonic: mnemonic)
             }
             
         case .pool(let rendezvous):
@@ -234,7 +233,7 @@ struct DeepLinkAction {
 extension DeepLinkAction {
     enum Kind {
         case accessKey(MnemonicPhrase)
-        case receiveCashLink(GiftCardCluster)
+        case receiveCashLink(MnemonicPhrase)
         case pool(KeyPair)
         case verifyEmail(VerificationDescription)
     }

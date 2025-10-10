@@ -17,18 +17,20 @@ struct ActionWithdraw: ActionType {
     
     let kind: Kind
     let amount: Fiat
+    let mint: PublicKey
     let sourceCluster: AccountCluster
     let source: PublicKey
     let destination: PublicKey
 
     static let configCountRequirement: Int = 1
     
-    init(kind: Kind, amount: Fiat, sourceCluster: AccountCluster, destination: PublicKey) {
+    init(kind: Kind, amount: Fiat, mint: PublicKey, sourceCluster: AccountCluster, destination: PublicKey) {
         self.id = 0
         self.signer = sourceCluster.authority.keyPair
         
         self.kind          = kind
         self.amount        = amount
+        self.mint          = mint
         self.sourceCluster = sourceCluster
         self.source        = sourceCluster.vaultPublicKey
         self.destination   = destination
@@ -87,6 +89,7 @@ extension ActionWithdraw {
                     $0.source       = source.solanaAccountID
                     $0.destination  = destination.solanaAccountID
                     $0.amount       = amount.quarks
+                    $0.mint         = mint.solanaAccountID
                     $0.shouldClose  = true
                     $0.isAutoReturn = false
                 }
@@ -97,6 +100,7 @@ extension ActionWithdraw {
                     $0.source       = source.solanaAccountID
                     $0.destination  = destination.solanaAccountID
                     $0.amount       = amount.quarks
+                    $0.mint         = mint.solanaAccountID
                     $0.shouldClose  = true
                     $0.isAutoReturn = configuration.isAutoReturn
                 }

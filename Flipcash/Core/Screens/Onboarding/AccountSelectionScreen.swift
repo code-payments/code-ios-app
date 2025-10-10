@@ -141,7 +141,9 @@ struct AccountSelectionScreen: View {
             authority: .derive(
                 using: .primary(),
                 mnemonic: description.account.mnemonic
-            )
+            ),
+            mint: .usdc,
+            timeAuthority: .usdcAuthority
         )
         
         UIPasteboard.general.string = cluster.vaultPublicKey.base58
@@ -229,7 +231,11 @@ class HistoricalAccount: Identifiable {
     init(details: AccountDescription) {
         self.details  = details
         self.mnemonic = details.account.mnemonic
-        self.cluster  = AccountCluster(authority: .derive(using: .primary(), mnemonic: details.account.mnemonic))
+        self.cluster  = AccountCluster(
+            authority: .derive(using: .primary(), mnemonic: details.account.mnemonic),
+            mint: .usdc,
+            timeAuthority: .usdcAuthority
+        )
     }
     
     func setBalance(_ fiat: Fiat) {

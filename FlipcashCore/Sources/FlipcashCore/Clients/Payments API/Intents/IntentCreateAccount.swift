@@ -13,15 +13,17 @@ final class IntentCreateAccount: IntentType {
     
     let id: PublicKey
     let owner: PublicKey
+    let mint: PublicKey
     let cluster: AccountCluster
     let kind: AccountKind
     let derivationIndex: Int
     
     var actionGroup: ActionGroup
     
-    init(owner: PublicKey, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int) {
+    init(owner: PublicKey, mint: PublicKey, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int) {
         self.id              = PublicKey.generate()!
         self.owner           = owner
+        self.mint            = mint
         self.cluster         = cluster
         self.kind            = kind
         self.derivationIndex = derivationIndex
@@ -30,6 +32,7 @@ final class IntentCreateAccount: IntentType {
             ActionOpenAccount(
                 kind: kind,
                 owner: owner,
+                mint: mint,
                 cluster: cluster,
                 derivationIndex: derivationIndex
             )
@@ -55,6 +58,7 @@ extension IntentCreateAccount {
                 case .pool:
                     $0.accountSet = .pool
                 }
+                $0.mint = mint.solanaAccountID
             }
         }
     }

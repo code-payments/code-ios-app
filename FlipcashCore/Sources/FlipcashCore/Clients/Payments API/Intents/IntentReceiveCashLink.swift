@@ -28,6 +28,7 @@ final class IntentReceiveCashLink: IntentType {
             ActionWithdraw(
                 kind: .cashLinkWithdraw(.init(isAutoReturn: false)),
                 amount: usdc,
+                mint: giftCard.mint,
                 sourceCluster: giftCard.cluster,
                 destination: ownerCluster.vaultPublicKey
             )
@@ -43,6 +44,7 @@ extension IntentReceiveCashLink {
             $0.receivePaymentsPublicly = .with {
                 $0.source       = giftCard.cluster.vaultPublicKey.solanaAccountID
                 $0.quarks       = usdc.quarks
+                $0.mint         = giftCard.mint.solanaAccountID
                 $0.isRemoteSend = true
             }
         }
