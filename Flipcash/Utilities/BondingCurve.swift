@@ -8,7 +8,7 @@
 import Foundation
 import BigDecimal
 
-private let r = Rounding(.toNearestOrEven, 100)
+private let r = Rounding(.toNearestOrEven, 50)
 
 public struct BondingCurve: Sendable {
     
@@ -24,20 +24,18 @@ public struct BondingCurve: Sendable {
     public let b: BigDecimal
     public let c: BigDecimal
     
-    public var currentSupply: Int
+    public let decimals: Int = 10
     
     // MARK: - Init -
     
     public init(
         a: BigDecimal = BondingCurve.defaultA,
         b: BigDecimal = BondingCurve.defaultB,
-        c: BigDecimal = BondingCurve.defaultC,
-        currentSupply: Int = 0
+        c: BigDecimal = BondingCurve.defaultC
     ) {
         self.a = a
         self.b = b
         self.c = c
-        self.currentSupply = currentSupply
     }
     
     // MARK: - Utilities -
@@ -58,55 +56,92 @@ public struct BondingCurve: Sendable {
         guard !x.isNaN else { throw BondingCurveError.internalNaN }
         return x
     }
-    
-    private var supply: BigDecimal {
-        BigDecimal(currentSupply)
-    }
 }
 
-// MARK: - Buy / Sell -
+// MARK: - Buy / Sell (Quarks) -
 
 public extension BondingCurve {
     
-    func spotPrice() throws -> BigDecimal {
+    func spotPrice(supply: Int) throws -> BigDecimal {
         let e = exp(c.multiply(supply, r))
         return try ensureValid(a.multiply(b, r).multiply(e, r))
     }
     
-    func costToBuy(tokens: Int) -> BigDecimal {
-        let newS = BigDecimal(currentSupply + tokens)
-        let eNS  = exp(c.multiply(newS, r))
-        let eCS  = exp(c.multiply(supply, r))
-        let diff = eNS.subtract(eCS, r)
-        
-        return try! ensureValid(abOverC().multiply(diff, r))
+    func costToBuy(quarks: Int, supply: Int) -> BigDecimal {
+        // ΔS = tokens to buy (in whole tokens), S = current supply (in whole tokens)
+        let S  = BigDecimal(supply).scaleDown(decimals)
+        let dS = BigDecimal(quarks).scaleDown(decimals)
+        let newS = S.add(dS, r)
+
+        // exp(c * S) and exp(c * (S + ΔS))
+        let exp_cS   = exp(c.multiply(S, r))
+        let exp_cNew = exp(c.multiply(newS, r))
+
+        // cost = (ab/c) * (exp(c*(S+ΔS)) - exp(c*S))
+        let diff   = exp_cNew.subtract(exp_cS, r)
+        let result = abOverC().multiply(diff, r)
+        return try! ensureValid(result)
     }
     
-    func valueFromSelling(tokens: Int) -> BigDecimal {
-        var tNeg = BigDecimal(tokens)
-        tNeg.negate()
+    func valueFromSelling(quarks: Int, tvl: Int) -> BigDecimal {
+        // Selling zero returns zero
+        if quarks == 0 { return .zero }
+
+        // Convert inputs to curve units:
+        // - tokensToSell: from token quarks to whole tokens using this curve's token decimals
+        // - valueLocked: from USDC quarks (6) to whole USDC units
+        let tokensToSell = BigDecimal(quarks).scaleDown(decimals)
+        let valueLocked  = BigDecimal(tvl).scaleDown(6) // USDC has 6 decimals
+
+        print("$L", valueLocked.asString(.plain))
+        print("ΔS", tokensToSell.asString(.plain))
         
-        let eCS      = exp(c.multiply(supply, r))
-        let eNeg     = exp(c.multiply(tNeg, r))
-        let oneMinus = BigDecimal.one.subtract(eNeg, r)
-        let value    = abOverC().multiply(eCS, r).multiply(oneMinus, r)
-        return try! ensureValid(value)
+        // ab/c
+        let abOverC = a.multiply(b, r).divide(c, r)
+
+        // valueLocked + (ab/c)
+        let cvPlusAbOverC = valueLocked.add(abOverC, r)
+
+        // exp(-c * tokensToSell)
+        let cTimesTokens = c.multiply(tokensToSell, r)
+        var negCTimesTokens = cTimesTokens
+        negCTimesTokens.negate()
+        let expTerm = BigDecimal.exp(negCTimesTokens, r)
+
+        // (1 - exp(-c * tokensToSell))
+        let oneMinusExp = BigDecimal.one.subtract(expTerm, r)
+
+        // (valueLocked + ab/c) * (1 - exp(-c * ΔS))
+        let result = cvPlusAbOverC.multiply(oneMinusExp, r)
+
+        return try! ensureValid(result)
     }
     
-    func tokensBought(forValue value: BigDecimal) -> BigDecimal {
-        guard value.signum > 0 else {
-            return 0
-        }
-        
-        let eCS    = exp(c.multiply(supply, r))
-        let term   = value.divide(abOverC(), r).add(eCS, r)
+    func tokensBought(withUSDC usdcQuarks: Int, tvl: Int) -> BigDecimal {
+        guard usdcQuarks > 0 else { return 0 }
+
+        // v: value to spend in USDC units (scale down from quarks with 6 decimals)
+        let v = BigDecimal(usdcQuarks).scaleDown(6)
+
+        // valueLocked: current reserve value R(S) in USDC units
+        let valueLocked = BigDecimal(tvl).scaleDown(6)
+
+        // ab/c
+        let abOverC = a.multiply(b, r).divide(c, r)
+
+        // e^{cS} = R(S)/(ab/c) + 1
+        let e_cS = valueLocked.divide(abOverC, r).add(.one, r)
+
+        // ΔS = (1/c) * ln( 1 + v / ((ab/c) * e^{cS}) )
+        let denom = abOverC.multiply(e_cS, r)
+        let term = v.divide(denom, r).add(.one, r)
         let lnTerm = ln(term)
-        let delta  = lnTerm.divide(c, r).subtract(supply, r)
-        
+        let delta = lnTerm.divide(c, r)
+
         return try! ensureValid(delta)
     }
     
-    func tokensForValueExchange(_ value: BigDecimal) throws -> BigDecimal {
+    func tokensForValueExchange(_ value: BigDecimal, supply: Int) throws -> BigDecimal {
         guard value.signum > 0 else {
             throw BondingCurveError.nonPositiveValue
         }
@@ -124,19 +159,70 @@ public extension BondingCurve {
         
         return try! ensureValid(lnTerm.divide(c, r))
     }
-    
-    @discardableResult
-    mutating func buy(tokens: Int) throws -> BigDecimal {
-        let cost = costToBuy(tokens: tokens)
-        currentSupply += tokens
-        return cost
+}
+
+// MARK: - Buy / Sell (Decimal) -
+
+extension BondingCurve {
+    public struct BuyEstimation {
+        public let netTokensToReceive: Foundation.Decimal
+        public let fees: Foundation.Decimal
     }
     
-    @discardableResult
-    mutating func sell(tokens: Int) throws -> BigDecimal {
-        let value = valueFromSelling(tokens: tokens)
-        currentSupply -= tokens
-        return value
+    public struct SellEstimation {
+        public let netTokensToReceive: Foundation.Decimal
+        public let fees: Foundation.Decimal
+    }
+    
+    public func buy(
+        usdcQuarks: Int,
+        feeBps: Int,
+        tvl: Int
+    ) -> BuyEstimation {
+        let tokensScaled = tokensBought(withUSDC: usdcQuarks, tvl: tvl)
+        
+        let feePct          = BigDecimal(feeBps).divide(BigDecimal("10000"), r)
+        let feeTokensScaled = tokensScaled.multiply(feePct, r)
+        let netTokensScaled = tokensScaled.subtract(feeTokensScaled, r)
+        
+        let netTokensQuarks = netTokensScaled
+        let feesQuarks      = feeTokensScaled
+        
+        return BuyEstimation(
+            netTokensToReceive: netTokensQuarks.asDecimal(),
+            fees: feesQuarks.asDecimal()
+        )
+    }
+    
+    public func sell(
+        quarks: Int,
+        feeBps: Int,
+        tvl: Int
+    ) -> SellEstimation {
+        let grossQuarks = valueFromSelling(quarks: quarks, tvl: tvl)
+        
+        let fee      = BigDecimal(feeBps).divide(BigDecimal("10000"), r)
+        let feeValue = grossQuarks.multiply(fee, r)
+        let netValue = grossQuarks.subtract(feeValue, r)
+        
+        return SellEstimation(
+            netTokensToReceive: netValue.asDecimal(),
+            fees: feeValue.asDecimal()
+        )
+    }
+}
+
+extension BigDecimal {
+    func pow10(_ n: Int) -> BigDecimal {
+        BigDecimal.ten.pow(n, r)
+    }
+    
+    func scaleDown(_ d: Int) -> BigDecimal {
+        divide(pow10(d), r)
+    }
+    
+    func scaleUp(_ d: Int) -> BigDecimal {
+        multiply(pow10(d), r)
     }
 }
 
@@ -162,16 +248,15 @@ extension BondingCurve {
         for i in 0...100 {
             // Cost to reach supplyInt from 0
             let cost: BigDecimal = {
-                var c = self
-                c.currentSupply = 0
-                return c.costToBuy(tokens: supplyInt)
+                self.costToBuy(
+                    quarks: supplyInt * 10_000_000_000,
+                    supply: 0
+                )
             }()
 
             // Spot price at supplyInt
             let spotPrice: BigDecimal = {
-                var c = self
-                c.currentSupply = supplyInt
-                return try! c.spotPrice()
+                try! self.spotPrice(supply: supplyInt)
             }()
 
             let percentStr = String(format: "%4d%%", i)

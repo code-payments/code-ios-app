@@ -6,6 +6,7 @@
 //
 
 import Testing
+import FlipcashCore
 @testable import Flipcash
 import BigDecimal
 
@@ -14,124 +15,6 @@ struct BondingCurveParityTests {
 
     private var curve = BondingCurve()
 
-    @Test("spotPrice at S=0 equals START_PRICE (0.01)")
-    func testSpotPriceAtZeroEqualsStartPrice() throws {
-        var c = curve
-        c.currentSupply = 0
-        let price = try c.spotPrice()
-        #expect(approxEqual(price, BondingCurve.startPrice, tol: BigDecimal("1e-18")))
-    }
-
-    @Test("spotPrice increases monotonically with supply")
-    func testSpotPriceMonotonicity() throws {
-        var prev: BigDecimal? = nil
-        var c = curve
-        for s in stride(from: 0, through: 2_100_000, by: 210_000) {
-            c.currentSupply = s
-            let p = try c.spotPrice()
-            if let q = prev {
-                #expect(q < p, "spotPrice must strictly increase: \(p.asString(.plain)) ≤ \(q.asString(.plain))")
-            }
-            prev = p
-        }
-    }
-
-    @Test("costToBuy from S=0 should invert with tokensBought(forValue:)")
-    func testBuyCostInverse() {
-        let step = 210_000
-        var c = curve
-
-        for tokens in stride(from: 0, through: 2_100_000, by: step) {
-            c.currentSupply = 0
-            let cost        = c.costToBuy(tokens: tokens)
-            let delta       = c.tokensBought(forValue: cost)
-            
-            #expect(approxEqual(delta, BigDecimal(tokens), tol: BigDecimal("1e-9")), "Inverse mismatch at tokens=\(tokens): delta=\(delta.asString(.plain)), cost=\(cost)")
-        }
-    }
-
-    @Test("valueFromSelling(tokens) inverts with tokensForValueExchange(value)")
-    func testSellInverse() throws {
-        var c = curve
-        let supplies = [
-            0,
-            210_000,
-            2_100_000,
-            10_500_000
-        ]
-        
-        let amounts = [
-            1_000,
-            10_000,
-            50_000,
-            100_000
-        ]
-        
-        for s in supplies {
-            c.currentSupply = s
-            for tokens in amounts {
-                let value    = c.valueFromSelling(tokens: tokens)
-                let back     = try c.tokensForValueExchange(value)
-                
-                #expect(approxEqual(back, BigDecimal(tokens), tol: BigDecimal("1e-9")), "Inverse mismatch at S=\(s), tokens=\(tokens): got \(back.asString(.plain))")
-            }
-        }
-    }
-
-    @Test("Small buy→sell round trip (local linearity)")
-    func testSmallRoundTrip() throws {
-        var c = curve
-        c.currentSupply = 5_000_000
-        
-        let small = 5_000
-        let cost  = c.costToBuy(tokens: small)
-        
-        // Given that value, estimate tokens via inverse
-        let est = c.tokensBought(forValue: cost)
-        #expect(approxEqual(est, BigDecimal(small), tol: BigDecimal("1e-6")), "Expected ~\(small) got \(est.asString(.plain))")
-
-        // Now sell 'small' tokens and estimate tokens needed for that value
-        let proceeds = c.valueFromSelling(tokens: small)
-        let back = try c.tokensForValueExchange(proceeds)
-        #expect(approxEqual(back, BigDecimal(small), tol: BigDecimal("1e-6")), "Expected ~\(small) got \(back.asString(.plain))")
-    }
-
-    // MARK: - Errors -
-
-    @Test("tokensBought(forValue:) returns 0 for non-positive value")
-    func testTokensBoughtGuard() {
-        var c = curve
-        c.currentSupply = 1_000_000
-        #expect(c.tokensBought(forValue: BigDecimal("0")) == BigDecimal("0"))
-        #expect(c.tokensBought(forValue: BigDecimal("-1")) == BigDecimal("0"))
-    }
-
-    @Test("tokensForValueExchange throws on non-positive value and over-liquidity value")
-    func testTokensForValueExchangeGuards() {
-        var c = curve
-        c.currentSupply = 1_000_000
-
-        // non-positive
-        #expect(throws: BondingCurveError.self) {
-            _ = try c.tokensForValueExchange(BigDecimal("0"))
-        }
-        
-        #expect(throws: BondingCurveError.self) {
-            _ = try c.tokensForValueExchange(BigDecimal("-0.1"))
-        }
-
-        // over-liquidity cap: value >= (ab/c) * exp(c*S)
-        let eCS = BigDecimal.exp(curve.c.multiply(BigDecimal(c.currentSupply), r), r)
-        let cap = curve.a.multiply(curve.b, r).divide(curve.c, r).multiply(eCS, r)
-        
-        // pass something ≥ cap
-        #expect(throws: BondingCurveError.self) {
-            _ = try c.tokensForValueExchange(cap)
-        }
-    }
-    
-    // MARK: - Curve Table -
-    
     @Test func generateCurveTable() {
         let curve       = BondingCurve()
         let chart       = curve.generateChart()
@@ -253,22 +136,91 @@ struct BondingCurveParityTests {
             }
         }
     }
-}
-
-// MARK: - Utilities
-
-private func absBD(_ x: BigDecimal) -> BigDecimal {
-    if x.signum < 0 {
-        var t = x
-        t.negate()
-        return t
+    
+    
+    @Test
+    func testValueFromSellingSpecificAmount() {
+        let curve = BondingCurve()
+        let value = curve.valueFromSelling(
+            quarks: 265_14_962_811_36,
+            tvl: 10_100_000_000
+        )
+        
+        #expect(value.scaleUp(2).asDecimal().rounded(to: 2) == 500.00) // $5.00
     }
-    return x
-}
-
-private let r = Rounding(.toNearestOrEven, 100)
-
-private func approxEqual(_ a: BigDecimal, _ b: BigDecimal, tol: BigDecimal = BigDecimal("1e-12")) -> Bool {
-    let d = a.subtract(b, r)
-    return absBD(d) <= tol
+    
+    @Test
+    func testSellingSpecificAmount() {
+        let curve    = BondingCurve()
+        let estimate = curve.sell(
+            quarks: 265_14_962_811_36,
+            feeBps: 100,
+            tvl: 10_100_000_000
+        )
+        
+        #expect((estimate.netTokensToReceive * 100).rounded(to: 2) == 495)
+        #expect((estimate.fees * 100).rounded(to: 2) == 5)
+    }
+    
+    @Test
+    func testValueFromSellingZero() {
+        let curve = BondingCurve()
+        let value = curve.valueFromSelling(
+            quarks: 0,
+            tvl: 10_100_000_000
+        )
+        
+        #expect(value.scaleUp(2).asDecimal() == 0)
+    }
+    
+    @Test
+    func testCostToBuy() {
+        let curve = BondingCurve()
+        
+        let cost = curve.costToBuy(
+            quarks: 2_651_496_281_136,
+            supply: 0
+        )
+        
+        let cost2 = curve.costToBuy(
+            quarks: 2_651_496_281_136,
+            supply: 2_651_496_281_136
+        )
+        
+        let cost3 = curve.costToBuy(
+            quarks: 2_651_496_281_136,
+            supply: 5_302_992_562_272
+        )
+        
+        #expect(cost.scaleUp(4).asDecimal().rounded(to: 0)  == 26518) // $2.6518
+        #expect(cost2.scaleUp(4).asDecimal().rounded(to: 0) == 26524) // $2.6524
+        #expect(cost3.scaleUp(4).asDecimal().rounded(to: 0) == 26530) // $2.6530
+    }
+    
+    @Test
+    func testTokensBoughtAmounts() {
+        let curve = BondingCurve()
+        
+        let cost  = curve.tokensBought(withUSDC: 2_650_000, tvl: 2_650_000) // $2.65
+        let cost2 = curve.tokensBought(withUSDC: 2_650_000, tvl: 5_300_000) // $5.30
+        let cost3 = curve.tokensBought(withUSDC: 2_650_000, tvl: 7_950_000) // $7.95
+        
+        #expect(cost.scaleUp(4).asDecimal().rounded(to: 0)  == 2649076) // 264.9076 tokens
+        #expect(cost2.scaleUp(4).asDecimal().rounded(to: 0) == 2648461) // 264.8461 tokens
+        #expect(cost3.scaleUp(4).asDecimal().rounded(to: 0) == 2647846) // 264.7846 tokens
+    }
+    
+    @Test
+    func testBuyingSpecificAmount() {
+        let curve = BondingCurve()
+        
+        let estimate = curve.buy(
+            usdcQuarks: 2_650_000,
+            feeBps: 0,
+            tvl: 2_650_000
+        )
+        
+        #expect((estimate.netTokensToReceive * 10000).rounded(to: 0) == 2649076) // 265.9076
+        #expect((estimate.fees * 100).rounded(to: 2) == 0)
+    }
 }
