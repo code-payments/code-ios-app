@@ -49,15 +49,9 @@ public struct ModalCashReceived: View {
                 HStack(spacing: 2) {
                     Text("of ")
                     
-                    AsyncImage(url: currencyImageURL) { image in
-                        image
-                            .resizable()
-                    } placeholder: {
-                        Circle()
-                            .fill(.black.opacity(0.1))
-                    }
-                    .frame(width: 15, height: 15)
-                    .clipShape(Circle())
+                    RemoteImage(url: currencyImageURL)
+                        .frame(width: 15, height: 15)
+                        .clipShape(Circle())
                     
                     Text(currencyName)
                 }

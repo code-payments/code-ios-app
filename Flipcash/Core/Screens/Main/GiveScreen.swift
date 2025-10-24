@@ -73,7 +73,7 @@ struct GiveScreen: View {
                 )
             }
         }
-        .navigationTitle("")
+        .navigationTitle("Enter Amount")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
             AddCashScreen(

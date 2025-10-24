@@ -65,6 +65,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		9A017D692EAC1DE200216925 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 9A017D682EAC1DE200216925 /* Kingfisher */; };
 		9A03338B278E0C88005C630A /* VerifyPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A03338A278E0C88005C630A /* VerifyPhoneScreen.swift */; };
 		9A033392278F61E8005C630A /* ConfirmPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A033391278F61E8005C630A /* ConfirmPhoneScreen.swift */; };
 		9A06B0E52BEA8F430023B7B7 /* SwiftUIIntrospect in Frameworks */ = {isa = PBXBuildFile; productRef = 9A06B0E42BEA8F430023B7B7 /* SwiftUIIntrospect */; };
@@ -652,6 +653,7 @@
 				9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */,
 				9A8A219C2E7B253A00C12594 /* TweetNacl in Frameworks */,
 				9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */,
+				9A017D692EAC1DE200216925 /* Kingfisher in Frameworks */,
 				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
 				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
 				9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */,
@@ -1352,6 +1354,7 @@
 				9A8A219B2E7B253A00C12594 /* TweetNacl */,
 				9A2396752E7DE27500D70699 /* SolanaSwift */,
 				9A444EE62E8C414D002B1E39 /* BigDecimal */,
+				9A017D682EAC1DE200216925 /* Kingfisher */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -4568,6 +4571,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		9A017D682EAC1DE200216925 /* Kingfisher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9A8D9A3D2D78C2E200E755B9 /* XCRemoteSwiftPackageReference "Kingfisher" */;
+			productName = Kingfisher;
+		};
 		9A06B0E42BEA8F430023B7B7 /* SwiftUIIntrospect */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9A4279CF281190E500726D1B /* XCRemoteSwiftPackageReference "SwiftUI-Introspect" */;

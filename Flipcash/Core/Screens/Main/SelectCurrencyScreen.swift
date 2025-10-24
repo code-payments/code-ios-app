@@ -102,15 +102,9 @@ struct CurrencyBalanceRow: View {
         } label: {
             HStack(spacing: 8) {
                 if let imageURL = exchangedBalance.stored.imageURL {
-                    AsyncImage(url: imageURL) { image in
-                        image
-                            .resizable()
-                    } placeholder: {
-                        Circle()
-                            .fill(.black.opacity(0.1))
-                    }
-                    .frame(width: 24, height: 24)
-                    .clipShape(Circle())
+                    RemoteImage(url: imageURL)
+                        .frame(width: 24, height: 24)
+                        .clipShape(Circle())
                 }
                 
                 Text(exchangedBalance.stored.name)
