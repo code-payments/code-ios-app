@@ -19,14 +19,14 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     public init(converted: Fiat, rate: Rate, mint: PublicKey) throws {
         assert(converted.currencyCode == rate.currency, "Rate currency must match Fiat currency")
         
-        if converted.currencyCode == .usd {
-            self.init(
-                usdc: converted,
-                converted: converted,
-                rate: .oneToOne,
-                mint: mint
-            )
-        } else {
+//        if converted.currencyCode == .usd {
+//            self.init(
+//                usdc: converted,
+//                converted: converted,
+//                rate: .oneToOne,
+//                mint: mint
+//            )
+//        } else {
             let equivalentUSD = converted.decimalValue / rate.fx
             
             // Trims any quark amount beyond 2 decimal places
@@ -34,7 +34,8 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             
             let usdc = try Fiat(
                 fiatDecimal: equivalentUSD,
-                currencyCode: .usd
+                currencyCode: .usd,
+                decimals: mint.mintDecimals
             )
             
             self.init(
@@ -43,7 +44,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 rate: rate,
                 mint: mint
             )
-        }
+//        }
     }
     
     public init(usdc: Fiat, rate: Rate, mint: PublicKey) throws {
@@ -51,7 +52,8 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             usdc: usdc,
             converted: try Fiat(
                 fiatDecimal: usdc.decimalValue * rate.fx,
-                currencyCode: rate.currency
+                currencyCode: rate.currency,
+                decimals: mint.mintDecimals
             ),
             rate: rate,
             mint: mint
@@ -70,7 +72,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
-    private init(usdc: Fiat, converted: Fiat, rate: Rate, mint: PublicKey) {
+    public init(usdc: Fiat, converted: Fiat, rate: Rate, mint: PublicKey) {
         assert(usdc.currencyCode == .usd, "ExchangeFiat usdc must be in USD")
         
         self.usdc = usdc
@@ -80,8 +82,6 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     }
     
     public func subtracting(fee: Fiat) throws -> ExchangedFiat {
-        assert(fee.currencyCode == .usd, "Fee must be in USD")
-        
         let feeInQuarks = fee.quarks
         
         guard feeInQuarks < usdc.quarks else {
@@ -93,7 +93,33 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         return try ExchangedFiat(
             usdc: Fiat(
                 quarks: remainingQuarks,
-                currencyCode: .usd
+                currencyCode: .usd,
+                decimals: mint.mintDecimals
+            ),
+            rate: rate,
+            mint: mint
+        )
+    }
+    
+    public func convert(to rate: Rate) -> ExchangedFiat {
+        try! ExchangedFiat(
+            usdc: usdc,
+            rate: rate,
+            mint: mint
+        )
+    }
+    
+    public func use(mint: PublicKey) -> ExchangedFiat {
+        ExchangedFiat(
+            usdc: .init(
+                quarks: usdc.quarks,
+                currencyCode: usdc.currencyCode,
+                decimals: mint.mintDecimals
+            ),
+            converted: .init(
+                quarks: converted.quarks,
+                currencyCode: converted.currencyCode,
+                decimals: mint.mintDecimals
             ),
             rate: rate,
             mint: mint
@@ -106,36 +132,42 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 extension ExchangedFiat {
     init(_ proto: Code_Transaction_V2_ExchangeData) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
+        let mint     = try PublicKey(proto.mint.value)
         self.init(
             usdc: Fiat(
                 quarks: proto.quarks,
-                currencyCode: .usd
+                currencyCode: .usd,
+                decimals: mint.mintDecimals
             ),
             converted: try Fiat(
                 fiatDecimal: Decimal(proto.nativeAmount),
-                currencyCode: currency
+                currencyCode: currency,
+                decimals: mint.mintDecimals
             ),
             rate: Rate(
                 fx: Decimal(proto.exchangeRate),
                 currency: currency
             ),
-            mint: try PublicKey(proto.mint.value)
+            mint: mint
         )
     }
     
     init(_ proto: Flipcash_Common_V1_CryptoPaymentAmount) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
+        let mint     = try PublicKey(proto.mint.value)
         self.init(
             usdc: Fiat(
                 quarks: proto.quarks,
-                currencyCode: .usd
+                currencyCode: .usd,
+                decimals: mint.mintDecimals
             ),
+            // Rate is auto-calculated based on converted / usdc
             converted: try Fiat(
                 fiatDecimal: Decimal(proto.nativeAmount),
-                currencyCode: currency
+                currencyCode: currency,
+                decimals: mint.mintDecimals
             ),
-            mint: try PublicKey(proto.mint.value)
-            // Rate is auto-calculated based on converted / usdc
+            mint: mint
         )
     }
 }

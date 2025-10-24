@@ -16,9 +16,11 @@ struct BillValuation: Identifiable {
     
     let rendezvous: PublicKey
     let exchangedFiat: ExchangedFiat
+    let mintMetadata: StoredMintMetadata?
     
-    init(rendezvous: PublicKey, exchangedFiat: ExchangedFiat) {
-        self.rendezvous = rendezvous
+    init(rendezvous: PublicKey, exchangedFiat: ExchangedFiat, mintMetadata: StoredMintMetadata?) {
+        self.rendezvous    = rendezvous
         self.exchangedFiat = exchangedFiat
+        self.mintMetadata  = mintMetadata
     }
 }

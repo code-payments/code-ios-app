@@ -27,7 +27,11 @@ struct EnterWalletAmountScreen: View {
             return nil
         }
         
-        return try! Fiat(fiatDecimal: amount, currencyCode: .usd)
+        return try! Fiat(
+            fiatDecimal: amount,
+            currencyCode: .usd,
+            decimals: PublicKey.usdc.mintDecimals
+        )
     }
     
     private let amountEntered: (Fiat) async throws -> Void

@@ -119,9 +119,9 @@ extension Client {
     
     // MARK: - Withdrawals -
     
-    public func fetchDestinationMetadata(destination: PublicKey) async -> DestinationMetadata {
+    public func fetchDestinationMetadata(destination: PublicKey, mint: PublicKey) async -> DestinationMetadata {
         await withCheckedContinuation { c in
-            transactionService.fetchDestinationMetadata(destination: destination) { c.resume(with: $0) }
+            transactionService.fetchDestinationMetadata(destination: destination, mint: mint) { c.resume(with: $0) }
         }
     }
 }

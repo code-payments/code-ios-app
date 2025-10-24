@@ -93,7 +93,7 @@ class OnrampViewModel: ObservableObject {
             return nil
         }
         
-        guard let converted = try? Fiat(fiatDecimal: amount, currencyCode: currency) else {
+        guard let converted = try? Fiat(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdc.mintDecimals) else {
             trace(.failure, components: "[Onramp] Invalid amount for entry")
             return nil
         }

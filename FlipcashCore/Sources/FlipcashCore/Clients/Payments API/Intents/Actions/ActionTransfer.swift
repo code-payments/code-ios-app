@@ -19,10 +19,11 @@ struct ActionTransfer: ActionType {
     let sourceCluster: AccountCluster
     let source: PublicKey
     let destination: PublicKey
+    let mint: PublicKey
 
     static let configCountRequirement: Int = 1
     
-    init(amount: Fiat, sourceCluster: AccountCluster, destination: PublicKey) {
+    init(amount: Fiat, sourceCluster: AccountCluster, destination: PublicKey, mint: PublicKey) {
         self.id = 0
         self.signer = sourceCluster.authority.keyPair
         
@@ -30,6 +31,7 @@ struct ActionTransfer: ActionType {
         self.sourceCluster = sourceCluster
         self.source        = sourceCluster.vaultPublicKey
         self.destination   = destination
+        self.mint          = mint
     }
     
     func compactMessages() throws -> [CompactMessage] {
@@ -67,6 +69,7 @@ extension ActionTransfer {
         .with {
             $0.id = UInt32(id)
             $0.noPrivacyTransfer = .with {
+                $0.mint        = mint.solanaAccountID
                 $0.authority   = sourceCluster.authorityPublicKey.solanaAccountID
                 $0.source      = source.solanaAccountID
                 $0.destination = destination.solanaAccountID

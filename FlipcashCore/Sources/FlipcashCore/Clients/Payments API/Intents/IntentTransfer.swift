@@ -30,7 +30,8 @@ final class IntentTransfer: IntentType {
         let transfer = ActionTransfer(
             amount: exchangedFiat.usdc,
             sourceCluster: sourceCluster,
-            destination: destination
+            destination: destination,
+            mint: exchangedFiat.mint
         )
         
         self.actionGroup = ActionGroup(actions: [transfer])
@@ -45,7 +46,9 @@ extension IntentTransfer {
             $0.sendPublicPayment = .with {
                 $0.source       = sourceCluster.vaultPublicKey.solanaAccountID
                 $0.destination  = destination.solanaAccountID
+                $0.mint         = exchangedFiat.mint.solanaAccountID
                 $0.exchangeData = .with {
+                    $0.mint         = exchangedFiat.mint.solanaAccountID
                     $0.quarks       = exchangedFiat.usdc.quarks
                     $0.currency     = exchangedFiat.converted.currencyCode.rawValue
                     $0.exchangeRate = exchangedFiat.rate.fx.doubleValue

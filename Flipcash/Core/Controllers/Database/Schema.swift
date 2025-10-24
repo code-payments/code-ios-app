@@ -9,6 +9,44 @@ import Foundation
 import FlipcashCore
 @preconcurrency import SQLite
 
+struct BalanceTable: Sendable {
+    static let name = "balance"
+    
+    let table        = Table(Self.name)
+    let quarks       = Expression <UInt64>    ("quarks")
+    let mint         = Expression <PublicKey> ("mint")
+    let updatedAt    = Expression <Date>      ("updatedAt")
+}
+
+struct MintTable: Sendable {
+    static let name = "mint"
+    
+    let table        = Table(Self.name)
+    let mint         = Expression <PublicKey> ("mint")
+    let name         = Expression <String>    ("name")
+    let symbol       = Expression <String>    ("symbol")
+    let decimals     = Expression <Int>       ("decimals")
+    let bio          = Expression <String?>   ("bio")
+    let imageURL     = Expression <URL?>      ("imageURL")
+    
+    let vmAddress    = Expression <PublicKey?> ("vmAddress")
+    let vmAuthority  = Expression <PublicKey?> ("vmAuthority")
+    let lockDuration = Expression <Int?>       ("lockDuration")
+    
+    let currencyConfig    = Expression <PublicKey?> ("currencyConfig")
+    let liquidityPool     = Expression <PublicKey?> ("liquidityPool")
+    let seed              = Expression <PublicKey?> ("seed")
+    let authority         = Expression <PublicKey?> ("authority")
+    let mintVault         = Expression <PublicKey?> ("mintVault")
+    let coreMintVault     = Expression <PublicKey?> ("coreMintVault")
+    let coreMintFees      = Expression <PublicKey?> ("coreMintFees")
+    let supplyFromBonding = Expression <UInt64?>    ("supplyFromBonding")
+    let coreMintLocked    = Expression <UInt64?>    ("coreMintLocked")
+    let sellFeeBps        = Expression <Int?>       ("sellFeeBps")
+    
+    let updatedAt         = Expression <Date>       ("updatedAt")
+}
+
 struct RateTable: Sendable {
     static let name = "rate"
     
@@ -29,6 +67,7 @@ struct ActivityTable: Sendable {
     let quarks       = Expression <UInt64>       ("quarks")
     let nativeAmount = Expression <Double>       ("nativeAmount")
     let currency     = Expression <CurrencyCode> ("currency")
+    let mint         = Expression <PublicKey>    ("mint")
     let date         = Expression <Date>         ("date")
 }
 
@@ -94,17 +133,55 @@ extension Expression {
 
 extension Database {
     func createTablesIfNeeded() throws {
-        let rateTable = RateTable()
-        let activityTable = ActivityTable()
+        let balanceTable          = BalanceTable()
+        let rateTable             = RateTable()
+        let mintTable             = MintTable()
+        let activityTable         = ActivityTable()
         let cashLinkMetadataTable = CashLinkMetadataTable()
-        let poolTable = PoolTable()
-        let betTable = BetTable()
+        let poolTable             = PoolTable()
+        let betTable              = BetTable()
+        
+        try writer.transaction {
+            try writer.run(balanceTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(balanceTable.mint, primaryKey: true)
+                t.column(balanceTable.quarks)
+                t.column(balanceTable.updatedAt)
+            })
+        }
         
         try writer.transaction {
             try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(rateTable.currency, primaryKey: true)
                 t.column(rateTable.fx)
                 t.column(rateTable.date)
+            })
+        }
+        
+        try writer.transaction {
+            try writer.run(mintTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(mintTable.mint, primaryKey: true)
+                t.column(mintTable.name)
+                t.column(mintTable.symbol)
+                t.column(mintTable.decimals)
+                t.column(mintTable.bio)
+                t.column(mintTable.imageURL)
+                
+                t.column(mintTable.vmAddress)
+                t.column(mintTable.vmAuthority)
+                t.column(mintTable.lockDuration)
+                
+                t.column(mintTable.currencyConfig)
+                t.column(mintTable.liquidityPool)
+                t.column(mintTable.seed)
+                t.column(mintTable.authority)
+                t.column(mintTable.mintVault)
+                t.column(mintTable.coreMintVault)
+                t.column(mintTable.coreMintFees)
+                t.column(mintTable.supplyFromBonding)
+                t.column(mintTable.coreMintLocked)
+                t.column(mintTable.sellFeeBps)
+                
+                t.column(mintTable.updatedAt)
             })
         }
         
@@ -117,6 +194,7 @@ extension Database {
                 t.column(activityTable.quarks)
                 t.column(activityTable.nativeAmount)
                 t.column(activityTable.currency)
+                t.column(activityTable.mint)
                 t.column(activityTable.date)
             })
         }

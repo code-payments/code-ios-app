@@ -36,7 +36,8 @@ final class IntentWithdraw: IntentType {
                 ActionTransfer(
                     amount: amountToWithdraw.usdc,
                     sourceCluster: sourceCluster,
-                    destination: destination
+                    destination: destination,
+                    mint: exchangedFiat.mint
                 )
             )
             group.append(
@@ -51,7 +52,8 @@ final class IntentWithdraw: IntentType {
                 ActionTransfer(
                     amount: exchangedFiat.usdc,
                     sourceCluster: sourceCluster,
-                    destination: destination
+                    destination: destination,
+                    mint: exchangedFiat.mint
                 )
             )
         }
@@ -68,7 +70,9 @@ extension IntentWithdraw {
             $0.sendPublicPayment = .with {
                 $0.source       = sourceCluster.vaultPublicKey.solanaAccountID
                 $0.destination  = destinationMetadata.destination.token.solanaAccountID
+                $0.mint         = exchangedFiat.mint.solanaAccountID
                 $0.exchangeData = .with {
+                    $0.mint         = exchangedFiat.mint.solanaAccountID
                     $0.quarks       = exchangedFiat.usdc.quarks
                     $0.currency     = exchangedFiat.converted.currencyCode.rawValue
                     $0.exchangeRate = exchangedFiat.rate.fx.doubleValue

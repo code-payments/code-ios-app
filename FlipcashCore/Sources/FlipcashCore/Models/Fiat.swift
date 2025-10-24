@@ -12,9 +12,10 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     
     public let quarks: UInt64
     public let currencyCode: CurrencyCode
+    public let decimals: Int
     
     public var decimalValue: Decimal {
-        quarks.toFiat
+        quarks.scaleDown(decimals)
     }
     
     public var doubleValue: Double {
@@ -23,53 +24,134 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     
     // MARK: - Init -
     
-    public init(quarks: UInt64, currencyCode: CurrencyCode) {
+    public init(quarks: UInt64, currencyCode: CurrencyCode, decimals: Int) {
         self.quarks = quarks
         self.currencyCode = currencyCode
+        self.decimals = decimals
     }
     
-    public init(fiatDecimal: Decimal, currencyCode: CurrencyCode) throws {
+    public init(fiatDecimal: Decimal, currencyCode: CurrencyCode, decimals: Int) throws {
         guard fiatDecimal >= 0 else {
             throw Error.invalidNegativeValue
         }
         
         self.init(
-            quarks: fiatDecimal.toQuarks,
-            currencyCode: currencyCode
+            quarks: fiatDecimal.scaleUpInt(decimals),
+            currencyCode: currencyCode,
+            decimals: decimals
         )
     }
     
-    public init(fiatInt: Int, currencyCode: CurrencyCode) throws {
+    public init(fiatInt: Int, currencyCode: CurrencyCode, decimals: Int) throws {
         guard fiatInt >= 0 else {
             throw Error.invalidNegativeValue
         }
         
         self.init(
             fiatUnsigned: UInt64(fiatInt),
-            currencyCode: currencyCode
+            currencyCode: currencyCode,
+            decimals: decimals
         )
     }
     
-    public init(fiatUnsigned: UInt64, currencyCode: CurrencyCode) {
+    public init(fiatUnsigned: UInt64, currencyCode: CurrencyCode, decimals: Int) {
         self.init(
-            quarks: fiatUnsigned.toQuarks,
-            currencyCode: currencyCode
+            quarks: fiatUnsigned.scaleDownInt(decimals),
+            currencyCode: currencyCode,
+            decimals: decimals
         )
     }
     
-    public init(quarks: Int64, currencyCode: CurrencyCode) throws {
+    public init(quarks: Int64, currencyCode: CurrencyCode, decimals: Int) throws {
         guard quarks >= 0 else {
             throw Error.invalidNegativeValue
         }
         
         self.init(
             quarks: UInt64(quarks),
-            currencyCode: currencyCode
+            currencyCode: currencyCode,
+            decimals: decimals
         )
     }
     
-    public static func zero(currencyCode: CurrencyCode) -> Fiat {
-        Fiat(quarks: 0 as UInt64, currencyCode: currencyCode)
+    public static func zero(currencyCode: CurrencyCode, decimals: Int) -> Fiat {
+        Fiat(
+            quarks: 0 as UInt64,
+            currencyCode: currencyCode,
+            decimals: decimals
+        )
+    }
+    
+    // MARK: - Operations -
+    
+    public func adding(_ value: Fiat) throws -> Fiat {
+        guard value.currencyCode == currencyCode else {
+            throw Error.currencyCodeMismatch
+        }
+        
+        let (lhs, rhs, targetDecimal) = try value.aligned(with: self)
+        return .init(
+            quarks: lhs.quarks + rhs.quarks,
+            currencyCode: currencyCode,
+            decimals: targetDecimal
+        )
+    }
+    
+    public func subtracting(_ value: Fiat) throws -> Fiat {
+        guard value.currencyCode == currencyCode else {
+            throw Error.currencyCodeMismatch
+        }
+        
+        let (lhs, rhs, targetDecimals) = try self.aligned(with: value)
+        guard lhs.quarks >= rhs.quarks else {
+            throw Error.invalidNegativeValue
+        }
+        
+        return Fiat(
+            quarks: lhs.quarks - rhs.quarks,
+            currencyCode: currencyCode,
+            decimals: targetDecimals
+        )
+    }
+    
+    /// Returns a copy of this Fiat scaled to `targetDecimals`.
+    /// If `targetDecimals` is greater than `decimals`, quarks are scaled up.
+    /// If smaller, quarks are scaled down. Currency code is preserved.
+    public func scaled(to targetDecimals: Int) -> Fiat {
+        if targetDecimals == decimals {
+            return self
+        } else if targetDecimals > decimals {
+            let diff = targetDecimals - decimals
+            return Fiat(
+                quarks: quarks.scaleUp(diff),
+                currencyCode: currencyCode,
+                decimals: targetDecimals
+            )
+        } else {
+            let diff = decimals - targetDecimals
+            return Fiat(
+                quarks: quarks.scaleDownInt(diff),
+                currencyCode: currencyCode,
+                decimals: targetDecimals
+            )
+        }
+    }
+
+    /// Aligns `self` and `other` to a common decimal precision (the maximum of the two).
+    /// - Returns: `(lhs, rhs, targetDecimals)` where both amounts are scaled to `targetDecimals`.
+    /// - Throws: `Error.currencyCodeMismatch` if the currency codes differ.
+    public func aligned(with other: Fiat) throws -> (lhs: Fiat, rhs: Fiat, decimals: Int) {
+        guard other.currencyCode == currencyCode else {
+            throw Error.currencyCodeMismatch
+        }
+        
+        let target = max(self.decimals, other.decimals)
+        
+        return (
+            self.scaled(to: target),
+            other.scaled(to: target),
+            target
+        )
     }
     
     // MARK: - Fee -
@@ -77,7 +159,8 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     public func calculateFee(bps: Int) -> Fiat {
         Fiat(
             quarks: quarks * UInt64(bps) / 10_000,
-            currencyCode: currencyCode
+            currencyCode: currencyCode,
+            decimals: decimals
         )
     }
 }
@@ -87,6 +170,7 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
 extension Fiat {
     enum Error: Swift.Error {
         case invalidNegativeValue
+        case currencyCodeMismatch
     }
 }
 
@@ -107,7 +191,7 @@ extension Fiat {
             minimumFractionDigits: showAllDecimals ? 6 : 2,
             truncated: truncated,
             suffix: suffix
-        ).string(from: quarks.toFiat)!
+        ).string(from: quarks.scaleDown(decimals))!
     }
 }
 
@@ -126,10 +210,11 @@ extension Fiat: CustomStringConvertible, CustomDebugStringConvertible {
 // MARK: - Fiat -
 
 extension Fiat {
-    public func converting(to rate: Rate) -> Fiat {
+    public func converting(to rate: Rate, decimals: Int) -> Fiat {
         try! Fiat(
-            fiatDecimal: Decimal(quarks).toFiat * rate.fx,
-            currencyCode: rate.currency
+            fiatDecimal: Decimal(quarks).scaleDown(decimals) * rate.fx,
+            currencyCode: rate.currency,
+            decimals: decimals
         )
     }
 }
@@ -138,13 +223,13 @@ extension Fiat {
 
 extension Fiat: ExpressibleByIntegerLiteral {
     public init(integerLiteral value: UInt64) {
-        self.init(fiatUnsigned: value, currencyCode: .usd)
+        self.init(fiatUnsigned: value, currencyCode: .usd, decimals: 6)
     }
 }
 
 extension Fiat: ExpressibleByFloatLiteral {
     public init(floatLiteral value: FloatLiteralType) {
-        try! self.init(fiatDecimal: Decimal(value), currencyCode: .usd)
+        try! self.init(fiatDecimal: Decimal(value), currencyCode: .usd, decimals: 6)
     }
 }
 
@@ -193,22 +278,22 @@ extension Fiat: Comparable {
 
 // MARK: - Decimal -
 
-private extension Decimal {
-    
-    static let multiplier: Decimal = 1_000_000
-    
-    var toQuarks: UInt64 {
-        let rounded = (self * .multiplier).rounded(to: 0)
-        return NSDecimalNumber(decimal: rounded).uint64Value
-    }
-    
-    var toFiat: Decimal {
-        self / .multiplier
-    }
-}
+//private extension Decimal {
+//    
+//    static let multiplier: Decimal = 1_000_000
+//    
+//    var toQuarks: UInt64 {
+//        let rounded = (self * .multiplier).rounded(to: 0)
+//        return NSDecimalNumber(decimal: rounded).uint64Value
+//    }
+//    
+//    var toFiat: Decimal {
+//        self / .multiplier
+//    }
+//}
 
 extension Decimal {
-    func rounded(to decimalPlaces: Int) -> Decimal {
+    public func rounded(to decimalPlaces: Int) -> Decimal {
         var current = self
         var rounded = Decimal()
         NSDecimalRound(&rounded, &current, decimalPlaces, .plain)
@@ -216,15 +301,58 @@ extension Decimal {
     }
 }
 
-private extension UInt64 {
-    
-    static let multiplier: UInt64 = 1_000_000
-    
-    var toQuarks: UInt64 {
-        self * .multiplier
+//private extension UInt64 {
+//    
+//    static let multiplier: UInt64 = 1_000_000
+//    
+//    var toQuarks: UInt64 {
+//        self * .multiplier
+//    }
+//    
+//    var toFiat: Decimal {
+//        Decimal(self) / .multiplier
+//    }
+//}
+
+extension UInt64 {
+    private func pow10(_ n: Int) -> UInt64 {
+        return (0..<n).reduce(1) { acc, _ in acc * 10 }
     }
     
-    var toFiat: Decimal {
-        Decimal(self) / .multiplier
+    func scaleDown(_ d: Int) -> Decimal {
+        let factor = Decimal(pow10(d))
+        return Decimal(self) / factor
+    }
+    
+    func scaleDownInt(_ d: Int) -> UInt64 {
+        let factor = pow10(d)
+        return self / factor
+    }
+
+    func scaleUp(_ d: Int) -> UInt64 {
+        let factor = pow10(d)
+        return self * factor
+    }
+}
+
+extension Decimal {
+    private func pow10(_ n: Int) -> Decimal {
+        var result: Decimal = 1
+        for _ in 0..<n {
+            result *= 10
+        }
+        return result
+    }
+
+    func scaleDown(_ d: Int) -> Decimal {
+        return self / pow10(d)
+    }
+    
+    func scaleUp(_ d: Int) -> Decimal {
+        self * pow10(d)
+    }
+
+    func scaleUpInt(_ d: Int) -> UInt64 {
+        UInt64(scaleUp(d).doubleValue)
     }
 }

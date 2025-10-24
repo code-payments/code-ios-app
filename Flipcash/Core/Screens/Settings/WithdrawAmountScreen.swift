@@ -26,11 +26,13 @@ struct WithdrawAmountScreen: View {
     
     // MARK: - Body -
     
+    #warning("Add support for max withdrawal")
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
                 mode: .currency,
                 enteredAmount: $viewModel.enteredAmount,
+                subtitle: .balanceWithLimit(.zero(currencyCode: .usd, decimals: 6)),
                 actionState: .constant(.normal),
                 actionEnabled: { _ in
                     viewModel.enteredFiat != nil

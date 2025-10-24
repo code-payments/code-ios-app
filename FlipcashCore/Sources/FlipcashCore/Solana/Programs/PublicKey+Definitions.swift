@@ -13,3 +13,13 @@ extension PublicKey {
     public static let jeffy         = try! PublicKey(base58: "52MNGpgvydSwCtC2H4qeiZXZ1TxEuRVCRGa8LAfk2kSj")
     public static let usdcAuthority = try! PublicKey(base58: "cash11ndAmdKFEnG2wrQQ5Zqvr1kN9htxxLyoPLYFUV")
 }
+
+extension PublicKey {
+    public var mintDecimals: Int {
+        if self == .usdc {
+            return 6
+        } else {
+            return 10
+        }
+    }
+}

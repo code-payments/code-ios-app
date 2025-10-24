@@ -52,7 +52,7 @@ class Database {
     /// captures the function in which this was called, otherwise
     /// it will always captured in transaction {}
     @inline(__always)
-    func transaction(silent: Bool = false, _ block: (Database) throws -> Void) throws {
+    func transaction(silent: Bool = false, _ block: (Database) throws -> Void) rethrows {
 //        let start = Date.now
         do {
             let startChangeCount = writer.totalChanges

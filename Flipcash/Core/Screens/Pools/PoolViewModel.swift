@@ -64,7 +64,7 @@ class PoolViewModel: ObservableObject {
         
         let currency = ratesController.entryCurrency
         
-        guard let enteredFiat = try? Fiat(fiatDecimal: amount, currencyCode: currency) else {
+        guard let enteredFiat = try? Fiat(fiatDecimal: amount, currencyCode: currency, decimals: 6) else {
             trace(.failure, components: "[Withdraw] Invalid amount for entry")
             return nil
         }
@@ -168,16 +168,16 @@ class PoolViewModel: ObservableObject {
     }
     
     func selectBetAction(outcome: PoolResoltion, for pool: StoredPool) {
-        guard let exchangedBuyIn = try? ratesController.exchangedFiat(for: pool.buyIn) else {
+        guard let _ = try? ratesController.exchangedFiat(for: pool.buyIn) else {
             return
         }
         
-        guard session.hasSufficientFunds(for: exchangedBuyIn) else {
-            showInsufficientBalanceError()
-            return
-        }
-        
-        isShowingBetConfirmation = outcome
+//        guard session.hasSufficientFunds(for: exchangedBuyIn) else {
+//            showInsufficientBalanceError()
+//            return
+//        }
+//        
+//        isShowingBetConfirmation = outcome
     }
     
     func betAction(pool: StoredPool, outcome: PoolResoltion) async throws {

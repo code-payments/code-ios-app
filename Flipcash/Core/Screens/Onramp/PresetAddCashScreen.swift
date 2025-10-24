@@ -36,7 +36,11 @@ struct PresetAddCashScreen: View {
                     GridAmounts(selected: viewModel.adjustingSelectedPreset) { action in
                         switch action {
                         case .amount(let amount):
-                            let fiat: Fiat = try! .init(fiatInt: amount, currencyCode: .usd)
+                            let fiat = try! Fiat(
+                                fiatInt: amount,
+                                currencyCode: .usd,
+                                decimals: PublicKey.usdc.mintDecimals
+                            )
                             Analytics.onrampAmountPresetSelected(amount: fiat)
                         case .more:
                             viewModel.customAmountAction()

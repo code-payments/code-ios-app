@@ -8,6 +8,7 @@
 import UIKit
 import FlipcashUI
 import FlipcashCore
+import Combine
 
 @MainActor
 protocol SessionDelegate: AnyObject {
@@ -17,7 +18,6 @@ protocol SessionDelegate: AnyObject {
 @MainActor
 class Session: ObservableObject {
     
-    @Published private(set) var balance: Fiat = 0
     @Published private(set) var limits: Limits?
     
     @Published var billState: BillState = .default()
@@ -41,21 +41,28 @@ class Session: ObservableObject {
         owner.authority.keyPair
     }
     
-    var exchangedBalance: ExchangedFiat {
-        try! ExchangedFiat(
-            usdc: balance,
-            rate: ratesController.rateForBalanceCurrency(),
-            mint: .usdc
-        )
-    }
-    
-    var exchangedEntryBalance: ExchangedFiat {
-        try! ExchangedFiat(
-            usdc: balance,
-            rate: ratesController.rateForEntryCurrency(),
-            mint: .usdc
-        )
-    }
+//    var totalUSDC: Fiat {
+//        try! Fiat(
+//            fiatDecimal: aggregateBalance.totalUSDC,
+//            currencyCode: .usd
+//        )
+//    }
+//    
+//    var exchangedBalance: ExchangedFiat {
+//        try! ExchangedFiat(
+//            usdc: totalUSDC,
+//            rate: ratesController.rateForBalanceCurrency(),
+//            mint: .usdc
+//        )
+//    }
+//    
+//    var exchangedEntryBalance: ExchangedFiat {
+//        try! ExchangedFiat(
+//            usdc: totalUSDC,
+//            rate: ratesController.rateForEntryCurrency(),
+//            mint: .usdc
+//        )
+//    }
     
     var nextTransactionLimit: Fiat? {
         guard let limits else {
@@ -103,11 +110,16 @@ class Session: ObservableObject {
         userFlags?.hasPreferredOnrampProvider == true
     }
     
+    var balances: [StoredBalance] {
+        updateableBalances.value
+    }
+    
     private let container: Container
     private let client: Client
     private let flipClient: FlipClient
     private let ratesController: RatesController
     private let historyController: HistoryController
+    private let database: Database
     
     private var poller: Poller!
     
@@ -116,17 +128,28 @@ class Session: ObservableObject {
     
     private var toastQueue = ToastQueue()
     
+    private lazy var updateableBalances: Updateable<[StoredBalance]> = {
+        Updateable { [weak self] in
+            (try? self?.database.getBalances()) ?? []
+        }
+    }()
+    
+    private var cancellables: Set<AnyCancellable> = []
+    
     // MARK: - Init -
     
-    init(container: Container, historyController: HistoryController, ratesController: RatesController, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
+    init(container: Container, historyController: HistoryController, ratesController: RatesController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
         self.flipClient        = container.flipClient
         self.ratesController   = ratesController
         self.historyController = historyController
+        self.database          = database
         self.keyAccount        = keyAccount
         self.owner             = owner
         self.userID            = userID
+        
+        _ = updateableBalances
         
         registerPoller()
         attemptAirdrop()
@@ -236,33 +259,35 @@ class Session: ObservableObject {
             return false
         }
         
-        return exchangedFiat.converted.quarks <= nextTransactionLimit.quarks
-    }
-    
-    func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> Bool {
-        hasSufficientFundsWithDelta(for: exchangedFiat).0
-    }
-    
-    func hasSufficientFundsWithDelta(for exchangedFiat: ExchangedFiat) -> (Bool, ExchangedFiat?) {
-        guard exchangedFiat.usdc.quarks > 0 else {
-            return (false, nil)
-        }
+        let (amountToSend, limit, _) = try! exchangedFiat.converted.aligned(with: nextTransactionLimit)
         
-        if balance.quarks < exchangedFiat.usdc.quarks {
-            assert(exchangedEntryBalance.converted.currencyCode == exchangedFiat.converted.currencyCode)
-            let delta = try! ExchangedFiat(
-                converted: Fiat(
-                    quarks: exchangedFiat.converted.quarks - exchangedEntryBalance.converted.quarks,
-                    currencyCode: exchangedFiat.converted.currencyCode
-                ),
-                rate: exchangedEntryBalance.rate,
-                mint: .usdc
-            )
-            return (false, delta)
-        } else {
-            return (exchangedFiat.usdc.quarks <= balance.quarks, nil)
-        }
+        return amountToSend.quarks <= limit.quarks
     }
+    
+//    func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> Bool {
+//        hasSufficientFundsWithDelta(for: exchangedFiat).0
+//    }
+//    
+//    func hasSufficientFundsWithDelta(for exchangedFiat: ExchangedFiat) -> (Bool, ExchangedFiat?) {
+//        guard exchangedFiat.usdc.quarks > 0 else {
+//            return (false, nil)
+//        }
+//        
+//        if balance.quarks < exchangedFiat.usdc.quarks {
+//            assert(exchangedEntryBalance.converted.currencyCode == exchangedFiat.converted.currencyCode)
+//            let delta = try! ExchangedFiat(
+//                converted: Fiat(
+//                    quarks: exchangedFiat.converted.quarks - exchangedEntryBalance.converted.quarks,
+//                    currencyCode: exchangedFiat.converted.currencyCode
+//                ),
+//                rate: exchangedEntryBalance.rate,
+//                mint: .usdc
+//            )
+//            return (false, delta)
+//        } else {
+//            return (exchangedFiat.usdc.quarks <= balance.quarks, nil)
+//        }
+//    }
     
     // MARK: - Poller -
     
@@ -305,7 +330,33 @@ class Session: ObservableObject {
     // MARK: - Balance -
     
     func fetchBalance() async throws {
-        balance = try await client.fetchAccountInfo(type: .primary, owner: ownerKeyPair).fiat
+        let now = Date.now
+        
+        let accounts     = try await client.fetchPrimaryAccounts(owner: ownerKeyPair)
+        let mints        = Set(accounts.map { $0.mint })
+        let mintMetadata = try await client.fetchMints(mints: Array(mints))
+        
+        // Insert mints before balances, while the
+        // insertion itself isn't order dependant,
+        // fetching balanaces requires an up-to-date
+        // mints table. No transaction necessary here
+        // since balances will trigger any update.
+        try database.insert(
+            mints: mintMetadata.map { $0.value },
+            date: now
+        )
+        
+        // Insert all the database in a single
+        // atomic operation after the mints
+        database.transaction { database in
+            accounts.forEach { account in
+                try? database.insertBalance(
+                    quarks: account.quarks,
+                    mint: account.mint,
+                    date: now
+                )
+            }
+        }
     }
     
     func updateBalance() {
@@ -318,6 +369,20 @@ class Session: ObservableObject {
         updateBalance()
         updateLimits()
         historyController.sync()
+    }
+    
+    func fetchMintMetadata(mint: PublicKey) async throws -> StoredMintMetadata {
+        if let metadata = try database.getMintMetadata(mint: mint) {
+            return metadata
+        } else {
+            let mints = try await client.fetchMints(mints: [mint])
+            guard let mintMetadata = mints[mint] else {
+                throw Error.mintNotFound
+            }
+            
+            try database.insert(mints: [mintMetadata], date: .now)
+            return try await fetchMintMetadata(mint: mint)
+        }
     }
     
     // MARK: - Toast -
@@ -416,6 +481,8 @@ class Session: ObservableObject {
         
         let operation = ScanCashOperation(
             client: client,
+            flipClient: flipClient,
+            database: database,
             owner: owner,
             payload: payload
         )
@@ -475,6 +542,7 @@ class Session: ObservableObject {
     func showCashBill(_ billDescription: BillDescription) {
         let operation = SendCashOperation(
             client: client,
+            database: database,
             owner: owner,
             exchangedFiat: billDescription.exchangedFiat
         )
@@ -517,7 +585,8 @@ class Session: ObservableObject {
                 try await Task.delay(milliseconds: 750)
                 valuation = BillValuation(
                     rendezvous: payload.rendezvous.publicKey,
-                    exchangedFiat: billDescription.exchangedFiat
+                    exchangedFiat: billDescription.exchangedFiat,
+                    mintMetadata: try database.getMintMetadata(mint: billDescription.exchangedFiat.mint)
                 )
             }
             
@@ -661,10 +730,26 @@ class Session: ObservableObject {
     
     private func createCashLink(payload: CashCode.Payload, exchangedFiat: ExchangedFiat) async throws -> GiftCardCluster {
         do {
-            #warning("Add support for multi-timeAuthority")
+            var vmAuthority = PublicKey.usdcAuthority
+            var owner = owner
+            
+            // Ensure that our outgoing (source) account mint
+            // matches the mint of the funds being sent
+            if owner.timelock.mint != exchangedFiat.mint {
+                guard let authority = try? database.getVMAuthority(mint: exchangedFiat.mint) else {
+                    throw Error.vmMetadataMissing
+                }
+                
+                vmAuthority = authority
+                owner = owner.use(
+                    mint: exchangedFiat.mint,
+                    timeAuthority: authority
+                )
+            }
+            
             let giftCard = GiftCardCluster(
                 mint: exchangedFiat.mint,
-                timeAuthority: .usdcAuthority
+                timeAuthority: vmAuthority
             )
             
             try await client.sendCashLink(
@@ -714,7 +799,8 @@ class Session: ObservableObject {
                     owner: giftCardKeyPair
                 )
                 
-                guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
+                // For now, we need use(mint:) because exchangeData is returning USDC for mint
+                guard let exchangedFiat = giftCardAccountInfo.exchangedFiat?.use(mint: giftCardAccountInfo.mint) else {
                     trace(.failure, components: "Gift card account info is missing ExchangeFiat.")
                     return
                 }
@@ -728,26 +814,25 @@ class Session: ObservableObject {
                 // the account cluster. Authority, address and duration
                 // can all be different across VMs
                 let vmMint       = giftCardAccountInfo.mint
-                let mintMetadata = try await client.fetchMint(mint: vmMint)
+                let mintMetadata = try await fetchMintMetadata(mint: vmMint)
+                let vmAuthority  = mintMetadata.vmAuthority
                 
-                guard let vmMetadata = mintMetadata.vmMetadata else {
+                guard let vmAuthority else {
                     throw Error.vmMetadataMissing
                 }
-                
-                let vmAuthority = vmMetadata.authority
                 
                 // Now that we have a mint from account infos,
                 // we can create the account cluster
                 let giftCard = GiftCardCluster(
                     mnemonic: mnemonic,
                     mint: vmMint,
-                    timeAuthority: vmMetadata.authority
+                    timeAuthority: vmAuthority
                 )
                 
                 let mintCurrencyCluster = AccountCluster(
                     authority: keyAccount.derivedKey,
                     mint: vmMint,
-                    timeAuthority: vmMetadata.authority
+                    timeAuthority: vmAuthority
                 )
                 
                 // We need to ensure the accounts for this mint
@@ -905,6 +990,7 @@ extension Session {
     enum Error: Swift.Error {
         case cashLinkCreationFailed
         case vmMetadataMissing
+        case mintNotFound
     }
 }
 
@@ -945,6 +1031,7 @@ extension Session {
         container: .mock,
         historyController: .mock,
         ratesController: .mock,
+        database: .mock,
         keyAccount: .mock,
         owner: .init(
             authority: .derive(using: .primary(), mnemonic: .mock),

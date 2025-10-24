@@ -32,7 +32,8 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
     var amountInPool: Fiat {
         Fiat(
             quarks: buyIn.quarks * UInt64(betCountYes + betCountNo),
-            currencyCode: buyIn.currencyCode
+            currencyCode: buyIn.currencyCode,
+            decimals: 6
         )
     }
     
@@ -62,13 +63,15 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
         guard winnerCount > 0 else {
             return Fiat(
                 quarks: 0 as UInt64,
-                currencyCode: buyIn.currencyCode
+                currencyCode: buyIn.currencyCode,
+                decimals: 6
             )
         }
         
         return Fiat(
             quarks: amountInPool.quarks / UInt64(winnerCount),
-            currencyCode: buyIn.currencyCode
+            currencyCode: buyIn.currencyCode,
+            decimals: 6
         )
     }
     

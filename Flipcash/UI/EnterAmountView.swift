@@ -23,20 +23,6 @@ public struct EnterAmountView: View {
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
     
-    private var maxEnterAmount: Fiat {
-        guard let limit = session.nextTransactionLimit else {
-            return 0
-        }
-        
-        let balance = session.exchangedEntryBalance.converted
-
-        guard balance.quarks <= limit.quarks else {
-            return limit
-        }
-        
-        return balance
-    }
-    
     private var maxTransactionAmount: Fiat {
         guard let limit = session.singleTransactionLimit else {
             return 0
@@ -56,12 +42,26 @@ public struct EnterAmountView: View {
         }
     }
     
+    func maxEnterAmount(maxBalance: Fiat) -> Fiat {
+        guard let limit = session.nextTransactionLimit else {
+            return 0
+        }
+        
+        let (max, lim, _) = try! maxBalance.aligned(with: limit)
+        
+        guard max.quarks <= lim.quarks else {
+            return limit
+        }
+        
+        return maxBalance
+    }
+    
     // MARK: - Init -
     
     init(
         mode: Mode,
         enteredAmount: Binding<String>,
-        subtitle: Subtitle = .balanceWithLimits,
+        subtitle: Subtitle,
         actionState: Binding<ButtonState>,
         actionEnabled: @escaping (String) -> Bool,
         action: @escaping () -> Void,
@@ -105,8 +105,8 @@ public struct EnterAmountView: View {
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
                         
-                    case .balanceWithLimits:
-                        Text("Enter up to \(maxEnterAmount.formatted(suffix: nil))")
+                    case .balanceWithLimit(let maxBalance):
+                        Text("Enter up to \(maxEnterAmount(maxBalance: maxBalance).formatted(suffix: nil))")
                             .fixedSize()
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
@@ -199,7 +199,7 @@ extension EnterAmountView {
 extension EnterAmountView {
     enum Subtitle {
         case singleTransactionLimit
-        case balanceWithLimits
+        case balanceWithLimit(Fiat)
         case custom(String)
     }
 }
@@ -210,6 +210,7 @@ extension EnterAmountView {
     EnterAmountView(
         mode: .currency,
         enteredAmount: .constant("123"),
+        subtitle: .singleTransactionLimit,
         actionState: .constant(.normal),
         actionEnabled: { _ in return true }
     ) {}

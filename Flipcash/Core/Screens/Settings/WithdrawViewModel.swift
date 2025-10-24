@@ -33,8 +33,14 @@ class WithdrawViewModel: ObservableObject {
         try? PublicKey(base58: enteredAddress)
     }
     
+    var enteredMint: PublicKey?
+    
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
+            return nil
+        }
+        
+        guard let enteredMint else {
             return nil
         }
         
@@ -50,7 +56,7 @@ class WithdrawViewModel: ObservableObject {
             return nil
         }
         
-        guard let converted = try? Fiat(fiatDecimal: amount, currencyCode: currency) else {
+        guard let converted = try? Fiat(fiatDecimal: amount, currencyCode: currency, decimals: enteredMint.mintDecimals) else {
             trace(.failure, components: "[Withdraw] Invalid amount for entry")
             return nil
         }
@@ -73,7 +79,8 @@ class WithdrawViewModel: ObservableObject {
         
         return Fiat(
             quarks: destinationMetadata.fee.quarks - enteredFiat.usdc.quarks,
-            currencyCode: .usd
+            currencyCode: .usd,
+            decimals: 6
         )
     }
     
@@ -93,12 +100,13 @@ class WithdrawViewModel: ObservableObject {
         }
     }
     
+    #warning("Incomplete hasSufficientFunds")
     var canCompleteWithdrawal: Bool {
         if
             let enteredFiat = enteredFiat,
             let _ = enteredDestination,
             let destinationMetadata = destinationMetadata,
-            session.hasSufficientFunds(for: enteredFiat),
+//            session.hasSufficientFunds(for: enteredFiat),
             destinationMetadata.isValid
         {
             return true
@@ -131,8 +139,12 @@ class WithdrawViewModel: ObservableObject {
             return
         }
         
+        guard let enteredMint else {
+            return
+        }
+        
         Task {
-            destinationMetadata = await client.fetchDestinationMetadata(destination: enteredDestination)
+            destinationMetadata = await client.fetchDestinationMetadata(destination: enteredDestination, mint: enteredMint)
         }
     }
     
@@ -163,18 +175,19 @@ class WithdrawViewModel: ObservableObject {
     
     // MARK: - Actions -
     
+    #warning("Incomplete amountEnteredAction")
     func amountEnteredAction() {
         guard let exchangedFiat = enteredFiat else {
             return
         }
         
-        guard session.hasSufficientFunds(for: exchangedFiat) else {
-            showInsufficientBalanceError()
-            return
-        }
-        
-        amountToWithdraw = exchangedFiat
-        pushEnterAddressScreen()
+//        guard session.hasSufficientFunds(for: exchangedFiat) else {
+//            showInsufficientBalanceError()
+//            return
+//        }
+//        
+//        amountToWithdraw = exchangedFiat
+//        pushEnterAddressScreen()
     }
     
     func addressEnteredAction() {

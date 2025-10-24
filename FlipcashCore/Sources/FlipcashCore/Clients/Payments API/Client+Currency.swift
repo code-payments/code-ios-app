@@ -22,9 +22,9 @@ extension Client {
         }
     }
     
-//    public func fetchMints(mints: [PublicKey]) async throws -> [PublicKey: MintMetadata] {
-//        try await withCheckedThrowingContinuation { c in
-//            currencyService.fetchMints(mints: mints) { c.resume(with: $0) }
-//        }
-//    }
+    public func fetchMints(mints: [PublicKey]) async throws -> [PublicKey: MintMetadata] {
+        try await withCheckedThrowingContinuation { c in
+            currencyService.fetchMints(mints: mints) { c.resume(with: $0) }
+        }
+    }
 }

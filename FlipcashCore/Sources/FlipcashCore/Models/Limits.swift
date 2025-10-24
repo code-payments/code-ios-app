@@ -61,6 +61,8 @@ public struct SendLimit: Codable, Equatable, Hashable, Sendable {
 
 extension Limits {
     init(proto: Code_Transaction_V2_GetLimitsResponse, sinceDate: Date, fetchDate: Date) {
+        
+        let decimals = PublicKey.usdc.mintDecimals
 
         let container: [CurrencyCode: SendLimit] = Dictionary(uniqueKeysWithValues: proto.sendLimitsByCurrency.compactMap { code, limit in
             guard let currency = try? CurrencyCode(currencyCode: code) else {
@@ -69,17 +71,20 @@ extension Limits {
             
             let nextTransaction = try! Fiat(
                 fiatDecimal: Decimal(Double(limit.nextTransaction)),
-                currencyCode: currency
+                currencyCode: currency,
+                decimals: decimals
             )
             
             let maxPerTransaction = try! Fiat(
                 fiatDecimal: Decimal(Double(limit.maxPerTransaction)),
-                currencyCode: currency
+                currencyCode: currency,
+                decimals: decimals
             )
             
             let maxPerDay = try! Fiat(
                 fiatDecimal: Decimal(Double(limit.maxPerDay)),
-                currencyCode: currency
+                currencyCode: currency,
+                decimals: decimals
             )
             
             let limit = SendLimit(

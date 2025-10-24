@@ -14,14 +14,18 @@ public struct ModalCashReceived: View {
     
     public let title: String
     public let fiat: Fiat
+    public let currencyName: String
+    public let currencyImageURL: URL?
     public let actionTitle: String
     public let dismissAction: VoidAction
     
     // MARK: - Init -
     
-    public init(title: String, fiat: Fiat, actionTitle: String, dismissAction: @escaping VoidAction) {
+    public init(title: String, fiat: Fiat, currencyName: String, currencyImageURL: URL?, actionTitle: String, dismissAction: @escaping VoidAction) {
         self.title = title
         self.fiat = fiat
+        self.currencyName = currencyName
+        self.currencyImageURL = currencyImageURL
         self.actionTitle = actionTitle
         self.dismissAction = dismissAction
     }
@@ -33,21 +37,39 @@ public struct ModalCashReceived: View {
             Text(title)
                 .font(.appTitle)
             
-            AmountText(
-                flagStyle: fiat.currencyCode.flagStyle,
-                content: fiat.formatted(suffix: nil),
-                canScale: false
-            )
-            .font(.appDisplayMedium)
-            .foregroundStyle(Color.textMain)
-            
-            VStack {
-                CodeButton(
-                    style: .filled,
-                    title: actionTitle,
-                    action: dismissAction
+            VStack(spacing: 6) {
+                AmountText(
+                    flagStyle: fiat.currencyCode.flagStyle,
+                    content: fiat.formatted(suffix: nil),
+                    canScale: false
                 )
+                .font(.appDisplayMedium)
+                .foregroundStyle(Color.textMain)
+                
+                HStack(spacing: 2) {
+                    Text("of ")
+                    
+                    AsyncImage(url: currencyImageURL) { image in
+                        image
+                            .resizable()
+                    } placeholder: {
+                        Circle()
+                            .fill(.black.opacity(0.1))
+                    }
+                    .frame(width: 15, height: 15)
+                    .clipShape(Circle())
+                    
+                    Text(currencyName)
+                }
+                .font(.appBarButton)
+                .foregroundStyle(Color.textSecondary)
             }
+            
+            CodeButton(
+                style: .filled,
+                title: actionTitle,
+                action: dismissAction
+            )
             .padding(.top, 10)
         }
         .padding(20)
@@ -61,6 +83,8 @@ public struct ModalCashReceived: View {
         ModalCashReceived(
             title: "Received",
             fiat: 5,
+            currencyName: "Jeffy",
+            currencyImageURL: nil,
             actionTitle: "Cancel",
             dismissAction: {}
         )

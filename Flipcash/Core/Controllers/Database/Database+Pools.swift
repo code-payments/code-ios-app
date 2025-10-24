@@ -57,7 +57,8 @@ extension Database {
                 name:           row[t.name],
                 buyIn: Fiat(
                     quarks:       row[t.buyInQuarks],
-                    currencyCode: row[t.buyInCurrency]
+                    currencyCode: row[t.buyInCurrency],
+                    decimals: 6
                 ),
                 
                 isOpen:         row[t.isOpen],
@@ -84,7 +85,8 @@ extension Database {
         if userOutcomeInt != UserOutcome.none.intValue {
             let amount = Fiat(
                 quarks:       row[t.userOutcomeQuarks] ?? 0,
-                currencyCode: row[t.userOutcomeCurrency] ?? .usd
+                currencyCode: row[t.userOutcomeCurrency] ?? .usd,
+                decimals: 6
             )
             userOutcome = UserOutcome(intValue: userOutcomeInt, amount: amount)
         } else {
@@ -138,7 +140,8 @@ extension Database {
                 name:           row[t.name],
                 buyIn: Fiat(
                     quarks:       row[t.buyInQuarks],
-                    currencyCode: row[t.buyInCurrency]
+                    currencyCode: row[t.buyInCurrency],
+                    decimals: 6
                 ),
                 
                 isOpen:         row[t.isOpen],

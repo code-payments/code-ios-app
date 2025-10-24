@@ -62,7 +62,7 @@ public struct BondingCurve: Sendable {
 
 public extension BondingCurve {
     
-    func spotPrice(supply: Int) throws -> BigDecimal {
+    func spotPrice(supply: BigDecimal) throws -> BigDecimal {
         let e = exp(c.multiply(supply, r))
         return try ensureValid(a.multiply(b, r).multiply(e, r))
     }
@@ -140,25 +140,6 @@ public extension BondingCurve {
 
         return try! ensureValid(delta)
     }
-    
-    func tokensForValueExchange(_ value: BigDecimal, supply: Int) throws -> BigDecimal {
-        guard value.signum > 0 else {
-            throw BondingCurveError.nonPositiveValue
-        }
-        
-        let eCS   = exp(c.multiply(supply, r))
-        let denom = abOverC().multiply(eCS, r)
-        
-        guard value < denom else {
-            throw BondingCurveError.valueTooLargeForLiquidityCap
-        }
-        
-        let oneMinus = BigDecimal.one.subtract(value.divide(denom, r), r)
-        var lnTerm   = ln(oneMinus)
-        lnTerm.negate()
-        
-        return try! ensureValid(lnTerm.divide(c, r))
-    }
 }
 
 // MARK: - Buy / Sell (Decimal) -
@@ -170,8 +151,13 @@ extension BondingCurve {
     }
     
     public struct SellEstimation {
-        public let netTokensToReceive: Foundation.Decimal
+        public let netUSDC: Foundation.Decimal
         public let fees: Foundation.Decimal
+    }
+    
+    public struct Valuation {
+        public let tokens: Foundation.Decimal
+        public let fx: Foundation.Decimal
     }
     
     public func buy(
@@ -203,11 +189,57 @@ extension BondingCurve {
         
         let fee      = BigDecimal(feeBps).divide(BigDecimal("10000"), r)
         let feeValue = grossQuarks.multiply(fee, r)
-        let netValue = grossQuarks.subtract(feeValue, r)
+        let netUSDC  = grossQuarks.subtract(feeValue, r)
         
         return SellEstimation(
-            netTokensToReceive: netValue.asDecimal(),
+            netUSDC: netUSDC.asDecimal(),
             fees: feeValue.asDecimal()
+        )
+    }
+    
+    public func spotTokensFor(fiat: Foundation.Decimal, supply: BigDecimal) throws -> Foundation.Decimal {
+        guard fiat > 0 else {
+            return 0
+        }
+        
+        let price  = try spotPrice(supply: supply)
+        let amount = BigDecimal(fiat)
+        let tokens = amount / price
+        
+        return Decimal(string: tokens.asString())!
+    }
+    
+    // TODO: Need a test for this
+    public func tokensForValueExchange(fiatDecimal: Foundation.Decimal, fx: Foundation.Decimal, supplyQuarks: Int) throws -> Valuation {
+        guard fiatDecimal > 0 else {
+            return .init(tokens: 0, fx: 0)
+        }
+        
+        let rate  = BigDecimal(fx)
+        let usdc  = BigDecimal(fiatDecimal).divide(rate, r)
+        let s     = BigDecimal(supplyQuarks).scaleDown(decimals)
+        let price = try spotPrice(supply: s)
+        
+        guard usdc.signum > 0 else {
+            throw BondingCurveError.nonPositiveValue
+        }
+        
+        let eCS   = exp(c.multiply(s, r))
+        let denom = abOverC().multiply(eCS, r)
+        
+        guard usdc < denom else {
+            throw BondingCurveError.valueTooLargeForLiquidityCap
+        }
+        
+        let oneMinus = BigDecimal.one.subtract(usdc.divide(denom, r), r)
+        var lnTerm   = ln(oneMinus)
+        lnTerm.negate()
+        
+        let tokens = try! ensureValid(lnTerm.divide(c, r))
+        
+        return Valuation(
+            tokens: tokens.asDecimal(),
+            fx: (rate * price).asDecimal()
         )
     }
 }
@@ -256,7 +288,7 @@ extension BondingCurve {
 
             // Spot price at supplyInt
             let spotPrice: BigDecimal = {
-                try! self.spotPrice(supply: supplyInt)
+                try! self.spotPrice(supply: BigDecimal(supplyInt))
             }()
 
             let percentStr = String(format: "%4d%%", i)

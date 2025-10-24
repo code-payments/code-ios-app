@@ -60,6 +60,7 @@ extension Database {
             a.quarks,
             a.nativeAmount,
             a.currency,
+            a.mint,
             a.date,
             
             c.vault,
@@ -73,24 +74,30 @@ extension Database {
         LIMIT 1024;
         """)
         
-        let aTable = ActivityTable()
+        let a = ActivityTable()
         
         let activities = try statement.map { row in
-            let kind = Activity.Kind(rawValue: row[aTable.kind])!
+            let kind = Activity.Kind(rawValue: row[a.kind])!
+            let mint = row[a.mint]
             return Activity.init(
-                id: row[aTable.id],
-                state: .init(rawValue: row[aTable.state]) ?? .unknown,
+                id: row[a.id],
+                state: .init(rawValue: row[a.state]) ?? .unknown,
                 kind: kind,
-                title: row[aTable.title],
+                title: row[a.title],
                 exchangedFiat: ExchangedFiat(
-                    usdc: Fiat(quarks: row[aTable.quarks], currencyCode: .usd),
-                    converted: try Fiat(
-                        fiatDecimal: Decimal(row[aTable.nativeAmount]),
-                        currencyCode: row[aTable.currency],
+                    usdc: Fiat(
+                        quarks: row[a.quarks],
+                        currencyCode: .usd,
+                        decimals: mint.mintDecimals
                     ),
-                    mint: .usdc
+                    converted: try Fiat(
+                        fiatDecimal: Decimal(row[a.nativeAmount]),
+                        currencyCode: row[a.currency],
+                        decimals: mint.mintDecimals
+                    ),
+                    mint: mint
                 ),
-                date: row[aTable.date],
+                date: row[a.date],
                 metadata: metadata(for: kind, row: row)
             )
         }
@@ -132,6 +139,7 @@ extension Database {
                 table.quarks       <- activity.exchangedFiat.usdc.quarks,
                 table.nativeAmount <- activity.exchangedFiat.converted.doubleValue,
                 table.currency     <- activity.exchangedFiat.converted.currencyCode,
+                table.mint         <- activity.exchangedFiat.mint,
                 table.date         <- activity.date,
                 
                 onConflictOf: table.id,

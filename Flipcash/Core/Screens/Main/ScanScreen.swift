@@ -130,6 +130,8 @@ struct ScanScreen: View {
                 ModalCashReceived(
                     title: "You received",
                     fiat: valuation.exchangedFiat.converted,
+                    currencyName: valuation.mintMetadata?.name ?? "currency",
+                    currencyImageURL: valuation.mintMetadata?.imageURL,
                     actionTitle: "Put in Wallet",
                     dismissAction: dismissBill
                 )
@@ -319,12 +321,18 @@ struct ScanScreen: View {
                 binding: $isShowingGive
             )
             .sheet(isPresented: $isShowingGive) {
-                GiveScreen(
+                SelectCurrencyScreen(
                     isPresented: $isShowingGive,
-                    kind: .cash,
                     container: container,
                     sessionContainer: sessionContainer
                 )
+//                GiveScreen(
+//                    isPresented: $isShowingGive,
+//                    mint: .jeffy,
+//                    kind: .cash,
+//                    container: container,
+//                    sessionContainer: sessionContainer
+//                )
             }
             
 //            LargeButton(

@@ -184,7 +184,13 @@ struct AccountSelectionScreen: View {
                         do {
                             let info = try await client.fetchAccountInfo(type: .primary, owner: owner)
                             await update(owner: owner.publicKey) {
-                                $0.setBalance(info.fiat)
+                                $0.setBalance(
+                                    Fiat(
+                                        quarks: info.quarks,
+                                        currencyCode: .usd,
+                                        decimals: 6
+                                    )
+                                )
                             }
                             
                         } catch ErrorFetchBalance.notFound {

@@ -17,6 +17,7 @@ class SendCashOperation {
     var ignoresStream = false
     
     private let client: Client
+    private let database: Database
     private let owner: AccountCluster
     private let exchangedFiat: ExchangedFiat
     
@@ -24,8 +25,9 @@ class SendCashOperation {
     
     // MARK: - Init -
     
-    init(client: Client, owner: AccountCluster, exchangedFiat: ExchangedFiat) {
+    init(client: Client, database: Database, owner: AccountCluster, exchangedFiat: ExchangedFiat) {
         self.client       = client
+        self.database     = database
         self.owner        = owner
         self.exchangedFiat = exchangedFiat
         self.payload      = .init(
@@ -44,9 +46,33 @@ class SendCashOperation {
     func start(completion: @escaping (Result<Void, Swift.Error>) -> Void) {
         let rendezvous = payload.rendezvous
         let exchangedFiat = exchangedFiat
-        let owner = owner
+        var owner = owner
         
-        messageStream = self.client.openMessageStream(rendezvous: self.payload.rendezvous) { [weak self] result in
+        // Ensure that our outgoing (source) account mint
+        // matches the mint of the funds being sent
+        if owner.timelock.mint != exchangedFiat.mint {
+            guard let vmAuthority = try? database.getVMAuthority(mint: exchangedFiat.mint) else {
+                completion(.failure(Error.missingMintMetadata))
+                return
+            }
+            
+            owner = owner.use(
+                mint: exchangedFiat.mint,
+                timeAuthority: vmAuthority
+            )
+        }
+        
+        // Send a message to the receiver with the mint
+        // so they can create the correct incoming accounts
+        // on their end
+        Task {
+            try await client.sendRequestToGiveBill(
+                mint: exchangedFiat.mint,
+                rendezvous: rendezvous
+            )
+        }
+        
+        messageStream = self.client.openMessageStream(rendezvous: rendezvous) { [weak self] result in
             guard let self = self else { return }
             
             guard !self.ignoresStream else {
@@ -54,7 +80,11 @@ class SendCashOperation {
             }
             
             switch result {
-            case .success(let paymentMetadata):
+            case .success(let messages):
+                // Ignore non-payment metadata messages
+                guard let paymentMetadata = messages.compactMap({ $0.paymentRequest }).first else {
+                    return
+                }
                 
                 // 1. Validate that destination hasn't been tampered with by
                 // verifying the signature matches one that has been signed
@@ -73,7 +103,6 @@ class SendCashOperation {
                 }
                 
                 // 2. Send the funds to destination
-                
                 Task {
                     do {
                         try await self.client.transfer(
@@ -111,5 +140,6 @@ class SendCashOperation {
 extension SendCashOperation {
     enum Error: Swift.Error {
         case invalidPaymentDestinationSignature
+        case missingMintMetadata
     }
 }

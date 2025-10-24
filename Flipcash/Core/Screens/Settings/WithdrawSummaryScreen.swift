@@ -25,7 +25,7 @@ struct WithdrawSummaryScreen: View {
             return "-\(negativeDelta.formatted(suffix: nil))"
             
         } else {
-            return Fiat(quarks: 0 as UInt64, currencyCode: .usd).formatted(suffix: nil)
+            return Fiat(quarks: 0 as UInt64, currencyCode: .usd, decimals: PublicKey.usdc.mintDecimals).formatted(suffix: nil)
         }
     }
     

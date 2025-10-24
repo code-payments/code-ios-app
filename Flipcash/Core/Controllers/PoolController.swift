@@ -362,7 +362,8 @@ extension Array where Element == StoredBet {
                 destination: bet.payoutDestination,
                 amount: Fiat(
                     quarks: distributionQuarks + (index < remainderQuarks ? 1 : 0),
-                    currencyCode: balance.currencyCode
+                    currencyCode: balance.currencyCode,
+                    decimals: 6
                 )
             )
         }

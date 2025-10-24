@@ -28,43 +28,30 @@ struct BalanceScreen: View {
     
     @State private var selectedActivity: Activity?
     
-    @StateObject private var updateableActivities: Updateable<[Activity]>
-    
-    private var activities: [Activity] {
-        updateableActivities.value
-    }
-    
-    private var hasActivities: Bool {
-        !activities.isEmpty
+    private var aggregateBalance: AggregateBalance {
+        AggregateBalance(
+            entryRate: ratesController.rateForEntryCurrency(),
+            balanceRate: ratesController.rateForBalanceCurrency(),
+            balances: session.balances
+        )
     }
     
     private let proportion: CGFloat = 0.3
     
-    private var balance: ExchangedFiat {
-        session.exchangedBalance
-    }
-    
-    private var isBalanceBaseCurrency: Bool {
-        balance.converted.currencyCode == .usd
-    }
-    
     private let container: Container
     private let sessionContainer: SessionContainer
-    private let database: Database
+    
+    private var balanceRate: Rate {
+        ratesController.rateForBalanceCurrency()
+    }
     
     // MARK: - Init -
     
     init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
         self._isPresented     = isPresented
-        let database          = sessionContainer.database
         self.container        = container
         self.sessionContainer = sessionContainer
         self.onrampViewModel  = sessionContainer.onrampViewModel
-        self.database         = database
-        
-        self._updateableActivities = .init(wrappedValue: Updateable {
-            (try? database.getActivities()) ?? []
-        })
     }
     
     // MARK: - Lifecycle -
@@ -153,21 +140,15 @@ struct BalanceScreen: View {
         GeometryReader { g in
             List {
                 Section {
-                    if hasActivities {
-                        ForEach(activities) { activity in
-                            row(activity: activity)
-                        }
-                    } else {
-                        emptyState(geometry: g)
+                    ForEach(aggregateBalance.exchangedBalance(for: balanceRate)) { balance in
+                        CurrencyBalanceRow(exchangedBalance: balance)
                     }
                     
                 } header: {
                     header(geometry: g)
                         .textCase(.none)
                 }
-                //.listSectionSeparator(.hidden)
                 .listRowInsets(EdgeInsets())
-                .listRowSeparatorTint(hasActivities ? .rowSeparator : .clear)
             }
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
@@ -185,8 +166,8 @@ struct BalanceScreen: View {
                             Spacer()
                             
                             AmountText(
-                                flagStyle: balance.converted.currencyCode.flagStyle,
-                                content: balance.converted.formatted(truncated: true, suffix: nil),
+                                flagStyle: aggregateBalance.totalBalance.converted.currencyCode.flagStyle,
+                                content: aggregateBalance.totalBalance.converted.formatted(truncated: true, suffix: nil),
                                 showChevron: true
                             )
                             .font(.appDisplayMedium)
@@ -233,52 +214,52 @@ struct BalanceScreen: View {
                     )
                 }
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, 30)
             .padding(.horizontal, 20)
         }
         .frame(height: geometry.globalHeight * proportion)
     }
     
-    @ViewBuilder private func row(activity: Activity) -> some View {
-        Button {
-            if BetaFlags.shared.hasEnabled(.transactionDetails) {
-                selectedActivity = activity
-            } else {
-                rowAction(activity: activity)
-            }
-        } label: {
-            VStack {
-                HStack {
-                    Text(activity.title)
-                        .font(.appTextMedium)
-                        .foregroundStyle(Color.textMain)
-                    Spacer()
-                    AmountText(
-                        flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
-                        flagSize: .small,
-                        content: activity.exchangedFiat.converted.formatted(suffix: nil)
-                    )
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-                }
-                
-                HStack {
-                    Text(activity.date.formattedRelatively(useTimeForToday: true))
-                        .font(.appTextSmall)
-                        .foregroundStyle(Color.textSecondary)
-                    Spacer()
-//                    if activity.exchangedFiat.converted.currencyCode != .usd {
-//                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
-//                            .font(.appTextSmall)
-//                            .foregroundStyle(Color.textSecondary)
-//                    }
-                }
-            }
-        }
-        .listRowBackground(Color.clear)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 20)
-    }
+//    @ViewBuilder private func row(activity: Activity) -> some View {
+//        Button {
+//            if BetaFlags.shared.hasEnabled(.transactionDetails) {
+//                selectedActivity = activity
+//            } else {
+//                rowAction(activity: activity)
+//            }
+//        } label: {
+//            VStack {
+//                HStack {
+//                    Text(activity.title)
+//                        .font(.appTextMedium)
+//                        .foregroundStyle(Color.textMain)
+//                    Spacer()
+//                    AmountText(
+//                        flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
+//                        flagSize: .small,
+//                        content: activity.exchangedFiat.converted.formatted(suffix: nil)
+//                    )
+//                    .font(.appTextMedium)
+//                    .foregroundStyle(Color.textMain)
+//                }
+//                
+//                HStack {
+//                    Text(activity.date.formattedRelatively(useTimeForToday: true))
+//                        .font(.appTextSmall)
+//                        .foregroundStyle(Color.textSecondary)
+//                    Spacer()
+////                    if activity.exchangedFiat.converted.currencyCode != .usd {
+////                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
+////                            .font(.appTextSmall)
+////                            .foregroundStyle(Color.textSecondary)
+////                    }
+//                }
+//            }
+//        }
+//        .listRowBackground(Color.clear)
+//        .padding(.horizontal, 20)
+//        .padding(.vertical, 20)
+//    }
     
     // MARK: - Action -
     
@@ -337,5 +318,97 @@ extension GeometryProxy {
     
     var globalHeight: CGFloat {
         frame(in: .global).height
+    }
+}
+
+// MARK: - AggregateBalance -
+
+struct AggregateBalance {
+    
+    let totalBalance: ExchangedFiat
+    let totalEntry: ExchangedFiat
+    
+    let entryRate: Rate
+    let balanceRate: Rate
+    
+    // These are just USDC balances and must
+    // be converted before being consumed
+    private let exchangedBalances: [ExchangedBalance]
+    
+    init(entryRate: Rate, balanceRate: Rate, balances: [StoredBalance]) {
+        self.entryRate   = entryRate
+        self.balanceRate = balanceRate
+        
+        var exchangedBalances: [ExchangedBalance] = []
+        var totalUSDC: Fiat = .zero(currencyCode: .usd, decimals: PublicKey.usdc.mintDecimals)
+        
+        balances.sorted { lhs, rhs in
+            lhs.usdcValue.quarks > rhs.usdcValue.quarks
+        }.forEach { balance in
+            exchangedBalances.append(
+                ExchangedBalance(
+                    stored: balance,
+                    exchangedFiat: try! ExchangedFiat(
+                        usdc: balance.usdcValue,
+                        rate: .oneToOne,
+                        mint: balance.mint
+                    )
+                )
+            )
+            
+            totalUSDC = try! totalUSDC.adding(balance.usdcValue)
+        }
+        
+        self.exchangedBalances = exchangedBalances
+        
+        self.totalBalance = try! .init(
+            usdc: totalUSDC,
+            rate: balanceRate,
+            mint: .usdc
+        )
+        
+        self.totalEntry = try! .init(
+            usdc: totalUSDC,
+            rate: entryRate,
+            mint: .usdc
+        )
+    }
+    
+    func exchangedBalance(for rate: Rate) -> [ExchangedBalance] {
+        exchangedBalances.map {
+            $0.convertedUsing(rate: rate)
+        }
+    }
+    
+    func entryBalance(for mint: PublicKey) -> ExchangedFiat? {
+        let exchangedFiat = exchangedBalances.first {
+            $0.stored.mint == mint
+        }?.exchangedFiat
+        
+        guard let exchangedFiat else {
+            return nil
+        }
+        
+        return try! ExchangedFiat(
+            usdc: exchangedFiat.usdc,
+            rate: entryRate,
+            mint: exchangedFiat.mint
+        )
+    }
+}
+
+struct ExchangedBalance: Identifiable, Hashable {
+    let stored: StoredBalance
+    let exchangedFiat: ExchangedFiat
+    
+    var id: PublicKey {
+        stored.id
+    }
+    
+    func convertedUsing(rate: Rate) -> ExchangedBalance {
+        .init(
+            stored: stored,
+            exchangedFiat: exchangedFiat.convert(to: rate)
+        )
     }
 }

@@ -16,6 +16,12 @@ extension Client {
         }
     }
     
+    public func fetchPrimaryAccounts(owner: KeyPair) async throws -> [AccountInfo] {
+        try await withCheckedThrowingContinuation { c in
+            accountService.fetchPrimaryAccounts(owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     public func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey) async throws -> Fiat {
         try await withCheckedThrowingContinuation { c in
             accountService.fetchLinkedAccountBalance(owner: owner, account: account) { c.resume(with: $0) }

@@ -11,6 +11,7 @@ import FlipcashAPI
 public struct StreamMessage: Sendable {
     public enum Kind: Sendable {
         case paymentRequest(PaymentRequest)
+        case requestToGiveBill(PublicKey)
     }
     
     public let id: ID
@@ -59,6 +60,10 @@ extension StreamMessage {
                     signature: try Signature(message.sendMessageRequestSignature.value)
                 )
             )
+            
+        case .requestToGiveBill(let request):
+            let mint = try PublicKey(request.mint.value)
+            self.kind = .requestToGiveBill(mint)
             
         default:
             throw Error.messageNotSupported

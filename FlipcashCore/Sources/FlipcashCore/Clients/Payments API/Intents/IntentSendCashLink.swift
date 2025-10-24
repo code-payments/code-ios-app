@@ -36,7 +36,8 @@ final class IntentSendCashLink: IntentType {
         let transferAction = ActionTransfer(
             amount: exchangedFiat.usdc,
             sourceCluster: sourceCluster,
-            destination: giftCard.cluster.vaultPublicKey
+            destination: giftCard.cluster.vaultPublicKey,
+            mint: exchangedFiat.mint
         )
         
         let autoReturnAction = ActionWithdraw(
@@ -65,6 +66,7 @@ extension IntentSendCashLink {
                 $0.destination  = giftCard.cluster.vaultPublicKey.solanaAccountID
                 $0.mint         = exchangedFiat.mint.solanaAccountID
                 $0.exchangeData = .with {
+                    $0.mint         = exchangedFiat.mint.solanaAccountID
                     $0.quarks       = exchangedFiat.usdc.quarks
                     $0.currency     = exchangedFiat.converted.currencyCode.rawValue
                     $0.exchangeRate = exchangedFiat.rate.fx.doubleValue

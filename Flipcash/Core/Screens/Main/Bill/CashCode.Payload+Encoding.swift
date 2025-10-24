@@ -47,7 +47,11 @@ extension CashCode.Payload {
                 }
                 
                 value = .fiat(
-                    Fiat(quarks: quarks, currencyCode: currencyCode)
+                    Fiat(
+                        quarks: quarks,
+                        currencyCode: currencyCode,
+                        decimals: 6 // We don't have any other info at this point
+                    )
                 )
             }
             

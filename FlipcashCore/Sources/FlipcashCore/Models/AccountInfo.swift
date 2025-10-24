@@ -30,10 +30,10 @@ public struct AccountInfo: Equatable, Sendable {
     /// The source of truth for the balance calculation.
     public var balanceSource: BalanceSource
     
-    /// The Kin balance in quarks, as observed by Code. This may not reflect the
+    /// The balance in quarks, as observed by Code. This may not reflect the
     /// value on the blockchain and could be non-zero even if the account hasn't
     /// been created. Use balance_source to determine how this value was calculated.
-    public var fiat: Fiat
+    public var quarks: UInt64
     
     /// The state of the account as it pertains to Code's ability to manage funds.
     public var managementState: ManagementState
@@ -59,13 +59,13 @@ public struct AccountInfo: Equatable, Sendable {
     
     // MARK: - Init -
     
-    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, fiat: Fiat, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?) {
+    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?) {
         self.address         = address
         self.mint            = mint
         self.owner           = owner
         self.authority       = authority
         self.balanceSource   = balanceSource
-        self.fiat            = fiat
+        self.quarks          = quarks
         self.managementState = managementState
         self.blockchainState = blockchainState
         self.claimState      = claimState
@@ -205,7 +205,11 @@ extension AccountInfo {
         
         if info.hasOriginalExchangeData {
             exchangedFiat = try ExchangedFiat(
-                usdc: Fiat(quarks: info.originalExchangeData.quarks, currencyCode: .usd),
+                usdc: Fiat(
+                    quarks: info.originalExchangeData.quarks,
+                    currencyCode: .usd,
+                    decimals: PublicKey.usdc.mintDecimals
+                ),
                 rate: .init(
                     fx: Decimal(info.originalExchangeData.exchangeRate),
                     currency: try CurrencyCode(currencyCode: info.originalExchangeData.currency)
@@ -222,7 +226,7 @@ extension AccountInfo {
             owner: owner,
             authority: authority,
             balanceSource: balanceSource,
-            fiat: Fiat(quarks: info.balance, currencyCode: .usd),
+            quarks: info.balance,
             managementState: managementState,
             blockchainState: blockchainState,
             claimState: claimState,

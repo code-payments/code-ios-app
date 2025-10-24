@@ -448,6 +448,31 @@ public struct Code_Messaging_V1_RequestToGrabBill {
   fileprivate var _requestorAccount: Code_Common_V1_SolanaAccountId? = nil
 }
 
+/// Request that a bill be given in the desired mint
+///
+/// This message type is only initiated by clients.
+public struct Code_Messaging_V1_RequestToGiveBill {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The mint that the bill will be received in
+  public var mint: Code_Common_V1_SolanaAccountId {
+    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
+}
+
 public struct Code_Messaging_V1_Message {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -491,11 +516,20 @@ public struct Code_Messaging_V1_Message {
     set {kind = .requestToGrabBill(newValue)}
   }
 
+  public var requestToGiveBill: Code_Messaging_V1_RequestToGiveBill {
+    get {
+      if case .requestToGiveBill(let v)? = kind {return v}
+      return Code_Messaging_V1_RequestToGiveBill()
+    }
+    set {kind = .requestToGiveBill(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// Next field number is 13
   public enum OneOf_Kind: Equatable {
     case requestToGrabBill(Code_Messaging_V1_RequestToGrabBill)
+    case requestToGiveBill(Code_Messaging_V1_RequestToGiveBill)
 
   #if !swift(>=4.1)
     public static func ==(lhs: Code_Messaging_V1_Message.OneOf_Kind, rhs: Code_Messaging_V1_Message.OneOf_Kind) -> Bool {
@@ -507,6 +541,11 @@ public struct Code_Messaging_V1_Message {
         guard case .requestToGrabBill(let l) = lhs, case .requestToGrabBill(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
+      case (.requestToGiveBill, .requestToGiveBill): return {
+        guard case .requestToGiveBill(let l) = lhs, case .requestToGiveBill(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      default: return false
       }
     }
   #endif
@@ -536,6 +575,7 @@ extension Code_Messaging_V1_SendMessageResponse.Result: @unchecked Sendable {}
 extension Code_Messaging_V1_RendezvousKey: @unchecked Sendable {}
 extension Code_Messaging_V1_MessageId: @unchecked Sendable {}
 extension Code_Messaging_V1_RequestToGrabBill: @unchecked Sendable {}
+extension Code_Messaging_V1_RequestToGiveBill: @unchecked Sendable {}
 extension Code_Messaging_V1_Message: @unchecked Sendable {}
 extension Code_Messaging_V1_Message.OneOf_Kind: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
@@ -1109,12 +1149,49 @@ extension Code_Messaging_V1_RequestToGrabBill: SwiftProtobuf.Message, SwiftProto
   }
 }
 
+extension Code_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RequestToGiveBill"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "mint"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Code_Messaging_V1_RequestToGiveBill, rhs: Code_Messaging_V1_RequestToGiveBill) -> Bool {
+    if lhs._mint != rhs._mint {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
 extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Message"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "id"),
     3: .standard(proto: "send_message_request_signature"),
     2: .standard(proto: "request_to_grab_bill"),
+    13: .standard(proto: "request_to_give_bill"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -1138,6 +1215,19 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
         }
       }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._sendMessageRequestSignature) }()
+      case 13: try {
+        var v: Code_Messaging_V1_RequestToGiveBill?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .requestToGiveBill(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .requestToGiveBill(v)
+        }
+      }()
       default: break
       }
     }
@@ -1156,6 +1246,9 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
     } }()
     try { if let v = self._sendMessageRequestSignature {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try { if case .requestToGiveBill(let v)? = self.kind {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
     } }()
     try unknownFields.traverse(visitor: &visitor)
   }

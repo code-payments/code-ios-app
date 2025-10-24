@@ -81,7 +81,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
 //        reference.stream = stream
 //    }
     
-    func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<PaymentRequest, Error>) -> Void) -> AnyCancellable {
+    func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) -> AnyCancellable {
         trace(.open, components: "Rendezvous: \(rendezvous.publicKey.base58)")
         
         let request = Code_Messaging_V1_OpenMessageStreamRequest.with {
@@ -97,7 +97,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
-    private func openMessageStream(assigningTo reference: StreamReference<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>, request: Code_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<PaymentRequest, Error>) -> Void) {
+    private func openMessageStream(assigningTo reference: StreamReference<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>, request: Code_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
         let queue = self.queue
         let stream = service.openMessageStream(request) { [weak self] response in
             
@@ -105,23 +105,23 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
             
             // Cleans up the message reference on the server after we've received
             // the message. We only expect on message - receiver's public key.
-            self?.acknowledge(messages: messages, rendezvous: rendezvous, completion: { _ in })
-            
-            let paymentRequests = response.messages.compactMap { try? StreamMessage($0).paymentRequest }
+            #warning("Clean up messages at some point?")
+//            self?.acknowledge(messages: messages, rendezvous: rendezvous, completion: { _ in })
             
             Task { @MainActor in
-                if let paymentRequest = paymentRequests.first {
-                    var components = [
-                        "Recipient: \(paymentRequest.account.base58)",
-                        "Signature: \(paymentRequest.signature.base58)",
-                    ]
-                    components.append(contentsOf: response.messages.hexEncodedIDs.map { "Message ID: \($0)" })
-                    trace(.receive, components: components)
-                    completion(.success(paymentRequest))
-                } else {
-                    trace(.failure, components: "No accounts received.")
-                    completion(.failure(MessagingError.failedToParsePaymentRequests))
-                }
+                completion(.success(messages))
+//                if let paymentRequest = paymentRequests.first {
+//                    var components = [
+//                        "Recipient: \(paymentRequest.account.base58)",
+//                        "Signature: \(paymentRequest.signature.base58)",
+//                    ]
+//                    components.append(contentsOf: response.messages.hexEncodedIDs.map { "Message ID: \($0)" })
+//                    trace(.receive, components: components)
+//                    completion(.success(paymentRequest))
+//                } else {
+//                    trace(.failure, components: "No accounts received.")
+//                    completion(.failure(MessagingError.failedToParsePaymentRequests))
+//                }
             }
         }
         
@@ -203,6 +203,14 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
+    private func requestToGiveBill(mint: PublicKey) -> Code_Messaging_V1_Message {
+        .with {
+            $0.requestToGiveBill = .with {
+                $0.mint = mint.solanaAccountID
+            }
+        }
+    }
+    
     func verifyRequestToGrabBill(destination: PublicKey, rendezvous: PublicKey, signature: Signature) -> Bool {
         let messageData = try! requestToGrabBill(destination: destination).serializedData()
         return rendezvous.verify(signature: signature, data: messageData)
@@ -215,6 +223,21 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         )
         
         let message = requestToGrabBill(destination: destination)
+        
+        sendRendezvousMessage(
+            message: message,
+            rendezvous: rendezvous,
+            completion: completion
+        )
+    }
+    
+    func sendRequestToGiveBill(mint: PublicKey, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
+        trace(.send, components:
+            "Mint: \(mint.base58)",
+            "Rendezvous: \(rendezvous.publicKey.base58)"
+        )
+        
+        let message = requestToGiveBill(mint: mint)
         
         sendRendezvousMessage(
             message: message,

@@ -20,7 +20,7 @@
 		</dict>
 	</array>
 	<key>SQLiteVersion</key>
-	<integer>5</integer>
+	<integer>6</integer>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
@@ -37,10 +37,10 @@
 		<key>apiKey</key>
 		<string>$(FLIPCASH_MIXPANEL)</string>
 	</dict>
-    <key>coinbase</key>
-    <dict>
-        <key>apiKey</key>
-        <string>$(FLIPCASH_COINBASE)</string>
-    </dict>
+	<key>coinbase</key>
+	<dict>
+		<key>apiKey</key>
+		<string>$(FLIPCASH_COINBASE)</string>
+	</dict>
 </dict>
 </plist>

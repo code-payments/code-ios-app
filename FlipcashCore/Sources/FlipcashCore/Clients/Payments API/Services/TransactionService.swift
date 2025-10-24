@@ -420,11 +420,12 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Withdrawals -
     
-    func fetchDestinationMetadata(destination: PublicKey, completion: @Sendable @escaping (Result<DestinationMetadata, Never>) -> Void) {
+    func fetchDestinationMetadata(destination: PublicKey, mint: PublicKey, completion: @Sendable @escaping (Result<DestinationMetadata, Never>) -> Void) {
         trace(.send, components: "Destination: \(destination.base58)")
         
         let request = Code_Transaction_V2_CanWithdrawToAccountRequest.with {
             $0.account = destination.solanaAccountID
+            $0.mint    = mint.solanaAccountID
         }
         
         let call = service.canWithdrawToAccount(request)
@@ -437,7 +438,8 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 requiresInitialization: response.requiresInitialization,
                 fee: response.requiresInitialization ? try! Fiat(
                     fiatDecimal: Decimal(response.feeAmount.nativeAmount),
-                    currencyCode: .usd
+                    currencyCode: .usd,
+                    decimals: mint.mintDecimals
                 ) : 0
             )
             

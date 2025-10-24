@@ -34,7 +34,8 @@ final class IntentDistributePoolWinnings: IntentType {
             ActionTransfer(
                 amount: $0.amount,
                 sourceCluster: source,
-                destination: $0.destination
+                destination: $0.destination,
+                mint: .usdc
             )
         })
         

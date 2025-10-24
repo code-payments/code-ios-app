@@ -34,6 +34,7 @@ class Updateable<T>: ObservableObject {
     @objc private func handleDatabaseDidChange() {
         let start = Date.now
         value = valueBlock()
+        didSet?()
         if let time = Date.now.formattedMilliseconds(from: start, threshold: 5) {
             print("[Updateable] Loading <\(T.self)>, took: \(time)")
         }

@@ -192,7 +192,8 @@ extension UserOutcome {
             self = .won(
                 try Fiat(
                     fiatDecimal: Decimal(result.amountWon.nativeAmount),
-                    currencyCode: try CurrencyCode(currencyCode: result.amountWon.currency)
+                    currencyCode: try CurrencyCode(currencyCode: result.amountWon.currency),
+                    decimals: 6
                 )
             )
             
@@ -200,7 +201,8 @@ extension UserOutcome {
             self = .lost(
                 try Fiat(
                     fiatDecimal: Decimal(result.amountLost.nativeAmount),
-                    currencyCode: try CurrencyCode(currencyCode: result.amountLost.currency)
+                    currencyCode: try CurrencyCode(currencyCode: result.amountLost.currency),
+                    decimals: 6
                 )
             )
             
@@ -208,7 +210,8 @@ extension UserOutcome {
             self = .refunded(
                 try Fiat(
                     fiatDecimal: Decimal(result.amountRefunded.nativeAmount),
-                    currencyCode: try CurrencyCode(currencyCode: result.amountRefunded.currency)
+                    currencyCode: try CurrencyCode(currencyCode: result.amountRefunded.currency),
+                    decimals: 6
                 )
             )
         }
@@ -280,7 +283,8 @@ extension PoolMetadata {
             name: proto.name,
             buyIn: try Fiat(
                 fiatDecimal: Decimal(proto.buyIn.nativeAmount),
-                currencyCode: try CurrencyCode(currencyCode: proto.buyIn.currency)
+                currencyCode: try CurrencyCode(currencyCode: proto.buyIn.currency),
+                decimals: 6
             ),
             resolution: resolution
         )
