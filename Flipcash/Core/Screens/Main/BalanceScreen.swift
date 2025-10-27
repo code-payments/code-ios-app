@@ -137,11 +137,17 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func list() -> some View {
+        let balances: [ExchangedBalance] = aggregateBalance.exchangedBalance(for: balanceRate)
+        let hasBalances = !balances.isEmpty
         GeometryReader { g in
             List {
                 Section {
-                    ForEach(aggregateBalance.exchangedBalance(for: balanceRate)) { balance in
-                        CurrencyBalanceRow(exchangedBalance: balance)
+                    if hasBalances {
+                        ForEach(balances) { balance in
+                            CurrencyBalanceRow(exchangedBalance: balance)
+                        }
+                    } else {
+                        emptyState(geometry: g)
                     }
                     
                 } header: {
@@ -149,6 +155,7 @@ struct BalanceScreen: View {
                         .textCase(.none)
                 }
                 .listRowInsets(EdgeInsets())
+                .listRowSeparatorTint(hasBalances ? .rowSeparator : .clear)
             }
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
@@ -375,8 +382,12 @@ struct AggregateBalance {
     }
     
     func exchangedBalance(for rate: Rate) -> [ExchangedBalance] {
-        exchangedBalances.map {
-            $0.convertedUsing(rate: rate)
+        exchangedBalances.compactMap {
+            if $0.exchangedFiat.usdc.quarks > 0 {
+                $0.convertedUsing(rate: rate)
+            } else {
+                nil
+            }
         }
     }
     
