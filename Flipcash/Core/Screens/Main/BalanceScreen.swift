@@ -103,7 +103,10 @@ struct BalanceScreen: View {
             .navigationTitle("Wallet")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $isShowingDepositScreen) {
-                DepositDescriptionScreen(session: session)
+                DepositDescriptionScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

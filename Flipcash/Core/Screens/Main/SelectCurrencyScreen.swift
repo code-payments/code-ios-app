@@ -28,6 +28,7 @@ struct SelectCurrencyScreen: View {
         )
     }
     
+    let kind: Kind
     let container: Container
     let sessionContainer: SessionContainer
     
@@ -37,8 +38,9 @@ struct SelectCurrencyScreen: View {
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
+    init(isPresented: Binding<Bool>, kind: Kind = .give, container: Container, sessionContainer: SessionContainer) {
         self._isPresented        = isPresented
+        self.kind                = kind
         self.container           = container
         self.sessionContainer    = sessionContainer
         
@@ -60,7 +62,12 @@ struct SelectCurrencyScreen: View {
                     Section {
                         ForEach(aggregateBalance.exchangedBalance(for: entryRate)) { balance in
                             CurrencyBalanceRow(exchangedBalance: balance) {
-                                viewModel.selectCurrencyAction(exchangedBalance: balance)
+                                switch kind {
+                                case .give:
+                                    viewModel.selectCurrencyAction(exchangedBalance: balance)
+                                case .select(let action):
+                                    action(balance)
+                                }
                             }
                         }
                     }
@@ -83,6 +90,13 @@ struct SelectCurrencyScreen: View {
                 }
             }
         }
+    }
+}
+
+extension SelectCurrencyScreen {
+    enum Kind {
+        case give
+        case select((ExchangedBalance) -> Void)
     }
 }
 

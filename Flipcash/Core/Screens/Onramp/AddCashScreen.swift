@@ -19,6 +19,7 @@ struct AddCashScreen: View {
     @State private var isShowingDepositScreen: Bool = false
     
     private let container: Container
+    private let sessionContainer: SessionContainer
     private let session: Session
     
     // MARK: - Init -
@@ -26,6 +27,7 @@ struct AddCashScreen: View {
     init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
         self._isPresented     = isPresented
         self.container        = container
+        self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         self.viewModel        = sessionContainer.onrampViewModel
         self.walletConnection = sessionContainer.walletConnection
@@ -78,7 +80,10 @@ struct AddCashScreen: View {
                 }
             }
             .navigationDestination(isPresented: $isShowingDepositScreen) {
-                DepositDescriptionScreen(session: session)
+                DepositDescriptionScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
             }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
@@ -179,7 +184,10 @@ struct AddCashScreen: View {
                 }
             }
             .navigationDestination(isPresented: $isShowingDepositScreen) {
-                DepositDescriptionScreen(session: session)
+                DepositDescriptionScreen(
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
             }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {

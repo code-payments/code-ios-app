@@ -11,14 +11,23 @@ import FlipcashCore
 
 struct DepositDescriptionScreen: View {
     
-    @State private var isShowingDeposit: Bool = false
+    @State private var isShowingDeposit: Bool           = false
+    @State private var isShowingCurrencySelection: Bool = false
     
+    @State private var selectedBalance: ExchangedBalance?
+    
+    private let container: Container
+    private let sessionContainer: SessionContainer
     private let session: Session
+    private let database: Database
     
     // MARK: - Init -
     
-    init(session: Session) {
-        self.session = session
+    init(container: Container, sessionContainer: SessionContainer) {
+        self.container        = container
+        self.sessionContainer = sessionContainer
+        self.session          = sessionContainer.session
+        self.database         = sessionContainer.database
     }
     
     // MARK: - Body -
@@ -26,10 +35,16 @@ struct DepositDescriptionScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .center, spacing: 20) {
-                NavigationLink(
-                    destination: DepositScreen(session: session),
-                    isActive: $isShowingDeposit
-                ) { EmptyView() }
+                NavigationLink(isActive: $isShowingDeposit) {
+                    if let balance = selectedBalance {
+                        DepositScreen(
+                            cluster: depositCluster(for: balance.stored),
+                            name: balance.stored.name
+                        )
+                    } else {
+                        EmptyView()
+                    }
+                } label: { EmptyView() }
                 
                 Spacer()
                 
@@ -64,12 +79,35 @@ struct DepositDescriptionScreen: View {
         }
         .navigationTitle("Deposit")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isShowingCurrencySelection) {
+            SelectCurrencyScreen(
+                isPresented: $isShowingCurrencySelection,
+                kind: .select(selectCurrencyAction),
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        }
+    }
+    
+    private func depositCluster(for balance: StoredBalance) -> AccountCluster {
+        session.owner.use(
+            mint: balance.mint,
+            timeAuthority: balance.vmAuthority!
+        )
     }
     
     // MARK: - Actions -
     
+    private func selectCurrencyAction(exchangeBalance: ExchangedBalance) {
+        selectedBalance = exchangeBalance
+        isShowingCurrencySelection = false
+        Task {
+            isShowingDeposit = true
+        }
+    }
+    
     private func depositAction() {
-        isShowingDeposit.toggle()
+        isShowingCurrencySelection.toggle()
     }
     
     private func learnAction() {

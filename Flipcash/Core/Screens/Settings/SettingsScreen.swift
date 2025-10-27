@@ -162,7 +162,10 @@ struct SettingsScreen: View {
                 case .advancedFeatures:
                     advancedFeaturesScreen()
                 case .depositUSDC:
-                    DepositDescriptionScreen(session: session)
+                    DepositDescriptionScreen(
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
                 case .appSettings:
                     appSettingsScreen()
                 case .betaFlagss:

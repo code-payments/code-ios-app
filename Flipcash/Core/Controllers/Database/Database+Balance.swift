@@ -25,7 +25,8 @@ extension Database {
             m.imageURL,
             m.sellFeeBps,
             m.supplyFromBonding,
-            m.coreMintLocked
+            m.coreMintLocked,
+            m.vmAuthority
         FROM
             balance b
         
@@ -46,6 +47,7 @@ extension Database {
                 coreMintLocked:    row[m.coreMintLocked],
                 sellFeeBps:        row[m.sellFeeBps],
                 mint:              row[b.mint],
+                vmAuthority:       row[m.vmAuthority],
                 updatedAt:         row[b.updatedAt],
                 imageURL:          row[m.imageURL]
             )

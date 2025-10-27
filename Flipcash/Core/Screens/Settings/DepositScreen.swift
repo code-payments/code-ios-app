@@ -11,17 +11,16 @@ import FlipcashCore
 
 struct DepositScreen: View {
     
-    @ObservedObject private var session: Session
-    
     @State private var buttonState: ButtonState = .normal
     
-    private let depositAddress: PublicKey
+    private let cluster: AccountCluster
+    private let name: String?
     
     // MARK: - Init -
     
-    init(session: Session) {
-        self.session   = session
-        self.depositAddress = session.owner.depositPublicKey
+    init(cluster: AccountCluster, name: String?) {
+        self.cluster = cluster
+        self.name    = name
     }
     
     // MARK: - Body -
@@ -29,7 +28,7 @@ struct DepositScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Deposit funds into your wallet by sending USDC to your deposit address below. Tap to copy.")
+                Text("Deposit funds into your wallet by sending \(name ?? "funds") to your deposit address below. Tap to copy.")
                     .font(.appTextMedium)
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.leading)
@@ -38,7 +37,7 @@ struct DepositScreen: View {
                 Button {
                     copyAddress()
                 } label: {
-                    ImmutableField(depositAddress.base58)
+                    ImmutableField(cluster.depositPublicKey.base58)
                 }
                 
                 Spacer()
@@ -68,14 +67,14 @@ struct DepositScreen: View {
             }
             .padding(20)
         }
-        .navigationTitle("Deposit")
+        .navigationTitle("Deposit\(name != nil ? " \(name!)" : "")")
         .navigationBarTitleDisplayMode(.inline)
     }
     
     // MARK: - Actions -
     
     private func copyAddress() {
-        UIPasteboard.general.string = depositAddress.base58
+        UIPasteboard.general.string = cluster.depositPublicKey.base58
         buttonState = .successText("Copied")
     }
 }

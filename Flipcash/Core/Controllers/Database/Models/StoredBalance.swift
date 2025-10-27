@@ -17,6 +17,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     let coreMintLocked: UInt64?
     let sellFeeBps: Int?
     let mint: PublicKey
+    let vmAuthority: PublicKey?
     let updatedAt: Date
     let imageURL: URL?
     
@@ -26,7 +27,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         mint
     }
     
-    init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, coreMintLocked: UInt64?, sellFeeBps: Int?, mint: PublicKey, updatedAt: Date, imageURL: URL?) throws {
+    init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, coreMintLocked: UInt64?, sellFeeBps: Int?, mint: PublicKey, vmAuthority: PublicKey?, updatedAt: Date, imageURL: URL?) throws {
         self.quarks            = quarks
         self.symbol            = symbol
         self.name              = name
@@ -34,6 +35,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         self.coreMintLocked    = coreMintLocked
         self.sellFeeBps        = sellFeeBps
         self.mint              = mint
+        self.vmAuthority       = vmAuthority
         self.updatedAt         = updatedAt
         self.imageURL          = imageURL
         
