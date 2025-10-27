@@ -32,7 +32,7 @@ extension CashCode.Payload {
             let value: Value
             
             switch kind {
-            case .cash:
+            case .cash, .cashMulticurrency:
                 let currencyIndex = base.advanced(by: 1).assumingMemoryBound(to: UInt8.self).pointee
                 
                 guard let currencyCode = CurrencyCode(index: currencyIndex) else {

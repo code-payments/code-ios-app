@@ -80,7 +80,7 @@ class ScanViewModel: ObservableObject {
         )
         
         switch payload.kind {
-        case .cash:
+        case .cash, .cashMulticurrency:
             session.receiveCash(payload) { [weak self] result in
                 switch result {
                 case .success:

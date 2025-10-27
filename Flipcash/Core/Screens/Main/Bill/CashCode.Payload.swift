@@ -60,6 +60,7 @@ extension CashCode.Payload {
 extension CashCode.Payload {
     enum Kind: UInt8 {
         case cash = 0
+        case cashMulticurrency = 1
     }
 }
 
