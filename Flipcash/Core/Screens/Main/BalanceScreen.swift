@@ -20,13 +20,15 @@ struct BalanceScreen: View {
     
     @ObservedObject private var onrampViewModel: OnrampViewModel
     
-    @State private var isShowingCurrencySelection: Bool = false
-    @State private var isShowingDepositScreen: Bool = false
-    @State private var isShowingWithdrawFlow: Bool = false
+    @State private var isShowingCurrencySelection: Bool  = false
+    @State private var isShowingDepositScreen: Bool      = false
+    @State private var isShowingWithdrawFlow: Bool       = false
     
     @State private var dialogItem: DialogItem?
     
     @State private var selectedActivity: Activity?
+    
+    @State private var selectedBalance: ExchangedBalance?
     
     private var aggregateBalance: AggregateBalance {
         AggregateBalance(
@@ -46,7 +48,7 @@ struct BalanceScreen: View {
     }
     
     private var balances: [ExchangedBalance] {
-        aggregateBalance.exchangedBalances.filter {
+        aggregateBalance.entryBalances.filter {
             $0.stored.quarks > 0
         }
     }
@@ -114,6 +116,13 @@ struct BalanceScreen: View {
                     sessionContainer: sessionContainer
                 )
             }
+            .navigationDestination(item: $selectedBalance) { balance in
+                CurrencyInfoScreen(
+                    mint: balance.stored.mint,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
@@ -152,7 +161,9 @@ struct BalanceScreen: View {
                 Section {
                     if hasBalances {
                         ForEach(balances) { balance in
-                            CurrencyBalanceRow(exchangedBalance: balance)
+                            CurrencyBalanceRow(exchangedBalance: balance) {
+                                selectedBalance = balance
+                            }
                         }
                     } else {
                         emptyState(geometry: g)
@@ -346,21 +357,22 @@ struct AggregateBalance {
     let entryRate: Rate
     let balanceRate: Rate
     
-    // These are just USDC balances and must
-    // be converted before being consumed
-    let exchangedBalances: [ExchangedBalance]
+    let entryBalances: [ExchangedBalance]
+    let balanceBalances: [ExchangedBalance]
     
     init(entryRate: Rate, balanceRate: Rate, balances: [StoredBalance]) {
         self.entryRate   = entryRate
         self.balanceRate = balanceRate
         
-        var exchangedBalances: [ExchangedBalance] = []
+        var entryBalances: [ExchangedBalance]   = []
+        var balanceBalances: [ExchangedBalance] = []
+        
         var totalUSDC: Fiat = .zero(currencyCode: .usd, decimals: PublicKey.usdc.mintDecimals)
         
         balances.sorted { lhs, rhs in
             lhs.usdcValue.quarks > rhs.usdcValue.quarks
         }.forEach { balance in
-            exchangedBalances.append(
+            entryBalances.append(
                 ExchangedBalance(
                     stored: balance,
                     exchangedFiat: .computeFromQuarks(
@@ -372,10 +384,23 @@ struct AggregateBalance {
                 )
             )
             
+            balanceBalances.append(
+                ExchangedBalance(
+                    stored: balance,
+                    exchangedFiat: .computeFromQuarks(
+                        quarks: balance.quarks,
+                        mint: balance.mint,
+                        rate: balanceRate,
+                        supplyFromBonding: balance.supplyFromBonding
+                    )
+                )
+            )
+            
             totalUSDC = try! totalUSDC.adding(balance.usdcValue)
         }
         
-        self.exchangedBalances = exchangedBalances
+        self.entryBalances   = entryBalances
+        self.balanceBalances = balanceBalances
         
         self.totalBalance = try! .init(
             usdc: totalUSDC,
@@ -391,7 +416,13 @@ struct AggregateBalance {
     }
     
     func entryBalance(for mint: PublicKey) -> ExchangedBalance? {
-        exchangedBalances.first {
+        entryBalances.first {
+            $0.stored.mint == mint
+        }
+    }
+    
+    func balanceBalance(for mint: PublicKey) -> ExchangedBalance? {
+        balanceBalances.first {
             $0.stored.mint == mint
         }
     }

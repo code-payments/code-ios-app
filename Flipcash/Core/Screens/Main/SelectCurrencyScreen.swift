@@ -58,7 +58,7 @@ struct SelectCurrencyScreen: View {
             Background(color: .backgroundMain) {
                 List {
                     Section {
-                        ForEach(aggregateBalance.exchangedBalances) { balance in
+                        ForEach(aggregateBalance.entryBalances) { balance in
                             CurrencyBalanceRow(exchangedBalance: balance) {
                                 switch kind {
                                 case .give:
@@ -112,27 +112,44 @@ struct CurrencyBalanceRow: View {
         Button {
             action?()
         } label: {
-            HStack(spacing: 8) {
-                if let imageURL = exchangedBalance.stored.imageURL {
-                    RemoteImage(url: imageURL)
-                        .frame(width: 24, height: 24)
-                        .clipShape(Circle())
-                }
-                
-                Text(exchangedBalance.stored.name)
-                    .font(.appBarButton)
-                    .foregroundStyle(Color.textMain)
-                
-                Spacer()
-                
-                Text(exchangedBalance.exchangedFiat.converted.formatted(suffix: nil))
-                    .font(.appTextMedium)
-                    .foregroundStyle(Color.textMain)
-            }
+            CurrencyLabel(
+                imageURL: exchangedBalance.stored.imageURL,
+                name: exchangedBalance.stored.name,
+                amount: exchangedBalance.exchangedFiat.converted
+            )
         }
         .disabled(action == nil)
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
+    }
+}
+
+struct CurrencyLabel: View {
+    
+    let imageURL: URL?
+    let name: String
+    let amount: Fiat?
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            if let imageURL {
+                RemoteImage(url: imageURL)
+                    .frame(width: 24, height: 24)
+                    .clipShape(Circle())
+            }
+            
+            Text(name)
+                .font(.appBarButton)
+                .foregroundStyle(Color.textMain)
+
+            if let amount {
+                Spacer()
+                
+                Text(amount.formatted(truncated: true, suffix: nil))
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+            }
+        }
     }
 }
