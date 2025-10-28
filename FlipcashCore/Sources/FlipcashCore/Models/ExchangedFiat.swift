@@ -81,14 +81,133 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         self.mint = mint
     }
     
-    public func subtracting(fee: Fiat) throws -> ExchangedFiat {
+    public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, supplyFromBonding: UInt64?) -> ExchangedFiat {
+        
+        let exchanged: ExchangedFiat
+        
+        if mint != PublicKey.usdc {
+            let curve     = BondingCurve()
+            let valuation = try! curve.valueForTokens(
+                quarks: Int(quarks),
+                fx: rate.fx,
+                supplyQuarks: Int(supplyFromBonding!)
+            )
+            
+            let underlying = Fiat(
+                quarks: quarks, // USDC value
+                currencyCode: .usd,
+                decimals: mint.mintDecimals
+            )
+            
+            exchanged = try! ExchangedFiat(
+                usdc: underlying,
+                rate: .init(
+                    fx: valuation.fx,
+                    currency: rate.currency
+                ),
+                mint: mint
+            )
+            
+        } else {
+            exchanged = try! ExchangedFiat(
+                usdc: .init(
+                    quarks: quarks,
+                    currencyCode: .usd,
+                    decimals: PublicKey.usdc.mintDecimals
+                ),
+                rate: rate,
+                mint: mint
+            )
+        }
+        
+        return exchanged
+    }
+    
+    public static func computeFromEntered(amount: Decimal, rate: Rate, mint: PublicKey, supplyFromBonding: UInt64) -> ExchangedFiat? {
+        guard amount > 0 else {
+            return nil
+        }
+        
+        let valuation: BondingCurve.Valuation
+
+        if mint != PublicKey.usdc {
+            let curve = BondingCurve()
+            valuation = try! curve.tokensForValueExchange(
+                fiatDecimal: amount,
+                fx: rate.fx,
+                supplyQuarks: Int(supplyFromBonding)
+            )
+        } else {
+            valuation = .init(
+                tokens: amount,
+                fx: rate.fx
+            )
+        }
+        
+        // The rate for the underlying token
+        // represented as the 'region' of Rate
+        // so in the below example - CAD
+        let underlyingRate = Rate(
+            fx: valuation.fx,
+            currency: rate.currency
+        )
+        
+        // This a new fx rate for the token valued in USDC
+        // so if the spot price for a token is $0.01 this
+        // is an example of CAD -> Tokens:
+        // - $5.00 CAD
+        // - Rate: 1.40
+        // - $3.57 USD
+        // - 3.57 / 0.01 = # of tokens
+        
+        let exchanged: ExchangedFiat
+        if rate.currency == .usd {
+            // Initializing exchangedFiat with usdc: will
+            // mean that `converted` will always be off for
+            // USDC as it will use the bonding curve rate
+            // becase the server is expecting a non-1 fx
+            let underlying = try! Fiat(
+                fiatDecimal: amount,
+                currencyCode: underlyingRate.currency,
+                decimals: mint.mintDecimals
+            )
+            
+            exchanged = try! ExchangedFiat(
+                converted: underlying,
+                rate: underlyingRate,
+                mint: mint
+            )
+        } else {
+            exchanged = try! ExchangedFiat(
+                converted: .init(
+                    fiatDecimal: amount,
+                    currencyCode: underlyingRate.currency,
+                    decimals: mint.mintDecimals
+                ),
+                rate: underlyingRate,
+                mint: mint
+            )
+        }
+        
+        return  exchanged
+    }
+    
+    public func subtracting(fee: Fiat, invert: Bool = false) throws -> ExchangedFiat {
         let feeInQuarks = fee.quarks
         
-        guard feeInQuarks < usdc.quarks else {
+        let isValidOperation: () -> Bool = {
+            if invert {
+                usdc.quarks <= feeInQuarks
+            } else {
+                feeInQuarks <= usdc.quarks
+            }
+        }
+        
+        guard isValidOperation() else {
             throw Error.feeLargerThanAmount
         }
         
-        let remainingQuarks = usdc.quarks - feeInQuarks
+        let remainingQuarks = invert ? feeInQuarks - usdc.quarks : usdc.quarks - feeInQuarks
         
         return try ExchangedFiat(
             usdc: Fiat(

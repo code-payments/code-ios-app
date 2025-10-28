@@ -83,6 +83,7 @@ struct DepositDescriptionScreen: View {
             SelectCurrencyScreen(
                 isPresented: $isShowingCurrencySelection,
                 kind: .select(selectCurrencyAction),
+                fixedRate: nil,
                 container: container,
                 sessionContainer: sessionContainer
             )

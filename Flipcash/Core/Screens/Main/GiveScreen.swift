@@ -36,7 +36,7 @@ struct GiveScreen: View {
             return 0
         }
         
-        return balance.converted
+        return balance.exchangedFiat.converted
     }
     
     // MARK: - Init -

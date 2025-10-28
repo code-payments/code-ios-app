@@ -140,7 +140,7 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func list() -> some View {
-        let balances: [ExchangedBalance] = aggregateBalance.exchangedBalance(for: balanceRate)
+        let balances: [ExchangedBalance] = aggregateBalance.exchangedBalances//(for: balanceRate)
         let hasBalances = !balances.isEmpty
         GeometryReader { g in
             List {
@@ -343,7 +343,7 @@ struct AggregateBalance {
     
     // These are just USDC balances and must
     // be converted before being consumed
-    private let exchangedBalances: [ExchangedBalance]
+    let exchangedBalances: [ExchangedBalance]
     
     init(entryRate: Rate, balanceRate: Rate, balances: [StoredBalance]) {
         self.entryRate   = entryRate
@@ -358,10 +358,11 @@ struct AggregateBalance {
             exchangedBalances.append(
                 ExchangedBalance(
                     stored: balance,
-                    exchangedFiat: try! ExchangedFiat(
-                        usdc: balance.usdcValue,
-                        rate: .oneToOne,
-                        mint: balance.mint
+                    exchangedFiat: .computeFromQuarks(
+                        quarks: balance.quarks,
+                        mint: balance.mint,
+                        rate: entryRate,
+                        supplyFromBonding: balance.supplyFromBonding
                     )
                 )
             )
@@ -384,30 +385,10 @@ struct AggregateBalance {
         )
     }
     
-    func exchangedBalance(for rate: Rate) -> [ExchangedBalance] {
-        exchangedBalances.compactMap {
-            if $0.exchangedFiat.usdc.quarks > 0 {
-                $0.convertedUsing(rate: rate)
-            } else {
-                nil
-            }
-        }
-    }
-    
-    func entryBalance(for mint: PublicKey) -> ExchangedFiat? {
-        let exchangedFiat = exchangedBalances.first {
+    func entryBalance(for mint: PublicKey) -> ExchangedBalance? {
+        exchangedBalances.first {
             $0.stored.mint == mint
-        }?.exchangedFiat
-        
-        guard let exchangedFiat else {
-            return nil
         }
-        
-        return try! ExchangedFiat(
-            usdc: exchangedFiat.usdc,
-            rate: entryRate,
-            mint: exchangedFiat.mint
-        )
     }
 }
 

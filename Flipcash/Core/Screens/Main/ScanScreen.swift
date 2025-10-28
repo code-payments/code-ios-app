@@ -323,6 +323,7 @@ struct ScanScreen: View {
             .sheet(isPresented: $isShowingGive) {
                 SelectCurrencyScreen(
                     isPresented: $isShowingGive,
+                    fixedRate: nil,
                     container: container,
                     sessionContainer: sessionContainer
                 )

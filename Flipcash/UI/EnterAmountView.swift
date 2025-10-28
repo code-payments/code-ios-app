@@ -24,7 +24,7 @@ public struct EnterAmountView: View {
     private let currencySelectionAction: (() -> Void)?
     
     private var maxTransactionAmount: Fiat {
-        guard let limit = session.singleTransactionLimit else {
+        guard let limit = session.singleTransactionLimitFor(currency: currency) else {
             return 0
         }
         
@@ -37,13 +37,13 @@ public struct EnterAmountView: View {
             rateController.entryCurrency
         case .onramp:
             rateController.onrampCurrency
-        case .walletDeposit, .phantomDeposit:
+        case .walletDeposit, .phantomDeposit, .withdraw:
             .usd
         }
     }
     
     func maxEnterAmount(maxBalance: Fiat) -> Fiat {
-        guard let limit = session.nextTransactionLimit else {
+        guard let limit = session.nextTransactionLimit(currency: currency) else {
             return 0
         }
         
@@ -155,10 +155,11 @@ extension EnterAmountView {
         case walletDeposit(String)
         case currency
         case onramp
+        case withdraw
         
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit:
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
@@ -169,6 +170,7 @@ extension EnterAmountView {
             case .walletDeposit:  return .number("0")
             case .currency:       return .number("0")
             case .onramp:         return .number("0")
+            case .withdraw:       return .number("0")
             }
         }
         
@@ -180,6 +182,7 @@ extension EnterAmountView {
                 return "Confirm In \(walletName)"
             case .currency: return "Next"
             case .onramp:   return "Add Cash"
+            case .withdraw: return "Next"
             }
         }
         
@@ -189,6 +192,7 @@ extension EnterAmountView {
             case .walletDeposit:  return .filled
             case .currency:       return .filled
             case .onramp:         return .filledApplePay
+            case .withdraw:       return .filled
             }
         }
     }

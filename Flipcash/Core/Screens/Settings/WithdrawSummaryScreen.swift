@@ -19,13 +19,17 @@ struct WithdrawSummaryScreen: View {
     
     private var usdcToWithdraw: String {
         if let withdrawableAmount = viewModel.withdrawableAmount {
-            return withdrawableAmount.usdc.formatted(suffix: nil)
+            return withdrawableAmount.converted.formatted(suffix: nil)
             
         } else if let negativeDelta = viewModel.negativeWithdrawableAmount {
             return "-\(negativeDelta.formatted(suffix: nil))"
             
         } else {
-            return Fiat(quarks: 0 as UInt64, currencyCode: .usd, decimals: PublicKey.usdc.mintDecimals).formatted(suffix: nil)
+            return Fiat(
+                quarks: 0 as UInt64,
+                currencyCode: .usd,
+                decimals: PublicKey.usdc.mintDecimals
+            ).formatted(suffix: nil)
         }
     }
     
@@ -74,12 +78,12 @@ struct WithdrawSummaryScreen: View {
                                             value: originalFiat.formatted(suffix: nil)
                                         )
                                         
-                                        if originalFiat.currencyCode != .usd {
-                                            lineItem(
-                                                title: Text("Converted to USD"),
-                                                value: usdcFiat.formatted(/*truncated: true,*/suffix: nil)
-                                            )
-                                        }
+//                                        if originalFiat.currencyCode != .usd {
+//                                            lineItem(
+//                                                title: Text("Converted to USD"),
+//                                                value: usdcFiat.formatted(/*truncated: true,*/suffix: nil)
+//                                            )
+//                                        }
                                         
                                         if fee.quarks > 0 {
                                             lineItem(

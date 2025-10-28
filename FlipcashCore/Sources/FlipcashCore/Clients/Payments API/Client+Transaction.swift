@@ -39,10 +39,11 @@ extension Client {
         }
     }
     
-    public func withdraw(exchangedFiat: ExchangedFiat, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
+    public func withdraw(exchangedFiat: ExchangedFiat, fee: Fiat, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(
                 exchangedFiat: exchangedFiat,
+                fee: fee,
                 sourceCluster: owner,
                 destinationMetadata: destinationMetadata,
                 owner: owner.authority.keyPair

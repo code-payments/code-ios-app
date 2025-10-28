@@ -14,19 +14,21 @@ final class IntentWithdraw: IntentType {
     
     let id: PublicKey
     let sourceCluster: AccountCluster
+    let fee: Fiat
     let destinationMetadata: DestinationMetadata
     let exchangedFiat: ExchangedFiat
     
     var actionGroup: ActionGroup
     
-    init(sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat) throws {
+    init(sourceCluster: AccountCluster, fee: Fiat, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat) throws {
         self.id                  = PublicKey.generate()!
         self.sourceCluster       = sourceCluster
+        self.fee                 = fee
         self.exchangedFiat       = exchangedFiat
         self.destinationMetadata = destinationMetadata
         
         let destination = destinationMetadata.destination.token
-        let fee = destinationMetadata.fee
+//        let fee = destinationMetadata.fee
         
         var group = ActionGroup()
         
@@ -43,6 +45,7 @@ final class IntentWithdraw: IntentType {
             group.append(
                 ActionFeeTransfer(
                     amount: fee,
+                    mint: exchangedFiat.mint,
                     sourceCluster: sourceCluster
                 )
             )

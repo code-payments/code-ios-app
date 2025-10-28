@@ -90,12 +90,13 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    func withdraw(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func withdraw(exchangedFiat: ExchangedFiat, fee: Fiat, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         do {
             let intent = try IntentWithdraw(
                 sourceCluster: sourceCluster,
+                fee: fee,
                 destinationMetadata: destinationMetadata,
                 exchangedFiat: exchangedFiat
             )
@@ -434,6 +435,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             let metadata = DestinationMetadata(
                 kind: .init(rawValue: response.accountType.rawValue) ?? .unknown,
                 destination: destination,
+                mint: mint,
                 isValid: response.isValidPaymentDestination,
                 requiresInitialization: response.requiresInitialization,
                 fee: response.requiresInitialization ? try! Fiat(
@@ -450,6 +452,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             let metadata = DestinationMetadata(
                 kind: .unknown,
                 destination: destination,
+                mint: mint,
                 isValid: false,
                 requiresInitialization: false,
                 fee: 0
@@ -482,13 +485,13 @@ public struct DestinationMetadata: Sendable {
     
     public let requiresInitialization: Bool
     
-    init(kind: Kind, destination: PublicKey, isValid: Bool, requiresInitialization: Bool, fee: Fiat) {
+    init(kind: Kind, destination: PublicKey, mint: PublicKey, isValid: Bool, requiresInitialization: Bool, fee: Fiat) {
         switch kind {
         case .unknown, .token:
             self.destination = .init(token: destination)
             
         case .owner:
-            self.destination = .init(owner: destination)
+            self.destination = .init(owner: destination, mint: mint)
         }
         
         self.kind = kind
@@ -516,9 +519,9 @@ extension DestinationMetadata {
             self.requiredResolution = false
         }
         
-        init(owner: PublicKey) {
+        init(owner: PublicKey, mint: PublicKey) {
             self.owner = owner
-            self.token = AssociatedTokenAccount(owner: owner, mint: PublicKey.usdc).ata.publicKey
+            self.token = AssociatedTokenAccount(owner: owner, mint: mint).ata.publicKey
             self.requiredResolution = true
         }
     }

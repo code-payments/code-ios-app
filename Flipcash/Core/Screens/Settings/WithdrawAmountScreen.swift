@@ -30,15 +30,15 @@ struct WithdrawAmountScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             EnterAmountView(
-                mode: .currency,
+                mode: .withdraw,
                 enteredAmount: $viewModel.enteredAmount,
-                subtitle: .balanceWithLimit(.zero(currencyCode: .usd, decimals: 6)),
+                subtitle: .balanceWithLimit(viewModel.maxWithdrawLimit),
                 actionState: .constant(.normal),
                 actionEnabled: { _ in
                     viewModel.enteredFiat != nil
                 },
                 action: viewModel.amountEnteredAction,
-                currencySelectionAction: showCurrencySelection
+                currencySelectionAction: nil
             )
             .foregroundColor(.textMain)
             .padding(20)
@@ -50,7 +50,7 @@ struct WithdrawAmountScreen: View {
                 )
             }
         }
-        .navigationTitle("Withdraw")
+        .navigationTitle(viewModel.withdrawTitle)
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
     }

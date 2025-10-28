@@ -22,25 +22,23 @@ struct SelectCurrencyScreen: View {
     
     private var aggregateBalance: AggregateBalance {
         AggregateBalance(
-            entryRate: ratesController.rateForEntryCurrency(),
+            entryRate: fixedRate ?? ratesController.rateForEntryCurrency(),
             balanceRate: ratesController.rateForBalanceCurrency(),
             balances: session.balances
         )
     }
     
     let kind: Kind
+    let fixedRate: Rate?
     let container: Container
     let sessionContainer: SessionContainer
     
-    private var entryRate: Rate {
-        ratesController.rateForEntryCurrency()
-    }
-    
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, kind: Kind = .give, container: Container, sessionContainer: SessionContainer) {
+    init(isPresented: Binding<Bool>, kind: Kind = .give, fixedRate: Rate?, container: Container, sessionContainer: SessionContainer) {
         self._isPresented        = isPresented
         self.kind                = kind
+        self.fixedRate           = fixedRate
         self.container           = container
         self.sessionContainer    = sessionContainer
         
@@ -60,7 +58,7 @@ struct SelectCurrencyScreen: View {
             Background(color: .backgroundMain) {
                 List {
                     Section {
-                        ForEach(aggregateBalance.exchangedBalance(for: entryRate)) { balance in
+                        ForEach(aggregateBalance.exchangedBalances) { balance in
                             CurrencyBalanceRow(exchangedBalance: balance) {
                                 switch kind {
                                 case .give:

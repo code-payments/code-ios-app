@@ -65,13 +65,15 @@ class Session: ObservableObject {
 //    }
     
     var nextTransactionLimit: Fiat? {
+        nextTransactionLimit(currency: ratesController.rateForEntryCurrency().currency)
+    }
+    
+    func nextTransactionLimit(currency: CurrencyCode) -> Fiat? {
         guard let limits else {
             return nil
         }
         
-        let rate = ratesController.rateForEntryCurrency()
-        
-        guard let limit = limits.sendLimitFor(currency: rate.currency) else {
+        guard let limit = limits.sendLimitFor(currency: currency) else {
             return nil
         }
         
@@ -264,30 +266,36 @@ class Session: ObservableObject {
         return amountToSend.quarks <= limit.quarks
     }
     
-//    func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> Bool {
-//        hasSufficientFundsWithDelta(for: exchangedFiat).0
-//    }
-//    
-//    func hasSufficientFundsWithDelta(for exchangedFiat: ExchangedFiat) -> (Bool, ExchangedFiat?) {
-//        guard exchangedFiat.usdc.quarks > 0 else {
-//            return (false, nil)
-//        }
-//        
-//        if balance.quarks < exchangedFiat.usdc.quarks {
-//            assert(exchangedEntryBalance.converted.currencyCode == exchangedFiat.converted.currencyCode)
-//            let delta = try! ExchangedFiat(
-//                converted: Fiat(
-//                    quarks: exchangedFiat.converted.quarks - exchangedEntryBalance.converted.quarks,
-//                    currencyCode: exchangedFiat.converted.currencyCode
-//                ),
-//                rate: exchangedEntryBalance.rate,
-//                mint: .usdc
-//            )
-//            return (false, delta)
-//        } else {
-//            return (exchangedFiat.usdc.quarks <= balance.quarks, nil)
-//        }
-//    }
+    func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> (Bool, ExchangedFiat?) {
+        guard exchangedFiat.usdc.quarks > 0 else {
+            return (false, nil)
+        }
+        
+        let aggregate = AggregateBalance(
+            entryRate: exchangedFiat.rate,
+            balanceRate: ratesController.rateForBalanceCurrency(),
+            balances: balances
+        )
+        
+        guard let balance = aggregate.entryBalance(for: exchangedFiat.mint)?.exchangedFiat else {
+            return (false, nil)
+        }
+        
+        guard let (underlyingAvailable, underlyingToSend, _) = try? balance.usdc.aligned(with: exchangedFiat.usdc) else {
+            return (false, nil)
+        }
+        
+        if underlyingToSend.quarks <= underlyingAvailable.quarks {
+            return (true, nil)
+        } else {
+            let delta = try! ExchangedFiat(
+                usdc: underlyingToSend.subtracting(underlyingAvailable),
+                rate: balance.rate,
+                mint: .usdc
+            )
+            return (false, delta)
+        }
+    }
     
     // MARK: - Poller -
     
@@ -435,12 +443,21 @@ class Session: ObservableObject {
     
     // MARK: - Withdrawals -
     
-    func withdraw(exchangedFiat: ExchangedFiat, to destinationMetadata: DestinationMetadata) async throws {
+    func withdraw(exchangedFiat: ExchangedFiat, fee: Fiat, to destinationMetadata: DestinationMetadata) async throws {
         let rendezvous = PublicKey.generate()!
+        let mint = exchangedFiat.mint
         do {
+            guard let vmAuthority = try database.getVMAuthority(mint: mint) else {
+                throw Error.vmMetadataMissing
+            }
+            
             try await self.client.withdraw(
                 exchangedFiat: exchangedFiat,
-                owner: owner,
+                fee: fee,
+                owner: owner.use(
+                    mint: mint,
+                    timeAuthority: vmAuthority
+                ),
                 destinationMetadata: destinationMetadata,
             )
             

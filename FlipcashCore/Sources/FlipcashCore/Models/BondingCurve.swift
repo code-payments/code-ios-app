@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import BigDecimal
+@preconcurrency import BigDecimal
 
 private let r = Rounding(.toNearestOrEven, 50)
 
@@ -209,7 +209,29 @@ extension BondingCurve {
         return Decimal(string: tokens.asString())!
     }
     
-    // TODO: Need a test for this
+    public func valueForTokens(
+        quarks: Int,
+        fx: Foundation.Decimal,
+        supplyQuarks: Int
+    ) throws -> Valuation {
+        guard quarks > 0 else {
+            return .init(tokens: 0, fx: 0)
+        }
+
+        let tokens = BigDecimal(quarks).scaleDown(decimals)
+        let s      = BigDecimal(supplyQuarks).scaleDown(decimals)
+        let price  = try spotPrice(supply: s)
+        let rate   = BigDecimal(fx)
+
+        // Calculate USDC value (token amount * price)
+        let usdc = tokens.multiply(price, r)
+
+        return Valuation(
+            tokens: usdc.asDecimal(),
+            fx: rate.multiply(price, r).asDecimal()
+        )
+    }
+    
     public func tokensForValueExchange(fiatDecimal: Foundation.Decimal, fx: Foundation.Decimal, supplyQuarks: Int) throws -> Valuation {
         guard fiatDecimal > 0 else {
             return .init(tokens: 0, fx: 0)
@@ -239,7 +261,7 @@ extension BondingCurve {
         
         return Valuation(
             tokens: tokens.asDecimal(),
-            fx: (rate * price).asDecimal()
+            fx: rate.multiply(price, r).asDecimal()
         )
     }
 }

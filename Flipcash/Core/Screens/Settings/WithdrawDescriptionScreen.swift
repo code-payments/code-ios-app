@@ -11,15 +11,22 @@ import FlipcashCore
 
 struct WithdrawDescriptionScreen: View {
     
+    @State private var isShowingCurrencySelection: Bool = false
+    
     @Binding var isPresented: Bool
     
     @StateObject private var viewModel: WithdrawViewModel
     
+    private let container: Container
+    private let sessionContainer: SessionContainer
+    
     // MARK: - Init -
 
     init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self._isPresented = isPresented
-        self._viewModel = .init(
+        self._isPresented     = isPresented
+        self.container        = container
+        self.sessionContainer = sessionContainer
+        self._viewModel       = .init(
             wrappedValue: WithdrawViewModel(
                 isPresented: isPresented,
                 container: container,
@@ -83,13 +90,30 @@ struct WithdrawDescriptionScreen: View {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
+            .sheet(isPresented: $isShowingCurrencySelection) {
+                SelectCurrencyScreen(
+                    isPresented: $isShowingCurrencySelection,
+                    kind: .select(selectCurrencyAction),
+                    fixedRate: .oneToOne,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
         }
     }
     
     // MARK: - Actions -
     
+    private func selectCurrencyAction(exchangeBalance: ExchangedBalance) {
+        viewModel.selectedBalance = exchangeBalance
+        isShowingCurrencySelection = false
+        Task {
+            viewModel.pushEnterAmountScreen()
+        }
+    }
+    
     private func withdrawAction() {
-        viewModel.pushEnterAmountScreen()
+        isShowingCurrencySelection.toggle()
     }
     
     private func learnAction() {

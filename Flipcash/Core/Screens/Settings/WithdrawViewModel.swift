@@ -16,6 +16,8 @@ class WithdrawViewModel: ObservableObject {
     
     @Published var withdrawButtonState: ButtonState = .normal
     
+    @Published var selectedBalance: ExchangedBalance?
+    
     @Published var enteredAmount: String = ""
     @Published var enteredAddress: String = "" {
         didSet {
@@ -33,35 +35,44 @@ class WithdrawViewModel: ObservableObject {
         try? PublicKey(base58: enteredAddress)
     }
     
-    var enteredMint: PublicKey?
-    
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil
         }
         
-        guard let enteredMint else {
+        guard let selectedBalance else {
             return nil
         }
         
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
-//            trace(.failure, components: "[Withdraw] Failed to parse amount string: \(enteredAmount)")
             return nil
         }
         
-        let currency = ratesController.entryCurrency
+        let mint = selectedBalance.stored.mint
         
-        guard let rate = ratesController.rate(for: currency) else {
-            trace(.failure, components: "[Withdraw] Rate not found for: \(currency)")
-            return nil
+        // Only applies for bonded tokens
+        if mint != .usdc {
+            guard let supplyFromBonding = selectedBalance.stored.supplyFromBonding else {
+                return nil
+            }
+            
+            return ExchangedFiat.computeFromEntered(
+                amount: amount,
+                rate: .oneToOne, // Withdrawals are forced to usd
+                mint: mint,
+                supplyFromBonding: supplyFromBonding
+            )
+        } else {
+            return try! ExchangedFiat(
+                usdc: .init(
+                    fiatDecimal: amount,
+                    currencyCode: .usd,
+                    decimals: mint.mintDecimals
+                ),
+                rate: .oneToOne,
+                mint: mint
+            )
         }
-        
-        guard let converted = try? Fiat(fiatDecimal: amount, currencyCode: currency, decimals: enteredMint.mintDecimals) else {
-            trace(.failure, components: "[Withdraw] Invalid amount for entry")
-            return nil
-        }
-        
-        return try! ExchangedFiat(converted: converted, rate: rate, mint: .usdc)
     }
     
     var negativeWithdrawableAmount: Fiat? {
@@ -69,19 +80,20 @@ class WithdrawViewModel: ObservableObject {
             return nil
         }
         
-        guard let destinationMetadata else {
+        guard let exchangedFee else {
             return nil
         }
         
-        guard destinationMetadata.fee.quarks >= enteredFiat.usdc.quarks else {
+        let feeInUnderlying = exchangedFee.usdc
+        
+        guard feeInUnderlying.quarks >= enteredFiat.usdc.quarks else {
             return nil
         }
         
-        return Fiat(
-            quarks: destinationMetadata.fee.quarks - enteredFiat.usdc.quarks,
-            currencyCode: .usd,
-            decimals: 6
-        )
+        return try! enteredFiat.subtracting(
+            fee: feeInUnderlying,
+            invert: true // fee - enteredFiat
+        ).converted
     }
     
     var withdrawableAmount: ExchangedFiat? {
@@ -94,24 +106,87 @@ class WithdrawViewModel: ObservableObject {
         }
         
         if destinationMetadata.requiresInitialization && destinationMetadata.fee.quarks > 0 {
-            return try? enteredFiat.subtracting(fee: destinationMetadata.fee)
+            if enteredFiat.mint == .usdc {
+                return try? enteredFiat.subtracting(fee: destinationMetadata.fee)
+            } else {
+                guard let exchangedFee else {
+                    return nil
+                }
+                
+                return try? enteredFiat.subtracting(fee: exchangedFee.usdc)
+            }
         } else {
             return enteredFiat
         }
     }
     
-    #warning("Incomplete hasSufficientFunds")
+//    var hasSufficientFunds: Bool {
+//        session.hasSufficientFunds(for: enteredFiat!).0
+//    }
+    
     var canCompleteWithdrawal: Bool {
         if
             let enteredFiat = enteredFiat,
             let _ = enteredDestination,
             let destinationMetadata = destinationMetadata,
-//            session.hasSufficientFunds(for: enteredFiat),
+            session.hasSufficientFunds(for: enteredFiat).0,
             destinationMetadata.isValid
         {
             return true
         }
         return false
+    }
+    
+    var withdrawTitle: String {
+        if let balance = selectedBalance {
+            return "Withdraw \(balance.stored.name)"
+        } else {
+            return "Withdraw"
+        }
+    }
+    
+    var maxWithdrawLimit: Fiat {
+        guard let mint = selectedBalance?.stored.mint else {
+            return 0
+        }
+        
+        let aggregateBalance = AggregateBalance(
+            entryRate: .oneToOne, // Always USD
+            balanceRate: ratesController.rateForBalanceCurrency(),
+            balances: session.balances
+        )
+        
+        guard let balance = aggregateBalance.entryBalance(for: mint) else {
+            return 0
+        }
+        
+        return balance.exchangedFiat.converted
+    }
+    
+    private var exchangedFee: ExchangedFiat? {
+        guard let enteredFiat = enteredFiat else {
+            return nil
+        }
+        
+        guard let selectedBalance else {
+            return nil
+        }
+        
+        guard let currentSupply = selectedBalance.stored.supplyFromBonding else {
+            return nil
+        }
+        
+        guard let destinationMetadata else {
+            return nil
+        }
+        
+        // TODO: Using tokensForValueExchange, should it equivalent to sell pricing?
+        return ExchangedFiat.computeFromEntered(
+            amount: destinationMetadata.fee.decimalValue,
+            rate: .oneToOne, // Fee is charged in USDC
+            mint: enteredFiat.mint,
+            supplyFromBonding: currentSupply
+        )
     }
     
     private var amountToWithdraw: ExchangedFiat?
@@ -139,12 +214,12 @@ class WithdrawViewModel: ObservableObject {
             return
         }
         
-        guard let enteredMint else {
+        guard let mint = selectedBalance?.stored.mint else {
             return
         }
         
         Task {
-            destinationMetadata = await client.fetchDestinationMetadata(destination: enteredDestination, mint: enteredMint)
+            destinationMetadata = await client.fetchDestinationMetadata(destination: enteredDestination, mint: mint)
         }
     }
     
@@ -153,11 +228,19 @@ class WithdrawViewModel: ObservableObject {
             return
         }
         
+        let fee: Fiat
+        if enteredFiat.mint == .usdc {
+            fee = destinationMetadata.fee
+        } else {
+            fee = exchangedFee?.usdc ?? 0
+        }
+        
         withdrawButtonState = .loading
         Task {
             do {
                 try await session.withdraw(
                     exchangedFiat: enteredFiat,
+                    fee: fee,
                     to: destinationMetadata
                 )
                 
@@ -175,19 +258,20 @@ class WithdrawViewModel: ObservableObject {
     
     // MARK: - Actions -
     
-    #warning("Incomplete amountEnteredAction")
     func amountEnteredAction() {
         guard let exchangedFiat = enteredFiat else {
             return
         }
         
-//        guard session.hasSufficientFunds(for: exchangedFiat) else {
-//            showInsufficientBalanceError()
-//            return
-//        }
-//        
-//        amountToWithdraw = exchangedFiat
-//        pushEnterAddressScreen()
+        let (hasSufficientFunds, _) = session.hasSufficientFunds(for: exchangedFiat)
+        
+        guard hasSufficientFunds else {
+            showInsufficientBalanceError()
+            return
+        }
+        
+        amountToWithdraw = exchangedFiat
+        pushEnterAddressScreen()
     }
     
     func addressEnteredAction() {

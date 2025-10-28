@@ -16,16 +16,18 @@ struct ActionFeeTransfer: ActionType {
     var signer: KeyPair?
     
     let amount: Fiat
+    let mint: PublicKey
     let sourceCluster: AccountCluster
     let source: PublicKey
 
     static let configCountRequirement: Int = 1
     
-    init(amount: Fiat, sourceCluster: AccountCluster) {
+    init(amount: Fiat, mint: PublicKey, sourceCluster: AccountCluster) {
         self.id = 0
         self.signer = sourceCluster.authority.keyPair
         
         self.amount        = amount
+        self.mint          = mint
         self.sourceCluster = sourceCluster
         self.source        = sourceCluster.vaultPublicKey
     }
@@ -74,6 +76,7 @@ extension ActionFeeTransfer {
                 $0.authority   = sourceCluster.authorityPublicKey.solanaAccountID
                 $0.source      = source.solanaAccountID
                 $0.amount      = amount.quarks
+                $0.mint        = mint.solanaAccountID
             }
         }
     }
