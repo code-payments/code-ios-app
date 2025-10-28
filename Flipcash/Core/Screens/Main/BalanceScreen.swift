@@ -45,6 +45,12 @@ struct BalanceScreen: View {
         ratesController.rateForBalanceCurrency()
     }
     
+    private var balances: [ExchangedBalance] {
+        aggregateBalance.exchangedBalances.filter {
+            $0.stored.quarks > 0
+        }
+    }
+    
     // MARK: - Init -
     
     init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
@@ -140,7 +146,6 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func list() -> some View {
-        let balances: [ExchangedBalance] = aggregateBalance.exchangedBalances//(for: balanceRate)
         let hasBalances = !balances.isEmpty
         GeometryReader { g in
             List {
