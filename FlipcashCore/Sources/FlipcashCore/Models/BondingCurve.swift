@@ -62,6 +62,12 @@ public struct BondingCurve: Sendable {
 
 public extension BondingCurve {
     
+    func marketCap(for supply: Int) throws -> Foundation.Decimal {
+        let s = BigDecimal(supply).scaleDown(decimals)
+        let p = try spotPrice(supply: s)
+        return s.multiply(p, r).asDecimal()
+    }
+    
     func spotPrice(supply: BigDecimal) throws -> BigDecimal {
         let e = exp(c.multiply(supply, r))
         return try ensureValid(a.multiply(b, r).multiply(e, r))
