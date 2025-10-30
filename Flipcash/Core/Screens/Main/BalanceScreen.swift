@@ -48,7 +48,7 @@ struct BalanceScreen: View {
     }
     
     private var balances: [ExchangedBalance] {
-        aggregateBalance.entryBalances.filter {
+        aggregateBalance.balanceBalances.filter {
             $0.stored.quarks > 0
         }
     }
