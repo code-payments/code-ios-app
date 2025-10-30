@@ -38,7 +38,7 @@ struct BalanceScreen: View {
         )
     }
     
-    private let proportion: CGFloat = 0.3
+    private let proportion: CGFloat = 0.4
     
     private let container: Container
     private let sessionContainer: SessionContainer

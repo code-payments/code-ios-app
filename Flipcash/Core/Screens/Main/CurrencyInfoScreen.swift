@@ -91,12 +91,12 @@ struct CurrencyInfoScreen: View {
                             
                             Spacer()
                             
-                            CodeButton(style: .filledSecondary, title: "View Transaction History") {
-                                
-                            }
+//                            CodeButton(style: .filledSecondary, title: "View Transaction History") {
+//                                
+//                            }
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: g.size.height * 0.27)
+                        .frame(height: g.size.height * 0.20)
                         
                         // Currency Info
                         
@@ -106,12 +106,16 @@ struct CurrencyInfoScreen: View {
                                     .padding(.bottom, -1)
                                 Text("Currency Info")
                             }
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.appBarButton)
+                            .foregroundStyle(Color.textMain)
                             
-                            ExpandableText(mintMetadata.bio ?? "No information") {
-                                AnyView(drawer())
-                            }
-                            .font(.system(size: 14, weight: .bold))
+                            Text(mintMetadata.bio ?? "No information")
+                                .foregroundStyle(Color.textSecondary)
+                                .font(.appTextSmall)
+//                            {
+//                                AnyView(drawer())
+//                            }
+//                            .font(.system(size: 14, weight: .bold))
                         }
                                                     
                         // Market Cap
