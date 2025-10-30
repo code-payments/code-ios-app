@@ -198,7 +198,8 @@ extension AccountInfo {
             throw Error.parseFailed
         }
         
-        let owner = try PublicKey(info.owner.value)
+        let mint      = try PublicKey(info.originalExchangeData.mint.value)
+        let owner     = try PublicKey(info.owner.value)
         let authority = try PublicKey(info.authority.value)
         
         let exchangedFiat: ExchangedFiat?
@@ -208,13 +209,13 @@ extension AccountInfo {
                 usdc: Fiat(
                     quarks: info.originalExchangeData.quarks,
                     currencyCode: .usd,
-                    decimals: PublicKey.usdc.mintDecimals
+                    decimals: mint.mintDecimals
                 ),
                 rate: .init(
                     fx: Decimal(info.originalExchangeData.exchangeRate),
                     currency: try CurrencyCode(currencyCode: info.originalExchangeData.currency)
                 ),
-                mint: try PublicKey(info.originalExchangeData.mint.value)
+                mint: mint
             )
         } else {
             exchangedFiat = nil

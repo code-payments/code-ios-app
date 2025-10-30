@@ -194,7 +194,6 @@ class Session: ObservableObject {
     
     func updateUserFlags() async throws {
         userFlags = try await flipClient.fetchUserFlags(userID: userID, owner: ownerKeyPair)
-        print(userFlags)
     }
     
     // MARK: - Login -
@@ -816,8 +815,7 @@ class Session: ObservableObject {
                     owner: giftCardKeyPair
                 )
                 
-                // For now, we need use(mint:) because exchangeData is returning USDC for mint
-                guard let exchangedFiat = giftCardAccountInfo.exchangedFiat?.use(mint: giftCardAccountInfo.mint) else {
+                guard let exchangedFiat = giftCardAccountInfo.exchangedFiat else {
                     trace(.failure, components: "Gift card account info is missing ExchangeFiat.")
                     return
                 }
