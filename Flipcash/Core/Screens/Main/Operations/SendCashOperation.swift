@@ -31,7 +31,7 @@ class SendCashOperation {
         self.owner        = owner
         self.exchangedFiat = exchangedFiat
         self.payload      = .init(
-            kind: .cash,
+            kind: .cashMulticurrency,
             fiat: exchangedFiat.converted,
             nonce: .nonce
         )
