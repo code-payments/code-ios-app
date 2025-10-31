@@ -50,7 +50,15 @@ extension Database {
         return ids
     }
     
-    func getActivities() throws -> [Activity] {
+    func getActivities(mint: PublicKey?) throws -> [Activity] {
+        
+        var filter: String = ""
+        var blob: Blob? = nil
+        if let mint {
+            filter = "WHERE a.mint = ?"
+            blob = Blob(bytes: mint.bytes)
+        }
+        
         let statement = try reader.prepareRowIterator("""
         SELECT
             a.id,
@@ -70,9 +78,11 @@ extension Database {
         
         LEFT JOIN cashLinkMetadata c ON c.id = a.id
         
+        \(filter)
+        
         ORDER BY a.date DESC
         LIMIT 1024;
-        """)
+        """, bindings: blob)
         
         let a = ActivityTable()
         

@@ -133,6 +133,8 @@ class Session: ObservableObject {
     private lazy var updateableBalances: Updateable<[StoredBalance]> = {
         Updateable { [weak self] in
             (try? self?.database.getBalances()) ?? []
+        } didSet: { [weak self] in
+            self?.objectWillChange.send()
         }
     }()
     

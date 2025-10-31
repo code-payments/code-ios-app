@@ -100,13 +100,13 @@ public struct EnterAmountView: View {
                     
                     switch subtitle {
                     case .singleTransactionLimit:
-                        Text("Enter up to \(maxTransactionAmount.formatted(suffix: nil))")
+                        Text("Enter up to \(maxTransactionAmount.formatted(truncated: true, suffix: nil))")
                             .fixedSize()
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
                         
                     case .balanceWithLimit(let maxBalance):
-                        Text("Enter up to \(maxEnterAmount(maxBalance: maxBalance).formatted(suffix: nil))")
+                        Text("Enter up to \(maxEnterAmount(maxBalance: maxBalance).formatted(truncated: true, suffix: nil))")
                             .fixedSize()
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)

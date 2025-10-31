@@ -13,11 +13,11 @@ struct BalanceScreen: View {
     
     @Binding var isPresented: Bool
     
-    @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
     @EnvironmentObject private var historyController: HistoryController
     @EnvironmentObject private var notificationController: NotificationController
     
+    @ObservedObject private var session: Session
     @ObservedObject private var onrampViewModel: OnrampViewModel
     
     @State private var isShowingCurrencySelection: Bool  = false
@@ -59,6 +59,7 @@ struct BalanceScreen: View {
         self._isPresented     = isPresented
         self.container        = container
         self.sessionContainer = sessionContainer
+        self.session          = sessionContainer.session
         self.onrampViewModel  = sessionContainer.onrampViewModel
     }
     
@@ -149,7 +150,7 @@ struct BalanceScreen: View {
 //                isShowingDepositScreen.toggle()
 //            }
         }
-        .frame(height: geometry.globalHeight * (1 - proportion - 0.1))
+//        .frame(height: geometry.globalHeight * (1 - proportion - 0.1))
         .listRowBackground(Color.clear)
         .padding(.horizontal, 20)
     }
@@ -170,8 +171,9 @@ struct BalanceScreen: View {
                     }
                     
                 } header: {
-                    header(geometry: g)
+                    header()
                         .textCase(.none)
+                        .frame(height: g.size.height * proportion)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparatorTint(hasBalances ? .rowSeparator : .clear)
@@ -181,7 +183,7 @@ struct BalanceScreen: View {
         }
     }
     
-    @ViewBuilder private func header(geometry: GeometryProxy) -> some View {
+    @ViewBuilder private func header() -> some View {
         VStack(spacing: 10) {
             Button {
                 isShowingCurrencySelection.toggle()
@@ -206,7 +208,7 @@ struct BalanceScreen: View {
                             
                             Spacer()
                         }
-                        .offset(x: 0, y: max(0, (g.globalMinY - 100) * -proportion))
+//                        .offset(x: 0, y: max(0, (g.globalMinY - 100) * -proportion))
                     }
                 }
             }
@@ -243,7 +245,6 @@ struct BalanceScreen: View {
             .padding(.bottom, 30)
             .padding(.horizontal, 20)
         }
-        .frame(height: geometry.globalHeight * proportion)
     }
     
 //    @ViewBuilder private func row(activity: Activity) -> some View {
@@ -337,15 +338,15 @@ struct BalanceScreen: View {
 
 // MARK: - GeometryProxy -
 
-extension GeometryProxy {
-    var globalMinY: CGFloat {
-        frame(in: .global).minY
-    }
-    
-    var globalHeight: CGFloat {
-        frame(in: .global).height
-    }
-}
+//extension GeometryProxy {
+//    var globalMinY: CGFloat {
+//        frame(in: .global).minY
+//    }
+//    
+//    var globalHeight: CGFloat {
+//        frame(in: .global).height
+//    }
+//}
 
 // MARK: - AggregateBalance -
 

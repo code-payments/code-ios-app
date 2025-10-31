@@ -20,7 +20,7 @@ class Updateable<T>: ObservableObject {
         
         let start = Date.now
         self.value = valueBlock()
-        if let time = Date.now.formattedMilliseconds(from: start, threshold: 5) {
+        if let time = Date.now.formattedMilliseconds(from: start, threshold: 0) {
             print("[Updateable] Loading <\(T.self)>, took: \(time)")
         }
         
@@ -35,7 +35,7 @@ class Updateable<T>: ObservableObject {
         let start = Date.now
         value = valueBlock()
         didSet?()
-        if let time = Date.now.formattedMilliseconds(from: start, threshold: 5) {
+        if let time = Date.now.formattedMilliseconds(from: start, threshold: 0) {
             print("[Updateable] Loading <\(T.self)>, took: \(time)")
         }
     }

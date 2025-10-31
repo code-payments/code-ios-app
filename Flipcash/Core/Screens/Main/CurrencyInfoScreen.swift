@@ -13,6 +13,10 @@ struct CurrencyInfoScreen: View {
     
     @StateObject private var updateableMint: Updateable<StoredMintMetadata>
     
+    @State private var isShowingTransactionHistory: Bool = false
+    
+    @ObservedObject private var session: Session
+    
     private var mintMetadata: StoredMintMetadata {
         updateableMint.value
     }
@@ -32,7 +36,6 @@ struct CurrencyInfoScreen: View {
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
-    private let session: Session
     private let sessionContainer: SessionContainer
     
     private var marketCap: Fiat {
@@ -91,12 +94,12 @@ struct CurrencyInfoScreen: View {
                             
                             Spacer()
                             
-//                            CodeButton(style: .filledSecondary, title: "View Transaction History") {
-//                                
-//                            }
+                            CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                                isShowingTransactionHistory.toggle()
+                            }
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: g.size.height * 0.20)
+                        .frame(height: g.size.height * 0.4)
                         
                         // Currency Info
                         
@@ -134,6 +137,13 @@ struct CurrencyInfoScreen: View {
                         }
                     }
                 }
+            }
+            .navigationDestination(isPresented: $isShowingTransactionHistory) {
+                TransactionHistoryScreen(
+                    mintMetadata: mintMetadata,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
             }
         }
         .toolbar {
