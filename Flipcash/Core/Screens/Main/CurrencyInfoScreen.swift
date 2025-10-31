@@ -91,6 +91,7 @@ struct CurrencyInfoScreen: View {
                             .font(.appDisplayMedium)
                             .foregroundStyle(Color.textMain)
                             .frame(maxWidth: .infinity)
+                            .padding(.bottom, 30)
                             
                             Spacer()
                             
@@ -99,7 +100,7 @@ struct CurrencyInfoScreen: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: g.size.height * 0.4)
+                        .frame(height: g.size.height * 0.35)
                         
                         // Currency Info
                         
