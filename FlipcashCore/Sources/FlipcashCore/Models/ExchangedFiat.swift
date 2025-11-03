@@ -162,21 +162,21 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         
         let exchanged: ExchangedFiat
         if rate.currency == .usd {
-            // Initializing exchangedFiat with usdc: will
-            // mean that `converted` will always be off for
-            // USDC as it will use the bonding curve rate
-            // becase the server is expecting a non-1 fx
-            let underlying = try! Fiat(
-                fiatDecimal: amount,
-                currencyCode: underlyingRate.currency,
-                decimals: mint.mintDecimals
-            )
-            
-            exchanged = try! ExchangedFiat(
-                converted: underlying,
+            exchanged = ExchangedFiat(
+                usdc: try! Fiat(
+                    fiatDecimal: valuation.tokens,
+                    currencyCode: underlyingRate.currency,
+                    decimals: mint.mintDecimals
+                ),
+                converted: try! Fiat(
+                    fiatDecimal: amount,
+                    currencyCode: underlyingRate.currency,
+                    decimals: mint.mintDecimals
+                ),
                 rate: underlyingRate,
                 mint: mint
             )
+            
         } else {
             exchanged = try! ExchangedFiat(
                 converted: .init(

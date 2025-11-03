@@ -243,10 +243,10 @@ extension BondingCurve {
             return .init(tokens: 0, fx: 0)
         }
         
+        let fiat  = BigDecimal(fiatDecimal)
         let rate  = BigDecimal(fx)
-        let usdc  = BigDecimal(fiatDecimal).divide(rate, r)
+        let usdc  = fiat.divide(rate, r)
         let s     = BigDecimal(supplyQuarks).scaleDown(decimals)
-        let price = try spotPrice(supply: s)
         
         guard usdc.signum > 0 else {
             throw BondingCurveError.nonPositiveValue
@@ -267,7 +267,7 @@ extension BondingCurve {
         
         return Valuation(
             tokens: tokens.asDecimal(),
-            fx: rate.multiply(price, r).asDecimal()
+            fx: fiat.divide(tokens, r).asDecimal()
         )
     }
 }

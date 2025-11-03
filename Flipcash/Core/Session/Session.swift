@@ -291,7 +291,7 @@ class Session: ObservableObject {
         } else {
             let delta = try! ExchangedFiat(
                 usdc: underlyingToSend.subtracting(underlyingAvailable),
-                rate: balance.rate,
+                rate: exchangedFiat.rate,
                 mint: .usdc
             )
             return (false, delta)
