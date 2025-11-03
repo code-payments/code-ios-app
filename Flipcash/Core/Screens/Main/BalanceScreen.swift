@@ -380,7 +380,7 @@ struct AggregateBalance {
                         quarks: balance.quarks,
                         mint: balance.mint,
                         rate: entryRate,
-                        supplyFromBonding: balance.supplyFromBonding
+                        tvl: balance.coreMintLocked
                     )
                 )
             )
@@ -392,7 +392,7 @@ struct AggregateBalance {
                         quarks: balance.quarks,
                         mint: balance.mint,
                         rate: balanceRate,
-                        supplyFromBonding: balance.supplyFromBonding
+                        tvl: balance.coreMintLocked
                     )
                 )
             )

@@ -8,6 +8,7 @@
 import Foundation
 import FlipcashAPI
 import FlipcashCoreAPI
+import BigDecimal
 
 public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     
@@ -81,17 +82,26 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         self.mint = mint
     }
     
-    public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, supplyFromBonding: UInt64?) -> ExchangedFiat {
+    public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, tvl: UInt64?) -> ExchangedFiat {
         
         let exchanged: ExchangedFiat
         
         if mint != PublicKey.usdc {
             let curve     = BondingCurve()
-            let valuation = try! curve.valueForTokens(
+            let valuation = curve.sell(
                 quarks: Int(quarks),
-                fx: rate.fx,
-                supplyQuarks: Int(supplyFromBonding!)
+                feeBps: 0,
+                tvl: Int(tvl!)
             )
+            
+            let decimalQuarks = BigDecimal(Int(quarks))
+            let fx = valuation.netUSDC.divide(decimalQuarks.scaleDown(mint.mintDecimals), r)
+            
+//            valueForTokens(
+//                quarks: Int(quarks),
+//                fx: rate.fx,
+//                supplyQuarks: Int(supplyFromBonding!)
+//            )
             
             let underlying = Fiat(
                 quarks: quarks, // USDC value
@@ -102,7 +112,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             exchanged = try! ExchangedFiat(
                 usdc: underlying,
                 rate: .init(
-                    fx: valuation.fx,
+                    fx: fx.asDecimal(),
                     currency: rate.currency
                 ),
                 mint: mint
@@ -123,15 +133,16 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         return exchanged
     }
     
-    public static func computeFromEntered(amount: Decimal, rate: Rate, mint: PublicKey, supplyFromBonding: UInt64) -> ExchangedFiat? {
+    public static func computeFromEntered(amount: Foundation.Decimal, rate: Rate, mint: PublicKey, supplyFromBonding: UInt64) -> ExchangedFiat? {
         guard amount > 0 else {
             return nil
         }
         
         let valuation: BondingCurve.Valuation
+        let curve    = BondingCurve()
+        let decimals = mint.mintDecimals
 
         if mint != PublicKey.usdc {
-            let curve = BondingCurve()
             valuation = try! curve.tokensForValueExchange(
                 fiatDecimal: amount,
                 fx: rate.fx,
@@ -166,12 +177,12 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 usdc: try! Fiat(
                     fiatDecimal: valuation.tokens,
                     currencyCode: underlyingRate.currency,
-                    decimals: mint.mintDecimals
+                    decimals: decimals
                 ),
                 converted: try! Fiat(
                     fiatDecimal: amount,
                     currencyCode: underlyingRate.currency,
-                    decimals: mint.mintDecimals
+                    decimals: decimals
                 ),
                 rate: underlyingRate,
                 mint: mint
@@ -182,7 +193,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 converted: .init(
                     fiatDecimal: amount,
                     currencyCode: underlyingRate.currency,
-                    decimals: mint.mintDecimals
+                    decimals: decimals
                 ),
                 rate: underlyingRate,
                 mint: mint

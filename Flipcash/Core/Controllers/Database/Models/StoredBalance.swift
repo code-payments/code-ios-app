@@ -50,7 +50,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
             )
             
             self.usdcValue = try! Fiat(
-                fiatDecimal: usdcQuarks.netUSDC,
+                fiatDecimal: usdcQuarks.netUSDC.asDecimal(),
                 currencyCode: .usd,
                 decimals: 6
             )

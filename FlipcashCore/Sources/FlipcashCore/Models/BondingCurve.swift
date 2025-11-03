@@ -8,7 +8,7 @@
 import Foundation
 @preconcurrency import BigDecimal
 
-private let r = Rounding(.toNearestOrEven, 50)
+public let r = Rounding(.toNearestOrEven, 50)
 
 public struct BondingCurve: Sendable {
     
@@ -157,8 +157,8 @@ extension BondingCurve {
     }
     
     public struct SellEstimation {
-        public let netUSDC: Foundation.Decimal
-        public let fees: Foundation.Decimal
+        public let netUSDC: BigDecimal
+        public let fees: BigDecimal
     }
     
     public struct Valuation {
@@ -198,8 +198,8 @@ extension BondingCurve {
         let netUSDC  = grossQuarks.subtract(feeValue, r)
         
         return SellEstimation(
-            netUSDC: netUSDC.asDecimal(),
-            fees: feeValue.asDecimal()
+            netUSDC: netUSDC,
+            fees: feeValue
         )
     }
     
