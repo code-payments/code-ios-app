@@ -89,11 +89,14 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
             throw Error.currencyCodeMismatch
         }
         
-        let (lhs, rhs, targetDecimal) = try value.aligned(with: self)
+        guard value.decimals == decimals else {
+            throw Error.decimalMismatch
+        }
+        
         return .init(
-            quarks: lhs.quarks + rhs.quarks,
+            quarks: quarks + value.quarks,
             currencyCode: currencyCode,
-            decimals: targetDecimal
+            decimals: decimals
         )
     }
     
@@ -102,7 +105,28 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
             throw Error.currencyCodeMismatch
         }
         
-        let (lhs, rhs, targetDecimals) = try self.aligned(with: value)
+        guard value.decimals == decimals else {
+            throw Error.decimalMismatch
+        }
+        
+        guard quarks >= value.quarks else {
+            throw Error.invalidNegativeValue
+        }
+        
+        return Fiat(
+            quarks: quarks - value.quarks,
+            currencyCode: currencyCode,
+            decimals: decimals
+        )
+    }
+    
+    public func subtractingScaled(_ value: Fiat) throws -> Fiat {
+        guard value.currencyCode == currencyCode else {
+            throw Error.currencyCodeMismatch
+        }
+        
+        let (lhs, rhs, decimals) = try align(with: value)
+        
         guard lhs.quarks >= rhs.quarks else {
             throw Error.invalidNegativeValue
         }
@@ -110,14 +134,14 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         return Fiat(
             quarks: lhs.quarks - rhs.quarks,
             currencyCode: currencyCode,
-            decimals: targetDecimals
+            decimals: decimals
         )
     }
     
     /// Returns a copy of this Fiat scaled to `targetDecimals`.
     /// If `targetDecimals` is greater than `decimals`, quarks are scaled up.
     /// If smaller, quarks are scaled down. Currency code is preserved.
-    public func scaled(to targetDecimals: Int) -> Fiat {
+    private func scaled(to targetDecimals: Int) -> Fiat {
         if targetDecimals == decimals {
             return self
         } else if targetDecimals > decimals {
@@ -140,7 +164,7 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     /// Aligns `self` and `other` to a common decimal precision (the maximum of the two).
     /// - Returns: `(lhs, rhs, targetDecimals)` where both amounts are scaled to `targetDecimals`.
     /// - Throws: `Error.currencyCodeMismatch` if the currency codes differ.
-    public func aligned(with other: Fiat) throws -> (lhs: Fiat, rhs: Fiat, decimals: Int) {
+    private func align(with other: Fiat) throws -> (lhs: Fiat, rhs: Fiat, decimals: Int) {
         guard other.currencyCode == currencyCode else {
             throw Error.currencyCodeMismatch
         }
@@ -168,9 +192,10 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
 // MARK: - Errors -
 
 extension Fiat {
-    enum Error: Swift.Error {
+    public enum Error: Swift.Error {
         case invalidNegativeValue
         case currencyCodeMismatch
+        case decimalMismatch
     }
 }
 
@@ -237,20 +262,31 @@ extension Fiat: ExpressibleByFloatLiteral {
 
 extension Fiat: Comparable {
     public static func < (lhs: Self, rhs: Self) -> Bool {
-        lhs.quarks < rhs.quarks
+        do {
+            let (l, r, d) = try lhs.align(with: rhs)
+            return l.quarks < r.quarks
+        } catch {
+            assertionFailure("Attempting to compare different currency Fiat values.")
+            print(error)
+            return false
+        }
     }
-    
-    public static func <= (lhs: Self, rhs: Self) -> Bool {
-        lhs.quarks <= rhs.quarks
-    }
-    
-    public static func >= (lhs: Self, rhs: Self) -> Bool {
-        lhs.quarks >= rhs.quarks
-    }
-    
-    public static func > (lhs: Self, rhs: Self) -> Bool {
-        lhs.quarks > rhs.quarks
-    }
+        
+//    public static func < (lhs: Self, rhs: Self) -> Bool {
+//        lhs.quarks < rhs.quarks
+//    }
+//    
+//    public static func <= (lhs: Self, rhs: Self) -> Bool {
+//        lhs.quarks <= rhs.quarks
+//    }
+//    
+//    public static func >= (lhs: Self, rhs: Self) -> Bool {
+//        lhs.quarks >= rhs.quarks
+//    }
+//    
+//    public static func > (lhs: Self, rhs: Self) -> Bool {
+//        lhs.quarks > rhs.quarks
+//    }
 }
 
 // MARK: - Operations -

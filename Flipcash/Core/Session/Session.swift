@@ -112,8 +112,46 @@ class Session: ObservableObject {
         userFlags?.hasPreferredOnrampProvider == true
     }
     
+    var totalBalance: ExchangedFiat {
+        var usdBalance: Decimal = 0
+        balances.forEach { balance in
+            let exchanged = balance.computeExchangedValue(with: .oneToOne) // Compute USD value
+            usdBalance += exchanged.converted.decimalValue
+        }
+        
+        let balanceMint = PublicKey.usdc
+        let totalUSD    = try! Fiat(
+            fiatDecimal: usdBalance,
+            currencyCode: .usd,
+            decimals: balanceMint.mintDecimals
+        )
+        
+        let exchanged = try! ExchangedFiat(
+            usdc: totalUSD,
+            rate: ratesController.rateForBalanceCurrency(),
+            mint: .usdc
+        )
+        
+        return exchanged
+    }
+    
     var balances: [StoredBalance] {
         updateableBalances.value
+    }
+    
+    func balances(for rate: Rate) -> [ExchangedBalance] {
+        balances.map {
+            .init(
+                stored: $0,
+                exchangedFiat: $0.computeExchangedValue(with: rate)
+            )
+        }
+    }
+    
+    func balance(for mint: PublicKey) -> StoredBalance? {
+        balances.filter {
+            $0.mint == mint
+        }.first
     }
     
     private let container: Container
@@ -262,9 +300,7 @@ class Session: ObservableObject {
             return false
         }
         
-        let (amountToSend, limit, _) = try! exchangedFiat.converted.aligned(with: nextTransactionLimit)
-        
-        return amountToSend.quarks <= limit.quarks
+        return exchangedFiat.converted <= nextTransactionLimit
     }
     
     func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> (Bool, ExchangedFiat?) {
@@ -272,28 +308,16 @@ class Session: ObservableObject {
             return (false, nil)
         }
         
-        let aggregate = AggregateBalance(
-            entryRate: exchangedFiat.rate,
-            balanceRate: ratesController.rateForBalanceCurrency(),
-            balances: balances
-        )
-        
-        guard let balance = aggregate.entryBalance(for: exchangedFiat.mint)?.exchangedFiat else {
+        guard let balance = balance(for: exchangedFiat.mint) else {
             return (false, nil)
         }
         
-        guard let (underlyingAvailable, underlyingToSend, _) = try? balance.usdc.aligned(with: exchangedFiat.usdc) else {
-            return (false, nil)
-        }
-        
-        if underlyingToSend.quarks <= underlyingAvailable.quarks {
+        let entryRate = ratesController.rateForEntryCurrency()
+        let exchangedBalance = balance.computeExchangedValue(with: entryRate)
+        if exchangedFiat.usdc <= exchangedBalance.usdc {
             return (true, nil)
         } else {
-            let delta = try! ExchangedFiat(
-                usdc: underlyingToSend.subtracting(underlyingAvailable),
-                rate: exchangedFiat.rate,
-                mint: .usdc
-            )
+            let delta = try! exchangedFiat.subtracting(exchangedBalance)
             return (false, delta)
         }
     }

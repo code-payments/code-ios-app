@@ -20,12 +20,8 @@ struct SelectCurrencyScreen: View {
     
     @State private var selectedBalance: ExchangedBalance?
     
-    private var aggregateBalance: AggregateBalance {
-        AggregateBalance(
-            entryRate: fixedRate ?? ratesController.rateForEntryCurrency(),
-            balanceRate: ratesController.rateForBalanceCurrency(),
-            balances: session.balances
-        )
+    private var balances: [ExchangedBalance] {
+        session.balances(for: fixedRate ?? ratesController.rateForEntryCurrency())
     }
     
     let kind: Kind
@@ -58,7 +54,7 @@ struct SelectCurrencyScreen: View {
             Background(color: .backgroundMain) {
                 List {
                     Section {
-                        ForEach(aggregateBalance.entryBalances) { balance in
+                        ForEach(balances) { balance in
                             CurrencyBalanceRow(exchangedBalance: balance) {
                                 switch kind {
                                 case .give:

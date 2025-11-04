@@ -20,32 +20,20 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     public init(converted: Fiat, rate: Rate, mint: PublicKey) throws {
         assert(converted.currencyCode == rate.currency, "Rate currency must match Fiat currency")
         
-//        if converted.currencyCode == .usd {
-//            self.init(
-//                usdc: converted,
-//                converted: converted,
-//                rate: .oneToOne,
-//                mint: mint
-//            )
-//        } else {
-            let equivalentUSD = converted.decimalValue / rate.fx
-            
-            // Trims any quark amount beyond 2 decimal places
-//            let roundedUSD = equivalentUSD.rounded(to: 2)
-            
-            let usdc = try Fiat(
-                fiatDecimal: equivalentUSD,
-                currencyCode: .usd,
-                decimals: mint.mintDecimals
-            )
-            
-            self.init(
-                usdc: usdc,
-                converted: converted,
-                rate: rate,
-                mint: mint
-            )
-//        }
+        let equivalentUSD = converted.decimalValue / rate.fx
+        
+        let usdc = try Fiat(
+            fiatDecimal: equivalentUSD,
+            currencyCode: .usd,
+            decimals: mint.mintDecimals
+        )
+        
+        self.init(
+            usdc: usdc,
+            converted: converted,
+            rate: rate,
+            mint: mint
+        )
     }
     
     public init(usdc: Fiat, rate: Rate, mint: PublicKey) throws {
@@ -95,22 +83,19 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             )
             
             let decimalQuarks = BigDecimal(Int(quarks))
-            let fx = valuation.netUSDC.divide(decimalQuarks.scaleDown(mint.mintDecimals), r)
-            
-//            valueForTokens(
-//                quarks: Int(quarks),
-//                fx: rate.fx,
-//                supplyQuarks: Int(supplyFromBonding!)
-//            )
-            
-            let underlying = Fiat(
-                quarks: quarks, // USDC value
-                currencyCode: .usd,
-                decimals: mint.mintDecimals
-            )
+            let fiatRate = BigDecimal(rate.fx)
+            let fx = valuation.netUSDC
+                // Division need to divide by tokens, not quarks
+                .divide(decimalQuarks.scaleDown(mint.mintDecimals), r)
+                // Premultiply the fiat rate (ie. CAD, etc)
+                .multiply(fiatRate, r)
             
             exchanged = try! ExchangedFiat(
-                usdc: underlying,
+                usdc: Fiat(
+                    quarks: quarks, // USDC value
+                    currencyCode: .usd,
+                    decimals: mint.mintDecimals
+                ),
                 rate: .init(
                     fx: fx.asDecimal(),
                     currency: rate.currency
@@ -120,7 +105,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             
         } else {
             exchanged = try! ExchangedFiat(
-                usdc: .init(
+                usdc: Fiat(
                     quarks: quarks,
                     currencyCode: .usd,
                     decimals: PublicKey.usdc.mintDecimals
@@ -203,8 +188,28 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         return  exchanged
     }
     
+    public func subtracting(_ exchangedFiat: ExchangedFiat) throws -> ExchangedFiat {
+        guard mint == exchangedFiat.mint else {
+            throw Error.mismatchedMint
+        }
+        
+        guard rate.currency == exchangedFiat.rate.currency else {
+            throw Error.mismatchedRate
+        }
+        
+        return try ExchangedFiat(
+            usdc: try usdc.subtracting(exchangedFiat.usdc),
+            rate: rate,
+            mint: mint
+        )
+    }
+    
     public func subtracting(fee: Fiat, invert: Bool = false) throws -> ExchangedFiat {
         let feeInQuarks = fee.quarks
+        
+        guard rate.currency == .usd else {
+            throw Error.mismatchedRate
+        }
         
         let isValidOperation: () -> Bool = {
             if invert {
@@ -234,23 +239,6 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     public func convert(to rate: Rate) -> ExchangedFiat {
         try! ExchangedFiat(
             usdc: usdc,
-            rate: rate,
-            mint: mint
-        )
-    }
-    
-    public func use(mint: PublicKey) -> ExchangedFiat {
-        ExchangedFiat(
-            usdc: .init(
-                quarks: usdc.quarks,
-                currencyCode: usdc.currencyCode,
-                decimals: mint.mintDecimals
-            ),
-            converted: .init(
-                quarks: converted.quarks,
-                currencyCode: converted.currencyCode,
-                decimals: mint.mintDecimals
-            ),
             rate: rate,
             mint: mint
         )
@@ -320,5 +308,7 @@ extension ExchangedFiat {
         case invalidNativeAmount
         case invalidMint
         case feeLargerThanAmount
+        case mismatchedMint
+        case mismatchedRate
     }
 }

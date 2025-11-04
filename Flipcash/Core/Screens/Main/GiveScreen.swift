@@ -21,22 +21,19 @@ struct GiveScreen: View {
     
     @State private var dialogItem: DialogItem?
     
-    private var maxLimit: Fiat {
+    private var maxLimit: ExchangedFiat {
+        let entryRate = ratesController.rateForEntryCurrency()
+        let zero      = try! ExchangedFiat(usdc: 0, rate: entryRate, mint: .usdc)
+        
         guard let mint = viewModel.selectedBalance?.stored.mint else {
-            return 0
+            return zero
         }
         
-        let aggregateBalance = AggregateBalance(
-            entryRate: ratesController.rateForEntryCurrency(),
-            balanceRate: ratesController.rateForBalanceCurrency(),
-            balances: session.balances
-        )
-        
-        guard let balance = aggregateBalance.entryBalance(for: mint) else {
-            return 0
+        guard let balance = session.balance(for: mint) else {
+            return zero
         }
         
-        return balance.exchangedFiat.converted
+        return balance.computeExchangedValue(with: entryRate)
     }
     
     // MARK: - Init -

@@ -30,12 +30,8 @@ struct BalanceScreen: View {
     
     @State private var selectedBalance: ExchangedBalance?
     
-    private var aggregateBalance: AggregateBalance {
-        AggregateBalance(
-            entryRate: ratesController.rateForEntryCurrency(),
-            balanceRate: ratesController.rateForBalanceCurrency(),
-            balances: session.balances
-        )
+    private var balance: ExchangedFiat {
+        session.totalBalance
     }
     
     private let proportion: CGFloat = 0.4
@@ -48,9 +44,7 @@ struct BalanceScreen: View {
     }
     
     private var balances: [ExchangedBalance] {
-        aggregateBalance.balanceBalances.filter {
-            $0.stored.quarks > 0
-        }
+        session.balances(for: balanceRate)
     }
     
     // MARK: - Init -
@@ -194,8 +188,8 @@ struct BalanceScreen: View {
                             Spacer()
                             
                             AmountText(
-                                flagStyle: aggregateBalance.totalBalance.converted.currencyCode.flagStyle,
-                                content: aggregateBalance.totalBalance.converted.formatted(truncated: true, suffix: nil),
+                                flagStyle: balance.converted.currencyCode.flagStyle,
+                                content: balance.converted.formatted(truncated: true, suffix: nil),
                                 showChevron: true
                             )
                             .font(.appDisplayMedium)
@@ -350,84 +344,84 @@ struct BalanceScreen: View {
 
 // MARK: - AggregateBalance -
 
-struct AggregateBalance {
-    
-    let totalBalance: ExchangedFiat
-    let totalEntry: ExchangedFiat
-    
-    let entryRate: Rate
-    let balanceRate: Rate
-    
-    let entryBalances: [ExchangedBalance]
-    let balanceBalances: [ExchangedBalance]
-    
-    init(entryRate: Rate, balanceRate: Rate, balances: [StoredBalance]) {
-        self.entryRate   = entryRate
-        self.balanceRate = balanceRate
-        
-        var entryBalances: [ExchangedBalance]   = []
-        var balanceBalances: [ExchangedBalance] = []
-        
-        var totalUSDC: Fiat = .zero(currencyCode: .usd, decimals: PublicKey.usdc.mintDecimals)
-        
-        balances.sorted { lhs, rhs in
-            lhs.usdcValue.quarks > rhs.usdcValue.quarks
-        }.forEach { balance in
-            entryBalances.append(
-                ExchangedBalance(
-                    stored: balance,
-                    exchangedFiat: .computeFromQuarks(
-                        quarks: balance.quarks,
-                        mint: balance.mint,
-                        rate: entryRate,
-                        tvl: balance.coreMintLocked
-                    )
-                )
-            )
-            
-            balanceBalances.append(
-                ExchangedBalance(
-                    stored: balance,
-                    exchangedFiat: .computeFromQuarks(
-                        quarks: balance.quarks,
-                        mint: balance.mint,
-                        rate: balanceRate,
-                        tvl: balance.coreMintLocked
-                    )
-                )
-            )
-            
-            totalUSDC = try! totalUSDC.adding(balance.usdcValue)
-        }
-        
-        self.entryBalances   = entryBalances
-        self.balanceBalances = balanceBalances
-        
-        self.totalBalance = try! .init(
-            usdc: totalUSDC,
-            rate: balanceRate,
-            mint: .usdc
-        )
-        
-        self.totalEntry = try! .init(
-            usdc: totalUSDC,
-            rate: entryRate,
-            mint: .usdc
-        )
-    }
-    
-    func entryBalance(for mint: PublicKey) -> ExchangedBalance? {
-        entryBalances.first {
-            $0.stored.mint == mint
-        }
-    }
-    
-    func balanceBalance(for mint: PublicKey) -> ExchangedBalance? {
-        balanceBalances.first {
-            $0.stored.mint == mint
-        }
-    }
-}
+//struct AggregateBalance {
+//    
+//    let totalBalance: ExchangedFiat
+//    let totalEntry: ExchangedFiat
+//    
+//    let entryRate: Rate
+//    let balanceRate: Rate
+//    
+//    let entryBalances: [ExchangedBalance]
+//    let balanceBalances: [ExchangedBalance]
+//    
+//    init(entryRate: Rate, balanceRate: Rate, balances: [StoredBalance]) {
+//        self.entryRate   = entryRate
+//        self.balanceRate = balanceRate
+//        
+//        var entryBalances: [ExchangedBalance]   = []
+//        var balanceBalances: [ExchangedBalance] = []
+//        
+//        var totalUSDC: Fiat = .zero(currencyCode: .usd, decimals: PublicKey.usdc.mintDecimals)
+//        
+//        balances.sorted { lhs, rhs in
+//            lhs.usdcValue.quarks > rhs.usdcValue.quarks
+//        }.forEach { balance in
+//            entryBalances.append(
+//                ExchangedBalance(
+//                    stored: balance,
+//                    exchangedFiat: .computeFromQuarks(
+//                        quarks: balance.quarks,
+//                        mint: balance.mint,
+//                        rate: entryRate,
+//                        tvl: balance.coreMintLocked
+//                    )
+//                )
+//            )
+//            
+//            balanceBalances.append(
+//                ExchangedBalance(
+//                    stored: balance,
+//                    exchangedFiat: .computeFromQuarks(
+//                        quarks: balance.quarks,
+//                        mint: balance.mint,
+//                        rate: balanceRate,
+//                        tvl: balance.coreMintLocked
+//                    )
+//                )
+//            )
+//            
+//            totalUSDC = try! totalUSDC.adding(balance.usdcValue)
+//        }
+//        
+//        self.entryBalances   = entryBalances
+//        self.balanceBalances = balanceBalances
+//        
+//        self.totalBalance = try! .init(
+//            usdc: totalUSDC,
+//            rate: balanceRate,
+//            mint: .usdc
+//        )
+//        
+//        self.totalEntry = try! .init(
+//            usdc: totalUSDC,
+//            rate: entryRate,
+//            mint: .usdc
+//        )
+//    }
+//    
+//    func entryBalance(for mint: PublicKey) -> ExchangedBalance? {
+//        entryBalances.first {
+//            $0.stored.mint == mint
+//        }
+//    }
+//    
+//    func balanceBalance(for mint: PublicKey) -> ExchangedBalance? {
+//        balanceBalances.first {
+//            $0.stored.mint == mint
+//        }
+//    }
+//}
 
 struct ExchangedBalance: Identifiable, Hashable {
     let stored: StoredBalance
@@ -435,12 +429,5 @@ struct ExchangedBalance: Identifiable, Hashable {
     
     var id: PublicKey {
         stored.id
-    }
-    
-    func convertedUsing(rate: Rate) -> ExchangedBalance {
-        .init(
-            stored: stored,
-            exchangedFiat: exchangedFiat.convert(to: rate)
-        )
     }
 }

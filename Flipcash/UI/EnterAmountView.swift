@@ -42,18 +42,8 @@ public struct EnterAmountView: View {
         }
     }
     
-    func maxEnterAmount(maxBalance: Fiat) -> Fiat {
-        guard let limit = session.nextTransactionLimit(currency: currency) else {
-            return 0
-        }
-        
-        let (max, lim, _) = try! maxBalance.aligned(with: limit)
-        
-        guard max.quarks <= lim.quarks else {
-            return limit
-        }
-        
-        return maxBalance
+    func maxEnterAmount(maxBalance: ExchangedFiat) -> Fiat {
+        maxBalance.converted
     }
     
     // MARK: - Init -
@@ -203,7 +193,7 @@ extension EnterAmountView {
 extension EnterAmountView {
     enum Subtitle {
         case singleTransactionLimit
-        case balanceWithLimit(Fiat)
+        case balanceWithLimit(ExchangedFiat)
         case custom(String)
     }
 }

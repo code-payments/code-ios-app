@@ -67,6 +67,15 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
             )
         }
     }
+    
+    func computeExchangedValue(with rate: Rate) -> ExchangedFiat {
+        .computeFromQuarks(
+            quarks: quarks,
+            mint: mint,
+            rate: rate,
+            tvl: coreMintLocked
+        )
+    }
 }
 
 extension StoredBalance {

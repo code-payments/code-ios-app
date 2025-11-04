@@ -377,7 +377,7 @@ class OnrampViewModel: ObservableObject {
             return
         }
         
-        guard exchangedFiat.converted.quarks <= limit.quarks else {
+        guard exchangedFiat.converted <= limit else {
             showAmountTooLargeError()
             return
         }

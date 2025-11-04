@@ -21,16 +21,11 @@ struct CurrencyInfoScreen: View {
         updateableMint.value
     }
     
-    private var aggregateBalance: AggregateBalance {
-        AggregateBalance(
-            entryRate: ratesController.rateForEntryCurrency(),
-            balanceRate: ratesController.rateForBalanceCurrency(),
-            balances: session.balances
-        )
-    }
-    
     private var balance: Fiat {
-        aggregateBalance.balanceBalance(for: mint)?.exchangedFiat.converted ?? 0
+        let balance   = session.balance(for: mintMetadata.mint)
+        let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+        
+        return exchanged?.converted ?? 0
     }
     
     private let mint: PublicKey
@@ -47,11 +42,19 @@ struct CurrencyInfoScreen: View {
         let curve = BondingCurve()
         let mCap  = try! curve.marketCap(for: supply)
         
-        return try! Fiat(
+        let usdc = try! Fiat(
             fiatDecimal: mCap,
-            currencyCode: ratesController.balanceCurrency,
+            currencyCode: .usd,
             decimals: mintMetadata.mint.mintDecimals
         )
+        
+        let exchanged = try! ExchangedFiat(
+            usdc: usdc,
+            rate: ratesController.rateForBalanceCurrency(),
+            mint: .usdc
+        )
+        
+        return exchanged.converted
     }
     
     // MARK: - Init -

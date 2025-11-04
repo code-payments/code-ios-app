@@ -145,22 +145,22 @@ class WithdrawViewModel: ObservableObject {
         }
     }
     
-    var maxWithdrawLimit: Fiat {
-        guard let mint = selectedBalance?.stored.mint else {
-            return 0
-        }
-        
-        let aggregateBalance = AggregateBalance(
-            entryRate: .oneToOne, // Always USD
-            balanceRate: ratesController.rateForBalanceCurrency(),
-            balances: session.balances
+    var maxWithdrawLimit: ExchangedFiat {
+        let zero = try! ExchangedFiat(
+            usdc: 0,
+            rate: .oneToOne,
+            mint: .usdc
         )
         
-        guard let balance = aggregateBalance.entryBalance(for: mint) else {
-            return 0
+        guard let mint = selectedBalance?.stored.mint else {
+            return zero
         }
         
-        return balance.exchangedFiat.converted
+        guard let balance = session.balance(for: mint) else {
+            return zero
+        }
+        
+        return balance.computeExchangedValue(with: .oneToOne)
     }
     
     private var exchangedFee: ExchangedFiat? {
