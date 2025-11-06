@@ -683,6 +683,7 @@ class Session: ObservableObject {
                 
             case .failure(let error):
                 self?.dismissCashBill(style: .slide)
+                self?.showCashReturnedError()
                 
                 ErrorReporting.capturePayment(
                     error: error,
@@ -1024,6 +1025,17 @@ class Session: ObservableObject {
             style: .destructive,
             title: "Something Went Wrong",
             subtitle: "Please try again later",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+    
+    private func showCashReturnedError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Something Went Wrong",
+            subtitle: "The cash was returned to your wallet",
             dismissable: true
         ) {
             .okay(kind: .destructive)
