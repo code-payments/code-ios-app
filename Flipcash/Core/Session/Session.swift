@@ -32,6 +32,8 @@ class Session: ObservableObject {
     @Published var userFlags: UserFlags?
 
     @Published var coinbaseOrder: OnrampOrderResponse?
+    
+    private var grabStarts: [PublicKey: Date] = [:]
 
     let keyAccount: KeyAccount
     let owner: AccountCluster
@@ -532,6 +534,11 @@ class Session: ObservableObject {
     // MARK: - Cash -
     
     func receiveCash(_ payload: CashCode.Payload, completion: @escaping (ReceiveCashResult) -> Void) {
+        // Record the start date of when
+        // we first saw the bill and match
+        // it to the rendezvous
+        grabStarts[payload.rendezvous.publicKey] = .now
+        
         print("Scanned: \(payload.fiat.formatted()) \(payload.fiat.currencyCode)")
         
         guard scanOperation == nil else {
@@ -568,9 +575,15 @@ class Session: ObservableObject {
                     received: true
                 ))
                 
+                var grabTimeInSeconds: Double? = nil
+                if let start = grabStarts[payload.rendezvous.publicKey] {
+                    grabTimeInSeconds = Date.now.timeIntervalSince1970 - start.timeIntervalSince1970
+                }
+                
                 Analytics.transfer(
                     event: .grabBill,
                     exchangedFiat: metadata.exchangedFiat,
+                    grabTime: grabTimeInSeconds,
                     successful: true,
                     error: nil
                 )
@@ -677,6 +690,7 @@ class Session: ObservableObject {
                 Analytics.transfer(
                     event: .giveBill,
                     exchangedFiat: billDescription.exchangedFiat,
+                    grabTime: nil,
                     successful: true,
                     error: nil
                 )
@@ -694,6 +708,7 @@ class Session: ObservableObject {
                 Analytics.transfer(
                     event: .giveBill,
                     exchangedFiat: billDescription.exchangedFiat,
+                    grabTime: nil,
                     successful: false,
                     error: error
                 )
@@ -822,6 +837,7 @@ class Session: ObservableObject {
             Analytics.transfer(
                 event: .sendCashLink,
                 exchangedFiat: exchangedFiat,
+                grabTime: nil,
                 successful: true,
                 error: nil
             )
@@ -834,6 +850,7 @@ class Session: ObservableObject {
             Analytics.transfer(
                 event: .sendCashLink,
                 exchangedFiat: exchangedFiat,
+                grabTime: nil,
                 successful: false,
                 error: error
             )
@@ -933,6 +950,7 @@ class Session: ObservableObject {
                 Analytics.transfer(
                     event: .receiveCashLink,
                     exchangedFiat: exchangedFiat,
+                    grabTime: nil,
                     successful: true,
                     error: nil
                 )
@@ -943,6 +961,7 @@ class Session: ObservableObject {
                 Analytics.transfer(
                     event: .receiveCashLink,
                     exchangedFiat: nil,
+                    grabTime: nil,
                     successful: false,
                     error: error
                 )

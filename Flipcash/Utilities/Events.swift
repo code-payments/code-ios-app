@@ -77,6 +77,7 @@ extension Analytics {
         
         if let exchangedFiat {
             properties[.usdc]     = exchangedFiat.usdc.doubleValue
+            properties[.mint]     = exchangedFiat.mint.base58
             properties[.quarks]   = exchangedFiat.usdc.quarks.analyticsValue
             properties[.fiat]     = exchangedFiat.converted.doubleValue
             properties[.fx]       = exchangedFiat.rate.fx.analyticsValue
@@ -90,17 +91,22 @@ extension Analytics {
         )
     }
     
-    static func transfer(event: Name, exchangedFiat: ExchangedFiat?, successful: Bool, error: Error?) {
+    static func transfer(event: Name, exchangedFiat: ExchangedFiat?, grabTime: Double?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
         ]
         
         if let exchangedFiat {
             properties[.usdc]     = exchangedFiat.usdc.doubleValue
+            properties[.mint]     = exchangedFiat.mint.base58
             properties[.quarks]   = exchangedFiat.usdc.quarks.analyticsValue
             properties[.fiat]     = exchangedFiat.converted.doubleValue
             properties[.fx]       = exchangedFiat.rate.fx.analyticsValue
             properties[.currency] = exchangedFiat.rate.currency.rawValue
+        }
+        
+        if let grabTime {
+            properties[.grabTime] = grabTime
         }
         
         track(
@@ -306,6 +312,7 @@ extension Analytics {
         case state             = "State"
         case quarks            = "Quarks"
         case usdc              = "USDC"
+        case mint              = "Mint"
         case fiat              = "Fiat"
         case currency          = "Currency"
         case fx                = "Exchange Rate"
