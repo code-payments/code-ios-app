@@ -53,7 +53,7 @@ extension NumberFormatter {
         f.minimumFractionDigits = minimumFractionDigits
         f.maximumFractionDigits = minimumFractionDigits
         f.generatesDecimalNumbers = true
-        f.roundingMode = truncated ? .down : .halfDown
+        f.roundingMode = truncated ? .down : .halfUp
         
         let prefix = currency.singleCharacterCurrencySymbols ?? ""
         let suffix = (suffix ?? "")

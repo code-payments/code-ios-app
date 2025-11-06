@@ -136,7 +136,13 @@ class Session: ObservableObject {
     }
     
     var balances: [StoredBalance] {
-        updateableBalances.value
+        updateableBalances.value.sorted { lhs, rhs in
+            if lhs.usdcValue != rhs.usdcValue {
+                return lhs.usdcValue > rhs.usdcValue
+            } else {
+                return lhs.name.lexicographicallyPrecedes(rhs.name)
+            }
+        }
     }
     
     func balances(for rate: Rate) -> [ExchangedBalance] {
@@ -314,11 +320,22 @@ class Session: ObservableObject {
         
         let entryRate = ratesController.rateForEntryCurrency()
         let exchangedBalance = balance.computeExchangedValue(with: entryRate)
+        
         if exchangedFiat.usdc <= exchangedBalance.usdc {
             return (true, nil)
         } else {
-            let delta = try! exchangedFiat.subtracting(exchangedBalance)
-            return (false, delta)
+            let deltaToBalanceInFiat = abs(exchangedBalance.converted.decimalValue - exchangedFiat.converted.decimalValue)
+            
+            // If the amount being sent is within
+            // half-a-penny, we'll consider it to
+            // complete. Only applies to max sends
+            if deltaToBalanceInFiat <= 0.005 {
+                print("Attempt max send, within error tolerance")
+                return (true, nil)
+            } else {
+                let delta = try! exchangedFiat.subtracting(exchangedBalance)
+                return (false, delta)
+            }
         }
     }
     
@@ -454,7 +471,7 @@ class Session: ObservableObject {
             }
             
             toast = toastQueue.pop()
-//            trace(.note, components: "Showing toast: \(toast!.amount.formatted(suffix: nil))")
+//            trace(.note, components: "Showing toast: \(toast!.amount.formatted())")
             
             try await Task.delay(seconds: 3)
             toast = nil
@@ -515,7 +532,7 @@ class Session: ObservableObject {
     // MARK: - Cash -
     
     func receiveCash(_ payload: CashCode.Payload, completion: @escaping (ReceiveCashResult) -> Void) {
-        print("Scanned: \(payload.fiat.formatted(suffix: nil)) \(payload.fiat.currencyCode)")
+        print("Scanned: \(payload.fiat.formatted()) \(payload.fiat.currencyCode)")
         
         guard scanOperation == nil else {
             return

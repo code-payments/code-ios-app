@@ -202,15 +202,7 @@ extension Fiat {
 // MARK: - Formatting -
 
 extension Fiat {
-    public func formattedWithSuffixIfNeeded() -> String {
-        if currencyCode == .usd {
-            formatted(suffix: nil)
-        } else {
-            formatted(suffix: " of USD")
-        }
-    }
-    
-    public func formatted(showAllDecimals: Bool = false, truncated: Bool = false, suffix: String?) -> String {
+    public func formatted(showAllDecimals: Bool = false, truncated: Bool = false, suffix: String? = nil) -> String {
         NumberFormatter.fiat(
             currency: currencyCode,
             minimumFractionDigits: showAllDecimals ? 6 : 2,
