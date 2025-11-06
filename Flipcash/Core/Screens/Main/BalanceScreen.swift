@@ -189,7 +189,7 @@ struct BalanceScreen: View {
                             
                             AmountText(
                                 flagStyle: balance.converted.currencyCode.flagStyle,
-                                content: balance.converted.formatted(truncated: true, suffix: nil),
+                                content: balance.converted.formatted(),
                                 showChevron: true
                             )
                             .font(.appDisplayMedium)
@@ -258,7 +258,7 @@ struct BalanceScreen: View {
 //                    AmountText(
 //                        flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
 //                        flagSize: .small,
-//                        content: activity.exchangedFiat.converted.formatted(suffix: nil)
+//                        content: activity.exchangedFiat.converted.formatted()
 //                    )
 //                    .font(.appTextMedium)
 //                    .foregroundStyle(Color.textMain)
@@ -270,7 +270,7 @@ struct BalanceScreen: View {
 //                        .foregroundStyle(Color.textSecondary)
 //                    Spacer()
 ////                    if activity.exchangedFiat.converted.currencyCode != .usd {
-////                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
+////                        Text(activity.exchangedFiat.usdc.formatted()
 ////                            .font(.appTextSmall)
 ////                            .foregroundStyle(Color.textSecondary)
 ////                    }
@@ -301,7 +301,7 @@ struct BalanceScreen: View {
     private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
         dialogItem = .init(
             style: .destructive,
-            title: "Cancel \(activity.exchangedFiat.converted.formatted(suffix: nil)) Transfer?",
+            title: "Cancel \(activity.exchangedFiat.converted.formatted()) Transfer?",
             subtitle: "The money will be returned to your wallet.",
             dismissable: true
         ) {

@@ -47,7 +47,7 @@ struct TransactionDetailsModal: View {
             ),
             DetailRow(
                 title: "USDC",
-                subtitle: activity.exchangedFiat.usdc.formatted(showAllDecimals: true, suffix: nil)
+                subtitle: activity.exchangedFiat.usdc.formatted(showAllDecimals: true)
             ),
         ]
     }
@@ -62,7 +62,7 @@ struct TransactionDetailsModal: View {
                 AmountText(
                     flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
                     flagSize: .regular,
-                    content: activity.exchangedFiat.converted.formatted(suffix: nil),
+                    content: activity.exchangedFiat.converted.formatted(),
                     canScale: false
                 )
                 .font(.appDisplaySmall)

@@ -155,7 +155,7 @@ class GiveViewModel: ObservableObject {
     private func showYoureShortError(amount: ExchangedFiat) {
         dialogItem = .init(
             style: .destructive,
-            title: "You're \(amount.converted.formatted(suffix: nil)) Short",
+            title: "You're \(amount.converted.formatted()) Short",
             subtitle: "Add more cash, or try again with a lower amount",
             dismissable: true
         ) {

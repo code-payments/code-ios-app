@@ -33,7 +33,7 @@ struct ScanScreen: View {
     
     private var toast: String? {
         if let toast = session.toast {
-            let formatted = toast.amount.formatted(suffix: nil)
+            let formatted = toast.amount.formatted()
             if toast.isDeposit {
                 return "+\(formatted)"
             } else {

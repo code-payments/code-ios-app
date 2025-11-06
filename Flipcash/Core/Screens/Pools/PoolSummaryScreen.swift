@@ -36,7 +36,7 @@ struct PoolSummaryScreen: View {
                             VStack(spacing: 10) {
                                 AmountText(
                                     flagStyle: poolBuyIn.currencyCode.flagStyle,
-                                    content: poolBuyIn.formatted(suffix: nil),
+                                    content: poolBuyIn.formatted(),
                                     showChevron: false,
                                     canScale: false
                                 )

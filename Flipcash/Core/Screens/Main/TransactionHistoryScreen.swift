@@ -87,7 +87,7 @@ struct TransactionHistoryScreen: View {
                     AmountText(
                         flagStyle: activity.exchangedFiat.converted.currencyCode.flagStyle,
                         flagSize: .small,
-                        content: activity.exchangedFiat.converted.formatted(suffix: nil)
+                        content: activity.exchangedFiat.converted.formatted()
                     )
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
@@ -99,7 +99,7 @@ struct TransactionHistoryScreen: View {
                         .foregroundStyle(Color.textSecondary)
                     Spacer()
 //                    if activity.exchangedFiat.converted.currencyCode != .usd {
-//                        Text(activity.exchangedFiat.usdc.formatted(suffix: " USD"))
+//                        Text(activity.exchangedFiat.usdc.formatted())
 //                            .font(.appTextSmall)
 //                            .foregroundStyle(Color.textSecondary)
 //                    }
@@ -125,7 +125,7 @@ struct TransactionHistoryScreen: View {
     private func cancelCashLinkAction(activity: Activity, metadata: Activity.CashLinkMetadata) {
         dialogItem = .init(
             style: .destructive,
-            title: "Cancel \(activity.exchangedFiat.converted.formatted(suffix: nil)) Transfer?",
+            title: "Cancel \(activity.exchangedFiat.converted.formatted()) Transfer?",
             subtitle: "The money will be returned to your wallet.",
             dismissable: true
         ) {

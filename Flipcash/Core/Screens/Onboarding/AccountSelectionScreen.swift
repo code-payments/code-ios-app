@@ -74,7 +74,7 @@ struct AccountSelectionScreen: View {
                             Badge(decoration: .circle(.textError), text: "Not Found")
                         }
                         Spacer()
-                        Text(account.balance.formatted(suffix: " USD"))
+                        Text(account.balance.formatted())
                     }
                     .font(.appTextMedium)
                     .foregroundColor(.textMain)

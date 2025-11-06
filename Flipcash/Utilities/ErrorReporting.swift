@@ -49,7 +49,7 @@ enum ErrorReporting {
         }
         
         if let fiat {
-            container["fiat"] = fiat.formatted(suffix: nil)
+            container["fiat"] = fiat.formatted()
         }
         
         Bugsnag.leaveBreadcrumb(
@@ -69,7 +69,7 @@ enum ErrorReporting {
     static func capturePayment(error: Swift.Error, rendezvous: PublicKey, fiat: Fiat, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
         capture(error, reason: reason, file: file, function: function, line: line) { userInfo in
             userInfo["rendezvous"] = rendezvous.base58
-            userInfo["usdc"]       = fiat.formatted(suffix: nil)
+            userInfo["usdc"]       = fiat.formatted()
             userInfo["quarks"]     = fiat.quarks
         }
     }

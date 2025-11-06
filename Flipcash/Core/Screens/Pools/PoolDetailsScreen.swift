@@ -171,7 +171,7 @@ struct PoolDetailsScreen: View {
             VStack(spacing: 10) {
                 AmountText(
                     flagStyle: amountInPool.currencyCode.flagStyle,
-                    content: amountInPool.formatted(suffix: nil),
+                    content: amountInPool.formatted(),
                     showChevron: false,
                     canScale: false
                 )
@@ -244,14 +244,14 @@ struct PoolDetailsScreen: View {
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                     +
-                    Text(buyIn.formatted(suffix: nil))
+                    Text(buyIn.formatted())
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textMain)
                     
 //                    AmountText(
 //                        flagStyle: buyIn.currencyCode.flagStyle,
 //                        flagSize: .small,
-//                        content: buyIn.formatted(suffix: nil),
+//                        content: buyIn.formatted(),
 //                        showChevron: false,
 //                        canScale: false
 //                    )
@@ -332,9 +332,9 @@ struct PoolDetailsScreen: View {
                 switch resolution {
                 case .yes, .no:
                     if winnerCount == 1 {
-                        Text("The winner received \(payout.formatted(suffix: nil))")
+                        Text("The winner received \(payout.formatted())")
                     } else {
-                        Text("Each winner received \(payout.formatted(suffix: nil))")
+                        Text("Each winner received \(payout.formatted())")
                     }
                 case .refund:
                     Text("Everyone got their money back")
@@ -410,7 +410,7 @@ struct PoolDetailsScreen: View {
         
         let info = PoolInfo(
             name: pool.name,
-            amount: pool.buyIn.formatted(suffix: nil),
+            amount: pool.buyIn.formatted(),
             yesCount: pool.betCountYes,
             noCount: pool.betCountNo
         )

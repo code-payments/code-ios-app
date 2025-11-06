@@ -239,7 +239,7 @@ struct PoolsScreen: View {
                             }
                             
                         } else {
-                            Text("\(pool.amountInPool.formatted(suffix: nil)) in pool so far")
+                            Text("\(pool.amountInPool.formatted()) in pool so far")
                                 .font(.appTextMedium)
                                 .foregroundStyle(Color.textSecondary)
                         }
@@ -336,7 +336,7 @@ struct ResultBadge: View {
         HStack(spacing: 5) {
             Text(text)
             if let amount {
-                Text(amount.formatted(suffix: nil))
+                Text(amount.formatted())
             }
         }
         .font(.appTextSmall)

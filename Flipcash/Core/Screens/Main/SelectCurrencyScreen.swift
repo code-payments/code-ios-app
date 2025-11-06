@@ -142,7 +142,7 @@ struct CurrencyLabel: View {
             if let amount {
                 Spacer()
                 
-                Text(amount.formatted(truncated: true, suffix: nil))
+                Text(amount.formatted())
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
             }

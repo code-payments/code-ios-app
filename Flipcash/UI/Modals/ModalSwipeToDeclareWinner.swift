@@ -40,7 +40,7 @@ public struct ModalSwipeToDeclareWinner: View {
                 Text(outcome.text)
                     .font(.appDisplayMedium)
                     .foregroundStyle(Color.textMain)
-                Text("\(outcome.subtext) \(amount.formatted(suffix: nil))")
+                Text("\(outcome.subtext) \(amount.formatted())")
                     .font(.appTextSmall)
                     .foregroundStyle(Color.textMain.opacity(0.5))
             }

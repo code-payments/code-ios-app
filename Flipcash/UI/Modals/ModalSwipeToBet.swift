@@ -39,7 +39,7 @@ public struct ModalSwipeToBet: View {
             VStack(spacing: 10) {
                 AmountText(
                     flagStyle: fiat.currencyCode.flagStyle,
-                    content: fiat.formatted(suffix: nil)
+                    content: fiat.formatted()
                 )
                 .font(.appDisplayMedium)
                 .foregroundStyle(Color.textMain)

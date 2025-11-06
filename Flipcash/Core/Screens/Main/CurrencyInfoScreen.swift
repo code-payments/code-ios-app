@@ -88,7 +88,7 @@ struct CurrencyInfoScreen: View {
                             
                             AmountText(
                                 flagStyle: balance.currencyCode.flagStyle,
-                                content: balance.formatted(truncated: true, suffix: nil),
+                                content: balance.formatted(),
                                 showChevron: false
                             )
                             .font(.appDisplayMedium)
@@ -133,7 +133,7 @@ struct CurrencyInfoScreen: View {
                                     Text("Market Cap")
                                         .foregroundStyle(Color.textSecondary)
                                         .font(.appTextMedium)
-                                    Text("\(marketCap.formatted(suffix: nil))")
+                                    Text("\(marketCap.formatted())")
                                         .foregroundStyle(Color.textMain)
                                         .font(.appDisplayMedium)
                                 }

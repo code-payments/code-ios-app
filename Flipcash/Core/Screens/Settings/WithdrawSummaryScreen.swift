@@ -19,17 +19,17 @@ struct WithdrawSummaryScreen: View {
     
     private var usdcToWithdraw: String {
         if let withdrawableAmount = viewModel.withdrawableAmount {
-            return withdrawableAmount.converted.formatted(suffix: nil)
+            return withdrawableAmount.converted.formatted()
             
         } else if let negativeDelta = viewModel.negativeWithdrawableAmount {
-            return "-\(negativeDelta.formatted(suffix: nil))"
+            return "-\(negativeDelta.formatted())"
             
         } else {
             return Fiat(
                 quarks: 0 as UInt64,
                 currencyCode: .usd,
                 decimals: PublicKey.usdc.mintDecimals
-            ).formatted(suffix: nil)
+            ).formatted()
         }
     }
     
@@ -75,20 +75,20 @@ struct WithdrawSummaryScreen: View {
                                     VStack(alignment: .leading, spacing: 10) {
                                         lineItem(
                                             title: Text("Withdrawal amount"),
-                                            value: originalFiat.formatted(suffix: nil)
+                                            value: originalFiat.formatted()
                                         )
                                         
 //                                        if originalFiat.currencyCode != .usd {
 //                                            lineItem(
 //                                                title: Text("Converted to USD"),
-//                                                value: usdcFiat.formatted(/*truncated: true,*/suffix: nil)
+//                                                value: usdcFiat.formatted()
 //                                            )
 //                                        }
                                         
                                         if fee.quarks > 0 {
                                             lineItem(
                                                 title: Text("Less one time fee").underline() + Text(" \(Image.asset(.info))").baselineOffset(-2),
-                                                value: "-\(fee.formatted(suffix: nil))"
+                                                value: "-\(fee.formatted())"
                                             ) {
                                                 showFeeInformationDialog()
                                             }
