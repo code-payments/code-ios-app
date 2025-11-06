@@ -129,14 +129,14 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 
         if mint != PublicKey.usdc {
             valuation = try! curve.tokensForValueExchange(
-                fiatDecimal: amount,
-                fx: rate.fx,
+                fiat: BigDecimal(amount),
+                fiatRate: BigDecimal(rate.fx),
                 supplyQuarks: Int(supplyFromBonding)
             )
         } else {
             valuation = .init(
-                tokens: amount,
-                fx: rate.fx
+                tokens: BigDecimal(amount),
+                fx: BigDecimal(rate.fx)
             )
         }
         
@@ -144,7 +144,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         // represented as the 'region' of Rate
         // so in the below example - CAD
         let underlyingRate = Rate(
-            fx: valuation.fx,
+            fx: valuation.fx.asDecimal(),
             currency: rate.currency
         )
         
@@ -160,7 +160,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         if rate.currency == .usd {
             exchanged = ExchangedFiat(
                 usdc: try! Fiat(
-                    fiatDecimal: valuation.tokens,
+                    fiatDecimal: valuation.tokens.asDecimal(),
                     currencyCode: underlyingRate.currency,
                     decimals: decimals
                 ),

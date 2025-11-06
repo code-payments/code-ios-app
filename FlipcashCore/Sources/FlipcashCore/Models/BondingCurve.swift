@@ -8,7 +8,7 @@
 import Foundation
 @preconcurrency import BigDecimal
 
-public let r = Rounding(.toNearestOrEven, 50)
+public let r = Rounding(.toNearestOrEven, 70)
 
 public struct BondingCurve: Sendable {
     
@@ -53,7 +53,10 @@ public struct BondingCurve: Sendable {
     }
     
     private func ensureValid(_ x: BigDecimal) throws -> BigDecimal {
-        guard !x.isNaN else { throw BondingCurveError.internalNaN }
+        guard !x.isNaN else {
+            throw BondingCurveError.internalNaN
+        }
+        
         return x
     }
 }
@@ -101,12 +104,9 @@ public extension BondingCurve {
 
         print("$L", valueLocked.asString(.plain))
         print("ΔS", tokensToSell.asString(.plain))
-        
-        // ab/c
-        let abOverC = a.multiply(b, r).divide(c, r)
 
         // valueLocked + (ab/c)
-        let cvPlusAbOverC = valueLocked.add(abOverC, r)
+        let cvPlusAbOverC = valueLocked.add(abOverC(), r)
 
         // exp(-c * tokensToSell)
         let cTimesTokens = c.multiply(tokensToSell, r)
@@ -133,27 +133,54 @@ public extension BondingCurve {
         let valueLocked = BigDecimal(tvl).scaleDown(6)
 
         // ab/c
-        let abOverC = a.multiply(b, r).divide(c, r)
+        let abOverC = abOverC()
 
         // e^{cS} = R(S)/(ab/c) + 1
         let e_cS = valueLocked.divide(abOverC, r).add(.one, r)
 
         // ΔS = (1/c) * ln( 1 + v / ((ab/c) * e^{cS}) )
-        let denom = abOverC.multiply(e_cS, r)
-        let term = v.divide(denom, r).add(.one, r)
+        let denom  = abOverC.multiply(e_cS, r)
+        let term   = v.divide(denom, r).add(.one, r)
         let lnTerm = ln(term)
-        let delta = lnTerm.divide(c, r)
+        let delta  = lnTerm.divide(c, r)
 
         return try! ensureValid(delta)
     }
+    
+//    v2
+//    public func tokensBought(withUSDC usdcQuarks: Int, tvl: Int) -> BigDecimal {
+//        guard usdcQuarks > 0 else { return 0 }
+//
+//        // v: value to spend in USDC units (scale down from quarks with 6 decimals)
+//        let v = BigDecimal(usdcQuarks).scaleDown(6)
+//
+//        // valueLocked: current reserve value R(S) in USDC units (USDC has 6 decimals)
+//        let valueLocked = BigDecimal(tvl).scaleDown(6)
+//
+//        // ab/c
+//        let abOverC = abOverC()
+//
+//        // e^{cS} = R(S)/(ab/c) + 1
+//        let e_cS = valueLocked.divide(abOverC, r).add(.one, r)
+//
+//        // Recover S from TVL: S = (1/c) * ln(e^{cS})
+//        let S = ln(e_cS).divide(c, r)
+//
+//        // tokens = (1/c) * ln( value/(ab/c) + e^{cS} ) - S
+//        let term   = v.divide(abOverC, r).add(e_cS, r)
+//        let lnTerm = ln(term)
+//        let tokens = lnTerm.divide(c, r).subtract(S, r)
+//
+//        return try! ensureValid(tokens)
+//    }
 }
 
 // MARK: - Buy / Sell (Decimal) -
 
 extension BondingCurve {
     public struct BuyEstimation {
-        public let netTokensToReceive: Foundation.Decimal
-        public let fees: Foundation.Decimal
+        public let netTokensToReceive: BigDecimal
+        public let fees: BigDecimal
     }
     
     public struct SellEstimation {
@@ -162,8 +189,8 @@ extension BondingCurve {
     }
     
     public struct Valuation {
-        public let tokens: Foundation.Decimal
-        public let fx: Foundation.Decimal
+        public let tokens: BigDecimal
+        public let fx: BigDecimal
     }
     
     public func buy(
@@ -181,8 +208,8 @@ extension BondingCurve {
         let feesQuarks      = feeTokensScaled
         
         return BuyEstimation(
-            netTokensToReceive: netTokensQuarks.asDecimal(),
-            fees: feesQuarks.asDecimal()
+            netTokensToReceive: netTokensQuarks,
+            fees: feesQuarks
         )
     }
     
@@ -233,19 +260,17 @@ extension BondingCurve {
         let usdc = tokens.multiply(price, r)
 
         return Valuation(
-            tokens: usdc.asDecimal(),
-            fx: rate.multiply(price, r).asDecimal()
+            tokens: usdc,
+            fx: rate.multiply(price, r)
         )
     }
     
-    public func tokensForValueExchange(fiatDecimal: Foundation.Decimal, fx: Foundation.Decimal, supplyQuarks: Int) throws -> Valuation {
-        guard fiatDecimal > 0 else {
+    public func tokensForValueExchange(fiat: BigDecimal, fiatRate: BigDecimal, supplyQuarks: Int) throws -> Valuation {
+        guard fiat.isPositive else {
             return .init(tokens: 0, fx: 0)
         }
         
-        let fiat  = BigDecimal(fiatDecimal)
-        let rate  = BigDecimal(fx)
-        let usdc  = fiat.divide(rate, r)
+        let usdc  = fiat.divide(fiatRate, r)
         let s     = BigDecimal(supplyQuarks).scaleDown(decimals)
         
         guard usdc.signum > 0 else {
@@ -266,8 +291,8 @@ extension BondingCurve {
         let tokens = try! ensureValid(lnTerm.divide(c, r))
         
         return Valuation(
-            tokens: tokens.asDecimal(),
-            fx: fiat.divide(tokens, r).asDecimal()
+            tokens: tokens,
+            fx: fiat.divide(tokens, r)
         )
     }
 }
