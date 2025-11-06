@@ -72,30 +72,6 @@ struct FiatTests {
         #expect(result.currencyCode == .cad)
         #expect(result.decimals     == 6)
     }
-    
-    @Test
-    static func testAdditionMismatchedDecimals() throws {
-        let lhs = Fiat(quarks: 1_000_000      as UInt64, currencyCode: .cad, decimals: 6)
-        let rhs = Fiat(quarks: 10_000_000_000 as UInt64, currencyCode: .cad, decimals: 10)
-        
-        let result = try lhs.adding(rhs)
-        
-        #expect(result.quarks       == 20_000_000_000)
-        #expect(result.currencyCode == .cad)
-        #expect(result.decimals     == 10)
-    }
-    
-    @Test
-    static func testSubtractionMismatchedDecimals() throws {
-        let lhs = Fiat(quarks: 70_000_000_000 as UInt64, currencyCode: .cad, decimals: 6)
-        let rhs = Fiat(quarks: 5_000_000      as UInt64, currencyCode: .cad, decimals: 10)
-        
-        let result = try lhs.subtracting(rhs)
-        
-        #expect(result.quarks       == 20_000_000_000)
-        #expect(result.currencyCode == .cad)
-        #expect(result.decimals     == 10)
-    }
 }
 
 

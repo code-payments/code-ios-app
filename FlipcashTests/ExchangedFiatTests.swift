@@ -83,6 +83,20 @@ struct ExchangedFiatTests {
     }
     
     @Test
+    static func testComputingValueFromZeroQuarks() throws {
+        let usd = ExchangedFiat.computeFromQuarks(
+            quarks: 0,
+            mint: .usdcAuthority, // We don't want .usdc to simulate other tokens
+            rate: Rate(fx: 1.0, currency: .usd),
+            tvl: 1_000_000_000
+        )
+        
+        #expect(usd.usdc.quarks               == 0) // 55.12 Tokens
+        #expect(usd.converted.quarks          == 0) // 0.59  USD
+        #expect(usd.rate.fx.formatted(to: 10) == "0.0108771753")
+    }
+    
+    @Test
     static func testComputingValueFromLargeQuarks() throws {
         let usd = ExchangedFiat.computeFromQuarks(
             quarks: 100_500_14_59_074_093,

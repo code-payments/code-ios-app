@@ -75,14 +75,21 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         let exchanged: ExchangedFiat
         
         if mint != PublicKey.usdc {
+            
+            // We can't pass 0 quarks into the sell function
+            // because we won't get an accurate rate. In the
+            // event that there's a 0 quark balance, we'll
+            // pass 1 quark just to get the fx rate.
+            let quarksToSell = quarks == 0 ? 1 : quarks
+            
             let curve     = BondingCurve()
             let valuation = curve.sell(
-                quarks: Int(quarks),
+                quarks: Int(quarksToSell),
                 feeBps: 0,
                 tvl: Int(tvl!)
             )
             
-            let decimalQuarks = BigDecimal(Int(quarks))
+            let decimalQuarks = BigDecimal(Int(quarksToSell))
             let fiatRate = BigDecimal(rate.fx)
             let fx = valuation.netUSDC
                 // Division need to divide by tokens, not quarks
