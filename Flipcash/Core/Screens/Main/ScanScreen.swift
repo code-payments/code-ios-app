@@ -26,8 +26,6 @@ struct ScanScreen: View {
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var isShowingGive: Bool = false
-//    @State private var isShowingPools: Bool = false
-//    @State private var isShowingSend: Bool = false
     
     @State private var sendButtonState: ButtonState = .normal
     
