@@ -12,17 +12,18 @@ import SwiftUI
 import FlipcashCore
 
 public struct BillView: View {
-    
+
     public let fiat: Fiat
     public let data: Data
     public let canvasSize: CGSize
     public let billSize: CGSize
     public let action: VoidAction
-    
+    public let backgroundColors: [Color]
+
     public let string: String
-    
+
     // MARK: - Init -
-    
+
     /// Initialize a bill view. Aspect ratios of various bills. Smaller
     /// means the bill will appear more square
     ///
@@ -30,13 +31,14 @@ public struct BillView: View {
     /// Euro:      0.510
     /// Code:      0.555
     ///
-    public init(fiat: Fiat, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, action: VoidAction? = nil) {
+    public init(fiat: Fiat, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, backgroundColors: [Color]? = nil, action: VoidAction? = nil) {
         self.fiat       = fiat
         self.data       = data
         self.canvasSize = canvasSize
         self.action     = action ?? {}
         self.string     = fiat.formatted(suffix: nil)
         self.billSize   = Self.size(fitting: canvasSize, aspectRatio: aspectRatio)
+        self.backgroundColors = backgroundColors ?? [Color(r: 0, g: 70, b: 2)]
     }
     
     private static func size(fitting size: CGSize, aspectRatio: CGFloat) -> CGSize {
@@ -75,24 +77,38 @@ public struct BillView: View {
     }
     
     // MARK: - Body -
-    
-    let billColor = Color(r: 0, g: 70, b: 2)
-    
+
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
                 ZStack {
-                    
-                    Rectangle()
-                        .fill(billColor.opacity(0.65))
-                    
+
+                    // Background gradient or solid color
+                    if backgroundColors.count == 1 {
+                        Rectangle()
+                            .fill(backgroundColors[0].opacity(0.65))
+                    } else {
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: backgroundColors.map { $0.opacity(0.65) },
+                                    startPoint: .bottom,
+                                    endPoint: .top
+                                )
+                            )
+                    }
+
                     // More opaque layer for the code
                     // to help with scanning
                     Rectangle()
                         .fill(Color.black.opacity(0.5))
-                    
+
                     // Main background (clip)
-                    geometry.clipShape(fill: billColor)
+                    if backgroundColors.count == 1 {
+                        geometry.clipShape(fill: backgroundColors[0])
+                    } else {
+                        geometry.clipShape(gradient: backgroundColors)
+                    }
                     
                     // Security strip
                     HStack(spacing: 0) {
@@ -413,6 +429,23 @@ private extension GeometryProxy {
             securityStripHeight: securityStripSize.height
         )
         .fill(fill, style: FillStyle(eoFill: true, antialiased: true))
+    }
+
+    @ViewBuilder func clipShape(gradient: [Color]) -> some View {
+        BillClipShape(
+            codeWidth: codeWidth,
+            codePadding: codePadding,
+            topPadding: topStripHeight,
+            securityStripHeight: securityStripSize.height
+        )
+        .fill(
+            LinearGradient(
+                colors: gradient,
+                startPoint: .bottom,
+                endPoint: .top
+            ),
+            style: FillStyle(eoFill: true, antialiased: true)
+        )
     }
 }
 
