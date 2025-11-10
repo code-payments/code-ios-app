@@ -11,17 +11,18 @@ import Combine
 
 @MainActor
 class SendCashOperation {
-    
+
     let payload: CashCode.Payload
-    
+
     var ignoresStream = false
-    
+
     private let client: Client
     private let database: Database
     private let owner: AccountCluster
     private let exchangedFiat: ExchangedFiat
-    
+
     private var messageStream: AnyCancellable? = nil
+    private var hasProcessedPayment = false
     
     // MARK: - Init -
     
@@ -74,34 +75,46 @@ class SendCashOperation {
         
         messageStream = self.client.openMessageStream(rendezvous: rendezvous) { [weak self] result in
             guard let self = self else { return }
-            
+
             guard !self.ignoresStream else {
                 return
             }
-            
+
+            // Prevent processing duplicate payment requests
+            guard !self.hasProcessedPayment else {
+                trace(.warning, components: "Ignoring duplicate payment request for rendezvous: \(rendezvous.publicKey.base58)")
+                return
+            }
+
             switch result {
             case .success(let messages):
                 // Ignore non-payment metadata messages
                 guard let paymentMetadata = messages.compactMap({ $0.paymentRequest }).first else {
                     return
                 }
-                
+
                 // 1. Validate that destination hasn't been tampered with by
                 // verifying the signature matches one that has been signed
                 // with the rendezvous key.
-                
+
                 let isValid = client.verifyRequestToGrabBill(
                     destination: paymentMetadata.account,
                     rendezvous: rendezvous.publicKey,
                     signature: paymentMetadata.signature
                 )
-                
+
                 guard isValid else {
                     let error: Error = Error.invalidPaymentDestinationSignature
                     completion(.failure(error))
                     return
                 }
-                
+
+                // Mark payment as processed to prevent duplicate submissions
+                self.hasProcessedPayment = true
+
+                // Close the message stream to prevent further messages
+                self.invalidateMessageStream()
+
                 // 2. Send the funds to destination
                 Task {
                     do {
@@ -111,19 +124,19 @@ class SendCashOperation {
                             destination: paymentMetadata.account,
                             rendezvous: rendezvous.publicKey
                         )
-                        
+
                         _ = try await self.client.pollIntentMetadata(
                             owner: owner.authority.keyPair,
                             intentID: rendezvous.publicKey
                         )
-                        
+
                         completion(.success(()))
-                        
+
                     } catch {
                         completion(.failure(error))
                     }
                 }
-                
+
             case .failure(let error):
                 completion(.failure(error))
             }
