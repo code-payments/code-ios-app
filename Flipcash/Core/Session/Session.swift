@@ -311,32 +311,34 @@ class Session: ObservableObject {
         return exchangedFiat.converted <= nextTransactionLimit
     }
     
-    func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> (Bool, ExchangedFiat?) {
+    func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> SufficientFundsResult {
         guard exchangedFiat.usdc.quarks > 0 else {
-            return (false, nil)
+            return .insufficient(shortfall: nil)
         }
-        
+
         guard let balance = balance(for: exchangedFiat.mint) else {
-            return (false, nil)
+            return .insufficient(shortfall: nil)
         }
-        
+
         let entryRate = ratesController.rateForEntryCurrency()
         let exchangedBalance = balance.computeExchangedValue(with: entryRate)
-        
+
         if exchangedFiat.usdc <= exchangedBalance.usdc {
-            return (true, nil)
+            // Sufficient funds - send the requested amount
+            return .sufficient(amountToSend: exchangedFiat)
         } else {
             let deltaToBalanceInFiat = abs(exchangedBalance.converted.decimalValue - exchangedFiat.converted.decimalValue)
-            
-            // If the amount being sent is within
-            // half-a-penny, we'll consider it to
-            // complete. Only applies to max sends
+
+            // If the amount being sent is within half-a-penny,
+            // we'll consider it sufficient. Only applies to max sends.
+            // Return the balance amount so the caller sends the
+            // actual balance instead of the requested amount.
             if deltaToBalanceInFiat <= 0.005 {
                 print("Attempt max send, within error tolerance")
-                return (true, nil)
+                return .sufficient(amountToSend: exchangedBalance)
             } else {
-                let delta = try! exchangedFiat.subtracting(exchangedBalance)
-                return (false, delta)
+                let shortfall = try! exchangedFiat.subtracting(exchangedBalance)
+                return .insufficient(shortfall: shortfall)
             }
         }
     }
@@ -1080,6 +1082,20 @@ extension Session {
         case cashLinkCreationFailed
         case vmMetadataMissing
         case mintNotFound
+    }
+}
+
+// MARK: - SufficientFundsResult -
+
+extension Session {
+    enum SufficientFundsResult {
+        /// User has sufficient funds to send
+        /// - Parameter amountToSend: The amount to actually send (may be adjusted from requested amount due to tolerance)
+        case sufficient(amountToSend: ExchangedFiat)
+
+        /// User does not have sufficient funds
+        /// - Parameter shortfall: The amount the user is short by (nil if no balance exists)
+        case insufficient(shortfall: ExchangedFiat?)
     }
 }
 

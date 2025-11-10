@@ -787,6 +787,65 @@ Cash link expiry = 7 days
 
 ---
 
+## Coding Principles & Patterns
+
+### Exhaustive Switch Statements
+
+**Principle:** Always prefer `switch` statements over `if case` when working with enums for compile-time safety.
+
+**Why:**
+- ✅ **Compiler-enforced exhaustiveness:** Adding a new enum case will cause a compilation error, not a runtime crash
+- ✅ **No `default` cases needed:** Forces explicit handling of all cases
+- ✅ **Refactoring safety:** Changes to enums are caught at compile-time across the entire codebase
+- ✅ **Self-documenting:** All possible states are visible in one place
+
+**Example:**
+
+```swift
+// ❌ BAD: Using if case (silent failure if enum changes)
+guard case .sufficient(let amountToSend) = result else {
+    showInsufficientBalanceError()
+    return
+}
+// If a new enum case is added, this code still compiles but may fail at runtime
+
+// ✅ GOOD: Using switch (compiler error if enum changes)
+switch result {
+case .sufficient(let amountToSend):
+    // Handle sufficient funds
+    session.showCashBill(...)
+
+case .insufficient(let shortfall):
+    // Handle insufficient funds
+    if let shortfall {
+        showYoureShortError(amount: shortfall)
+    } else {
+        showInsufficientBalanceError()
+    }
+}
+// If a new enum case is added, compiler forces us to handle it
+```
+
+**Real Example in Codebase:**
+
+See:
+- `GiveViewModel.giveAction()` (Flipcash/Core/Screens/Main/GiveViewModel.swift:98)
+- `WithdrawViewModel.amountEnteredAction()` (Flipcash/Core/Screens/Settings/WithdrawViewModel.swift:274)
+- `WithdrawViewModel.canCompleteWithdrawal` (Flipcash/Core/Screens/Settings/WithdrawViewModel.swift:138)
+
+**When to Use:**
+
+- ✅ **Always** when handling enum values that represent distinct states
+- ✅ When exhaustive checking is important for correctness
+- ✅ When enum may evolve over time
+
+**When if case is Acceptable:**
+
+- Only when you genuinely don't care about other cases and failure is acceptable
+- When working with optional values (`.some`/`.none`)
+
+---
+
 **End of Guide**
 
 For questions or clarifications, refer to inline code documentation or ask the development team.

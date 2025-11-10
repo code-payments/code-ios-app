@@ -91,35 +91,35 @@ class GiveViewModel: ObservableObject {
         guard let exchangedFiat = enteredFiat else {
             return
         }
-        
-        let (hasSufficientFunds, delta) = session.hasSufficientFunds(for: exchangedFiat)
-        
-        guard hasSufficientFunds else {
-            if let delta {
-                showYoureShortError(amount: delta)
+
+        let result = session.hasSufficientFunds(for: exchangedFiat)
+        switch result {
+        case .sufficient(let amountToSend):
+            guard session.hasLimitToSendFunds(for: amountToSend) else {
+                showLimitsError()
+                return
+            }
+
+            isPresented.wrappedValue = false
+
+            Task {
+                try await Task.delay(milliseconds: 50)
+
+                session.showCashBill(
+                    .init(
+                        kind: .cash,
+                        exchangedFiat: amountToSend,
+                        received: false
+                    )
+                )
+            }
+
+        case .insufficient(let shortfall):
+            if let shortfall {
+                showYoureShortError(amount: shortfall)
             } else {
                 showInsufficientBalanceError()
             }
-            return
-        }
-        
-        guard session.hasLimitToSendFunds(for: exchangedFiat) else {
-            showLimitsError()
-            return
-        }
-        
-        isPresented.wrappedValue = false
-        
-        Task {
-            try await Task.delay(milliseconds: 50)
-            
-            session.showCashBill(
-                .init(
-                    kind: .cash,
-                    exchangedFiat: exchangedFiat,
-                    received: false
-                )
-            )
         }
     }
     

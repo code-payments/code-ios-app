@@ -88,7 +88,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 feeBps: 0,
                 tvl: Int(tvl!)
             )
-            
+
             let decimalQuarks = BigDecimal(Int(quarksToSell))
             let fiatRate = BigDecimal(rate.fx)
             let fx = valuation.netUSDC
@@ -96,7 +96,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 .divide(decimalQuarks.scaleDown(mint.mintDecimals), r)
                 // Premultiply the fiat rate (ie. CAD, etc)
                 .multiply(fiatRate, r)
-            
+
             exchanged = try! ExchangedFiat(
                 usdc: Fiat(
                     quarks: quarks, // USDC value

@@ -120,21 +120,22 @@ class WithdrawViewModel: ObservableObject {
         }
     }
     
-//    var hasSufficientFunds: Bool {
-//        session.hasSufficientFunds(for: enteredFiat!).0
-//    }
-    
     var canCompleteWithdrawal: Bool {
-        if
+        guard
             let enteredFiat = enteredFiat,
             let _ = enteredDestination,
             let destinationMetadata = destinationMetadata,
-            session.hasSufficientFunds(for: enteredFiat).0,
             destinationMetadata.isValid
-        {
-            return true
+        else {
+            return false
         }
-        return false
+        
+        switch session.hasSufficientFunds(for: enteredFiat) {
+        case .sufficient:
+            return true
+        case .insufficient:
+            return false
+        }
     }
     
     var withdrawTitle: String {
@@ -262,16 +263,18 @@ class WithdrawViewModel: ObservableObject {
         guard let exchangedFiat = enteredFiat else {
             return
         }
-        
-        let (hasSufficientFunds, _) = session.hasSufficientFunds(for: exchangedFiat)
-        
-        guard hasSufficientFunds else {
+
+        let result = session.hasSufficientFunds(for: exchangedFiat)
+
+        // Use switch for exhaustive checking - compiler will error if new cases are added
+        switch result {
+        case .sufficient(let amountToSend):
+            amountToWithdraw = amountToSend
+            pushEnterAddressScreen()
+
+        case .insufficient:
             showInsufficientBalanceError()
-            return
         }
-        
-        amountToWithdraw = exchangedFiat
-        pushEnterAddressScreen()
     }
     
     func addressEnteredAction() {
