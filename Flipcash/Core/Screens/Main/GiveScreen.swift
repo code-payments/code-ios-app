@@ -70,6 +70,7 @@ struct GiveScreen: View {
                 )
             }
         }
+        .ignoresSafeArea(.keyboard)
         .navigationTitle("Enter Amount")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
