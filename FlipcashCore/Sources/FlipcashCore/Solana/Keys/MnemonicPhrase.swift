@@ -37,6 +37,19 @@ public struct MnemonicPhrase: Codable, Equatable, Hashable, Sendable {
 }
 
 extension MnemonicPhrase {
+    public var name: String {
+        [
+            words.first!,
+            words.last!,
+        ]
+        .map {
+            $0.capitalized
+        }
+        .joined(separator: " ... ")
+    }
+}
+
+extension MnemonicPhrase {
     public func solanaKeyPair() -> KeyPair {
         KeyPair(mnemonic: self, path: .solana)
     }
