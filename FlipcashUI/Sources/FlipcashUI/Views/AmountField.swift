@@ -175,10 +175,11 @@ public struct AmountField: View {
                     isGhost: false
                 )
             }
-            
-            // Fill in any remaining decimals that
-            // are missing from the formatted version
-            while decimals.count < 2 {
+
+            // Fill in any remaining decimals that are missing from the formatted version
+            // Use the formatter's maximumFractionDigits to determine how many placeholders to show
+            let maxDecimals = formatter.maximumFractionDigits
+            while decimals.count < maxDecimals {
                 decimals.append(
                     Char(
                         direction: .backward,
@@ -187,7 +188,7 @@ public struct AmountField: View {
                     )
                 )
             }
-            
+
             characters.append(contentsOf: decimals)
         }
         

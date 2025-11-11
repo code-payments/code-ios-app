@@ -203,9 +203,11 @@ extension Fiat {
 
 extension Fiat {
     public func formatted(showAllDecimals: Bool = false, truncated: Bool = false, suffix: String? = nil) -> String {
-        NumberFormatter.fiat(
+        let digits = showAllDecimals ? 6 : currencyCode.maximumFractionDigits
+        return NumberFormatter.fiat(
             currency: currencyCode,
-            minimumFractionDigits: showAllDecimals ? 6 : 2,
+            minimumFractionDigits: digits,
+            maximumFractionDigits: digits,
             truncated: truncated,
             suffix: suffix
         ).string(from: quarks.scaleDown(decimals))!
@@ -255,7 +257,7 @@ extension Fiat: ExpressibleByFloatLiteral {
 extension Fiat: Comparable {
     public static func < (lhs: Self, rhs: Self) -> Bool {
         do {
-            let (l, r, d) = try lhs.align(with: rhs)
+            let (l, r, _) = try lhs.align(with: rhs)
             return l.quarks < r.quarks
         } catch {
             assertionFailure("Attempting to compare different currency Fiat values.")

@@ -250,6 +250,22 @@ extension CurrencyCode: Identifiable {
     }
 }
 
+// MARK: - Decimal Places -
+
+extension CurrencyCode {
+    public var maximumFractionDigits: Int {
+        let locale   = Locale.currentUsing(currency: self)
+        let decimals = locale.currencyCode.flatMap { code in
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .currency
+            formatter.locale = locale
+            return formatter.maximumFractionDigits
+        }
+        
+        return decimals ?? 2 // Default to 2 if unable to determine
+    }
+}
+
 // MARK: - Index -
 
 extension CurrencyCode {

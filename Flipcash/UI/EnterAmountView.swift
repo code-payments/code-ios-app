@@ -116,10 +116,10 @@ public struct EnterAmountView: View {
             
             KeyPadView(
                 content: $enteredAmount,
-                configuration: .decimal(),
+                configuration: currency.maximumFractionDigits > 0 ? .decimal() : .number(),
                 rules: KeyPadView.CurrencyRules(
                     maxIntegerDigits: 9,
-                    maxDecimalDigits: 2
+                    maxDecimalDigits: currency.maximumFractionDigits
                 )
             )
             .padding([.leading, .trailing], -20)

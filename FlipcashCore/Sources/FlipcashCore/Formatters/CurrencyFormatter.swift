@@ -46,25 +46,25 @@ extension NumberFormatter {
         NumberFormatter()
     }()
     
-    public static func fiat(currency: CurrencyCode, minimumFractionDigits: Int = 2, truncated: Bool = false, suffix: String? = nil) -> NumberFormatter {
+    public static func fiat(currency: CurrencyCode, minimumFractionDigits: Int = 2, maximumFractionDigits: Int? = nil, truncated: Bool = false, suffix: String? = nil) -> NumberFormatter {
         let f = NumberFormatter()
         f.locale = .current
         f.numberStyle = .currency
         f.minimumFractionDigits = minimumFractionDigits
-        f.maximumFractionDigits = minimumFractionDigits
+        f.maximumFractionDigits = maximumFractionDigits ?? currency.maximumFractionDigits
         f.generatesDecimalNumbers = true
         f.roundingMode = truncated ? .down : .halfUp
-        
+
         let prefix = currency.singleCharacterCurrencySymbols ?? ""
         let suffix = (suffix ?? "")
-        
+
         f.positivePrefix = prefix
         f.negativePrefix = prefix
         f.positiveSuffix = suffix
         f.negativeSuffix = suffix
-        
+
         f.currencySymbol = ""
-        
+
         return f
     }
 }
