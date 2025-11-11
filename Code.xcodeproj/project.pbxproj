@@ -617,13 +617,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		9A91F2A22CB5C17A0018CE65 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 9A9970A22CA33145006BDE08 /* Flipchat */;
-		};
 		9AC0156E2DA579120030298E /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -639,7 +632,7 @@
 		9A516F8C2D9B12EA00AF478B /* FlipcashTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashTests; sourceTree = "<group>"; };
 		9A516F962D9B12EA00AF478B /* FlipcashUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipcashUITests; sourceTree = "<group>"; };
 		9A83DCC52D8A650600E38B84 /* EmojiGenerator */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = EmojiGenerator; sourceTree = "<group>"; };
-		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9A91F2A22CB5C17A0018CE65 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
+		9A9970A42CA33145006BDE08 /* Flipchat */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Flipchat; sourceTree = "<group>"; };
 		9A9970B52CA33147006BDE08 /* FlipchatTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatTests; sourceTree = "<group>"; };
 		9A9970BF2CA33147006BDE08 /* FlipchatUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = FlipchatUITests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -2799,7 +2792,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 251;
+				CURRENT_PROJECT_VERSION = 252;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
@@ -2850,7 +2843,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 251;
+				CURRENT_PROJECT_VERSION = 252;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
@@ -2901,7 +2894,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 251;
+				CURRENT_PROJECT_VERSION = 252;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
@@ -2947,7 +2940,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 251;
+				CURRENT_PROJECT_VERSION = 252;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
