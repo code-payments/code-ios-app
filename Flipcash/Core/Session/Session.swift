@@ -329,11 +329,19 @@ class Session: ObservableObject {
         } else {
             let deltaToBalanceInFiat = abs(exchangedBalance.converted.decimalValue - exchangedFiat.converted.decimalValue)
 
-            // If the amount being sent is within half-a-penny,
+            // Calculate tolerance as half the smallest denomination for this currency
+            // USD (2 decimals): 0.01 / 2 = 0.005 (half a penny)
+            // JPY (0 decimals): 1.0 / 2 = 0.5 (half a yen)
+            // BHD (3 decimals): 0.001 / 2 = 0.0005 (half a fils)
+            let decimals = exchangedFiat.converted.currencyCode.maximumFractionDigits
+            let smallestDenomination = pow(10.0, -Double(decimals))
+            let tolerance = smallestDenomination / 2.0
+
+            // If the amount being sent is within half the smallest denomination,
             // we'll consider it sufficient. Only applies to max sends.
             // Return the balance amount so the caller sends the
             // actual balance instead of the requested amount.
-            if deltaToBalanceInFiat <= 0.005 {
+            if deltaToBalanceInFiat <= Decimal(tolerance) {
                 print("Attempt max send, within error tolerance")
                 return .sufficient(amountToSend: exchangedBalance)
             } else {
