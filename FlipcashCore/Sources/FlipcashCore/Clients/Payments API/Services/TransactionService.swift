@@ -90,7 +90,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    func withdraw(exchangedFiat: ExchangedFiat, fee: Fiat, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
         do {
@@ -120,7 +120,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     }
     
     func sendCashLink(exchangedFiat: ExchangedFiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(exchangedFiat.usdc.formatted(suffix: " USDC"))")
+        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(exchangedFiat.underlying.formatted(suffix: " USDC"))")
         
         let intent = IntentSendCashLink(
             rendezvous: rendezvous,
@@ -142,7 +142,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    func receiveCashLink(usdc: Fiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func receiveCashLink(usdc: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(usdc.formatted(suffix: " USDC"))")
         
         let intent = IntentReceiveCashLink(
@@ -213,7 +213,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             do {
                 let exchangedFiat = try ExchangedFiat(response.exchangeData)
                 let metadata = PaymentMetadata(exchangedFiat: exchangedFiat)
-                trace(.success, components: "Received: USD \(exchangedFiat.usdc.formatted(suffix: nil))")
+                trace(.success, components: "Received: USD \(exchangedFiat.underlying.formatted(suffix: nil))")
                 completion(.success(metadata))
             } catch {
                 trace(.failure, components: "Failed to parse metadata.")
@@ -438,7 +438,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 mint: mint,
                 isValid: response.isValidPaymentDestination,
                 requiresInitialization: response.requiresInitialization,
-                fee: response.requiresInitialization ? try! Fiat(
+                fee: response.requiresInitialization ? try! Quarks(
                     fiatDecimal: Decimal(response.feeAmount.nativeAmount),
                     currencyCode: .usd,
                     decimals: mint.mintDecimals
@@ -468,9 +468,9 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
 public struct PoolDistribution {
     
     public let destination: PublicKey
-    public var amount: Fiat
+    public var amount: Quarks
     
-    public init(destination: PublicKey, amount: Fiat) {
+    public init(destination: PublicKey, amount: Quarks) {
         self.destination = destination
         self.amount = amount
     }
@@ -481,11 +481,11 @@ public struct DestinationMetadata: Sendable {
     public let destination: Destination
     public let isValid: Bool
     public let kind: Kind
-    public let fee: Fiat
+    public let fee: Quarks
     
     public let requiresInitialization: Bool
     
-    init(kind: Kind, destination: PublicKey, mint: PublicKey, isValid: Bool, requiresInitialization: Bool, fee: Fiat) {
+    init(kind: Kind, destination: PublicKey, mint: PublicKey, isValid: Bool, requiresInitialization: Bool, fee: Quarks) {
         switch kind {
         case .unknown, .token:
             self.destination = .init(token: destination)

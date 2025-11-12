@@ -398,13 +398,13 @@ struct BalanceScreen: View {
 //        self.balanceBalances = balanceBalances
 //        
 //        self.totalBalance = try! .init(
-//            usdc: totalUSDC,
+//            underlying: totalUSDC,
 //            rate: balanceRate,
 //            mint: .usdc
 //        )
 //        
 //        self.totalEntry = try! .init(
-//            usdc: totalUSDC,
+//            underlying: totalUSDC,
 //            rate: entryRate,
 //            mint: .usdc
 //        )

@@ -15,7 +15,7 @@ struct ActionTransfer: ActionType {
     var serverParameter: ServerParameter?
     var signer: KeyPair?
     
-    let amount: Fiat
+    let amount: Quarks
     let sourceCluster: AccountCluster
     let source: PublicKey
     let destination: PublicKey
@@ -23,7 +23,7 @@ struct ActionTransfer: ActionType {
 
     static let configCountRequirement: Int = 1
     
-    init(amount: Fiat, sourceCluster: AccountCluster, destination: PublicKey, mint: PublicKey) {
+    init(amount: Quarks, sourceCluster: AccountCluster, destination: PublicKey, mint: PublicKey) {
         self.id = 0
         self.signer = sourceCluster.authority.keyPair
         

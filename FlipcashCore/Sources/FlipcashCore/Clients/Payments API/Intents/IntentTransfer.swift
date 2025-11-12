@@ -28,7 +28,7 @@ final class IntentTransfer: IntentType {
         self.destination      = destination
         
         let transfer = ActionTransfer(
-            amount: exchangedFiat.usdc,
+            amount: exchangedFiat.underlying,
             sourceCluster: sourceCluster,
             destination: destination,
             mint: exchangedFiat.mint
@@ -49,7 +49,7 @@ extension IntentTransfer {
                 $0.mint         = exchangedFiat.mint.solanaAccountID
                 $0.exchangeData = .with {
                     $0.mint         = exchangedFiat.mint.solanaAccountID
-                    $0.quarks       = exchangedFiat.usdc.quarks
+                    $0.quarks       = exchangedFiat.underlying.quarks
                     $0.currency     = exchangedFiat.converted.currencyCode.rawValue
                     $0.exchangeRate = exchangedFiat.rate.fx.doubleValue
                     $0.nativeAmount = exchangedFiat.converted.doubleValue

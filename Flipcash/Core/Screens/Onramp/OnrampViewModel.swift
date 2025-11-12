@@ -93,7 +93,7 @@ class OnrampViewModel: ObservableObject {
             return nil
         }
         
-        guard let converted = try? Fiat(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdc.mintDecimals) else {
+        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdc.mintDecimals) else {
             trace(.failure, components: "[Onramp] Invalid amount for entry")
             return nil
         }
@@ -637,9 +637,9 @@ class OnrampViewModel: ObservableObject {
         }
         
         if let selectedPreset {
-            Analytics.onrampInvokePayment(amount: exchangedFiat.usdc)
+            Analytics.onrampInvokePayment(amount: exchangedFiat.underlying)
         } else {
-            Analytics.onrampInvokePaymentCustom(amount: exchangedFiat.usdc)
+            Analytics.onrampInvokePaymentCustom(amount: exchangedFiat.underlying)
         }
         
         Task {
@@ -754,7 +754,7 @@ class OnrampViewModel: ObservableObject {
                 let status = await PushController.fetchStatus()
                 
                 Analytics.onrampCompleted(
-                    amount: enteredFiat?.usdc,
+                    amount: enteredFiat?.underlying,
                     successful: true,
                     error: nil
                 )

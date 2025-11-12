@@ -23,7 +23,7 @@ public struct EnterAmountView: View {
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
     
-    private var maxTransactionAmount: Fiat {
+    private var maxTransactionAmount: Quarks {
         guard let limit = session.singleTransactionLimitFor(currency: currency) else {
             return 0
         }
@@ -42,7 +42,7 @@ public struct EnterAmountView: View {
         }
     }
     
-    func maxEnterAmount(maxBalance: ExchangedFiat) -> Fiat {
+    func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
         maxBalance.converted
     }
     

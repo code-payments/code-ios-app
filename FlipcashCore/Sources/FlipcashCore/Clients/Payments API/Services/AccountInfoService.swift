@@ -85,7 +85,7 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
         }
     }
     
-    func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey, completion: @Sendable @escaping (Result<Fiat, ErrorFetchBalance>) -> Void) {
+    func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey, completion: @Sendable @escaping (Result<Quarks, ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
         let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
@@ -103,7 +103,7 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
                 }.first
                 
                 if let account {
-                    let balance = Fiat(
+                    let balance = Quarks(
                         quarks: account.value.balance,
                         currencyCode: .usd,
                         decimals: 6

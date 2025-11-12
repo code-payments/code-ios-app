@@ -93,7 +93,7 @@ class RatesController: ObservableObject {
         try? database.rate(for: currency)
     }
     
-    func exchangedFiat(for amount: Fiat) throws -> ExchangedFiat {
+    func exchangedFiat(for amount: Quarks) throws -> ExchangedFiat {
         guard let rate = rate(for: amount.currencyCode) else {
             throw Error.exchangeRateUnavailable
         }

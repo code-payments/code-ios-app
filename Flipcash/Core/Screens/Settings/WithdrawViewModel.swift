@@ -64,7 +64,7 @@ class WithdrawViewModel: ObservableObject {
             )
         } else {
             return try! ExchangedFiat(
-                usdc: .init(
+                underlying: .init(
                     fiatDecimal: amount,
                     currencyCode: .usd,
                     decimals: mint.mintDecimals
@@ -75,7 +75,7 @@ class WithdrawViewModel: ObservableObject {
         }
     }
     
-    var negativeWithdrawableAmount: Fiat? {
+    var negativeWithdrawableAmount: Quarks? {
         guard let enteredFiat = enteredFiat else {
             return nil
         }
@@ -84,9 +84,9 @@ class WithdrawViewModel: ObservableObject {
             return nil
         }
         
-        let feeInUnderlying = exchangedFee.usdc
+        let feeInUnderlying = exchangedFee.underlying
         
-        guard feeInUnderlying.quarks >= enteredFiat.usdc.quarks else {
+        guard feeInUnderlying.quarks >= enteredFiat.underlying.quarks else {
             return nil
         }
         
@@ -113,7 +113,7 @@ class WithdrawViewModel: ObservableObject {
                     return nil
                 }
                 
-                return try? enteredFiat.subtracting(fee: exchangedFee.usdc)
+                return try? enteredFiat.subtracting(fee: exchangedFee.underlying)
             }
         } else {
             return enteredFiat
@@ -148,7 +148,7 @@ class WithdrawViewModel: ObservableObject {
     
     var maxWithdrawLimit: ExchangedFiat {
         let zero = try! ExchangedFiat(
-            usdc: 0,
+            underlying: 0,
             rate: .oneToOne,
             mint: .usdc
         )
@@ -229,11 +229,11 @@ class WithdrawViewModel: ObservableObject {
             return
         }
         
-        let fee: Fiat
+        let fee: Quarks
         if enteredFiat.mint == .usdc {
             fee = destinationMetadata.fee
         } else {
-            fee = exchangedFee?.usdc ?? 0
+            fee = exchangedFee?.underlying ?? 0
         }
         
         withdrawButtonState = .loading

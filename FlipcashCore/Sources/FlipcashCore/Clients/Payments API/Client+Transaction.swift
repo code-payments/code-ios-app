@@ -39,7 +39,7 @@ extension Client {
         }
     }
     
-    public func withdraw(exchangedFiat: ExchangedFiat, fee: Fiat, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
+    public func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(
                 exchangedFiat: exchangedFiat,
@@ -62,7 +62,7 @@ extension Client {
         }
     }
     
-    public func receiveCashLink(usdc: Fiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
+    public func receiveCashLink(usdc: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.receiveCashLink(
                 usdc: usdc,

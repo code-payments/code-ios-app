@@ -1,6 +1,6 @@
 # Flipcash iOS App - Codebase Guide
 
-**Last Updated:** 2025-11-10
+**Last Updated:** 2025-11-12
 
 This document provides a comprehensive guide to the Flipcash iOS application codebase, including architecture, multi-currency system, and key concepts.
 
@@ -70,8 +70,8 @@ code-ios-app/
 │
 ├── FlipcashCore/          # Business logic package
 │   ├── Models/
-│   │   ├── Fiat.swift             # Currency amounts (quarks)
-│   │   ├── ExchangedFiat.swift    # Multi-currency values
+│   │   ├── Fiat.swift             # Quarks struct - currency amounts (smallest unit)
+│   │   ├── ExchangedFiat.swift    # Multi-currency values (underlying + converted)
 │   │   ├── BondingCurve.swift     # Pricing curves
 │   │   └── MintMetadata.swift     # Token metadata
 │   ├── Clients/
@@ -141,6 +141,28 @@ Container
 
 ## Multi-Currency System
 
+### Recent Architectural Changes (2025-11-12)
+
+**Critical Naming Refactor:**
+
+To better support multi-currency operations, two core types have been renamed:
+
+1. **`Fiat` → `Quarks`**
+   - **Why:** "Fiat" implied fiat currencies only, but the struct represents the smallest unit of *any* currency
+   - **Impact:** All currency amount representations now use `Quarks`
+   - **File:** Still located in `FlipcashCore/Sources/FlipcashCore/Models/Fiat.swift`
+
+2. **`ExchangedFiat.usdc` → `ExchangedFiat.underlying`**
+   - **Why:** The field was hardcoded to USDC during single-currency era
+   - **Impact:** Now properly represents that the underlying value can be any token (USDC, Farmer Coin, etc.)
+   - **Usage:**
+     - `underlying`: Blockchain asset being held (can be any mint)
+     - `converted`: Display currency for user (USD, JPY, CAD, etc.)
+
+**Migration Context:**
+
+These changes reflect the evolution from USDC-only to full multi-currency support. The `converted` field has always been the "visual" value shown to users, while `underlying` (formerly `usdc`) represents the actual on-chain asset value.
+
 ### Core Concepts
 
 Flipcash supports multiple currencies, each represented by a Solana token mint:
@@ -150,21 +172,26 @@ Flipcash supports multiple currencies, each represented by a Solana token mint:
 
 ### Currency Representation
 
-#### 1. Fiat
+#### 1. Quarks
 
 Represents currency amounts using **quarks** (smallest unit):
 
 ```swift
-struct Fiat {
+struct Quarks {
     let quarks: UInt64       // Raw amount (e.g., 1,500,000 quarks)
     let currencyCode: CurrencyCode  // .usd, .eur, .cad, etc.
     let decimals: Int        // Decimal places (e.g., 6 for USDC)
 }
 
 // Example: $1.50 USD = 1,500,000 quarks (6 decimals)
-let amount = Fiat(quarks: 1_500_000, currencyCode: .usd, decimals: 6)
+let amount = Quarks(quarks: 1_500_000, currencyCode: .usd, decimals: 6)
 // amount.decimalValue == 1.50
 ```
+
+**Naming Note:**
+- Previously called `Fiat` (legacy from USDC-only era)
+- Renamed to `Quarks` to better reflect multi-currency support
+- Represents smallest unit of **any** currency (not just fiat)
 
 **Key Operations:**
 - `adding()`, `subtracting()` - Arithmetic (requires matching currency/decimals)
@@ -173,26 +200,38 @@ let amount = Fiat(quarks: 1_500_000, currencyCode: .usd, decimals: 6)
 
 #### 2. ExchangedFiat
 
-Wraps both USDC value and converted value with exchange rate:
+Wraps both underlying currency value and converted display value with exchange rate:
 
 ```swift
 struct ExchangedFiat {
-    let usdc: Fiat           // USDC (base) value
-    let converted: Fiat      // Converted to user's currency
+    let underlying: Quarks   // Underlying currency (USDC or custom token)
+    let converted: Quarks    // Converted to user's display currency
     let rate: Rate           // Exchange rate
     let mint: PublicKey      // Token mint address
 }
 
-// Example: $5.00 CAD (rate: 1.40 CAD/USD)
-// usdc: 3.57 USD
-// converted: 5.00 CAD
+// Example: $5.00 CAD displayed (rate: 1.40 CAD/USD)
+// underlying: 3.57 USD worth of USDC quarks
+// converted: 5.00 CAD (visual/display currency)
 // rate: Rate(fx: 1.40, currency: .cad)
 // mint: PublicKey.usdc
 ```
 
+**Field Explanation:**
+- **`underlying`**: The actual currency held (USDC, Farmer Coin, or any custom token)
+  - Represents the blockchain-level asset
+  - Can be any token mint (not just USDC)
+- **`converted`**: The display currency shown to user (USD, CAD, JPY, EUR, etc.)
+  - Always in the user's preferred fiat currency
+  - Used for UI display and tolerance calculations
+
+**Naming History:**
+- Previously: `usdc: Fiat` (hardcoded for USDC-only era)
+- Now: `underlying: Quarks` (supports any currency/token)
+
 **Creation Methods:**
-- `init(usdc:rate:mint:)` - From USDC amount
-- `init(converted:rate:mint:)` - From local currency amount
+- `init(underlying:rate:mint:)` - From underlying token amount
+- `init(converted:rate:mint:)` - From display currency amount
 - `computeFromQuarks()` - From raw quarks with bonding curve
 - `computeFromEntered()` - From user-entered amount
 
@@ -244,7 +283,7 @@ struct StoredBalance {
     let sellFeeBps: Int?            // Sell fee (100 = 1%)
     let mint: PublicKey             // Token mint address
     let vmAuthority: PublicKey?     // VM authority
-    let usdcValue: Fiat             // Computed USDC value
+    let usdcValue: Quarks           // Computed USDC value
 }
 ```
 
@@ -481,7 +520,7 @@ let accountInfo = try await client.fetchAccountInfo(
 
 // 3. Claim funds
 try await client.receiveCashLink(
-    usdc: exchangedFiat.usdc,
+    underlying: exchangedFiat.underlying,
     ownerCluster: owner,
     giftCard: giftCard
 )
@@ -617,10 +656,10 @@ let estimation = curve.sell(
 )
 print(estimation.netUSDC) // USDC received
 
-// Test Fiat alignment
-let fiat1 = Fiat(quarks: 100, currencyCode: .usd, decimals: 6)
-let fiat2 = Fiat(quarks: 100, currencyCode: .usd, decimals: 2)
-let result = try fiat1.subtractingScaled(fiat2)
+// Test Quarks alignment
+let quarks1 = Quarks(quarks: 100, currencyCode: .usd, decimals: 6)
+let quarks2 = Quarks(quarks: 100, currencyCode: .usd, decimals: 2)
+let result = try quarks1.subtractingScaled(quarks2)
 // Automatically scales to common decimals
 ```
 
@@ -641,8 +680,8 @@ if let balance = session.balance(for: .usdc) {
 ```swift
 let entryRate = ratesController.rateForEntryCurrency()
 let exchanged = balance.computeExchangedValue(with: entryRate)
-// exchanged.usdc = USDC value
-// exchanged.converted = value in user's currency
+// exchanged.underlying = underlying currency value (USDC or custom token)
+// exchanged.converted = value in user's display currency
 ```
 
 **Creating ExchangedFiat:**
@@ -693,13 +732,24 @@ let exchanged = ExchangedFiat.computeFromQuarks(
    - Bonding curve integration
    - ExchangedFiat alignment
    - Database schema updates
+   - Architectural refactor: `Fiat` → `Quarks`, `usdc` → `underlying`
 
-2. **Fiat validation**
+2. **Currency-aware tolerance logic (2025-11-12)**
+   - Fixed JPY "0 Yen short" bug with small balances
+   - Tolerance now calculated per currency's decimal places:
+     - USD (2 decimals): 0.005 (half a penny)
+     - JPY (0 decimals): 0.5 (half a yen)
+     - BHD (3 decimals): 0.0005 (half a fils)
+   - Formula: `tolerance = (10^-decimals) / 2`
+   - Location: `Session.hasSufficientFunds()` (Session.swift:326-351)
+   - Test coverage: 9 comprehensive tests in SessionTests.swift
+
+3. **Fiat validation**
    - Decimal scaling
    - Cross-currency arithmetic
    - Error handling
 
-3. **Transaction tracking**
+4. **Transaction tracking**
    - Grab time recording
    - Activity history
    - Analytics events
@@ -744,7 +794,7 @@ Separate backend repository exists:
 
 ```
 Multi-Currency System:
-- FlipcashCore/Sources/FlipcashCore/Models/Fiat.swift
+- FlipcashCore/Sources/FlipcashCore/Models/Fiat.swift (contains Quarks struct)
 - FlipcashCore/Sources/FlipcashCore/Models/ExchangedFiat.swift
 - FlipcashCore/Sources/FlipcashCore/Models/BondingCurve.swift
 - FlipcashCore/Sources/FlipcashCore/Models/MintMetadata.swift

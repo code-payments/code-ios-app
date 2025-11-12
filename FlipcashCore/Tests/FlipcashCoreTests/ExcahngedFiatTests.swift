@@ -15,11 +15,11 @@ struct ExchangedFiatTests {
     @Test("Subtract fee from amount")
     func testSubtractingFeeFromAmount() throws {
         let exchangedFiat = try ExchangedFiat(
-            converted: try Fiat(fiatDecimal: 5.00, currencyCode: .cad),
+            converted: try Quarks(fiatDecimal: 5.00, currencyCode: .cad),
             rate: .init(fx: 1.37, currency: .cad)
         )
         
-        let fee = try Fiat(fiatDecimal: 0.5, currencyCode: .usd)
+        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd)
         
         let result = try exchangedFiat.subtracting(fee: fee)
         
@@ -31,11 +31,11 @@ struct ExchangedFiatTests {
     @Test("Subtract fee too large")
     func testSubtractingFeeTooLarge() throws {
         let exchangedFiat = try ExchangedFiat(
-            converted: try Fiat(fiatDecimal: 0.60, currencyCode: .cad),
+            converted: try Quarks(fiatDecimal: 0.60, currencyCode: .cad),
             rate: .init(fx: 1.37, currency: .cad)
         )
         
-        let fee = try Fiat(fiatDecimal: 0.5, currencyCode: .usd)
+        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd)
         
         #expect(throws: ExchangedFiat.Error.feeLargerThanAmount) {
             try exchangedFiat.subtracting(fee: fee)
@@ -45,11 +45,11 @@ struct ExchangedFiatTests {
     @Test("Subtract fee equal to amount")
     func testSubtractingFeeEqualToAmount() throws {
         let exchangedFiat = try ExchangedFiat(
-            converted: try Fiat(fiatDecimal: 0.50, currencyCode: .usd),
+            converted: try Quarks(fiatDecimal: 0.50, currencyCode: .usd),
             rate: .oneToOne
         )
         
-        let fee = try Fiat(fiatDecimal: 0.5, currencyCode: .usd)
+        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd)
         
         #expect(throws: ExchangedFiat.Error.feeLargerThanAmount) {
             try exchangedFiat.subtracting(fee: fee)

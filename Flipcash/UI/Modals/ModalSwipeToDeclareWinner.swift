@@ -12,7 +12,7 @@ import FlipcashCore
 public struct ModalSwipeToDeclareWinner: View {
     
     public let outcome: PoolResoltion
-    public let amount: Fiat
+    public let amount: Quarks
     public let swipeText: String
     public let cancelTitle: String
     public let paymentAction: ThrowingAction
@@ -21,7 +21,7 @@ public struct ModalSwipeToDeclareWinner: View {
     
     // MARK: - Init -
     
-    public init(outcome: PoolResoltion, amount: Fiat, swipeText: String, cancelTitle: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
+    public init(outcome: PoolResoltion, amount: Quarks, swipeText: String, cancelTitle: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
         self.outcome       = outcome
         self.amount        = amount
         self.swipeText     = swipeText

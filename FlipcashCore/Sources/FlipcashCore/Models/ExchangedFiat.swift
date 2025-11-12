@@ -12,35 +12,35 @@ import BigDecimal
 
 public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     
-    public let usdc: Fiat
-    public let converted: Fiat
+    public let underlying: Quarks
+    public let converted: Quarks
     public let rate: Rate
     public let mint: PublicKey
     
-    public init(converted: Fiat, rate: Rate, mint: PublicKey) throws {
+    public init(converted: Quarks, rate: Rate, mint: PublicKey) throws {
         assert(converted.currencyCode == rate.currency, "Rate currency must match Fiat currency")
         
         let equivalentUSD = converted.decimalValue / rate.fx
         
-        let usdc = try Fiat(
+        let underlying = try Quarks(
             fiatDecimal: equivalentUSD,
             currencyCode: .usd,
             decimals: mint.mintDecimals
         )
         
         self.init(
-            usdc: usdc,
+            underlying: underlying,
             converted: converted,
             rate: rate,
             mint: mint
         )
     }
     
-    public init(usdc: Fiat, rate: Rate, mint: PublicKey) throws {
+    public init(underlying: Quarks, rate: Rate, mint: PublicKey) throws {
         self.init(
-            usdc: usdc,
-            converted: try Fiat(
-                fiatDecimal: usdc.decimalValue * rate.fx,
+            underlying: underlying,
+            converted: try Quarks(
+                fiatDecimal: underlying.decimalValue * rate.fx,
                 currencyCode: rate.currency,
                 decimals: mint.mintDecimals
             ),
@@ -49,28 +49,32 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
-    public init(usdc: Fiat, converted: Fiat, mint: PublicKey) {
+    public init(underlying: Quarks, converted: Quarks, mint: PublicKey) {
         self.init(
-            usdc: usdc,
+            underlying: underlying,
             converted: converted,
             rate: Rate(
-                fx: converted.decimalValue / usdc.decimalValue,
+                fx: converted.decimalValue / underlying.decimalValue,
                 currency: converted.currencyCode
             ),
             mint: mint
         )
     }
     
-    public init(usdc: Fiat, converted: Fiat, rate: Rate, mint: PublicKey) {
-        assert(usdc.currencyCode == .usd, "ExchangeFiat usdc must be in USD")
+    public init(underlying: Quarks, converted: Quarks, rate: Rate, mint: PublicKey) {
+        assert(underlying.currencyCode == .usd, "ExchangeFiat usdc must be in USD")
         
-        self.usdc = usdc
+        self.underlying = underlying
         self.converted = converted
         self.rate = rate
         self.mint = mint
     }
     
     public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, tvl: UInt64?) -> ExchangedFiat {
+        // `quarks` are expected to be either USDC
+        // or custom currency quarks that we'll need
+        // to run through the bonding curve to get a
+        // valuation
         
         let exchanged: ExchangedFiat
         
@@ -98,9 +102,9 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 .multiply(fiatRate, r)
 
             exchanged = try! ExchangedFiat(
-                usdc: Fiat(
-                    quarks: quarks, // USDC value
-                    currencyCode: .usd,
+                underlying: Quarks(
+                    quarks: quarks,
+                    currencyCode: .usd, // USDC value
                     decimals: mint.mintDecimals
                 ),
                 rate: .init(
@@ -112,7 +116,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             
         } else {
             exchanged = try! ExchangedFiat(
-                usdc: Fiat(
+                underlying: Quarks(
                     quarks: quarks,
                     currencyCode: .usd,
                     decimals: PublicKey.usdc.mintDecimals
@@ -166,12 +170,12 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         let exchanged: ExchangedFiat
         if rate.currency == .usd {
             exchanged = ExchangedFiat(
-                usdc: try! Fiat(
+                underlying: try! Quarks(
                     fiatDecimal: valuation.tokens.asDecimal(),
                     currencyCode: underlyingRate.currency,
                     decimals: decimals
                 ),
-                converted: try! Fiat(
+                converted: try! Quarks(
                     fiatDecimal: amount,
                     currencyCode: underlyingRate.currency,
                     decimals: decimals
@@ -205,13 +209,13 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         }
         
         return try ExchangedFiat(
-            usdc: try usdc.subtracting(exchangedFiat.usdc),
+            underlying: try underlying.subtracting(exchangedFiat.underlying),
             rate: rate,
             mint: mint
         )
     }
     
-    public func subtracting(fee: Fiat, invert: Bool = false) throws -> ExchangedFiat {
+    public func subtracting(fee: Quarks, invert: Bool = false) throws -> ExchangedFiat {
         let feeInQuarks = fee.quarks
         
         guard rate.currency == .usd else {
@@ -220,9 +224,9 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         
         let isValidOperation: () -> Bool = {
             if invert {
-                usdc.quarks <= feeInQuarks
+                underlying.quarks <= feeInQuarks
             } else {
-                feeInQuarks <= usdc.quarks
+                feeInQuarks <= underlying.quarks
             }
         }
         
@@ -230,10 +234,10 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             throw Error.feeLargerThanAmount
         }
         
-        let remainingQuarks = invert ? feeInQuarks - usdc.quarks : usdc.quarks - feeInQuarks
+        let remainingQuarks = invert ? feeInQuarks - underlying.quarks : underlying.quarks - feeInQuarks
         
         return try ExchangedFiat(
-            usdc: Fiat(
+            underlying: Quarks(
                 quarks: remainingQuarks,
                 currencyCode: .usd,
                 decimals: mint.mintDecimals
@@ -245,7 +249,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     
     public func convert(to rate: Rate) -> ExchangedFiat {
         try! ExchangedFiat(
-            usdc: usdc,
+            underlying: underlying,
             rate: rate,
             mint: mint
         )
@@ -259,12 +263,12 @@ extension ExchangedFiat {
         let currency = try CurrencyCode(currencyCode: proto.currency)
         let mint     = try PublicKey(proto.mint.value)
         self.init(
-            usdc: Fiat(
+            underlying: Quarks(
                 quarks: proto.quarks,
                 currencyCode: .usd,
                 decimals: mint.mintDecimals
             ),
-            converted: try Fiat(
+            converted: try Quarks(
                 fiatDecimal: Decimal(proto.nativeAmount),
                 currencyCode: currency,
                 decimals: mint.mintDecimals
@@ -281,13 +285,13 @@ extension ExchangedFiat {
         let currency = try CurrencyCode(currencyCode: proto.currency)
         let mint     = try PublicKey(proto.mint.value)
         self.init(
-            usdc: Fiat(
+            underlying: Quarks(
                 quarks: proto.quarks,
                 currencyCode: .usd,
                 decimals: mint.mintDecimals
             ),
-            // Rate is auto-calculated based on converted / usdc
-            converted: try Fiat(
+            // Rate is auto-calculated based on converted / underlying
+            converted: try Quarks(
                 fiatDecimal: Decimal(proto.nativeAmount),
                 currencyCode: currency,
                 decimals: mint.mintDecimals
@@ -300,8 +304,8 @@ extension ExchangedFiat {
 extension ExchangedFiat {
     public var descriptionDictionary: [String: String] {
         [
-            "usdc": usdc.formatted(suffix: nil),
-            "quarks": "\(usdc.quarks)",
+            "usdc": underlying.formatted(suffix: nil),
+            "quarks": "\(underlying.quarks)",
             "fx": rate.fx.formatted(),
             "converted": converted.formatted(suffix: nil),
             "currency": rate.currency.rawValue.uppercased(),

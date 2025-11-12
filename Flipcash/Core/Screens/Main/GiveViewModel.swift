@@ -19,7 +19,7 @@ class GiveViewModel: ObservableObject {
     @Published var dialogItem: DialogItem?
     
     var canGive: Bool {
-        enteredFiat != nil && (enteredFiat?.usdc.quarks ?? 0) > 0
+        enteredFiat != nil && (enteredFiat?.underlying.quarks ?? 0) > 0
     }
     
     let container: Container

@@ -15,7 +15,7 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
     public let creatorUserID: UserID
     public let creationDate: Date
     public let name: String
-    public let buyIn: Fiat
+    public let buyIn: Quarks
 
     public var isOpen: Bool
     public var isHost: Bool
@@ -29,15 +29,15 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
     public let isFundingDestinationInitialized: Bool
     public let userOutcome: UserOutcome
     
-    var amountInPool: Fiat {
-        Fiat(
+    var amountInPool: Quarks {
+        Quarks(
             quarks: buyIn.quarks * UInt64(betCountYes + betCountNo),
             currencyCode: buyIn.currencyCode,
             decimals: 6
         )
     }
     
-    var payout: Fiat? {
+    var payout: Quarks? {
         if let resolution = resolution {
             return payoutFor(resolution: resolution)
         }
@@ -58,17 +58,17 @@ struct StoredPool: Identifiable, Sendable, Equatable, Hashable {
 //        )
 //    }
     
-    func payoutFor(resolution: PoolResoltion) -> Fiat {
+    func payoutFor(resolution: PoolResoltion) -> Quarks {
         let winnerCount = winnerCount(for: resolution)
         guard winnerCount > 0 else {
-            return Fiat(
+            return Quarks(
                 quarks: 0 as UInt64,
                 currencyCode: buyIn.currencyCode,
                 decimals: 6
             )
         }
         
-        return Fiat(
+        return Quarks(
             quarks: amountInPool.quarks / UInt64(winnerCount),
             currencyCode: buyIn.currencyCode,
             decimals: 6

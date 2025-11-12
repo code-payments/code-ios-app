@@ -81,11 +81,11 @@ struct PoolDetailsScreen: View {
 //        pool?.amountOnNo ?? 0
 //    }
     
-    private var amountInPool: Fiat {
+    private var amountInPool: Quarks {
         pool?.amountInPool ?? 0
     }
     
-    private var buyIn: Fiat {
+    private var buyIn: Quarks {
         pool?.buyIn ?? 0
     }
     

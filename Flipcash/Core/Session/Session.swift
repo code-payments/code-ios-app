@@ -52,7 +52,7 @@ class Session: ObservableObject {
 //    
 //    var exchangedBalance: ExchangedFiat {
 //        try! ExchangedFiat(
-//            usdc: totalUSDC,
+//            underlying: totalUSDC,
 //            rate: ratesController.rateForBalanceCurrency(),
 //            mint: .usdc
 //        )
@@ -60,17 +60,17 @@ class Session: ObservableObject {
 //    
 //    var exchangedEntryBalance: ExchangedFiat {
 //        try! ExchangedFiat(
-//            usdc: totalUSDC,
+//            underlying: totalUSDC,
 //            rate: ratesController.rateForEntryCurrency(),
 //            mint: .usdc
 //        )
 //    }
     
-    var nextTransactionLimit: Fiat? {
+    var nextTransactionLimit: Quarks? {
         nextTransactionLimit(currency: ratesController.rateForEntryCurrency().currency)
     }
     
-    func nextTransactionLimit(currency: CurrencyCode) -> Fiat? {
+    func nextTransactionLimit(currency: CurrencyCode) -> Quarks? {
         guard let limits else {
             return nil
         }
@@ -82,11 +82,11 @@ class Session: ObservableObject {
         return limit.nextTransaction
     }
     
-    var singleTransactionLimit: Fiat? {
+    var singleTransactionLimit: Quarks? {
         singleTransactionLimitFor(currency: ratesController.entryCurrency)
     }
     
-    func singleTransactionLimitFor(currency: CurrencyCode) -> Fiat? {
+    func singleTransactionLimitFor(currency: CurrencyCode) -> Quarks? {
         guard let limits else {
             return nil
         }
@@ -122,14 +122,14 @@ class Session: ObservableObject {
         }
         
         let balanceMint = PublicKey.usdc
-        let totalUSD    = try! Fiat(
+        let totalUSD    = try! Quarks(
             fiatDecimal: usdBalance,
             currencyCode: .usd,
             decimals: balanceMint.mintDecimals
         )
         
         let exchanged = try! ExchangedFiat(
-            usdc: totalUSD,
+            underlying: totalUSD,
             rate: ratesController.rateForBalanceCurrency(),
             mint: .usdc
         )
@@ -312,7 +312,7 @@ class Session: ObservableObject {
     }
     
     func hasSufficientFunds(for exchangedFiat: ExchangedFiat) -> SufficientFundsResult {
-        guard exchangedFiat.usdc.quarks > 0 else {
+        guard exchangedFiat.underlying.quarks > 0 else {
             return .insufficient(shortfall: nil)
         }
 
@@ -323,7 +323,7 @@ class Session: ObservableObject {
         let entryRate = ratesController.rateForEntryCurrency()
         let exchangedBalance = balance.computeExchangedValue(with: entryRate)
 
-        if exchangedFiat.usdc <= exchangedBalance.usdc {
+        if exchangedFiat.underlying <= exchangedBalance.underlying {
             // Sufficient funds - send the requested amount
             return .sufficient(amountToSend: exchangedFiat)
         } else {
@@ -497,7 +497,7 @@ class Session: ObservableObject {
     
     // MARK: - Withdrawals -
     
-    func withdraw(exchangedFiat: ExchangedFiat, fee: Fiat, to destinationMetadata: DestinationMetadata) async throws {
+    func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, to destinationMetadata: DestinationMetadata) async throws {
         let rendezvous = PublicKey.generate()!
         let mint = exchangedFiat.mint
         do {
@@ -934,7 +934,7 @@ class Session: ObservableObject {
                 
                 // Deposit the gift card
                 try await client.receiveCashLink(
-                    usdc: exchangedFiat.usdc,
+                    usdc: exchangedFiat.underlying,
                     ownerCluster: owner.use(
                         mint: vmMint,
                         timeAuthority: vmAuthority

@@ -1,5 +1,5 @@
 //
-//  Fiat.swift
+//  Quarks.swift
 //  FlipchatServices
 //
 //  Created by Dima Bart.
@@ -8,7 +8,7 @@
 
 import Foundation
 
-public struct Fiat: Equatable, Hashable, Codable, Sendable {
+public struct Quarks: Equatable, Hashable, Codable, Sendable {
     
     public let quarks: UInt64
     public let currencyCode: CurrencyCode
@@ -74,8 +74,8 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
-    public static func zero(currencyCode: CurrencyCode, decimals: Int) -> Fiat {
-        Fiat(
+    public static func zero(currencyCode: CurrencyCode, decimals: Int) -> Quarks {
+        Quarks(
             quarks: 0 as UInt64,
             currencyCode: currencyCode,
             decimals: decimals
@@ -84,7 +84,7 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     
     // MARK: - Operations -
     
-    public func adding(_ value: Fiat) throws -> Fiat {
+    public func adding(_ value: Quarks) throws -> Quarks {
         guard value.currencyCode == currencyCode else {
             throw Error.currencyCodeMismatch
         }
@@ -100,7 +100,7 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
         )
     }
     
-    public func subtracting(_ value: Fiat) throws -> Fiat {
+    public func subtracting(_ value: Quarks) throws -> Quarks {
         guard value.currencyCode == currencyCode else {
             throw Error.currencyCodeMismatch
         }
@@ -113,14 +113,14 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
             throw Error.invalidNegativeValue
         }
         
-        return Fiat(
+        return Quarks(
             quarks: quarks - value.quarks,
             currencyCode: currencyCode,
             decimals: decimals
         )
     }
     
-    public func subtractingScaled(_ value: Fiat) throws -> Fiat {
+    public func subtractingScaled(_ value: Quarks) throws -> Quarks {
         guard value.currencyCode == currencyCode else {
             throw Error.currencyCodeMismatch
         }
@@ -131,7 +131,7 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
             throw Error.invalidNegativeValue
         }
         
-        return Fiat(
+        return Quarks(
             quarks: lhs.quarks - rhs.quarks,
             currencyCode: currencyCode,
             decimals: decimals
@@ -141,19 +141,19 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     /// Returns a copy of this Fiat scaled to `targetDecimals`.
     /// If `targetDecimals` is greater than `decimals`, quarks are scaled up.
     /// If smaller, quarks are scaled down. Currency code is preserved.
-    private func scaled(to targetDecimals: Int) -> Fiat {
+    private func scaled(to targetDecimals: Int) -> Quarks {
         if targetDecimals == decimals {
             return self
         } else if targetDecimals > decimals {
             let diff = targetDecimals - decimals
-            return Fiat(
+            return Quarks(
                 quarks: quarks.scaleUp(diff),
                 currencyCode: currencyCode,
                 decimals: targetDecimals
             )
         } else {
             let diff = decimals - targetDecimals
-            return Fiat(
+            return Quarks(
                 quarks: quarks.scaleDownInt(diff),
                 currencyCode: currencyCode,
                 decimals: targetDecimals
@@ -164,7 +164,7 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     /// Aligns `self` and `other` to a common decimal precision (the maximum of the two).
     /// - Returns: `(lhs, rhs, targetDecimals)` where both amounts are scaled to `targetDecimals`.
     /// - Throws: `Error.currencyCodeMismatch` if the currency codes differ.
-    private func align(with other: Fiat) throws -> (lhs: Fiat, rhs: Fiat, decimals: Int) {
+    private func align(with other: Quarks) throws -> (lhs: Quarks, rhs: Quarks, decimals: Int) {
         guard other.currencyCode == currencyCode else {
             throw Error.currencyCodeMismatch
         }
@@ -180,8 +180,8 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
     
     // MARK: - Fee -
     
-    public func calculateFee(bps: Int) -> Fiat {
-        Fiat(
+    public func calculateFee(bps: Int) -> Quarks {
+        Quarks(
             quarks: quarks * UInt64(bps) / 10_000,
             currencyCode: currencyCode,
             decimals: decimals
@@ -191,7 +191,7 @@ public struct Fiat: Equatable, Hashable, Codable, Sendable {
 
 // MARK: - Errors -
 
-extension Fiat {
+extension Quarks {
     public enum Error: Swift.Error {
         case invalidNegativeValue
         case currencyCodeMismatch
@@ -201,7 +201,7 @@ extension Fiat {
 
 // MARK: - Formatting -
 
-extension Fiat {
+extension Quarks {
     public func formatted(showAllDecimals: Bool = false, truncated: Bool = false, suffix: String? = nil) -> String {
         let digits = showAllDecimals ? 6 : currencyCode.maximumFractionDigits
         return NumberFormatter.fiat(
@@ -216,7 +216,7 @@ extension Fiat {
 
 // MARK: - Description -
 
-extension Fiat: CustomStringConvertible, CustomDebugStringConvertible {
+extension Quarks: CustomStringConvertible, CustomDebugStringConvertible {
     public var description: String {
         formatted(suffix: nil)
     }
@@ -228,9 +228,9 @@ extension Fiat: CustomStringConvertible, CustomDebugStringConvertible {
 
 // MARK: - Fiat -
 
-extension Fiat {
-    public func converting(to rate: Rate, decimals: Int) -> Fiat {
-        try! Fiat(
+extension Quarks {
+    public func converting(to rate: Rate, decimals: Int) -> Quarks {
+        try! Quarks(
             fiatDecimal: Decimal(quarks).scaleDown(decimals) * rate.fx,
             currencyCode: rate.currency,
             decimals: decimals
@@ -240,13 +240,13 @@ extension Fiat {
 
 // MARK: - ExpressibleByIntegerLiteral -
 
-extension Fiat: ExpressibleByIntegerLiteral {
+extension Quarks: ExpressibleByIntegerLiteral {
     public init(integerLiteral value: UInt64) {
         self.init(fiatUnsigned: value, currencyCode: .usd, decimals: 6)
     }
 }
 
-extension Fiat: ExpressibleByFloatLiteral {
+extension Quarks: ExpressibleByFloatLiteral {
     public init(floatLiteral value: FloatLiteralType) {
         try! self.init(fiatDecimal: Decimal(value), currencyCode: .usd, decimals: 6)
     }
@@ -254,7 +254,7 @@ extension Fiat: ExpressibleByFloatLiteral {
 
 // MARK: - Comparable -
 
-extension Fiat: Comparable {
+extension Quarks: Comparable {
     public static func < (lhs: Self, rhs: Self) -> Bool {
         do {
             let (l, r, _) = try lhs.align(with: rhs)

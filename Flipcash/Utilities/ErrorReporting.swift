@@ -37,7 +37,7 @@ enum ErrorReporting {
         }
     }
     
-    static func breadcrumb(name: String, metadata: [String: Any] = [:], exchangedFiat: ExchangedFiat? = nil, fiat: Fiat? = nil, type: BreadcrumbType) {
+    static func breadcrumb(name: String, metadata: [String: Any] = [:], exchangedFiat: ExchangedFiat? = nil, fiat: Quarks? = nil, type: BreadcrumbType) {
         var container: [String: Any] = [:]
         
         metadata.forEach { key, value in
@@ -66,7 +66,7 @@ enum ErrorReporting {
         }
     }
     
-    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, fiat: Fiat, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
+    static func capturePayment(error: Swift.Error, rendezvous: PublicKey, fiat: Quarks, reason: String? = nil, file: String = #file, function: String = #function, line: Int = #line) {
         capture(error, reason: reason, file: file, function: function, line: line) { userInfo in
             userInfo["rendezvous"] = rendezvous.base58
             userInfo["usdc"]       = fiat.formatted()

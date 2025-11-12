@@ -22,7 +22,7 @@ extension Client {
         }
     }
     
-    public func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey) async throws -> Fiat {
+    public func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey) async throws -> Quarks {
         try await withCheckedThrowingContinuation { c in
             accountService.fetchLinkedAccountBalance(owner: owner, account: account) { c.resume(with: $0) }
         }

@@ -11,13 +11,13 @@ import FlipcashCore
 
 struct FiatTests {
     
-    static let value = Fiat(
+    static let value = Quarks(
         quarks: 123_456_789 as UInt64,
         currencyCode: .cad,
         decimals: 6
     )
     
-    static let coinValue = Fiat(
+    static let coinValue = Quarks(
         quarks: 123_456_789_000 as UInt64,
         currencyCode: .cad,
         decimals: 10
@@ -37,34 +37,34 @@ struct FiatTests {
     
     @Test
     static func testInvalidValues() throws {
-        #expect(throws: Fiat.Error.invalidNegativeValue) {
-            try Fiat(quarks: -1 as Int64, currencyCode: .cad, decimals: 6)
+        #expect(throws: Quarks.Error.invalidNegativeValue) {
+            try Quarks(quarks: -1 as Int64, currencyCode: .cad, decimals: 6)
         }
         
-        #expect(throws: Fiat.Error.invalidNegativeValue) {
-            try Fiat(fiatInt: -1 as Int, currencyCode: .cad, decimals: 6)
+        #expect(throws: Quarks.Error.invalidNegativeValue) {
+            try Quarks(fiatInt: -1 as Int, currencyCode: .cad, decimals: 6)
         }
         
-        #expect(throws: Fiat.Error.invalidNegativeValue) {
-            try Fiat(fiatDecimal: -0.01 as Decimal, currencyCode: .cad, decimals: 6)
+        #expect(throws: Quarks.Error.invalidNegativeValue) {
+            try Quarks(fiatDecimal: -0.01 as Decimal, currencyCode: .cad, decimals: 6)
         }
     }
     
     @Test
     static func testMathThrows() throws {
-        #expect(throws: Fiat.Error.decimalMismatch) {
+        #expect(throws: Quarks.Error.decimalMismatch) {
             try value.subtracting(coinValue)
         }
         
-        #expect(throws: Fiat.Error.decimalMismatch) {
+        #expect(throws: Quarks.Error.decimalMismatch) {
             try value.adding(coinValue)
         }
     }
     
     @Test
     static func testAdditionMatchingDecimals() throws {
-        let lhs = Fiat(quarks: 111_111 as UInt64, currencyCode: .cad, decimals: 6)
-        let rhs = Fiat(quarks: 222_222 as UInt64, currencyCode: .cad, decimals: 6)
+        let lhs = Quarks(quarks: 111_111 as UInt64, currencyCode: .cad, decimals: 6)
+        let rhs = Quarks(quarks: 222_222 as UInt64, currencyCode: .cad, decimals: 6)
         
         let result = try lhs.adding(rhs)
         
@@ -114,7 +114,7 @@ struct FiatTests {
     @Test
     static func testFiatFormatting_JPY() {
         // JPY should format without decimal places
-        let jpy = Fiat(quarks: 1000 as UInt64, currencyCode: .jpy, decimals: 0)
+        let jpy = Quarks(quarks: 1000 as UInt64, currencyCode: .jpy, decimals: 0)
         let formatted = jpy.formatted()
 
         // Should show ¥1,000 not ¥1,000.00
@@ -124,7 +124,7 @@ struct FiatTests {
     @Test
     static func testFiatFormatting_USD() {
         // USD can show decimals when needed
-        let usd = Fiat(quarks: 1_234_560 as UInt64, currencyCode: .usd, decimals: 6)
+        let usd = Quarks(quarks: 1_234_560 as UInt64, currencyCode: .usd, decimals: 6)
         let formatted = usd.formatted()
 
         // Should show $1.23 (rounded, with decimals)
@@ -134,7 +134,7 @@ struct FiatTests {
     @Test
     static func testFiatFormatting_JPY_WithDecimals() {
         // Even if JPY Fiat has fractional quarks, formatting should truncate
-        let jpy = Fiat(quarks: 1000 as UInt64, currencyCode: .jpy, decimals: 2)
+        let jpy = Quarks(quarks: 1000 as UInt64, currencyCode: .jpy, decimals: 2)
         let formatted = jpy.formatted()
 
         // Should show ¥10 (1000 quarks / 100 decimals = 10), no decimal places

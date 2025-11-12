@@ -95,12 +95,12 @@ extension Database {
                 kind: kind,
                 title: row[a.title],
                 exchangedFiat: ExchangedFiat(
-                    usdc: Fiat(
+                    underlying: Quarks(
                         quarks: row[a.quarks],
                         currencyCode: .usd,
                         decimals: mint.mintDecimals
                     ),
-                    converted: try Fiat(
+                    converted: try Quarks(
                         fiatDecimal: Decimal(row[a.nativeAmount]),
                         currencyCode: row[a.currency],
                         decimals: mint.mintDecimals
@@ -146,7 +146,7 @@ extension Database {
                 table.kind         <- activity.kind.rawValue,
                 table.state        <- activity.state.rawValue,
                 table.title        <- activity.title,
-                table.quarks       <- activity.exchangedFiat.usdc.quarks,
+                table.quarks       <- activity.exchangedFiat.underlying.quarks,
                 table.nativeAmount <- activity.exchangedFiat.converted.doubleValue,
                 table.currency     <- activity.exchangedFiat.converted.currencyCode,
                 table.mint         <- activity.exchangedFiat.mint,

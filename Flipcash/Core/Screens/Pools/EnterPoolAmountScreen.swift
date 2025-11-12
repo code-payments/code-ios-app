@@ -33,7 +33,7 @@ struct EnterPoolAmountScreen: View {
                 subtitle: .singleTransactionLimit,
                 actionState: .constant(.normal),
                 actionEnabled: { _ in
-                    viewModel.enteredPoolFiat != nil && (viewModel.enteredPoolFiat?.usdc.quarks ?? 0) > 0
+                    viewModel.enteredPoolFiat != nil && (viewModel.enteredPoolFiat?.underlying.quarks ?? 0) > 0
                 },
                 action: viewModel.submitPoolAmountAction,
                 currencySelectionAction: showCurrencySelection

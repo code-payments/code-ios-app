@@ -19,7 +19,7 @@ extension CashCode {
         
         let rendezvous: KeyPair
         
-        init(kind: Kind, fiat: Fiat, nonce: Data) {
+        init(kind: Kind, fiat: Quarks, nonce: Data) {
             self.init(
                 kind: kind,
                 value: .fiat(fiat),
@@ -38,7 +38,7 @@ extension CashCode {
             }
         }
         
-        var fiat: Fiat {
+        var fiat: Quarks {
             switch value {
             case .fiat(let fiat):
                 return fiat
@@ -51,7 +51,7 @@ extension CashCode {
 
 extension CashCode.Payload {
     enum Value: Equatable {
-        case fiat(Fiat)
+        case fiat(Quarks)
     }
 }
 

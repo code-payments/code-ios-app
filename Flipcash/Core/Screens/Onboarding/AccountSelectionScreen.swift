@@ -216,14 +216,14 @@ struct AccountSelectionScreen: View {
                             }
 
                             // Convert total USDC to display currency
-                            let usdcFiat = Fiat(
+                            let usdcFiat = Quarks(
                                 quarks: totalUSDCQuarks,
                                 currencyCode: .usd,
                                 decimals: PublicKey.usdc.mintDecimals
                             )
 
                             let exchangedFiat = try ExchangedFiat(
-                                usdc: usdcFiat,
+                                underlying: usdcFiat,
                                 rate: rate,
                                 mint: .usdc
                             )

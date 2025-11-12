@@ -14,7 +14,7 @@ struct ExchangedFiatTests {
     static let rate = Rate(fx: 1.4, currency: .cad)
     
     static let lhs = try! ExchangedFiat(
-        usdc: Fiat(
+        underlying: Quarks(
             quarks: 1_000_000 as UInt64,
             currencyCode: .usd,
             decimals: 10
@@ -24,7 +24,7 @@ struct ExchangedFiatTests {
     )
     
     static let rhs = try! ExchangedFiat(
-        usdc: Fiat(
+        underlying: Quarks(
             quarks: 500_000 as UInt64,
             currencyCode: .usd,
             decimals: 10
@@ -39,7 +39,7 @@ struct ExchangedFiatTests {
     static func testSimpleSubstraction() throws {
         let result = try lhs.subtracting(rhs)
         
-        #expect(result.usdc.quarks == 500_000)
+        #expect(result.underlying.quarks == 500_000)
         #expect(result.rate        == rate)
         #expect(result.mint        == lhs.mint)
     }
@@ -47,11 +47,11 @@ struct ExchangedFiatTests {
     @Test
     static func testSubstractionErrors() throws {
         #expect(throws: ExchangedFiat.Error.mismatchedMint) {
-            try lhs.subtracting(ExchangedFiat(usdc: 1, rate: rate, mint: .usdcAuthority))
+            try lhs.subtracting(ExchangedFiat(underlying: 1, rate: rate, mint: .usdcAuthority))
         }
         
         #expect(throws: ExchangedFiat.Error.mismatchedMint) {
-            try lhs.subtracting(ExchangedFiat(usdc: 1, rate: Rate(fx: 1.4, currency: .aed), mint: .usdcAuthority))
+            try lhs.subtracting(ExchangedFiat(underlying: 1, rate: Rate(fx: 1.4, currency: .aed), mint: .usdcAuthority))
         }
     }
     
@@ -73,11 +73,11 @@ struct ExchangedFiatTests {
             tvl: 1_000_000_000
         )
         
-        #expect(usd.usdc.quarks               == 55_14_59_074_093) // 55.12 Tokens
+        #expect(usd.underlying.quarks               == 55_14_59_074_093) // 55.12 Tokens
         #expect(usd.converted.quarks          ==    59_98_171_930) // 0.59  USD
         #expect(usd.rate.fx.formatted(to: 10) == "0.0108769122")
         
-        #expect(cad.usdc.quarks               == 55_14_59_074_093) // 55.12 Tokens
+        #expect(cad.underlying.quarks               == 55_14_59_074_093) // 55.12 Tokens
         #expect(cad.converted.quarks          ==    83_97_440_702) // 0.83  CAD
         #expect(cad.rate.fx.formatted(to: 10) == "0.0152276771")
     }
@@ -91,7 +91,7 @@ struct ExchangedFiatTests {
             tvl: 1_000_000_000
         )
         
-        #expect(usd.usdc.quarks               == 0) // 55.12 Tokens
+        #expect(usd.underlying.quarks               == 0) // 55.12 Tokens
         #expect(usd.converted.quarks          == 0) // 0.59  USD
         #expect(usd.rate.fx.formatted(to: 10) == "0.0108771753")
     }
@@ -112,11 +112,11 @@ struct ExchangedFiatTests {
             tvl: 1_000_000_000_000
         )
         
-        #expect(usd.usdc.quarks               == 100_500_14_59_074_093) // 100,500.14 Tokens
+        #expect(usd.underlying.quarks               == 100_500_14_59_074_093) // 100,500.14 Tokens
         #expect(usd.converted.quarks          ==  85_344_16_97_277_396) // $85,344.16 USD
         #expect(usd.rate.fx.formatted(to: 10) == "0.8491944858")
         
-        #expect(cad.usdc.quarks               == 100_500_14_59_074_093) // 100,500.14 Tokens
+        #expect(cad.underlying.quarks               == 100_500_14_59_074_093) // 100,500.14 Tokens
         #expect(cad.converted.quarks          == 119_481_83_76_188_355) // 119.481.83 CAD
         #expect(cad.rate.fx.formatted(to: 10) == "1.1888722801")
     }
@@ -138,13 +138,13 @@ struct ExchangedFiatTests {
         )!
         
         
-        #expect((Decimal(usd.usdc.quarks) / Decimal(cad.usdc.quarks)).formatted(to: 3) == "1.400")
+        #expect((Decimal(usd.underlying.quarks) / Decimal(cad.underlying.quarks)).formatted(to: 3) == "1.400")
         
-        #expect(usd.usdc.quarks               == 59_00_15_267_757) // 59.00 Tokens
+        #expect(usd.underlying.quarks               == 59_00_15_267_757) // 59.00 Tokens
         #expect(usd.converted.quarks          == 5899999999)       // $0.59 USD
         #expect(usd.rate.fx.formatted(to: 10) == "0.0099997412")
         
-        #expect(cad.usdc.quarks               == 42_14_36_360_951) // 42.14 Tokens
+        #expect(cad.underlying.quarks               == 42_14_36_360_951) // 42.14 Tokens
         #expect(cad.converted.quarks          == 5899999999)       // $0.59 CAD
         #expect(cad.rate.fx.formatted(to: 10) == "0.0139997412")
     }
@@ -178,7 +178,7 @@ struct ExchangedFiatTests {
                 )
                 
                 let supplyStr  = "\(supply)".padded(to: 20)
-                let underlying = "\(exchanged!.usdc.quarks)".padded(to: 20)
+                let underlying = "\(exchanged!.underlying.quarks)".padded(to: 20)
                 let converted  = exchanged!.converted.formatted().padded(to: 20)
                 
                 output.append("\(supplyStr) \(underlying) \(converted)\n")
@@ -256,7 +256,7 @@ struct ExchangedFiatTests {
             )
             
             let tvlStr     = "\(tvl)".padded(to: 20)
-            let underlying = "\(exchanged.usdc.quarks)".padded(to: 20)
+            let underlying = "\(exchanged.underlying.quarks)".padded(to: 20)
             let converted  = exchanged.converted.formatted().padded(to: 20)
             
             tvl *= 10

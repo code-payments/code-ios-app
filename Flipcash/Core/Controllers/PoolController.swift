@@ -177,7 +177,7 @@ class PoolController: ObservableObject {
         }
     }
     
-    func createPool(name: String, buyIn: Fiat) async throws -> PublicKey {
+    func createPool(name: String, buyIn: Quarks) async throws -> PublicKey {
         let info = try await client.fetchAccountInfo(
             type: .primary,
             owner: ownerKeyPair
@@ -350,7 +350,7 @@ class PoolController: ObservableObject {
 }
 
 extension Array where Element == StoredBet {
-    func distributePool(balance: Fiat) -> [PoolDistribution] {
+    func distributePool(balance: Quarks) -> [PoolDistribution] {
         // Calculate distributions based on the total pool balance
         // and the number of winning bets to pay out
         let count              = UInt64(self.count)
@@ -360,7 +360,7 @@ extension Array where Element == StoredBet {
         let distributions: [PoolDistribution] = self.enumerated().map { index, bet in
             .init(
                 destination: bet.payoutDestination,
-                amount: Fiat(
+                amount: Quarks(
                     quarks: distributionQuarks + (index < remainderQuarks ? 1 : 0),
                     currencyCode: balance.currencyCode,
                     decimals: 6

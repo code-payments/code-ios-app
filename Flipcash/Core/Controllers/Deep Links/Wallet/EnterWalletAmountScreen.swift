@@ -18,7 +18,7 @@ struct EnterWalletAmountScreen: View {
     
 //    @State private var isShowingCurrencySelection: Bool = false
     
-    private var fiat: Fiat? {
+    private var fiat: Quarks? {
         guard !enteredAmount.isEmpty else {
             return nil
         }
@@ -27,18 +27,18 @@ struct EnterWalletAmountScreen: View {
             return nil
         }
         
-        return try! Fiat(
+        return try! Quarks(
             fiatDecimal: amount,
             currencyCode: .usd,
             decimals: PublicKey.usdc.mintDecimals
         )
     }
     
-    private let amountEntered: (Fiat) async throws -> Void
+    private let amountEntered: (Quarks) async throws -> Void
     
     // MARK: - Init -
     
-    init(amountEntered: @escaping (Fiat) async throws -> Void) {
+    init(amountEntered: @escaping (Quarks) async throws -> Void) {
         self.amountEntered = amountEntered
     }
     

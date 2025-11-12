@@ -11,7 +11,7 @@ import FlipcashCore
 
 public struct ModalSwipeToBet: View {
     
-    public let fiat: Fiat
+    public let fiat: Quarks
     public let subtext: String
     public let swipeText: String
     public let cancelTitle: String
@@ -21,7 +21,7 @@ public struct ModalSwipeToBet: View {
     
     // MARK: - Init -
     
-    public init(fiat: Fiat, subtext: String, swipeText: String, cancelTitle: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
+    public init(fiat: Quarks, subtext: String, swipeText: String, cancelTitle: String, paymentAction: @escaping ThrowingAction, dismissAction: @escaping VoidAction, cancelAction: @escaping VoidAction) {
         self.fiat = fiat
         self.subtext = subtext
         self.swipeText = swipeText

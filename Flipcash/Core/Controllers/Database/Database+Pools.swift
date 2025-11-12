@@ -55,7 +55,7 @@ extension Database {
                 creatorUserID:  row[t.creatorUserID],
                 creationDate:   row[t.creationDate],
                 name:           row[t.name],
-                buyIn: Fiat(
+                buyIn: Quarks(
                     quarks:       row[t.buyInQuarks],
                     currencyCode: row[t.buyInCurrency],
                     decimals: 6
@@ -83,7 +83,7 @@ extension Database {
         
         let userOutcome: UserOutcome
         if userOutcomeInt != UserOutcome.none.intValue {
-            let amount = Fiat(
+            let amount = Quarks(
                 quarks:       row[t.userOutcomeQuarks] ?? 0,
                 currencyCode: row[t.userOutcomeCurrency] ?? .usd,
                 decimals: 6
@@ -138,7 +138,7 @@ extension Database {
                 creatorUserID:  row[t.creatorUserID],
                 creationDate:   row[t.creationDate],
                 name:           row[t.name],
-                buyIn: Fiat(
+                buyIn: Quarks(
                     quarks:       row[t.buyInQuarks],
                     currencyCode: row[t.buyInCurrency],
                     decimals: 6

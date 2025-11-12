@@ -125,7 +125,7 @@ struct CurrencyLabel: View {
     
     let imageURL: URL?
     let name: String
-    let amount: Fiat?
+    let amount: Quarks?
     
     var body: some View {
         HStack(spacing: 8) {

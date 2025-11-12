@@ -35,7 +35,7 @@ struct ToastQueue {
 }
 
 struct Toast: Equatable, Hashable {
-    let amount: Fiat
+    let amount: Quarks
     let isDeposit: Bool
     
     func negates(toast: Toast) -> Bool {

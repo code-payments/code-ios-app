@@ -13,7 +13,7 @@ import FlipcashUI
 public struct ModalCashReceived: View {
     
     public let title: String
-    public let fiat: Fiat
+    public let fiat: Quarks
     public let currencyName: String
     public let currencyImageURL: URL?
     public let actionTitle: String
@@ -21,7 +21,7 @@ public struct ModalCashReceived: View {
     
     // MARK: - Init -
     
-    public init(title: String, fiat: Fiat, currencyName: String, currencyImageURL: URL?, actionTitle: String, dismissAction: @escaping VoidAction) {
+    public init(title: String, fiat: Quarks, currencyName: String, currencyImageURL: URL?, actionTitle: String, dismissAction: @escaping VoidAction) {
         self.title = title
         self.fiat = fiat
         self.currencyName = currencyName

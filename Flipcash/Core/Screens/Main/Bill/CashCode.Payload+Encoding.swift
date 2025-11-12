@@ -47,7 +47,7 @@ extension CashCode.Payload {
                 }
                 
                 value = .fiat(
-                    Fiat(
+                    Quarks(
                         quarks: quarks,
                         currencyCode: currencyCode,
                         decimals: 6 // We don't have any other info at this point
@@ -70,7 +70,7 @@ extension CashCode.Payload {
         )
     }
     
-    static func encode(kind: Kind, fiat: Fiat, nonce: Data) -> Data {
+    static func encode(kind: Kind, fiat: Quarks, nonce: Data) -> Data {
         var data = Data(count: CashCode.Payload.length)
         
         let amount = fiat.quarks

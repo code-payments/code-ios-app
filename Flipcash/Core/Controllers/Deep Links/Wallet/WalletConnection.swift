@@ -192,7 +192,7 @@ public final class WalletConnection: ObservableObject {
     
     /// Uses Phantom `signAllTransactions` (replaces deprecated `signAndSendTransaction`) to sign a single
     /// TokenProgram.transferChecked for a USDC (SPL Token) transfer. Phantom returns signed tx; your backend/client should broadcast it.
-    func requestTransfer(usdc: Fiat) async throws {
+    func requestTransfer(usdc: Quarks) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             print("[WalletConnection] Error: no connected session")
             return

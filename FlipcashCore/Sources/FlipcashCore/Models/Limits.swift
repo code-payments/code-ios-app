@@ -42,15 +42,15 @@ public struct SendLimit: Codable, Equatable, Hashable, Sendable {
     public static let zero = SendLimit(nextTransaction: 0, maxPerTransaction: 0, maxPerDay: 0)
     
     /// Remaining limit to apply on the next transaction
-    public var nextTransaction: Fiat
+    public var nextTransaction: Quarks
 
     /// Maximum allowed on a per-transaction basis
-    public var maxPerTransaction: Fiat
+    public var maxPerTransaction: Quarks
 
     /// Maximum allowed on a per-day basis
-    public var maxPerDay: Fiat
+    public var maxPerDay: Quarks
     
-    public init(nextTransaction: Fiat, maxPerTransaction: Fiat, maxPerDay: Fiat) {
+    public init(nextTransaction: Quarks, maxPerTransaction: Quarks, maxPerDay: Quarks) {
         self.nextTransaction = nextTransaction
         self.maxPerTransaction = maxPerTransaction
         self.maxPerDay = maxPerDay
@@ -69,19 +69,19 @@ extension Limits {
                 return nil
             }
             
-            let nextTransaction = try! Fiat(
+            let nextTransaction = try! Quarks(
                 fiatDecimal: Decimal(Double(limit.nextTransaction)),
                 currencyCode: currency,
                 decimals: decimals
             )
             
-            let maxPerTransaction = try! Fiat(
+            let maxPerTransaction = try! Quarks(
                 fiatDecimal: Decimal(Double(limit.maxPerTransaction)),
                 currencyCode: currency,
                 decimals: decimals
             )
             
-            let maxPerDay = try! Fiat(
+            let maxPerDay = try! Quarks(
                 fiatDecimal: Decimal(Double(limit.maxPerDay)),
                 currencyCode: currency,
                 decimals: decimals

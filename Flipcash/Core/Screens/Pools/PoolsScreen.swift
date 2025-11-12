@@ -324,9 +324,9 @@ struct ResultBadge: View {
     
     let style: Style
     let text: String
-    let amount: Fiat?
+    let amount: Quarks?
     
-    init(style: Style, text: String, amount: Fiat?) {
+    init(style: Style, text: String, amount: Quarks?) {
         self.style  = style
         self.text   = text
         self.amount = amount

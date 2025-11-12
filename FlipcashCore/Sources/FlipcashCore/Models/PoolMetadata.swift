@@ -48,14 +48,14 @@ public struct PoolMetadata: Identifiable, Sendable, Equatable, Hashable {
     public let creatorUserID: UserID
     public let creationDate: Date
     public let name: String
-    public let buyIn: Fiat
+    public let buyIn: Quarks
     
     public var isOpen: Bool
     public var closedDate: Date?
     public var rendezvous: KeyPair?
     public var resolution: PoolResoltion?
     
-    public init(id: PublicKey, rendezvous: KeyPair?, fundingAccount: PublicKey, creatorUserID: UserID, creationDate: Date, closedDate: Date?, isOpen: Bool, name: String, buyIn: Fiat, resolution: PoolResoltion?) {
+    public init(id: PublicKey, rendezvous: KeyPair?, fundingAccount: PublicKey, creatorUserID: UserID, creationDate: Date, closedDate: Date?, isOpen: Bool, name: String, buyIn: Quarks, resolution: PoolResoltion?) {
         self.id = id
         self.rendezvous = rendezvous
         self.fundingAccount = fundingAccount
@@ -72,11 +72,11 @@ public struct PoolMetadata: Identifiable, Sendable, Equatable, Hashable {
 public enum UserOutcome: Sendable, Equatable, Hashable {
     
     case none
-    case won(Fiat)
-    case lost(Fiat)
-    case refunded(Fiat)
+    case won(Quarks)
+    case lost(Quarks)
+    case refunded(Quarks)
     
-    public init(intValue: Int, amount: Fiat?) {
+    public init(intValue: Int, amount: Quarks?) {
         switch intValue {
         case 0:
             self = .none
@@ -100,7 +100,7 @@ public enum UserOutcome: Sendable, Equatable, Hashable {
         }
     }
     
-    public var amount: Fiat? {
+    public var amount: Quarks? {
         switch self {
         case .none:            return nil
         case .won(let a):      return a
@@ -190,7 +190,7 @@ extension UserOutcome {
             self = .none
         case .win(let result):
             self = .won(
-                try Fiat(
+                try Quarks(
                     fiatDecimal: Decimal(result.amountWon.nativeAmount),
                     currencyCode: try CurrencyCode(currencyCode: result.amountWon.currency),
                     decimals: 6
@@ -199,7 +199,7 @@ extension UserOutcome {
             
         case .lose(let result):
             self = .lost(
-                try Fiat(
+                try Quarks(
                     fiatDecimal: Decimal(result.amountLost.nativeAmount),
                     currencyCode: try CurrencyCode(currencyCode: result.amountLost.currency),
                     decimals: 6
@@ -208,7 +208,7 @@ extension UserOutcome {
             
         case .refund(let result):
             self = .refunded(
-                try Fiat(
+                try Quarks(
                     fiatDecimal: Decimal(result.amountRefunded.nativeAmount),
                     currencyCode: try CurrencyCode(currencyCode: result.amountRefunded.currency),
                     decimals: 6
@@ -281,7 +281,7 @@ extension PoolMetadata {
             closedDate: proto.hasClosedAt ? proto.closedAt.date : nil,
             isOpen: proto.isOpen,
             name: proto.name,
-            buyIn: try Fiat(
+            buyIn: try Quarks(
                 fiatDecimal: Decimal(proto.buyIn.nativeAmount),
                 currencyCode: try CurrencyCode(currencyCode: proto.buyIn.currency),
                 decimals: 6

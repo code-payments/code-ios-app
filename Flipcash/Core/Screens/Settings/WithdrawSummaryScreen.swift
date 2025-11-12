@@ -25,7 +25,7 @@ struct WithdrawSummaryScreen: View {
             return "-\(negativeDelta.formatted())"
             
         } else {
-            return Fiat(
+            return Quarks(
                 quarks: 0 as UInt64,
                 currencyCode: .usd,
                 decimals: PublicKey.usdc.mintDecimals
@@ -52,7 +52,7 @@ struct WithdrawSummaryScreen: View {
                         let metadata = viewModel.destinationMetadata
                     {
                         let originalFiat = enteredAmount.converted
-                        let usdcFiat     = enteredAmount.usdc
+                        let usdcFiat     = enteredAmount.underlying
                         let fee          = metadata.fee
                         
                         BorderedContainer {

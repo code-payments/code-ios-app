@@ -21,7 +21,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     let updatedAt: Date
     let imageURL: URL?
     
-    let usdcValue: Fiat
+    let usdcValue: Quarks
     
     var id: PublicKey {
         mint
@@ -49,7 +49,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
                 tvl: Int(coreMintLocked)
             )
             
-            self.usdcValue = try! Fiat(
+            self.usdcValue = try! Quarks(
                 fiatDecimal: usdcQuarks.netUSDC.asDecimal(),
                 currencyCode: .usd,
                 decimals: 6
@@ -60,7 +60,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
                 throw Error.missingStoredCoreMintForNonUSDCToken
             }
             
-            self.usdcValue = Fiat(
+            self.usdcValue = Quarks(
                 quarks: quarks,
                 currencyCode: .usd,
                 decimals: PublicKey.usdc.mintDecimals

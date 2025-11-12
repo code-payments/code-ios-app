@@ -76,9 +76,9 @@ extension Analytics {
         ]
         
         if let exchangedFiat {
-            properties[.usdc]     = exchangedFiat.usdc.doubleValue
+            properties[.usdc]     = exchangedFiat.underlying.doubleValue
             properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.usdc.quarks.analyticsValue
+            properties[.quarks]   = exchangedFiat.underlying.quarks.analyticsValue
             properties[.fiat]     = exchangedFiat.converted.doubleValue
             properties[.fx]       = exchangedFiat.rate.fx.analyticsValue
             properties[.currency] = exchangedFiat.rate.currency.rawValue
@@ -97,9 +97,9 @@ extension Analytics {
         ]
         
         if let exchangedFiat {
-            properties[.usdc]     = exchangedFiat.usdc.doubleValue
+            properties[.usdc]     = exchangedFiat.underlying.doubleValue
             properties[.mint]     = exchangedFiat.mint.base58
-            properties[.quarks]   = exchangedFiat.usdc.quarks.analyticsValue
+            properties[.quarks]   = exchangedFiat.underlying.quarks.analyticsValue
             properties[.fiat]     = exchangedFiat.converted.doubleValue
             properties[.fx]       = exchangedFiat.rate.fx.analyticsValue
             properties[.currency] = exchangedFiat.rate.currency.rawValue
@@ -116,7 +116,7 @@ extension Analytics {
         )
     }
     
-    static func transfer(event: Name, fiat: Fiat?, successful: Bool, error: Error?) {
+    static func transfer(event: Name, fiat: Quarks?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
         ]
@@ -169,7 +169,7 @@ extension Analytics {
         track(event: .onrampShowConfirmEmail)
     }
     
-    static func onrampAmountPresetSelected(amount: Fiat) {
+    static func onrampAmountPresetSelected(amount: Quarks) {
         var properties: [Property: AnalyticsValue] = [:]
         
         properties[.fiat]     = amount.doubleValue
@@ -182,7 +182,7 @@ extension Analytics {
         track(event: .onrampEnterCustomAmount)
     }
     
-    static func onrampInvokePayment(amount: Fiat) {
+    static func onrampInvokePayment(amount: Quarks) {
         var properties: [Property: AnalyticsValue] = [:]
         
         properties[.fiat]     = amount.doubleValue
@@ -191,7 +191,7 @@ extension Analytics {
         track(event: .onrampInvokePayment, properties: properties)
     }
     
-    static func onrampInvokePaymentCustom(amount: Fiat) {
+    static func onrampInvokePaymentCustom(amount: Quarks) {
         var properties: [Property: AnalyticsValue] = [:]
         
         properties[.fiat]     = amount.doubleValue
@@ -200,7 +200,7 @@ extension Analytics {
         track(event: .onrampInvokePaymentCustom, properties: properties)
     }
     
-    static func onrampCompleted(amount: Fiat?, successful: Bool, error: Error?) {
+    static func onrampCompleted(amount: Quarks?, successful: Bool, error: Error?) {
         var properties: [Property: AnalyticsValue] = [
             .state: successful ? String.success : String.failure,
         ]
@@ -226,7 +226,7 @@ extension Analytics {
         track(event: .walletConnect)
     }
     
-    static func walletRequestAmount(amount: Fiat) {
+    static func walletRequestAmount(amount: Quarks) {
         var properties: [Property: AnalyticsValue] = [:]
         
         properties[.fiat]     = amount.doubleValue

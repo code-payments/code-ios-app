@@ -11,14 +11,14 @@ import FlipcashUI
 
 public struct BillEditor: View {
 
-    public let fiat: Fiat
+    public let fiat: Quarks
     public let data: Data
 
     @State private var backgroundColors: [Color] = [Color(hue: 0.6, saturation: 0.7, brightness: 0.9)]
 
     // MARK: - Init -
 
-    public init(fiat: Fiat, data: Data) {
+    public init(fiat: Quarks, data: Data) {
         self.fiat = fiat
         self.data = data
     }

@@ -38,7 +38,7 @@ class PoolViewModel: ObservableObject {
     @Published var dialogItem: DialogItem?
     
     var canCreatePool: Bool {
-        isEnteredPoolNameValid && (enteredPoolFiat?.usdc ?? 0) > 0
+        isEnteredPoolNameValid && (enteredPoolFiat?.underlying ?? 0) > 0
     }
     
     var enteredPoolNameSantized: String {
@@ -64,7 +64,7 @@ class PoolViewModel: ObservableObject {
         
         let currency = ratesController.entryCurrency
         
-        guard let enteredFiat = try? Fiat(fiatDecimal: amount, currencyCode: currency, decimals: 6) else {
+        guard let enteredFiat = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: 6) else {
             trace(.failure, components: "[Withdraw] Invalid amount for entry")
             return nil
         }

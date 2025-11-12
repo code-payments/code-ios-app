@@ -36,7 +36,7 @@ struct PresetAddCashScreen: View {
                     GridAmounts(selected: viewModel.adjustingSelectedPreset) { action in
                         switch action {
                         case .amount(let amount):
-                            let fiat = try! Fiat(
+                            let fiat = try! Quarks(
                                 fiatInt: amount,
                                 currencyCode: .usd,
                                 decimals: PublicKey.usdc.mintDecimals

@@ -14,13 +14,13 @@ final class IntentWithdraw: IntentType {
     
     let id: PublicKey
     let sourceCluster: AccountCluster
-    let fee: Fiat
+    let fee: Quarks
     let destinationMetadata: DestinationMetadata
     let exchangedFiat: ExchangedFiat
     
     var actionGroup: ActionGroup
     
-    init(sourceCluster: AccountCluster, fee: Fiat, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat) throws {
+    init(sourceCluster: AccountCluster, fee: Quarks, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat) throws {
         self.id                  = PublicKey.generate()!
         self.sourceCluster       = sourceCluster
         self.fee                 = fee
@@ -36,7 +36,7 @@ final class IntentWithdraw: IntentType {
             let amountToWithdraw = try exchangedFiat.subtracting(fee: fee)
             group.append(
                 ActionTransfer(
-                    amount: amountToWithdraw.usdc,
+                    amount: amountToWithdraw.underlying,
                     sourceCluster: sourceCluster,
                     destination: destination,
                     mint: exchangedFiat.mint
@@ -53,7 +53,7 @@ final class IntentWithdraw: IntentType {
         } else {
             group.append(
                 ActionTransfer(
-                    amount: exchangedFiat.usdc,
+                    amount: exchangedFiat.underlying,
                     sourceCluster: sourceCluster,
                     destination: destination,
                     mint: exchangedFiat.mint
@@ -76,7 +76,7 @@ extension IntentWithdraw {
                 $0.mint         = exchangedFiat.mint.solanaAccountID
                 $0.exchangeData = .with {
                     $0.mint         = exchangedFiat.mint.solanaAccountID
-                    $0.quarks       = exchangedFiat.usdc.quarks
+                    $0.quarks       = exchangedFiat.underlying.quarks
                     $0.currency     = exchangedFiat.converted.currencyCode.rawValue
                     $0.exchangeRate = exchangedFiat.rate.fx.doubleValue
                     $0.nativeAmount = exchangedFiat.converted.doubleValue

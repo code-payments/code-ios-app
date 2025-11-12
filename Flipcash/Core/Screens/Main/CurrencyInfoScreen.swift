@@ -21,7 +21,7 @@ struct CurrencyInfoScreen: View {
         updateableMint.value
     }
     
-    private var balance: Fiat {
+    private var balance: Quarks {
         let balance   = session.balance(for: mintMetadata.mint)
         let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
         
@@ -33,7 +33,7 @@ struct CurrencyInfoScreen: View {
     private let ratesController: RatesController
     private let sessionContainer: SessionContainer
     
-    private var marketCap: Fiat {
+    private var marketCap: Quarks {
         var supply: Int = 0
         if let supplyFromBonding = mintMetadata.supplyFromBonding {
             supply = Int(supplyFromBonding)
@@ -42,14 +42,14 @@ struct CurrencyInfoScreen: View {
         let curve = BondingCurve()
         let mCap  = try! curve.marketCap(for: supply)
         
-        let usdc = try! Fiat(
+        let usdc = try! Quarks(
             fiatDecimal: mCap,
             currencyCode: .usd,
             decimals: mintMetadata.mint.mintDecimals
         )
         
         let exchanged = try! ExchangedFiat(
-            usdc: usdc,
+            underlying: usdc,
             rate: ratesController.rateForBalanceCurrency(),
             mint: .usdc
         )

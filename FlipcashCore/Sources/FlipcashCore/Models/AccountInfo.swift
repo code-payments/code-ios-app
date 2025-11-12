@@ -206,7 +206,7 @@ extension AccountInfo {
         
         if info.hasOriginalExchangeData {
             exchangedFiat = try ExchangedFiat(
-                usdc: Fiat(
+                underlying: Quarks(
                     quarks: info.originalExchangeData.quarks,
                     currencyCode: .usd,
                     decimals: mint.mintDecimals

@@ -13,7 +13,7 @@ import FlipcashCore
 
 public struct BillView: View {
 
-    public let fiat: Fiat
+    public let fiat: Quarks
     public let data: Data
     public let canvasSize: CGSize
     public let billSize: CGSize
@@ -31,7 +31,7 @@ public struct BillView: View {
     /// Euro:      0.510
     /// Code:      0.555
     ///
-    public init(fiat: Fiat, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, backgroundColors: [Color]? = nil, action: VoidAction? = nil) {
+    public init(fiat: Quarks, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, backgroundColors: [Color]? = nil, action: VoidAction? = nil) {
         self.fiat       = fiat
         self.data       = data
         self.canvasSize = canvasSize

@@ -29,7 +29,7 @@ struct CompactMessage {
         data.append(publicKey.data)
     }
     
-    mutating func append(fiat: Fiat) {
+    mutating func append(fiat: Quarks) {
         data.append(contentsOf: fiat.quarks.bytes)
     }
     

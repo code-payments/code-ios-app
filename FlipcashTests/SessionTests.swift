@@ -33,8 +33,8 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 1_000_000 // $1.00 (6 decimals)
         let requestedQuarks: UInt64 = 1_000_000 // $1.00
 
-        let balance = Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // When: Comparing balance to requested
         let hasFunds = balance >= requested
@@ -50,8 +50,8 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 5_000_000 // $5.00
         let requestedQuarks: UInt64 = 1_000_000 // $1.00
 
-        let balance = Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // When: Comparing balance to requested
         let hasFunds = balance >= requested
@@ -69,8 +69,8 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 1_000_000 // $1.00
         let requestedQuarks: UInt64 = 5_000_000 // $5.00
 
-        let balance = Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // When: Comparing balance to requested
         let hasFunds = balance >= requested
@@ -91,8 +91,8 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 7_100 // $0.0071
         let requestedQuarks: UInt64 = 10_000 // $0.01
 
-        let balance = Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // When: Calculating delta
         let balanceDecimal = balance.decimalValue
@@ -112,8 +112,8 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 9_500 // $0.0095
         let requestedQuarks: UInt64 = 10_000 // $0.01
 
-        let balance = Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // When: Calculating delta
         let delta = abs(balance.decimalValue - requested.decimalValue)
@@ -130,8 +130,8 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 4_900 // $0.0049
         let requestedQuarks: UInt64 = 10_000 // $0.01
 
-        let balance = Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // When: Calculating delta
         let delta = abs(balance.decimalValue - requested.decimalValue)
@@ -148,8 +148,8 @@ struct SessionTests {
         let balanceQuarks: UInt64 = 100_004_900 // $100.0049
         let requestedQuarks: UInt64 = 100_010_000 // $100.01
 
-        let balance = Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // When: Calculating delta
         let delta = abs(balance.decimalValue - requested.decimalValue)
@@ -166,7 +166,7 @@ struct SessionTests {
         // Given: Requested amount is zero
         let requestedQuarks: UInt64 = 0
 
-        let requested = Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6)
 
         // Then: Zero quarks should be rejected
         #expect(requested.quarks == 0)
@@ -180,13 +180,13 @@ struct SessionTests {
         let requestedQuarks: UInt64 = 10_000 // $0.01
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: balanceQuarks, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: balanceQuarks, currencyCode: .usd, decimals: 6),
             rate: rate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: requestedQuarks, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: requestedQuarks, currencyCode: .usd, decimals: 6),
             rate: rate,
             mint: mint
         )
@@ -199,8 +199,8 @@ struct SessionTests {
 
         // If within tolerance, the actual send amount should be the balance
         let amountToSend = balance
-        #expect(amountToSend.usdc.quarks == balanceQuarks)
-        #expect(amountToSend.usdc.quarks < requestedQuarks)
+        #expect(amountToSend.underlying.quarks == balanceQuarks)
+        #expect(amountToSend.underlying.quarks < requestedQuarks)
     }
 
     // MARK: - Custom Currency Tests
@@ -216,8 +216,8 @@ struct SessionTests {
         let balanceUSDC: UInt64 = 7_127 // $0.0071269471 (6 decimals)
         let requestedUSDC: UInt64 = 10_000 // $0.01 (6 decimals)
 
-        let balance = Fiat(quarks: balanceUSDC, currencyCode: .usd, decimals: 6)
-        let requested = Fiat(quarks: requestedUSDC, currencyCode: .usd, decimals: 6)
+        let balance = Quarks(quarks: balanceUSDC, currencyCode: .usd, decimals: 6)
+        let requested = Quarks(quarks: requestedUSDC, currencyCode: .usd, decimals: 6)
 
         // When: Checking tolerance
         let delta = abs(balance.decimalValue - requested.decimalValue)
@@ -234,8 +234,8 @@ struct SessionTests {
     @Test
     static func testComparisonLogic_Fiat() throws {
         // Given: Two Fiat values
-        let smaller = Fiat(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6) // $1.00
-        let larger = Fiat(quarks: 5_000_000 as UInt64, currencyCode: .usd, decimals: 6)  // $5.00
+        let smaller = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6) // $1.00
+        let larger = Quarks(quarks: 5_000_000 as UInt64, currencyCode: .usd, decimals: 6)  // $5.00
 
         // When/Then: Test comparison operators
         #expect(smaller < larger)
@@ -256,13 +256,13 @@ struct SessionTests {
         let usdRate = Rate(fx: 1.0, currency: .usd)
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: 996_000 as UInt64, currencyCode: .usd, decimals: 6), // $0.996
+            underlying: Quarks(quarks: 996_000 as UInt64, currencyCode: .usd, decimals: 6), // $0.996
             rate: usdRate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6), // $1.00
+            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6), // $1.00
             rate: usdRate,
             mint: mint
         )
@@ -287,13 +287,13 @@ struct SessionTests {
         let jpyRate = Rate(fx: 149.0, currency: .jpy) // ~149 JPY per USD
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: 4_027 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.004027 = ¥0.6
+            underlying: Quarks(quarks: 4_027 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.004027 = ¥0.6
             rate: jpyRate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
+            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
             rate: jpyRate,
             mint: mint
         )
@@ -317,13 +317,13 @@ struct SessionTests {
         let jpyRate = Rate(fx: 149.0, currency: .jpy)
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: 2_685 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.002685 = ¥0.4
+            underlying: Quarks(quarks: 2_685 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.002685 = ¥0.4
             rate: jpyRate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
+            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
             rate: jpyRate,
             mint: mint
         )
@@ -347,13 +347,13 @@ struct SessionTests {
         let bhdRate = Rate(fx: 0.376, currency: .bhd) // ~0.376 BHD per USD
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: 2_658_511 as UInt64, currencyCode: .usd, decimals: 6), // ~$2.658511 = BD 0.9996
+            underlying: Quarks(quarks: 2_658_511 as UInt64, currencyCode: .usd, decimals: 6), // ~$2.658511 = BD 0.9996
             rate: bhdRate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: 2_659_574 as UInt64, currencyCode: .usd, decimals: 6), // ~$2.659574 = BD 1.000
+            underlying: Quarks(quarks: 2_659_574 as UInt64, currencyCode: .usd, decimals: 6), // ~$2.659574 = BD 1.000
             rate: bhdRate,
             mint: mint
         )
@@ -376,13 +376,13 @@ struct SessionTests {
         let usdRate = Rate(fx: 1.0, currency: .usd)
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: 995_000 as UInt64, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: 995_000 as UInt64, currencyCode: .usd, decimals: 6),
             rate: usdRate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
             rate: usdRate,
             mint: mint
         )
@@ -405,13 +405,13 @@ struct SessionTests {
         let jpyRate = Rate(fx: 149.0, currency: .jpy)
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: 3_356 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.003356 = ¥0.5
+            underlying: Quarks(quarks: 3_356 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.003356 = ¥0.5
             rate: jpyRate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
+            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6), // ~$0.006711 = ¥1.0
             rate: jpyRate,
             mint: mint
         )
@@ -434,13 +434,13 @@ struct SessionTests {
         let usdRate = Rate(fx: 1.0, currency: .usd)
 
         let balance = try ExchangedFiat(
-            usdc: Fiat(quarks: 994_900 as UInt64, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: 994_900 as UInt64, currencyCode: .usd, decimals: 6),
             rate: usdRate,
             mint: mint
         )
 
         let requested = try ExchangedFiat(
-            usdc: Fiat(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
             rate: usdRate,
             mint: mint
         )
@@ -495,14 +495,14 @@ struct SessionTests {
 
         // User's actual balance: worth ¥0.6
         let actualBalance = try ExchangedFiat(
-            usdc: Fiat(quarks: 4_027 as UInt64, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: 4_027 as UInt64, currencyCode: .usd, decimals: 6),
             rate: jpyRate,
             mint: mint
         )
 
         // User tries to send: ¥1.0 (what UI shows after rounding)
         let requestedAmount = try ExchangedFiat(
-            usdc: Fiat(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6),
+            underlying: Quarks(quarks: 6_711 as UInt64, currencyCode: .usd, decimals: 6),
             rate: jpyRate,
             mint: mint
         )
