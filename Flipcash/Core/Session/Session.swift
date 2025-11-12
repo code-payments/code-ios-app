@@ -801,14 +801,16 @@ class Session: ObservableObject {
     }
     
     func dismissCashBill(style: PresentationState.Style) {
-        consumeToast()
-        
         sendOperation = nil
         presentationState = .hidden(style)
         billState = .default()
         valuation = nil
-        
+
         UIApplication.isInterfaceResetDisabled = false
+
+        // Consume toast after bill state is cleared
+        // so isShowingBill returns false
+        consumeToast()
     }
     
     // MARK: - Cash Links -

@@ -24,9 +24,9 @@ struct ToastQueue {
         if let nextToast = queue.first, toast.negates(toast: nextToast) {
             queue.remove(at: 0)
 //            trace(.note, components: "Inserted negating toast, removing both: \(toast.isDeposit ? "+" : "-")\(toast.amount.formatted(suffix: nil
-            queue.insert(toast, at: 0)
-//            trace(.note, components: "Inserting toast: \(toast.isDeposit ? "+" : "-")\(toast.amount.formatted())", "Queue count: \(queue.count)")
         }
+        queue.insert(toast, at: 0)
+//        trace(.note, components: "Inserting toast: \(toast.isDeposit ? "+" : "-")\(toast.amount.formatted())", "Queue count: \(queue.count)")
     }
     
     mutating func pop() -> Toast? {
