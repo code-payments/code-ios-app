@@ -129,11 +129,11 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         return exchanged
     }
     
-    public static func computeFromEntered(amount: Foundation.Decimal, rate: Rate, mint: PublicKey, supplyFromBonding: UInt64) -> ExchangedFiat? {
+    public static func computeFromEntered(amount: Foundation.Decimal, rate: Rate, mint: PublicKey, tvl: UInt64) -> ExchangedFiat? {
         guard amount > 0 else {
             return nil
         }
-        
+
         let valuation: BondingCurve.Valuation
         let curve    = BondingCurve()
         let decimals = mint.mintDecimals
@@ -142,7 +142,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             valuation = try! curve.tokensForValueExchange(
                 fiat: BigDecimal(amount),
                 fiatRate: BigDecimal(rate.fx),
-                supplyQuarks: Int(supplyFromBonding)
+                tvl: Int(tvl)
             )
         } else {
             valuation = .init(

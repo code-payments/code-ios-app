@@ -47,15 +47,15 @@ class GiveViewModel: ObservableObject {
         
         // Only applies for bonded tokens
         if mint != .usdc {
-            guard let supplyFromBonding = selectedBalance.stored.supplyFromBonding else {
+            guard let tvl = selectedBalance.stored.coreMintLocked else {
                 return nil
             }
-            
+
             return ExchangedFiat.computeFromEntered(
                 amount: amount,
                 rate: ratesController.rateForEntryCurrency(),
                 mint: mint,
-                supplyFromBonding: supplyFromBonding
+                tvl: tvl
             )
             
         } else {

@@ -265,31 +265,29 @@ extension BondingCurve {
         )
     }
     
-    public func tokensForValueExchange(fiat: BigDecimal, fiatRate: BigDecimal, supplyQuarks: Int) throws -> Valuation {
+    public func tokensForValueExchange(fiat: BigDecimal, fiatRate: BigDecimal, tvl: Int) throws -> Valuation {
         guard fiat.isPositive else {
             return .init(tokens: 0, fx: 0)
         }
-        
-        let usdc  = fiat.divide(fiatRate, r)
-        let s     = BigDecimal(supplyQuarks).scaleDown(decimals)
-        
-        guard usdc.signum > 0 else {
+
+        let value = fiat.divide(fiatRate, r)  // USDC value to spend
+        let currentValue = BigDecimal(tvl).scaleDown(6)  // Current TVL in USDC units
+
+        guard value.signum > 0 else {
             throw BondingCurveError.nonPositiveValue
         }
-        
-        let eCS   = exp(c.multiply(s, r))
-        let denom = abOverC().multiply(eCS, r)
-        
-        guard usdc < denom else {
-            throw BondingCurveError.valueTooLargeForLiquidityCap
-        }
-        
-        let oneMinus = BigDecimal.one.subtract(usdc.divide(denom, r), r)
-        var lnTerm   = ln(oneMinus)
-        lnTerm.negate()
-        
-        let tokens = try! ensureValid(lnTerm.divide(c, r))
-        
+
+        let abOverC = abOverC()
+        let newValue = currentValue.subtract(value, r)
+        let currentValueOverAbOverC = currentValue.divide(abOverC, r)
+        let newValueOverAbOverC = newValue.divide(abOverC, r)
+
+        let lnTerm1 = ln(BigDecimal.one.add(currentValueOverAbOverC, r))
+        let lnTerm2 = ln(BigDecimal.one.add(newValueOverAbOverC, r))
+        let diffLnTerms = lnTerm1.subtract(lnTerm2, r)
+
+        let tokens = try ensureValid(diffLnTerms.divide(c, r))
+
         return Valuation(
             tokens: tokens,
             fx: fiat.divide(tokens, r)

@@ -52,15 +52,15 @@ class WithdrawViewModel: ObservableObject {
         
         // Only applies for bonded tokens
         if mint != .usdc {
-            guard let supplyFromBonding = selectedBalance.stored.supplyFromBonding else {
+            guard let tvl = selectedBalance.stored.coreMintLocked else {
                 return nil
             }
-            
+
             return ExchangedFiat.computeFromEntered(
                 amount: amount,
                 rate: .oneToOne, // Withdrawals are forced to usd
                 mint: mint,
-                supplyFromBonding: supplyFromBonding
+                tvl: tvl
             )
         } else {
             return try! ExchangedFiat(
@@ -173,20 +173,20 @@ class WithdrawViewModel: ObservableObject {
             return nil
         }
         
-        guard let currentSupply = selectedBalance.stored.supplyFromBonding else {
+        guard let currentTVL = selectedBalance.stored.coreMintLocked else {
             return nil
         }
-        
+
         guard let destinationMetadata else {
             return nil
         }
-        
+
         // TODO: Using tokensForValueExchange, should it equivalent to sell pricing?
         return ExchangedFiat.computeFromEntered(
             amount: destinationMetadata.fee.decimalValue,
             rate: .oneToOne, // Fee is charged in USDC
             mint: enteredFiat.mint,
-            supplyFromBonding: currentSupply
+            tvl: currentTVL
         )
     }
     
