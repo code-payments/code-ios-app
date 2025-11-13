@@ -148,10 +148,17 @@ class Session: ObservableObject {
     }
     
     func balances(for rate: Rate) -> [ExchangedBalance] {
-        balances.map {
-            .init(
-                stored: $0,
-                exchangedFiat: $0.computeExchangedValue(with: rate)
+        balances.compactMap { stored in
+            let exchangedFiat = stored.computeExchangedValue(with: rate)
+
+            // Filter out balances with zero fiat value after conversion
+            guard exchangedFiat.hasDisplayableValue() else {
+                return nil
+            }
+
+            return ExchangedBalance(
+                stored: stored,
+                exchangedFiat: exchangedFiat
             )
         }
     }
