@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import FlipcashCore
+@testable import FlipcashCore
 
 struct ExchangedFiatTests {
     
@@ -123,28 +123,33 @@ struct ExchangedFiatTests {
     
     @Test
     static func testComputingQuarksFromFiat() throws {
+        // Calculate TVL from desired supply using costToBuy
+        let curve = BondingCurve()
+        let desiredSupply = 100_000 as UInt64  // 100,000 quarks = 0.00001 tokens (10 decimals)
+        let tvl = curve.costToBuy(quarks: Int(desiredSupply), supply: 0).scaleUp(6).rounded(.awayFromZero).asDecimal().roundedInt()
+
         let usd = ExchangedFiat.computeFromEntered(
             amount: 0.59,
             rate: Rate(fx: 1.0, currency: .usd),
             mint: .usdcAuthority,
-            supplyFromBonding: 100_000
+            tvl: UInt64(tvl)
         )!
-        
+
         let cad = ExchangedFiat.computeFromEntered(
             amount: 0.59,
             rate: Rate(fx: 1.4, currency: .cad),
             mint: .usdcAuthority,
-            supplyFromBonding: 100_000
+            tvl: UInt64(tvl)
         )!
-        
-        
+
+
         #expect((Decimal(usd.underlying.quarks) / Decimal(cad.underlying.quarks)).formatted(to: 3) == "1.400")
-        
-        #expect(usd.underlying.quarks               == 59_00_15_267_757) // 59.00 Tokens
+
+        #expect(usd.underlying.quarks               == 59_00_15_267_762) // 59.00 Tokens
         #expect(usd.converted.quarks          == 5899999999)       // $0.59 USD
         #expect(usd.rate.fx.formatted(to: 10) == "0.0099997412")
-        
-        #expect(cad.underlying.quarks               == 42_14_36_360_951) // 42.14 Tokens
+
+        #expect(cad.underlying.quarks               == 42_14_36_360_955) // 42.14 Tokens
         #expect(cad.converted.quarks          == 5899999999)       // $0.59 CAD
         #expect(cad.rate.fx.formatted(to: 10) == "0.0139997412")
     }
@@ -153,9 +158,9 @@ struct ExchangedFiatTests {
     
     @Test
     func testAmountsToSend() throws {
-        let startSupply =          1_00_00_000_000 as UInt64 // USDC quarks (6dp)
-        let endSupply   = 21_000_000_00_00_000_000 as UInt64 // 100,000
-        
+        let startTVL =           1_000_000 as UInt64 // USDC quarks (6dp)
+        let endTVL   = 100_000_000_000_000 as UInt64
+
         let fiatToTest: [Decimal] = [
             5.00,
             10.00,
@@ -163,73 +168,77 @@ struct ExchangedFiatTests {
             500.00,
             1_000.00,
         ]
-        
+
         var output = ""
 
-        var supply = startSupply
-        while supply <= endSupply {
-            
+        var tvl = startTVL
+        while tvl <= endTVL {
             for fiat in fiatToTest {
                 let exchanged = ExchangedFiat.computeFromEntered(
                     amount: fiat,
                     rate: .oneToOne,
                     mint: .usdcAuthority, // Not USDC
-                    supplyFromBonding: supply
+                    tvl: tvl
                 )
-                
-                let supplyStr  = "\(supply)".padded(to: 20)
+
+                let tvlStr     = "\(tvl)".padded(to: 20)
                 let underlying = "\(exchanged!.underlying.quarks)".padded(to: 20)
                 let converted  = exchanged!.converted.formatted().padded(to: 20)
-                
-                output.append("\(supplyStr) \(underlying) \(converted)\n")
+
+                output.append("\(tvlStr) \(underlying) \(converted)\n")
             }
-            
-            supply *= 10
+
+            tvl *= 10
         }
-        
+
         output = output.trimmingCharacters(in: .newlines)
-        
+
         let expected = """
-        10000000000          5001092401997        $5.00               
-        10000000000          10004379663394       $10.00              
-        10000000000          100441080923772      $100.00             
-        10000000000          511295760602584      $500.00             
-        10000000000          1046604099690267     $1,000.00           
-        100000000000         5001052911980        $5.00               
-        100000000000         10004300648691       $10.00              
-        100000000000         100440284483693      $100.00             
-        100000000000         511291632270217      $500.00             
-        100000000000         1046595446081380     $1,000.00           
-        1000000000000        5000658028967        $5.00               
-        1000000000000        10003510535997       $10.00              
-        1000000000000        100432320431767      $100.00             
-        1000000000000        511250350821238      $500.00             
-        1000000000000        1046508914111069     $1,000.00           
-        10000000000000       4996710913709        $5.00               
-        10000000000000       9995612841801        $10.00              
-        10000000000000       100352714788750      $100.00             
-        10000000000000       510837723741345      $500.00             
-        10000000000000       1045644006120180     $1,000.00           
-        100000000000000      4957410747532        $5.00               
-        100000000000000      9916978171984        $10.00              
-        100000000000000      99560135637918       $100.00             
-        100000000000000      506730134317242      $500.00             
-        100000000000000      1037035954468485     $1,000.00           
-        1000000000000000     4581018238122        $5.00               
-        1000000000000000     9163878032451        $10.00              
-        1000000000000000     91971957711638       $100.00             
-        1000000000000000     467464270426932      $500.00             
-        1000000000000000     954919469210810      $1,000.00           
-        10000000000000000    2079970815228        $5.00               
-        10000000000000000    4160321190168        $10.00              
-        10000000000000000    41671690967489       $100.00             
-        10000000000000000    209898607695880      $500.00             
-        10000000000000000    423734428251854      $1,000.00           
-        100000000000000000   775257916            $5.00               
-        100000000000000000   1550515885           $10.00              
-        100000000000000000   15505168342          $100.00             
-        100000000000000000   77526052595          $500.00             
-        100000000000000000   155052632401         $1,000.00           
+        1000000              5000658048209        $5.00               
+        1000000              10003510574497       $10.00              
+        1000000              100432320819833      $100.00             
+        1000000              511250352832764      $500.00             
+        1000000              1046508918327512     $1,000.00           
+        10000000             4996712835333        $5.00               
+        10000000             9995616686734        $10.00              
+        10000000             100352753544040      $100.00             
+        10000000             510837924622184      $500.00             
+        10000000             1045644427178340     $1,000.00           
+        100000000            4957600405006        $5.00               
+        100000000            9917357651988        $10.00              
+        100000000            99563960395723       $100.00             
+        100000000            506749953488321      $500.00             
+        100000000            1037077480269838     $1,000.00           
+        1000000000           4597708679971        $5.00               
+        1000000000           9197272362330        $10.00              
+        1000000000           92308339982136       $100.00             
+        1000000000           469202608629476      $500.00             
+        1000000000           958548327430506      $1,000.00           
+        10000000000          2663887739947        $5.00               
+        10000000000          5328398095088        $10.00              
+        10000000000          53396384541882       $100.00             
+        10000000000          269518606881772      $500.00             
+        10000000000          545563645468226      $1,000.00           
+        100000000000         511690414900         $5.00               
+        100000000000         1023403797656        $10.00              
+        100000000000         10238174542457       $100.00             
+        100000000000         51283066886112       $500.00             
+        100000000000         102797869580410      $1,000.00           
+        1000000000000        56358788487          $5.00               
+        1000000000000        112717855594         $10.00              
+        1000000000000        1127228710628        $100.00             
+        1000000000000        5637258461867        $500.00             
+        1000000000000        11277305850369       $1,000.00           
+        10000000000000       5693625634           $5.00               
+        10000000000000       11387254112          $10.00              
+        10000000000000       113873052965         $100.00             
+        10000000000000       569376639560         $500.00             
+        10000000000000       1138781717663        $1,000.00           
+        100000000000000      569946547            $5.00               
+        100000000000000      1139893122           $10.00              
+        100000000000000      11398936344          $100.00             
+        100000000000000      56994795699          $500.00             
+        100000000000000      113989876342         $1,000.00           
         """
         
         print(output)

@@ -329,6 +329,10 @@ extension Decimal {
         NSDecimalRound(&rounded, &current, decimalPlaces, .plain)
         return rounded
     }
+
+    func roundedInt() -> Int {
+        (rounded(to: 0) as NSDecimalNumber).intValue
+    }
 }
 
 //private extension UInt64 {
@@ -383,6 +387,12 @@ extension Decimal {
     }
 
     func scaleUpInt(_ d: Int) -> UInt64 {
-        UInt64(scaleUp(d).doubleValue)
+        let scaled = scaleUp(d)
+        var rounded = Foundation.Decimal()
+        var current = scaled
+        // Use .plain (HALF_UP) rounding mode to match Kotlin's rounding behavior
+        // .plain rounds to nearest, ties away from zero
+        NSDecimalRound(&rounded, &current, 0, .plain)
+        return NSDecimalNumber(decimal: rounded).uint64Value
     }
 }
