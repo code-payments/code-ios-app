@@ -32,7 +32,8 @@ class Session: ObservableObject {
     @Published var userFlags: UserFlags?
 
     @Published var coinbaseOrder: OnrampOrderResponse?
-    
+    @Published var isShowingBillEditor: Bool = false
+
     private var grabStarts: [PublicKey: Date] = [:]
 
     let keyAccount: KeyAccount

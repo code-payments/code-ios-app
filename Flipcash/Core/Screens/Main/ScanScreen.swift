@@ -26,7 +26,7 @@ struct ScanScreen: View {
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
     @State private var isShowingGive: Bool = false
-    
+
     @State private var sendButtonState: ButtonState = .normal
     
     private var toast: String? {
@@ -118,10 +118,18 @@ struct ScanScreen: View {
                     .zIndex(1)
                     .transition(.opacity)
             }
+
+            // Bill Editor Overlay
+            if session.isShowingBillEditor {
+                billEditorOverlay()
+                    .zIndex(2)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .background(Color.backgroundMain)
         .animation(.easeInOut(duration: 0.15), value: showControls)
         .animation(.easeInOut(duration: 0.3), value: preferences.cameraEnabled)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillEditor)
         .ignoresSafeArea(.keyboard)
         .sheet(item: $session.valuation) { valuation in
             PartialSheet(background: .backgroundMain, canAccessBackground: true) {
@@ -238,6 +246,7 @@ struct ScanScreen: View {
             Spacer()
             bottomBar()
         }
+        .opacity(session.isShowingBillEditor ? 0 : 1)
     }
     
     @ViewBuilder private func billActions() -> some View {
@@ -380,18 +389,40 @@ struct ScanScreen: View {
                     aligment: .bottom,
                     binding: $isShowingBalance
                 )
-            }
-            .sheet(isPresented: $isShowingBalance) {
-                BalanceScreen(
-                    isPresented: $isShowingBalance,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
+                .sheet(isPresented: $isShowingBalance) {
+                    BalanceScreen(
+                        isPresented: $isShowingBalance,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
             }
         }
         .padding(.bottom, 10)
     }
-    
+
+    @ViewBuilder private func billEditorOverlay() -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    session.isShowingBillEditor = false
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.textMain)
+                        .frame(width: 44, height: 44)
+                }
+                .padding(.trailing, 8)
+                .padding(.top, 8)
+            }
+
+            BillEditor()
+                .frame(maxWidth: .infinity)
+        }
+        .background(.clear)
+    }
+
     // MARK: - Actions -
     
     private func dismissBill() {

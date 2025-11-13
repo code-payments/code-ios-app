@@ -268,7 +268,15 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func advancedFeaturesList() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            
+
+            row(systemImage: "slider.horizontal.3", title: "Bill Editor") {
+                isPresented = false
+                Task {
+                    try await Task.delay(milliseconds: 250)
+                    session.isShowingBillEditor = true
+                }
+            }
+
             row(asset: .key, title: "Pools") {
                 poolViewModel.isShowingPoolList = true
             }
@@ -424,8 +432,16 @@ struct SettingsScreen: View {
     }
     
     @ViewBuilder private func row(asset: Asset, title: String, badge: Badge? = nil, action: @escaping VoidAction) -> some View {
+        row(image: Image.asset(asset), title: title, badge: badge, action: action)
+    }
+
+    @ViewBuilder private func row(systemImage: String, title: String, badge: Badge? = nil, action: @escaping VoidAction) -> some View {
+        row(image: Image(systemName: systemImage), title: title, badge: badge, action: action)
+    }
+
+    @ViewBuilder private func row(image: Image, title: String, badge: Badge? = nil, action: @escaping VoidAction) -> some View {
         Row(insets: insets) {
-            Image.asset(asset)
+            image
                 .frame(minWidth: 45)
             Text(title)
                 .multilineTextAlignment(.leading)

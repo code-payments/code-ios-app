@@ -56,9 +56,9 @@ public struct ColorEditorControl: View {
         VStack(spacing: 15) {
             
             // Preview
-            previewView
-                .frame(maxHeight: 100)
-                .overlay(previewBorder)
+//            previewView
+//                .frame(maxHeight: 100)
+//                .overlay(previewBorder)
             
             // Gradient stops row
             HStack(spacing: 8) {
