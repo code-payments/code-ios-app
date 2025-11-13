@@ -55,7 +55,8 @@ class Container {
     
     static func configureFirebase() {
         let isRunningPreviews = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
-        if !isRunningPreviews {
+        let isRunningTests = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+        if !isRunningPreviews && !isRunningTests {
             FirebaseApp.configure()
         }
     }
