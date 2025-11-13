@@ -41,7 +41,7 @@ public struct ColorEditorControl: View {
     }
     
     public init(colors: Binding<[Color]>) {
-        let initialColors = Array(colors.wrappedValue.prefix(3))
+        let initialColors = Array(colors.wrappedValue.prefix(3).reversed())
         self._colors      = colors
         self._stops       = State(
             initialValue: initialColors.isEmpty ? [
@@ -72,7 +72,7 @@ public struct ColorEditorControl: View {
         }
         .padding(20)
         .onChange(of: stops) { _, newStops in
-            colors = newStops.map(\.color)
+            colors = newStops.map(\.color).reversed()
         }
     }
 }
@@ -137,9 +137,9 @@ private extension ColorEditorControl {
                     .fill(stops[0].color)
             } else {
                 let gradient = LinearGradient(
-                    colors: stops.map(\.color), 
-                    startPoint: .bottom, 
-                    endPoint: .top
+                    colors: stops.map(\.color),
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
                 RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
                     .fill(gradient)
