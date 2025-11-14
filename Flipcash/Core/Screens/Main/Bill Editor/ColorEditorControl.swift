@@ -235,21 +235,39 @@ private extension ColorEditorControl {
             HStack(spacing: panelSpacing) {
                 CustomPanelView(
                     hue: Binding(
-                        get: { stops[selectedIndex].hue },
-                        set: { stops[selectedIndex].hue = $0 }
+                        get: {
+                            guard selectedIndex < stops.count else { return 0 }
+                            return stops[selectedIndex].hue
+                        },
+                        set: {
+                            guard selectedIndex < stops.count else { return }
+                            stops[selectedIndex].hue = $0
+                        }
                     ),
                     saturation: Binding(
-                        get: { stops[selectedIndex].saturation },
-                        set: { stops[selectedIndex].saturation = $0 }
+                        get: {
+                            guard selectedIndex < stops.count else { return 0 }
+                            return stops[selectedIndex].saturation
+                        },
+                        set: {
+                            guard selectedIndex < stops.count else { return }
+                            stops[selectedIndex].saturation = $0
+                        }
                     ),
                     brightness: Binding(
-                        get: { stops[selectedIndex].brightness },
-                        set: { stops[selectedIndex].brightness = $0 }
+                        get: {
+                            guard selectedIndex < stops.count else { return 0 }
+                            return stops[selectedIndex].brightness
+                        },
+                        set: {
+                            guard selectedIndex < stops.count else { return }
+                            stops[selectedIndex].brightness = $0
+                        }
                     ),
-                    onBack: { 
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) { 
-                            mode = .presets 
-                        } 
+                    onBack: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
+                            mode = .presets
+                        }
                     }
                 )
                 .frame(width: width, height: PanelMetrics.height)
@@ -306,9 +324,13 @@ private extension ColorEditorControl {
                             }
                             selectedIndex = 0
                         } else {
-                            // Removing stops - preserve what we can and remove the rest
+                            // Removing stops - update selectedIndex first to avoid out of bounds
+                            if selectedIndex >= targetCount {
+                                selectedIndex = max(0, targetCount - 1)
+                            }
+
+                            // Update remaining stops
                             withAnimation(.easeInOut(duration: 0.3)) {
-                                // Update remaining stops
                                 for (index, newStop) in newStops.enumerated() {
                                     if index < stops.count {
                                         stops[index].hue = newStop.hue
@@ -318,11 +340,11 @@ private extension ColorEditorControl {
                                     }
                                 }
                             }
+
                             // Remove excess stops with layout animation
                             withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
                                 stops.removeLast(currentCount - targetCount)
                             }
-                            selectedIndex = 0
                         }
                     }
                 )
