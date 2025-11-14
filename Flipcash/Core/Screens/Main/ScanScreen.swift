@@ -289,10 +289,10 @@ struct ScanScreen: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(height: 28)
-            
+
             Spacer()
-            
-            RoundButton(
+
+            GlassButton(
                 asset: .hamburger,
                 size: .regular,
                 binding: $isShowingSettings
@@ -303,13 +303,6 @@ struct ScanScreen: View {
                     container: container,
                     sessionContainer: sessionContainer
                 )
-//                .environmentObject(betaFlags)
-//                .environmentObject(client)
-//                .environmentObject(exchange)
-//                .environmentObject(exchange)
-//                .environmentObject(betaFlags)
-//                .environmentObject(bannerController)
-//                .environmentObject(biometrics)
             }
         }
         .padding(.horizontal, 20)
