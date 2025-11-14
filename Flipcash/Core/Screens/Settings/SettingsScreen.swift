@@ -59,48 +59,13 @@ struct SettingsScreen: View {
         NavigationStack(path: $path) {
             Background(color: .backgroundMain) {
                 VStack(alignment: .center, spacing: 0) {
-                    
-                    // Header
-                    ZStack {
-                        GeometryReader { proxy in
-                            HStack {
-                                Spacer()
-                                Image.asset(.flipcashBrand)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(maxHeight: 40)
-                                    .onTapGesture {
-                                        if debugTapCount > 9 {
-                                            if betaFlags.accessGranted {
-                                                betaFlags.setAccessGranted(false)
-                                            } else {
-//                                                if session.user.betaFlagsAllowed {
-                                                betaFlags.setAccessGranted(true)
-//                                                }
-                                            }
-                                            
-                                            debugTapCount = 0
-                                        } else {
-                                            debugTapCount += 1
-                                        }
-                                    }
-                                Spacer()
-                            }
-                            .padding(.vertical, 20)
-                            
-                            Button {
-                                isPresented.toggle()
-                            } label: {
-                                Image.asset(.close)
-                                    .padding(20)
-                            }
-                            .frame(width: 60, height: 60)
-                            .position(x: proxy.size.width - 20, y: proxy.size.height - 57)
-                        }
-                    }
-                    .frame(height: 100)
-                    
-                    // Buttons
+
+                    // Logo Header
+                    logoHeader()
+                        .padding(.top, -44)
+                        .padding(.bottom, 30)
+
+                    // Action Buttons
                     HStack(spacing: 10) {
                         CodeButton(
                             style: .filledMedium,
@@ -154,7 +119,13 @@ struct SettingsScreen: View {
                 .padding(.bottom, 10)
                 .padding(.horizontal, 20)
             }
-            .navigationBarHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: $isPresented)
+                }
+            }
             .navigationDestination(for: SettingsPath.self) { path in
                 switch path {
                 case .myAccount:
@@ -174,7 +145,23 @@ struct SettingsScreen: View {
             }
         }
     }
-    
+
+    // MARK: - Header Components -
+
+    @ViewBuilder private func logoHeader() -> some View {
+        Button {
+            handleLogoTap()
+        } label: {
+            Image.asset(.flipcashBrand)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxHeight: 45)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Lists -
+
     @ViewBuilder private func list() -> some View {
         VStack(alignment: .leading, spacing: 0) {
             
@@ -482,7 +469,17 @@ struct SettingsScreen: View {
     }
     
     // MARK: - Actions -
-    
+
+    private func handleLogoTap() {
+        if debugTapCount >= 9 {
+            // Toggle beta flags access
+            betaFlags.setAccessGranted(!betaFlags.accessGranted)
+            debugTapCount = 0
+        } else {
+            debugTapCount += 1
+        }
+    }
+
     private func presentOnramp() {
         onrampViewModel.presentRoot()
         Analytics.onrampOpenedFromSettings()
@@ -506,6 +503,8 @@ struct SettingsScreen: View {
         }
     }
 }
+
+// MARK: - Navigation -
 
 extension SettingsScreen {
     enum SettingsPath {
