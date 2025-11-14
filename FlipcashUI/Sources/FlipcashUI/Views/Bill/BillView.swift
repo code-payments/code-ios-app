@@ -248,9 +248,9 @@ public struct BillView: View {
                 // Scan code
                 CodeView(data: data)
                     .foregroundColor(.textMain)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: geometry.codeWidth)
-                    .position(x: geometry.halfSize.width, y: geometry.halfSize.height)
+                    .aspectRatio(1.0, contentMode: .fit)
+                    .frame(width: geometry.codeWidth, height: geometry.codeWidth)
+                    .position(x: geometry.size.width * 0.5, y: geometry.size.height * 0.5)
                     .shadow(color: Color.black.opacity(0.6), radius: 3, x: 0, y: 2)
             }
         }
