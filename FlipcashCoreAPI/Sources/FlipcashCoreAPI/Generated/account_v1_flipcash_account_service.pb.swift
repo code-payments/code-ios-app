@@ -352,6 +352,10 @@ public struct Flipcash_Account_V1_UserFlags {
   /// should show the list of all supported providers.
   public var preferredOnRampProvider: Flipcash_Account_V1_UserFlags.OnRampProvider = .unknown
 
+  /// The minumum build number for this user. If their build number is less than the
+  /// provided value, client should show a forced upgrade screen.
+  public var minBuildNumber: UInt32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OnRampProvider: SwiftProtobuf.Enum {
@@ -738,6 +742,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     3: .standard(proto: "requires_iap_for_registration"),
     4: .standard(proto: "supported_on_ramp_providers"),
     5: .standard(proto: "preferred_on_ramp_provider"),
+    6: .standard(proto: "min_build_number"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -751,6 +756,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
       case 3: try { try decoder.decodeSingularBoolField(value: &self.requiresIapForRegistration) }()
       case 4: try { try decoder.decodeRepeatedEnumField(value: &self.supportedOnRampProviders) }()
       case 5: try { try decoder.decodeSingularEnumField(value: &self.preferredOnRampProvider) }()
+      case 6: try { try decoder.decodeSingularUInt32Field(value: &self.minBuildNumber) }()
       default: break
       }
     }
@@ -772,6 +778,9 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if self.preferredOnRampProvider != .unknown {
       try visitor.visitSingularEnumField(value: self.preferredOnRampProvider, fieldNumber: 5)
     }
+    if self.minBuildNumber != 0 {
+      try visitor.visitSingularUInt32Field(value: self.minBuildNumber, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -781,6 +790,7 @@ extension Flipcash_Account_V1_UserFlags: SwiftProtobuf.Message, SwiftProtobuf._M
     if lhs.requiresIapForRegistration != rhs.requiresIapForRegistration {return false}
     if lhs.supportedOnRampProviders != rhs.supportedOnRampProviders {return false}
     if lhs.preferredOnRampProvider != rhs.preferredOnRampProvider {return false}
+    if lhs.minBuildNumber != rhs.minBuildNumber {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

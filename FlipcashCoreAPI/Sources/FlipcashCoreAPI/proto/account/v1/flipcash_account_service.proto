@@ -114,4 +114,8 @@ message UserFlags {
 	// The preferred on ramp provider for this user. If the value is UNKNOWN, client
 	// should show the list of all supported providers.
 	OnRampProvider preferred_on_ramp_provider = 5;
+
+	// The minumum build number for this user. If their build number is less than the
+	// provided value, client should show a forced upgrade screen.
+	uint32 min_build_number = 6;
 }
