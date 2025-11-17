@@ -28,6 +28,7 @@ struct ScanScreen: View {
     @State private var isShowingGive: Bool = false
 
     @State private var sendButtonState: ButtonState = .normal
+    @State private var billEditorColors: [Color] = GradientStop.gradientPresets.randomElement()?.map { $0.color } ?? []
     
     private var toast: String? {
         if let toast = session.toast {
@@ -398,22 +399,31 @@ struct ScanScreen: View {
         VStack(spacing: 0) {
             HStack {
                 Spacer()
-                Button {
+
+                GlassButton(.doc, size: .regular) {
+                    copyBillColors()
+                }
+                .padding(.trailing, 8)
+
+                GlassButton(asset: .close, size: .regular) {
                     session.isShowingBillEditor = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(.textMain)
-                        .frame(width: 44, height: 44)
                 }
                 .padding(.trailing, 8)
                 .padding(.top, 8)
             }
+            .padding(.top, 20)
+            .padding(.horizontal, 10)
 
-            BillEditor()
+            BillEditor(backgroundColors: $billEditorColors)
                 .frame(maxWidth: .infinity)
         }
         .background(.clear)
+    }
+
+    private func copyBillColors() {
+        let hexColors = billEditorColors.map { $0.hexString }
+        let colorString = hexColors.joined(separator: ", ")
+        UIPasteboard.general.string = colorString
     }
 
     // MARK: - Actions -
@@ -429,5 +439,22 @@ struct ScanScreen: View {
 extension String: Identifiable {
     public var id: String {
         self
+    }
+}
+
+// MARK: - Color Hex Extension -
+
+extension Color {
+    var hexString: String {
+        let uiColor = UIColor(self)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+        let rgb = Int(red * 255) << 16 | Int(green * 255) << 8 | Int(blue * 255)
+        return String(format: "#%06X", rgb)
     }
 }

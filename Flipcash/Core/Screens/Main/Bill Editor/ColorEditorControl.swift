@@ -84,14 +84,16 @@ private enum PickerMode {
     case custom
 }
 
-private struct GradientStop: Identifiable, Equatable {
-    let id = UUID()
+public struct GradientStop: Identifiable, Equatable {
+    
+    public let id = UUID()
+    
     var hue: CGFloat
     var saturation: CGFloat
     var brightness: CGFloat
     var alpha: CGFloat = 1.0
     
-    var color: Color { 
+    public var color: Color { 
         Color(hue: hue, saturation: saturation, brightness: brightness, opacity: alpha) 
     }
     
@@ -422,7 +424,77 @@ private struct PresetsPanelView: View {
     let onSelectSolid: (GradientStop) -> Void
     let onSelectGradient: ([GradientStop]) -> Void
     
-    private let solidPresets: [GradientStop] = [
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: PanelMetrics.spacing) {
+                // Custom button
+                Button(action: onShowCustom) {
+                    RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
+                        .fill(Color(white: 0.2))
+                        .overlay(
+                            Image(systemName: "slider.horizontal.3")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
+                                .strokeBorder(.tertiary, lineWidth: 1)
+                        )
+                        .frame(width: PanelMetrics.tileSize, height: PanelMetrics.height)
+                        .contentShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
+                }
+                .buttonStyle(.plain)
+                
+                // Preset grid
+                VStack(spacing: PanelMetrics.spacing) {
+                    // Solid colors
+                    HStack(spacing: PanelMetrics.spacing) {
+                        ForEach(Array(GradientStop.solidPresets.enumerated()), id: \.offset) { _, stop in
+                            PresetTileView(stops: [stop]) {
+                                onSelectSolid(stop)
+                            }
+                        }
+                    }
+                    // Gradients
+                    HStack(spacing: PanelMetrics.spacing) {
+                        ForEach(Array(GradientStop.gradientPresets.enumerated()), id: \.offset) { _, stops in
+                            PresetTileView(stops: stops) {
+                                onSelectGradient(stops)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, PanelMetrics.spacing)
+            .contentMargins(.horizontal, PanelMetrics.spacing, for: .scrollContent)
+        }
+        .scrollClipDisabled()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+
+private struct PresetTileView: View {
+    let stops: [GradientStop]
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
+                .fill(stops.shapeStyle)
+                .overlay(
+                    RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
+                        .strokeBorder(.tertiary, lineWidth: 1)
+                )
+                .frame(width: PanelMetrics.tileSize, height: PanelMetrics.tileSize)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Extensions
+
+extension GradientStop {
+    public static let solidPresets: [GradientStop] = [
         GradientStop(hue: 0.0, saturation: 0.0, brightness: 1.0),      // White
         GradientStop(hue: 0.0, saturation: 0.0, brightness: 0.1),      // Black
         GradientStop(hue: 0.0, saturation: 0.9, brightness: 0.95),     // Red
@@ -435,7 +507,7 @@ private struct PresetsPanelView: View {
         GradientStop(hue: 0.9, saturation: 0.7, brightness: 0.95)      // Pink
     ]
     
-    private let gradientPresets: [[GradientStop]] = [
+    public static let gradientPresets: [[GradientStop]] = [
         // Sky: blue-white
         [
             GradientStop(hue: 0.6, saturation: 0.75, brightness: 0.85),
@@ -488,75 +560,7 @@ private struct PresetsPanelView: View {
             GradientStop(hue: 0.48, saturation: 0.7, brightness: 0.9)
         ]
     ]
-    
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: PanelMetrics.spacing) {
-                // Custom button
-                Button(action: onShowCustom) {
-                    RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                        .fill(Color(white: 0.2))
-                        .overlay(
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                                .strokeBorder(.tertiary, lineWidth: 1)
-                        )
-                        .frame(width: PanelMetrics.tileSize, height: PanelMetrics.height)
-                        .contentShape(RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius))
-                }
-                .buttonStyle(.plain)
-                
-                // Preset grid
-                VStack(spacing: PanelMetrics.spacing) {
-                    // Solid colors
-                    HStack(spacing: PanelMetrics.spacing) {
-                        ForEach(Array(solidPresets.enumerated()), id: \.offset) { _, stop in
-                            PresetTileView(stops: [stop]) {
-                                onSelectSolid(stop)
-                            }
-                        }
-                    }
-                    // Gradients
-                    HStack(spacing: PanelMetrics.spacing) {
-                        ForEach(Array(gradientPresets.enumerated()), id: \.offset) { _, stops in
-                            PresetTileView(stops: stops) {
-                                onSelectGradient(stops)
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.vertical, PanelMetrics.spacing)
-            .contentMargins(.horizontal, PanelMetrics.spacing, for: .scrollContent)
-        }
-        .scrollClipDisabled()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
 }
-
-private struct PresetTileView: View {
-    let stops: [GradientStop]
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                .fill(stops.shapeStyle)
-                .overlay(
-                    RoundedRectangle(cornerRadius: PanelMetrics.cornerRadius, style: .continuous)
-                        .strokeBorder(.tertiary, lineWidth: 1)
-                )
-                .frame(width: PanelMetrics.tileSize, height: PanelMetrics.tileSize)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Extensions
 
 private extension Array where Element == GradientStop {
     var shapeStyle: AnyShapeStyle {

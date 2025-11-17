@@ -11,7 +11,13 @@ import FlipcashUI
 
 public struct BillEditor: View {
 
-    @State private var backgroundColors: [Color] = [Color(hue: 0.6, saturation: 0.7, brightness: 0.9)]
+    @Binding public var backgroundColors: [Color]
+
+    // MARK: - Init -
+
+    public init(backgroundColors: Binding<[Color]>) {
+        self._backgroundColors = backgroundColors
+    }
 
     public var body: some View {
         GeometryReader { geometry in
@@ -51,6 +57,6 @@ public struct BillEditor: View {
 }
 
 #Preview {
-    BillEditor()
+    BillEditor(backgroundColors: .constant([Color(hue: 0.6, saturation: 0.7, brightness: 0.9)]))
 }
 
