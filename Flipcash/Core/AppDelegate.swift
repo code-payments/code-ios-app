@@ -205,25 +205,39 @@ private extension AppDelegate {
         buttonAppearance.normal.titleTextAttributes = buttonAttributes
                               
         let bar = UINavigationBar.appearance()
-        
+
         bar.largeTitleTextAttributes = largeAttributes
         bar.titleTextAttributes = titleAttributes
-        
-        let background = UIImage.solid(color: .backgroundMain)
-        let barAppearance = UINavigationBarAppearance()
-        barAppearance.configureWithOpaqueBackground()
-        barAppearance.backgroundImage = background
-        barAppearance.shadowImage = background
-        barAppearance.titleTextAttributes = titleAttributes
-        barAppearance.largeTitleTextAttributes = largeAttributes
-        barAppearance.backButtonAppearance = buttonAppearance
-        
-        bar.standardAppearance = barAppearance
-        bar.scrollEdgeAppearance = barAppearance
-        bar.isTranslucent = true
-        bar.barStyle = .default
-        bar.setBackgroundImage(background, for: .any, barMetrics: .default)
-        bar.shadowImage = background
+
+        if #available(iOS 26, *) {
+            // iOS 26: Use minimal configuration to allow liquid glass effect
+            let barAppearance = UINavigationBarAppearance()
+            barAppearance.configureWithTransparentBackground()
+            barAppearance.titleTextAttributes = titleAttributes
+            barAppearance.largeTitleTextAttributes = largeAttributes
+            barAppearance.backButtonAppearance = buttonAppearance
+
+            bar.standardAppearance = barAppearance
+            bar.scrollEdgeAppearance = barAppearance
+            bar.isTranslucent = true
+        } else {
+            // iOS < 26: Use custom background
+            let background = UIImage.solid(color: .backgroundMain)
+            let barAppearance = UINavigationBarAppearance()
+            barAppearance.configureWithOpaqueBackground()
+            barAppearance.backgroundImage = background
+            barAppearance.shadowImage = background
+            barAppearance.titleTextAttributes = titleAttributes
+            barAppearance.largeTitleTextAttributes = largeAttributes
+            barAppearance.backButtonAppearance = buttonAppearance
+
+            bar.standardAppearance = barAppearance
+            bar.scrollEdgeAppearance = barAppearance
+            bar.isTranslucent = true
+            bar.barStyle = .default
+            bar.setBackgroundImage(background, for: .any, barMetrics: .default)
+            bar.shadowImage = background
+        }
         
 //        let tableView = UITableView.appearance()
 //        tableView.backgroundColor = UIColor.backgroundMain
