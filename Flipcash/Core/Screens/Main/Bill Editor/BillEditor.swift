@@ -20,24 +20,25 @@ public struct BillEditor: View {
     }
 
     public var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
+            GeometryReader { geometry in
                 BillView(
                     fiat: try! Quarks(fiatDecimal: 10, currencyCode: .usd, decimals: 6),
                     data: .placeholder35,
                     canvasSize: CGSize(
                         width: geometry.size.width,
-                        height: geometry.size.height * 0.65  // Use top half for bill
+                        height: geometry.size.height
                     ),
                     backgroundColors: backgroundColors
                 )
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-
-                ColorEditorControl(colors: $backgroundColors)
-                    .frame(maxHeight: .infinity)
-                    .padding(.bottom, 20)
             }
+            .padding(.top, 20)
+            
+            ColorEditorControl(colors: $backgroundColors)
+                .frame(maxHeight: .infinity)
+                .padding(.bottom, 20)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .edgesIgnoringSafeArea(.bottom)
         .background(alignment: .bottom) {

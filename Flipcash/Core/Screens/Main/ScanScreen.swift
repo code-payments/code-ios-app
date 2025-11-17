@@ -411,7 +411,6 @@ struct ScanScreen: View {
                 .padding(.trailing, 8)
                 .padding(.top, 8)
             }
-            .padding(.top, 20)
             .padding(.horizontal, 10)
 
             BillEditor(backgroundColors: $billEditorColors)
