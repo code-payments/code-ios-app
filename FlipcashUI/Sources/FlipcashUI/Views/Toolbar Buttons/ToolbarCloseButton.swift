@@ -29,7 +29,7 @@ public struct ToolbarCloseButton: View {
             action()
         } label: {
             Image.asset(.close)
-                .padding([.leading, .trailing], 10)
+                .padding([.leading, .trailing], 5)
                 .padding([.top, .bottom], 5)
         }
     }
