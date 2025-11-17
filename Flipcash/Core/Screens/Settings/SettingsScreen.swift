@@ -256,7 +256,7 @@ struct SettingsScreen: View {
     @ViewBuilder private func advancedFeaturesList() -> some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            row(systemImage: "slider.horizontal.3", title: "Bill Editor") {
+            row(systemImage: "slider.horizontal.3", title: "Bill Creator") {
                 isPresented = false
                 Task {
                     try await Task.delay(milliseconds: 250)
