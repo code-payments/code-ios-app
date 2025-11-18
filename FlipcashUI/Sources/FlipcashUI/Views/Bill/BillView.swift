@@ -31,14 +31,52 @@ public struct BillView: View {
     /// Euro:      0.510
     /// Code:      0.555
     ///
-    public init(fiat: Quarks, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, backgroundColors: [Color]? = nil, action: VoidAction? = nil) {
+    public init(fiat: Quarks, data: Data, canvasSize: CGSize, aspectRatio: CGFloat = 0.555, backgroundColors: [Color]? = nil, mint: PublicKey? = nil, action: VoidAction? = nil) {
         self.fiat       = fiat
         self.data       = data
         self.canvasSize = canvasSize
         self.action     = action ?? {}
         self.string     = fiat.formatted(suffix: nil)
         self.billSize   = Self.size(fitting: canvasSize, aspectRatio: aspectRatio)
-        self.backgroundColors = backgroundColors ?? [Color(r: 0, g: 70, b: 2)]
+
+        // Use provided colors or get default colors based on mint
+        self.backgroundColors = backgroundColors ?? Self.defaultColors(for: mint)
+    }
+
+    private static func defaultColors(for mint: PublicKey?) -> [Color] {
+        let green = Color(r: 0, g: 70, b: 2)
+
+        guard let mint = mint else {
+            return [green]
+        }
+
+        // Custom bill colors for select
+        // currencies that are know now
+        switch mint {
+//        case .usdc:
+        case .jeffy:
+            return [
+                Color(r: 252, g: 219, b: 0), // #FCDB00
+                Color(r: 250, g: 160, b: 0), // #FAA000
+            ]
+            
+        case .knickNight:
+            return [
+                Color(r: 17,  g: 71,  b: 188), // #1147BC
+                Color(r: 255, g: 154, b: 0),   // #FFA000
+                Color(r: 20,  g: 23,  b: 101), // #141765
+            ]
+            
+        case .farmerCoin:
+            return [
+                Color(r: 216, g: 91,  b: 54),  // #D85B36
+                Color(r: 54,  g: 159, b: 216), // #369FD8
+                Color(r: 0,   g: 240, b: 255), // #00F0FF
+            ]
+
+        default:
+            return [green]  // Default green
+        }
     }
     
     private static func size(fitting size: CGSize, aspectRatio: CGFloat) -> CGSize {

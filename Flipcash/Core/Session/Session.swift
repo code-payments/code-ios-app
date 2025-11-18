@@ -688,7 +688,7 @@ class Session: ObservableObject {
         sendOperation     = operation
         presentationState = .visible(billDescription.received ? .pop : .slide)
         billState         = .init(
-            bill: .cash(payload),
+            bill: .cash(payload, mint: billDescription.exchangedFiat.mint),
             primaryAction: primaryAction,
             secondaryAction: secondaryAction,
         )

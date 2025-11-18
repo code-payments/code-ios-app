@@ -92,15 +92,16 @@ private class _BillCanvasController: UIViewController {
     @ViewBuilder private func content(bill: BillState.Bill?) -> some View {
         if let bill = bill {
             switch bill {
-            case .cash(let payload):
+            case .cash(let payload, let mint):
                 BillView(
                     fiat: payload.fiat,
                     data: payload.codeData(),
                     canvasSize: canvasSize(),
+                    mint: mint,
                     action: action
                 )
             }
-            
+
         } else {
             BillView(
                 fiat: 0,
