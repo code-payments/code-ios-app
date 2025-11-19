@@ -250,6 +250,16 @@ public struct Code_Currency_V1_Mint {
   /// Clears the value of `launchpadMetadata`. Subsequent reads from it will return its default value.
   public mutating func clearLaunchpadMetadata() {_uniqueStorage()._launchpadMetadata = nil}
 
+  /// Timestamp the currency was created
+  public var createdAt: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _storage._createdAt ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_uniqueStorage()._createdAt = newValue}
+  }
+  /// Returns true if `createdAt` has been explicitly set.
+  public var hasCreatedAt: Bool {return _storage._createdAt != nil}
+  /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
+  public mutating func clearCreatedAt() {_uniqueStorage()._createdAt = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -586,6 +596,7 @@ extension Code_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     6: .standard(proto: "image_url"),
     7: .standard(proto: "vm_metadata"),
     8: .standard(proto: "launchpad_metadata"),
+    9: .standard(proto: "created_at"),
   ]
 
   fileprivate class _StorageClass {
@@ -597,6 +608,7 @@ extension Code_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     var _imageURL: String = String()
     var _vmMetadata: Code_Currency_V1_VmMetadata? = nil
     var _launchpadMetadata: Code_Currency_V1_LaunchpadMetadata? = nil
+    var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
 
     #if swift(>=5.10)
       // This property is used as the initial default value for new instances of the type.
@@ -619,6 +631,7 @@ extension Code_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       _imageURL = source._imageURL
       _vmMetadata = source._vmMetadata
       _launchpadMetadata = source._launchpadMetadata
+      _createdAt = source._createdAt
     }
   }
 
@@ -645,6 +658,7 @@ extension Code_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
         case 6: try { try decoder.decodeSingularStringField(value: &_storage._imageURL) }()
         case 7: try { try decoder.decodeSingularMessageField(value: &_storage._vmMetadata) }()
         case 8: try { try decoder.decodeSingularMessageField(value: &_storage._launchpadMetadata) }()
+        case 9: try { try decoder.decodeSingularMessageField(value: &_storage._createdAt) }()
         default: break
         }
       }
@@ -681,6 +695,9 @@ extension Code_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       try { if let v = _storage._launchpadMetadata {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
       } }()
+      try { if let v = _storage._createdAt {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -698,6 +715,7 @@ extension Code_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
         if _storage._imageURL != rhs_storage._imageURL {return false}
         if _storage._vmMetadata != rhs_storage._vmMetadata {return false}
         if _storage._launchpadMetadata != rhs_storage._launchpadMetadata {return false}
+        if _storage._createdAt != rhs_storage._createdAt {return false}
         return true
       }
       if !storagesAreEqual {return false}

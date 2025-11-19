@@ -30,6 +30,11 @@ public protocol Flipcash_Account_V1_AccountClientProtocol: GRPCClient {
     _ request: Flipcash_Account_V1_GetUserFlagsRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Flipcash_Account_V1_GetUserFlagsRequest, Flipcash_Account_V1_GetUserFlagsResponse>
+
+  func getUnauthenticatedUserFlags(
+    _ request: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>
 }
 
 extension Flipcash_Account_V1_AccountClientProtocol {
@@ -90,6 +95,24 @@ extension Flipcash_Account_V1_AccountClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? []
+    )
+  }
+
+  /// GetUserFlags gets user flags for unauthenticated users
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetUnauthenticatedUserFlags.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getUnauthenticatedUserFlags(
+    _ request: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse> {
+    return self.makeUnaryCall(
+      path: Flipcash_Account_V1_AccountClientMetadata.Methods.getUnauthenticatedUserFlags.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUnauthenticatedUserFlagsInterceptors() ?? []
     )
   }
 }
@@ -170,6 +193,11 @@ public protocol Flipcash_Account_V1_AccountAsyncClientProtocol: GRPCClient {
     _ request: Flipcash_Account_V1_GetUserFlagsRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Flipcash_Account_V1_GetUserFlagsRequest, Flipcash_Account_V1_GetUserFlagsResponse>
+
+  func makeGetUnauthenticatedUserFlagsCall(
+    _ request: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -217,6 +245,18 @@ extension Flipcash_Account_V1_AccountAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? []
     )
   }
+
+  public func makeGetUnauthenticatedUserFlagsCall(
+    _ request: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Flipcash_Account_V1_AccountClientMetadata.Methods.getUnauthenticatedUserFlags.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUnauthenticatedUserFlagsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -256,6 +296,18 @@ extension Flipcash_Account_V1_AccountAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetUserFlagsInterceptors() ?? []
     )
   }
+
+  public func getUnauthenticatedUserFlags(
+    _ request: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Flipcash_Account_V1_AccountClientMetadata.Methods.getUnauthenticatedUserFlags.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetUnauthenticatedUserFlagsInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -285,6 +337,9 @@ public protocol Flipcash_Account_V1_AccountClientInterceptorFactoryProtocol: Sen
 
   /// - Returns: Interceptors to use when invoking 'getUserFlags'.
   func makeGetUserFlagsInterceptors() -> [ClientInterceptor<Flipcash_Account_V1_GetUserFlagsRequest, Flipcash_Account_V1_GetUserFlagsResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getUnauthenticatedUserFlags'.
+  func makeGetUnauthenticatedUserFlagsInterceptors() -> [ClientInterceptor<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>]
 }
 
 public enum Flipcash_Account_V1_AccountClientMetadata {
@@ -295,6 +350,7 @@ public enum Flipcash_Account_V1_AccountClientMetadata {
       Flipcash_Account_V1_AccountClientMetadata.Methods.register,
       Flipcash_Account_V1_AccountClientMetadata.Methods.login,
       Flipcash_Account_V1_AccountClientMetadata.Methods.getUserFlags,
+      Flipcash_Account_V1_AccountClientMetadata.Methods.getUnauthenticatedUserFlags,
     ]
   )
 
@@ -316,6 +372,12 @@ public enum Flipcash_Account_V1_AccountClientMetadata {
       path: "/flipcash.account.v1.Account/GetUserFlags",
       type: GRPCCallType.unary
     )
+
+    public static let getUnauthenticatedUserFlags = GRPCMethodDescriptor(
+      name: "GetUnauthenticatedUserFlags",
+      path: "/flipcash.account.v1.Account/GetUnauthenticatedUserFlags",
+      type: GRPCCallType.unary
+    )
   }
 }
 
@@ -333,6 +395,9 @@ public protocol Flipcash_Account_V1_AccountProvider: CallHandlerProvider {
 
   /// GetUserFlags gets user-specific flags.
   func getUserFlags(request: Flipcash_Account_V1_GetUserFlagsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Account_V1_GetUserFlagsResponse>
+
+  /// GetUserFlags gets user flags for unauthenticated users
+  func getUnauthenticatedUserFlags(request: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>
 }
 
 extension Flipcash_Account_V1_AccountProvider {
@@ -374,6 +439,15 @@ extension Flipcash_Account_V1_AccountProvider {
         userFunction: self.getUserFlags(request:context:)
       )
 
+    case "GetUnauthenticatedUserFlags":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>(),
+        interceptors: self.interceptors?.makeGetUnauthenticatedUserFlagsInterceptors() ?? [],
+        userFunction: self.getUnauthenticatedUserFlags(request:context:)
+      )
+
     default:
       return nil
     }
@@ -405,6 +479,12 @@ public protocol Flipcash_Account_V1_AccountAsyncProvider: CallHandlerProvider, S
     request: Flipcash_Account_V1_GetUserFlagsRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Flipcash_Account_V1_GetUserFlagsResponse
+
+  /// GetUserFlags gets user flags for unauthenticated users
+  func getUnauthenticatedUserFlags(
+    request: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -453,6 +533,15 @@ extension Flipcash_Account_V1_AccountAsyncProvider {
         wrapping: { try await self.getUserFlags(request: $0, context: $1) }
       )
 
+    case "GetUnauthenticatedUserFlags":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest>(),
+        responseSerializer: ProtobufSerializer<Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>(),
+        interceptors: self.interceptors?.makeGetUnauthenticatedUserFlagsInterceptors() ?? [],
+        wrapping: { try await self.getUnauthenticatedUserFlags(request: $0, context: $1) }
+      )
+
     default:
       return nil
     }
@@ -472,6 +561,10 @@ public protocol Flipcash_Account_V1_AccountServerInterceptorFactoryProtocol: Sen
   /// - Returns: Interceptors to use when handling 'getUserFlags'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetUserFlagsInterceptors() -> [ServerInterceptor<Flipcash_Account_V1_GetUserFlagsRequest, Flipcash_Account_V1_GetUserFlagsResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getUnauthenticatedUserFlags'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetUnauthenticatedUserFlagsInterceptors() -> [ServerInterceptor<Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>]
 }
 
 public enum Flipcash_Account_V1_AccountServerMetadata {
@@ -482,6 +575,7 @@ public enum Flipcash_Account_V1_AccountServerMetadata {
       Flipcash_Account_V1_AccountServerMetadata.Methods.register,
       Flipcash_Account_V1_AccountServerMetadata.Methods.login,
       Flipcash_Account_V1_AccountServerMetadata.Methods.getUserFlags,
+      Flipcash_Account_V1_AccountServerMetadata.Methods.getUnauthenticatedUserFlags,
     ]
   )
 
@@ -501,6 +595,12 @@ public enum Flipcash_Account_V1_AccountServerMetadata {
     public static let getUserFlags = GRPCMethodDescriptor(
       name: "GetUserFlags",
       path: "/flipcash.account.v1.Account/GetUserFlags",
+      type: GRPCCallType.unary
+    )
+
+    public static let getUnauthenticatedUserFlags = GRPCMethodDescriptor(
+      name: "GetUnauthenticatedUserFlags",
+      path: "/flipcash.account.v1.Account/GetUnauthenticatedUserFlags",
       type: GRPCCallType.unary
     )
   }

@@ -64,7 +64,7 @@ message GetMintsResponse {
 
 message Mint {
     // Token mint address
-    common.v1.SolanaAccountId address = 1 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId address = 1 [(validate.rules).message.required = true];
 
     // The number of decimals configured for the mint
     uint32 decimals = 2;
@@ -103,14 +103,17 @@ message Mint {
     // can be used for calculating price, market cap, etc. based on the exponential
     // bonding curve
     LaunchpadMetadata launchpad_metadata = 8;
+
+    // Timestamp the currency was created
+    google.protobuf.Timestamp created_at = 9 [(validate.rules).timestamp.required = true];
 }
 
 message VmMetadata {
     // VM address
-    common.v1.SolanaAccountId vm = 1 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId vm = 1 [(validate.rules).message.required = true];
 
     // Authority that subsidizes and authorizes all transactions against the VM
-    common.v1.SolanaAccountId authority = 2 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId authority = 2 [(validate.rules).message.required = true];
 
     // Lock duration of Virtual Timelock Accounts on the VM, currently hardcoded
     // to 21 days
@@ -119,28 +122,28 @@ message VmMetadata {
 
 message LaunchpadMetadata {
     // The address of the currency config
-    common.v1.SolanaAccountId currency_config = 1 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId currency_config = 1 [(validate.rules).message.required = true];
 
     // The address of the liquidity pool
-    common.v1.SolanaAccountId liquidity_pool = 2 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId liquidity_pool = 2 [(validate.rules).message.required = true];
 
     // The random seed used during currency creation
-    common.v1.SolanaAccountId seed = 3 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId seed = 3 [(validate.rules).message.required = true];
 
     // The address of the authority for the currency
-    common.v1.SolanaAccountId authority = 4 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId authority = 4 [(validate.rules).message.required = true];
 
     // The address where this mint's tokens are locked against the liquidity pool
-    common.v1.SolanaAccountId mint_vault = 5 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId mint_vault = 5 [(validate.rules).message.required = true];
 
     // The address where core mint tokens are locked against the liquidity pool
-    common.v1.SolanaAccountId core_mint_vault = 6 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId core_mint_vault = 6 [(validate.rules).message.required = true];
 
     // Reserved for mint_fees if we enable buy fees
     reserved 7;
 
     // The address where core mint fees are paid
-    common.v1.SolanaAccountId core_mint_fees = 8 [(validate.rules).timestamp.required = true];
+    common.v1.SolanaAccountId core_mint_fees = 8 [(validate.rules).message.required = true];
 
     // Current circulating mint token supply in quarks
     uint64 supply_from_bonding = 9;

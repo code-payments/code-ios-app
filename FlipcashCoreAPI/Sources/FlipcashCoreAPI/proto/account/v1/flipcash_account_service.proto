@@ -21,6 +21,9 @@ service Account {
 
 	// GetUserFlags gets user-specific flags.
 	rpc GetUserFlags(GetUserFlagsRequest) returns (GetUserFlagsResponse);
+
+	// GetUserFlags gets user flags for unauthenticated users
+	rpc GetUnauthenticatedUserFlags(GetUnauthenticatedUserFlagsRequest) returns (GetUnauthenticatedUserFlagsResponse);
 }
 
 message RegisterRequest {
@@ -77,6 +80,20 @@ message GetUserFlagsResponse {
 	enum Result {
 		OK     = 0;
 		DENIED = 1;
+	}
+
+	UserFlags user_flags = 2;
+}
+
+message GetUnauthenticatedUserFlagsRequest {
+	common.v1.Platform platform = 1;
+
+	common.v1.CountryCode country_code = 2;
+}
+message GetUnauthenticatedUserFlagsResponse {
+	Result result = 1;
+	enum Result {
+		OK = 0;
 	}
 
 	UserFlags user_flags = 2;

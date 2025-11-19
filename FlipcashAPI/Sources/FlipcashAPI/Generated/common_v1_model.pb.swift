@@ -91,31 +91,28 @@ public struct Code_Common_V1_SolanaAccountId {
   public init() {}
 }
 
-/// InstructionAccount is an account public key used within the context of
-/// an instruction.
-public struct Code_Common_V1_InstructionAccount {
+/// A Solana address lookup table used in versioned transactions
+public struct Code_Common_V1_SolanaAddressLookupTable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var account: Code_Common_V1_SolanaAccountId {
-    get {return _account ?? Code_Common_V1_SolanaAccountId()}
-    set {_account = newValue}
+  public var address: Code_Common_V1_SolanaAccountId {
+    get {return _address ?? Code_Common_V1_SolanaAccountId()}
+    set {_address = newValue}
   }
-  /// Returns true if `account` has been explicitly set.
-  public var hasAccount: Bool {return self._account != nil}
-  /// Clears the value of `account`. Subsequent reads from it will return its default value.
-  public mutating func clearAccount() {self._account = nil}
+  /// Returns true if `address` has been explicitly set.
+  public var hasAddress: Bool {return self._address != nil}
+  /// Clears the value of `address`. Subsequent reads from it will return its default value.
+  public mutating func clearAddress() {self._address = nil}
 
-  public var isSigner: Bool = false
-
-  public var isWritable: Bool = false
+  public var entries: [Code_Common_V1_SolanaAccountId] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _account: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _address: Code_Common_V1_SolanaAccountId? = nil
 }
 
 /// Transaction is a raw binary Solana transaction
@@ -334,7 +331,7 @@ public struct Code_Common_V1_ClientPong {
 #if swift(>=5.5) && canImport(_Concurrency)
 extension Code_Common_V1_AccountType: @unchecked Sendable {}
 extension Code_Common_V1_SolanaAccountId: @unchecked Sendable {}
-extension Code_Common_V1_InstructionAccount: @unchecked Sendable {}
+extension Code_Common_V1_SolanaAddressLookupTable: @unchecked Sendable {}
 extension Code_Common_V1_Transaction: @unchecked Sendable {}
 extension Code_Common_V1_Blockhash: @unchecked Sendable {}
 extension Code_Common_V1_Signature: @unchecked Sendable {}
@@ -395,12 +392,11 @@ extension Code_Common_V1_SolanaAccountId: SwiftProtobuf.Message, SwiftProtobuf._
   }
 }
 
-extension Code_Common_V1_InstructionAccount: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".InstructionAccount"
+extension Code_Common_V1_SolanaAddressLookupTable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SolanaAddressLookupTable"
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
-    1: .same(proto: "account"),
-    2: .standard(proto: "is_signer"),
-    3: .standard(proto: "is_writable"),
+    1: .same(proto: "address"),
+    2: .same(proto: "entries"),
   ]
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
@@ -409,9 +405,8 @@ extension Code_Common_V1_InstructionAccount: SwiftProtobuf.Message, SwiftProtobu
       // allocates stack space for every case branch when no optimizations are
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._account) }()
-      case 2: try { try decoder.decodeSingularBoolField(value: &self.isSigner) }()
-      case 3: try { try decoder.decodeSingularBoolField(value: &self.isWritable) }()
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._address) }()
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.entries) }()
       default: break
       }
     }
@@ -422,22 +417,18 @@ extension Code_Common_V1_InstructionAccount: SwiftProtobuf.Message, SwiftProtobu
     // allocates stack space for every if/case branch local when no optimizations
     // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
     // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._account {
+    try { if let v = self._address {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    if self.isSigner != false {
-      try visitor.visitSingularBoolField(value: self.isSigner, fieldNumber: 2)
-    }
-    if self.isWritable != false {
-      try visitor.visitSingularBoolField(value: self.isWritable, fieldNumber: 3)
+    if !self.entries.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.entries, fieldNumber: 2)
     }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_InstructionAccount, rhs: Code_Common_V1_InstructionAccount) -> Bool {
-    if lhs._account != rhs._account {return false}
-    if lhs.isSigner != rhs.isSigner {return false}
-    if lhs.isWritable != rhs.isWritable {return false}
+  public static func ==(lhs: Code_Common_V1_SolanaAddressLookupTable, rhs: Code_Common_V1_SolanaAddressLookupTable) -> Bool {
+    if lhs._address != rhs._address {return false}
+    if lhs.entries != rhs.entries {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

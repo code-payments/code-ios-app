@@ -45,6 +45,11 @@ public protocol Code_Transaction_V2_TransactionClientProtocol: GRPCClient {
     _ request: Code_Transaction_V2_VoidGiftCardRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>
+
+  func swap(
+    callOptions: CallOptions?,
+    handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
 }
 
 extension Code_Transaction_V2_TransactionClientProtocol {
@@ -202,6 +207,33 @@ extension Code_Transaction_V2_TransactionClientProtocol {
       interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? []
     )
   }
+
+  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+  /// closely. However, due to the time-sensitive nature and unreliability of
+  /// swaps, they do not fit within the broader intent system. This results in
+  /// a few key differences:
+  ///  * Transactions are submitted on a best-effort basis outside of the Code
+  ///    Sequencer within the RPC handler
+  ///  * Balance changes are applied after the transaction has finalized
+  ///
+  /// Callers should use the `send` method on the returned object to send messages
+  /// to the server. The caller should send an `.end` after the final message has been sent.
+  ///
+  /// - Parameters:
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
+  public func swap(
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse> {
+    return self.makeBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
+      handler: handler
+    )
+  }
 }
 
 @available(*, deprecated)
@@ -294,6 +326,10 @@ public protocol Code_Transaction_V2_TransactionAsyncClientProtocol: GRPCClient {
     _ request: Code_Transaction_V2_VoidGiftCardRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>
+
+  func makeSwapCall(
+    callOptions: CallOptions?
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -373,6 +409,16 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? []
+    )
+  }
+
+  public func makeSwapCall(
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse> {
+    return self.makeAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
     )
   }
 }
@@ -462,6 +508,30 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? []
     )
   }
+
+  public func swap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_SwapResponse> where RequestStream: Sequence, RequestStream.Element == Code_Transaction_V2_SwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
+    )
+  }
+
+  public func swap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_SwapResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Code_Transaction_V2_SwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.swap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeSwapInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -500,6 +570,9 @@ public protocol Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol:
 
   /// - Returns: Interceptors to use when invoking 'voidGiftCard'.
   func makeVoidGiftCardInterceptors() -> [ClientInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'swap'.
+  func makeSwapInterceptors() -> [ClientInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionClientMetadata {
@@ -513,6 +586,7 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       Code_Transaction_V2_TransactionClientMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionClientMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionClientMetadata.Methods.voidGiftCard,
+      Code_Transaction_V2_TransactionClientMetadata.Methods.swap,
     ]
   )
 
@@ -551,6 +625,12 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       name: "VoidGiftCard",
       path: "/code.transaction.v2.Transaction/VoidGiftCard",
       type: GRPCCallType.unary
+    )
+
+    public static let swap = GRPCMethodDescriptor(
+      name: "Swap",
+      path: "/code.transaction.v2.Transaction/Swap",
+      type: GRPCCallType.bidirectionalStreaming
     )
   }
 }
@@ -616,6 +696,15 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   /// Note: The RPC is idempotent. If the user already claimed/voided the gift card, or
   ///       it is close to or is auto-returned, then OK will be returned.
   func voidGiftCard(request: Code_Transaction_V2_VoidGiftCardRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_VoidGiftCardResponse>
+
+  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+  /// closely. However, due to the time-sensitive nature and unreliability of
+  /// swaps, they do not fit within the broader intent system. This results in
+  /// a few key differences:
+  ///  * Transactions are submitted on a best-effort basis outside of the Code
+  ///    Sequencer within the RPC handler
+  ///  * Balance changes are applied after the transaction has finalized
+  func swap(context: StreamingResponseCallContext<Code_Transaction_V2_SwapResponse>) -> EventLoopFuture<(StreamEvent<Code_Transaction_V2_SwapRequest>) -> Void>
 }
 
 extension Code_Transaction_V2_TransactionProvider {
@@ -682,6 +771,15 @@ extension Code_Transaction_V2_TransactionProvider {
         responseSerializer: ProtobufSerializer<Code_Transaction_V2_VoidGiftCardResponse>(),
         interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? [],
         userFunction: self.voidGiftCard(request:context:)
+      )
+
+    case "Swap":
+      return BidirectionalStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_SwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_SwapResponse>(),
+        interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
+        observerFactory: self.swap(context:)
       )
 
     default:
@@ -772,6 +870,19 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
     request: Code_Transaction_V2_VoidGiftCardRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Transaction_V2_VoidGiftCardResponse
+
+  /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+  /// closely. However, due to the time-sensitive nature and unreliability of
+  /// swaps, they do not fit within the broader intent system. This results in
+  /// a few key differences:
+  ///  * Transactions are submitted on a best-effort basis outside of the Code
+  ///    Sequencer within the RPC handler
+  ///  * Balance changes are applied after the transaction has finalized
+  func swap(
+    requestStream: GRPCAsyncRequestStream<Code_Transaction_V2_SwapRequest>,
+    responseStream: GRPCAsyncResponseStreamWriter<Code_Transaction_V2_SwapResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -847,6 +958,15 @@ extension Code_Transaction_V2_TransactionAsyncProvider {
         wrapping: { try await self.voidGiftCard(request: $0, context: $1) }
       )
 
+    case "Swap":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_SwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_SwapResponse>(),
+        interceptors: self.interceptors?.makeSwapInterceptors() ?? [],
+        wrapping: { try await self.swap(requestStream: $0, responseStream: $1, context: $2) }
+      )
+
     default:
       return nil
     }
@@ -878,6 +998,10 @@ public protocol Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when handling 'voidGiftCard'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeVoidGiftCardInterceptors() -> [ServerInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
+
+  /// - Returns: Interceptors to use when handling 'swap'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeSwapInterceptors() -> [ServerInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
 }
 
 public enum Code_Transaction_V2_TransactionServerMetadata {
@@ -891,6 +1015,7 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       Code_Transaction_V2_TransactionServerMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionServerMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionServerMetadata.Methods.voidGiftCard,
+      Code_Transaction_V2_TransactionServerMetadata.Methods.swap,
     ]
   )
 
@@ -929,6 +1054,12 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       name: "VoidGiftCard",
       path: "/code.transaction.v2.Transaction/VoidGiftCard",
       type: GRPCCallType.unary
+    )
+
+    public static let swap = GRPCMethodDescriptor(
+      name: "Swap",
+      path: "/code.transaction.v2.Transaction/Swap",
+      type: GRPCCallType.bidirectionalStreaming
     )
   }
 }

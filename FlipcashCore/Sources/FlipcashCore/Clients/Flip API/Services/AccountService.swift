@@ -196,6 +196,10 @@ public enum ErrorFetchUserFlags: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Flipcash_Account_V1_AccountClientInterceptorFactoryProtocol {
+    func makeGetUnauthenticatedUserFlagsInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, FlipcashCoreAPI.Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse>] {
+        makeInterceptors()
+    }
+    
     func makeRegisterInterceptors() -> [GRPC.ClientInterceptor<FlipcashCoreAPI.Flipcash_Account_V1_RegisterRequest, FlipcashCoreAPI.Flipcash_Account_V1_RegisterResponse>] {
         makeInterceptors()
     }

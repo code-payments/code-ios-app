@@ -68,6 +68,15 @@ service Transaction {
     // Note: The RPC is idempotent. If the user already claimed/voided the gift card, or
     //       it is close to or is auto-returned, then OK will be returned.
     rpc VoidGiftCard(VoidGiftCardRequest) returns (VoidGiftCardResponse);
+
+    // Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
+    // closely. However, due to the time-sensitive nature and unreliability of
+    // swaps, they do not fit within the broader intent system. This results in
+    // a few key differences:
+    //  * Transactions are submitted on a best-effort basis outside of the Code
+    //    Sequencer within the RPC handler
+    //  * Balance changes are applied after the transaction has finalized
+    rpc Swap(stream SwapRequest) returns (stream SwapResponse);
 }
 
 //
@@ -254,8 +263,8 @@ message CanWithdrawToAccountResponse {
         OwnerAccount = 2; // Client locally derives the ATA to use in SubmitIntent
     }
 
-    // ATA requires initialization before the withdrawal can occur. Server will not
-    // subsidize the account creation, so a fee is required.
+    // ATA requires initialization before the withdrawal can occur. Server may not
+    // subsidize the account creation, so a fee may be required.
     bool requires_initialization = 3;
 
     // The CREATE_ON_SEND_WITHDRAWAL fee, in USD, that must be paid in order to
@@ -263,7 +272,8 @@ message CanWithdrawToAccountResponse {
     // send. The user must explicitly agree to this fee amount before submitting
     // the intent.
     //
-    // This will be set when requires_initialization = true
+    // This can be set when requires_initialization = true if server decides to
+    // not subsidize the token account creation.
     //
     // Note: The fee is always paid in the target mint.
     ExchangeDataWithoutRate fee_amount = 4;
@@ -321,6 +331,175 @@ message VoidGiftCardResponse {
         CLAIMED_BY_OTHER_USER = 2;
         // The gift card doesn't exist
         NOT_FOUND = 3;
+    }
+}
+
+message SwapRequest {
+    oneof request {
+        option (validate.required) = true;
+
+        Initiate         initiate         = 1;
+        SubmitSignatures submit_signatures = 2;
+    }
+
+    message Initiate {
+        oneof kind {
+            option (validate.required) = true;
+
+            Stateless stateless = 1;
+        }
+        reserved 2; // Reserved for stateful parameters
+
+        message Stateless {
+            // The verified owner account public key
+            common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+            // The source mint that will be swapped from
+            common.v1.SolanaAccountId from_mint = 2 [(validate.rules).message.required = true];
+
+            // The destination mint that will be swapped to
+            common.v1.SolanaAccountId to_mint = 3 [(validate.rules).message.required = true];
+
+            // The amount to swap from the source mint in quarks.
+            uint64 amount = 4 [(validate.rules).uint64.gt = 0];
+
+            // The user authority account that will sign to authorize the swap.
+            //
+            // For Currency Creator program buy/sell flows, this should be a random one-time use account.
+            common.v1.SolanaAccountId swap_authority = 5 [(validate.rules).message.required = true];
+
+            // Whether the client wants the RPC to wait for blockchain status. If false,
+            // then the RPC will return Success when the swap is submitted to the blockchain.
+            // Otherwise, the RPC will observe and report back the status of the transaction.
+            bool wait_for_blockchain_status = 6;
+
+            // The signature is of serialize(InitiateStateless) without this field set using the
+            // private key of the owner account. This provides an authentication mechanism
+            // to the RPC.
+            common.v1.Signature signature = 7 [(validate.rules).message.required = true];
+        }
+    }
+
+    message SubmitSignatures {
+        // The signatures for the locally constructed swap transaction
+        repeated common.v1.Signature signatures = 1 [(validate.rules).repeated = {
+            min_items: 2
+            max_items: 2
+        }];
+    }
+}
+
+message SwapResponse {
+    oneof response {
+        option (validate.required) = true;
+
+        ServerParameters server_parameters = 1;
+        Success          success           = 2;
+        Error            error             = 3;
+    }
+
+    message ServerParameters {
+        oneof kind {
+            option (validate.required) = true;
+
+            CurrencyCreator currency_creator = 1;
+        }
+
+        // Server parameters when executing buy/sell flows against the Currency Creator
+        // program.
+        //
+        // Supported Solana transaction version: v0
+        //
+        // Instruction formats:
+        //
+        // Buy Tokens (Core Mint -> Launchpad Currency Mint):
+        //  1. [Optional] ComputeBudget::SetComputeUnitLimit
+        //  2. [Optional] ComputeBudget::SetComputeUnitPrice
+        //  3. [Optional] Memo::Memo
+        //  4. AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
+        //  5. VM::TransferForSwap (Core Mint VM swap ATA -> Core Mint temporary account)
+        //  6. CurrencyCreator::BuyAndDepositIntoVm (bounded buy depositing to_mint tokens into the to_mint VM)
+        //  7. Token::CloseAccount (closes Core Mint temporary account)
+        //  8. VM::CloseSwapAccountIfEmpty (closes Core Mint VM swap ATA if empty)
+        //
+        // Sell Tokens (Launchpad Currency Mint -> Core Mint):
+        //  1. [Optional] ComputeBudget::SetComputeUnitLimit
+        //  2. [Optional] ComputeBudget::SetComputeUnitPrice
+        //  3. [Optional] Memo::Memo
+        //  4. AssociatedTokenAccount::CreateIdempotent (open from_mint temporary account)
+        //  5. VM::TransferForSwap (from_mint VM swap ATA -> from_mint temporary account)
+        //  6. CurrencyCreator::SellAndDepositIntoVm (bounded sell depositing Core Mint into the Core Mint VM)
+        //  7. Token::CloseAccount (closes from_mint temporary account)
+        //  8. VM::CloseSwapAccountIfEmpty (closes from_mint swap PDA/ATA if empty)
+        //
+        // Swap Tokens (Launchpad Currency Mint -> Launchpad Currency Mint):
+        //  1.  [Optional] ComputeBudget::SetComputeUnitLimit
+        //  2.  [Optional] ComputeBudget::SetComputeUnitPrice
+        //  3.  [Optional] Memo::Memo
+        //  4.  AssociatedTokenAccount::CreateIdempotent (open Core Mint temporary account)
+        //  5.  AssociatedTokenAccount::CreateIdempotent (open from_mint temporary account)
+        //  6.  VM::TransferForSwap (from_mint VM swap ATA -> from_mint temporary account)
+        //  7.  CurrencyCreator::SellTokens (bounded sell transferring Core Mint into temporary account)
+        //  8.  CurrencyCreator::BuyAndDepositIntoVm (unlimited buy depositing to_mint tokens into the to_mint VM)
+        //  9.  Token::CloseAccount (closes Core Mint temporary account)
+        //  10. Token::CloseAccount (closes from_mint temporary account)
+        //  11. VM::CloseSwapAccountIfEmpty (closes from_mint VM swap ATA if empty)
+        //
+        // Note: This is likely to (breaking) change once we add a stateful swap
+        message CurrencyCreator {
+            // Subisdizer account that will be paying for the swap
+            common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
+
+            // Recent blockhash
+            common.v1.Blockhash recent_blockhash = 2 [(validate.rules).message.required = true];
+
+            // ALTs that should be used when constructing the versioned transaction
+            repeated common.v1.SolanaAddressLookupTable alts = 3;
+
+            // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint32 compute_unit_limit = 4;
+
+            // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
+            // instruction. If the value is 0, then the instruction can be omitted.
+            uint64 compute_unit_price = 5;
+
+            // Value provided into the Memo::Memo instruction. If the value length is 0,
+            // then the instruction can be omitted.
+            string memo_value = 6 [(validate.rules).string. max_len = 64];
+
+            // The memory account where the destination virtual Timelock account lives
+            common.v1.SolanaAccountId memory_account = 7 [(validate.rules).message.required = true];
+
+            // The memory index where the destination virtual Timelock account lives
+            uint32 memory_index = 8;
+        }
+    }
+
+    message Success {
+        Code code = 1;
+        enum Code {
+            // The swap was submitted to the blockchain.
+            SWAP_SUBMITTED = 0;
+            // The swap was finalized on the blockchain.
+            SWAP_FINALIZED = 1;
+        }
+    }
+
+    message Error {
+        Code code = 1;
+        enum Code {
+            // Denied by a guard (spam, money laundering, etc)
+            DENIED = 0;
+            // There is an issue with the provided signature.
+            SIGNATURE_ERROR = 2;
+            // The swap failed server-side validation
+            INVALID_SWAP = 3;
+            // The submitted swap transaction failed. Attempt the swap again.
+            SWAP_FAILED = 4;
+        }
+
+        repeated ErrorDetails error_details = 2;
     }
 }
 

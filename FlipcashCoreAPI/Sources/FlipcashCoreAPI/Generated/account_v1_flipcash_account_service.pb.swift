@@ -330,6 +330,88 @@ extension Flipcash_Account_V1_GetUserFlagsResponse.Result: CaseIterable {
 
 #endif  // swift(>=4.2)
 
+public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var platform: Flipcash_Common_V1_Platform = .unknown
+
+  public var countryCode: Flipcash_Common_V1_CountryCode {
+    get {return _countryCode ?? Flipcash_Common_V1_CountryCode()}
+    set {_countryCode = newValue}
+  }
+  /// Returns true if `countryCode` has been explicitly set.
+  public var hasCountryCode: Bool {return self._countryCode != nil}
+  /// Clears the value of `countryCode`. Subsequent reads from it will return its default value.
+  public mutating func clearCountryCode() {self._countryCode = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _countryCode: Flipcash_Common_V1_CountryCode? = nil
+}
+
+public struct Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var result: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result = .ok
+
+  public var userFlags: Flipcash_Account_V1_UserFlags {
+    get {return _userFlags ?? Flipcash_Account_V1_UserFlags()}
+    set {_userFlags = newValue}
+  }
+  /// Returns true if `userFlags` has been explicitly set.
+  public var hasUserFlags: Bool {return self._userFlags != nil}
+  /// Clears the value of `userFlags`. Subsequent reads from it will return its default value.
+  public mutating func clearUserFlags() {self._userFlags = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum Result: SwiftProtobuf.Enum {
+    public typealias RawValue = Int
+    case ok // = 0
+    case UNRECOGNIZED(Int)
+
+    public init() {
+      self = .ok
+    }
+
+    public init?(rawValue: Int) {
+      switch rawValue {
+      case 0: self = .ok
+      default: self = .UNRECOGNIZED(rawValue)
+      }
+    }
+
+    public var rawValue: Int {
+      switch self {
+      case .ok: return 0
+      case .UNRECOGNIZED(let i): return i
+      }
+    }
+
+  }
+
+  public init() {}
+
+  fileprivate var _userFlags: Flipcash_Account_V1_UserFlags? = nil
+}
+
+#if swift(>=4.2)
+
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: CaseIterable {
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result] = [
+    .ok,
+  ]
+}
+
+#endif  // swift(>=4.2)
+
 public struct Flipcash_Account_V1_UserFlags {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -439,6 +521,9 @@ extension Flipcash_Account_V1_LoginResponse.Result: @unchecked Sendable {}
 extension Flipcash_Account_V1_GetUserFlagsRequest: @unchecked Sendable {}
 extension Flipcash_Account_V1_GetUserFlagsResponse: @unchecked Sendable {}
 extension Flipcash_Account_V1_GetUserFlagsResponse.Result: @unchecked Sendable {}
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest: @unchecked Sendable {}
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: @unchecked Sendable {}
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: @unchecked Sendable {}
 extension Flipcash_Account_V1_UserFlags: @unchecked Sendable {}
 extension Flipcash_Account_V1_UserFlags.OnRampProvider: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
@@ -731,6 +816,96 @@ extension Flipcash_Account_V1_GetUserFlagsResponse.Result: SwiftProtobuf._ProtoN
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     0: .same(proto: "OK"),
     1: .same(proto: "DENIED"),
+  ]
+}
+
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetUnauthenticatedUserFlagsRequest"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "platform"),
+    2: .standard(proto: "country_code"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.platform) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._countryCode) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.platform != .unknown {
+      try visitor.visitSingularEnumField(value: self.platform, fieldNumber: 1)
+    }
+    try { if let v = self._countryCode {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest, rhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest) -> Bool {
+    if lhs.platform != rhs.platform {return false}
+    if lhs._countryCode != rhs._countryCode {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".GetUnauthenticatedUserFlagsResponse"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "result"),
+    2: .standard(proto: "user_flags"),
+  ]
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._userFlags) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.result != .ok {
+      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
+    }
+    try { if let v = self._userFlags {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse, rhs: Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse) -> Bool {
+    if lhs.result != rhs.result {return false}
+    if lhs._userFlags != rhs._userFlags {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Account_V1_GetUnauthenticatedUserFlagsResponse.Result: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    0: .same(proto: "OK"),
   ]
 }
 

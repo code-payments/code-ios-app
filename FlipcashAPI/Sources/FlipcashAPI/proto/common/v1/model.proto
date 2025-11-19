@@ -41,14 +41,14 @@ message SolanaAccountId {
     }];
 }
 
-// InstructionAccount is an account public key used within the context of
-// an instruction.
-message InstructionAccount {
-    SolanaAccountId account = 1 [(validate.rules).message.required = true];
+// A Solana address lookup table used in versioned transactions
+message SolanaAddressLookupTable {
+    common.v1.SolanaAccountId address = 1 [(validate.rules).message.required = true];
 
-    bool is_signer = 2;
-
-    bool is_writable = 3;
+    repeated common.v1.SolanaAccountId entries = 2 [(validate.rules).repeated = {
+        min_items: 1,
+        max_items: 256,
+    }];
 }
 
 // Transaction is a raw binary Solana transaction
