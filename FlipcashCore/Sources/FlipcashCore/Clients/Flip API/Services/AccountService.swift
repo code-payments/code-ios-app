@@ -64,19 +64,19 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
     
     func fetchUserFlags(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
         trace(.send, components: "UserID: \(userID)")
-        
+
         let request = Flipcash_Account_V1_GetUserFlagsRequest.with {
             $0.userID = userID.proto
             $0.platform = .apple
-            
+
             if let countryCode = Locale.current.region?.identifier {
 //                $0.countryCode = .with { $0.value = "us"}
                 $0.countryCode = .with { $0.value = countryCode }
             }
-            
+
             $0.auth = owner.authFor(message: $0)
         }
-        
+
         let call = service.getUserFlags(request)
         call.handle(on: queue) { response in
             let error = ErrorFetchUserFlags(rawValue: response.result.rawValue) ?? .unknown
@@ -87,86 +87,36 @@ class AccountService: CodeService<Flipcash_Account_V1_AccountNIOClient> {
                 trace(.failure, components: "Failed to register: \(owner.publicKey.base58)")
                 completion(.failure(error))
             }
-            
+
         } failure: { error in
             completion(.failure(.unknown))
         }
     }
-}
 
-// MARK: - Types -
+    func fetchUnauthenticatedUserFlags(completion: @Sendable @escaping (Result<UnauthenticatedUserFlags, ErrorFetchUnauthenticatedUserFlags>) -> Void) {
+        trace(.send)
 
-public struct UserFlags: Sendable {
-    public let isRegistered: Bool
-    public let isStaff: Bool
-    public let onrampProviders: [OnRampProvider]
-    public let preferredOnrampProvider: OnRampProvider
-    
-    public var hasPreferredOnrampProvider: Bool {
-        preferredOnrampProvider != .unknown
-    }
-    
-    public var hasCoinbase: Bool {
-        onrampProviders.contains(.coinbaseVirtual) ||
-        onrampProviders.contains(.coinbasePhysicalDebit) ||
-        onrampProviders.contains(.coinbasePhysicalCredit)
-    }
-    
-    public var hasPhantom: Bool {
-        onrampProviders.contains(.phantom)
-    }
-    
-    public var hasOtherCryptoWallets: Bool {
-        onrampProviders.contains(.manualDeposit)
-    }
-}
+        let request = Flipcash_Account_V1_GetUnauthenticatedUserFlagsRequest.with {
+            $0.platform = .apple
 
-extension UserFlags {
-    public enum OnRampProvider: Int, Sendable {
-        case unknown
-        case coinbaseVirtual
-        case coinbasePhysicalDebit
-        case coinbasePhysicalCredit
-        case manualDeposit
-        case phantom
-        case solflare
-        case backpack
-        case base
-    }
-        
-    init(_ proto: Flipcash_Account_V1_UserFlags) {
-        self.init(
-            isRegistered: proto.isRegisteredAccount,
-            isStaff: proto.isStaff,
-            onrampProviders: proto.supportedOnRampProviders.map { OnRampProvider($0) },
-            preferredOnrampProvider: OnRampProvider(proto.preferredOnRampProvider)
-        )
-    }
-}
+            if let countryCode = Locale.current.region?.identifier {
+                $0.countryCode = .with { $0.value = countryCode }
+            }
+        }
 
-extension UserFlags.OnRampProvider {
-    init(_ proto: Flipcash_Account_V1_UserFlags.OnRampProvider) {
-        switch proto {
-        case .unknown:
-            self = .unknown
-        case .coinbaseVirtual:
-            self = .coinbaseVirtual
-        case .coinbasePhysicalDebit:
-            self = .coinbasePhysicalDebit
-        case .coinbasePhysicalCredit:
-            self = .coinbasePhysicalCredit
-        case .manualDeposit:
-            self = .manualDeposit
-        case .phantom:
-            self = .phantom
-        case .solflare:
-            self = .solflare
-        case .backpack:
-            self = .backpack
-        case .base:
-            self = .base
-        case .UNRECOGNIZED:
-            self = .unknown
+        let call = service.getUnauthenticatedUserFlags(request)
+        call.handle(on: queue) { response in
+            let error = ErrorFetchUnauthenticatedUserFlags(rawValue: response.result.rawValue) ?? .unknown
+            if error == .ok {
+                trace(.success)
+                completion(.success(UnauthenticatedUserFlags(response.userFlags)))
+            } else {
+                trace(.failure)
+                completion(.failure(error))
+            }
+
+        } failure: { error in
+            completion(.failure(.unknown))
         }
     }
 }
@@ -190,6 +140,11 @@ public enum ErrorLoginAccount: Int, Error {
 public enum ErrorFetchUserFlags: Int, Error {
     case ok
     case denied
+    case unknown = -1
+}
+
+public enum ErrorFetchUnauthenticatedUserFlags: Int, Error {
+    case ok
     case unknown = -1
 }
 

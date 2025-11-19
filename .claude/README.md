@@ -828,8 +828,44 @@ The Flipcash app communicates with the backend via gRPC. Protocol definitions (`
 
 **Actions Required:**
 - Add/remove corresponding Swift methods in service classes
+- **IMPORTANT:** Update Client+ extension files with async/await wrappers
 - Update call sites using changed RPCs
 - Handle new request/response structures
+
+**Client Extension Pattern:**
+When adding a new RPC method to a Service (e.g., `AccountService`), you MUST also add a corresponding async/await wrapper in the Client extension file:
+
+```swift
+// 1. Add method to Service (e.g., AccountService.swift)
+func fetchUserFlags(userID: UserID, owner: KeyPair, completion: @Sendable @escaping (Result<UserFlags, ErrorFetchUserFlags>) -> Void) {
+    // Implementation with completion handler
+}
+
+// 2. Add async wrapper to Client extension (e.g., FlipClient+Account.swift)
+extension FlipClient {
+    public func fetchUserFlags(userID: UserID, owner: KeyPair) async throws -> UserFlags {
+        try await withCheckedThrowingContinuation { c in
+            accountService.fetchUserFlags(userID: userID, owner: owner) { c.resume(with: $0) }
+        }
+    }
+}
+```
+
+**Service to Client+ Mapping:**
+```
+Service File                              → Client Extension File
+----------------------------------------------------------------------
+AccountService.swift                      → FlipClient+Account.swift
+TransactionService.swift                  → FlipClient+Transaction.swift
+BadgeService.swift                        → FlipClient+Badge.swift
+CurrencyService.swift                     → FlipClient+Currency.swift
+MessagingService.swift                    → FlipClient+Messaging.swift
+```
+
+This pattern ensures:
+- Services use completion handlers for internal implementation
+- Public API uses modern async/await
+- Consistent interface across all client methods
 
 **C. New Models:**
 - Sometimes new proto messages require new Swift models

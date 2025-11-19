@@ -27,4 +27,10 @@ extension FlipClient {
             accountService.fetchUserFlags(userID: userID, owner: owner) { c.resume(with: $0) }
         }
     }
+
+    public func fetchUnauthenticatedUserFlags() async throws -> UnauthenticatedUserFlags {
+        try await withCheckedThrowingContinuation { c in
+            accountService.fetchUnauthenticatedUserFlags { c.resume(with: $0) }
+        }
+    }
 }
