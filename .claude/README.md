@@ -622,6 +622,39 @@ Some packages are shared:
 - **CodeAPI** - Legacy gRPC definitions (AVOID, use FlipcashAPI)
 - **CodeUI** - Legacy UI components (AVOID, use FlipcashUI)
 
+### Module Boundaries (IMPORTANT)
+
+**Flipcash must NEVER import CodeServices:**
+
+- ❌ **NEVER:** `import CodeServices` in Flipcash code
+- ✅ **ALWAYS:** Use `import FlipcashCore` instead
+
+**Why:**
+- FlipcashCore is Flipcash's equivalent to CodeServices
+- Maintains proper module boundaries between apps
+- FlipcashCore re-exports necessary types (e.g., `AppMeta`)
+- Violating this creates tight coupling with legacy code
+
+**Examples:**
+
+```swift
+// ❌ WRONG - Never do this in Flipcash
+import CodeServices
+let build = AppMeta.build
+
+// ✅ CORRECT - Use FlipcashCore
+import FlipcashCore
+let build = AppMeta.build
+```
+
+**Where this applies:**
+- Flipcash/Core/** - All app code
+- Flipcash/Tests/** - Test code
+
+**Exceptions:**
+- FlipcashCore itself may import CodeServices (but not expose it)
+- Build scripts and tools (not part of app)
+
 ---
 
 ## Development Guidelines

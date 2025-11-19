@@ -20,26 +20,32 @@ struct ContainerScreen: View {
     
     var body: some View {
         VStack {
-            switch sessionAuthenticator.state {
-            case .loggedOut:
-                IntroScreen(container: container)
+            if sessionAuthenticator.requiresUpgrade {
+                ForceUpgradeScreen()
                     .transition(.opacity)
-                
-            case .migrating, .pending:
-                VStack {
-                    LoadingView(color: .white)
+            } else {
+                switch sessionAuthenticator.state {
+                case .loggedOut:
+                    IntroScreen(container: container)
+                        .transition(.opacity)
+
+                case .migrating, .pending:
+                    VStack {
+                        LoadingView(color: .white)
+                    }
+                    .transition(.opacity)
+
+                case .loggedIn(let sessionContainer):
+                    ScanScreen(
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                    .injectingEnvironment(from: sessionContainer)
+                    .transition(.opacity)
                 }
-                .transition(.opacity)
-                
-            case .loggedIn(let sessionContainer):
-                ScanScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-                .injectingEnvironment(from: sessionContainer)
-                .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.state.intValue)
+        .animation(.easeOut(duration: 0.3), value: sessionAuthenticator.requiresUpgrade)
     }
 }

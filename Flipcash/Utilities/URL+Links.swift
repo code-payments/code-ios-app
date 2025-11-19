@@ -41,6 +41,10 @@ extension URL {
     static var mail: URL {
         URL(string: "message://")!
     }
+    
+    static var appStoreApplicationHome: URL {
+        URL(string: "https://apps.apple.com/ca/app/flipcash/id6745559740")!
+    }
 }
 
 extension URL {

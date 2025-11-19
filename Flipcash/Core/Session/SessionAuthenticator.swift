@@ -11,13 +11,14 @@ import FlipcashUI
 
 @MainActor
 final class SessionAuthenticator: ObservableObject {
-    
+
     let accountManager: AccountManager
-    
+
     @Published private(set) var loginButtonState: ButtonState = .normal
     @Published private(set) var isUnlocked: Bool = false
     @Published private(set) var state: AuthenticationState = .migrating
-    
+    @Published private(set) var unauthenticatedUserFlags: UnauthenticatedUserFlags?
+
     var isLoggedIn: Bool {
         if case .loggedIn = state {
             return true
@@ -25,10 +26,23 @@ final class SessionAuthenticator: ObservableObject {
             return false
         }
     }
-    
+
+    var requiresUpgrade: Bool {
+        guard let minBuildNumber = unauthenticatedUserFlags?.minBuildNumber, minBuildNumber > 0 else {
+            return false // No minimum requirement or server didn't provide one
+        }
+
+        guard let currentBuild = UInt32(AppMeta.build) else {
+            return false // Can't parse build number, default to allowing access
+        }
+
+        return currentBuild < minBuildNumber
+    }
+
     private let container: Container
     private let client: Client
     private let flipClient: FlipClient
+    private var poller: Poller?
     
     // MARK: - Init -
     
@@ -37,22 +51,25 @@ final class SessionAuthenticator: ObservableObject {
         self.client         = container.client
         self.flipClient     = container.flipClient
         self.accountManager = container.accountManager
-        
+
         // Update launch state.
         // This is a fresh install.
         if UserDefaults.launchCount == nil {
             trace(.note, components: "First launch...")
         }
-        
+
         UserDefaults.launchCount = (UserDefaults.launchCount ?? 0) + 1
         trace(.note, components: "Launch count: \(UserDefaults.launchCount!)")
-        
+
+        // Start polling for unauthenticated user flags
+        startPollingUnauthenticatedUserFlags()
+
         initializeState { userAccount in
             let initializedAccount = InitializedAccount(
                 keyAccount: userAccount.keyAccount,
                 userID: userAccount.userID
             )
-            
+
             self.completeLogin(with: initializedAccount)
         } didFindRecentAccount: { [weak self] keyAccount in
             Task {
@@ -120,8 +137,28 @@ final class SessionAuthenticator: ObservableObject {
         }
     }
     
+    // MARK: - Unauthenticated User Flags Polling -
+
+    private func startPollingUnauthenticatedUserFlags() {
+        poller = Poller(seconds: 30, fireImmediately: true) { [weak self] in
+            Task {
+                await self?.fetchUnauthenticatedUserFlags()
+            }
+        }
+    }
+
+    private func fetchUnauthenticatedUserFlags() async {
+        do {
+            let flags = try await flipClient.fetchUnauthenticatedUserFlags()
+            self.unauthenticatedUserFlags = flags
+            trace(.success, components: "Fetched unauthenticated user flags")
+        } catch {
+            trace(.failure, components: "Failed to fetch unauthenticated user flags: \(error)")
+        }
+    }
+
     // MARK: - Session -
-    
+
     private func createSessionContainer(container: Container, initializedAccount: InitializedAccount) -> SessionContainer {
         let owner = initializedAccount.owner
         let ownerPublicKey = owner.authority.keyPair.publicKey
