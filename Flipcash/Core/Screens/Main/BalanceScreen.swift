@@ -46,6 +46,14 @@ struct BalanceScreen: View {
     private var balances: [ExchangedBalance] {
         session.balances(for: balanceRate)
     }
+
+    private var currencyBalances: [ExchangedBalance] {
+        balances.filter { $0.stored.mint != .usdc }
+    }
+
+    private var usdcBalance: ExchangedBalance? {
+        balances.first { $0.stored.mint == .usdc }
+    }
     
     // MARK: - Init -
     
@@ -150,12 +158,12 @@ struct BalanceScreen: View {
     }
     
     @ViewBuilder private func list() -> some View {
-        let hasBalances = !balances.isEmpty
+        let hasCurrencyBalances = !currencyBalances.isEmpty
         GeometryReader { g in
             List {
                 Section {
-                    if hasBalances {
-                        ForEach(balances) { balance in
+                    if hasCurrencyBalances {
+                        ForEach(currencyBalances) { balance in
                             CurrencyBalanceRow(exchangedBalance: balance) {
                                 selectedBalance = balance
                             }
@@ -163,18 +171,49 @@ struct BalanceScreen: View {
                     } else {
                         emptyState(geometry: g)
                     }
-                    
+
                 } header: {
                     header()
                         .textCase(.none)
                         .frame(height: g.size.height * proportion)
+                } footer: {
+                    if let usdcBalance {
+                        cashReservesFooter(usdcBalance: usdcBalance)
+                    }
                 }
                 .listRowInsets(EdgeInsets())
-                .listRowSeparatorTint(hasBalances ? .rowSeparator : .clear)
+                .listRowSeparatorTint(hasCurrencyBalances ? .rowSeparator : .clear)
             }
             .listStyle(.grouped)
             .scrollContentBackground(.hidden)
         }
+    }
+
+    @ViewBuilder private func cashReservesFooter(usdcBalance: ExchangedBalance) -> some View {
+        Button {
+            selectedBalance = usdcBalance
+        } label: {
+            HStack(spacing: 8) {
+                Text("Cash Reserves")
+                    .font(.appBarButton)
+                    .foregroundStyle(Color.textSecondary)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.textSecondary)
+                    .padding(.top, 3)
+
+                Spacer()
+
+                Text(usdcBalance.exchangedFiat.converted.formatted())
+                    .font(.appTextMedium)
+                    .foregroundStyle(Color.textMain)
+            }
+        }
+        .listRowBackground(Color.clear)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .textCase(.none)
     }
     
     @ViewBuilder private func header() -> some View {

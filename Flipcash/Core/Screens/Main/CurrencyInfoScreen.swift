@@ -20,11 +20,31 @@ struct CurrencyInfoScreen: View {
     private var mintMetadata: StoredMintMetadata {
         updateableMint.value
     }
+
+    private var isUSDC: Bool {
+        mintMetadata.mint == .usdc
+    }
+
+    private var currencyDescription: String {
+        if isUSDC {
+            return "Your cash reserves are held in USDF, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDF for U.S. dollars whenever you like."
+        } else {
+            return mintMetadata.bio ?? "No information"
+        }
+    }
     
+    private var proportion: CGFloat {
+        if isUSDC {
+            return 0.24
+        } else {
+            return 0.35
+        }
+    }
+
     private var balance: Quarks {
         let balance   = session.balance(for: mintMetadata.mint)
         let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
-        
+
         return exchanged?.converted ?? 0
     }
     
@@ -80,12 +100,12 @@ struct CurrencyInfoScreen: View {
             GeometryReader { g in
                 ScrollView {
                     VStack(spacing: 0) {
-                        
+
                         // Header
-                        
+
                         section {
                             Spacer()
-                            
+
                             AmountText(
                                 flagStyle: balance.currencyCode.flagStyle,
                                 content: balance.formatted(),
@@ -95,28 +115,32 @@ struct CurrencyInfoScreen: View {
                             .foregroundStyle(Color.textMain)
                             .frame(maxWidth: .infinity)
                             .padding(.bottom, 30)
-                            
+
                             Spacer()
-                            
-                            CodeButton(style: .filledSecondary, title: "View Transaction History") {
-                                isShowingTransactionHistory.toggle()
+
+                            if !isUSDC {
+                                CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                                    isShowingTransactionHistory.toggle()
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: g.size.height * 0.35)
-                        
+                        .frame(height: g.size.height * proportion)
+
                         // Currency Info
-                        
+
                         section(spacing: 20) {
-                            HStack {
-                                Image(systemName: "text.justify.left")
-                                    .padding(.bottom, -1)
-                                Text("Currency Info")
+                            if !isUSDC {
+                                HStack {
+                                    Image(systemName: "text.justify.left")
+                                        .padding(.bottom, -1)
+                                    Text("Currency Info")
+                                }
+                                .font(.appBarButton)
+                                .foregroundStyle(Color.textMain)
                             }
-                            .font(.appBarButton)
-                            .foregroundStyle(Color.textMain)
-                            
-                            Text(mintMetadata.bio ?? "No information")
+
+                            Text(currencyDescription)
                                 .foregroundStyle(Color.textSecondary)
                                 .font(.appTextSmall)
 //                            {
@@ -124,10 +148,10 @@ struct CurrencyInfoScreen: View {
 //                            }
 //                            .font(.system(size: 14, weight: .bold))
                         }
-                                                    
+
                         // Market Cap
-                            
-                        if mintMetadata.mint != .usdc {
+
+                        if !isUSDC {
                             section(spacing: 0) {
                                 VStack(alignment: .leading) {
                                     Text("Market Cap")
@@ -152,11 +176,17 @@ struct CurrencyInfoScreen: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                CurrencyLabel(
-                    imageURL: mintMetadata.imageURL,
-                    name: mintMetadata.name,
-                    amount: nil
-                )
+                if isUSDC {
+                    Text("Cash Reserves")
+                        .font(.appBarButton)
+                        .foregroundStyle(Color.textMain)
+                } else {
+                    CurrencyLabel(
+                        imageURL: mintMetadata.imageURL,
+                        name: mintMetadata.name,
+                        amount: nil
+                    )
+                }
             }
         }
     }
