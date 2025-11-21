@@ -56,22 +56,22 @@ public struct BillView: View {
 //        case .usdc:
         case .jeffy:
             return [
-                Color(r: 252, g: 219, b: 0), // #FCDB00
-                Color(r: 250, g: 160, b: 0), // #FAA000
+                Color(r: 120, g: 49,  b: 0),   // #783100
+                Color(r: 238, g: 186, b: 127), // #EEBA7F
             ]
-            
+
         case .knickNight:
             return [
-                Color(r: 17,  g: 71,  b: 188), // #1147BC
-                Color(r: 255, g: 154, b: 0),   // #FFA000
-                Color(r: 20,  g: 23,  b: 101), // #141765
+                Color(r: 20,  g: 67,  b: 255), // #1443FF
+                Color(r: 255, g: 154, b: 60),  // #FF9A3C
+                Color(r: 255, g: 125, b: 12),  // #FF7D0C
             ]
-            
+
         case .farmerCoin:
             return [
-                Color(r: 216, g: 91,  b: 54),  // #D85B36
-                Color(r: 54,  g: 159, b: 216), // #369FD8
-                Color(r: 0,   g: 240, b: 255), // #00F0FF
+                Color(r: 95,  g: 95,  b: 1),   // #5F5F01
+                Color(r: 174, g: 174, b: 13),  // #AEAE0D
+                Color(r: 203, g: 223, b: 122), // #CBDF7A
             ]
 
         default:
