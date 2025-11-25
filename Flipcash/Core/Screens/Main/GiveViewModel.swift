@@ -14,7 +14,6 @@ class GiveViewModel: ObservableObject {
     
     @Published var enteredAmount: String = ""
     @Published var actionState: ButtonState = .normal
-    @Published var navigationPath: [GivePath] = []
     
     @Published var dialogItem: DialogItem?
     
@@ -25,10 +24,11 @@ class GiveViewModel: ObservableObject {
     let container: Container
     let sessionContainer: SessionContainer
     let session: Session
+    let tokenController: TokenController
     let ratesController: RatesController
     let onrampViewModel: OnrampViewModel
     
-    private(set) var selectedBalance: ExchangedBalance?
+    @Published private(set) var selectedBalance: ExchangedBalance?
     
     private var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
@@ -72,7 +72,7 @@ class GiveViewModel: ObservableObject {
         }
     }
     
-    private let isPresented: Binding<Bool>
+    public let isPresented: Binding<Bool>
     
     // MARK: - Init -
     
@@ -82,7 +82,18 @@ class GiveViewModel: ObservableObject {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         self.ratesController  = sessionContainer.ratesController
+        self.tokenController  = sessionContainer.tokenController
         self.onrampViewModel  = sessionContainer.onrampViewModel
+        
+        // Session now guarantees a valid token is selected if balances exist
+        let rate = ratesController.rateForEntryCurrency()
+        if let selectedToken = tokenController.selectedToken {
+            self.selectedBalance = sessionContainer.session.balances(for: rate)
+                .first(where: { $0.stored.mint == selectedToken.mint })
+        } else {
+            // Fallback to highest balance if somehow no token is selected
+            self.selectedBalance = sessionContainer.session.balances(for: rate).first
+        }
     }
     
     // MARK: - Action -
@@ -125,8 +136,8 @@ class GiveViewModel: ObservableObject {
     
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
+        tokenController.selectBalance(exchangedBalance)
         enteredAmount = ""
-        navigationPath.append(.giveScreen)
     }
     
     // MARK: - Navigation -
@@ -176,8 +187,4 @@ class GiveViewModel: ObservableObject {
             .okay(kind: .destructive)
         }
     }
-}
-
-enum GivePath: Hashable {
-    case giveScreen
 }

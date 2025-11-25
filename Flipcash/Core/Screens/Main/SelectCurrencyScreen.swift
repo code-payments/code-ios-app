@@ -15,8 +15,9 @@ struct SelectCurrencyScreen: View {
     
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
+    @EnvironmentObject private var tokenController: TokenController
     
-    @StateObject private var viewModel: GiveViewModel
+    @ObservedObject private var viewModel: GiveViewModel
     
     @State private var selectedBalance: ExchangedBalance?
     
@@ -26,17 +27,12 @@ struct SelectCurrencyScreen: View {
     
     let kind: Kind
     let fixedRate: Rate?
-    let container: Container
-    let sessionContainer: SessionContainer
     
     // MARK: - Init -
-    
     init(isPresented: Binding<Bool>, kind: Kind = .give, fixedRate: Rate?, container: Container, sessionContainer: SessionContainer) {
         self._isPresented        = isPresented
         self.kind                = kind
         self.fixedRate           = fixedRate
-        self.container           = container
-        self.sessionContainer    = sessionContainer
         
         self._viewModel = .init(
             wrappedValue: GiveViewModel(
@@ -47,18 +43,35 @@ struct SelectCurrencyScreen: View {
         )
     }
     
+    init(isPresented: Binding<Bool>, kind: Kind = .give, fixedRate: Rate?, viewModel: GiveViewModel) {
+        self._isPresented        = isPresented
+        self.kind                = kind
+        self.fixedRate           = fixedRate
+        self.viewModel           = viewModel
+    }
+    
     // MARK: - Body -
     
     var body: some View {
-        NavigationStack(path: $viewModel.navigationPath) {
+        NavigationStack {
             Background(color: .backgroundMain) {
                 List {
                     Section {
                         ForEach(balances) { balance in
-                            CurrencyBalanceRow(exchangedBalance: balance) {
+                            CurrencyBalanceRow(
+                                exchangedBalance: balance,
+                                showSelected: {
+                                    if case .give = kind {
+                                        return tokenController.isSelected(balance.stored.mint)
+                                    }
+                                    return nil
+                                }(),
+                            ) {
                                 switch kind {
                                 case .give:
                                     viewModel.selectCurrencyAction(exchangedBalance: balance)
+                                    isPresented = false
+                                    
                                 case .select(let action):
                                     action(balance)
                                 }
@@ -77,12 +90,6 @@ struct SelectCurrencyScreen: View {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
-            .navigationDestination(for: GivePath.self) { path in
-                switch path {
-                case .giveScreen:
-                    GiveScreen(viewModel: viewModel)
-                }
-            }
         }
     }
 }
@@ -98,10 +105,12 @@ struct CurrencyBalanceRow: View {
     
     let exchangedBalance: ExchangedBalance
     let action: (() -> Void)?
+    var showSelected: Bool? = nil
     
-    init(exchangedBalance: ExchangedBalance, action: (() -> Void)? = nil) {
+    init(exchangedBalance: ExchangedBalance, showSelected: Bool? = nil, action: (() -> Void)? = nil) {
         self.exchangedBalance = exchangedBalance
         self.action = action
+        self.showSelected = showSelected
     }
     
     var body: some View {
@@ -111,7 +120,8 @@ struct CurrencyBalanceRow: View {
             CurrencyLabel(
                 imageURL: exchangedBalance.stored.imageURL,
                 name: exchangedBalance.stored.name,
-                amount: exchangedBalance.exchangedFiat.converted
+                amount: exchangedBalance.exchangedFiat.converted,
+                isSelected: showSelected,
             )
         }
         .disabled(action == nil)
@@ -126,6 +136,7 @@ struct CurrencyLabel: View {
     let imageURL: URL?
     let name: String
     let amount: Quarks?
+    var isSelected: Bool? = nil
     
     var body: some View {
         HStack(spacing: 8) {
@@ -145,6 +156,10 @@ struct CurrencyLabel: View {
                 Text(amount.formatted())
                     .font(.appTextMedium)
                     .foregroundStyle(Color.textMain)
+            }
+            
+            if let isSelected {
+                CheckView(active: isSelected)
             }
         }
     }

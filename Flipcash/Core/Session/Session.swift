@@ -175,6 +175,7 @@ class Session: ObservableObject {
     private let flipClient: FlipClient
     private let ratesController: RatesController
     private let historyController: HistoryController
+    private let tokenController: TokenController
     private let database: Database
     
     private var poller: Poller!
@@ -189,6 +190,7 @@ class Session: ObservableObject {
             (try? self?.database.getBalances()) ?? []
         } didSet: { [weak self] in
             self?.objectWillChange.send()
+            self?.ensureValidTokenSelection()
         }
     }()
     
@@ -196,18 +198,22 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, historyController: HistoryController, ratesController: RatesController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
+    init(container: Container, historyController: HistoryController, ratesController: RatesController, tokenController: TokenController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
         self.flipClient        = container.flipClient
         self.ratesController   = ratesController
         self.historyController = historyController
+        self.tokenController   = tokenController
         self.database          = database
         self.keyAccount        = keyAccount
         self.owner             = owner
         self.userID            = userID
         
         _ = updateableBalances
+        
+        // Ensure we have a valid token selected on initialization
+        ensureValidTokenSelection()
         
         registerPoller()
         attemptAirdrop()
@@ -220,6 +226,40 @@ class Session: ObservableObject {
     
     func prepareForLogout() {
         
+    }
+    
+    // MARK: - Token Selection -
+    
+    /// Ensures that a valid token is selected in the TokenController
+    /// If the currently selected token doesn't exist in balances or is nil,
+    /// it will automatically select the highest balance token
+    private func ensureValidTokenSelection() {
+        let currentBalances = balances
+        
+        // If no balances, nothing to select
+        guard !currentBalances.isEmpty else {
+            return
+        }
+        
+        // Check if current selection is valid
+        if let selectedToken = tokenController.selectedToken {
+            let isValid = currentBalances.contains { $0.mint == selectedToken.mint }
+            if isValid {
+                return // Current selection is valid
+            }
+        }
+        
+        // No valid selection, default to highest balance (first in sorted list)
+        if let highestBalance = currentBalances.first {
+            // Convert to ExchangedBalance to use the selectBalance method
+            let rate = ratesController.rateForEntryCurrency()
+            let exchangedFiat = highestBalance.computeExchangedValue(with: rate)
+            let exchangedBalance = ExchangedBalance(
+                stored: highestBalance,
+                exchangedFiat: exchangedFiat
+            )
+            tokenController.selectBalance(exchangedBalance)
+        }
     }
     
     // MARK: - Info -
@@ -1154,6 +1194,7 @@ extension Session {
         container: .mock,
         historyController: .mock,
         ratesController: .mock,
+        tokenController: .mock,
         database: .mock,
         keyAccount: .mock,
         owner: .init(

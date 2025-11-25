@@ -18,7 +18,8 @@ struct GiveScreen: View {
     @ObservedObject private var viewModel: GiveViewModel
     
     @State private var isShowingCurrencySelection: Bool = false
-    
+    @State private var isShowingTokenSelection: Bool = false
+        
     @State private var dialogItem: DialogItem?
     
     private var maxLimit: ExchangedFiat {
@@ -46,52 +47,74 @@ struct GiveScreen: View {
     // MARK: - Body -
     
     var body: some View {
-        Background(color: .backgroundMain) {
-            EnterAmountView(
-                mode: .currency,
-                enteredAmount: $viewModel.enteredAmount,
-                subtitle: .balanceWithLimit(maxLimit),
-                actionState: $viewModel.actionState,
-                actionEnabled: { _ in
-                    viewModel.canGive
-                },
-                action: nextAction,
-                currencySelectionAction: showCurrencySelection
-            )
-            .foregroundColor(.textMain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 20)
-            .padding(.top, -20)
-            .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(
-                    isPresented: $isShowingCurrencySelection,
-                    kind: .entry,
-                    ratesController: ratesController
+        NavigationStack {
+            Background(color: .backgroundMain) {
+                EnterAmountView(
+                    mode: .currency,
+                    enteredAmount: $viewModel.enteredAmount,
+                    subtitle: .balanceWithLimit(maxLimit),
+                    actionState: $viewModel.actionState,
+                    actionEnabled: { _ in
+                        viewModel.canGive
+                    },
+                    action: nextAction,
+                    currencySelectionAction: showCurrencySelection
                 )
+                .foregroundColor(.textMain)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+                .padding(.top, -20)
+                .sheet(isPresented: $isShowingCurrencySelection) {
+                    CurrencySelectionScreen(
+                        isPresented: $isShowingCurrencySelection,
+                        kind: .entry,
+                        ratesController: ratesController
+                    )
+                }
             }
-        }
-        .ignoresSafeArea(.keyboard)
-        .navigationTitle("Enter Amount")
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
-            AddCashScreen(
-                isPresented: $onrampViewModel.isMethodSelectionPresented,
-                container: viewModel.container,
-                sessionContainer: viewModel.sessionContainer
-            )
-        }
-        .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
-            PartialSheet(background: .backgroundMain) {
-                PresetAddCashScreen(
-                    isPresented: $onrampViewModel.isOnrampPresented,
+            .ignoresSafeArea(.keyboard)
+            .navigationTitle("")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    TokenSelectorButton(
+                        selectedBalance: viewModel.selectedBalance,
+                        action: { isShowingTokenSelection = true }
+                    )
+                    .id(viewModel.selectedBalance?.stored.mint)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarCloseButton(binding: viewModel.isPresented)
+                }
+            }
+            .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
+                AddCashScreen(
+                    isPresented: $onrampViewModel.isMethodSelectionPresented,
                     container: viewModel.container,
                     sessionContainer: viewModel.sessionContainer
                 )
             }
+            .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
+                PartialSheet(background: .backgroundMain) {
+                    PresetAddCashScreen(
+                        isPresented: $onrampViewModel.isOnrampPresented,
+                        container: viewModel.container,
+                        sessionContainer: viewModel.sessionContainer
+                    )
+                }
+            }
+            .sheet(isPresented: $isShowingTokenSelection) {
+                SelectCurrencyScreen(
+                    isPresented: $isShowingTokenSelection,
+                    kind: .give,
+                    fixedRate: nil,
+                    viewModel: viewModel
+                )
+            }
+            .dialog(item: $dialogItem)
+            .dialog(item: $onrampViewModel.purchaseSuccess)
+            .dialog(item: $viewModel.dialogItem)
         }
-        .dialog(item: $dialogItem)
-        .dialog(item: $onrampViewModel.purchaseSuccess)
-        .dialog(item: $viewModel.dialogItem)
     }
     
     // MARK: - Actions -
@@ -102,5 +125,27 @@ struct GiveScreen: View {
     
     private func showCurrencySelection() {
         isShowingCurrencySelection.toggle()
+    }
+}
+
+// MARK: - TokenSelectorButton -
+
+private struct TokenSelectorButton: View {
+    let selectedBalance: ExchangedBalance?
+    let action: () -> Void
+    
+    var body: some View {
+        HStack {
+            CurrencyLabel(
+                imageURL: selectedBalance?.stored.imageURL,
+                name: selectedBalance?.stored.name ?? "",
+                amount: nil
+            )
+            
+            Image.system(.chevronDown)
+                .font(.default(size: 12, weight: .bold))
+                .foregroundColor(.textMain)
+        }
+        .onTapGesture(perform: action)
     }
 }
