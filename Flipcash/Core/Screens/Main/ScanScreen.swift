@@ -322,19 +322,13 @@ struct ScanScreen: View {
                 binding: $isShowingGive
             )
             .sheet(isPresented: $isShowingGive) {
-                SelectCurrencyScreen(
-                    isPresented: $isShowingGive,
-                    fixedRate: nil,
-                    container: container,
-                    sessionContainer: sessionContainer
+                GiveScreen(
+                    viewModel: GiveViewModel(
+                        isPresented: $isShowingGive,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
                 )
-//                GiveScreen(
-//                    isPresented: $isShowingGive,
-//                    mint: .jeffy,
-//                    kind: .cash,
-//                    container: container,
-//                    sessionContainer: sessionContainer
-//                )
             }
             
 //            LargeButton(

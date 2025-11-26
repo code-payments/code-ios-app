@@ -37,6 +37,8 @@ enum DefaultsKey: String {
     case recentCurrencies   = "com.flipcash.currency.recentCurrencies"
     case localCurrencyAdded = "com.flipcash.currency.localCurrencyAdded"
     
+    case storedTokenMint = "com.flipcash.token.storedTokenMint"
+    
     case betaFlags = "com.flipcash.betaFlags"
     
     case pendingPurchase = "com.flipcash.iap.pendingPurchase"

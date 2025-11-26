@@ -29,6 +29,15 @@ class RatesController: ObservableObject {
         }
     }
     
+    /// The currently selected token mint
+    @Published var selectedTokenMint: PublicKey? {
+        didSet {
+            if let mint = selectedTokenMint {
+                LocalDefaults.storedTokenMint = mint.base58
+            }
+        }
+    }
+    
     private let client: Client
     private let database: Database
     
@@ -52,9 +61,11 @@ class RatesController: ObservableObject {
             LocalDefaults.onrampCurrency = .usd
         }
         
+        
         entryCurrency   = LocalDefaults.entryCurrency!
         balanceCurrency = LocalDefaults.balanceCurrency!
         onrampCurrency  = LocalDefaults.onrampCurrency!
+        selectedTokenMint = loadSelectedToken()
         
         registerPoller()
     }
@@ -106,6 +117,43 @@ class RatesController: ObservableObject {
         
         return exchangedFiat
     }
+    
+    // MARK: - Token -
+    private func loadSelectedToken() -> PublicKey? {
+        guard let mintString = LocalDefaults.storedTokenMint,
+              let mint = try? PublicKey(base58: mintString) else {
+            return nil
+        }
+        
+        return mint
+    }
+    
+    /// Select a new mint and persist it
+    /// - Parameter token: The token to save
+    func selectToken(_ mint: PublicKey) {
+        selectedTokenMint = mint
+    }
+    
+    /// Get the currently selected token, or a default if none is selected
+    /// - Parameter defaultMint: The default mint to return if none is selected. Defaults to USDC.
+    /// - Returns: The selected token or the default
+    func getSelectedToken(default defaultMint: PublicKey = .usdc) -> StoredMintMetadata? {
+        let mint = selectedTokenMint ?? defaultMint
+        
+        return try! database.getMintMetadata(mint: mint)
+    }
+    
+    /// Check if a given mint is currently selected
+    /// - Parameter mint: The mint to check
+    /// - Returns: True if the mint is selected
+    func isSelectedToken(_ mint: PublicKey) -> Bool {
+        selectedTokenMint == mint
+    }
+    
+    /// Prepare for logout of current user
+    func prepareForLogout() {
+        selectedTokenMint = nil
+    }
 }
 
 // MARK: - Errors -
@@ -127,6 +175,9 @@ private enum LocalDefaults {
     
     @Defaults(.onrampCurrency)
     static var onrampCurrency: CurrencyCode?
+    
+    @Defaults(.storedTokenMint)
+    static var storedTokenMint: String?
 }
 
 extension RatesController {

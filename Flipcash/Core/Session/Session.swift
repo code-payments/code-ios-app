@@ -189,6 +189,7 @@ class Session: ObservableObject {
             (try? self?.database.getBalances()) ?? []
         } didSet: { [weak self] in
             self?.objectWillChange.send()
+            self?.ensureValidTokenSelection()
         }
     }()
     
@@ -209,6 +210,9 @@ class Session: ObservableObject {
         
         _ = updateableBalances
         
+        // Ensure we have a valid token selected on initialization
+        ensureValidTokenSelection()
+        
         registerPoller()
         attemptAirdrop()
         
@@ -220,6 +224,33 @@ class Session: ObservableObject {
     
     func prepareForLogout() {
         
+    }
+    
+    // MARK: - Token Selection -
+    
+    /// Ensures that a valid token is selected in the TokenController
+    /// If the currently selected token doesn't exist in balances or is nil,
+    /// it will automatically select the highest balance token
+    private func ensureValidTokenSelection() {
+        let currentBalances = balances
+        
+        // If no balances, nothing to select
+        guard !currentBalances.isEmpty else {
+            return
+        }
+        
+        // Check if current selection is valid
+        if let selectedTokenMint = ratesController.selectedTokenMint {
+            let isValid = currentBalances.contains { $0.mint == selectedTokenMint }
+            if isValid {
+                return // Current selection is valid
+            }
+        }
+        
+        // No valid selection, default to highest balance (first in sorted list)
+        if let highestBalance = currentBalances.first {
+            ratesController.selectToken(highestBalance.mint)
+        }
     }
     
     // MARK: - Info -
