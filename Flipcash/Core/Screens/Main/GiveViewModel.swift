@@ -24,7 +24,6 @@ class GiveViewModel: ObservableObject {
     let container: Container
     let sessionContainer: SessionContainer
     let session: Session
-    let tokenController: TokenController
     let ratesController: RatesController
     let onrampViewModel: OnrampViewModel
     
@@ -82,12 +81,11 @@ class GiveViewModel: ObservableObject {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         self.ratesController  = sessionContainer.ratesController
-        self.tokenController  = sessionContainer.tokenController
         self.onrampViewModel  = sessionContainer.onrampViewModel
         
         // Session now guarantees a valid token is selected if balances exist
         let rate = ratesController.rateForEntryCurrency()
-        if let selectedTokenMint = tokenController.selectedTokenMint {
+        if let selectedTokenMint = ratesController.selectedTokenMint {
             self.selectedBalance = sessionContainer.session.balances(for: rate)
                 .first(where: { $0.stored.mint == selectedTokenMint })
         } else {
@@ -136,7 +134,7 @@ class GiveViewModel: ObservableObject {
     
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        tokenController.selectToken(exchangedBalance.stored.mint)
+        ratesController.selectToken(exchangedBalance.stored.mint)
         enteredAmount = ""
     }
     

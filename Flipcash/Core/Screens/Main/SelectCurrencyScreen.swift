@@ -15,7 +15,6 @@ struct SelectCurrencyScreen: View {
     
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
-    @EnvironmentObject private var tokenController: TokenController
     
     @ObservedObject private var viewModel: GiveViewModel
     
@@ -27,7 +26,7 @@ struct SelectCurrencyScreen: View {
     
     private func shouldShowSelected(_ balance: ExchangedBalance) -> Bool? {
         if case .give = kind {
-            return tokenController.isSelected(balance.stored.mint)
+            return ratesController.isSelectedToken(balance.stored.mint)
         }
         return nil
     }

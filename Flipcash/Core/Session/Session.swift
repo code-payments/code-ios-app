@@ -175,7 +175,6 @@ class Session: ObservableObject {
     private let flipClient: FlipClient
     private let ratesController: RatesController
     private let historyController: HistoryController
-    private let tokenController: TokenController
     private let database: Database
     
     private var poller: Poller!
@@ -198,13 +197,12 @@ class Session: ObservableObject {
     
     // MARK: - Init -
     
-    init(container: Container, historyController: HistoryController, ratesController: RatesController, tokenController: TokenController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
+    init(container: Container, historyController: HistoryController, ratesController: RatesController, database: Database, keyAccount: KeyAccount, owner: AccountCluster, userID: UserID) {
         self.container         = container
         self.client            = container.client
         self.flipClient        = container.flipClient
         self.ratesController   = ratesController
         self.historyController = historyController
-        self.tokenController   = tokenController
         self.database          = database
         self.keyAccount        = keyAccount
         self.owner             = owner
@@ -242,7 +240,7 @@ class Session: ObservableObject {
         }
         
         // Check if current selection is valid
-        if let selectedTokenMint = tokenController.selectedTokenMint {
+        if let selectedTokenMint = ratesController.selectedTokenMint {
             let isValid = currentBalances.contains { $0.mint == selectedTokenMint }
             if isValid {
                 return // Current selection is valid
@@ -251,7 +249,7 @@ class Session: ObservableObject {
         
         // No valid selection, default to highest balance (first in sorted list)
         if let highestBalance = currentBalances.first {
-            tokenController.selectToken(highestBalance.mint)
+            ratesController.selectToken(highestBalance.mint)
         }
     }
     
@@ -1187,7 +1185,6 @@ extension Session {
         container: .mock,
         historyController: .mock,
         ratesController: .mock,
-        tokenController: .mock,
         database: .mock,
         keyAccount: .mock,
         owner: .init(

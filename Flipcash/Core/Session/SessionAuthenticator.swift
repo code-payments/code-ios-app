@@ -181,16 +181,10 @@ final class SessionAuthenticator: ObservableObject {
             client: container.flipClient
         )
         
-        let tokenController = TokenController(
-            container: container,
-            database: database,
-        )
-        
         let session = Session(
             container: container,
             historyController: historyController,
             ratesController: ratesController,
-            tokenController: tokenController,
             database: database,
             keyAccount: initializedAccount.keyAccount,
             owner: owner,
@@ -228,7 +222,6 @@ final class SessionAuthenticator: ObservableObject {
             walletConnection: walletConnection,
             ratesController: ratesController,
             historyController: historyController,
-            tokenController: tokenController,
             pushController: pushController,
             poolController: poolController,
             poolViewModel: poolViewModel,
@@ -373,7 +366,7 @@ final class SessionAuthenticator: ObservableObject {
         if case .loggedIn(let container) = state {
             container.session.prepareForLogout()
             container.pushController.prepareForLogout()
-            container.tokenController.prepareForLogout()
+            container.ratesController.prepareForLogout()
         }
         
         accountManager.resetForLogout()
@@ -394,7 +387,6 @@ struct SessionContainer {
     let walletConnection: WalletConnection
     let ratesController: RatesController
     let historyController: HistoryController
-    let tokenController: TokenController
     let pushController: PushController
     let poolController: PoolController
     let poolViewModel: PoolViewModel
@@ -407,11 +399,10 @@ struct SessionContainer {
             .environmentObject(ratesController)
             .environmentObject(historyController)
             .environmentObject(pushController)
-            .environmentObject(tokenController)
     }
     
     @MainActor
-    static let mock: SessionContainer = .init(session: .mock, database: .mock, walletConnection: .mock, ratesController: .mock, historyController: .mock, tokenController: .mock, pushController: .mock, poolController: .mock, poolViewModel: .mock, onrampViewModel: .mock)
+    static let mock: SessionContainer = .init(session: .mock, database: .mock, walletConnection: .mock, ratesController: .mock, historyController: .mock, pushController: .mock, poolController: .mock, poolViewModel: .mock, onrampViewModel: .mock)
 }
 
 extension View {
