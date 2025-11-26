@@ -242,8 +242,8 @@ class Session: ObservableObject {
         }
         
         // Check if current selection is valid
-        if let selectedToken = tokenController.selectedToken {
-            let isValid = currentBalances.contains { $0.mint == selectedToken.mint }
+        if let selectedTokenMint = tokenController.selectedTokenMint {
+            let isValid = currentBalances.contains { $0.mint == selectedTokenMint }
             if isValid {
                 return // Current selection is valid
             }
@@ -251,14 +251,7 @@ class Session: ObservableObject {
         
         // No valid selection, default to highest balance (first in sorted list)
         if let highestBalance = currentBalances.first {
-            // Convert to ExchangedBalance to use the selectBalance method
-            let rate = ratesController.rateForEntryCurrency()
-            let exchangedFiat = highestBalance.computeExchangedValue(with: rate)
-            let exchangedBalance = ExchangedBalance(
-                stored: highestBalance,
-                exchangedFiat: exchangedFiat
-            )
-            tokenController.selectBalance(exchangedBalance)
+            tokenController.selectToken(highestBalance.mint)
         }
     }
     

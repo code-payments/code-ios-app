@@ -25,6 +25,13 @@ struct SelectCurrencyScreen: View {
         session.balances(for: fixedRate ?? ratesController.rateForEntryCurrency())
     }
     
+    private func shouldShowSelected(_ balance: ExchangedBalance) -> Bool? {
+        if case .give = kind {
+            return tokenController.isSelected(balance.stored.mint)
+        }
+        return nil
+    }
+    
     let kind: Kind
     let fixedRate: Rate?
     
@@ -60,12 +67,7 @@ struct SelectCurrencyScreen: View {
                         ForEach(balances) { balance in
                             CurrencyBalanceRow(
                                 exchangedBalance: balance,
-                                showSelected: {
-                                    if case .give = kind {
-                                        return tokenController.isSelected(balance.stored.mint)
-                                    }
-                                    return nil
-                                }(),
+                                showSelected: shouldShowSelected(balance),
                             ) {
                                 switch kind {
                                 case .give:
@@ -105,7 +107,7 @@ struct CurrencyBalanceRow: View {
     
     let exchangedBalance: ExchangedBalance
     let action: (() -> Void)?
-    var showSelected: Bool? = nil
+    let showSelected: Bool?
     
     init(exchangedBalance: ExchangedBalance, showSelected: Bool? = nil, action: (() -> Void)? = nil) {
         self.exchangedBalance = exchangedBalance

@@ -183,6 +183,7 @@ final class SessionAuthenticator: ObservableObject {
         
         let tokenController = TokenController(
             container: container,
+            database: database,
         )
         
         let session = Session(

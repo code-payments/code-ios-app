@@ -135,17 +135,18 @@ private struct TokenSelectorButton: View {
     let action: () -> Void
     
     var body: some View {
-        HStack {
-            CurrencyLabel(
-                imageURL: selectedBalance?.stored.imageURL,
-                name: selectedBalance?.stored.name ?? "",
-                amount: nil
-            )
-            
-            Image.system(.chevronDown)
-                .font(.default(size: 12, weight: .bold))
-                .foregroundColor(.textMain)
+        Button(action: action) {
+            HStack {
+                CurrencyLabel(
+                    imageURL: selectedBalance?.stored.imageURL,
+                    name: selectedBalance?.stored.name ?? "",
+                    amount: nil
+                )
+                
+                Image.system(.chevronDown)
+                    .font(.default(size: 12, weight: .bold))
+                    .foregroundColor(.textMain)
+            }
         }
-        .onTapGesture(perform: action)
     }
 }

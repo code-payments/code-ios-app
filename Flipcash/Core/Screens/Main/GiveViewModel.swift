@@ -87,9 +87,9 @@ class GiveViewModel: ObservableObject {
         
         // Session now guarantees a valid token is selected if balances exist
         let rate = ratesController.rateForEntryCurrency()
-        if let selectedToken = tokenController.selectedToken {
+        if let selectedTokenMint = tokenController.selectedTokenMint {
             self.selectedBalance = sessionContainer.session.balances(for: rate)
-                .first(where: { $0.stored.mint == selectedToken.mint })
+                .first(where: { $0.stored.mint == selectedTokenMint })
         } else {
             // Fallback to highest balance if somehow no token is selected
             self.selectedBalance = sessionContainer.session.balances(for: rate).first
@@ -136,7 +136,7 @@ class GiveViewModel: ObservableObject {
     
     func selectCurrencyAction(exchangedBalance: ExchangedBalance) {
         selectedBalance = exchangedBalance
-        tokenController.selectBalance(exchangedBalance)
+        tokenController.selectToken(exchangedBalance.stored.mint)
         enteredAmount = ""
     }
     
