@@ -22,6 +22,21 @@ When adding new information, place it in the appropriate existing section. Remov
 
 ---
 
+## Plans & Analysis Records
+
+**Record analyses and implementation plans in `.claude/plans/`** when:
+
+- Performing deep-dive analysis of new features or RPC changes
+- Planning multi-step implementations
+- Documenting architectural decisions
+- Investigating complex systems that span multiple files
+
+**File naming:** `YYYY-MM-DD-<topic>.md` (e.g., `2025-11-27-swap-rpc-analysis.md`)
+
+**Purpose:** These records allow future sessions to reference prior analysis without re-exploring the codebase. Keep them detailed but focused on actionable information.
+
+---
+
 ## Behavior & Approach
 
 ### Working Style
