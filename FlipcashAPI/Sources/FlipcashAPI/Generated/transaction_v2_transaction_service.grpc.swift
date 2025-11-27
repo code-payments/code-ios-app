@@ -46,6 +46,21 @@ public protocol Code_Transaction_V2_TransactionClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> UnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>
 
+  func startSwap(
+    callOptions: CallOptions?,
+    handler: @escaping (Code_Transaction_V2_StartSwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Transaction_V2_StartSwapRequest, Code_Transaction_V2_StartSwapResponse>
+
+  func getSwap(
+    _ request: Code_Transaction_V2_GetSwapRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Transaction_V2_GetSwapRequest, Code_Transaction_V2_GetSwapResponse>
+
+  func getPendingSwaps(
+    _ request: Code_Transaction_V2_GetPendingSwapsRequest,
+    callOptions: CallOptions?
+  ) -> UnaryCall<Code_Transaction_V2_GetPendingSwapsRequest, Code_Transaction_V2_GetPendingSwapsResponse>
+
   func swap(
     callOptions: CallOptions?,
     handler: @escaping (Code_Transaction_V2_SwapResponse) -> Void
@@ -208,6 +223,66 @@ extension Code_Transaction_V2_TransactionClientProtocol {
     )
   }
 
+  /// StartSwap begins the process for swapping tokens by coordinating verified metadata
+  /// for non-custodial state management tracking.
+  ///
+  /// Callers should use the `send` method on the returned object to send messages
+  /// to the server. The caller should send an `.end` after the final message has been sent.
+  ///
+  /// - Parameters:
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
+  public func startSwap(
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Code_Transaction_V2_StartSwapResponse) -> Void
+  ) -> BidirectionalStreamingCall<Code_Transaction_V2_StartSwapRequest, Code_Transaction_V2_StartSwapResponse> {
+    return self.makeBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.startSwap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStartSwapInterceptors() ?? [],
+      handler: handler
+    )
+  }
+
+  /// GetSwap gets metadata for a swap
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetSwap.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getSwap(
+    _ request: Code_Transaction_V2_GetSwapRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Transaction_V2_GetSwapRequest, Code_Transaction_V2_GetSwapResponse> {
+    return self.makeUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.getSwap.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetSwapInterceptors() ?? []
+    )
+  }
+
+  /// GetPendingSwaps get swaps that are pending client actions which include:
+  ///  1. Swaps that need a call to SubmitIntent to fund the VM swap PDA (ie. in a CREATED state)
+  ///  2. Swaps that need to be executed via the Swap RPC (ie. in a FUNDED state)
+  ///
+  /// - Parameters:
+  ///   - request: Request to send to GetPendingSwaps.
+  ///   - callOptions: Call options.
+  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
+  public func getPendingSwaps(
+    _ request: Code_Transaction_V2_GetPendingSwapsRequest,
+    callOptions: CallOptions? = nil
+  ) -> UnaryCall<Code_Transaction_V2_GetPendingSwapsRequest, Code_Transaction_V2_GetPendingSwapsResponse> {
+    return self.makeUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.getPendingSwaps.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPendingSwapsInterceptors() ?? []
+    )
+  }
+
   /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
   /// closely. However, due to the time-sensitive nature and unreliability of
   /// swaps, they do not fit within the broader intent system. This results in
@@ -327,6 +402,20 @@ public protocol Code_Transaction_V2_TransactionAsyncClientProtocol: GRPCClient {
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>
 
+  func makeStartSwapCall(
+    callOptions: CallOptions?
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_StartSwapRequest, Code_Transaction_V2_StartSwapResponse>
+
+  func makeGetSwapCall(
+    _ request: Code_Transaction_V2_GetSwapRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_GetSwapRequest, Code_Transaction_V2_GetSwapResponse>
+
+  func makeGetPendingSwapsCall(
+    _ request: Code_Transaction_V2_GetPendingSwapsRequest,
+    callOptions: CallOptions?
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_GetPendingSwapsRequest, Code_Transaction_V2_GetPendingSwapsResponse>
+
   func makeSwapCall(
     callOptions: CallOptions?
   ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
@@ -409,6 +498,40 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? []
+    )
+  }
+
+  public func makeStartSwapCall(
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Transaction_V2_StartSwapRequest, Code_Transaction_V2_StartSwapResponse> {
+    return self.makeAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.startSwap.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStartSwapInterceptors() ?? []
+    )
+  }
+
+  public func makeGetSwapCall(
+    _ request: Code_Transaction_V2_GetSwapRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_GetSwapRequest, Code_Transaction_V2_GetSwapResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.getSwap.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetSwapInterceptors() ?? []
+    )
+  }
+
+  public func makeGetPendingSwapsCall(
+    _ request: Code_Transaction_V2_GetPendingSwapsRequest,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncUnaryCall<Code_Transaction_V2_GetPendingSwapsRequest, Code_Transaction_V2_GetPendingSwapsResponse> {
+    return self.makeAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.getPendingSwaps.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPendingSwapsInterceptors() ?? []
     )
   }
 
@@ -509,6 +632,54 @@ extension Code_Transaction_V2_TransactionAsyncClientProtocol {
     )
   }
 
+  public func startSwap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_StartSwapResponse> where RequestStream: Sequence, RequestStream.Element == Code_Transaction_V2_StartSwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.startSwap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStartSwapInterceptors() ?? []
+    )
+  }
+
+  public func startSwap<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Code_Transaction_V2_StartSwapResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Code_Transaction_V2_StartSwapRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.startSwap.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStartSwapInterceptors() ?? []
+    )
+  }
+
+  public func getSwap(
+    _ request: Code_Transaction_V2_GetSwapRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Transaction_V2_GetSwapResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.getSwap.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetSwapInterceptors() ?? []
+    )
+  }
+
+  public func getPendingSwaps(
+    _ request: Code_Transaction_V2_GetPendingSwapsRequest,
+    callOptions: CallOptions? = nil
+  ) async throws -> Code_Transaction_V2_GetPendingSwapsResponse {
+    return try await self.performAsyncUnaryCall(
+      path: Code_Transaction_V2_TransactionClientMetadata.Methods.getPendingSwaps.path,
+      request: request,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeGetPendingSwapsInterceptors() ?? []
+    )
+  }
+
   public func swap<RequestStream>(
     _ requests: RequestStream,
     callOptions: CallOptions? = nil
@@ -571,6 +742,15 @@ public protocol Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol:
   /// - Returns: Interceptors to use when invoking 'voidGiftCard'.
   func makeVoidGiftCardInterceptors() -> [ClientInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
 
+  /// - Returns: Interceptors to use when invoking 'startSwap'.
+  func makeStartSwapInterceptors() -> [ClientInterceptor<Code_Transaction_V2_StartSwapRequest, Code_Transaction_V2_StartSwapResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getSwap'.
+  func makeGetSwapInterceptors() -> [ClientInterceptor<Code_Transaction_V2_GetSwapRequest, Code_Transaction_V2_GetSwapResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'getPendingSwaps'.
+  func makeGetPendingSwapsInterceptors() -> [ClientInterceptor<Code_Transaction_V2_GetPendingSwapsRequest, Code_Transaction_V2_GetPendingSwapsResponse>]
+
   /// - Returns: Interceptors to use when invoking 'swap'.
   func makeSwapInterceptors() -> [ClientInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
 }
@@ -586,6 +766,9 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
       Code_Transaction_V2_TransactionClientMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionClientMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionClientMetadata.Methods.voidGiftCard,
+      Code_Transaction_V2_TransactionClientMetadata.Methods.startSwap,
+      Code_Transaction_V2_TransactionClientMetadata.Methods.getSwap,
+      Code_Transaction_V2_TransactionClientMetadata.Methods.getPendingSwaps,
       Code_Transaction_V2_TransactionClientMetadata.Methods.swap,
     ]
   )
@@ -624,6 +807,24 @@ public enum Code_Transaction_V2_TransactionClientMetadata {
     public static let voidGiftCard = GRPCMethodDescriptor(
       name: "VoidGiftCard",
       path: "/code.transaction.v2.Transaction/VoidGiftCard",
+      type: GRPCCallType.unary
+    )
+
+    public static let startSwap = GRPCMethodDescriptor(
+      name: "StartSwap",
+      path: "/code.transaction.v2.Transaction/StartSwap",
+      type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let getSwap = GRPCMethodDescriptor(
+      name: "GetSwap",
+      path: "/code.transaction.v2.Transaction/GetSwap",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPendingSwaps = GRPCMethodDescriptor(
+      name: "GetPendingSwaps",
+      path: "/code.transaction.v2.Transaction/GetPendingSwaps",
       type: GRPCCallType.unary
     )
 
@@ -696,6 +897,18 @@ public protocol Code_Transaction_V2_TransactionProvider: CallHandlerProvider {
   /// Note: The RPC is idempotent. If the user already claimed/voided the gift card, or
   ///       it is close to or is auto-returned, then OK will be returned.
   func voidGiftCard(request: Code_Transaction_V2_VoidGiftCardRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_VoidGiftCardResponse>
+
+  /// StartSwap begins the process for swapping tokens by coordinating verified metadata
+  /// for non-custodial state management tracking.
+  func startSwap(context: StreamingResponseCallContext<Code_Transaction_V2_StartSwapResponse>) -> EventLoopFuture<(StreamEvent<Code_Transaction_V2_StartSwapRequest>) -> Void>
+
+  /// GetSwap gets metadata for a swap
+  func getSwap(request: Code_Transaction_V2_GetSwapRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_GetSwapResponse>
+
+  /// GetPendingSwaps get swaps that are pending client actions which include:
+  ///  1. Swaps that need a call to SubmitIntent to fund the VM swap PDA (ie. in a CREATED state)
+  ///  2. Swaps that need to be executed via the Swap RPC (ie. in a FUNDED state)
+  func getPendingSwaps(request: Code_Transaction_V2_GetPendingSwapsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Transaction_V2_GetPendingSwapsResponse>
 
   /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
   /// closely. However, due to the time-sensitive nature and unreliability of
@@ -771,6 +984,33 @@ extension Code_Transaction_V2_TransactionProvider {
         responseSerializer: ProtobufSerializer<Code_Transaction_V2_VoidGiftCardResponse>(),
         interceptors: self.interceptors?.makeVoidGiftCardInterceptors() ?? [],
         userFunction: self.voidGiftCard(request:context:)
+      )
+
+    case "StartSwap":
+      return BidirectionalStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_StartSwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_StartSwapResponse>(),
+        interceptors: self.interceptors?.makeStartSwapInterceptors() ?? [],
+        observerFactory: self.startSwap(context:)
+      )
+
+    case "GetSwap":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_GetSwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_GetSwapResponse>(),
+        interceptors: self.interceptors?.makeGetSwapInterceptors() ?? [],
+        userFunction: self.getSwap(request:context:)
+      )
+
+    case "GetPendingSwaps":
+      return UnaryServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_GetPendingSwapsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_GetPendingSwapsResponse>(),
+        interceptors: self.interceptors?.makeGetPendingSwapsInterceptors() ?? [],
+        userFunction: self.getPendingSwaps(request:context:)
       )
 
     case "Swap":
@@ -871,6 +1111,28 @@ public protocol Code_Transaction_V2_TransactionAsyncProvider: CallHandlerProvide
     context: GRPCAsyncServerCallContext
   ) async throws -> Code_Transaction_V2_VoidGiftCardResponse
 
+  /// StartSwap begins the process for swapping tokens by coordinating verified metadata
+  /// for non-custodial state management tracking.
+  func startSwap(
+    requestStream: GRPCAsyncRequestStream<Code_Transaction_V2_StartSwapRequest>,
+    responseStream: GRPCAsyncResponseStreamWriter<Code_Transaction_V2_StartSwapResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
+
+  /// GetSwap gets metadata for a swap
+  func getSwap(
+    request: Code_Transaction_V2_GetSwapRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Transaction_V2_GetSwapResponse
+
+  /// GetPendingSwaps get swaps that are pending client actions which include:
+  ///  1. Swaps that need a call to SubmitIntent to fund the VM swap PDA (ie. in a CREATED state)
+  ///  2. Swaps that need to be executed via the Swap RPC (ie. in a FUNDED state)
+  func getPendingSwaps(
+    request: Code_Transaction_V2_GetPendingSwapsRequest,
+    context: GRPCAsyncServerCallContext
+  ) async throws -> Code_Transaction_V2_GetPendingSwapsResponse
+
   /// Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
   /// closely. However, due to the time-sensitive nature and unreliability of
   /// swaps, they do not fit within the broader intent system. This results in
@@ -958,6 +1220,33 @@ extension Code_Transaction_V2_TransactionAsyncProvider {
         wrapping: { try await self.voidGiftCard(request: $0, context: $1) }
       )
 
+    case "StartSwap":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_StartSwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_StartSwapResponse>(),
+        interceptors: self.interceptors?.makeStartSwapInterceptors() ?? [],
+        wrapping: { try await self.startSwap(requestStream: $0, responseStream: $1, context: $2) }
+      )
+
+    case "GetSwap":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_GetSwapRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_GetSwapResponse>(),
+        interceptors: self.interceptors?.makeGetSwapInterceptors() ?? [],
+        wrapping: { try await self.getSwap(request: $0, context: $1) }
+      )
+
+    case "GetPendingSwaps":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Code_Transaction_V2_GetPendingSwapsRequest>(),
+        responseSerializer: ProtobufSerializer<Code_Transaction_V2_GetPendingSwapsResponse>(),
+        interceptors: self.interceptors?.makeGetPendingSwapsInterceptors() ?? [],
+        wrapping: { try await self.getPendingSwaps(request: $0, context: $1) }
+      )
+
     case "Swap":
       return GRPCAsyncServerHandler(
         context: context,
@@ -999,6 +1288,18 @@ public protocol Code_Transaction_V2_TransactionServerInterceptorFactoryProtocol:
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeVoidGiftCardInterceptors() -> [ServerInterceptor<Code_Transaction_V2_VoidGiftCardRequest, Code_Transaction_V2_VoidGiftCardResponse>]
 
+  /// - Returns: Interceptors to use when handling 'startSwap'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeStartSwapInterceptors() -> [ServerInterceptor<Code_Transaction_V2_StartSwapRequest, Code_Transaction_V2_StartSwapResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getSwap'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetSwapInterceptors() -> [ServerInterceptor<Code_Transaction_V2_GetSwapRequest, Code_Transaction_V2_GetSwapResponse>]
+
+  /// - Returns: Interceptors to use when handling 'getPendingSwaps'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeGetPendingSwapsInterceptors() -> [ServerInterceptor<Code_Transaction_V2_GetPendingSwapsRequest, Code_Transaction_V2_GetPendingSwapsResponse>]
+
   /// - Returns: Interceptors to use when handling 'swap'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeSwapInterceptors() -> [ServerInterceptor<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>]
@@ -1015,6 +1316,9 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
       Code_Transaction_V2_TransactionServerMetadata.Methods.canWithdrawToAccount,
       Code_Transaction_V2_TransactionServerMetadata.Methods.airdrop,
       Code_Transaction_V2_TransactionServerMetadata.Methods.voidGiftCard,
+      Code_Transaction_V2_TransactionServerMetadata.Methods.startSwap,
+      Code_Transaction_V2_TransactionServerMetadata.Methods.getSwap,
+      Code_Transaction_V2_TransactionServerMetadata.Methods.getPendingSwaps,
       Code_Transaction_V2_TransactionServerMetadata.Methods.swap,
     ]
   )
@@ -1053,6 +1357,24 @@ public enum Code_Transaction_V2_TransactionServerMetadata {
     public static let voidGiftCard = GRPCMethodDescriptor(
       name: "VoidGiftCard",
       path: "/code.transaction.v2.Transaction/VoidGiftCard",
+      type: GRPCCallType.unary
+    )
+
+    public static let startSwap = GRPCMethodDescriptor(
+      name: "StartSwap",
+      path: "/code.transaction.v2.Transaction/StartSwap",
+      type: GRPCCallType.bidirectionalStreaming
+    )
+
+    public static let getSwap = GRPCMethodDescriptor(
+      name: "GetSwap",
+      path: "/code.transaction.v2.Transaction/GetSwap",
+      type: GRPCCallType.unary
+    )
+
+    public static let getPendingSwaps = GRPCMethodDescriptor(
+      name: "GetPendingSwaps",
+      path: "/code.transaction.v2.Transaction/GetPendingSwaps",
       type: GRPCCallType.unary
     )
 

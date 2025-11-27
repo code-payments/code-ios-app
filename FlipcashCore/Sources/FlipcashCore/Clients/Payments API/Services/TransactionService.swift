@@ -653,6 +653,18 @@ public enum ErrorAirdrop: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol {
+    func makeStartSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_StartSwapRequest, FlipcashAPI.Code_Transaction_V2_StartSwapResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeGetSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetSwapRequest, FlipcashAPI.Code_Transaction_V2_GetSwapResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeGetPendingSwapsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetPendingSwapsRequest, FlipcashAPI.Code_Transaction_V2_GetPendingSwapsResponse>] {
+        makeInterceptors()
+    }
+    
     func makeSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_SwapRequest, FlipcashAPI.Code_Transaction_V2_SwapResponse>] {
         makeInterceptors()
     }

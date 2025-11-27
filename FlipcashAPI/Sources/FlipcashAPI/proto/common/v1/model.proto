@@ -85,6 +85,14 @@ message IntentId {
     }];
 }
 
+// SwapId is a client-side generated ID that maps to a swap.
+message SwapId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
 // Hash is a raw binary 32 byte hash value
 message Hash {
     bytes value = 1 [(validate.rules).bytes = {
