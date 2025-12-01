@@ -44,7 +44,7 @@
 			isa = PBXAggregateTarget;
 			buildConfigurationList = 9ABDD1992D9D7CBF006B6CDA /* Build configuration list for PBXAggregateTarget "FlipcashGen" */;
 			buildPhases = (
-				9ABDD1982D9D7CBF006B6CDA /* Generate Flipchat Services */,
+				9ABDD1982D9D7CBF006B6CDA /* Generate Flipcash Services */,
 			);
 			dependencies = (
 			);
@@ -1999,7 +1999,7 @@
 			shellPath = /bin/sh;
 			shellScript = "cd \"$SOURCE_ROOT/Scripts\"\n\n./gengoogle \"$SOURCE_ROOT/Flipchat/Supporting Files/GoogleService-Info.plist\" \"FCG_\"\n";
 		};
-		9ABDD1982D9D7CBF006B6CDA /* Generate Flipchat Services */ = {
+		9ABDD1982D9D7CBF006B6CDA /* Generate Flipcash Services */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -2009,7 +2009,7 @@
 			);
 			inputPaths = (
 			);
-			name = "Generate Flipchat Services";
+			name = "Generate Flipcash Services";
 			outputFileListPaths = (
 			);
 			outputPaths = (
