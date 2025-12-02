@@ -16,7 +16,7 @@ public struct AccountMeta: Equatable, Hashable, Codable, Sendable {
     public var isPayer: Bool
     public var isProgram: Bool
     
-    internal init(publicKey: PublicKey, signer: Bool, writable: Bool, payer: Bool, program: Bool) {
+    internal init(publicKey: PublicKey, signer: Bool, writable: Bool, payer: Bool = false, program: Bool = false) {
         self.publicKey = publicKey
         self.isSigner = signer
         self.isWritable = writable
@@ -107,3 +107,47 @@ extension AccountMeta: Comparable {
         return lhs.publicKey.bytes.lexicographicallyPrecedes(rhs.publicKey.bytes)
     }
 }
+
+// MARK: - Array [AccountMeta] -
+
+extension Array where Element == AccountMeta {
+    
+    /// Provide a unique set by publicKey of AccountMeta
+    /// with the highest write permission.
+    func filterUniqueAccounts() -> [AccountMeta] {
+        var container: [AccountMeta] = []
+        for account in self {
+            var found = false
+            
+            for (index, existingAccount) in container.enumerated() {
+                if account.publicKey == existingAccount.publicKey {
+                    var updatedAccount = existingAccount
+                    
+                    // Promote the existing account to writable if applicable
+                    if account.isSigner {
+                        updatedAccount.isSigner = true
+                    }
+                    
+                    if account.isWritable {
+                        updatedAccount.isWritable = true
+                    }
+                    
+                    if account.isPayer {
+                        updatedAccount.isPayer = true
+                    }
+                    
+                    container[index] = updatedAccount
+                    found = true
+                    break
+                }
+            }
+            
+            if !found {
+                container.append(account)
+            }
+        }
+        
+        return container
+    }
+}
+

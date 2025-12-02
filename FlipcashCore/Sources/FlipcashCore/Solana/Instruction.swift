@@ -34,21 +34,9 @@ public struct Instruction: Equatable, Sendable {
     }
 }
 
-// MARK: - Description -
-
-extension Instruction: CustomStringConvertible, CustomDebugStringConvertible {
-    public var description: String {
-        return "\(program.base58.prefix(8)) (\(accounts.count)) { \(data.hexEncodedString()) }"
-    }
-    
-    public var debugDescription: String {
-        description
-    }
-}
-
 // MARK: - CompiledInstruction -
 
-public struct CompiledInstruction: Equatable {
+public struct CompiledInstruction: Equatable, Sendable {
     
     public var programIndex: Byte
     public var accountIndexes: [Byte]
@@ -78,18 +66,34 @@ public struct CompiledInstruction: Equatable {
     }
     
     public func decompile(using accounts: [AccountMeta]) -> Instruction? {
-        guard accounts.count >= accountIndexes.count + 1 else { // +1 for program
+        // Validate programIndex is within bounds
+        guard Int(programIndex) < accounts.count else {
+            return nil
+        }
+        
+        // Validate all accountIndexes are within bounds
+        guard accountIndexes.allSatisfy({ Int($0) < accounts.count }) else {
             return nil
         }
         
         let program = accounts[Int(programIndex)].publicKey
-        let accounts = accountIndexes.map { accounts[Int($0)] }
+        let instructionAccounts = accountIndexes.map { accounts[Int($0)] }
         
         return Instruction(
             program: program,
-            accounts: accounts,
+            accounts: instructionAccounts,
             data: data
         )
+    }
+}
+
+extension Instruction: CustomStringConvertible, CustomDebugStringConvertible {
+    public var description: String {
+        return "\(program.base58.prefix(8)) (\(accounts.count)) { \(data.hexEncodedString()) }"
+    }
+    
+    public var debugDescription: String {
+        description
     }
 }
 
@@ -102,25 +106,35 @@ extension CompiledInstruction {
             return nil
         }
         
-        var payload = data
+        var buffer = data
         
-        let index = payload.consume(1)[0]
-        
-        var (accountCount, accountData) = ShortVec.decodeLength(payload)
-        guard accountData.count >= accountCount else {
+        // Program Index
+        guard buffer.count >= 1 else {
             return nil
         }
+        let index = buffer.consume(1)[0]
         
-        let accountIndexes = accountData.consume(accountCount).map { $0 }
+        // Account Indexes
+        let (accountLen, remainingAfterAccountLen) = ShortVec.decodeLength(buffer)
+        buffer = remainingAfterAccountLen
         
-        let (opaqueCount, opaqueData) = ShortVec.decodeLength(accountData)
-        guard opaqueData.count >= opaqueCount else {
+        guard buffer.count >= accountLen else {
             return nil
         }
+        let accountIndexes = buffer.consume(accountLen).map { $0 }
+        
+        // Data
+        let (dataLen, remainingAfterDataLen) = ShortVec.decodeLength(buffer)
+        buffer = remainingAfterDataLen
+        
+        guard buffer.count >= dataLen else {
+            return nil
+        }
+        let instructionData = buffer.consume(dataLen)
         
         self.programIndex = index
         self.accountIndexes = accountIndexes
-        self.data = opaqueData.prefix(opaqueCount)
+        self.data = instructionData
     }
     
     public func encode() -> Data {
@@ -135,5 +149,15 @@ extension CompiledInstruction {
         )
         
         return container
+    }
+}
+
+extension CompiledInstruction: CustomStringConvertible, CustomDebugStringConvertible {
+    public var description: String {
+        return "\(programIndex) (\(accountIndexes.count)) { \(data.hexEncodedString()) }"
+    }
+    
+    public var debugDescription: String {
+        description
     }
 }

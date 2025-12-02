@@ -80,15 +80,151 @@ public struct SolanaTransaction: Equatable, Sendable {
             accounts.append(contentsOf: $0.accounts)
         }
         
-        let message = Message(
+        let legacy = LegacyMessage(
             accounts: accounts,
             recentBlockhash: recentBlockhash ?? Hash.zero,
             instructions: instructions
         )
         
+        let message = Message.legacy(legacy)
+        
         self.init(
             message: message,
             signatures: .init(repeating: .zero, count: message.header.requiredSignatures)
+        )
+    }
+    
+    // MARK: - V0 Init -
+    public init(payer: PublicKey, recentBlockhash: Hash?, addressLookupTables: [AddressLookupTable], instructions: Instruction...) {
+        self.init(
+            payer: payer,
+            recentBlockhash: recentBlockhash,
+            addressLookupTables: addressLookupTables,
+            instructions: instructions
+        )
+    }
+        
+    public init(payer: PublicKey, recentBlockhash: Hash?, addressLookupTables: [AddressLookupTable], instructions: [Instruction]) {
+        let rb = recentBlockhash ?? Hash.zero
+        
+        // Build initial account metas
+        var accountMetas: [AccountMeta] = [
+            .payer(publicKey: payer)
+        ]
+        
+        instructions.forEach { instruction in
+            accountMetas.append(.program(publicKey: instruction.program))
+            accountMetas.append(contentsOf: instruction.accounts)
+        }
+        
+        // Filter unique and sort
+        accountMetas = accountMetas.filterUniqueAccounts()
+        
+        accountMetas.sort { lhs, rhs in
+            if lhs.isPayer { return true }
+            if rhs.isPayer { return false }
+            if lhs.isSigner != rhs.isSigner { return lhs.isSigner }
+            if lhs.isWritable != rhs.isWritable { return lhs.isWritable }
+            if lhs.isProgram != rhs.isProgram { return !lhs.isProgram }
+            return lhs.publicKey < rhs.publicKey
+        }
+        
+        // Sort LUTs by publicKey
+        let sortedLUTs = addressLookupTables.sorted { $0.publicKey < $1.publicKey }
+        
+        // Prepare indexes
+        var writableLUTIndexes: [[UInt8]] = Array(repeating: [], count: sortedLUTs.count)
+        var readonlyLUTIndexes: [[UInt8]] = Array(repeating: [], count: sortedLUTs.count)
+        
+        // Build static keys and header
+        var staticAccountKeys: [PublicKey] = []
+        var header = Message.Header(
+            requiredSignatures: 0,
+            readOnlySigners: 0,
+            readOnly: 0
+        )
+        
+        for accountMeta in accountMetas {
+            let pk = accountMeta.publicKey
+            var isDynamicallyLoaded = false
+            
+            if !(accountMeta.isPayer || accountMeta.isSigner || accountMeta.isProgram) {
+                for (lutIndex, lut) in sortedLUTs.enumerated() {
+                    if let addressIndex = lut.addresses.firstIndex(of: pk) {
+                        isDynamicallyLoaded = true
+                        let byteIndex = UInt8(addressIndex)
+                        if accountMeta.isWritable {
+                            writableLUTIndexes[lutIndex].append(byteIndex)
+                        } else {
+                            readonlyLUTIndexes[lutIndex].append(byteIndex)
+                        }
+                        break
+                    }
+                }
+            }
+            
+            if !isDynamicallyLoaded {
+                staticAccountKeys.append(pk)
+                
+                if accountMeta.isSigner {
+                    header.requiredSignatures += 1
+                    if !accountMeta.isWritable {
+                        header.readOnlySigners += 1
+                    }
+                } else if !accountMeta.isWritable {
+                    header.readOnly += 1
+                }
+            }
+        }
+        
+        print("writable lut count: \(writableLUTIndexes.count)")
+        print("readable lut count: \(readonlyLUTIndexes.count)")
+        
+        // Build all accounts for instruction compilation: static + dynamic writable + dynamic readonly
+        var allAccounts = staticAccountKeys
+        for (lutIndex, lut) in sortedLUTs.enumerated() {
+            for idx in writableLUTIndexes[lutIndex] {
+                allAccounts.append(lut.addresses[Int(idx)])
+            }
+        }
+        for (lutIndex, lut) in sortedLUTs.enumerated() {
+            for idx in readonlyLUTIndexes[lutIndex] {
+                allAccounts.append(lut.addresses[Int(idx)])
+            }
+        }
+        
+        // Build address table lookups
+        var addressTableLookups: [MessageAddressTableLookup] = []
+        for (lutIndex, lut) in sortedLUTs.enumerated() {
+            let writable = writableLUTIndexes[lutIndex]
+            let readonly = readonlyLUTIndexes[lutIndex]
+            if !writable.isEmpty || !readonly.isEmpty {
+                let lookup = MessageAddressTableLookup(
+                    publicKey: lut.publicKey,
+                    writableIndexes: writable,
+                    readonlyIndexes: readonly
+                )
+                addressTableLookups.append(lookup)
+            }
+        }
+        
+        let compiledInstructions = instructions.map { instruction in
+            instruction.compile(using: allAccounts)
+        }
+        
+        let v0Message = VersionedMessageV0(
+            header: header,
+            staticAccountKeys: staticAccountKeys,
+            recentBlockhash: rb,
+            instructions: compiledInstructions,
+            addressTableLookups: addressTableLookups
+        )
+        
+        let message = Message.versionedV0(v0Message)
+        
+        self.init(
+            message: message,
+            signatures: Array(repeating: Signature.zero, count: Int(header.requiredSignatures))
         )
     }
     
@@ -115,7 +251,7 @@ public struct SolanaTransaction: Equatable, Sendable {
         
         var newSignatures: [Signature] = []
         for keyPair in keyPairs {
-            guard let signatureIndex = message.accounts.firstIndex(where: { $0.publicKey == keyPair.publicKey }) else {
+            guard let signatureIndex = message.accountKeys.firstIndex(where: { $0 == keyPair.publicKey }) else {
                 throw SigningError.accountNotInAccountList("Account: \(keyPair.publicKey)")
             }
             
@@ -144,6 +280,7 @@ extension SolanaTransaction {
         let messageData = payload.tail(from: signatureCount * Signature.length)
         
         guard let message = Message(data: messageData) else {
+            trace(.failure, components: "failed to unmarshal message")
             return nil
         }
         
@@ -167,14 +304,14 @@ extension SolanaTransaction {
 // MARK: - Instructions -
 
 extension SolanaTransaction {
-    public func findInstruction<T>(type: T.Type) -> T? where T: InstructionType {
-        for instruction in message.instructions {
-            if let typed = try? T(instruction: instruction) {
-                return typed
-            }
-        }
-        return nil
-    }
+//    public func findInstruction<T>(type: T.Type) -> T? where T: InstructionType {
+//        for instruction in message.instructions {
+//            if let typed = try? T(instruction: instruction) {
+//                return typed
+//            }
+//        }
+//        return nil
+//    }
 }
 
 // MARK: - Error -
@@ -234,13 +371,13 @@ extension SolanaTransaction {
             )
         }
         
-        if lhs.message.accounts == rhs.message.accounts {
+        if lhs.message.accountKeys == rhs.message.accountKeys {
             printMatch(title: "Accounts")
         } else {
             printDiff(
                 title: "Accounts",
-                one: lhs.message.accounts.map { $0.description },
-                two: rhs.message.accounts.map { $0.description }
+                one: lhs.message.accountKeys.map { $0.description },
+                two: rhs.message.accountKeys.map { $0.description }
             )
         }
         
