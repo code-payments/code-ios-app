@@ -17,7 +17,6 @@ struct SettingsScreen: View {
     @Binding public var isPresented: Bool
     
     @ObservedObject private var onrampViewModel: OnrampViewModel
-    @ObservedObject private var poolViewModel: PoolViewModel
     
     @State private var path: [SettingsPath] = []
     
@@ -49,7 +48,6 @@ struct SettingsScreen: View {
         self.sessionAuthenticator = container.sessionAuthenticator
         self.sessionContainer = sessionContainer
         self.onrampViewModel = sessionContainer.onrampViewModel
-        self.poolViewModel = sessionContainer.poolViewModel
         self.session = sessionContainer.session
     }
     
@@ -262,16 +260,6 @@ struct SettingsScreen: View {
                     try await Task.delay(milliseconds: 250)
                     session.isShowingBillEditor = true
                 }
-            }
-
-            row(asset: .key, title: "Pools") {
-                poolViewModel.isShowingPoolList = true
-            }
-            .sheet(isPresented: $poolViewModel.isShowingPoolList) {
-                PoolsScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
             }
         }
         .font(.appDisplayXS)
