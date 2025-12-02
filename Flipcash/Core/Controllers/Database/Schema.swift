@@ -80,45 +80,6 @@ struct CashLinkMetadataTable: Sendable {
     let canCancel    = Expression <Bool>      ("canCancel")
 }
 
-struct PoolTable: Sendable {
-    static let name = "pool"
-    
-    let table                           = Table(Self.name)
-    let id                              = Expression <PublicKey>      ("id")
-    let rendezvousSeed                  = Expression <Seed32?>        ("rendezvousSeed")
-    let fundingAccount                  = Expression <PublicKey>      ("fundingAccount")
-    let creatorUserID                   = Expression <UUID>           ("creatorUserID")
-    let creationDate                    = Expression <Date>           ("creationDate")
-    let closedDate                      = Expression <Date?>          ("closedDate")
-    let isOpen                          = Expression <Bool>           ("isOpen")
-    let isHost                          = Expression <Bool>           ("isHost")
-    let name                            = Expression <String>         ("name")
-    let buyInQuarks                     = Expression <UInt64>         ("buyInQuarks")
-    let buyInCurrency                   = Expression <CurrencyCode>   ("buyInCurrency")
-    let resolution                      = Expression <PoolResoltion?> ("resolution")
-    
-    let betsCountYes                    = Expression <Int>            ("betsCountYes")
-    let betsCountNo                     = Expression <Int>            ("betsCountNo")
-    let derivationIndex                 = Expression <Int>            ("derivationIndex")
-    let isFundingDestinationInitialized = Expression <Bool>           ("isFundingDestinationInitialized")
-    let userOutcome                     = Expression <Int>            ("userOutcome")
-    let userOutcomeQuarks               = Expression <UInt64?>        ("userOutcomeQuarks")
-    let userOutcomeCurrency             = Expression <CurrencyCode?>  ("userOutcomeCurrency")
-}
-
-struct BetTable: Sendable {
-    static let name = "bet"
-    
-    let table             = Table(Self.name)
-    let id                = Expression <PublicKey> ("id")
-    let poolID            = Expression <PublicKey> ("poolID")
-    let userID            = Expression <UUID>      ("userID")
-    let payoutDestination = Expression <PublicKey> ("payoutDestination")
-    let betDate           = Expression <Date>      ("betDate")
-    let selectedOutcome   = Expression <Int>       ("selectedOutcome") // 0 = no, 1 = yes, 2+ index of option
-    let isFulfilled       = Expression <Bool>      ("isFulfilled")
-}
-
 extension Expression {
     func alias(_ alias: String) -> Expression<Datatype> {
         Expression(alias)
@@ -138,8 +99,6 @@ extension Database {
         let mintTable             = MintTable()
         let activityTable         = ActivityTable()
         let cashLinkMetadataTable = CashLinkMetadataTable()
-        let poolTable             = PoolTable()
-        let betTable              = BetTable()
         
         try writer.transaction {
             try writer.run(balanceTable.table.create(ifNotExists: true, withoutRowid: true) { t in
@@ -204,50 +163,11 @@ extension Database {
                 t.column(cashLinkMetadataTable.id, primaryKey: true)
                 t.column(cashLinkMetadataTable.vault)
                 t.column(cashLinkMetadataTable.canCancel)
-                
+
                 t.foreignKey(cashLinkMetadataTable.id, references: activityTable.table, activityTable.id, delete: .cascade)
             })
         }
-        
-        try writer.transaction {
-            try writer.run(poolTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(poolTable.id, primaryKey: true)
-                t.column(poolTable.fundingAccount)
-                t.column(poolTable.creatorUserID)
-                t.column(poolTable.creationDate)
-                t.column(poolTable.closedDate)
-                t.column(poolTable.isOpen)
-                t.column(poolTable.isHost)
-                t.column(poolTable.name)
-                t.column(poolTable.buyInQuarks)
-                t.column(poolTable.buyInCurrency)
-                t.column(poolTable.resolution)
-                t.column(poolTable.rendezvousSeed)
-                
-                t.column(poolTable.betsCountYes)
-                t.column(poolTable.betsCountNo)
-                t.column(poolTable.derivationIndex)
-                t.column(poolTable.isFundingDestinationInitialized)
-                t.column(poolTable.userOutcome)
-                t.column(poolTable.userOutcomeQuarks)
-                t.column(poolTable.userOutcomeCurrency)
-            })
-        }
-        
-        try writer.transaction {
-            try writer.run(betTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(betTable.id, primaryKey: true)
-                t.column(betTable.poolID) // FK pool.id
-                t.column(betTable.userID)
-                t.column(betTable.payoutDestination)
-                t.column(betTable.betDate)
-                t.column(betTable.selectedOutcome)
-                t.column(betTable.isFulfilled, defaultValue: false)
-                
-                t.foreignKey(betTable.poolID, references: poolTable.table, poolTable.id, delete: .cascade)
-            })
-        }
-        
+
         try createIndexesIfNeeded()
     }
     
@@ -300,16 +220,3 @@ extension CurrencyCode: @retroactive Value {
     }
 }
 
-extension PoolResoltion: @retroactive Value {
-    public static var declaredDatatype: String {
-        Int64.declaredDatatype
-    }
-
-    public static func fromDatatypeValue(_ dataValue: Int64) -> PoolResoltion {
-        PoolResoltion(intValue: Int(dataValue))!
-    }
-
-    public var datatypeValue: Int64 {
-        Int64(intValue)
-    }
-}

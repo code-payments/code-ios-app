@@ -73,15 +73,6 @@ final class DeepLinkController {
                 return actionForReceiveRemoteSend(mnemonic: mnemonic)
             }
             
-        case .pool:
-            if
-                let rendezvousSeed = route.fragments[.entropy],
-                let seed = try? Seed32(base58: rendezvousSeed.value)
-            {
-                let rendezvous = KeyPair(seed: seed)
-                return actionForOpenPool(rendezvous: rendezvous)
-            }
-            
         case .verifyEmail:
             if
                 let code = route.properties["code"],
@@ -124,13 +115,6 @@ final class DeepLinkController {
     private func actionForReceiveRemoteSend(mnemonic: MnemonicPhrase) -> DeepLinkAction {
         DeepLinkAction(
             kind: .receiveCashLink(mnemonic),
-            sessionAuthenticator: sessionAuthenticator
-        )
-    }
-    
-    private func actionForOpenPool(rendezvous: KeyPair) -> DeepLinkAction {
-        DeepLinkAction(
-            kind: .pool(rendezvous),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -214,12 +198,7 @@ struct DeepLinkAction {
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 container.session.receiveCashLink(mnemonic: mnemonic)
             }
-            
-        case .pool(let rendezvous):
-            if case .loggedIn(let container) = sessionAuthenticator.state {
-                container.poolViewModel.openPoolFromDeeplink(rendezvous: rendezvous)
-            }
-            
+
         case .verifyEmail(let description):
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 container.onrampViewModel.confirmEmailFromDeeplinkAction(verification: description)
@@ -234,7 +213,6 @@ extension DeepLinkAction {
     enum Kind {
         case accessKey(MnemonicPhrase)
         case receiveCashLink(MnemonicPhrase)
-        case pool(KeyPair)
         case verifyEmail(VerificationDescription)
     }
 }
