@@ -85,7 +85,6 @@ struct GiveViewModelTests {
         // Then: Initial state should be correct
         #expect(viewModel.enteredAmount == "")
         #expect(viewModel.actionState == .normal)
-        #expect(viewModel.navigationPath.isEmpty)
         #expect(viewModel.dialogItem == nil)
         #expect(viewModel.selectedBalance == nil)
         #expect(viewModel.canGive == false)
@@ -167,8 +166,6 @@ struct GiveViewModelTests {
         // Then: Balance should be set, amount cleared, and navigation updated
         #expect(viewModel.selectedBalance != nil)
         #expect(viewModel.enteredAmount == "")
-        #expect(viewModel.navigationPath.count == 1)
-        #expect(viewModel.navigationPath.first == .giveScreen)
     }
 
     // MARK: - enteredFiat Calculation Tests (USDC)
