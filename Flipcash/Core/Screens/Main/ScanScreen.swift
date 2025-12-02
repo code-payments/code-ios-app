@@ -16,7 +16,6 @@ struct ScanScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
-    @ObservedObject private var poolViewModel: PoolViewModel
     @ObservedObject private var onrampViewModel: OnrampViewModel
     
     @StateObject private var viewModel: ScanViewModel
@@ -67,7 +66,6 @@ struct ScanScreen: View {
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
-        self.poolViewModel    = sessionContainer.poolViewModel
         self.onrampViewModel  = sessionContainer.onrampViewModel
         
         _viewModel = .init(
