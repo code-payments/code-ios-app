@@ -44,12 +44,10 @@ enum ShortVec {
     }
     
     static func decodeLength(_ data: Data) -> (length: Int, remaining: Data) {
-        print("ShortVec.decodeLength called with \(data.count) bytes")
         var length = 0
         var size = 0
         
         guard data.count > 0 else {
-            print("ShortVec.decodeLength: empty data")
             return (length, Data())
         }
         
@@ -63,20 +61,13 @@ enum ShortVec {
             }
         }
         
-        print("ShortVec.decodeLength: decoded length=\(length), consumed \(size) bytes, data.count=\(data.count)")
-        
         guard data.count > size else {
-            print("ShortVec.decodeLength: no remaining data (data.count <= size)")
             return (length, Data())
         }
         
-        print("ShortVec.decodeLength: about to call data.tail(from: \(size))")
-        let remaining = data.tail(from: size)
-        print("ShortVec.decodeLength: tail returned, returning (\(length), \(remaining.count) bytes)")
-        
         return (
             length: length,
-            remaining: remaining
+            remaining: data.tail(from: size)
         )
     }
 }

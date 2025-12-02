@@ -23,22 +23,15 @@ extension Data {
     }
     
     func tail(from index: Int) -> Data {
-        print("tail called: index \(index), count \(count), startIndex \(startIndex), endIndex \(endIndex)")
         guard index >= 0 else {
-            print("tail returning empty (index < 0)")
             return Data()
         }
         
         if index < count {
-            print("about to call suffix(from: \(startIndex + index))")
             let result = Data(suffix(from: startIndex + index))
-            print("tail returning \(result.count) bytes")
             return result
-        } else if index == count {
-            print("tail returning empty (index == count)")
-            return Data()
         }
-        print("tail returning empty (index >= count)")
+        
         return Data()
     }
     
