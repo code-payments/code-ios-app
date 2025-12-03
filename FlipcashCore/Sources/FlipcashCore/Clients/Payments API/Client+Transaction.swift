@@ -87,6 +87,19 @@ extension Client {
         }
     }
     
+    // MARK: - Swaps -
+    public func buy(amount: Quarks, of token: MintMetadata, sourceCluster: AccountCluster, owner: KeyPair,) async throws -> Void {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.buy(amount: amount, of: token, sourceCluster: sourceCluster, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
+    public func sell(amount: Quarks, in token: MintMetadata, owner: KeyPair) async throws -> Void {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.sell(amount: amount, in: token, owner: owner) { c.resume(with: $0) }
+        }
+    }
+    
     // MARK: - Status -
     
     public func pollIntentMetadata(owner: KeyPair, intentID: PublicKey, maxAttempts: Int = 50) async throws -> IntentMetadata {

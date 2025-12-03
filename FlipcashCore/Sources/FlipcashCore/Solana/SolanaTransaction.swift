@@ -177,9 +177,6 @@ public struct SolanaTransaction: Equatable, Sendable {
             }
         }
         
-        print("writable lut count: \(writableLUTIndexes.count)")
-        print("readable lut count: \(readonlyLUTIndexes.count)")
-        
         // Build all accounts for instruction compilation: static + dynamic writable + dynamic readonly
         var allAccounts = staticAccountKeys
         for (lutIndex, lut) in sortedLUTs.enumerated() {

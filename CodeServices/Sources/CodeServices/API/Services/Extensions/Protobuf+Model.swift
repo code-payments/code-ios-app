@@ -38,6 +38,10 @@ extension PublicKey {
         paymentID.value = data
         return paymentID
     }
+    
+    public var solanaAccountID: Code_Common_V1_SolanaAccountId {
+        codeAccountID
+    }
 }
 
 extension Signature {
