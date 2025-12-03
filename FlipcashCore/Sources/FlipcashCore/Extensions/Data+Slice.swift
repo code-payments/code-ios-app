@@ -23,9 +23,15 @@ extension Data {
     }
     
     func tail(from index: Int) -> Data {
-        if index >= 0 && index < count {
-            return Data(suffix(from: index))
+        guard index >= 0 else {
+            return Data()
         }
+        
+        if index < count {
+            let result = Data(suffix(from: startIndex + index))
+            return result
+        }
+        
         return Data()
     }
     

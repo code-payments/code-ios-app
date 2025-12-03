@@ -8,165 +8,123 @@
 
 import Foundation
 
-public struct Message: Equatable, Sendable {
+public enum Message: Equatable, Sendable {
     
-    public var header: Header
-    public var accounts: [AccountMeta]
-    public var recentBlockhash: Hash
-    public var instructions: [Instruction]
+    case legacy(LegacyMessage)
+    case versionedV0(VersionedMessageV0)
     
-    // MARK: - Init -
+    public var description: String {
+        switch self {
+        case .legacy(let m): return "LegacyMessage: \(m)"
+        case .versionedV0(let m): return "VersionedMessageV0: \(m)"
+        }
+    }
     
-    public init(accounts: [AccountMeta], recentBlockhash: Hash, instructions: [Instruction]) {
-        // Sort the account meta's based on:
-        //   1. Payer is always the first account / signer.
-        //   1. All signers are before non-signers.
-        //   2. Writable accounts before read-only accounts.
-        //   3. Programs last
-        let uniqueAccounts = accounts.filterUniqueAccounts().sorted()
+    public var version: MessageVersion {
+            switch self {
+            case .legacy: return .legacy
+            case .versionedV0: return .v0
+            }
+        }
+    
+    
+    public var header: Header {
+        switch self {
+        case .legacy(let m): return m.header
+        case .versionedV0(let m): return m.header
+        }
+    }
         
-        let signers         = uniqueAccounts.filter { $0.isSigner }
-        let readOnlySigners = uniqueAccounts.filter { !$0.isWritable && $0.isSigner }
-        let readOnly        = uniqueAccounts.filter { !$0.isWritable && !$0.isSigner }
-        
-        self.header = Header(
-            requiredSignatures: signers.count,
-            readOnlySigners: readOnlySigners.count,
-            readOnly: readOnly.count
-        )
-        
-        self.accounts = uniqueAccounts
-        self.recentBlockhash = recentBlockhash
-        self.instructions = instructions
+    public var accountKeys: [PublicKey] {
+        switch self {
+        case .legacy(let m): return m.accounts.map(\.publicKey)
+        case .versionedV0(let m): return m.staticAccountKeys
+        }
+    }
+    
+    public var recentBlockhash: Hash {
+        get {
+            switch self {
+            case .legacy(let m): return m.recentBlockhash
+            case .versionedV0(let m): return m.recentBlockhash
+            }
+        }
+        set {
+            switch self {
+            case .legacy(var m):
+                m.recentBlockhash = newValue
+                self = .legacy(m)
+            case .versionedV0(var m):
+                m.recentBlockhash = newValue
+                self = .versionedV0(m)
+            }
+        }
+    }
+    
+    public var instructions: [CompiledInstruction] {
+        switch self {
+        case .legacy(let m): return m.instructions.map { instruction in
+            instruction.compile(using: accountKeys)
+        }
+        case .versionedV0(let m): return m.instructions
+        }
+    }
+    
+    public var versionDescription: String {
+        switch self {
+        case .legacy: return "Legacy"
+        case .versionedV0: return "V0"
+        }
+    }
+    
+    public var addressTableLookups: [MessageAddressTableLookup] {
+        switch self {
+        case .versionedV0(let m): return m.addressTableLookups
+        default: return []
+        }
     }
 }
 
-// MARK: - SolanaCodable -
-
 extension Message {
-    
     public init?(data: Data) {
-        var payload = data
-        
-        // Decode `header`
-        guard let header = Header(data: payload.consume(Header.length)) else {
+        guard !data.isEmpty else {
             return nil
         }
         
-        // Decode `accountKeys`
-        let (accountCount, accountData) = ShortVec.decodeLength(payload)
-        guard let messageAccounts = accountData.chunk(size: PublicKey.length, count: accountCount, block: { try! PublicKey($0) }) else {
+        guard let firstByte = data.first else {
             return nil
         }
         
-        payload = accountData.tail(from: PublicKey.length * accountCount)
+        let version: MessageVersion
         
-        // Decode `recentBlockHash`
-        guard let hash = try? Hash(payload.consume(Hash.length)) else {
+        if firstByte < messageVersionSerializationOffset {
+            version = .legacy
+        } else if firstByte == MessageVersion.v0.rawValue + messageVersionSerializationOffset {
+            version = .v0
+        } else {
             return nil
         }
         
-        // Decode `instructions`
-        let (instructionCount, instructionsData) = ShortVec.decodeLength(payload)
+        trace(.note, components: "version: \(version)")
         
-        var remainingData = instructionsData
-        var compiledInstructions: [CompiledInstruction] = []
-        
-        for _ in 0..<instructionCount {
-            guard let instruction = CompiledInstruction(data: remainingData) else {
+        switch version {
+        case .legacy:
+            guard let legacy = LegacyMessage(data: data) else {
                 return nil
             }
-            
-            guard instruction.programIndex < messageAccounts.count else {
+            self = .legacy(legacy)
+        case .v0:
+            guard let v0 = VersionedMessageV0(data: data) else {
                 return nil
             }
-            
-            remainingData = remainingData.tail(from: instruction.byteLength)
-            compiledInstructions.append(instruction)
+            self = .versionedV0(v0)
         }
-        
-        let metaAccounts: [AccountMeta] = messageAccounts.enumerated().map { index, account in
-            let meta = AccountMeta(
-                publicKey: account,
-                signer: index < header.requiredSignatures,
-                writable: index < header.requiredSignatures - header.readOnlySigners || index >= header.requiredSignatures && index < messageAccounts.count - header.readOnly,
-                payer: index == 0,
-                program: false
-            )
-            
-            return meta
-        }
-        
-        let instructions = compiledInstructions.compactMap { $0.decompile(using: metaAccounts) }
-        
-        guard instructions.count == compiledInstructions.count else {
-            return nil
-        }
-        
-        self.header = header
-        self.accounts = metaAccounts
-        self.recentBlockhash = hash
-        self.instructions = instructions
     }
     
     public func encode() -> Data {
-        var data = Data()
-        
-        let accounts = accounts.map { $0.publicKey }
-        let instructions = instructions.compactMap { $0.compile(using: accounts) }
-        
-        data.append(header.encode())
-        data.append(
-            ShortVec.encode(accounts.map { $0.data })
-        )
-        data.append(recentBlockhash.data)
-        data.append(
-            ShortVec.encode(instructions.map { $0.encode() })
-        )
-        
-        return data
-    }
-}
-
-// MARK: - Array [AccountMeta] -
-
-extension Array where Element == AccountMeta {
-    
-    /// Provide a unique set by publicKey of AccountMeta
-    /// with the highest write permission.
-    func filterUniqueAccounts() -> [AccountMeta] {
-        var container: [AccountMeta] = []
-        for account in self {
-            var found = false
-            
-            for (index, existingAccount) in container.enumerated() {
-                if account.publicKey == existingAccount.publicKey {
-                    var updatedAccount = existingAccount
-                    
-                    // Promote the existing account to writable if applicable
-                    if account.isSigner {
-                        updatedAccount.isSigner = true
-                    }
-                    
-                    if account.isWritable {
-                        updatedAccount.isWritable = true
-                    }
-                    
-                    if account.isPayer {
-                        updatedAccount.isPayer = true
-                    }
-                    
-                    container[index] = updatedAccount
-                    found = true
-                    break
-                }
-            }
-            
-            if !found {
-                container.append(account)
-            }
+        switch self {
+        case .legacy(let m): return m.encode()
+        case .versionedV0(let m): return m.encode()
         }
-        
-        return container
     }
 }
