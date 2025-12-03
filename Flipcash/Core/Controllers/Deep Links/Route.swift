@@ -66,10 +66,9 @@ struct Route {
 
 extension Route {
     enum Path {
-        
+
         case login
         case cash
-        case pool
         case verifyEmail
         case unknown(String)
         
@@ -90,8 +89,6 @@ extension Route {
                 return .login
             case "cash", "c":
                 return .cash
-            case "pool", "p":
-                return .pool
             case "verify":
                 return .verifyEmail
             default:

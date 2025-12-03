@@ -79,9 +79,9 @@ extension TextCarousel {
     TextCarousel(
         interval: 5.0,
         items: [
-            "0: Will Jimmy and Sally have a girl?",
-            "1: Will the Pacers win the NBA Finals?",
-            "2: Will Flipcash pools launch in June?",
+            "First item in the carousel",
+            "Second item in the carousel",
+            "Third item in the carousel",
         ]
     )
 }

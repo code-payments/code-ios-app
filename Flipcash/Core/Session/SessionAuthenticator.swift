@@ -191,23 +191,6 @@ final class SessionAuthenticator: ObservableObject {
             userID: initializedAccount.userID
         )
         
-        let poolController = PoolController(
-            container: container,
-            session: session,
-            ratesController: ratesController,
-            keyAccount: initializedAccount.keyAccount,
-            owner: owner,
-            userID: initializedAccount.userID,
-            database: database
-        )
-        
-        let poolViewModel = PoolViewModel(
-            container: container,
-            session: session,
-            ratesController: ratesController,
-            poolController: poolController
-        )
-        
         let onrampViewModel = OnrampViewModel(
             container: container,
             session: session,
@@ -223,8 +206,6 @@ final class SessionAuthenticator: ObservableObject {
             ratesController: ratesController,
             historyController: historyController,
             pushController: pushController,
-            poolController: poolController,
-            poolViewModel: poolViewModel,
             onrampViewModel: onrampViewModel
         )
     }
@@ -381,15 +362,13 @@ final class SessionAuthenticator: ObservableObject {
 // MARK: - SessionContainer -
 
 struct SessionContainer {
-    
+
     let session: Session
     let database: Database
     let walletConnection: WalletConnection
     let ratesController: RatesController
     let historyController: HistoryController
     let pushController: PushController
-    let poolController: PoolController
-    let poolViewModel: PoolViewModel
     let onrampViewModel: OnrampViewModel
     
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
@@ -402,7 +381,7 @@ struct SessionContainer {
     }
     
     @MainActor
-    static let mock: SessionContainer = .init(session: .mock, database: .mock, walletConnection: .mock, ratesController: .mock, historyController: .mock, pushController: .mock, poolController: .mock, poolViewModel: .mock, onrampViewModel: .mock)
+    static let mock: SessionContainer = .init(session: .mock, database: .mock, walletConnection: .mock, ratesController: .mock, historyController: .mock, pushController: .mock, onrampViewModel: .mock)
 }
 
 extension View {

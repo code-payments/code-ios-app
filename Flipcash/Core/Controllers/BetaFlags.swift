@@ -83,11 +83,9 @@ class BetaFlags: ObservableObject {
 
 extension BetaFlags {
     enum Option: String, Hashable, Equatable, Codable, CaseIterable, Identifiable {
-        
+
         case transactionDetails
         case vibrateOnScan
-        case showMissingRendezvous
-        case enableConfetti
         case enableCoinbase
         case coinbaseSandbox
         
@@ -101,10 +99,6 @@ extension BetaFlags {
                 return "Transaction details"
             case .vibrateOnScan:
                 return "Vibrate on scan"
-            case .showMissingRendezvous:
-                return "Show Missing Rendezvous"
-            case .enableConfetti:
-                return "Enable Confetti Cannon"
             case .enableCoinbase:
                 return "Enable Coinbase"
             case .coinbaseSandbox:
@@ -118,10 +112,6 @@ extension BetaFlags {
                 return "If enabled, tapping a transaction in Balance will open a details modal"
             case .vibrateOnScan:
                 return "If enabled, the device will vibrate to indicate that the camera has registered the code on the bill"
-            case .showMissingRendezvous:
-                return "If enabled, pools that have a missing rendezvous key will show a flag in the list"
-            case .enableConfetti:
-                return "If enabled, confetti cannon will blast confetti on winning pools"
             case .enableCoinbase:
                 return "If enabled, Coinbase onramp will be available regardless of region"
             case .coinbaseSandbox:

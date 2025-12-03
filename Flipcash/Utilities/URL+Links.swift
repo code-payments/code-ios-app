@@ -16,16 +16,7 @@ extension URL {
     static func cashLink(with mnemonic: MnemonicPhrase) -> URL {
         URL(string: "https://send.flipcash.com/c/#/e=\(mnemonic.base58EncodedEntropy)")!
     }
-    
-    static func poolLink(rendezvous: KeyPair, info: PoolInfo?) -> URL {
-        var infoString: String = ""
-        if let info, let encoded = try? Data.base64EncodedPoolInfo(info) {
-            infoString = "\(encoded)/"
-        }
-        
-        return URL(string: "https://fun.flipcash.com/p/\(infoString)#/e=\(rendezvous.seed!.base58)")!
-    }
-    
+
     static var privacyPolicy: URL {
         URL(string: "https://www.flipcash.com/privacy")!
     }
