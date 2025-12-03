@@ -113,7 +113,7 @@ clone_opencv() {
 }
 
 build_xcframework() {
-    log "Building OpenCV XCFramework..."
+    log "Building OpenCV XCFramework (dynamic)..."
 
     cd "$OPENCV_DIR"
 
@@ -123,12 +123,14 @@ build_xcframework() {
         WITHOUT_ARGS="$WITHOUT_ARGS --without $module"
     done
 
-    # Run the build script
+    # Run the build script with --dynamic for a proper iOS framework
+    # Note: --dynamic is passed through to the underlying build_framework.py
     python3 platforms/apple/build_xcframework.py \
         --out "$BUILD_DIR" \
         --iphoneos_archs arm64 \
         --iphonesimulator_archs arm64,x86_64 \
         --build_only_specified_archs \
+        --dynamic \
         $WITHOUT_ARGS
 
     log "XCFramework built successfully"
@@ -159,24 +161,95 @@ flatten_framework() {
         # Remove the Versions directory
         rm -rf "$fw_path/Versions"
 
-        # Move Info.plist from Resources to root (iOS shallow bundle requirement)
-        if [ -f "$fw_path/Resources/Info.plist" ]; then
-            mv "$fw_path/Resources/Info.plist" "$fw_path/Info.plist"
-        fi
-
-        # Remove Resources if empty or only has non-essential files
-        if [ -d "$fw_path/Resources" ]; then
-            # Keep PrivacyInfo.xcprivacy if it exists, but we need Info.plist at root
-            if [ ! -f "$fw_path/Resources/Info.plist" ]; then
-                # Resources is fine to keep for privacy manifest
-                :
-            fi
-        fi
+        # Remove old Info.plist (we'll create a proper one)
+        rm -f "$fw_path/Info.plist" "$fw_path/Resources/Info.plist" 2>/dev/null || true
 
         log "Framework flattened: $fw_path"
     else
         log "Framework already flat: $fw_path"
     fi
+}
+
+create_info_plist() {
+    local fw_path="$1"
+    local platform="$2"  # "iPhoneOS" or "iPhoneSimulator"
+    local version="$3"
+
+    log "Creating Info.plist for $platform at $fw_path"
+
+    # Get SDK info from Xcode for DT* keys
+    local sdk_name
+    local sdk_version
+    local sdk_build
+    local xcode_version
+    local xcode_build
+
+    if [ "$platform" = "iPhoneOS" ]; then
+        sdk_name="iphoneos"
+    else
+        sdk_name="iphonesimulator"
+    fi
+
+    sdk_version=$(xcrun --sdk "$sdk_name" --show-sdk-version 2>/dev/null || echo "17.0")
+    sdk_build=$(xcrun --sdk "$sdk_name" --show-sdk-build-version 2>/dev/null || echo "21A325")
+    xcode_version=$(xcodebuild -version 2>/dev/null | head -1 | sed 's/Xcode //' | tr -d '.')
+    xcode_build=$(xcodebuild -version 2>/dev/null | tail -1 | sed 's/Build version //')
+
+    cat > "$fw_path/Info.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>opencv2</string>
+    <key>CFBundleIdentifier</key>
+    <string>org.opencv</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>opencv2</string>
+    <key>CFBundlePackageType</key>
+    <string>FMWK</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$version</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleSupportedPlatforms</key>
+    <array>
+        <string>$platform</string>
+    </array>
+    <key>CFBundleVersion</key>
+    <string>$version</string>
+    <key>DTCompiler</key>
+    <string>com.apple.compilers.llvm.clang.1_0</string>
+    <key>DTPlatformBuild</key>
+    <string>$sdk_build</string>
+    <key>DTPlatformName</key>
+    <string>$sdk_name</string>
+    <key>DTPlatformVersion</key>
+    <string>$sdk_version</string>
+    <key>DTSDKBuild</key>
+    <string>$sdk_build</string>
+    <key>DTSDKName</key>
+    <string>${sdk_name}${sdk_version}</string>
+    <key>DTXcode</key>
+    <string>$xcode_version</string>
+    <key>DTXcodeBuild</key>
+    <string>$xcode_build</string>
+    <key>MinimumOSVersion</key>
+    <string>12.0</string>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+        <integer>2</integer>
+    </array>
+</dict>
+</plist>
+EOF
+
+    log "Info.plist created"
 }
 
 add_modulemap() {
@@ -207,14 +280,25 @@ EOF
 
 process_xcframework() {
     local xcfw_path="$1"
+    local version="$2"
 
     log "Processing XCFramework: $xcfw_path"
 
-    # Find all .framework directories inside the xcframework
-    find "$xcfw_path" -type d -name "*.framework" | while read -r fw; do
-        flatten_framework "$fw"
-        add_modulemap "$fw"
-    done
+    # Process iOS device framework
+    local device_fw="$xcfw_path/ios-arm64/opencv2.framework"
+    if [ -d "$device_fw" ]; then
+        flatten_framework "$device_fw"
+        create_info_plist "$device_fw" "iPhoneOS" "$version"
+        add_modulemap "$device_fw"
+    fi
+
+    # Process iOS simulator framework
+    local sim_fw="$xcfw_path/ios-arm64_x86_64-simulator/opencv2.framework"
+    if [ -d "$sim_fw" ]; then
+        flatten_framework "$sim_fw"
+        create_info_plist "$sim_fw" "iPhoneSimulator" "$version"
+        add_modulemap "$sim_fw"
+    fi
 
     log "XCFramework processing complete"
 }
@@ -330,7 +414,7 @@ main() {
     build_xcframework
 
     # Process XCFramework (flatten + add modulemaps)
-    process_xcframework "$BUILD_DIR/opencv2.xcframework"
+    process_xcframework "$BUILD_DIR/opencv2.xcframework" "$OPENCV_VERSION"
 
     # Install to Frameworks directory
     install_xcframework
