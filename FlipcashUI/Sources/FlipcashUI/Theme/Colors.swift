@@ -37,7 +37,7 @@ extension Color {
     public static let backgroundRow       = Color(r: 7,   g: 31,  b: 16)
     public static let rowSeparator        = Color(r: 255, g: 255, b: 255, o: 0.1)
     
-    public static let checkmarkBackground = Color(r: 115, g: 121, b: 160)
+    public static let checkmarkBackground = Color(r: 255, g: 255, b: 255)
     
     public static let cameraOverlay       = Color(r: 0, g: 0, b: 0, o: 0.4)
     

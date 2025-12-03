@@ -161,6 +161,7 @@ struct CurrencyLabel: View {
             
             if let isSelected {
                 CheckView(active: isSelected)
+                    .padding(.leading, 12)
             }
         }
     }
