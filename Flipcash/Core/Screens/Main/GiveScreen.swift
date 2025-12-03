@@ -63,7 +63,7 @@ struct GiveScreen: View {
                 .foregroundColor(.textMain)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
-                .padding(.top, -20)
+                .padding(.top, -40)
                 .sheet(isPresented: $isShowingCurrencySelection) {
                     CurrencySelectionScreen(
                         isPresented: $isShowingCurrencySelection,
