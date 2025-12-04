@@ -28,7 +28,7 @@ struct ScanScreen: View {
     @State private var isShowingGive: Bool = false
 
     @State private var sendButtonState: ButtonState = .normal
-    @State private var billEditorColors: [Color] = GradientStop.gradientPresets.randomElement()?.map { $0.color } ?? []
+    @State private var billEditorColors: [Color] = [GradientStop.solidPresets.randomElement()?.color ?? .blue]
     
     private var toast: String? {
         if let toast = session.toast {
