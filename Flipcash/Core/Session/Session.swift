@@ -807,7 +807,7 @@ class Session: ObservableObject {
             
             confirmationDialog = .init(
                 style: .success,
-                title: "Did you send the link?",
+                title: "Did You Send The Link?",
                 subtitle: "Any cash that isn't collected within 7 days will be automatically returned to your balance",
                 dismissable: false,
             ) {

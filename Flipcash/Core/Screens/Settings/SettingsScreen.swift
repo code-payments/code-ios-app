@@ -217,7 +217,7 @@ struct SettingsScreen: View {
             row(asset: .logout, title: "Log Out") {
                 dialogItem = .init(
                     style: .destructive,
-                    title: "Are you sure you want to log out?",
+                    title: "Are You Sure You Want To Log Out?",
                     subtitle: "You can get into this account using your Access Key",
                     dismissable: true
                 ) {
