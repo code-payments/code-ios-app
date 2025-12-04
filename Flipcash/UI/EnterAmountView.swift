@@ -43,7 +43,7 @@ public struct EnterAmountView: View {
     }
     
     func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
-        maxBalance.converted
+        min(maxBalance.converted, maxTransactionAmount)
     }
     
     // MARK: - Init -
