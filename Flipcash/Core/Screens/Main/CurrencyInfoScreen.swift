@@ -27,7 +27,7 @@ struct CurrencyInfoScreen: View {
 
     private var currencyDescription: String {
         if isUSDC {
-            return "Your cash reserves are held in USDF, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDF for U.S. dollars whenever you like."
+            return "Your cash reserves are held in USDC, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDC for U.S. dollars whenever you like."
         } else {
             return mintMetadata.bio ?? "No information"
         }
