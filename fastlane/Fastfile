@@ -1,0 +1,143 @@
+# Fastfile for Flipcash iOS
+#
+# Release flow:
+#   1. Tag with v1.2.3 format
+#   2. Xcode Cloud builds and uploads to App Store Connect
+#   3. Run: fastlane release version:1.2.3
+#
+# Required environment variables:
+#   ASC_KEY_ID      - App Store Connect API Key ID
+#   ASC_ISSUER_ID   - App Store Connect Issuer ID
+#   ASC_KEY_CONTENT - App Store Connect API Key content (base64 or raw)
+#
+
+default_platform(:ios)
+
+platform :ios do
+
+  # ──────────────────────────────────────────────────────────────────
+  # Release Lane
+  # ──────────────────────────────────────────────────────────────────
+
+  desc "Submit build to App Store Review"
+  desc "Usage: fastlane release version:1.2.3"
+  desc "       fastlane release version:1.2.3 build:42"
+  desc "       fastlane release version:1.2.3 notes:'Bug fixes'"
+  lane :release do |options|
+    version = options[:version] || version_from_tag
+    build_number = options[:build] # Optional: specific build number
+    release_notes = options[:notes] || default_release_notes
+
+    UI.user_error!("Version required. Usage: fastlane release version:1.2.3") unless version
+
+    UI.message("Submitting version #{version} to App Store Review...")
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_CONTENT"],
+      is_key_content_base64: true
+    )
+
+    deliver(
+      api_key: api_key,
+      app_version: version,
+      build_number: build_number,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      force: true,
+      submit_for_review: true,
+      automatic_release: true,
+      phased_release: true,
+      release_notes: {
+        "en-US" => release_notes
+      },
+      submission_information: {
+        add_id_info_uses_idfa: false
+      },
+      precheck_include_in_app_purchases: false
+    )
+
+    UI.success("Version #{version} submitted for App Store Review!")
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Status Lane
+  # ──────────────────────────────────────────────────────────────────
+
+  desc "Check App Store Connect status for latest version"
+  lane :status do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_CONTENT"],
+      is_key_content_base64: true
+    )
+
+    # Get app info
+    app = Spaceship::ConnectAPI::App.find(CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier))
+
+    if app
+      versions = app.get_app_store_versions
+      latest = versions.first
+
+      if latest
+        UI.message("App: #{app.name}")
+        UI.message("Version: #{latest.version_string}")
+        UI.message("State: #{latest.app_store_state}")
+
+        if latest.build
+          UI.message("Build: #{latest.build.version}")
+        end
+      end
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Builds Lane
+  # ──────────────────────────────────────────────────────────────────
+
+  desc "List recent builds available in App Store Connect"
+  lane :builds do |options|
+    limit = options[:limit] || 10
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_content: ENV["ASC_KEY_CONTENT"],
+      is_key_content_base64: true
+    )
+
+    app = Spaceship::ConnectAPI::App.find(CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier))
+
+    if app
+      builds = app.get_builds(limit: limit)
+
+      UI.message("\nRecent builds for #{app.name}:")
+      UI.message("─" * 50)
+
+      builds.each do |build|
+        status = build.processing_state == "VALID" ? "✓" : "⋯"
+        UI.message("#{status} #{build.version} (#{build.uploaded_date})")
+      end
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────────────
+  # Helpers
+  # ──────────────────────────────────────────────────────────────────
+
+  def version_from_tag
+    tag = sh("git describe --tags --abbrev=0 2>/dev/null || echo ''", log: false).strip
+    return nil if tag.empty?
+
+    # Extract version from tag (v1.2.3 -> 1.2.3, release-1.2.3 -> 1.2.3)
+    tag.gsub(/^(v|release-)/, "")
+  end
+
+  def default_release_notes
+    "Bug fixes and performance improvements."
+  end
+
+end
