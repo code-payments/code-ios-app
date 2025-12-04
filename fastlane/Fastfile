@@ -5,10 +5,11 @@
 #   2. Xcode Cloud builds and uploads to App Store Connect
 #   3. Run: fastlane release version:1.2.3
 #
-# Required environment variables:
+# Required environment variables (set in fastlane/.env):
+#   APP_IDENTIFIER  - App bundle identifier
 #   ASC_KEY_ID      - App Store Connect API Key ID
 #   ASC_ISSUER_ID   - App Store Connect Issuer ID
-#   ASC_KEY_CONTENT - App Store Connect API Key content (base64 or raw)
+#   ASC_KEY_CONTENT - App Store Connect API Key content (base64)
 #
 
 default_platform(:ios)
@@ -76,7 +77,7 @@ platform :ios do
     )
 
     # Get app info
-    app = Spaceship::ConnectAPI::App.find(CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier))
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
 
     if app
       versions = app.get_app_store_versions
@@ -109,7 +110,7 @@ platform :ios do
       is_key_content_base64: true
     )
 
-    app = Spaceship::ConnectAPI::App.find(CredentialsManager::AppfileConfig.try_fetch_value(:app_identifier))
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
 
     if app
       builds = app.get_builds(limit: limit)
