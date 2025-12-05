@@ -84,7 +84,12 @@ struct GiveScreen: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: viewModel.isPresented)
+                    ToolbarCloseButton(
+                        binding: Binding(
+                            get: { viewModel.isPresented },
+                            set: { viewModel.isPresented = $0 }
+                        )
+                    )
                 }
             }
             .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
@@ -106,9 +111,10 @@ struct GiveScreen: View {
             .sheet(isPresented: $isShowingTokenSelection) {
                 SelectCurrencyScreen(
                     isPresented: $isShowingTokenSelection,
-                    kind: .give,
+                    kind: .give { balance in
+                        viewModel.selectCurrencyAction(exchangedBalance: balance)
+                    },
                     fixedRate: nil,
-                    viewModel: viewModel
                 )
             }
             .dialog(item: $dialogItem)

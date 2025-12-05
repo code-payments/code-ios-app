@@ -21,12 +21,18 @@ struct ScanScreen: View {
     
     @StateObject private var viewModel: ScanViewModel
     
+    @StateObject private var giveViewModel: GiveViewModel
+    
     @State private var cameraAuthorizer = CameraAuthorizer()
     
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
-    @State private var isShowingGive: Bool = false
-
+    @State private var isShowingGive: Bool = false {
+        didSet {
+            giveViewModel.isPresented = isShowingGive
+        }
+    }
+    
     @State private var sendButtonState: ButtonState = .normal
     @State private var billEditorColors: [Color] = [GradientStop.solidPresets.randomElement()?.color ?? .blue]
     
@@ -71,6 +77,13 @@ struct ScanScreen: View {
         
         _viewModel = .init(
             wrappedValue: ScanViewModel(
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
+        
+        _giveViewModel = .init(
+            wrappedValue: GiveViewModel(
                 container: container,
                 sessionContainer: sessionContainer
             )
@@ -322,13 +335,7 @@ struct ScanScreen: View {
                 binding: $isShowingGive
             )
             .sheet(isPresented: $isShowingGive) {
-                GiveScreen(
-                    viewModel: GiveViewModel(
-                        isPresented: $isShowingGive,
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
-                )
+                GiveScreen(viewModel: giveViewModel)
             }
             
 //            LargeButton(
