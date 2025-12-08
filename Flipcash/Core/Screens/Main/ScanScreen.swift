@@ -27,11 +27,6 @@ struct ScanScreen: View {
     
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
-    @State private var isShowingGive: Bool = false {
-        didSet {
-            giveViewModel.isPresented = isShowingGive
-        }
-    }
     
     @State private var sendButtonState: ButtonState = .normal
     @State private var billEditorColors: [Color] = [GradientStop.solidPresets.randomElement()?.color ?? .blue]
@@ -332,9 +327,9 @@ struct ScanScreen: View {
                 maxHeight: 80,
                 fullWidth: true,
                 aligment: .bottom,
-                binding: $isShowingGive
+                binding: $giveViewModel.isPresented
             )
-            .sheet(isPresented: $isShowingGive) {
+            .sheet(isPresented: $giveViewModel.isPresented) {
                 GiveScreen(viewModel: giveViewModel)
             }
             

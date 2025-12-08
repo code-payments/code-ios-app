@@ -71,7 +71,14 @@ class GiveViewModel: ObservableObject {
         }
     }
     
-    @Published var isPresented = false
+    @Published var isPresented = false {
+        didSet {
+            if isPresented {
+                self.enteredAmount = ""
+            }
+            
+        }
+    }
     
     // MARK: - Init -
     
