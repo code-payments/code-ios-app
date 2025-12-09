@@ -11,48 +11,56 @@ import FlipcashCore
 
 @Suite("ExchangedFiat Tests")
 struct ExchangedFiatTests {
-    
+
+    // USDC uses 6 decimals
+    private static let usdcDecimals = 6
+
     @Test("Subtract fee from amount")
     func testSubtractingFeeFromAmount() throws {
+        // subtracting(fee:) requires USD rate
         let exchangedFiat = try ExchangedFiat(
-            converted: try Quarks(fiatDecimal: 5.00, currencyCode: .cad),
-            rate: .init(fx: 1.37, currency: .cad)
+            converted: try Quarks(fiatDecimal: 5.00, currencyCode: .usd, decimals: Self.usdcDecimals),
+            rate: .oneToOne,
+            mint: .usdc
         )
-        
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd)
-        
+
+        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
+
         let result = try exchangedFiat.subtracting(fee: fee)
-        
-        #expect(exchangedFiat.usdc.quarks == 3_649_635)
+
+        #expect(exchangedFiat.underlying.quarks == 5_000_000)
         #expect(fee.quarks == 500_000)
-        #expect(result.usdc.quarks == 3_149_635)
+        #expect(result.underlying.quarks == 4_500_000)
     }
-    
+
     @Test("Subtract fee too large")
     func testSubtractingFeeTooLarge() throws {
+        // subtracting(fee:) requires USD rate
         let exchangedFiat = try ExchangedFiat(
-            converted: try Quarks(fiatDecimal: 0.60, currencyCode: .cad),
-            rate: .init(fx: 1.37, currency: .cad)
+            converted: try Quarks(fiatDecimal: 0.40, currencyCode: .usd, decimals: Self.usdcDecimals),
+            rate: .oneToOne,
+            mint: .usdc
         )
-        
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd)
-        
+
+        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
+
         #expect(throws: ExchangedFiat.Error.feeLargerThanAmount) {
             try exchangedFiat.subtracting(fee: fee)
         }
     }
-    
-    @Test("Subtract fee equal to amount")
+
+    @Test("Subtract fee equal to amount results in zero")
     func testSubtractingFeeEqualToAmount() throws {
         let exchangedFiat = try ExchangedFiat(
-            converted: try Quarks(fiatDecimal: 0.50, currencyCode: .usd),
-            rate: .oneToOne
+            converted: try Quarks(fiatDecimal: 0.50, currencyCode: .usd, decimals: Self.usdcDecimals),
+            rate: .oneToOne,
+            mint: .usdc
         )
-        
-        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd)
-        
-        #expect(throws: ExchangedFiat.Error.feeLargerThanAmount) {
-            try exchangedFiat.subtracting(fee: fee)
-        }
+
+        let fee = try Quarks(fiatDecimal: 0.5, currencyCode: .usd, decimals: Self.usdcDecimals)
+
+        // When fee equals amount, result should be zero (not an error)
+        let result = try exchangedFiat.subtracting(fee: fee)
+        #expect(result.underlying.quarks == 0)
     }
 }

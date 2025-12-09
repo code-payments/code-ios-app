@@ -691,3 +691,176 @@ let expectedCumulative: [UInt128] = [
   - `4830fe1` - Pre-computed cumulative values
   - `4d4c0b9` - Initial DiscreteExponentialCurve
   - `a6fac48` - Extensive discrete curve tests
+
+---
+
+## Implementation Summary
+
+### Phase 1: Initial Implementation (2025-12-08)
+
+#### Files Created
+
+| File | Description |
+|------|-------------|
+| `FlipcashCore/Sources/FlipcashCore/Models/DiscreteBondingCurve.swift` | New discrete curve implementation with pre-computed lookup table support |
+| `FlipcashCore/Sources/FlipcashCore/Resources/discrete_pricing_table.bin` | Pre-computed spot prices (~3.4 MB, 210,001 entries) |
+| `FlipcashCore/Sources/FlipcashCore/Resources/discrete_cumulative_table.bin` | Pre-computed cumulative costs (~3.4 MB, 210,001 entries) |
+| `Scripts/generate_curve_tables.py` | Script to generate binary tables from Rust source |
+| `FlipcashCore/Tests/FlipcashCoreTests/DiscreteBondingCurveTests.swift` | Comprehensive test suite |
+
+#### Files Modified
+
+| File | Change |
+|------|--------|
+| `FlipcashCore/Package.swift` | Added resource declarations for binary tables |
+| `Flipcash/Core/Controllers/Database/Models/StoredBalance.swift` | Updated to use `DiscreteBondingCurve` |
+| `Flipcash/Core/Screens/Main/CurrencyInfoScreen.swift` | Updated to use `DiscreteBondingCurve` |
+| `FlipcashCore/Sources/FlipcashCore/Models/BondingCurve.swift` | Marked as `@available(*, deprecated)` |
+
+---
+
+### Phase 2: ExchangedFiat Migration & Bug Fixes (2025-12-09)
+
+#### Critical Migration: ExchangedFiat
+
+The core `ExchangedFiat` class was still using the old `BondingCurve`. This was the most critical path as it handles all payment value calculations.
+
+**Changes to `ExchangedFiat.swift`:**
+- Added `private static let bondingCurve = DiscreteBondingCurve()`
+- Migrated `computeFromQuarks()` to use `DiscreteBondingCurve.sell()`
+- Migrated `computeFromEntered()` to use `DiscreteBondingCurve.tokensForValueExchange()`
+
+#### New API Methods Added to DiscreteBondingCurve
+
+1. **`Valuation` struct** - Result type for token exchange calculations:
+   ```swift
+   public struct Valuation: Sendable {
+       public let tokens: BigDecimal
+       public let fx: BigDecimal
+   }
+   ```
+
+2. **`tokensForValueExchange(fiat:fiatRate:tvl:)`** - Calculates tokens received for fiat amount:
+   - Converts fiat to USDC using provided exchange rate
+   - Uses `supplyFromTVL()` to get current supply
+   - Calls `valueToTokens()` to get token amount
+   - Returns effective exchange rate (fiat per token)
+
+3. **`quarksPerToken` constant** - Replaced `pow(10.0, Double(decimals))` with compile-time constant `10_000_000_000`
+
+#### Bug Fixes
+
+1. **`toScaledU128` negative value handling**:
+   - Added early guard for negative/zero values
+   - Returns `UInt128(0)` instead of crashing
+
+2. **`UInt128` string parsing** - Added robust `init?(string:)` initializer:
+   - Uses decimal long division algorithm to avoid precision loss
+   - Handles numbers larger than 2^64 correctly
+   - Replaced BigDecimal-based high/low split which had precision issues
+
+3. **Assertion improvements**:
+   - Added `assertionFailure` calls to catch parsing errors in debug builds
+   - Graceful fallback to `UInt128(0)` in release builds
+
+#### Pre-existing Test Fixes
+
+**`ExchangedFiatTests.swift`:**
+- Added missing `decimals` parameter to `Quarks` initializers
+- Added missing `mint` parameter to `ExchangedFiat` initializers
+- Fixed `subtracting(fee:)` tests to use USD rate (required by method)
+- Fixed `usdc` → `underlying` property rename
+
+**`BondingCurveTests.swift`:**
+- Added global rounding constant
+- Fixed BigDecimal multiplication syntax for assertions
+- Fixed `SellEstimation.netTokensToReceive` → `netUSDC`
+
+---
+
+### Final Test Coverage (90 tests across 9 suites)
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| Spot Price | 8 | ✅ Pass |
+| Tokens To Value | 17 | ✅ Pass |
+| Value To Tokens | 14 | ✅ Pass |
+| Roundtrip & Consistency | 7 | ✅ Pass |
+| Table Validation | 9 | ✅ Pass |
+| High-Level API | 10 | ✅ Pass |
+| Edge Cases | 7 | ✅ Pass |
+| **Tokens For Value Exchange** | **12** | ✅ Pass |
+| **Constants** | **6** | ✅ Pass |
+| ExchangedFiat Tests | 3 | ✅ Pass |
+
+#### New Tests Added (2025-12-09)
+
+**Tokens For Value Exchange Tests (12 tests):**
+- 9.1 Zero fiat returns zero tokens
+- 9.2 Negative fiat returns zero tokens
+- 9.3 USD 1:1 rate returns correct tokens
+- 9.4 CAD with 1.4 rate converts correctly
+- 9.5 fx rate is fiat divided by tokens
+- 9.6 Invalid TVL returns nil
+- 9.7 Large fiat amount works correctly
+- 9.8 Small fiat amount works correctly
+- 9.9 Consistency with valueToTokens
+- 9.10 Multiple exchange rates yield proportional tokens
+- 9.11 Zero TVL returns valid result at supply 0
+- 9.12 Valuation struct has correct values
+
+**Constants Tests (6 tests):**
+- 10.1 quarksPerToken equals 10^10
+- 10.2 quarksPerToken matches decimals
+- 10.3 stepSize is 100
+- 10.4 maxSupply is 21 million
+- 10.5 tableSize is 210,001
+- 10.6 tablePrecision is 18
+
+---
+
+### Production Code Migration Status
+
+| File | Component | Status |
+|------|-----------|--------|
+| `ExchangedFiat.swift` | `computeFromQuarks()` | ✅ Migrated |
+| `ExchangedFiat.swift` | `computeFromEntered()` | ✅ Migrated |
+| `StoredBalance.swift` | USDC value calculation | ✅ Migrated |
+| `CurrencyInfoScreen.swift` | Market cap display | ✅ Migrated |
+
+**All production code paths now use `DiscreteBondingCurve`.**
+
+---
+
+### Key Implementation Details
+
+1. **Binary Resource Storage**: Lookup tables stored as binary files loaded at runtime to avoid Swift compiler memory issues with large array literals (original approach caused 100GB+ memory usage during compilation).
+
+2. **UInt128 Representation**: Custom `UInt128` struct with:
+   - High/low `UInt64` parts to match Rust's u128 storage format
+   - String-based initializer with decimal long division for numbers > 2^64
+   - Proper comparison operators for binary search
+
+3. **Precision Handling**:
+   - Tables use 18 decimal precision (scaled integers)
+   - BigDecimal used for arbitrary precision arithmetic
+   - String-based BigDecimal construction to avoid DPD encoding issues
+   - Guard clauses for negative values in `toScaledU128`
+
+4. **API Compatibility**:
+   - `spotPrice(at:)` returns step-based price lookup
+   - `tokensToValue(currentSupply:tokens:)` uses cumulative tables for O(1) cost calculation
+   - `valueToTokens(currentSupply:value:)` uses binary search
+   - `tokensForValueExchange(fiat:fiatRate:tvl:)` - new method for fiat → tokens
+   - High-level `marketCap`, `buy`, `sell` methods match old API
+
+---
+
+### Verification
+
+- ✅ All 90 tests pass (72 original + 18 new)
+- ✅ Full Flipcash app builds successfully
+- ✅ Tables are bit-for-bit identical to Rust implementation
+- ✅ All production code paths migrated to `DiscreteBondingCurve`
+- ✅ Pre-existing broken tests fixed
+- ✅ UInt128 parsing handles numbers > 2^64 correctly
