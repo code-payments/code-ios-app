@@ -5,14 +5,22 @@ Generate binary lookup tables from the Rust curve tables.
 This script reads the table.rs file from the flipcash-program repo
 and generates binary resource files for use by DiscreteBondingCurve.swift.
 
+Usage:
+    ./generate_curve_tables.py <path-to-table.rs>
+
+Example:
+    ./generate_curve_tables.py ../flipcash-program/api/src/table.rs
+
 Binary format: Array of 128-bit little-endian unsigned integers
 Each entry is 16 bytes (low 8 bytes + high 8 bytes)
 """
 
+import argparse
 import re
 import struct
 import sys
 from pathlib import Path
+
 
 def extract_table(content: str, table_name: str) -> list[int]:
     """Extract a table from the Rust source."""
@@ -35,6 +43,7 @@ def extract_table(content: str, table_name: str) -> list[int]:
 
     return numbers
 
+
 def write_binary_table(path: Path, values: list[int]):
     """Write table as binary file with 128-bit little-endian integers."""
     with open(path, 'wb') as f:
@@ -45,13 +54,28 @@ def write_binary_table(path: Path, values: list[int]):
             # Write as little-endian: low bytes first, then high bytes
             f.write(struct.pack('<QQ', low, high))
 
+
 def main():
-    # Path to Rust table file
-    rust_table_path = Path("/tmp/flipcash-program/api/src/table.rs")
+    parser = argparse.ArgumentParser(
+        description="Generate binary lookup tables from Rust curve tables."
+    )
+    parser.add_argument(
+        "rust_table_path",
+        type=Path,
+        help="Path to the Rust table.rs file (e.g., ../flipcash-program/api/src/table.rs)"
+    )
+    parser.add_argument(
+        "-o", "--output-dir",
+        type=Path,
+        default=None,
+        help="Output directory for binary files (default: FlipcashCore/Sources/FlipcashCore/Resources)"
+    )
+    args = parser.parse_args()
+
+    rust_table_path = args.rust_table_path
 
     if not rust_table_path.exists():
         print(f"Error: Could not find {rust_table_path}")
-        print("Please ensure the flipcash-program repo is cloned to /tmp/flipcash-program")
         sys.exit(1)
 
     print(f"Reading {rust_table_path}...")
@@ -65,8 +89,13 @@ def main():
     cumulative = extract_table(content, "DISCRETE_CUMULATIVE_VALUE_TABLE")
     print(f"  Found {len(cumulative)} entries")
 
-    # Create resources directory
-    resources_dir = Path("/Users/dbart/Sources/Code-for-profit/code-ios-app/FlipcashCore/Sources/FlipcashCore/Resources")
+    # Determine output directory (relative to this script's location)
+    if args.output_dir:
+        resources_dir = args.output_dir
+    else:
+        script_dir = Path(__file__).parent.resolve()
+        resources_dir = script_dir.parent / "FlipcashCore" / "Sources" / "FlipcashCore" / "Resources"
+
     resources_dir.mkdir(parents=True, exist_ok=True)
 
     # Write binary files
@@ -86,6 +115,7 @@ def main():
     print(f"  Pricing table: {len(pricing)} entries")
     print(f"  Cumulative table: {len(cumulative)} entries")
     print(f"  Total binary size: {(pricing_size + cumulative_size) / 1024 / 1024:.2f} MB")
+
 
 if __name__ == "__main__":
     main()

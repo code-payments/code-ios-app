@@ -922,26 +922,24 @@ struct DiscreteTokensForValueExchangeTests {
     // USDC quarks per dollar (6 decimals)
     let usdcQuarksPerDollar: Int = 1_000_000
 
-    @Test("9.1 Zero fiat returns zero tokens")
-    func zeroFiatReturnsZeroTokens() {
+    @Test("9.1 Zero fiat returns nil")
+    func zeroFiatReturnsNil() {
         let result = curve.tokensForValueExchange(
             fiat: .zero,
             fiatRate: BigDecimal("1.0"),
             tvl: 10 * usdcQuarksPerDollar
         )
-        #expect(result != nil)
-        #expect(result?.tokens == .zero)
+        #expect(result == nil)
     }
 
-    @Test("9.2 Negative fiat returns zero tokens")
-    func negativeFiatReturnsZeroTokens() {
+    @Test("9.2 Negative fiat returns nil")
+    func negativeFiatReturnsNil() {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("-5.0"),
             fiatRate: BigDecimal("1.0"),
             tvl: 10 * usdcQuarksPerDollar
         )
-        #expect(result != nil)
-        #expect(result?.tokens == .zero)
+        #expect(result == nil)
     }
 
     @Test("9.3 USD 1:1 rate returns correct tokens")
@@ -995,7 +993,10 @@ struct DiscreteTokensForValueExchangeTests {
 
     @Test("9.5 fx rate is fiat divided by tokens")
     func fxRateCalculation() {
-        let tvl = 5 * usdcQuarksPerDollar
+        // TVL must be larger than the USDC value we're exchanging
+        // fiat = $10, fiatRate = 1.5, so USDC value = 10/1.5 = $6.67
+        // Use $100 TVL to ensure we have enough
+        let tvl = 100 * usdcQuarksPerDollar
         let fiat = BigDecimal("10.0")
         let fiatRate = BigDecimal("1.5")
 
@@ -1007,6 +1008,7 @@ struct DiscreteTokensForValueExchangeTests {
 
         #expect(result != nil)
         if let result = result {
+            #expect(result.tokens.isPositive)
             // fx should equal fiat / tokens
             let expectedFx = fiat.divide(result.tokens, testRounding)
             #expect(isApproximatelyEqual(result.fx, expectedFx))
@@ -1059,22 +1061,30 @@ struct DiscreteTokensForValueExchangeTests {
         }
     }
 
-    @Test("9.9 Consistency with valueToTokens")
-    func consistencyWithValueToTokens() {
+    @Test("9.9 tokensForValueExchange uses TVL subtraction semantics")
+    func tokensForValueExchangeSubtractionSemantics() {
         let tvl = 50 * usdcQuarksPerDollar  // $50 TVL
         let usdcValue = BigDecimal("5.0")  // $5 USDC
 
         // Get supply from TVL
-        guard let supply = curve.supplyFromTVL(tvl) else {
+        guard let supplyAtCurrentTVL = curve.supplyFromTVL(tvl) else {
             Issue.record("Failed to get supply from TVL")
             return
         }
 
-        // Get tokens via valueToTokens directly
-        guard let directTokens = curve.valueToTokens(currentSupply: supply, value: usdcValue) else {
-            Issue.record("Failed to get tokens via valueToTokens")
+        // tokensForValueExchange uses TVL-subtraction semantics:
+        // tokens = supply_at(TVL) - supply_at(TVL - value)
+        // This computes how many tokens correspond to a $5 reduction in TVL
+
+        // Get supply at reduced TVL
+        let reducedTVL = tvl - (5 * usdcQuarksPerDollar)
+        guard let supplyAtReducedTVL = curve.supplyFromTVL(reducedTVL) else {
+            Issue.record("Failed to get supply at reduced TVL")
             return
         }
+
+        // Expected tokens = difference in supply
+        let expectedTokens = BigDecimal(supplyAtCurrentTVL - supplyAtReducedTVL)
 
         // Get tokens via tokensForValueExchange (with 1:1 rate)
         guard let exchangeResult = curve.tokensForValueExchange(
@@ -1086,8 +1096,10 @@ struct DiscreteTokensForValueExchangeTests {
             return
         }
 
-        // Both methods should yield the same result
-        #expect(isApproximatelyEqual(directTokens, exchangeResult.tokens, tolerance: BigDecimal("0.0001")))
+        // Result should match expected (supply difference)
+        // Use larger tolerance since supplyFromTVL returns step boundaries
+        // while preciseSupplyFromTVL interpolates within steps
+        #expect(isApproximatelyEqual(exchangeResult.tokens, expectedTokens, tolerance: BigDecimal("100")))
     }
 
     @Test("9.10 Multiple exchange rates yield proportional tokens")
@@ -1124,19 +1136,16 @@ struct DiscreteTokensForValueExchangeTests {
         }
     }
 
-    @Test("9.11 Zero TVL returns valid result at supply 0")
-    func zeroTVLWorksAtSupplyZero() {
+    @Test("9.11 Zero TVL returns nil")
+    func zeroTVLReturnsNil() {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("1.0"),
             fiatRate: BigDecimal("1.0"),
-            tvl: 0  // No TVL = supply 0
+            tvl: 0  // No TVL = supply 0, can't exchange anything
         )
 
-        #expect(result != nil)
-        if let result = result {
-            // At supply 0, $1 at $0.01/token = 100 tokens
-            #expect(isApproximatelyEqual(result.tokens, BigDecimal("100"), tolerance: BigDecimal("1")))
-        }
+        // At TVL 0, there are no tokens to exchange - should return nil
+        #expect(result == nil)
     }
 
     @Test("9.12 Valuation struct has correct values")
@@ -1186,5 +1195,295 @@ struct DiscreteConstantsTests {
     @Test("10.6 tablePrecision is 18")
     func tablePrecisionValue() {
         #expect(DiscreteBondingCurve.tablePrecision == 18)
+    }
+}
+
+// MARK: - 11. Real-World Scenario Tests (Jeffy Bug)
+
+@Suite("Discrete Bonding Curve - Real-World Scenarios")
+struct DiscreteRealWorldTests {
+
+    let curve = DiscreteBondingCurve()
+
+    // This reproduces the bug found with Jeffy currency:
+    // TVL = $231.804283, entered amount = $1 CAD = $0.72 USD
+    // Both TVLs map to the same supply (19900), causing tokens = 0
+
+    @Test("11.0 BigDecimal.ten.pow(18) equals 10^18 string")
+    func tenPow18EqualsStringLiteral() {
+        // Verify that BigDecimal.ten.pow(18) produces the same value as the string literal
+        let powVersion = BigDecimal.ten.pow(18, testRounding)
+        let stringVersion = BigDecimal("1000000000000000000")
+
+        let powStr = powVersion.asString(.plain)
+        let stringStr = stringVersion.asString(.plain)
+
+        print("BigDecimal.ten.pow(18): \(powStr)")
+        print("BigDecimal string literal: \(stringStr)")
+
+        #expect(powStr == stringStr, "Both should equal 1000000000000000000")
+    }
+
+    @Test("11.0b Multiplication by 10^18 gives correct scaled value")
+    func multiplicationByTenPow18() {
+        let tvl = BigDecimal("231.804283")
+
+        // Method 1: Using string literal
+        let scale18String = BigDecimal("1000000000000000000")
+        let scaled1 = tvl.multiply(scale18String, testRounding)
+
+        // Method 2: Using pow
+        let scale18Pow = BigDecimal.ten.pow(18, testRounding)
+        let scaled2 = tvl.multiply(scale18Pow, testRounding)
+
+        let str1 = scaled1.asString(.plain)
+        let str2 = scaled2.asString(.plain)
+
+        print("Using string literal 10^18: \(str1)")
+        print("Using BigDecimal.ten.pow(18): \(str2)")
+
+        // Expected: 231804283000000000000 (231.804283 * 10^18)
+        #expect(str1.hasPrefix("231804283"), "Should start with 231804283")
+        #expect(str2.hasPrefix("231804283"), "Should start with 231804283")
+        #expect(str1 == str2, "Both methods should give same result")
+    }
+
+    @Test("11.0c Rounding with precision 0 is buggy - use string manipulation instead")
+    func roundingWithPrecision0IsBuggy() {
+        // This test documents that Rounding(.towardZero, 0) is WRONG for our use case.
+        // precision 0 means "0 significant digits", NOT "0 decimal places".
+        let tvl = BigDecimal("231.804283")
+        let scaleFactor = BigDecimal.ten.pow(18, testRounding)
+        let scaled = tvl.multiply(scaleFactor, testRounding)
+
+        print("Before rounding: \(scaled.asString(.plain))")
+
+        // BUG: Rounding(.towardZero, 0) truncates significant digits
+        let floorRounding = Rounding(.towardZero, 0)
+        let intPart = scaled.round(floorRounding)
+        print("After Rounding(.towardZero, 0): \(intPart.asString(.plain))")
+
+        // WORKAROUND: Use string manipulation to get integer part
+        var str = scaled.asString(.plain)
+        if let dotIndex = str.firstIndex(of: ".") {
+            str = String(str[..<dotIndex])
+        }
+        print("Using string manipulation: \(str)")
+
+        // Verify workaround works
+        #expect(str.hasPrefix("231804283"), "String manipulation should preserve value, got: \(str)")
+    }
+
+    @Test("11.0d UInt128 string parsing works correctly")
+    func uint128StringParsing() {
+        // Test the expected value
+        let expected = "231804283000000000000"
+        guard let u128 = UInt128(string: expected) else {
+            Issue.record("Failed to parse UInt128 from: \(expected)")
+            return
+        }
+
+        print("Parsed UInt128: high=\(u128.high), low=\(u128.low)")
+
+        // Verify by reconstructing the value
+        // value = high * 2^64 + low
+        // 2^64 = 18446744073709551616
+        let twoTo64 = BigDecimal("18446744073709551616")
+        let reconstructed = BigDecimal(String(u128.high)).multiply(twoTo64, testRounding)
+            .add(BigDecimal(String(u128.low)), testRounding)
+
+        print("Reconstructed: \(reconstructed.asString(.plain))")
+        #expect(reconstructed.asString(.plain) == expected, "Should reconstruct to original value")
+    }
+
+    @Test("11.0e Full toScaledU128 simulation - explore rounding methods")
+    func fullToScaledU128Simulation() {
+        // Simulate exactly what toScaledU128 does
+        let tvl = BigDecimal("231.804283")
+
+        // Step 1: scale factor (10^18)
+        let scaleFactor = BigDecimal.ten.pow(18, testRounding)
+        print("Scale factor: \(scaleFactor.asString(.plain))")
+
+        // Step 2: multiply
+        let scaled = tvl.multiply(scaleFactor, testRounding)
+        print("Scaled: \(scaled.asString(.plain))")
+
+        // Step 3: round to integer - BUG: Rounding(.towardZero, 0) truncates incorrectly!
+        let floorRounding0 = Rounding(.towardZero, 0)
+        let intPart0 = scaled.round(floorRounding0)
+        print("With precision 0: \(intPart0.asString(.plain))")
+
+        // Try different precisions
+        let floorRounding21 = Rounding(.towardZero, 21)  // 21 significant digits to cover our number
+        let intPart21 = scaled.round(floorRounding21)
+        print("With precision 21: \(intPart21.asString(.plain))")
+
+        let floorRounding36 = Rounding(.towardZero, 36)
+        let intPart36 = scaled.round(floorRounding36)
+        print("With precision 36: \(intPart36.asString(.plain))")
+
+        // Try using string manipulation: extract integer part from string
+        let fullStr = scaled.asString(.plain)
+        var intPartStr = fullStr
+        if let dotIndex = fullStr.firstIndex(of: ".") {
+            intPartStr = String(fullStr[..<dotIndex])
+        }
+        print("String manipulation: \(intPartStr)")
+
+        // Step 5: parse as UInt128 using string method
+        guard let u128 = UInt128(string: intPartStr) else {
+            Issue.record("Failed to parse UInt128 from: \(intPartStr)")
+            return
+        }
+
+        print("UInt128: high=\(u128.high), low=\(u128.low)")
+
+        // Expected: high should be ~12 (231804283000000000000 / 2^64 ≈ 12.57)
+        #expect(u128.high >= 12, "high should be >= 12, got: \(u128.high)")
+        #expect(u128.high <= 13, "high should be <= 13, got: \(u128.high)")
+    }
+
+    @Test("11.1 supplyFromTVL for TVL ~$232 should be around step 230")
+    func supplyFromTVLForJeffyTVL() {
+        // TVL = 231.804283 USDC = 231804283 quarks
+        let tvlQuarks = 231_804_283
+        let supply = curve.supplyFromTVL(tvlQuarks)
+
+        #expect(supply != nil)
+        if let supply = supply {
+            // At ~$0.01 per token, $232 TVL should give ~23,200 tokens
+            // But even conservatively, should be well above 20,000
+            print("Supply for TVL $231.80: \(supply)")
+            #expect(supply > 20_000, "Supply should be > 20,000 for TVL of $231")
+            #expect(supply < 25_000, "Supply should be < 25,000 for TVL of $231")
+        }
+    }
+
+    @Test("11.2 Cumulative table values are monotonically increasing around step 200")
+    func cumulativeTableMonotonicity() {
+        // Check steps 195-210
+        for i in 195..<210 {
+            let curr = DiscreteCurveTables.cumulativeTable[i]
+            let next = DiscreteCurveTables.cumulativeTable[i + 1]
+            #expect(next > curr, "cumulative[\(i+1)] should be > cumulative[\(i)]")
+        }
+    }
+
+    @Test("11.3 Cumulative at step 230 should be around $232")
+    func cumulativeAtStep230() {
+        // At step 230 (supply = 23000), cumulative TVL should be around $232
+        // (230 steps * ~$1 per step)
+        let step230 = DiscreteCurveTables.cumulativeTable[230]
+
+        // Convert UInt128 to BigDecimal: value = high * 2^64 + low, then divide by 10^18
+        let twoToThe64 = BigDecimal("18446744073709551616")
+        let scale18 = BigDecimal("1000000000000000000")
+        let highPart = BigDecimal(String(step230.high)).multiply(twoToThe64, testRounding)
+        let combined = highPart.add(BigDecimal(String(step230.low)), testRounding)
+        let step230Decimal = combined.divide(scale18, testRounding)
+
+        print("Cumulative at step 230: \(step230Decimal.asString(.plain))")
+
+        // Should be roughly $230-235
+        let step230Double = Double(step230Decimal.asString(.plain))!
+        #expect(step230Double > 225, "Cumulative at step 230 should be > $225")
+        #expect(step230Double < 250, "Cumulative at step 230 should be < $250")
+    }
+
+    @Test("11.4 Binary search finds correct step for TVL $231.80")
+    func binarySearchForJeffyTVL() {
+        // TVL = 231.804283 USDC
+        let tvl = BigDecimal("231.804283")
+        let scale18 = BigDecimal("1000000000000000000")
+        let tvlScaled = tvl.multiply(scale18, testRounding)
+
+        // Convert to UInt128 for comparison using string
+        var tvlString = tvlScaled.asString(.plain)
+        // Remove any decimal part
+        if let dotIndex = tvlString.firstIndex(of: ".") {
+            tvlString = String(tvlString[..<dotIndex])
+        }
+
+        // Use UInt128(string:) initializer
+        guard let tvlU128 = UInt128(string: tvlString) else {
+            Issue.record("Failed to convert TVL to UInt128: \(tvlString)")
+            return
+        }
+
+        print("TVL scaled: \(tvlU128)")
+
+        // Find the step where cumulative <= TVL
+        var foundStep = -1
+        for i in 0..<DiscreteCurveTables.cumulativeTable.count {
+            if DiscreteCurveTables.cumulativeTable[i] <= tvlU128 {
+                foundStep = i
+            } else {
+                break
+            }
+        }
+
+        print("Found step (linear scan): \(foundStep)")
+        print("cumulative[\(foundStep)] = \(DiscreteCurveTables.cumulativeTable[foundStep])")
+        if foundStep + 1 < DiscreteCurveTables.cumulativeTable.count {
+            print("cumulative[\(foundStep+1)] = \(DiscreteCurveTables.cumulativeTable[foundStep + 1])")
+        }
+
+        // Should find step ~230, not step 198
+        #expect(foundStep > 220, "Should find step > 220 for TVL $231.80")
+        #expect(foundStep < 240, "Should find step < 240 for TVL $231.80")
+    }
+
+    @Test("11.5 tokensForValueExchange works for small amounts with large TVL")
+    func tokensForValueExchangeJeffyScenario() {
+        // Exact scenario from bug:
+        // - fiat: 1 CAD
+        // - fiatRate: 1.38262 (1 USD = 1.38 CAD)
+        // - TVL: 231804283 quarks = $231.80 USDC
+        let result = curve.tokensForValueExchange(
+            fiat: BigDecimal("1"),
+            fiatRate: BigDecimal("1.38262"),
+            tvl: 231_804_283
+        )
+
+        #expect(result != nil, "Should return a valid result")
+        if let result = result {
+            print("Tokens for $1 CAD with TVL $231.80: \(result.tokens.asString(.plain))")
+            #expect(result.tokens.isPositive, "Tokens should be positive")
+
+            // $1 CAD = ~$0.72 USD, at ~$0.01/token = ~72 tokens
+            let tokensDouble = Double(result.tokens.asString(.plain))!
+            #expect(tokensDouble > 50, "Should get > 50 tokens for ~$0.72 USD")
+            #expect(tokensDouble < 100, "Should get < 100 tokens for ~$0.72 USD")
+        }
+    }
+
+    @Test("11.6 Two close TVL values produce different supplies")
+    func differentTVLsProduceDifferentSupplies() {
+        // currentTVL: 231.804283
+        // newTVL: 231.081018 (difference of ~$0.72)
+
+        // These should produce different supply values
+        // Note: supplyFromTVL returns step boundaries (multiples of 100)
+        let supply1 = curve.supplyFromTVL(231_804_283)
+        let supply2 = curve.supplyFromTVL(231_081_018)
+
+        #expect(supply1 != nil)
+        #expect(supply2 != nil)
+
+        if let s1 = supply1, let s2 = supply2 {
+            print("Supply at TVL $231.80: \(s1)")
+            print("Supply at TVL $231.08: \(s2)")
+
+            // Since these values span a step boundary, we expect 100 token difference
+            // (one step size). At ~$1.01 per step, $0.72 difference could span 0 or 1 steps.
+            let diff = s1 - s2
+            print("Difference: \(diff) tokens")
+
+            // The key assertion is that supplies are NOT equal (bug was they were both 19800)
+            #expect(s1 != s2, "Supplies should be different for different TVL values")
+            // Difference should be exactly one step (100 tokens) in this case
+            #expect(diff == 100, "Supply difference should be exactly 100 (one step)")
+        }
     }
 }

@@ -233,16 +233,20 @@ public struct DiscreteBondingCurve: Sendable {
         let scaleFactor = BigDecimal.ten.pow(tablePrecision, rounding)
         let scaled = value.multiply(scaleFactor, rounding)
 
-        // Get the integer part using truncation toward zero
-        let floorRounding = Rounding(.towardZero, 0)
-        let intPart = scaled.round(floorRounding)
+        // Get the integer part using string manipulation
+        // Note: Rounding(.towardZero, 0) truncates significant digits incorrectly
+        // because precision 0 means "0 significant digits", not "0 decimal places"
+        var str = scaled.asString(.plain)
 
-        // Handle negative results from rounding
-        guard intPart.isPositive || intPart.isZero else {
-            return UInt128(0)
+        // Remove any decimal part
+        if let dotIndex = str.firstIndex(of: ".") {
+            str = String(str[..<dotIndex])
         }
 
-        let str = intPart.asString(.plain)
+        // Handle empty or negative results
+        guard !str.isEmpty, !str.hasPrefix("-") else {
+            return UInt128(0)
+        }
 
         // Use the string-based UInt128 initializer which handles large numbers correctly
         if let result = UInt128(string: str) {
@@ -288,48 +292,9 @@ public struct UInt128: Sendable, Equatable, Comparable {
             return
         }
 
-        // For larger numbers, we need to divide by 2^64 using string arithmetic
-        // 2^64 = 18446744073709551616
-        let divisor = "18446744073709551616"
-
-        // Perform long division
-        var quotient = ""
-        var remainder: UInt64 = 0
-
-        for char in str {
-            guard let digit = char.wholeNumberValue else {
-                return nil
-            }
-
-            // remainder * 10 + digit
-            let current = UInt64(remainder) * 10 + UInt64(digit)
-
-            // This might overflow if remainder is large, so we need to handle it carefully
-            // Actually, since we're processing digit by digit, the max intermediate value is
-            // (2^64 - 1) * 10 + 9 which overflows UInt64
-            // We need a different approach
-
-            // Let's use a simpler approach: since we know the divisor is 2^64,
-            // we can use the fact that the string represents a number = high * 2^64 + low
-            // We can find the split point by checking string length
-
-            break
-        }
-
-        // Alternative approach: find where to split the string
-        // For numbers > 2^64, we can estimate the high part by taking leading digits
-        // and computing low = original - high * 2^64
-
-        // Actually, the cleanest approach is to use the decimal string directly
-        // and compute high and low using repeated subtraction of 2^64
-
-        // Since the string is guaranteed to be a positive integer, we can:
-        // 1. Parse it as a very large number using an array of digits
-        // 2. Divide by 2^64 to get high
-        // 3. Take remainder for low
-
-        // For simplicity, let's use a recursive subtraction approach
-        var digits = str.compactMap { $0.wholeNumberValue }
+        // For larger numbers, we need to divide by 2^64 using digit array arithmetic
+        // Parse as array of digits and use long division by 2^64
+        let digits = str.compactMap { $0.wholeNumberValue }
         guard digits.count == str.count else { return nil }
 
         // Divide the digit array by 2^64
@@ -552,8 +517,10 @@ extension DiscreteBondingCurve {
 
     /// Calculate how many tokens can be obtained for a given fiat amount.
     ///
-    /// Converts the fiat amount to USDC using the provided rate, then calculates
-    /// how many tokens that USDC amount would purchase at the current TVL.
+    /// Uses the same mathematical approach as the original continuous curve:
+    /// computes tokens based on the supply difference between current TVL
+    /// and (current TVL - USDC value). This maintains compatibility with
+    /// server-side validation.
     ///
     /// - Parameters:
     ///   - fiat: Amount in local fiat currency (e.g., CAD)
@@ -562,34 +529,104 @@ extension DiscreteBondingCurve {
     /// - Returns: Valuation containing tokens received and effective exchange rate
     public func tokensForValueExchange(fiat: BigDecimal, fiatRate: BigDecimal, tvl: Int) -> Valuation? {
         guard fiat.isPositive else {
-            return Valuation(tokens: .zero, fx: .zero)
+            return nil
         }
 
-        // Convert fiat to USDC value
+        // Convert fiat to USDC value (in USDC units, not quarks)
         let usdcValue = fiat.divide(fiatRate, Self.rounding)
 
         guard usdcValue.isPositive else {
-            return Valuation(tokens: .zero, fx: .zero)
-        }
-
-        // Get current supply from TVL
-        guard let currentSupply = supplyFromTVL(tvl) else {
             return nil
         }
 
-        // Calculate tokens received for the USDC value
-        guard let tokens = valueToTokens(currentSupply: currentSupply, value: usdcValue) else {
+        // Convert TVL from quarks to USDC units
+        let currentTVL = BigDecimal(tvl).divide(BigDecimal(1_000_000), Self.rounding)
+
+        // Calculate new TVL after spending (subtract, matching old continuous curve approach)
+        let newTVL = currentTVL.subtract(usdcValue, Self.rounding)
+
+        guard !newTVL.isNegative else {
+            // Can't spend more than the TVL
             return nil
         }
+
+        // Get precise supply at current TVL (interpolated within step)
+        let currentSupply = preciseSupplyFromTVL(currentTVL)
+
+        // Get precise supply at new (lower) TVL
+        let newSupply = preciseSupplyFromTVL(newTVL)
+
+        // Tokens = difference in supply (current is higher, new is lower)
+        let tokens = currentSupply.subtract(newSupply, Self.rounding)
 
         guard tokens.isPositive else {
-            return Valuation(tokens: .zero, fx: .zero)
+            return nil
         }
 
         // Calculate effective exchange rate: fiat per token
         let fx = fiat.divide(tokens, Self.rounding)
 
         return Valuation(tokens: tokens, fx: fx)
+    }
+
+    /// Calculate precise supply from TVL with interpolation within steps.
+    ///
+    /// Unlike `supplyFromTVL` which returns step boundaries, this method
+    /// interpolates within the step to give a more accurate supply value.
+    ///
+    /// - Parameter tvl: Total value locked in USDC (not quarks)
+    /// - Returns: Supply as BigDecimal with fractional tokens
+    private func preciseSupplyFromTVL(_ tvl: BigDecimal) -> BigDecimal {
+        guard tvl.isPositive else {
+            return .zero
+        }
+
+        // Scale TVL to table precision (18 decimals)
+        let tvlScaled = Self.toScaledU128(tvl)
+
+        // Binary search in cumulative table to find the step
+        var low = 0
+        var high = DiscreteCurveTables.cumulativeTable.count - 1
+
+        while low < high {
+            let mid = (low + high + 1) / 2
+            if DiscreteCurveTables.cumulativeTable[mid] <= tvlScaled {
+                low = mid
+            } else {
+                high = mid - 1
+            }
+        }
+
+        let stepIndex = low
+        let stepSupply = stepIndex * Self.stepSize
+
+        // Get cumulative value at this step boundary
+        let cumulativeAtStep = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[stepIndex])
+
+        // Calculate remaining TVL within this step
+        let remainingTVL = tvl.subtract(cumulativeAtStep, Self.rounding)
+
+        guard remainingTVL.isPositive else {
+            return BigDecimal(stepSupply)
+        }
+
+        // Get price at this step to interpolate
+        let priceAtStep = Self.fromScaledU128(DiscreteCurveTables.pricingTable[stepIndex])
+
+        guard priceAtStep.isPositive else {
+            return BigDecimal(stepSupply)
+        }
+
+        // Calculate fractional tokens within the step
+        let fractionalTokens = remainingTVL.divide(priceAtStep, Self.rounding)
+
+        // Cap at step size (100)
+        let stepSizeDecimal = BigDecimal(Self.stepSize)
+        let cappedFractional = fractionalTokens < stepSizeDecimal
+            ? fractionalTokens
+            : stepSizeDecimal
+
+        return BigDecimal(stepSupply).add(cappedFractional, Self.rounding)
     }
 
     /// Calculate supply from TVL using the cumulative table.

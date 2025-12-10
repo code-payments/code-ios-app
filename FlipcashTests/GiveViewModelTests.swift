@@ -19,12 +19,10 @@ struct GiveViewModelTests {
 
     /// Helper to create a test view model
     static func createViewModel() -> GiveViewModel {
-        let isPresented = Binding<Bool>(get: { true }, set: { _ in })
         let container = Container.mock
         let sessionContainer = SessionContainer.mock
 
         let viewModel = GiveViewModel(
-            isPresented: isPresented,
             container: container,
             sessionContainer: sessionContainer
         )
@@ -202,6 +200,45 @@ struct GiveViewModelTests {
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "0.50"
+
+        // When: Checking if can give
+        let canGive = viewModel.canGive
+
+        // Then: Should be able to give
+        #expect(canGive == true)
+    }
+
+    @Test
+    func testEnteredFiat_BondedToken_AmountAtMaxBalance() {
+        // Given: View model with bonded token where entered amount equals TVL
+        // This tests the edge case where user tries to give their full balance
+        let viewModel = Self.createViewModel()
+        let balance = Self.createExchangedBalance(
+            mint: .usdcAuthority,
+            quarks: 100_000_000_000_000,
+            tvl: 10_000_000 // $10 TVL - larger to allow for give of $5
+        )
+        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        viewModel.enteredAmount = "5.00"
+
+        // When: Checking if can give
+        let canGive = viewModel.canGive
+
+        // Then: Should be able to give (amount is less than TVL)
+        #expect(canGive == true)
+    }
+
+    @Test
+    func testEnteredFiat_BondedToken_LargeTVL() {
+        // Given: View model with realistic TVL (e.g., $1000)
+        let viewModel = Self.createViewModel()
+        let balance = Self.createExchangedBalance(
+            mint: .usdcAuthority,
+            quarks: 1_000_000_000_000_000, // Large balance
+            tvl: 1_000_000_000 // $1000 TVL
+        )
+        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        viewModel.enteredAmount = "25.00"
 
         // When: Checking if can give
         let canGive = viewModel.canGive

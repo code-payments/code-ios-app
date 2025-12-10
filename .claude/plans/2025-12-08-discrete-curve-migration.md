@@ -856,6 +856,90 @@ The core `ExchangedFiat` class was still using the old `BondingCurve`. This was 
 
 ---
 
+---
+
+### Phase 3: Runtime Error Fix (2025-12-09)
+
+#### Issue: "fiat exchange data is stale or invalid"
+
+During on-device testing, payments were failing with error: `"fiat exchange data is stale or invalid"`.
+
+#### Root Cause Analysis
+
+The original `tokensForValueExchange` implementation used a **BUY/ADD** formula:
+```swift
+// Original: Add value to supply (BUY operation)
+let tokens = valueToTokens(currentSupply: currentSupply, value: usdcValue)
+```
+
+But the old `BondingCurve` used a **SELL/SUBTRACT** formula:
+```swift
+// Old: Subtract value from TVL (SELL/SPEND operation)
+let newValue = currentValue.subtract(value, r)
+let newSupply = supplyFromTVL(newValue)
+let tokens = currentSupply - newSupply
+```
+
+These are mathematically different:
+- **BUY**: `tokens = supply_at(TVL + value) - supply_at(TVL)`
+- **SELL**: `tokens = supply_at(TVL) - supply_at(TVL - value)`
+
+The server expected the SELL formula for payment operations (SendCash).
+
+#### Fix: Rewrote `tokensForValueExchange`
+
+Changed algorithm to use TVL subtraction (matching old BondingCurve):
+
+```swift
+public func tokensForValueExchange(fiat: BigDecimal, fiatRate: BigDecimal, tvl: Int) -> Valuation? {
+    // Convert fiat to USDC
+    let usdcValue = fiat.divide(fiatRate, Self.rounding)
+
+    // TVL in USDC units
+    let currentTVL = BigDecimal(tvl).divide(BigDecimal(1_000_000), Self.rounding)
+
+    // Subtract value from TVL (SELL semantics)
+    let newTVL = currentTVL.subtract(usdcValue, Self.rounding)
+
+    guard !newTVL.isNegative else {
+        return Valuation(tokens: .zero, fx: .zero)  // Can't spend more than TVL
+    }
+
+    // Get supply at current and reduced TVL
+    let currentSupply = preciseSupplyFromTVL(currentTVL)
+    let newSupply = preciseSupplyFromTVL(newTVL)
+
+    // Tokens = difference in supply
+    let tokens = currentSupply.subtract(newSupply, Self.rounding)
+
+    // Effective exchange rate
+    let fx = fiat.divide(tokens, Self.rounding)
+
+    return Valuation(tokens: tokens, fx: fx)
+}
+```
+
+#### New Helper: `preciseSupplyFromTVL`
+
+Added interpolated supply lookup (vs step-boundary-only `supplyFromTVL`):
+
+```swift
+private func preciseSupplyFromTVL(_ tvl: BigDecimal) -> BigDecimal {
+    // Binary search for step containing TVL
+    // Interpolate within step using: fractional = remainingTVL / priceAtStep
+    // Return: stepSupply + fractionalTokens
+}
+```
+
+#### Test Updates
+
+Updated tests to reflect new semantics:
+- **Test 9.11**: Zero TVL now correctly returns zero tokens (can't spend from empty pool)
+- **Test 9.5**: Increased TVL to cover exchange amount
+- **Test 9.9**: Changed to verify TVL subtraction semantics
+
+---
+
 ### Verification
 
 - ✅ All 90 tests pass (72 original + 18 new)
@@ -864,3 +948,127 @@ The core `ExchangedFiat` class was still using the old `BondingCurve`. This was 
 - ✅ All production code paths migrated to `DiscreteBondingCurve`
 - ✅ Pre-existing broken tests fixed
 - ✅ UInt128 parsing handles numbers > 2^64 correctly
+- ✅ `tokensForValueExchange` uses TVL subtraction (matching old curve)
+
+---
+
+---
+
+### Phase 4: Critical BigDecimal Rounding Bug Fix (2025-12-10)
+
+#### Issue: GiveScreen Next Button Disabled for Non-USDC Currencies
+
+Users reported that when typing an amount in GiveScreen using a bonded currency (e.g., "Jeffy"), the Next button stayed disabled even with valid amounts and sufficient funds.
+
+#### Symptoms
+
+- TVL: $231.80 USDC
+- Entered amount: $1 CAD (~$0.72 USD)
+- Expected: ~71 tokens returned
+- Actual: 0 tokens (nil result), button disabled
+
+#### Root Cause Discovery
+
+Through unit tests, isolated the bug to `toScaledU128()` in `DiscreteBondingCurve.swift`:
+
+```swift
+// BUG: Rounding(.towardZero, 0) truncates significant digits!
+let floorRounding = Rounding(.towardZero, 0)
+let intPart = scaled.round(floorRounding)
+```
+
+**The problem**: In BigDecimal's `Rounding(roundingMode, precision)`:
+- `precision` is **number of significant digits**, NOT decimal places
+- `Rounding(_, 0)` means "round to 0 significant digits"
+
+**Result**:
+```
+Input:  231804283000000000000.000000  (correct TVL × 10^18)
+Output: 200000000000000000000          (WRONG - lost precision!)
+```
+
+This caused the binary search to find step 198 instead of step 229, returning identical supply values for different TVLs, resulting in 0 tokens.
+
+#### Fix
+
+Changed from using `round()` to string manipulation:
+
+```swift
+// Before (BUG):
+let floorRounding = Rounding(.towardZero, 0)
+let intPart = scaled.round(floorRounding)
+let str = intPart.asString(.plain)
+
+// After (FIX):
+var str = scaled.asString(.plain)
+if let dotIndex = str.firstIndex(of: ".") {
+    str = String(str[..<dotIndex])
+}
+```
+
+#### Files Changed
+
+| File | Change |
+|------|--------|
+| `DiscreteBondingCurve.swift` | Fixed `toScaledU128()` to use string manipulation |
+| `DiscreteBondingCurve.swift` | Removed debug logging from `preciseSupplyFromTVL()` |
+| `GiveViewModel.swift` | Removed debug logging added during investigation |
+| `DiscreteBondingCurveTests.swift` | Added 11 new real-world scenario tests |
+
+#### New Tests Added (Section 11)
+
+| # | Test Name | Description |
+|---|-----------|-------------|
+| 11.0 | `tenPow18EqualsStringLiteral` | Verify `BigDecimal.ten.pow(18)` equals string literal |
+| 11.0b | `multiplicationByTenPow18` | Verify TVL × 10^18 produces correct value |
+| 11.0c | `roundingWithPrecision0IsBuggy` | Document the BigDecimal rounding bug |
+| 11.0d | `uint128StringParsing` | Verify UInt128 string parsing works correctly |
+| 11.0e | `fullToScaledU128Simulation` | Full simulation exploring rounding methods |
+| 11.1 | `supplyFromTVLForJeffyTVL` | TVL ~$232 should give supply ~22,900 |
+| 11.2 | `cumulativeTableMonotonicity` | Cumulative values increase monotonically |
+| 11.3 | `cumulativeAtStep230` | Cumulative at step 230 ≈ $232 |
+| 11.4 | `binarySearchForJeffyTVL` | Linear scan finds step 229 for TVL $231.80 |
+| 11.5 | `tokensForValueExchangeJeffyScenario` | $1 CAD with TVL $231.80 → ~71 tokens |
+| 11.6 | `differentTVLsProduceDifferentSupplies` | Two close TVLs produce different supplies |
+
+#### Verification
+
+- ✅ All 11 new tests pass
+- ✅ All 90+ existing tests pass (13 suites total)
+- ✅ Build succeeds with no new warnings
+- ✅ `tokensForValueExchange` now returns correct token amounts
+
+---
+
+### Final Test Coverage (101+ tests across 14 suites)
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| Spot Price | 8 | ✅ Pass |
+| Tokens To Value | 17 | ✅ Pass |
+| Value To Tokens | 14 | ✅ Pass |
+| Roundtrip & Consistency | 7 | ✅ Pass |
+| Table Validation | 9 | ✅ Pass |
+| High-Level API | 10 | ✅ Pass |
+| Edge Cases | 7 | ✅ Pass |
+| Tokens For Value Exchange | 12 | ✅ Pass |
+| Constants | 6 | ✅ Pass |
+| ExchangedFiat Tests | 3 | ✅ Pass |
+| **Real-World Scenarios** | **11** | ✅ Pass |
+
+---
+
+### Summary of All Bug Fixes
+
+| Phase | Bug | Root Cause | Fix |
+|-------|-----|------------|-----|
+| 2 | `UInt128` parsing precision loss | BigDecimal high/low split | String-based decimal long division |
+| 2 | Negative value crash in `toScaledU128` | No guard for negatives | Early return with `UInt128(0)` |
+| 3 | "fiat exchange data is stale or invalid" | Wrong formula (BUY vs SELL) | Changed to TVL subtraction |
+| 4 | GiveScreen disabled for non-USDC | `Rounding(_, 0)` truncates digits | String manipulation for integer part |
+
+---
+
+### Status: Complete ✅
+
+All production code paths use `DiscreteBondingCurve`. All known bugs have been fixed and tested.
