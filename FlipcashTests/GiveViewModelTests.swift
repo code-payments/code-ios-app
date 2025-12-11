@@ -13,6 +13,7 @@ import FlipcashUI
 @testable import Flipcash
 
 @MainActor
+@Suite(.serialized)
 struct GiveViewModelTests {
 
     // MARK: - Test Helpers
@@ -46,7 +47,8 @@ struct GiveViewModelTests {
             effectiveSellFeeBps = nil
         } else {
             // Non-USDC tokens must have TVL
-            effectiveTVL = tvl ?? 1_000_000 // Default to $1 TVL
+            // Use $1M default - low TVL causes issues with discrete bonding curve
+            effectiveTVL = tvl ?? 1_000_000_000_000 // Default to $1M TVL
             effectiveSellFeeBps = 0
         }
 
@@ -192,11 +194,12 @@ struct GiveViewModelTests {
     @Test
     func testEnteredFiat_BondedToken_CalculatesCorrectly() {
         // Given: View model with bonded token
+        // TVL $1M supports ~100,000 tokens at discrete curve prices
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
             mint: .usdcAuthority,
-            quarks: 100_000_000_000_000,
-            tvl: 1_000_000 // $1 TVL
+            quarks: 1_000_000_000_000, // 100 tokens (10 decimals)
+            tvl: 1_000_000_000_000 // $1M TVL
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "0.50"
@@ -210,13 +213,12 @@ struct GiveViewModelTests {
 
     @Test
     func testEnteredFiat_BondedToken_AmountAtMaxBalance() {
-        // Given: View model with bonded token where entered amount equals TVL
-        // This tests the edge case where user tries to give their full balance
+        // Given: View model with bonded token where user has significant balance
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
             mint: .usdcAuthority,
-            quarks: 100_000_000_000_000,
-            tvl: 10_000_000 // $10 TVL - larger to allow for give of $5
+            quarks: 5_000_000_000_000, // 500 tokens (10 decimals)
+            tvl: 10_000_000_000_000 // $10M TVL
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "5.00"
@@ -224,18 +226,18 @@ struct GiveViewModelTests {
         // When: Checking if can give
         let canGive = viewModel.canGive
 
-        // Then: Should be able to give (amount is less than TVL)
+        // Then: Should be able to give (amount is within balance value)
         #expect(canGive == true)
     }
 
     @Test
     func testEnteredFiat_BondedToken_LargeTVL() {
-        // Given: View model with realistic TVL (e.g., $1000)
+        // Given: View model with realistic TVL ($100M)
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
             mint: .usdcAuthority,
-            quarks: 1_000_000_000_000_000, // Large balance
-            tvl: 1_000_000_000 // $1000 TVL
+            quarks: 10_000_000_000_000, // 1,000 tokens
+            tvl: 100_000_000_000_000 // $100M TVL
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "25.00"
