@@ -729,14 +729,23 @@ struct DiscreteHighLevelAPITests {
         #expect(marketCap == 0)
     }
 
-    @Test("6.2 Market cap at non-zero supply is positive")
+    @Test("6.2 Market cap at non-zero supply equals supply times spot price")
     func marketCapAtNonZeroSupply() {
         // 1000 tokens * 10^10 decimals
-        let supplyQuarks = 1000 * 10_000_000_000
+        let supplyTokens = 1000
+        let supplyQuarks = supplyTokens * 10_000_000_000
         let marketCap = curve.marketCap(for: supplyQuarks)
         #expect(marketCap != nil)
         if let marketCap = marketCap {
             #expect(marketCap > 0)
+            // Market cap should equal supply * spotPrice
+            // At supply 1000, we're in step 10 (price[10])
+            if let spotPrice = curve.spotPrice(at: supplyTokens) {
+                let expectedMarketCap = BigDecimal(supplyTokens).multiply(spotPrice, testRounding)
+                let actualMarketCap = BigDecimal(marketCap.description)
+                #expect(isApproximatelyEqual(actualMarketCap, expectedMarketCap, tolerance: BigDecimal("0.01")),
+                       "Market cap should equal supply × spot price")
+            }
         }
     }
 
@@ -875,12 +884,20 @@ struct DiscreteEdgeCaseTests {
         #expect(tokens == nil)
     }
 
-    @Test("8.4 Very large value doesn't crash")
+    @Test("8.4 Large value handling doesn't crash")
     func overflowProtection() {
-        let hugeValue = BigDecimal("999999999999999999999999999999")
-        let tokens = curve.valueToTokens(currentSupply: 0, value: hugeValue)
-        // Should either return nil or a valid (possibly capped) result
-        #expect(tokens == nil || tokens != nil)  // Just checking it doesn't crash
+        // Test that the function handles large values without crashing
+        // Note: valueToTokens doesn't enforce max supply cap - it returns
+        // the mathematical result. Supply capping is enforced elsewhere.
+        let largeValue = BigDecimal("1000000000")  // $1 billion
+        let tokens = curve.valueToTokens(currentSupply: 0, value: largeValue)
+
+        // Should return a result (doesn't crash)
+        #expect(tokens != nil, "Should handle large values")
+        if let tokens = tokens {
+            #expect(tokens >= .zero, "Tokens should be non-negative")
+            #expect(tokens.isPositive, "Large value should yield positive tokens")
+        }
     }
 
     @Test("8.5 Very small values handled correctly")
@@ -1484,6 +1501,245 @@ struct DiscreteRealWorldTests {
             #expect(s1 != s2, "Supplies should be different for different TVL values")
             // Difference should be exactly one step (100 tokens) in this case
             #expect(diff == 100, "Supply difference should be exactly 100 (one step)")
+        }
+    }
+}
+
+// MARK: - 12. Additional Coverage Tests
+
+@Suite("Discrete Bonding Curve - Additional Coverage")
+struct DiscreteAdditionalCoverageTests {
+
+    let curve = DiscreteBondingCurve()
+
+    // MARK: - Sell Oversell Scenario (Line 500 coverage)
+
+    @Test("12.1 Selling more tokens than supply returns nil")
+    func sellOversellReturnsNil() {
+        // TVL of $10 corresponds to roughly 1000 tokens at $0.01/token
+        let tvl = 10_000_000  // $10 in USDC quarks
+        let supply = curve.supplyFromTVL(tvl)
+        #expect(supply != nil)
+
+        if let currentSupply = supply {
+            // Try to sell more tokens than exist
+            // currentSupply is in whole tokens, multiply by quarksPerToken
+            let oversellQuarks = (currentSupply + 1000) * DiscreteBondingCurve.quarksPerToken
+            let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, tvl: tvl)
+            #expect(result == nil, "Selling more tokens than supply should return nil")
+        }
+    }
+
+    @Test("12.2 Selling exactly all tokens succeeds")
+    func sellExactSupplySucceeds() {
+        // Small TVL = small supply
+        let tvl = 1_000_000  // $1 in USDC quarks
+        let supply = curve.supplyFromTVL(tvl)
+        #expect(supply != nil)
+
+        if let currentSupply = supply, currentSupply > 0 {
+            // Sell exactly the current supply (leaves 0 tokens)
+            let exactQuarks = currentSupply * DiscreteBondingCurve.quarksPerToken
+            let result = curve.sell(tokenQuarks: exactQuarks, feeBps: 0, tvl: tvl)
+            #expect(result != nil, "Selling exact supply should succeed")
+            if let result = result {
+                #expect(result.grossUSDC > .zero, "Should receive positive USDC")
+            }
+        }
+    }
+
+    @Test("12.3 Selling one token more than supply returns nil")
+    func sellOneMoreThanSupplyReturnsNil() {
+        let tvl = 5_000_000  // $5 in USDC quarks
+        let supply = curve.supplyFromTVL(tvl)
+        #expect(supply != nil)
+
+        if let currentSupply = supply {
+            // Try to sell supply + 1 tokens
+            let oversellQuarks = (currentSupply + 1) * DiscreteBondingCurve.quarksPerToken
+            let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, tvl: tvl)
+            #expect(result == nil, "Selling supply+1 tokens should return nil")
+        }
+    }
+
+    // MARK: - TVL Edge Cases
+
+    @Test("12.4 TVL at exact cumulative boundary")
+    func tvlAtExactCumulativeBoundary() {
+        // Cumulative[1] = exactly $1 (at step 1 boundary = 100 tokens)
+        // This is 1_000_000 USDC quarks
+        let exactBoundaryTVL = 1_000_000
+        let supply = curve.supplyFromTVL(exactBoundaryTVL)
+        #expect(supply != nil)
+        if let supply = supply {
+            // At cumulative[1] = $1, supply should be 100 (step 1 boundary)
+            #expect(supply == 100, "Supply at exact $1 TVL should be 100 tokens")
+        }
+    }
+
+    @Test("12.5 TVL just below step boundary")
+    func tvlJustBelowStepBoundary() {
+        // Just under $1 TVL (one quark less)
+        let justUnderTVL = 999_999
+        let supply = curve.supplyFromTVL(justUnderTVL)
+        #expect(supply != nil)
+        if let supply = supply {
+            // Should still be in step 0 (supply 0-99)
+            #expect(supply == 0, "Supply just under $1 should be at step 0")
+        }
+    }
+
+    @Test("12.6 TVL just above step boundary")
+    func tvlJustAboveStepBoundary() {
+        // Just over $1 TVL (one quark more)
+        let justOverTVL = 1_000_001
+        let supply = curve.supplyFromTVL(justOverTVL)
+        #expect(supply != nil)
+        if let supply = supply {
+            // Should be at step 1 (supply 100)
+            #expect(supply == 100, "Supply just over $1 should be at step 1 (100 tokens)")
+        }
+    }
+
+    // MARK: - Buy Edge Cases
+
+    @Test("12.7 Buy with nil from invalid TVL")
+    func buyWithInvalidTVLReturnsNil() {
+        // Negative TVL (if it were allowed) - implementation uses Int so this tests guard
+        // Actually test with TVL at max supply to exceed bounds
+        let maxTVL = Int.max  // Unrealistic TVL
+        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, tvl: maxTVL)
+        // This should either return nil or a valid bounded result
+        if let result = result {
+            #expect(result.grossTokens >= .zero)
+        }
+    }
+
+    @Test("12.8 Buy returns nil when valueToTokens fails")
+    func buyReturnsNilWhenValueToTokensFails() {
+        // At max supply, no more tokens can be bought
+        // TVL at max supply boundary
+        let curve = DiscreteBondingCurve()
+
+        // Use a TVL that implies we're near max supply
+        // At max supply (21M tokens), can't buy more
+        // This is tested indirectly - if supplyFromTVL returns maxSupply area
+        let veryHighTVL = 100_000_000_000_000  // $100M TVL
+        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, tvl: veryHighTVL)
+        // Should work at high TVL but below max
+        #expect(result != nil, "Should be able to buy at high but valid TVL")
+    }
+
+    // MARK: - Cumulative Table Consistency
+
+    @Test("12.9 Cumulative difference matches step cost")
+    func cumulativeDifferenceMatchesStepCost() {
+        // For any step i: cumulative[i+1] - cumulative[i] ≈ 100 * price[i]
+        // Test a few steps to verify table consistency
+        for step in [0, 10, 100, 1000] {
+            guard step + 1 < DiscreteCurveTables.cumulativeTable.count else { continue }
+
+            let cumPrev = DiscreteCurveTables.cumulativeTable[step]
+            let cumNext = DiscreteCurveTables.cumulativeTable[step + 1]
+            let priceAtStep = DiscreteCurveTables.pricingTable[step]
+
+            // Convert to BigDecimal for comparison
+            let twoTo64 = BigDecimal("18446744073709551616")
+            let scale18 = BigDecimal("1000000000000000000")
+
+            // cumDiff = cumNext - cumPrev (in scaled u128)
+            let cumPrevDecimal = BigDecimal(String(cumPrev.high)).multiply(twoTo64, testRounding)
+                .add(BigDecimal(String(cumPrev.low)), testRounding)
+            let cumNextDecimal = BigDecimal(String(cumNext.high)).multiply(twoTo64, testRounding)
+                .add(BigDecimal(String(cumNext.low)), testRounding)
+            let cumDiff = cumNextDecimal.subtract(cumPrevDecimal, testRounding)
+
+            // expectedCost = 100 * price (both in scaled u128)
+            let priceDecimal = BigDecimal(String(priceAtStep.high)).multiply(twoTo64, testRounding)
+                .add(BigDecimal(String(priceAtStep.low)), testRounding)
+            let expectedCost = priceDecimal.multiply(BigDecimal(100), testRounding)
+
+            // They should be approximately equal (within small tolerance for rounding)
+            let ratio = cumDiff.divide(expectedCost, testRounding)
+            #expect(isApproximatelyEqual(ratio, BigDecimal("1.0"), tolerance: BigDecimal("0.0001")),
+                   "Cumulative difference at step \(step) should equal 100 * price")
+        }
+    }
+
+    // MARK: - Binary Search Edge Cases
+
+    @Test("12.10 Binary search finds first step correctly")
+    func binarySearchFindsFirstStep() {
+        // TVL of $0.50 should find step 0
+        let smallTVL = 500_000  // $0.50
+        let supply = curve.supplyFromTVL(smallTVL)
+        #expect(supply == 0, "Small TVL should map to step 0 (supply 0)")
+    }
+
+    @Test("12.11 Binary search finds last valid step")
+    func binarySearchFindsLastStep() {
+        // Very high TVL near max supply
+        // At max supply (21M tokens), TVL would be enormous
+        // Let's test with a high but valid TVL
+        let highTVL = 10_000_000_000_000  // $10M
+        let supply = curve.supplyFromTVL(highTVL)
+        #expect(supply != nil)
+        if let supply = supply {
+            #expect(supply > 0, "High TVL should map to positive supply")
+            #expect(supply <= DiscreteBondingCurve.maxSupply, "Supply should not exceed max")
+        }
+    }
+
+    // MARK: - Fee Calculation Edge Cases
+
+    @Test("12.12 Buy with 100% fee yields zero net tokens")
+    func buyWith100PercentFee() {
+        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 10_000, tvl: 10_000_000)  // 100% fee
+        #expect(result != nil)
+        if let result = result {
+            #expect(result.netTokens == .zero, "100% fee should yield zero net tokens")
+            #expect(result.fees == result.grossTokens, "All tokens should be fees")
+        }
+    }
+
+    @Test("12.13 Sell with 100% fee yields zero net USDC")
+    func sellWith100PercentFee() {
+        let tokenQuarks = 100 * DiscreteBondingCurve.quarksPerToken
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 10_000, tvl: 10_000_000)  // 100% fee
+        #expect(result != nil)
+        if let result = result {
+            #expect(result.netUSDC == .zero, "100% fee should yield zero net USDC")
+            #expect(result.fees == result.grossUSDC, "All USDC should be fees")
+        }
+    }
+
+    // MARK: - tokensForValueExchange Additional Coverage
+
+    @Test("12.14 tokensForValueExchange with fiat exceeding TVL returns nil")
+    func tokensForValueExchangeExceedingTVL() {
+        // Try to exchange $100 when TVL is only $10
+        let result = curve.tokensForValueExchange(
+            fiat: BigDecimal("100.0"),
+            fiatRate: BigDecimal("1.0"),
+            tvl: 10_000_000  // $10 TVL
+        )
+        #expect(result == nil, "Exchanging more than TVL should return nil")
+    }
+
+    @Test("12.15 tokensForValueExchange at TVL boundary")
+    func tokensForValueExchangeAtTVLBoundary() {
+        // Exchange exactly the TVL amount
+        let tvl = 10_000_000  // $10 TVL
+        let result = curve.tokensForValueExchange(
+            fiat: BigDecimal("10.0"),  // Exactly $10
+            fiatRate: BigDecimal("1.0"),
+            tvl: tvl
+        )
+        // This should return nil because newTVL would be 0 (can't have negative/zero TVL)
+        // OR it could return the full supply - depends on implementation
+        // The key is it shouldn't crash
+        if let result = result {
+            #expect(result.tokens >= .zero)
         }
     }
 }

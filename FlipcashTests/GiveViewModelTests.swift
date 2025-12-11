@@ -292,4 +292,47 @@ struct GiveViewModelTests {
         // Then: Should handle decimal values
         #expect(canGive == true)
     }
+
+    // MARK: - Bonding Curve TVL Boundary Tests
+    // Note: TVL-exceeded tests are covered at the DiscreteBondingCurve unit test level (test 12.14).
+    // These integration tests verify the successful path through GiveViewModel.
+
+    @Test
+    func testEnteredFiat_BondedToken_ModestTVL_SmallAmount_Succeeds() {
+        // Given: View model with bonded token and modest TVL
+        // TVL is $10K, user tries to exchange $100 (valid)
+        let viewModel = Self.createViewModel()
+        let balance = Self.createExchangedBalance(
+            mint: .usdcAuthority,
+            quarks: 10_000_000_000_000, // 1,000 tokens
+            tvl: 10_000_000_000 // $10K TVL
+        )
+        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        viewModel.enteredAmount = "100.00"  // $100 < $10K TVL
+
+        // When: Checking if can give
+        let canGive = viewModel.canGive
+
+        // Then: Should be able to give (amount within TVL)
+        #expect(canGive == true, "Should allow exchange amount within TVL")
+    }
+
+    @Test
+    func testEnteredFiat_BondedToken_AmountWellUnderTVL_Succeeds() {
+        // Given: View model where entered amount is well under TVL
+        let viewModel = Self.createViewModel()
+        let balance = Self.createExchangedBalance(
+            mint: .usdcAuthority,
+            quarks: 100_000_000_000_000,
+            tvl: 10_000_000_000_000 // $10M TVL
+        )
+        viewModel.selectCurrencyAction(exchangedBalance: balance)
+        viewModel.enteredAmount = "500.00"  // $500 << $10M TVL
+
+        // When: Checking if can give
+        let canGive = viewModel.canGive
+
+        // Then: Should be able to give
+        #expect(canGive == true, "Should allow exchange amount well under TVL")
+    }
 }
