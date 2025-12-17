@@ -384,7 +384,7 @@ class Session: ObservableObject {
                 print("Attempt max send, within error tolerance")
                 return .sufficient(amountToSend: exchangedBalance)
             } else {
-                let shortfall = try! exchangedFiat.subtracting(exchangedBalance)
+                let shortfall = try? exchangedFiat.subtracting(exchangedBalance)
                 return .insufficient(shortfall: shortfall)
             }
         }
