@@ -14,8 +14,10 @@ struct CurrencyInfoScreen: View {
     @StateObject private var updateableMint: Updateable<StoredMintMetadata>
     
     @State private var isShowingTransactionHistory: Bool = false
+    @State private var isShowingFundingSelection: Bool = false
     
     @ObservedObject private var session: Session
+    @ObservedObject private var walletConnection: WalletConnection
     
     private var mintMetadata: StoredMintMetadata {
         updateableMint.value
@@ -45,6 +47,13 @@ struct CurrencyInfoScreen: View {
         let balance   = session.balance(for: mintMetadata.mint)
         let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
 
+        return exchanged?.converted ?? 0
+    }
+    
+    private var reserveBalance: Quarks {
+        let balance   = session.balance(for: .usdc)
+        let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+        
         return exchanged?.converted ?? 0
     }
     
@@ -85,6 +94,7 @@ struct CurrencyInfoScreen: View {
         self.ratesController  = sessionContainer.ratesController
         self.session          = sessionContainer.session
         self.sessionContainer = sessionContainer
+        self.walletConnection = sessionContainer.walletConnection
         
         let database = sessionContainer.database
         
@@ -97,72 +107,93 @@ struct CurrencyInfoScreen: View {
     
     var body: some View {
         Background(color: .backgroundMain) {
-            GeometryReader { g in
-                ScrollView {
-                    VStack(spacing: 0) {
+            ZStack {
+                // Scrollable Content
+                GeometryReader { g in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // Header
 
-                        // Header
+                            section {
+                                Spacer()
 
-                        section {
-                            Spacer()
-
-                            AmountText(
-                                flagStyle: balance.currencyCode.flagStyle,
-                                content: balance.formatted(),
-                                showChevron: false
-                            )
-                            .font(.appDisplayMedium)
-                            .foregroundStyle(Color.textMain)
-                            .frame(maxWidth: .infinity)
-                            .padding(.bottom, 30)
-
-                            Spacer()
-
-                            if !isUSDC {
-                                CodeButton(style: .filledSecondary, title: "View Transaction History") {
-                                    isShowingTransactionHistory.toggle()
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: g.size.height * proportion)
-
-                        // Currency Info
-
-                        section(spacing: 20) {
-                            if !isUSDC {
-                                HStack {
-                                    Image(systemName: "text.justify.left")
-                                        .padding(.bottom, -1)
-                                    Text("Currency Info")
-                                }
-                                .font(.appBarButton)
+                                AmountText(
+                                    flagStyle: balance.currencyCode.flagStyle,
+                                    content: balance.formatted(),
+                                    showChevron: false
+                                )
+                                .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
-                            }
+                                .frame(maxWidth: .infinity)
+                                .padding(.bottom, 30)
 
-                            Text(currencyDescription)
-                                .foregroundStyle(Color.textSecondary)
-                                .font(.appTextSmall)
-//                            {
-//                                AnyView(drawer())
-//                            }
-//                            .font(.system(size: 14, weight: .bold))
-                        }
+                                Spacer()
 
-                        // Market Cap
-
-                        if !isUSDC {
-                            section(spacing: 0) {
-                                VStack(alignment: .leading) {
-                                    Text("Market Cap")
-                                        .foregroundStyle(Color.textSecondary)
-                                        .font(.appTextMedium)
-                                    Text("\(marketCap.formatted())")
-                                        .foregroundStyle(Color.textMain)
-                                        .font(.appDisplayMedium)
+                                if !isUSDC {
+                                    CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                                        isShowingTransactionHistory.toggle()
+                                    }
                                 }
                             }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: g.size.height * proportion)
+
+                            // Currency Info
+
+                            section(spacing: 20) {
+                                if !isUSDC {
+                                    HStack {
+                                        Image(systemName: "text.justify.left")
+                                            .padding(.bottom, -1)
+                                        Text("Currency Info")
+                                    }
+                                    .font(.appBarButton)
+                                    .foregroundStyle(Color.textMain)
+                                }
+
+                                Text(currencyDescription)
+                                    .foregroundStyle(Color.textSecondary)
+                                    .font(.appTextSmall)
+    //                            {
+    //                                AnyView(drawer())
+    //                            }
+    //                            .font(.system(size: 14, weight: .bold))
+                            }
+
+                            // Market Cap
+
+                            if !isUSDC {
+                                section(spacing: 0) {
+                                    VStack(alignment: .leading) {
+                                        Text("Market Cap")
+                                            .foregroundStyle(Color.textSecondary)
+                                            .font(.appTextMedium)
+                                        Text("\(marketCap.formatted())")
+                                            .foregroundStyle(Color.textMain)
+                                            .font(.appDisplayMedium)
+                                    }
+                                }
+                                
+                                // Append enough content to scroll below the floating footer
+                                Color
+                                    .clear
+                                    .padding(.bottom, 100)
+                            }
                         }
+                    }
+                }
+                
+                // Floating Footer
+                if !isUSDC {
+                    VStack {
+                        Spacer()
+                        section {
+                            CodeButton(style: .filledAlternative, title: "Buy") {
+                                isShowingFundingSelection = true
+                            }
+                        }
+                        .background(Color.backgroundMain)
+                        .ignoresSafeArea()
                     }
                 }
             }
@@ -173,6 +204,43 @@ struct CurrencyInfoScreen: View {
                     sessionContainer: sessionContainer
                 )
             }
+            .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
+                NavigationStack {
+                    EnterWalletAmountScreen { usdc in
+                        try await walletConnection.requestTransfer(usdc: usdc)
+                        walletConnection.isShowingAmountEntry = false
+                    }
+                    .toolbar {
+                        ToolbarCloseButton(binding: $walletConnection.isShowingAmountEntry)
+                    }
+                }
+            }
+            .sheet(isPresented: $isShowingFundingSelection) {
+                PartialSheet {
+                    VStack {
+                        HStack {
+                            Text("Select Purchase Method")
+                                .font(.appBarButton)
+                                .foregroundStyle(Color.textMain)
+                            Spacer()
+                        }
+                        .padding(.vertical, 20)
+                        
+                        if reserveBalance.quarks > 0 {
+                            CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
+                                print("Present using reserves to buy currency")
+                            }
+                        }
+                        
+                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With", action: walletConnection.connectToPhantom)
+                        CodeButton(style: .subtle, title: "Dismiss") {
+                            isShowingFundingSelection = false
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .dialog(item: $walletConnection.dialogItem)
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
