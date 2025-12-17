@@ -1,5 +1,5 @@
 ## Private assets
-Configurations/secrets.xcconfig
+Configurations/secrets.local.xcconfig
 ci_scripts/ci_post_xcodebuild.sh
 
 ## System files
