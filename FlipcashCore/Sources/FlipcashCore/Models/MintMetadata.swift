@@ -52,6 +52,25 @@ public struct MintMetadata: Equatable, Sendable {
         self.vmMetadata = vmMetadata
         self.launchpadMetadata = launchpadMetadata
     }
+    
+    public static let usdc: MintMetadata =
+        .init(
+            address: PublicKey.usdc,
+            decimals: 6,
+            name: "USDC",
+            symbol: "USDC",
+            description: "",
+            imageURL: URL(string: "https://raw.githubusercontent.com/p2p-org/solana-token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"),
+            vmMetadata: .init(
+                vm: PublicKey.deriveVMAccount(
+                    mint: PublicKey.usdc,
+                    timeAuthority: .usdcAuthority,
+                    lockout: TimelockDerivedAccounts.lockoutInDays
+                )!.publicKey,
+                authority: .usdcAuthority,
+                lockDurationInDays: Int(TimelockDerivedAccounts.lockoutInDays)),
+            launchpadMetadata: nil
+        )
 }
 
 // MARK: - VMMetadata -
@@ -59,13 +78,13 @@ public struct MintMetadata: Equatable, Sendable {
 public struct VMMetadata: Equatable, Sendable {
     /// VM address
     public let vm: PublicKey
-
+    
     /// Authority that subsidizes and authorizes all transactions against the VM
     public let authority: PublicKey
-
+    
     /// Lock duration of Virtual Timelock Accounts on the VM (hardcoded to 21 days)
     public let lockDurationInDays: Int
-
+    
     public init(
         vm: PublicKey,
         authority: PublicKey,
@@ -74,6 +93,12 @@ public struct VMMetadata: Equatable, Sendable {
         self.vm = vm
         self.authority = authority
         self.lockDurationInDays = lockDurationInDays
+    }
+}
+
+extension VMMetadata {
+    public var omnibus: PublicKey {
+        return PublicKey.deriveVmOmnibusAddress(vm: vm)!.publicKey
     }
 }
 
@@ -155,6 +180,23 @@ extension MintMetadata {
             vmMetadata: proto.hasVmMetadata ? try VMMetadata(proto.vmMetadata) : nil,
             launchpadMetadata: proto.hasLaunchpadMetadata ? try LaunchpadMetadata(proto.launchpadMetadata) : nil
         )
+    }
+    
+    public func timelockSwapAccounts(owner: PublicKey) -> TimelockVmSwapAccounts? {
+        guard let vm = vmMetadata else { return nil }
+        
+        let timelockAccounts: TimelockVmSwapAccounts
+        do {
+            timelockAccounts = try TimelockVmSwapAccounts(
+                with: owner,
+                mint: address,
+                vm: vm
+            )
+        } catch {
+            return nil
+        }
+        
+        return timelockAccounts
     }
 }
 

@@ -21,9 +21,9 @@ public struct Instruction: Equatable, Sendable {
     }
     
     public func compile(using messageAccounts: [PublicKey]) -> CompiledInstruction {
-        let programIndex = messageAccounts.firstIndex { $0 == program }!
+        let programIndex = messageAccounts.firstIndex(of: program)!
         let accountIndexes = accounts.map { account in
-            messageAccounts.firstIndex { $0 == account.publicKey }!
+            messageAccounts.firstIndex(of: account.publicKey)!
         }
         
         return CompiledInstruction(
@@ -154,7 +154,8 @@ extension CompiledInstruction {
 
 extension CompiledInstruction: CustomStringConvertible, CustomDebugStringConvertible {
     public var description: String {
-        return "\(programIndex) (\(accountIndexes.count)) { \(data.hexEncodedString()) }"
+        let accountIndexesStr = accountIndexes.map { String($0) }.joined(separator: ", ")
+        return "\(programIndex) [\(accountIndexesStr)] { \(data.hexEncodedString()) }"
     }
     
     public var debugDescription: String {

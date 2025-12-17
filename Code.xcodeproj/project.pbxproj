@@ -65,6 +65,10 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		88FB56E02EE0AB2F0014EC5F /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */; };
+		88FB56E52EE0AB810014EC5F /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E32EE0AB810014EC5F /* README.md */; };
+		88FB56E62EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */; };
+		88FB56E82EE0C3150014EC5F /* 2025-12-03-swap-models-startswap.md in Resources */ = {isa = PBXBuildFile; fileRef = 88FB56E72EE0C3150014EC5F /* 2025-12-03-swap-models-startswap.md */; };
 		9A017D692EAC1DE200216925 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 9A017D682EAC1DE200216925 /* Kingfisher */; };
 		9A03338B278E0C88005C630A /* VerifyPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A03338A278E0C88005C630A /* VerifyPhoneScreen.swift */; };
 		9A033392278F61E8005C630A /* ConfirmPhoneScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A033391278F61E8005C630A /* ConfirmPhoneScreen.swift */; };
@@ -367,6 +371,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
+		88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2025-11-27-swap-rpc-analysis.md"; sourceTree = "<group>"; };
+		88FB56E32EE0AB810014EC5F /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		88FB56E72EE0C3150014EC5F /* 2025-12-03-swap-models-startswap.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "2025-12-03-swap-models-startswap.md"; sourceTree = "<group>"; };
 		9A03338A278E0C88005C630A /* VerifyPhoneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerifyPhoneScreen.swift; sourceTree = "<group>"; };
 		9A033391278F61E8005C630A /* ConfirmPhoneScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmPhoneScreen.swift; sourceTree = "<group>"; };
 		9A084D7126165CDC00F3C9B9 /* Stopwatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stopwatch.swift; sourceTree = "<group>"; };
@@ -743,6 +751,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		88FB56E22EE0AB810014EC5F /* plans */ = {
+			isa = PBXGroup;
+			children = (
+				88FB56E12EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md */,
+				88FB56E72EE0C3150014EC5F /* 2025-12-03-swap-models-startswap.md */,
+			);
+			path = plans;
+			sourceTree = "<group>";
+		};
+		88FB56E42EE0AB810014EC5F /* .claude */ = {
+			isa = PBXGroup;
+			children = (
+				88FB56E22EE0AB810014EC5F /* plans */,
+				88FB56E32EE0AB810014EC5F /* README.md */,
+			);
+			path = .claude;
+			sourceTree = "<group>";
+		};
 		9A093D5625D46F3A000E7DD9 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
@@ -1101,6 +1127,8 @@
 		9AED10F7258BE1310088D902 = {
 			isa = PBXGroup;
 			children = (
+				88FB56E42EE0AB810014EC5F /* .claude */,
+				88FB56DF2EE0AB2F0014EC5F /* CLAUDE.md */,
 				9AD5E64A25F2BF3E007388AE /* Vendor */,
 				9A592D6D2B17A7EC00735BB0 /* Configurations */,
 				9AED116C258BE3AF0088D902 /* Packages */,
@@ -1730,6 +1758,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				88FB56E82EE0C3150014EC5F /* 2025-12-03-swap-models-startswap.md in Resources */,
+				88FB56E02EE0AB2F0014EC5F /* CLAUDE.md in Resources */,
+				88FB56E52EE0AB810014EC5F /* README.md in Resources */,
+				88FB56E62EE0AB810014EC5F /* 2025-11-27-swap-rpc-analysis.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

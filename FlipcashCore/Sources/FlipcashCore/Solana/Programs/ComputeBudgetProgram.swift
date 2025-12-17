@@ -18,9 +18,9 @@ extension ComputeBudgetProgram {
 
 extension ComputeBudgetProgram {
     public enum Command: Byte {
-        case requestUnits
-        case requestHeapFrame
-        case setComputeUnitLimit
-        case setComputeUnitPrice
+        case requestUnits = 0
+        case requestHeapFrame = 1
+        case setComputeUnitLimit = 2
+        case setComputeUnitPrice = 3
     }
 }

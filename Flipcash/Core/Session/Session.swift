@@ -400,6 +400,7 @@ class Session: ObservableObject {
         }
     }
     
+    private var didAttemptBuy = false
     private func poll() async throws {
         try await fetchLimitsIfNeeded()
         try await fetchBalance()
@@ -531,6 +532,47 @@ class Session: ObservableObject {
                 try await Task.delay(milliseconds: 1000)
                 consumeToast()
             }
+        }
+    }
+    
+    // MARK: - Swaps -
+    func buy(amount: ExchangedFiat, of mint: PublicKey) async throws {
+        do {
+            let token = try await fetchMintMetadata(mint: mint)
+            // For buys, verify we have sufficient USDC balance
+            // The amount.mint is the destination token, but amount.underlying is USDC
+            guard let usdcBalance = balance(for: .usdc) else {
+                throw Error.insufficientBalance
+            }
+            
+            // Check if we have enough USDC to cover the buy
+            guard amount.underlying.quarks <= usdcBalance.quarks else {
+                throw Error.insufficientBalance
+            }
+        
+            trace(.note, components: "buying \(amount.converted.formatted()) of \(token.symbol)")
+            
+            try await client.buy(amount: amount, of: token.metadata, owner: owner)
+        }
+    }
+    
+    func sell(amount: ExchangedFiat, in mint: PublicKey) async throws {
+        do {
+            let token = try await fetchMintMetadata(mint: mint)
+            // For sells, verify we have sufficient token balance
+            // The amount.mint is the destination token, but amount.underlying is USDC
+            guard let tokenBalance = balance(for: token.mint) else {
+                throw Error.insufficientBalance
+            }
+            
+            // Check if we have enough USDC to cover the swap
+            guard amount.underlying.quarks <= tokenBalance.quarks else {
+                throw Error.insufficientBalance
+            }
+        
+            trace(.note, components: "selling \(amount.converted.formatted()) of \(token.symbol)")
+            
+            try await client.sell(amount: amount, in: token.metadata, owner: owner)
         }
     }
     
@@ -1131,6 +1173,7 @@ extension Session {
         case cashLinkCreationFailed
         case vmMetadataMissing
         case mintNotFound
+        case insufficientBalance
     }
 }
 

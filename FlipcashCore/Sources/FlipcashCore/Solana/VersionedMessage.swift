@@ -20,10 +20,17 @@ public struct VersionedMessageV0: Equatable, Sendable {
     public func encode() -> Data {
         var data = Data()
         data.append(Byte(MessageVersion.v0.rawValue + messageVersionSerializationOffset))
+        // message content
+        // same as legacy
         data.append(header.encode())
-        data.append(ShortVec.encode(staticAccountKeys.map { $0.data }))
+        data.append(
+            ShortVec.encode(staticAccountKeys.map { $0.data })
+        )
         data.append(recentBlockhash.data)
-        data.append(ShortVec.encode(instructions.map { $0.encode() }))
+        data.append(
+            ShortVec.encode(instructions.map { $0.encode() })
+        )
+        
         data.append(ShortVec.encode(addressTableLookups.map { $0.encode() }))
         
         return data
@@ -91,33 +98,26 @@ extension VersionedMessageV0 {
         
         // Decode Address Table Lookups
         let (addressTableLookupLength, lookupData) = ShortVec.decodeLength(payload)
-        trace(.note, components: "address table lookup count: \(addressTableLookupLength)")
         var remaining = lookupData
         
         var addressTableLookups: [MessageAddressTableLookup] = []
         
-        for lutIndex in 0..<addressTableLookupLength {
-            trace(.note, components: "=== Decoding LUT \(lutIndex) ===")
+        for _ in 0..<addressTableLookupLength {
             // Public Key
             guard remaining.count >= PublicKey.length else {
                 trace(.failure, components: "not enough data for lookup public key")
                 return nil
             }
-            trace(.note, components: "remaining before public key: \(remaining.count) bytes")
             let publicKeyData = Data(remaining.prefix(PublicKey.length))
             remaining = remaining.dropFirst(PublicKey.length)
             guard let publicKey = try? PublicKey(publicKeyData) else {
                 trace(.failure, components: "failed to decode lookup public key")
                 return nil
             }
-            trace(.note, components: "decoded public key: \(publicKey), remaining: \(remaining.count) bytes")
             
             // Writable indexes
-            trace(.note, components: "about to decode writable indexes length, remaining: \(remaining.count) bytes")
             let (writableIndexesLength, writableRemaining) = ShortVec.decodeLength(remaining)
-            trace(.note, components: "decoded writable indexes length: \(writableIndexesLength), writableRemaining: \(writableRemaining.count) bytes")
             remaining = writableRemaining
-            trace(.note, components: "remaining after assignment: \(remaining.count) bytes")
             
             guard remaining.count >= writableIndexesLength else {
                 trace(.failure, components: "not enough data for writable indexes, need: \(writableIndexesLength), have: \(remaining.count)")
@@ -125,14 +125,10 @@ extension VersionedMessageV0 {
             }
             let writableIndexes = Array(remaining.prefix(writableIndexesLength))
             remaining = remaining.dropFirst(writableIndexesLength)
-            trace(.note, components: "decoded \(writableIndexes.count) writable indexes, remaining: \(remaining.count) bytes")
             
             // Readonly indexes
-            trace(.note, components: "about to decode readonly indexes length, remaining: \(remaining.count) bytes")
             let (readonlyIndexesLength, readonlyRemaining) = ShortVec.decodeLength(remaining)
-            trace(.note, components: "decoded readonly indexes length: \(readonlyIndexesLength), readonlyRemaining: \(readonlyRemaining.count) bytes")
             remaining = readonlyRemaining
-            trace(.note, components: "remaining after assignment: \(remaining.count) bytes")
             
             guard remaining.count >= readonlyIndexesLength else {
                 trace(.failure, components: "not enough data for readonly indexes, need: \(readonlyIndexesLength), have: \(remaining.count)")
@@ -140,7 +136,6 @@ extension VersionedMessageV0 {
             }
             let readonlyIndexes = Array(remaining.prefix(readonlyIndexesLength))
             remaining = remaining.dropFirst(readonlyIndexesLength)
-            trace(.note, components: "decoded \(readonlyIndexes.count) readonly indexes, remaining: \(remaining.count) bytes")
             
             // Create the lookup entry
             let lookup = MessageAddressTableLookup(
@@ -148,7 +143,6 @@ extension VersionedMessageV0 {
                 writableIndexes: writableIndexes,
                 readonlyIndexes: readonlyIndexes
             )
-            trace(.note, components: "lookup created for \(publicKey) with \(lookup.writableIndexes.count) writable and \(lookup.readonlyIndexes.count) readonly indexes")
             addressTableLookups.append(lookup)
         }
         

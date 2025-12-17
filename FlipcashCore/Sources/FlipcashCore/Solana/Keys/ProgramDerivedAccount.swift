@@ -77,7 +77,7 @@ public struct ProgramDerivedAccount: Codable, Hashable, Equatable, Sendable  {
 // MARK: - VM Derivation -
 
 extension PublicKey {
-    private static func deriveVMAccount(mint: PublicKey, timeAuthority: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
+    public static func deriveVMAccount(mint: PublicKey, timeAuthority: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
         findProgramAddress(
             program: VMProgram.address,
             seeds:
@@ -98,6 +98,31 @@ extension PublicKey {
             seeds:
                 Data("code_vm".utf8),
                 Data("vm_deposit_pda".utf8),
+                owner.data,
+                vmAccount.publicKey.data
+        )
+    }
+    
+    public static func deriveVmOmnibusAddress(vm: PublicKey) -> ProgramDerivedAccount? {
+        return findProgramAddress(
+            program: VMProgram.address,
+            seeds:
+                Data("code_vm".utf8),
+                Data("vm_omnibus".utf8),
+                vm.data
+        )
+    }
+    
+    public static func deriveSwapAddress(owner: PublicKey, mint: PublicKey, timeAuthority: PublicKey, lockout: Byte) -> ProgramDerivedAccount? {
+        guard let vmAccount = deriveVMAccount(mint: mint, timeAuthority: timeAuthority, lockout: lockout) else {
+            return nil
+        }
+        
+        return findProgramAddress(
+            program: VMProgram.address,
+            seeds:
+                Data("code_vm".utf8),
+                Data("vm_swap_pda".utf8),
                 owner.data,
                 vmAccount.publicKey.data
         )

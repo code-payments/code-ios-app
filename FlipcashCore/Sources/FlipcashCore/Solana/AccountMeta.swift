@@ -87,10 +87,9 @@ extension AccountMeta: Comparable {
             return lhs.isPayer
         }
         
-        // Might need to move here
-//        if lhs.isProgram != rhs.isProgram {
-//            return !lhs.isProgram
-//        }
+        if lhs.isProgram != rhs.isProgram {
+            return !lhs.isProgram
+        }
         
         if lhs.isSigner != rhs.isSigner {
             return lhs.isSigner
@@ -98,10 +97,6 @@ extension AccountMeta: Comparable {
         
         if lhs.isWritable != rhs.isWritable {
             return lhs.isWritable
-        }
-        
-        if lhs.isProgram != rhs.isProgram {
-            return !lhs.isProgram
         }
         
         return lhs.publicKey.bytes.lexicographicallyPrecedes(rhs.publicKey.bytes)
@@ -134,6 +129,10 @@ extension Array where Element == AccountMeta {
                     
                     if account.isPayer {
                         updatedAccount.isPayer = true
+                    }
+                    
+                    if account.isProgram {
+                        updatedAccount.isProgram = true
                     }
                     
                     container[index] = updatedAccount

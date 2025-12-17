@@ -18,6 +18,11 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     typealias BidirectionalStream = BidirectionalStreamReference<Code_Transaction_V2_SubmitIntentRequest, Code_Transaction_V2_SubmitIntentResponse>
     
+    // Swap service for managing token swaps
+    private(set) lazy var swapService: SwapService = {
+        SwapService(channel: channel, queue: queue)
+    }()
+    
     // MARK: - Account Creation -
     
     func createAccounts(owner: KeyPair, mint: PublicKey, cluster: AccountCluster, kind: AccountKind, derivationIndex: Int, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
@@ -222,6 +227,188 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             
         } failure: { error in
             completion(.failure(.unknown))
+        }
+    }
+    
+    // MARK: - Swaps -
+    
+    /// A buy is a swap from USDC to desired token
+    func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
+            
+        trace(.send, components: "Starting \(amount.converted.formatted()) buy of \(token.symbol)")
+            
+        // Generate unique identifiers for this swap
+        let swapId = SwapId.generate()
+        let fundingIntentID = PublicKey.generate()!
+            
+        // Phase 1: StartSwap - Create swap state and reserve nonce + blockhash
+        swapService.startSwap(
+            swapId: swapId,
+            fromMint: .usdc,
+            toMint: token.address,
+            amount: amount.underlying,
+            fundingID: fundingIntentID,
+            owner: owner.authority.keyPair
+        ) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let metadata):
+                trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
+                    
+                // Phase 2: SubmitIntent - Fund the VM swap PDA
+                // Create funding intent that transfers from source cluster to VM swap account
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: owner,
+                    amount: amount,
+                    fromMint: .usdc,
+                    toMint: token
+                )
+                    
+                let swapper = self.swapService
+                    
+                self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { [swapper] fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        trace(.success, components: "Swap funded", "Funding Intent ID: \(fundingIntentID.base58)")
+                            
+                        // Generate one-time swap authority
+                        let swapAuthority = KeyPair.generate()!
+                            
+                        // Phase 3 & 4: Poll until funded, then execute
+                        Task {
+                            do {
+                                let executeResult = try await swapper.executeSwap(
+                                    swapId: swapId,
+                                    metadata: metadata.verifiedMetadata,
+                                    direction: .buy(mint: token),
+                                    amount: metadata.amount.quarks,
+                                    owner: owner.authority.keyPair,
+                                    swapAuthority: swapAuthority,
+                                    maxAttempts: 30,
+                                    interval: 1.0
+                                )
+                                
+                                switch executeResult {
+                                case .success(let result):
+                                    trace(.success, components: "Swap completed: \(result)")
+                                    completion(.success(()))
+                                    
+                                case .failure(let error):
+                                    trace(.failure, components: "Swap execution failed: \(error)")
+                                    completion(.failure(error))
+                                }
+                            } catch {
+                                trace(.failure, components: "Swap execution threw: \(error)")
+                                completion(.failure(.unknown))
+                            }
+                        }
+                            
+                    case .failure(let error):
+                        trace(.failure, components: "Failed to fund swap: \(error)")
+                        // Map ErrorSubmitIntent to ErrorSwap
+                        completion(.failure(.unknown))
+                    }
+                }
+                    
+            case .failure(let error):
+                trace(.failure, components: "Failed to start swap: \(error)")
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// A sell is a swap from token to USDC
+    func sell(amount: ExchangedFiat, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
+        trace(.send, components: "Starting sell of \(token.symbol) for \(amount.converted.formatted())")
+        
+        // Generate unique identifiers for this swap
+        let swapId = SwapId.generate()
+        let fundingIntentID = PublicKey.generate()!
+        
+        guard let tokenVmAuthority = token.vmMetadata?.authority else {
+            trace(.failure, components: "Failed to find vm authority for \(token.symbol)")
+            // Map ErrorSubmitIntent to ErrorSwap
+            completion(.failure(.unknown))
+            return
+        }
+        
+        // Phase 1: StartSwap - Create swap state and reserve nonce + blockhash
+        swapService.startSwap(
+            swapId: swapId,
+            fromMint: token.address,
+            toMint: .usdc,
+            amount: amount.underlying,
+            fundingID: fundingIntentID,
+            owner: owner.authority.keyPair
+        ) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let metadata):
+                trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
+                
+                // Phase 2: SubmitIntent - Fund the VM swap PDA
+                // Create funding intent that transfers from source cluster to VM swap account
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: owner.use(mint: token.address, timeAuthority: tokenVmAuthority),
+                    amount: amount,
+                    fromMint: token,
+                    toMint: .usdc
+                )
+                
+                let swapper = self.swapService
+                
+                self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { [swapper] fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        trace(.success, components: "Swap funded", "Funding Intent ID: \(fundingIntentID.base58)")
+                        
+                        // Generate one-time swap authority
+                        let swapAuthority = KeyPair.generate()!
+                        
+                        // Phase 3 & 4: Poll until funded, then execute
+                        Task {
+                            do {
+                                let executeResult = try await swapper.executeSwap(
+                                    swapId: swapId,
+                                    metadata: metadata.verifiedMetadata,
+                                    direction: .sell(mint: token),
+                                    amount: metadata.amount.quarks,
+                                    owner: owner.authority.keyPair,
+                                    swapAuthority: swapAuthority,
+                                    maxAttempts: 30,
+                                    interval: 1.0
+                                )
+                                
+                                switch executeResult {
+                                case .success(let result):
+                                    trace(.success, components: "Swap completed: \(result)")
+                                    completion(.success(()))
+                                    
+                                case .failure(let error):
+                                    trace(.failure, components: "Swap execution failed: \(error)")
+                                    completion(.failure(error))
+                                }
+                            } catch {
+                                trace(.failure, components: "Swap execution threw: \(error)")
+                                completion(.failure(.unknown))
+                            }
+                        }
+                        
+                    case .failure(let error):
+                        trace(.failure, components: "Failed to fund swap: \(error)")
+                        // Map ErrorSubmitIntent to ErrorSwap
+                        completion(.failure(.unknown))
+                    }
+                }
+                
+            case .failure(let error):
+                trace(.failure, components: "Failed to start swap: \(error)")
+                completion(.failure(error))
+            }
         }
     }
     
@@ -653,21 +840,6 @@ public enum ErrorAirdrop: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol {
-    func makeStartSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_StartSwapRequest, FlipcashAPI.Code_Transaction_V2_StartSwapResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetSwapRequest, FlipcashAPI.Code_Transaction_V2_GetSwapResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetPendingSwapsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetPendingSwapsRequest, FlipcashAPI.Code_Transaction_V2_GetPendingSwapsResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_SwapRequest, FlipcashAPI.Code_Transaction_V2_SwapResponse>] {
-        makeInterceptors()
-    }
     
     func makeVoidGiftCardInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_VoidGiftCardRequest, FlipcashAPI.Code_Transaction_V2_VoidGiftCardResponse>] {
         makeInterceptors()
@@ -690,6 +862,23 @@ extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFa
     }
     
     func makeSubmitIntentInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_SubmitIntentRequest, Code_Transaction_V2_SubmitIntentResponse>] {
+        makeInterceptors()
+    }
+    
+    // Swap-related interceptors
+    func makeStartSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_StartSwapRequest, FlipcashAPI.Code_Transaction_V2_StartSwapResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeGetSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetSwapRequest, FlipcashAPI.Code_Transaction_V2_GetSwapResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeGetPendingSwapsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetPendingSwapsRequest, FlipcashAPI.Code_Transaction_V2_GetPendingSwapsResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_SwapRequest, FlipcashAPI.Code_Transaction_V2_SwapResponse>] {
         makeInterceptors()
     }
 }

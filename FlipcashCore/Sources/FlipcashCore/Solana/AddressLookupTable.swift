@@ -5,6 +5,7 @@
 //  Created by Brandon McAnsh on 12/1/25.
 //
 import Foundation
+import FlipcashAPI
 
 public struct AddressLookupTable: Equatable, Hashable, Sendable {
     public let publicKey: PublicKey
@@ -34,20 +35,36 @@ public struct MessageAddressTableLookup: Equatable, Sendable {
 
 extension MessageAddressTableLookup {
     public func encode() -> Data {
-        var data = self.publicKey.data
-                
-        let writableLength: UInt8 = UInt8(self.writableIndexes.count)
-        data.append(Data([writableLength]))
-        for index in self.writableIndexes {
-            data.append(Data([index]))
-        }
+        var data = Data()
         
-        let readonlyLength: UInt8 = UInt8(self.readonlyIndexes.count)
-        data.append(Data([readonlyLength]))
-        for index in self.readonlyIndexes {
-            data.append(Data([index]))
-        }
+        data.append(publicKey.data)
+        data.append(ShortVec.encodeLength(UInt16(writableIndexes.count)))
+        data.append(contentsOf: writableIndexes)
+        data.append(ShortVec.encodeLength(UInt16(readonlyIndexes.count)))
+        data.append(contentsOf: readonlyIndexes)
         
         return data
+    }
+}
+
+extension AddressLookupTable {
+    public init?(_ proto: Code_Common_V1_SolanaAddressLookupTable) {
+        guard
+            let entries = try? proto.entries.map({ id in
+                try PublicKey(id.value)
+            }),
+            let address = try? PublicKey(proto.address.value)
+        else {
+            return nil
+        }
+    
+        self.init(publicKey: address, addresses: entries)
+    }
+    
+    public var proto: Code_Common_V1_SolanaAddressLookupTable {
+        .with {
+            $0.address = publicKey.solanaAccountID
+            $0.entries = addresses.map { $0.solanaAccountID }
+        }
     }
 }
