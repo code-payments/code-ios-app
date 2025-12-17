@@ -6,11 +6,13 @@
 #include <sstream>
 #include <sys/time.h>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
+#include <opencv2/features2d.hpp>
+#if DEBUGGING
+#include <opencv2/imgcodecs.hpp>
+#endif
 
 #define DEBUGGING 0
 #define FINDER_POINT_COUNT 9
@@ -169,6 +171,7 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
     
     ellipse(finder_point_range, inner_ring, Scalar(0, 0, 0), -1);
 
+#if DEBUGGING
     if (debug) {
         char filename[128];
 
@@ -176,6 +179,7 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
 
         imwrite(filename, finder_point_range);
     }
+#endif
     
     END_DEBUG_TIMING(timing, efp_ellipse_region);
     Point2i last_point;
@@ -198,7 +202,7 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
     
     // detect all blobs within the candidate region
     START_DEBUG_TIMING(efp_contours);
-    findContours(candidate_region, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE, Point2i(0, 0));
+    findContours(candidate_region, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE, Point2i(0, 0));
     END_DEBUG_TIMING(timing, efp_contours);
     
     // compute the image moments for each blob in the candidate region, we use these
@@ -219,6 +223,7 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
 
     Mat finder_point_extraction;
 
+#if DEBUGGING
     if (debug) {
         finder_point_extraction = Mat::zeros(whitish.size(), CV_8UC3);
         char filename[128];
@@ -233,6 +238,7 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
 
         imwrite(filename, finder_point_range);
     }
+#endif
 
     // set up the finder point extraction process by computing the vector from the center
     // of the candidate ellipse to the center of each blob. From this vector, we care about
@@ -303,6 +309,7 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
         }
     }
 
+#if DEBUGGING
     if (debug) {
         char filename[128];
 
@@ -310,6 +317,7 @@ bool extractFinderPoints(int ellipse_id, bool check_high, RotatedRect inner_ring
 
         imwrite(filename, finder_point_extraction);
     }
+#endif
 
     // if we have too few or too many finder points (we need 9), we couldn't have
     // possibly found an orientation ring
@@ -429,7 +437,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
     if (out_progress) {
         Mat rgb_colour;
         
-        cvtColor(greyscale, rgb_colour, CV_GRAY2RGB);
+        cvtColor(greyscale, rgb_colour, cv::COLOR_GRAY2RGB);
 
         progress = rgb_colour;
     }
@@ -468,7 +476,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
     vector<Vec4i> hierarchy;
     
     START_DEBUG_TIMING(contours_1);
-    findContours(contour_mat, contours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE, Point2i(0, 0));
+    findContours(contour_mat, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE, Point2i(0, 0));
     END_DEBUG_TIMING(timing, contours_1);
 
 #if DEBUGGING
@@ -774,7 +782,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
 
             if (!blackish_created) {
                 blackish_created = true;
-                adaptiveThreshold(greyscale, blackish, 255, CV_ADAPTIVE_THRESH_MEAN_C, CV_THRESH_BINARY_INV, adaptive_threshold_width, 5);
+                adaptiveThreshold(greyscale, blackish, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, adaptive_threshold_width, 5);
             }
         }
 
@@ -814,7 +822,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
             try {
                 // compute the homography from the object orientation ring to the scene orientation ring
                 START_DEBUG_TIMING(find_homography);
-                Mat H = findHomography(object_finder_points, scene_finder_points, CV_RANSAC);
+                Mat H = findHomography(object_finder_points, scene_finder_points, cv::RANSAC);
                 END_DEBUG_TIMING(timing, find_homography);
                 
                 START_DEBUG_TIMING(transform_finder_points);
@@ -904,7 +912,7 @@ bool detectKikCode(Mat &greyscale, Mat *out_progress, uint32_t device_quality, u
 #if DEBUGGING
                 if (output_snapshots) {
                     Mat code_points = Mat::zeros(greyscale.size(), CV_8UC3);
-                    cvtColor(greyscale, code_points, CV_GRAY2RGB);
+                    cvtColor(greyscale, code_points, cv::COLOR_GRAY2RGB);
 
                     for (int j = 0; j < scene_points.size(); ++j) {
                         int x = (int)floor(scene_points[j].x);

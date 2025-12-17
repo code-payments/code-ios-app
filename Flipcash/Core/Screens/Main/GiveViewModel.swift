@@ -71,12 +71,19 @@ class GiveViewModel: ObservableObject {
         }
     }
     
-    public let isPresented: Binding<Bool>
+    @Published var isPresented = false {
+        didSet {
+            if isPresented {
+                self.enteredAmount = ""
+            }
+            
+        }
+    }
     
     // MARK: - Init -
     
-    init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
-        self.isPresented      = isPresented
+    init(container: Container, sessionContainer: SessionContainer) {
+        self.isPresented      = false
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
@@ -109,7 +116,7 @@ class GiveViewModel: ObservableObject {
                 return
             }
 
-            isPresented.wrappedValue = false
+            isPresented = false
 
             Task {
                 try await Task.delay(milliseconds: 50)

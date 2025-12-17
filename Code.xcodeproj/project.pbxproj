@@ -156,6 +156,7 @@
 		9A70501D2600F5CC0036A056 /* ContentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A70501C2600F5CC0036A056 /* ContentController.swift */; };
 		9A718BCF25C054B800DB5F70 /* CodeExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A718BCE25C054B800DB5F70 /* CodeExtractor.swift */; };
 		9A71BD442A2A2E1500D31F56 /* GetFriendStartedScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A71BD432A2A2E1500D31F56 /* GetFriendStartedScreen.swift */; };
+		9A780F972EDF817D009BC4D9 /* CodeScanner in Frameworks */ = {isa = PBXBuildFile; productRef = 9A780F962EDF817D009BC4D9 /* CodeScanner */; };
 		9A7C408128DDE0C7007DA414 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 9A7C408328DDE0C7007DA414 /* Localizable.strings */; };
 		9A7FF89B269C71B10090B457 /* BillCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7FF89A269C71B10090B457 /* BillCanvas.swift */; };
 		9A7FF8A1269DD5CD0090B457 /* ChatController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A7FF8A0269DD5CD0090B457 /* ChatController.swift */; };
@@ -232,7 +233,6 @@
 		9AB7C5C725E7F8730007B3D5 /* BillState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB7C5C625E7F8730007B3D5 /* BillState.swift */; };
 		9ABDD1952D9D7B61006B6CDA /* FlipcashCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9ABDD1942D9D7B61006B6CDA /* FlipcashCore */; };
 		9AC011182DA4320F0030298E /* FlipcashUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9AC011172DA4320F0030298E /* FlipcashUI */; };
-		9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5D84C25F26E3C007388AE /* CodeScanner.framework */; };
 		9AC0156C2DA576FA0030298E /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E64B25F2BF3E007388AE /* opencv2.framework */; };
 		9AC784B22BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
 		9AC784B32BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9AC784B12BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy */; };
@@ -246,7 +246,6 @@
 		9AD0A44E261B961B008CFD69 /* WithdrawAmountScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD0A44D261B961B008CFD69 /* WithdrawAmountScreen.swift */; };
 		9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 9AD1265D2DA98ADC0048141F /* SQLite */; };
 		9AD5D72F25F13A18007388AE /* BalanceScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D72E25F13A18007388AE /* BalanceScreen.swift */; };
-		9AD5D85825F26E4C007388AE /* CodeScanner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5D84C25F26E3C007388AE /* CodeScanner.framework */; };
 		9AD5E64C25F2BF3E007388AE /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E64B25F2BF3E007388AE /* opencv2.framework */; };
 		9AD87C7F2BC04A3B00F33A08 /* ConnectXScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AD87C7E2BC04A3B00F33A08 /* ConnectXScreen.swift */; };
 		9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 9ADEF1C22DD50BDE001B260A /* FirebaseAnalytics */; };
@@ -287,13 +286,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		9A1EBC6B2624719F003F8B19 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = 9AD5D7BF25F26CC3007388AE;
-			remoteInfo = CodeScanner;
-		};
 		9A516F8A2D9B12EA00AF478B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9AED10F8258BE1310088D902 /* Project object */;
@@ -328,27 +320,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 9A9970A22CA33145006BDE08;
 			remoteInfo = Flipchat;
-		};
-		9AA0D5DB27F4C45C00306111 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = 9AD5D7BF25F26CC3007388AE;
-			remoteInfo = CodeScanner;
-		};
-		9AD5D84B25F26E3C007388AE /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 9AD5D7C025F26CC3007388AE;
-			remoteInfo = CodeScanner;
-		};
-		9AD5D84D25F26E3C007388AE /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 9AD5D7C925F26CC3007388AE;
-			remoteInfo = CodeScannerTests;
 		};
 		9AED1112258BE1320088D902 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -586,7 +557,6 @@
 		9ACFA30F2A4B48280057A5DF /* AccountContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountContainer.swift; sourceTree = "<group>"; };
 		9AD0A44D261B961B008CFD69 /* WithdrawAmountScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WithdrawAmountScreen.swift; sourceTree = "<group>"; };
 		9AD5D72E25F13A18007388AE /* BalanceScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BalanceScreen.swift; sourceTree = "<group>"; };
-		9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = CodeScanner.xcodeproj; path = CodeScanner/CodeScanner.xcodeproj; sourceTree = "<group>"; };
 		9AD5E64B25F2BF3E007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
 		9AD855432DB01563002FA9CE /* FlipcashCoreAPI */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = FlipcashCoreAPI; sourceTree = "<group>"; };
 		9AD87C7E2BC04A3B00F33A08 /* ConnectXScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectXScreen.swift; sourceTree = "<group>"; };
@@ -650,12 +620,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9A780F972EDF817D009BC4D9 /* CodeScanner in Frameworks */,
 				9ADEF1C92DD50BDE001B260A /* FirebaseMessaging in Frameworks */,
 				9AD1265E2DA98ADC0048141F /* SQLite in Frameworks */,
 				9A8A219C2E7B253A00C12594 /* TweetNacl in Frameworks */,
 				9ADEF1D72DD627C0001B260A /* Bugsnag in Frameworks */,
 				9A017D692EAC1DE200216925 /* Kingfisher in Frameworks */,
-				9AC0112C2DA4478C0030298E /* CodeScanner.framework in Frameworks */,
 				9ADEF1C32DD50BDE001B260A /* FirebaseAnalytics in Frameworks */,
 				9ADEF1C72DD50BDE001B260A /* FirebaseInstallations in Frameworks */,
 				9A444EE72E8C414D002B1E39 /* BigDecimal in Frameworks */,
@@ -759,7 +729,6 @@
 				9A1A827728660A6F00A4979F /* FirebaseAnalytics in Frameworks */,
 				9AD5E64C25F2BF3E007388AE /* opencv2.framework in Frameworks */,
 				9A1A827928660A6F00A4979F /* FirebaseCrashlytics in Frameworks */,
-				9AD5D85825F26E4C007388AE /* CodeScanner.framework in Frameworks */,
 				9A476D4A2978884700C5B5CE /* Bugsnag in Frameworks */,
 				9ACE172B27E6287D00ACA047 /* Mixpanel in Frameworks */,
 			);
@@ -1119,15 +1088,6 @@
 			path = Main;
 			sourceTree = "<group>";
 		};
-		9AD5D84725F26E3C007388AE /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				9AD5D84C25F26E3C007388AE /* CodeScanner.framework */,
-				9AD5D84E25F26E3C007388AE /* CodeScannerTests.xctest */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 		9AD5E64A25F2BF3E007388AE /* Vendor */ = {
 			isa = PBXGroup;
 			children = (
@@ -1265,7 +1225,6 @@
 		9AED116C258BE3AF0088D902 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */,
 				9AA197072CE51ABB00FE1703 /* CodeCurves */,
 				9A16229B284503EE00B138D3 /* CodeAPI */,
 				9AEA3A4125CD82A600392734 /* CodeServices */,
@@ -1376,6 +1335,7 @@
 				9A2396752E7DE27500D70699 /* SolanaSwift */,
 				9A444EE62E8C414D002B1E39 /* BigDecimal */,
 				9A017D682EAC1DE200216925 /* Kingfisher */,
+				9A780F962EDF817D009BC4D9 /* CodeScanner */,
 			);
 			productName = Flipcash;
 			productReference = 9A516F7A2D9B12E900AF478B /* Flipcash.app */;
@@ -1592,7 +1552,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				9AA0D5DC27F4C45C00306111 /* PBXTargetDependency */,
 				9A6BFF132B75667700E04EB7 /* PBXTargetDependency */,
 			);
 			name = Code;
@@ -1623,7 +1582,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				9A1EBC6C2624719F003F8B19 /* PBXTargetDependency */,
 				9AED1113258BE1320088D902 /* PBXTargetDependency */,
 			);
 			name = CodeTests;
@@ -1768,15 +1726,10 @@
 				9A8A219A2E7B253A00C12594 /* XCRemoteSwiftPackageReference "tweetnacl-swiftwrap" */,
 				9A2396742E7DE27500D70699 /* XCRemoteSwiftPackageReference "solana-swift" */,
 				9A444EE52E8C414D002B1E39 /* XCRemoteSwiftPackageReference "BigDecimal" */,
+				9A780F952EDF817D009BC4D9 /* XCLocalSwiftPackageReference "CodeScanner" */,
 			);
 			productRefGroup = 9AED1101258BE1310088D902 /* Products */;
 			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = 9AD5D84725F26E3C007388AE /* Products */;
-					ProjectRef = 9AD5D84625F26E3C007388AE /* CodeScanner.xcodeproj */;
-				},
-			);
 			projectRoot = "";
 			targets = (
 				9AED10FF258BE1310088D902 /* Code */,
@@ -1799,23 +1752,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXReferenceProxy section */
-		9AD5D84C25F26E3C007388AE /* CodeScanner.framework */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.framework;
-			path = CodeScanner.framework;
-			remoteRef = 9AD5D84B25F26E3C007388AE /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-		9AD5D84E25F26E3C007388AE /* CodeScannerTests.xctest */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.cfbundle;
-			path = CodeScannerTests.xctest;
-			remoteRef = 9AD5D84D25F26E3C007388AE /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		9A516F782D9B12E800AF478B /* Resources */ = {
@@ -2347,11 +2283,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		9A1EBC6C2624719F003F8B19 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = CodeScanner;
-			targetProxy = 9A1EBC6B2624719F003F8B19 /* PBXContainerItemProxy */;
-		};
 		9A516F8B2D9B12EA00AF478B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 9A516F792D9B12E800AF478B /* Flipcash */;
@@ -2376,11 +2307,6 @@
 			isa = PBXTargetDependency;
 			target = 9A9970A22CA33145006BDE08 /* Flipchat */;
 			targetProxy = 9A9970BD2CA33147006BDE08 /* PBXContainerItemProxy */;
-		};
-		9AA0D5DC27F4C45C00306111 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = CodeScanner;
-			targetProxy = 9AA0D5DB27F4C45C00306111 /* PBXContainerItemProxy */;
 		};
 		9AED1113258BE1320088D902 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2824,13 +2750,14 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 262;
+				CURRENT_PROJECT_VERSION = 264;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
+					"$(PROJECT_DIR)/CodeScanner/.build/arm64-apple-ios-simulator/debug",
 				);
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -2852,7 +2779,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.25;
+				MARKETING_VERSION = 1.0.26;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2875,13 +2802,14 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 262;
+				CURRENT_PROJECT_VERSION = 264;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
+					"$(PROJECT_DIR)/CodeScanner/.build/arm64-apple-ios-simulator/debug",
 				);
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -2903,7 +2831,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.25;
+				MARKETING_VERSION = 1.0.26;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2926,13 +2854,14 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 262;
+				CURRENT_PROJECT_VERSION = 264;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
+					"$(PROJECT_DIR)/CodeScanner/.build/arm64-apple-ios-simulator/debug",
 				);
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -2950,7 +2879,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.25;
+				MARKETING_VERSION = 1.0.26;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2972,13 +2901,14 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 262;
+				CURRENT_PROJECT_VERSION = 264;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Vendor",
+					"$(PROJECT_DIR)/CodeScanner/.build/arm64-apple-ios-simulator/debug",
 				);
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -2996,7 +2926,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.25;
+				MARKETING_VERSION = 1.0.26;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -4496,6 +4426,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		9A780F952EDF817D009BC4D9 /* XCLocalSwiftPackageReference "CodeScanner" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = CodeScanner;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		9A1654D526790419000A135E /* XCRemoteSwiftPackageReference "grpc-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -4654,6 +4591,10 @@
 		9A6BFF1B2B76991A00E04EB7 /* CodeServices */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeServices;
+		};
+		9A780F962EDF817D009BC4D9 /* CodeScanner */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CodeScanner;
 		};
 		9A83DCCD2D8A653D00E38B84 /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;

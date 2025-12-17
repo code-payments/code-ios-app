@@ -175,7 +175,71 @@ FlipcashUI/        # UI components, theme
 FlipcashAPI/       # gRPC proto definitions
 CodeServices/      # Shared Solana services (don't import in Flipcash)
 CodeCurves/        # Ed25519 cryptography
+CodeScanner/       # C++/OpenCV circular code scanning (see below)
 ```
+
+---
+
+## CodeScanner Project
+
+CodeScanner is a C++ library for encoding, decoding, and scanning custom circular 2D codes ("Kik Codes"). See `.claude/spec.md` for the complete technical specification.
+
+### Quick Reference
+
+**Location:** `CodeScanner/`
+
+**Dependencies:**
+- OpenCV 4.10.0 (~100MB XCFramework in `CodeScanner/Frameworks/`)
+- ZXing Reed-Solomon subset (bundled in `src/zxing/`)
+
+**Public API (Objective-C):**
+```objc
+@interface KikCodes : NSObject
++ (NSData *)encode:(NSData *)data;   // 20-byte → 35-byte
++ (NSData *)decode:(NSData *)data;   // 35-byte → 20-byte
++ (nullable NSData *)scan:(NSData *)data width:(NSInteger)width height:(NSInteger)height quality:(KikCodesScanQuality)quality;
+@end
+```
+
+**Swift Usage:**
+```swift
+import CodeScanner
+
+// Scanning
+if let data = KikCodes.scan(yPlaneData, width: width, height: height, quality: .best) {
+    let payload = KikCodes.decode(data)
+    // Parse payload...
+}
+
+// Encoding
+let encoded = KikCodes.encode(payloadData)  // Ready for rendering
+```
+
+**Key Files:**
+- `CodeScanner/CodeScanner/Code.h` - Objective-C public interface
+- `CodeScanner/CodeScanner/src/scanner.cpp` - Core OpenCV scanning (~1000 lines)
+- `CodeScanner/CodeScanner/src/kikcode_encoding.cpp` - Encoding/decoding logic
+
+**Integration:**
+- Linked as embedded framework in Code.xcodeproj
+- Used by `Flipcash/Core/Screens/Main/Bill/Extraction/CodeExtractor.swift`
+- Used by `Flipcash/Core/Screens/Main/Bill/CashCode.Payload+Encoding.swift`
+
+**Known Issues:**
+- All C++ files compiled with `-w` to suppress warnings
+- JNI files included but not used (Android artifacts)
+
+**OpenCV 4.10.0 Upgrade (December 2025):**
+- Updated from OpenCV 2.4.13.7 to 4.10.0
+- API changes: `CV_*` macros → `cv::` namespace enums
+- Built as XCFramework with minimal modules (core, imgproc, calib3d, features2d)
+
+**Updating OpenCV:**
+```bash
+cd CodeScanner
+./Scripts/build_opencv.sh --version 4.11.0  # or latest
+```
+See `.claude/spec.md` for detailed build documentation.
 
 ---
 

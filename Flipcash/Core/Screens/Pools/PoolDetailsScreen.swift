@@ -380,7 +380,7 @@ struct PoolDetailsScreen: View {
             ) {
                 localDialogItem = .init(
                     style: .standard,
-                    title: "What was the winning outcome?",
+                    title: "What Was The Winning Outcome?",
                     subtitle: nil,
                     dismissable: true,
                     actions: {

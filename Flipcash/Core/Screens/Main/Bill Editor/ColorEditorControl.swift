@@ -275,10 +275,10 @@ private extension ColorEditorControl {
                 .frame(width: width, height: PanelMetrics.height)
                 
                 PresetsPanelView(
-                    onShowCustom: { 
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) { 
-                            mode = .custom 
-                        } 
+                    onShowCustom: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
+                            mode = .custom
+                        }
                     },
                     onSelectSolid: { stop in
                         if selectedIndex < stops.count {
@@ -287,65 +287,6 @@ private extension ColorEditorControl {
                                 stops[selectedIndex].saturation = stop.saturation
                                 stops[selectedIndex].brightness = stop.brightness
                                 stops[selectedIndex].alpha = stop.alpha
-                            }
-                        }
-                    },
-                    onSelectGradient: { newStops in
-                        let targetCount = newStops.count
-                        let currentCount = stops.count
-                        
-                        if targetCount == currentCount {
-                            // Same count - just update existing stops to avoid layout animation
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                for (index, newStop) in newStops.enumerated() {
-                                    if index < stops.count {
-                                        stops[index].hue = newStop.hue
-                                        stops[index].saturation = newStop.saturation
-                                        stops[index].brightness = newStop.brightness
-                                        stops[index].alpha = newStop.alpha
-                                    }
-                                }
-                            }
-                            selectedIndex = 0
-                        } else if targetCount > currentCount {
-                            // Adding stops - preserve existing ones and add new ones
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                // Update existing stops
-                                for (index, newStop) in newStops.prefix(currentCount).enumerated() {
-                                    stops[index].hue = newStop.hue
-                                    stops[index].saturation = newStop.saturation
-                                    stops[index].brightness = newStop.brightness
-                                    stops[index].alpha = newStop.alpha
-                                }
-                            }
-                            // Add new stops with layout animation
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-                                for newStop in newStops.suffix(targetCount - currentCount) {
-                                    stops.append(newStop)
-                                }
-                            }
-                            selectedIndex = 0
-                        } else {
-                            // Removing stops - update selectedIndex first to avoid out of bounds
-                            if selectedIndex >= targetCount {
-                                selectedIndex = max(0, targetCount - 1)
-                            }
-
-                            // Update remaining stops
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                for (index, newStop) in newStops.enumerated() {
-                                    if index < stops.count {
-                                        stops[index].hue = newStop.hue
-                                        stops[index].saturation = newStop.saturation
-                                        stops[index].brightness = newStop.brightness
-                                        stops[index].alpha = newStop.alpha
-                                    }
-                                }
-                            }
-
-                            // Remove excess stops with layout animation
-                            withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-                                stops.removeLast(currentCount - targetCount)
                             }
                         }
                     }
@@ -422,7 +363,6 @@ private struct ColorSwatch: View {
 private struct PresetsPanelView: View {
     let onShowCustom: () -> Void
     let onSelectSolid: (GradientStop) -> Void
-    let onSelectGradient: ([GradientStop]) -> Void
     
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -445,9 +385,9 @@ private struct PresetsPanelView: View {
                 }
                 .buttonStyle(.plain)
                 
-                // Preset grid
+                // Color presets
                 VStack(spacing: PanelMetrics.spacing) {
-                    // Solid colors
+                    // Vibrant colors
                     HStack(spacing: PanelMetrics.spacing) {
                         ForEach(Array(GradientStop.solidPresets.enumerated()), id: \.offset) { _, stop in
                             PresetTileView(stops: [stop]) {
@@ -455,11 +395,11 @@ private struct PresetsPanelView: View {
                             }
                         }
                     }
-                    // Gradients
+                    // Muted colors
                     HStack(spacing: PanelMetrics.spacing) {
-                        ForEach(Array(GradientStop.gradientPresets.enumerated()), id: \.offset) { _, stops in
-                            PresetTileView(stops: stops) {
-                                onSelectGradient(stops)
+                        ForEach(Array(GradientStop.mutedPresets.enumerated()), id: \.offset) { _, stop in
+                            PresetTileView(stops: [stop]) {
+                                onSelectSolid(stop)
                             }
                         }
                     }
@@ -506,59 +446,18 @@ extension GradientStop {
         GradientStop(hue: 0.75, saturation: 0.7, brightness: 0.9),     // Purple
         GradientStop(hue: 0.9, saturation: 0.7, brightness: 0.95)      // Pink
     ]
-    
-    public static let gradientPresets: [[GradientStop]] = [
-        // Sky: blue-white
-        [
-            GradientStop(hue: 0.6, saturation: 0.75, brightness: 0.85),
-            GradientStop(hue: 0.0, saturation: 0.0, brightness: 1.0)
-        ],
-        // Sunset: purple-orange
-        [
-            GradientStop(hue: 0.75, saturation: 0.7, brightness: 0.9),
-            GradientStop(hue: 0.08, saturation: 0.9, brightness: 0.95)
-        ],
-        // Mint: teal-green
-        [
-            GradientStop(hue: 0.48, saturation: 0.7, brightness: 0.9),
-            GradientStop(hue: 0.34, saturation: 0.8, brightness: 0.9)
-        ],
-        // Fire: red-orange
-        [
-            GradientStop(hue: 0.0, saturation: 0.9, brightness: 0.95),
-            GradientStop(hue: 0.08, saturation: 0.9, brightness: 0.95)
-        ],
-        // Sunrise: pink-yellow
-        [
-            GradientStop(hue: 0.9, saturation: 0.7, brightness: 0.95),
-            GradientStop(hue: 0.14, saturation: 0.9, brightness: 0.95)
-        ],
-        // Ocean: deep blue-cyan
-        [
-            GradientStop(hue: 0.60, saturation: 0.75, brightness: 0.85),
-            GradientStop(hue: 0.48, saturation: 0.7, brightness: 0.9)
-        ],
-        // Lavender: violet-pink
-        [
-            GradientStop(hue: 0.75, saturation: 0.7, brightness: 0.9),
-            GradientStop(hue: 0.9, saturation: 0.7, brightness: 0.95)
-        ],
-        // Mango: yellow-orange-red
-        [
-            GradientStop(hue: 0.14, saturation: 0.9, brightness: 0.95),
-            GradientStop(hue: 0.08, saturation: 0.9, brightness: 0.95),
-            GradientStop(hue: 0.0, saturation: 0.9, brightness: 0.95)
-        ],
-        // Aurora: green-purple
-        [
-            GradientStop(hue: 0.34, saturation: 0.8, brightness: 0.9),
-            GradientStop(hue: 0.75, saturation: 0.7, brightness: 0.9)
-        ],
-        // Candy: magenta-cyan
-        [
-            GradientStop(hue: 0.9, saturation: 0.7, brightness: 0.95),
-            GradientStop(hue: 0.48, saturation: 0.7, brightness: 0.9)
-        ]
+
+    public static let mutedPresets: [GradientStop] = [
+        GradientStop(hue: 0.1, saturation: 0.1, brightness: 0.95),     // Cream
+        GradientStop(hue: 0.0, saturation: 0.0, brightness: 0.3),      // Charcoal
+        GradientStop(hue: 0.95, saturation: 0.3, brightness: 0.85),    // Rose
+        GradientStop(hue: 0.06, saturation: 0.35, brightness: 0.95),   // Peach
+        GradientStop(hue: 0.14, saturation: 0.3, brightness: 0.95),    // Butter
+        GradientStop(hue: 0.28, saturation: 0.25, brightness: 0.7),    // Sage
+        GradientStop(hue: 0.42, saturation: 0.3, brightness: 0.85),    // Mint
+        GradientStop(hue: 0.55, saturation: 0.3, brightness: 0.9),     // Sky
+        GradientStop(hue: 0.72, saturation: 0.25, brightness: 0.85),   // Lavender
+        GradientStop(hue: 0.95, saturation: 0.2, brightness: 0.95)     // Blush
     ]
 }
 

@@ -95,8 +95,6 @@ struct WithdrawDescriptionScreen: View {
                     isPresented: $isShowingCurrencySelection,
                     kind: .select(selectCurrencyAction),
                     fixedRate: .oneToOne,
-                    container: container,
-                    sessionContainer: sessionContainer
                 )
             }
         }
