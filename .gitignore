@@ -24,3 +24,15 @@ xcuserdata
 ## Obj-C/Swift specific
 *.hmap
 *.ipa
+
+## Fastlane
+fastlane/.env
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+fastlane/README.md
+
+## App Store Connect API Key (never commit)
+*.p8
+AuthKey*.p8
