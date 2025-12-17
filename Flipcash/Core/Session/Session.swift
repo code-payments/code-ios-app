@@ -153,7 +153,7 @@ class Session: ObservableObject {
             let exchangedFiat = stored.computeExchangedValue(with: rate)
 
             // Filter out balances with zero fiat value after conversion (except for USDC)
-            if stored.mint != .usdc && exchangedFiat.hasDisplayableValue() {
+            guard stored.mint == .usdc || exchangedFiat.hasDisplayableValue() else {
                 return nil
             }
 
