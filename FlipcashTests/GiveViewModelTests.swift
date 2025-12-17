@@ -19,12 +19,10 @@ struct GiveViewModelTests {
 
     /// Helper to create a test view model
     static func createViewModel() -> GiveViewModel {
-        let isPresented = Binding<Bool>(get: { true }, set: { _ in })
         let container = Container.mock
         let sessionContainer = SessionContainer.mock
 
         let viewModel = GiveViewModel(
-            isPresented: isPresented,
             container: container,
             sessionContainer: sessionContainer
         )

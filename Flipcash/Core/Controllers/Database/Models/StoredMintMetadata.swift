@@ -60,6 +60,62 @@ struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
     }
 }
 
+extension StoredMintMetadata {
+    /// Converts StoredMintMetadata to MintMetadata
+    var metadata: MintMetadata {
+        let vmMetadata: VMMetadata? = {
+            guard let vmAddress = vmAddress,
+                  let vmAuthority = vmAuthority,
+                  let lockDuration = lockDuration else {
+                return nil
+            }
+            return VMMetadata(
+                vm: vmAddress,
+                authority: vmAuthority,
+                lockDurationInDays: lockDuration
+            )
+        }()
+        
+        let launchpadMetadata: LaunchpadMetadata? = {
+            guard let currencyConfig = currencyConfig,
+                  let liquidityPool = liquidityPool,
+                  let seed = seed,
+                  let authority = authority,
+                  let mintVault = mintVault,
+                  let coreMintVault = coreMintVault,
+                  let coreMintFees = coreMintFees,
+                  let supplyFromBonding = supplyFromBonding,
+                  let coreMintLocked = coreMintLocked,
+                  let sellFeeBps = sellFeeBps else {
+                return nil
+            }
+            return LaunchpadMetadata(
+                currencyConfig: currencyConfig,
+                liquidityPool: liquidityPool,
+                seed: seed,
+                authority: authority,
+                mintVault: mintVault,
+                coreMintVault: coreMintVault,
+                coreMintFees: coreMintFees,
+                supplyFromBonding: supplyFromBonding,
+                coreMintLocked: coreMintLocked,
+                sellFeeBps: sellFeeBps
+            )
+        }()
+        
+        return MintMetadata(
+            address: mint,
+            decimals: decimals,
+            name: name,
+            symbol: symbol,
+            description: bio ?? "",
+            imageURL: imageURL,
+            vmMetadata: vmMetadata,
+            launchpadMetadata: launchpadMetadata
+        )
+    }
+}
+
 //extension StoredMintMetadata {
 //    enum Error: Swift.Error {
 //        

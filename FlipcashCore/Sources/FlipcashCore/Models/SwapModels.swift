@@ -307,3 +307,207 @@ extension SwapMetadata {
         }
     }
 }
+
+public struct SwapResponseServerParameters {
+    public let kind: Kind
+    
+    public init(kind: Kind) {
+        self.kind = kind
+    }
+    
+    public enum Kind {
+        case stateless(CurrencyCreatorStateless)
+        case stateful(CurrencyCreatorStateful)
+    }
+    
+    // Server parameters for stateless buy/sell flows
+    public struct CurrencyCreatorStateless {
+        public let payer: PublicKey
+        public let recentBlockhash: Hash
+        public let alts: [AddressLookupTable]
+        public let computeUnitLimit: UInt32
+        public let computeUnitPrice: UInt64
+        public let memoValue: String
+        public let memoryAccount: PublicKey
+        public let memoryIndex: UInt32
+        
+        public init(
+            payer: PublicKey,
+            recentBlockhash: Hash,
+            alts: [AddressLookupTable],
+            computeUnitLimit: UInt32,
+            computeUnitPrice: UInt64,
+            memoValue: String,
+            memoryAccount: PublicKey,
+            memoryIndex: UInt32
+        ) {
+            self.payer = payer
+            self.recentBlockhash = recentBlockhash
+            self.alts = alts
+            self.computeUnitLimit = computeUnitLimit
+            self.computeUnitPrice = computeUnitPrice
+            self.memoValue = memoValue
+            self.memoryAccount = memoryAccount
+            self.memoryIndex = memoryIndex
+        }
+    }
+    
+    // Server parameters for stateful buy/sell flows
+    public struct CurrencyCreatorStateful: Sendable {
+        public let payer: PublicKey
+        public let alts: [AddressLookupTable]
+        public let computeUnitLimit: UInt32
+        public let computeUnitPrice: UInt64
+        public let memoValue: String
+        public let memoryAccount: PublicKey
+        public let memoryIndex: UInt32
+        
+        public init(
+            payer: PublicKey,
+            alts: [AddressLookupTable],
+            computeUnitLimit: UInt32,
+            computeUnitPrice: UInt64,
+            memoValue: String,
+            memoryAccount: PublicKey,
+            memoryIndex: UInt32
+        ) {
+            self.payer = payer
+            self.alts = alts
+            self.computeUnitLimit = computeUnitLimit
+            self.computeUnitPrice = computeUnitPrice
+            self.memoValue = memoValue
+            self.memoryAccount = memoryAccount
+            self.memoryIndex = memoryIndex
+        }
+    }
+}
+
+// MARK: - Proto Conversion -
+
+extension SwapResponseServerParameters.CurrencyCreatorStateless {
+    public init?(_ proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateless) {
+        guard
+            let payer = try? PublicKey(proto.payer.value),
+            let recentBlockhash = try? Hash(proto.recentBlockhash.value),
+            let memoryAccount = try? PublicKey(proto.memoryAccount.value)
+        else {
+            return nil
+        }
+        
+        let alts = proto.alts.compactMap { AddressLookupTable($0) }
+        
+        self.init(
+            payer: payer,
+            recentBlockhash: recentBlockhash,
+            alts: alts,
+            computeUnitLimit: proto.computeUnitLimit,
+            computeUnitPrice: proto.computeUnitPrice,
+            memoValue: proto.memoValue,
+            memoryAccount: memoryAccount,
+            memoryIndex: proto.memoryIndex
+        )
+    }
+    
+    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateless {
+        .with {
+            $0.payer = payer.solanaAccountID
+            $0.recentBlockhash = .with { $0.value = recentBlockhash.data }
+            $0.alts = alts.map { $0.proto }
+            $0.computeUnitLimit = computeUnitLimit
+            $0.computeUnitPrice = computeUnitPrice
+            $0.memoValue = memoValue
+            $0.memoryAccount = memoryAccount.solanaAccountID
+            $0.memoryIndex = memoryIndex
+        }
+    }
+}
+
+extension SwapResponseServerParameters.CurrencyCreatorStateful {
+    public init?(_ proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateful) {
+        guard
+            let payer = try? PublicKey(proto.payer.value),
+            let memoryAccount = try? PublicKey(proto.memoryAccount.value)
+        else {
+            return nil
+        }
+        
+        let alts = proto.alts.compactMap { AddressLookupTable($0) }
+        
+        self.init(
+            payer: payer,
+            alts: alts,
+            computeUnitLimit: proto.computeUnitLimit,
+            computeUnitPrice: proto.computeUnitPrice,
+            memoValue: proto.memoValue,
+            memoryAccount: memoryAccount,
+            memoryIndex: proto.memoryIndex
+        )
+    }
+    
+    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateful {
+        .with {
+            $0.payer = payer.solanaAccountID
+            $0.alts = alts.map { $0.proto }
+            $0.computeUnitLimit = computeUnitLimit
+            $0.computeUnitPrice = computeUnitPrice
+            $0.memoValue = memoValue
+            $0.memoryAccount = memoryAccount.solanaAccountID
+            $0.memoryIndex = memoryIndex
+        }
+    }
+}
+
+extension SwapResponseServerParameters {
+    public init?(_ proto: Code_Transaction_V2_SwapResponse.ServerParameters) {
+        switch proto.kind {
+        case .currencyCreatorStateless(let stateless):
+            guard let params = CurrencyCreatorStateless(stateless) else {
+                return nil
+            }
+            self.init(kind: .stateless(params))
+            
+        case .currencyCreatorStateful(let stateful):
+            guard let params = CurrencyCreatorStateful(stateful) else {
+                return nil
+            }
+            self.init(kind: .stateful(params))
+            
+        case .none:
+            return nil
+        }
+    }
+    
+    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters {
+        .with {
+            switch kind {
+            case .stateless(let params):
+                $0.currencyCreatorStateless = params.proto
+            case .stateful(let params):
+                $0.currencyCreatorStateful = params.proto
+            }
+        }
+    }
+}
+
+enum SwapDirection {
+    case buy(mint: MintMetadata)                 // USDC -> Bonded Token
+    case sell(mint: MintMetadata)                // Bonded Token -> USDC
+    
+    var sourceMint: MintMetadata {
+        switch self {
+        case .buy:
+            return .usdc
+        case .sell(let mint):
+            return mint
+        }
+    }
+        
+    var destinationMint: MintMetadata {
+        switch self {
+        case .buy(let mint):
+            return mint
+        case .sell:
+            return .usdc
+        }
+    }
+}

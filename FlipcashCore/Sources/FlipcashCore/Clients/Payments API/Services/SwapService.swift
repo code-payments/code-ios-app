@@ -1,6 +1,6 @@
 //
 //  SwapService.swift
-//  FlipchatServices
+//  FlipcashCore
 //
 //  Created by Brandon McAnsh.
 //  Copyright © 2025 Code Inc. All rights reserved.
@@ -164,11 +164,6 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
                 trace(.failure, components: "No response from server")
                 _ = reference.stream?.sendEnd()
                 completion(.failure(.unknown))
-                
-            default:
-                trace(.failure, components: "Unexpected response type")
-                _ = reference.stream?.sendEnd()
-                completion(.failure(.unknown))
             }
         }
         
@@ -253,12 +248,15 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
     /// Polls GetSwap until the swap reaches FUNDED state, then executes it
     func executeSwap(
         swapId: SwapId,
+        metadata: VerifiedSwapMetadata,
+        direction: SwapDirection,
+        amount: UInt64,
         owner: KeyPair,
         swapAuthority: KeyPair,
         maxAttempts: Int,
         interval: TimeInterval
     ) async throws -> Result<SwapResult, ErrorSwap> {
-        let metadata = try await pollSwapUntilFunded(
+        _ = try await pollSwapUntilFunded(
             swapId: swapId,
             owner: owner,
             maxAttempts: maxAttempts,
@@ -266,13 +264,18 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
             attempt: 0
         )
         
-        // Once funded, execute the swap
-        return try await executeSwapInternal(
-            swapId: swapId,
+        let swapIntent = IntentSwap(
+            id: swapId,
             owner: owner,
+            metadata: metadata,
             swapAuthority: swapAuthority,
+            amount: amount,
+            direction: direction,
             waitForBlockchain: true
         )
+        
+        // Once funded, execute the swap
+        return try await executeSwapInternal(intent: swapIntent)
     }
     
     /// Polls GetSwap until the swap reaches FUNDED state or times out
@@ -333,12 +336,10 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
     
     /// Executes a swap that's in FUNDED state
     private func executeSwapInternal(
-        swapId: SwapId,
-        owner: KeyPair,
-        swapAuthority: KeyPair,
-        waitForBlockchain: Bool
+        intent: IntentSwap
     ) async throws -> Result<SwapResult, ErrorSwap> {
-        trace(.send, components: "Executing swap", "Swap ID: \(swapId.publicKey.base58)")
+        trace(.send, components: "Executing swap", "Swap ID: \(intent.id.publicKey.base58)")
+        
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 let reference = BidirectionalSwapStream()
@@ -353,12 +354,26 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
                     case .serverParameters(let parameters):
                         trace(.receive, components: "Received server parameters for swap execution")
                         
-                        // TODO: Build swap transaction with server parameters
-                        // For now, just acknowledge receipt
-                        let error = ErrorSwap.unknown
-                        trace(.failure, components: "Incomplete implementation - needs transaction building")
-                        _ = reference.stream?.sendEnd()
-                        continuation.resume(throwing: error)
+                        do {
+                            guard let props = SwapResponseServerParameters(parameters) else {
+                                _ = reference.stream?.sendEnd()
+                                continuation.resume(throwing: ErrorSwap.unknown)
+                                return
+                            }
+                            
+                            intent.parameters = props
+                            
+                            let submitSignatures = try intent.requestToSubmitSignatures()
+                            _ = reference.stream?.sendMessage(submitSignatures)
+                        } catch {
+                            trace(.failure, components: 
+                                "Failed to sign transaction",
+                                "Error: \(error)"
+                            )
+                            _ = reference.stream?.sendEnd()
+                            continuation.resume(throwing: ErrorSwap.signatureError)
+                            return
+                        }
                         
                         // Swap was submitted or finalized
                     case .success(let success):
@@ -372,23 +387,47 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
                             result = .submitted
                         }
                         
-                        trace(.success, components: "Swap completed: \(result)", "Swap ID: \(swapId.publicKey.base58)")
+                        trace(.success, components: "Swap completed: \(result)", "Swap ID: \(intent.id.publicKey.base58)")
                         _ = reference.stream?.sendEnd()
                         continuation.resume(returning: .success(result))
                         
                         // Error during swap execution
                     case .error(let error):
-                        trace(.failure, components: "Swap execution error: \(error.code)")
+                        trace(.failure, components: "Swap execution error: \(error)")
+                        var container: [String] = []
+                    
+                        container.append("Code: \(error.code)")
+                        
+                        let errors = error.errorDetails.flatMap { details -> [String] in
+                            switch details.type {
+                            case .reasonString(let reason):
+                                return [
+                                    "Reason: \(reason.reason)"
+                                ]
+                                
+                            case .invalidSignature(let signatureDetails):
+                                let expected = SolanaTransaction.init(data: signatureDetails.expectedTransaction.value)!
+                                let derived = intent.transaction(using: intent.parameters!)
+                                
+                                return [
+                                    "Action index: \(signatureDetails.actionID)",
+                                    "Invalid signature: \((try? Signature(signatureDetails.providedSignature.value).base58) ?? "nil")",
+                                    "Expected transaction bytes: \(expected.encode().hexEncodedString())",
+                                    "Derived transaction bytes: \(derived.encode().hexEncodedString())",
+                                ]
+                            default:
+                                return []
+                            }
+                        }
+                        
+                        container.append(contentsOf: errors)
+
+                        trace(.failure, components: container)
                         _ = reference.stream?.sendEnd()
                         continuation.resume(returning: .failure(ErrorSwap.init(error: error)))
                         
                     case .none:
                         trace(.failure, components: "No response from server")
-                        _ = reference.stream?.sendEnd()
-                        continuation.resume(throwing: ErrorSwap.unknown)
-                        
-                    default:
-                        trace(.failure, components: "Unexpected response type")
                         _ = reference.stream?.sendEnd()
                         continuation.resume(throwing: ErrorSwap.unknown)
                     }
@@ -402,7 +441,6 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
                         } else {
                             trace(.warning, components: "Swap stream closed: \(status)")
                             continuation.resume(throwing: ErrorSwap.grpcStatus(status))
-                    
                         }
                         
                     case .failure(let error):
@@ -418,13 +456,15 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
                     $0.initiate = .with {
                         $0.kind = .stateful(
                             Code_Transaction_V2_SwapRequest.Initiate.Stateful.with {
-                                $0.swapID = swapId.codeSwapID
-                                $0.owner = owner.publicKey.solanaAccountID
-                                $0.swapAuthority = swapAuthority.publicKey.solanaAccountID
+                                $0.swapID = intent.id.codeSwapID
+                                $0.owner = intent.owner.publicKey.solanaAccountID
+                                $0.swapAuthority = intent.swapAuthority.publicKey.solanaAccountID
+                                $0.signature = $0.sign(with: intent.owner)
                             }
                         )
                     }
                 }
+                
                 _ = reference.stream?.sendMessage(initiateRequest)
             }
         } onCancel: {

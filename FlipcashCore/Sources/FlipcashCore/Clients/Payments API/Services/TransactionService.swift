@@ -233,9 +233,9 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     // MARK: - Swaps -
     
     /// A buy is a swap from USDC to desired token
-    func buy(amount: Quarks, of token: MintMetadata, sourceCluster: AccountCluster, owner: KeyPair, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
+    func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
             
-        trace(.send, components: "Starting \(amount.formatted()) buy of \(token.symbol)")
+        trace(.send, components: "Starting \(amount.converted.formatted()) buy of \(token.symbol)")
             
         // Generate unique identifiers for this swap
         let swapId = SwapId.generate()
@@ -246,10 +246,11 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             swapId: swapId,
             fromMint: .usdc,
             toMint: token.address,
-            amount: amount,
+            amount: amount.underlying,
             fundingID: fundingIntentID,
-            owner: owner
-        ) { result in
+            owner: owner.authority.keyPair
+        ) { [weak self] result in
+            guard let self = self else { return }
             switch result {
             case .success(let metadata):
                 trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
@@ -259,15 +260,15 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 let fundingIntent = IntentFundSwap(
                     intentID: fundingIntentID,
                     swapId: metadata.swapId,
-                    sourceCluster: sourceCluster,
-                    amount: metadata.amount,
-                    fromMint: metadata.fromMint,
-                    toMint: metadata.toMint
+                    sourceCluster: owner,
+                    amount: amount,
+                    fromMint: .usdc,
+                    toMint: token
                 )
                     
                 let swapper = self.swapService
                     
-                self.submit(intent: fundingIntent, owner: owner) { [swapper] fundingResult in
+                self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { [swapper] fundingResult in
                     switch fundingResult {
                     case .success:
                         trace(.success, components: "Swap funded", "Funding Intent ID: \(fundingIntentID.base58)")
@@ -280,7 +281,10 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                             do {
                                 let executeResult = try await swapper.executeSwap(
                                     swapId: swapId,
-                                    owner: owner,
+                                    metadata: metadata.verifiedMetadata,
+                                    direction: .buy(mint: token),
+                                    amount: metadata.amount.quarks,
+                                    owner: owner.authority.keyPair,
                                     swapAuthority: swapAuthority,
                                     maxAttempts: 30,
                                     interval: 1.0
@@ -316,10 +320,96 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     }
     
     /// A sell is a swap from token to USDC
-    func sell(amount: Quarks, in token: MintMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<PaymentMetadata, ErrorSwap>) -> Void) {
-        trace(.send, components: "Starting sell of \(token.symbol) for \(amount.formatted())")
+    func sell(amount: ExchangedFiat, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
+        trace(.send, components: "Starting sell of \(token.symbol) for \(amount.converted.formatted())")
         
+        // Generate unique identifiers for this swap
+        let swapId = SwapId.generate()
+        let fundingIntentID = PublicKey.generate()!
         
+        guard let tokenVmAuthority = token.vmMetadata?.authority else {
+            trace(.failure, components: "Failed to find vm authority for \(token.symbol)")
+            // Map ErrorSubmitIntent to ErrorSwap
+            completion(.failure(.unknown))
+            return
+        }
+        
+        // Phase 1: StartSwap - Create swap state and reserve nonce + blockhash
+        swapService.startSwap(
+            swapId: swapId,
+            fromMint: token.address,
+            toMint: .usdc,
+            amount: amount.underlying,
+            fundingID: fundingIntentID,
+            owner: owner.authority.keyPair
+        ) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let metadata):
+                trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
+                
+                // Phase 2: SubmitIntent - Fund the VM swap PDA
+                // Create funding intent that transfers from source cluster to VM swap account
+                let fundingIntent = IntentFundSwap(
+                    intentID: fundingIntentID,
+                    swapId: metadata.swapId,
+                    sourceCluster: owner.use(mint: token.address, timeAuthority: tokenVmAuthority),
+                    amount: amount,
+                    fromMint: token,
+                    toMint: .usdc
+                )
+                
+                let swapper = self.swapService
+                
+                self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { [swapper] fundingResult in
+                    switch fundingResult {
+                    case .success:
+                        trace(.success, components: "Swap funded", "Funding Intent ID: \(fundingIntentID.base58)")
+                        
+                        // Generate one-time swap authority
+                        let swapAuthority = KeyPair.generate()!
+                        
+                        // Phase 3 & 4: Poll until funded, then execute
+                        Task {
+                            do {
+                                let executeResult = try await swapper.executeSwap(
+                                    swapId: swapId,
+                                    metadata: metadata.verifiedMetadata,
+                                    direction: .sell(mint: token),
+                                    amount: metadata.amount.quarks,
+                                    owner: owner.authority.keyPair,
+                                    swapAuthority: swapAuthority,
+                                    maxAttempts: 30,
+                                    interval: 1.0
+                                )
+                                
+                                switch executeResult {
+                                case .success(let result):
+                                    trace(.success, components: "Swap completed: \(result)")
+                                    completion(.success(()))
+                                    
+                                case .failure(let error):
+                                    trace(.failure, components: "Swap execution failed: \(error)")
+                                    completion(.failure(error))
+                                }
+                            } catch {
+                                trace(.failure, components: "Swap execution threw: \(error)")
+                                completion(.failure(.unknown))
+                            }
+                        }
+                        
+                    case .failure(let error):
+                        trace(.failure, components: "Failed to fund swap: \(error)")
+                        // Map ErrorSubmitIntent to ErrorSwap
+                        completion(.failure(.unknown))
+                    }
+                }
+                
+            case .failure(let error):
+                trace(.failure, components: "Failed to start swap: \(error)")
+                completion(.failure(error))
+            }
+        }
     }
     
     // MARK: - Submit -

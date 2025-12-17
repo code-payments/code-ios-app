@@ -18,24 +18,30 @@ extension TokenProgram {
 
 extension TokenProgram {
     public enum Command: Byte {
-        case initializeMint
-        case initializeAccount
-        case initializeMultisig
-        case transfer
-        case approve
-        case revoke
-        case setAuthority
-        case mintTo
-        case burn
-        case closeAccount
-        case freezeAccount
-        case thawAccount
-        case transfer2
-        case approve2
-        case mintTo2
-        case burn2
+        case initializeMint = 0
+        case initializeAccount = 1
+        case initializeMultisig = 2
+        case transfer = 3
+        case approve = 4
+        case revoke = 5
+        case setAuthority = 6
+        case mintTo = 7
+        case burn = 8
+        case closeAccount = 9
+        case freezeAccount = 10
+        case thawAccount = 11
+        case transferChecked = 12
+        case approveChecked = 13
+        case mintToChecked = 14
+        case burnChecked = 15
+        case initializeAccount2 = 16
+        case syncNative = 17
+        case initializeAccount3 = 18
+        case initializeMultisig2 = 19
+        case initializeMint2 = 20
     }
 }
+
 
 extension TokenProgram {
     public enum AuthorityType: Byte, Equatable, Hashable, Codable {

@@ -16,9 +16,9 @@ final class IntentFundSwap: IntentType {
     let id: PublicKey
     let swapId: SwapId
     let sourceCluster: AccountCluster
-    let amount: Quarks
-    let fromMint: PublicKey
-    let toMint: PublicKey
+    let amount: ExchangedFiat
+    let destination: PublicKey
+    let destinationOwner: PublicKey
     
     var actionGroup: ActionGroup
     
@@ -26,26 +26,27 @@ final class IntentFundSwap: IntentType {
         intentID: PublicKey,
         swapId: SwapId,
         sourceCluster: AccountCluster,
-        amount: Quarks,
-        fromMint: PublicKey,
-        toMint: PublicKey
+        amount: ExchangedFiat,
+        fromMint: MintMetadata,
+        toMint: MintMetadata,
     ) {
         self.id = intentID
         self.swapId = swapId
         self.sourceCluster = sourceCluster
         self.amount = amount
-        self.fromMint = fromMint
-        self.toMint = toMint
         
-        // Calculate VM swap PDA (this will need proper derivation logic)
-        // For now, using swapId as destination - needs proper VM PDA derivation
-        let vmSwapDestination = swapId.publicKey
+        guard let timelockAccounts = fromMint.timelockSwapAccounts(owner: sourceCluster.authorityPublicKey) else {
+            fatalError("Failed to derive PDA for \(toMint.symbol)")
+        }
+        
+        self.destination = timelockAccounts.ata.publicKey
+        self.destinationOwner = timelockAccounts.pda.publicKey
         
         let transfer = ActionTransfer(
-            amount: amount,
+            amount: amount.underlying,
             sourceCluster: sourceCluster,
-            destination: vmSwapDestination,
-            mint: fromMint
+            destination: destination,
+            mint: fromMint.address
         )
         
         self.actionGroup = ActionGroup(actions: [transfer])
@@ -57,20 +58,19 @@ final class IntentFundSwap: IntentType {
 extension IntentFundSwap {
     func metadata() -> Code_Transaction_V2_Metadata {
         .with {
-            // Use sendPublicPayment metadata for swap funding
-            // The server knows this is for swap funding based on the intentID matching the fundingID in StartSwap
             $0.sendPublicPayment = .with {
                 $0.source = sourceCluster.vaultPublicKey.solanaAccountID
-                $0.destination = swapId.publicKey.solanaAccountID // VM swap PDA
-                $0.mint = fromMint.solanaAccountID
+                $0.destination = destination.solanaAccountID
+                $0.destinationOwner = destinationOwner.solanaAccountID
+                $0.mint = amount.mint.solanaAccountID
                 $0.exchangeData = .with {
-                    $0.mint = fromMint.solanaAccountID
-                    $0.quarks = amount.quarks
-                    $0.currency = "XXX" // Unknown currency for raw token transfer
-                    $0.exchangeRate = 0.0
-                    $0.nativeAmount = 0.0
+                    $0.mint         = amount.mint.solanaAccountID
+                    $0.quarks       = amount.underlying.quarks
+                    $0.currency     = amount.converted.currencyCode.rawValue
+                    $0.exchangeRate = amount.rate.fx.doubleValue
+                    $0.nativeAmount = amount.converted.doubleValue
                 }
-                $0.isWithdrawal = false
+                $0.isWithdrawal = true
                 $0.isRemoteSend = false
             }
         }

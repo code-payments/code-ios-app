@@ -112,57 +112,80 @@ public struct SolanaTransaction: Equatable, Sendable {
             .payer(publicKey: payer)
         ]
         
+        // Add program accounts and instruction accounts
         instructions.forEach { instruction in
             accountMetas.append(.program(publicKey: instruction.program))
             accountMetas.append(contentsOf: instruction.accounts)
         }
         
-        // Filter unique and sort
+        // Filter unique accounts (preserves highest permissions including isProgram)
         accountMetas = accountMetas.filterUniqueAccounts()
         
+        // Sort accounts according to Solana's requirements (matches Go implementation):
+        // 1. Payer first
+        // 2. Programs last (non-program accounts come first)
+        // 3. Signers before non-signers
+        // 4. Writable before read-only
+        // 5. Lexicographic ordering by public key (bytes.Compare)
         accountMetas.sort { lhs, rhs in
+            // Payer is always first
             if lhs.isPayer { return true }
             if rhs.isPayer { return false }
-            if lhs.isSigner != rhs.isSigner { return lhs.isSigner }
-            if lhs.isWritable != rhs.isWritable { return lhs.isWritable }
+            
+            // Programs are always last (non-program accounts come first)
             if lhs.isProgram != rhs.isProgram { return !lhs.isProgram }
+            
+            // Signers before non-signers
+            if lhs.isSigner != rhs.isSigner { return lhs.isSigner }
+            
+            // Writable before read-only
+            if lhs.isWritable != rhs.isWritable { return lhs.isWritable }
+            
+            // Lexicographic ordering by public key (byte comparison)
             return lhs.publicKey < rhs.publicKey
         }
         
         // Sort LUTs by publicKey
         let sortedLUTs = addressLookupTables.sorted { $0.publicKey < $1.publicKey }
         
-        // Prepare indexes
+        // Collect LUT indexes by iterating through SORTED accounts
         var writableLUTIndexes: [[UInt8]] = Array(repeating: [], count: sortedLUTs.count)
         var readonlyLUTIndexes: [[UInt8]] = Array(repeating: [], count: sortedLUTs.count)
         
-        // Build static keys and header
         var staticAccountKeys: [PublicKey] = []
+        var dynamicWritableAccounts: [PublicKey] = []
+        var dynamincReadonlyAccounts: [PublicKey] = []
+        
         var header = Message.Header(
             requiredSignatures: 0,
             readOnlySigners: 0,
             readOnly: 0
         )
         
+        // Process each SORTED account to determine if it should be static or dynamically loaded
         for accountMeta in accountMetas {
             let pk = accountMeta.publicKey
             var isDynamicallyLoaded = false
             
-            if !(accountMeta.isPayer || accountMeta.isSigner || accountMeta.isProgram) {
+            // Only non-signer, non-payer, non-program accounts can be dynamically loaded from LUTs
+            if !accountMeta.isPayer && !accountMeta.isSigner && !accountMeta.isProgram {
                 for (lutIndex, lut) in sortedLUTs.enumerated() {
                     if let addressIndex = lut.addresses.firstIndex(of: pk) {
                         isDynamicallyLoaded = true
                         let byteIndex = UInt8(addressIndex)
                         if accountMeta.isWritable {
                             writableLUTIndexes[lutIndex].append(byteIndex)
+                            dynamicWritableAccounts.append(pk)
                         } else {
                             readonlyLUTIndexes[lutIndex].append(byteIndex)
+                            dynamincReadonlyAccounts.append(pk)
                         }
                         break
                     }
                 }
             }
             
+            // If not dynamically loaded, add to static account keys
             if !isDynamicallyLoaded {
                 staticAccountKeys.append(pk)
                 
@@ -177,24 +200,16 @@ public struct SolanaTransaction: Equatable, Sendable {
             }
         }
         
-        // Build all accounts for instruction compilation: static + dynamic writable + dynamic readonly
-        var allAccounts = staticAccountKeys
-        for (lutIndex, lut) in sortedLUTs.enumerated() {
-            for idx in writableLUTIndexes[lutIndex] {
-                allAccounts.append(lut.addresses[Int(idx)])
-            }
-        }
-        for (lutIndex, lut) in sortedLUTs.enumerated() {
-            for idx in readonlyLUTIndexes[lutIndex] {
-                allAccounts.append(lut.addresses[Int(idx)])
-            }
-        }
+        // Build complete account list for instruction compilation:
+        // static keys + dynamic writable + dynamic readonly (in that order)
+        let allAccounts = staticAccountKeys + dynamicWritableAccounts + dynamincReadonlyAccounts
         
-        // Build address table lookups
+        // Build address table lookups (only include LUTs that are actually used)
         var addressTableLookups: [MessageAddressTableLookup] = []
         for (lutIndex, lut) in sortedLUTs.enumerated() {
             let writable = writableLUTIndexes[lutIndex]
             let readonly = readonlyLUTIndexes[lutIndex]
+            
             if !writable.isEmpty || !readonly.isEmpty {
                 let lookup = MessageAddressTableLookup(
                     publicKey: lut.publicKey,
@@ -205,10 +220,12 @@ public struct SolanaTransaction: Equatable, Sendable {
             }
         }
         
+        // Compile instructions using the complete account list
         let compiledInstructions = instructions.map { instruction in
             instruction.compile(using: allAccounts)
         }
         
+        // Create the V0 message
         let v0Message = VersionedMessageV0(
             header: header,
             staticAccountKeys: staticAccountKeys,
@@ -227,8 +244,10 @@ public struct SolanaTransaction: Equatable, Sendable {
     
     // MARK: - Signing -
     
-    public func signature(using keyPair: KeyPair) -> Signature {
-        keyPair.sign(message.encode())
+    public func signatures(using keyPair: KeyPair...) -> [Signature] {
+        return keyPair.map { kp in
+            kp.sign(message.encode())
+        }
     }
     
     @discardableResult
