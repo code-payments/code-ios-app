@@ -40,6 +40,9 @@ struct CurrencySwapAmountScreen: View {
         .navigationTitle(viewModel.screenTitle)
         .navigationBarTitleDisplayMode(.inline)
         .dialog(item: $viewModel.dialogItem)
+        .onDisappear {
+            viewModel.reset()
+        }
         .onChange(of: viewModel.actionButtonState) { _, newValue in
             guard newValue == .success else { return }
             dismissAction()

@@ -58,7 +58,7 @@ class CurrencySwapViewModel: ObservableObject {
         
         return balance.computeExchangedValue(with: .oneToOne)
     }
-            
+    
     private let container: Container
     private let client: Client
     private let session: Session
@@ -76,6 +76,11 @@ class CurrencySwapViewModel: ObservableObject {
     }
         
     // MARK: - Actions -
+    
+    func reset() {
+        actionButtonState = .normal
+        enteredAmount = ""
+    }
     
     func amountEnteredAction() {
         guard let exchangedFiat = enteredFiat else {
