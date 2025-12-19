@@ -33,17 +33,20 @@ public struct EnterAmountView: View {
     
     private var currency: CurrencyCode {
         switch mode {
-        case .currency:
+        case .currency, .buy:
             rateController.entryCurrency
         case .onramp:
             rateController.onrampCurrency
-        case .walletDeposit, .phantomDeposit, .withdraw, .buy:
+        case .walletDeposit, .phantomDeposit, .withdraw:
             .usd
         }
     }
     
     func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
-        min(maxBalance.converted, maxTransactionAmount)
+        // Convert the transaction limit from USD to the entry currency before comparing
+        let transactionLimitInEntryCurrency = maxTransactionAmount.converting(to: rateController.rate(for: maxBalance.converted.currencyCode)!, decimals: maxBalance.converted.decimals)
+        
+        return min(maxBalance.converted, transactionLimitInEntryCurrency)
     }
     
     // MARK: - Init -
