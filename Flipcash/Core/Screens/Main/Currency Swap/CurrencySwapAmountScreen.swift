@@ -12,6 +12,9 @@ import FlipcashCore
 struct CurrencySwapAmountScreen: View {
     @ObservedObject private var viewModel: CurrencySwapViewModel
     @Environment(\.dismiss) var dismissAction: DismissAction
+    @EnvironmentObject private var ratesController: RatesController
+    
+    @State private var isShowingCurrencySelection: Bool = false
         
     // MARK: - Init -
     
@@ -32,7 +35,7 @@ struct CurrencySwapAmountScreen: View {
                     viewModel.canPerformAction
                 },
                 action: viewModel.amountEnteredAction,
-                currencySelectionAction: nil
+                currencySelectionAction: showCurrencySelection
             )
             .foregroundColor(.textMain)
             .padding(20)
@@ -47,5 +50,16 @@ struct CurrencySwapAmountScreen: View {
             guard newValue == .success else { return }
             dismissAction()
         }
+        .sheet(isPresented: $isShowingCurrencySelection) {
+            CurrencySelectionScreen(
+                isPresented: $isShowingCurrencySelection,
+                kind: .entry,
+                ratesController: ratesController
+            )
+        }
+    }
+    
+    private func showCurrencySelection() {
+        isShowingCurrencySelection.toggle()
     }
 }

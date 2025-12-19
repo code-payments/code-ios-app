@@ -26,13 +26,15 @@ class CurrencySwapViewModel: ObservableObject {
         
         let mint: PublicKey = .usdc
         
+        let rate = ratesController.rateForEntryCurrency()
+        
         return try! ExchangedFiat(
             underlying: .init(
                 fiatDecimal: amount,
-                currencyCode: .usd,
+                currencyCode: rate.currency,
                 decimals: mint.mintDecimals
             ),
-            rate: .oneToOne,
+            rate: rate,
             mint: mint
         )
     }
@@ -46,17 +48,14 @@ class CurrencySwapViewModel: ObservableObject {
     }
     
     var maxPossibleAmount: ExchangedFiat {
-        let zero = try! ExchangedFiat(
-            underlying: 0,
-            rate: .oneToOne,
-            mint: .usdc
-        )
-                
+        let entryRate = ratesController.rateForEntryCurrency()
+        let zero      = try! ExchangedFiat(underlying: 0, rate: entryRate, mint: .usdc)
+        
         guard let balance = session.balance(for: .usdc) else {
             return zero
         }
         
-        return balance.computeExchangedValue(with: .oneToOne)
+        return balance.computeExchangedValue(with: entryRate)
     }
     
     private let container: Container
