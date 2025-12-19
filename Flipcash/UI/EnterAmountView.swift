@@ -37,7 +37,7 @@ public struct EnterAmountView: View {
             rateController.entryCurrency
         case .onramp:
             rateController.onrampCurrency
-        case .walletDeposit, .phantomDeposit, .withdraw:
+        case .walletDeposit, .phantomDeposit, .withdraw, .buy:
             .usd
         }
     }
@@ -146,21 +146,18 @@ extension EnterAmountView {
         case currency
         case onramp
         case withdraw
+        case buy
         
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw:
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
         
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .phantomDeposit: return .number("0")
-            case .walletDeposit:  return .number("0")
-            case .currency:       return .number("0")
-            case .onramp:         return .number("0")
-            case .withdraw:       return .number("0")
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy: return .number("0")
             }
         }
         
@@ -173,6 +170,7 @@ extension EnterAmountView {
             case .currency: return "Next"
             case .onramp:   return "Add Cash"
             case .withdraw: return "Next"
+            case .buy: return "Buy"
             }
         }
         
@@ -183,6 +181,7 @@ extension EnterAmountView {
             case .currency:       return .filled
             case .onramp:         return .filledApplePay
             case .withdraw:       return .filled
+            case .buy:            return .filled
             }
         }
     }

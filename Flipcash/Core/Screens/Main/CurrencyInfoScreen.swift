@@ -15,9 +15,12 @@ struct CurrencyInfoScreen: View {
     
     @State private var isShowingTransactionHistory: Bool = false
     @State private var isShowingFundingSelection: Bool = false
+    @State private var isShowingSwapAmountEntry: Bool = false
     
     @ObservedObject private var session: Session
     @ObservedObject private var walletConnection: WalletConnection
+    
+    @StateObject private var currencyBuyViewModel: CurrencySwapViewModel
     
     private var mintMetadata: StoredMintMetadata {
         updateableMint.value
@@ -101,6 +104,14 @@ struct CurrencyInfoScreen: View {
         _updateableMint = .init(wrappedValue: Updateable {
             try! database.getMintMetadata(mint: mint)!
         })
+        
+        _currencyBuyViewModel = .init(
+            wrappedValue: CurrencySwapViewModel(
+                currencyPublicKey: mint,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
     }
     
     // MARK: - Body -
@@ -215,6 +226,14 @@ struct CurrencyInfoScreen: View {
                     }
                 }
             }
+            .sheet(isPresented: $isShowingSwapAmountEntry) {
+                NavigationStack {
+                    CurrencySwapAmountScreen(viewModel: currencyBuyViewModel)
+                    .toolbar {
+                        ToolbarCloseButton(binding: $isShowingSwapAmountEntry)
+                    }
+                }
+            }
             .sheet(isPresented: $isShowingFundingSelection) {
                 PartialSheet {
                     VStack {
@@ -228,11 +247,15 @@ struct CurrencyInfoScreen: View {
                         
                         if reserveBalance.quarks > 0 {
                             CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
-                                print("Present using reserves to buy currency")
+                                isShowingSwapAmountEntry = true
+                                isShowingFundingSelection = false
                             }
                         }
                         
-                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With", action: walletConnection.connectToPhantom)
+                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
+                            walletConnection.connectToPhantom()
+                            isShowingFundingSelection = false
+                        }
                         CodeButton(style: .subtle, title: "Dismiss") {
                             isShowingFundingSelection = false
                         }
