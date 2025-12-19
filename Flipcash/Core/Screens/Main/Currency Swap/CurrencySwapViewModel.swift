@@ -31,7 +31,7 @@ class CurrencySwapViewModel: ObservableObject {
         return try! ExchangedFiat(
             underlying: .init(
                 fiatDecimal: amount,
-                currencyCode: rate.currency,
+                currencyCode: .usd,
                 decimals: mint.mintDecimals
             ),
             rate: rate,
