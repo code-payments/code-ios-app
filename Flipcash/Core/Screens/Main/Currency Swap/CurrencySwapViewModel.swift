@@ -58,8 +58,6 @@ class CurrencySwapViewModel: ObservableObject {
         return balance.computeExchangedValue(with: entryRate)
     }
     
-    private let container: Container
-    private let client: Client
     private let session: Session
     private let ratesController: RatesController
     private let destination: PublicKey
@@ -68,8 +66,6 @@ class CurrencySwapViewModel: ObservableObject {
     
     init(currencyPublicKey: PublicKey, container: Container, sessionContainer: SessionContainer) {
         self.destination     = currencyPublicKey
-        self.container       = container
-        self.client          = container.client
         self.session         = sessionContainer.session
         self.ratesController = sessionContainer.ratesController
     }
@@ -82,34 +78,32 @@ class CurrencySwapViewModel: ObservableObject {
     }
     
     func amountEnteredAction() {
-        guard let exchangedFiat = enteredFiat else {
+        guard enteredFiat != nil else {
             return
         }
 
-        let result = session.hasSufficientFunds(for: exchangedFiat)
-
-        // Use switch for exhaustive checking - compiler will error if new cases are added
-        switch result {
-        case .sufficient(_):
-            performBuy()
-
-        case .insufficient:
-            showInsufficientBalanceError()
-        }
+        performBuy()
     }
-        
+            
     private func performBuy() {
-        guard let buyAmount = enteredFiat else {
-            return
-        }
-        
+        guard let buyAmount = enteredFiat else { return }
+
         actionButtonState = .loading
-        
+
         Task {
-            try? await session.buy(amount: buyAmount, of: destination)
+            do {
+                try await session.buy(amount: buyAmount, of: destination)
+
+                await MainActor.run {
+                    showSuccessDialog()
+                }
+            } catch {
+                await MainActor.run {
+                    actionButtonState = .normal
+                    showInsufficientBalanceError()
+                }
+            }
         }
-        
-        showSuccessDialog()
     }
         
     // MARK: - Reset -
