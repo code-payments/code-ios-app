@@ -6,9 +6,10 @@
 //
 
 import Testing
-import FlipcashCore
-@testable import Flipcash
+@testable import FlipcashCore
 import BigDecimal
+
+nonisolated(unsafe) private let r = Rounding(.toNearestOrEven, 18)
 
 @Suite("ExponentialCurve parity & estimator-like behaviors")
 struct BondingCurveParityTests {
@@ -157,9 +158,9 @@ struct BondingCurveParityTests {
             feeBps: 100,
             tvl: 10_100_000_000
         )
-        
-        #expect((estimate.netTokensToReceive * 100).rounded(to: 2) == 495)
-        #expect((estimate.fees * 100).rounded(to: 2) == 5)
+
+        #expect((estimate.netUSDC.multiply(BigDecimal(100), r)).asDecimal().rounded(to: 2) == 495)
+        #expect((estimate.fees.multiply(BigDecimal(100), r)).asDecimal().rounded(to: 2) == 5)
     }
     
     @Test
@@ -213,14 +214,14 @@ struct BondingCurveParityTests {
     @Test
     func testBuyingSpecificAmount() {
         let curve = BondingCurve()
-        
+
         let estimate = curve.buy(
             usdcQuarks: 2_650_000,
             feeBps: 0,
             tvl: 2_650_000
         )
-        
-        #expect((estimate.netTokensToReceive * 10000).rounded(to: 0) == 2649076) // 265.9076
-        #expect((estimate.fees * 100).rounded(to: 2) == 0)
+
+        #expect((estimate.netTokensToReceive.multiply(BigDecimal(10000), r)).asDecimal().rounded(to: 0) == 2649076) // 265.9076
+        #expect((estimate.fees.multiply(BigDecimal(100), r)).asDecimal().rounded(to: 2) == 0)
     }
 }

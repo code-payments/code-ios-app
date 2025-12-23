@@ -34,6 +34,10 @@ let package = Package(
                 .product(name: "PhoneNumberKit", package: "PhoneNumberKit"),
                 .product(name: "FlipcashAPI", package: "FlipcashAPI"),
                 .product(name: "FlipcashCoreAPI", package: "FlipcashCoreAPI"),
+            ],
+            resources: [
+                .copy("Resources/discrete_pricing_table.bin"),
+                .copy("Resources/discrete_cumulative_table.bin"),
             ]
         ),
         .testTarget(
