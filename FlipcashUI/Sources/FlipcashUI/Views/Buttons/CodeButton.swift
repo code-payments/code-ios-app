@@ -43,7 +43,7 @@ public struct CodeButton: View {
     public var body: some View {
         Group {
             switch style {
-            case .bordered, .filled, .filledCustom, .filledApplePay, .filledDestructive, .filledMedium, .filledThin, .filledSecondary, .filledMediumSecondary:
+            case .bordered, .filled, .filledCustom, .filledApplePay, .filledDestructive, .filledMedium, .filledThin, .filledSecondary, .filledMediumSecondary, .filledAlternative:
                 button()
                     .buttonStyle(CustomStyle(style: style, isDisabled: isDisabled()))
                 
@@ -132,7 +132,7 @@ public struct CodeButton: View {
             .multilineTextAlignment(.center)
             .minimumScaleFactor(0.8)
             
-        case .filled, .bordered, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary:
+        case .filled, .bordered, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary, .filledAlternative:
             Text(title)
                 .lineLimit(1)
                 .multilineTextAlignment(.center)
@@ -148,7 +148,7 @@ public struct CodeButton: View {
         switch style {
         case .bordered:
             return .textMain
-        case .filled, .filledCustom, .filledApplePay, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary:
+        case .filled, .filledCustom, .filledApplePay, .filledDestructive, .filledMedium, .filledThin, .subtle, .filledSecondary, .filledMediumSecondary, .filledAlternative:
             return .textSecondary
         }
     }
@@ -159,7 +159,7 @@ public struct CodeButton: View {
             return Metrics.buttonHeightThin
         case .filledMedium, .filledMediumSecondary:
             return 55
-        case .bordered, .filled, .filledCustom, .filledApplePay, .filledDestructive, .subtle, .filledSecondary:
+        case .bordered, .filled, .filledCustom, .filledApplePay, .filledDestructive, .subtle, .filledSecondary, .filledAlternative:
             return Metrics.buttonHeight
         }
     }
@@ -171,6 +171,7 @@ extension CodeButton {
     public enum Style {
         case bordered
         case filled
+        case filledAlternative
         case filledCustom(Image, String)
         case filledApplePay
         case filledSecondary
@@ -216,7 +217,16 @@ private extension CodeButton {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(Color.action)
                 }
-                
+            
+            case .filledAlternative:
+                if isDisabled {
+                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                        .fill(Color.actionDisabled)
+                } else {
+                    RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                        .fill(Color.actionAlternative)
+                }
+            
             case .filledSecondary, .filledMediumSecondary:
                 if isDisabled {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
@@ -254,7 +264,7 @@ private extension CodeButton {
                     return .textAction
                 }
                 
-            case .filledSecondary, .filledMediumSecondary:
+            case .filledSecondary, .filledMediumSecondary, .filledAlternative:
                 if isDisabled {
                     return Color(r: 19, g: 30, b: 24)
                 } else {
@@ -280,6 +290,7 @@ struct CodeButton_Previews: PreviewProvider {
                 CodeButton(isLoading: true, style: .filled, title: "Prev", action: {})
                 CodeButton(style: .subtle, title: "Log In", action: {})
                 CodeButton(style: .filled, title: "Create Account", action: {})
+                CodeButton(style: .filledAlternative, title: "Call to Action", action: {})
                 Spacer()
             }
             .padding(20.0)

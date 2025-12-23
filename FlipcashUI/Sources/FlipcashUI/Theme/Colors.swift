@@ -23,6 +23,7 @@ extension Color {
     
     public static let action              = Color(r: 255, g: 255, b: 255)
     public static let actionDisabled      = Color(r: 23,  g: 39,  b: 29)
+    public static let actionAlternative   = Color(r: 49, g: 156, b: 88)
     
     public static let bannerDark          = Color(r: 15,  g: 12,  b: 31)
     public static let bannerError         = Color(r: 188, g: 52,  b: 52)

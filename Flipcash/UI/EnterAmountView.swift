@@ -33,7 +33,7 @@ public struct EnterAmountView: View {
     
     private var currency: CurrencyCode {
         switch mode {
-        case .currency:
+        case .currency, .buy:
             rateController.entryCurrency
         case .onramp:
             rateController.onrampCurrency
@@ -43,7 +43,10 @@ public struct EnterAmountView: View {
     }
     
     func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
-        min(maxBalance.converted, maxTransactionAmount)
+        // Convert the transaction limit from USD to the entry currency before comparing
+        let transactionLimitInEntryCurrency = maxTransactionAmount.converting(to: rateController.rate(for: maxBalance.converted.currencyCode)!, decimals: maxBalance.converted.decimals)
+        
+        return min(maxBalance.converted, transactionLimitInEntryCurrency)
     }
     
     // MARK: - Init -
@@ -146,21 +149,18 @@ extension EnterAmountView {
         case currency
         case onramp
         case withdraw
+        case buy
         
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw:
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
         
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .phantomDeposit: return .number("0")
-            case .walletDeposit:  return .number("0")
-            case .currency:       return .number("0")
-            case .onramp:         return .number("0")
-            case .withdraw:       return .number("0")
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy: return .number("0")
             }
         }
         
@@ -173,6 +173,7 @@ extension EnterAmountView {
             case .currency: return "Next"
             case .onramp:   return "Add Cash"
             case .withdraw: return "Next"
+            case .buy: return "Buy"
             }
         }
         
@@ -183,6 +184,7 @@ extension EnterAmountView {
             case .currency:       return .filled
             case .onramp:         return .filledApplePay
             case .withdraw:       return .filled
+            case .buy:            return .filled
             }
         }
     }
