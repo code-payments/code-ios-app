@@ -52,7 +52,7 @@ struct BalanceScreen: View {
     }
 
     private var usdcBalance: ExchangedBalance? {
-        balances.first { $0.stored.mint == .usdc }
+        balances.first { $0.stored.mint == .usdc && $0.stored.quarks > 0 }
     }
     
     // MARK: - Init -
