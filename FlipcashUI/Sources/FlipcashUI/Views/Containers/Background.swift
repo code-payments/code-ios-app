@@ -11,18 +11,18 @@ import SwiftUI
 public struct Background<Content>: View where Content: View {
     
     public var background: AnyView
-    public var content: () -> Content
+    public var content: Content
     
     // MARK: - Init -
     
-    public init(color: Color, @ViewBuilder content: @escaping () -> Content) {
+    public init(color: Color, @ViewBuilder content: () -> Content) {
         self.background = AnyView(color)
-        self.content = content
+        self.content = content()
     }
     
-    public init(gradient: LinearGradient, @ViewBuilder content: @escaping () -> Content) {
+    public init(gradient: LinearGradient, @ViewBuilder content: () -> Content) {
         self.background = AnyView(gradient)
-        self.content = content
+        self.content = content()
     }
     
     // MARK: - Body -
@@ -31,7 +31,7 @@ public struct Background<Content>: View where Content: View {
         ZStack {
             background
                 .edgesIgnoringSafeArea(.all)
-            content()
+            content
         }
     }
 }

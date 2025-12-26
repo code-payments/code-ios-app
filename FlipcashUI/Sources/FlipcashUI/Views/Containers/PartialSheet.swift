@@ -13,46 +13,35 @@ public struct PartialSheet<T>: View where T: View {
     public let background: Color
     public let canDismiss: Bool
     public let canAccessBackground: Bool
-    public let content: () -> T
+    public let content: T
     
-    @State private var displayHeight: CGFloat = 0 {
-        didSet {
-            print("Partial sheet \(displayHeight)")
-        }
-    }
+    @State private var displayHeight: CGFloat = UIScreen.main.bounds.height
     
-    public init(background: Color = .backgroundMain, canDismiss: Bool = true, canAccessBackground: Bool = false, @ViewBuilder content: @escaping () -> T) {
+    public init(background: Color = .backgroundMain, canDismiss: Bool = true, canAccessBackground: Bool = false, @ViewBuilder content: () -> T) {
         self.background = background
         self.canDismiss = canDismiss
         self.canAccessBackground = canAccessBackground
-        self.content = content
+        self.content = content()
     }
     
     public var body: some View {
         Background(color: background) {
-            content()
+            content
+                .frame(maxWidth: .infinity)
                 .overlay {
                     GeometryReader { g in
                         Color.clear
-                            .preference(key: LayoutHeightPreferenceKey.self, value: g.size.height)
+                            .onAppear {
+                                displayHeight = g.size.height
+                            }
+                            .onChange(of: g.size.height) { _, newHeight in
+                                displayHeight = newHeight
+                            }
                     }
                 }
-        }
-        .onPreferenceChange(LayoutHeightPreferenceKey.self) { value in
-            displayHeight = value ?? 0
         }
         .presentationDetents([.height(displayHeight)])
         .presentationBackgroundInteraction(canAccessBackground ? .enabled : .disabled)
         .interactiveDismissDisabled(!canDismiss)
-    }
-}
-
-private struct LayoutHeightPreferenceKey: PreferenceKey {
-    typealias Value = CGFloat?
-
-    static let defaultValue: Value = nil
-
-    static func reduce(value: inout Value, nextValue: () -> Value) {
-        value = nextValue() ?? value
     }
 }
