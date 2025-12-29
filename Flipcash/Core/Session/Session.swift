@@ -152,8 +152,8 @@ class Session: ObservableObject {
         balances.compactMap { stored in
             let exchangedFiat = stored.computeExchangedValue(with: rate)
 
-            // Filter out balances with zero fiat value after conversion
-            guard exchangedFiat.hasDisplayableValue() else {
+            // Filter out balances with zero fiat value after conversion (except for USDC)
+            guard stored.mint == .usdc || exchangedFiat.hasDisplayableValue() else {
                 return nil
             }
 
