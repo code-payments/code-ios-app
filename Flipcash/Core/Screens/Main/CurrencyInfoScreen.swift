@@ -15,12 +15,14 @@ struct CurrencyInfoScreen: View {
     
     @State private var isShowingTransactionHistory: Bool = false
     @State private var isShowingFundingSelection: Bool = false
-    @State private var isShowingSwapAmountEntry: Bool = false
+    @State private var isShowingBuyAmountEntry: Bool = false
+    @State private var isShowingSellAmountEntry: Bool = false
     
     @ObservedObject private var session: Session
     @ObservedObject private var walletConnection: WalletConnection
     
-    @StateObject private var currencyBuyViewModel: CurrencySwapViewModel
+    @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
+    @StateObject private var currencySellViewModel: CurrencySellViewModel
     
     private var mintMetadata: StoredMintMetadata {
         updateableMint.value
@@ -100,14 +102,23 @@ struct CurrencyInfoScreen: View {
         self.walletConnection = sessionContainer.walletConnection
         
         let database = sessionContainer.database
+        let metadata = try! database.getMintMetadata(mint: mint)!
         
         _updateableMint = .init(wrappedValue: Updateable {
-            try! database.getMintMetadata(mint: mint)!
+            metadata
         })
         
         _currencyBuyViewModel = .init(
-            wrappedValue: CurrencySwapViewModel(
+            wrappedValue: CurrencyBuyViewModel(
                 currencyPublicKey: mint,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
+        
+        _currencySellViewModel = .init(
+            wrappedValue: CurrencySellViewModel(
+                currencyMetadata: metadata,
                 container: container,
                 sessionContainer: sessionContainer
             )
@@ -199,8 +210,16 @@ struct CurrencyInfoScreen: View {
                     VStack {
                         Spacer()
                         section {
-                            CodeButton(style: .filledAlternative, title: "Buy") {
-                                isShowingFundingSelection = true
+                            HStack(spacing: 12) {
+                                CodeButton(style: .filledAlternative, title: "Buy") {
+                                    isShowingFundingSelection = true
+                                }
+                                
+                                if balance.quarks > 0 {
+                                    CodeButton(style: .filled, title: "Sell") {
+                                        isShowingSellAmountEntry = true
+                                    }
+                                }
                             }
                         }
                         .background(Color.backgroundMain)
@@ -226,13 +245,16 @@ struct CurrencyInfoScreen: View {
                     }
                 }
             }
-            .sheet(isPresented: $isShowingSwapAmountEntry) {
+            .sheet(isPresented: $isShowingBuyAmountEntry) {
                 NavigationStack {
-                    CurrencySwapAmountScreen(viewModel: currencyBuyViewModel)
+                    CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
                     .toolbar {
-                        ToolbarCloseButton(binding: $isShowingSwapAmountEntry)
+                        ToolbarCloseButton(binding: $isShowingBuyAmountEntry)
                     }
                 }
+            }
+            .sheet(isPresented: $isShowingSellAmountEntry) {
+                CurrencySellAmountScreen(viewModel: currencySellViewModel)
             }
             .sheet(isPresented: $isShowingFundingSelection) {
                 PartialSheet {
@@ -247,7 +269,7 @@ struct CurrencyInfoScreen: View {
                         
                         if reserveBalance.quarks > 0 {
                             CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
-                                isShowingSwapAmountEntry = true
+                                isShowingBuyAmountEntry = true
                                 isShowingFundingSelection = false
                             }
                         }
