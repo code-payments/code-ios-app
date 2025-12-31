@@ -216,7 +216,7 @@ struct CurrencyInfoScreen: View {
                                 }
                                 
                                 if balance.quarks > 0 {
-                                    CodeButton(style: .filled, title: "Sell") {
+                                    CodeButton(style: .filledSecondary, title: "Sell") {
                                         isShowingSellAmountEntry = true
                                     }
                                 }
