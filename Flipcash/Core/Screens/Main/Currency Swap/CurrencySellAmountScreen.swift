@@ -76,7 +76,3 @@ struct CurrencySellAmountScreen: View {
         isShowingCurrencySelection.toggle()
     }
 }
-
-extension EnvironmentValues {
-    @Entry var dismissParentContainer: () -> Void = {}
-}
