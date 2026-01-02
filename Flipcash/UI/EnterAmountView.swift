@@ -44,7 +44,8 @@ public struct EnterAmountView: View {
     
     func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
         // Convert the transaction limit from USD to the entry currency before comparing
-        let transactionLimitInEntryCurrency = maxTransactionAmount.converting(to: rateController.rate(for: maxBalance.converted.currencyCode)!, decimals: maxBalance.converted.decimals)
+        // Always use USDC decimals (6) since maxTransactionAmount comes from limits which are stored in USDC decimals
+        let transactionLimitInEntryCurrency = maxTransactionAmount.converting(to: rateController.rate(for: maxBalance.converted.currencyCode)!, decimals: PublicKey.usdc.mintDecimals)
         
         return min(maxBalance.converted, transactionLimitInEntryCurrency)
     }

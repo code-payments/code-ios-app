@@ -15,7 +15,7 @@ class CurrencyBuyViewModel: ObservableObject {
     @Published var enteredAmount: String = ""
     @Published var dialogItem: DialogItem?
         
-    private var enteredFiat: ExchangedFiat? {
+    var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
             return nil
         }
@@ -24,14 +24,13 @@ class CurrencyBuyViewModel: ObservableObject {
             return nil
         }
         
-        let mint: PublicKey = .usdc
-        
+        let mint: PublicKey = .usdc       
         let rate = ratesController.rateForEntryCurrency()
         
         return try! ExchangedFiat(
-            underlying: .init(
+            converted: .init(
                 fiatDecimal: amount,
-                currencyCode: .usd,
+                currencyCode: rate.currency,
                 decimals: mint.mintDecimals
             ),
             rate: rate,
