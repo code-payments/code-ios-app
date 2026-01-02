@@ -1,5 +1,5 @@
 //
-//  CurrencySwapViewModel.swift
+//  CurrencyBuyViewModel.swift
 //  Code
 //
 //  Created by Raul Riera on 2025-12-18.
@@ -10,7 +10,7 @@ import FlipcashCore
 import FlipcashUI
 
 @MainActor
-class CurrencySwapViewModel: ObservableObject {
+class CurrencyBuyViewModel: ObservableObject {
     @Published var actionButtonState: ButtonState = .normal
     @Published var enteredAmount: String = ""
     @Published var dialogItem: DialogItem?

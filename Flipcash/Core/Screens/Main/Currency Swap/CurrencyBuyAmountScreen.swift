@@ -1,5 +1,5 @@
 //
-//  CurrencySwapAmountScreen.swift
+//  CurrencyBuyAmountScreen.swift
 //  Code
 //
 //  Created by Raul Riera on 2025-12-18.
@@ -9,8 +9,8 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
-struct CurrencySwapAmountScreen: View {
-    @ObservedObject private var viewModel: CurrencySwapViewModel
+struct CurrencyBuyAmountScreen: View {
+    @ObservedObject private var viewModel: CurrencyBuyViewModel
     @Environment(\.dismiss) var dismissAction: DismissAction
     @EnvironmentObject private var ratesController: RatesController
     
@@ -18,7 +18,7 @@ struct CurrencySwapAmountScreen: View {
         
     // MARK: - Init -
     
-    init(viewModel: CurrencySwapViewModel) {
+    init(viewModel: CurrencyBuyViewModel) {
         self.viewModel = viewModel
     }
     
