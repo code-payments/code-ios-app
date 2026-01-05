@@ -145,12 +145,12 @@ struct ExchangedFiatTests {
 
         #expect((Decimal(usd.underlying.quarks) / Decimal(cad.underlying.quarks)).formatted(to: 3) == "1.400")
 
-        #expect(usd.underlying.quarks               == 59_00_15_267_762) // 59.00 Tokens
-        #expect(usd.converted.quarks          == 5899999999)       // $0.59 USD
+        #expect(usd.underlying.quarks == 590_015_267_711) // 59.00 Tokens
+        #expect(usd.converted.quarks == 5_900_000_000)    // $0.59 USD
         #expect(usd.rate.fx.formatted(to: 10) == "0.0099997412")
 
-        #expect(cad.underlying.quarks               == 42_14_36_360_955) // 42.14 Tokens
-        #expect(cad.converted.quarks          == 5899999999)       // $0.59 CAD
+        #expect(cad.underlying.quarks == 421_436_360_990) // 42.14 Tokens
+        #expect(cad.converted.quarks == 5_900_000_000)    // $0.59 CAD
         #expect(cad.rate.fx.formatted(to: 10) == "0.0139997412")
     }
     
