@@ -23,30 +23,16 @@ public struct EnterAmountView: View {
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
     
-    private var maxTransactionAmount: Quarks {
-        guard let limit = session.singleTransactionLimitFor(currency: currency) else {
-            return 0
-        }
-        
-        return limit
-    }
+    // MARK: - Calculator -
     
-    private var currency: CurrencyCode {
-        switch mode {
-        case .currency, .buy:
-            rateController.entryCurrency
-        case .onramp:
-            rateController.onrampCurrency
-        case .walletDeposit, .phantomDeposit, .withdraw:
-            .usd
-        }
-    }
-    
-    func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
-        // Convert the transaction limit from USD to the entry currency before comparing
-        let transactionLimitInEntryCurrency = maxTransactionAmount.converting(to: rateController.rate(for: maxBalance.converted.currencyCode)!, decimals: maxBalance.converted.decimals)
-        
-        return min(maxBalance.converted, transactionLimitInEntryCurrency)
+    private var calculator: EnterAmountCalculator {
+        EnterAmountCalculator(
+            mode: mode,
+            entryCurrency: rateController.entryCurrency,
+            onrampCurrency: rateController.onrampCurrency,
+            transactionLimitProvider: session.singleTransactionLimitFor(currency:),
+            rateProvider: rateController.rate(for:)
+        )
     }
     
     // MARK: - Init -
@@ -83,8 +69,8 @@ public struct EnterAmountView: View {
                         AmountField(
                             content: $enteredAmount,
                             defaultValue: mode.defaultValue,
-                            prefix: .flagStyle(currency.flagStyle),
-                            formatter: mode.formatter(with: currency),
+                            prefix: .flagStyle(calculator.currency.flagStyle),
+                            formatter: mode.formatter(with: calculator.currency),
                             suffix: nil,
                             showChevron: currencySelectionAction != nil
                         )
@@ -93,13 +79,13 @@ public struct EnterAmountView: View {
                     
                     switch subtitle {
                     case .singleTransactionLimit:
-                        Text("Enter up to \(maxTransactionAmount.formatted())")
+                        Text("Enter up to \(calculator.maxTransactionAmount.formatted())")
                             .fixedSize()
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
                         
                     case .balanceWithLimit(let maxBalance):
-                        Text("Enter up to \(maxEnterAmount(maxBalance: maxBalance).formatted())")
+                        Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
                             .fixedSize()
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
@@ -119,10 +105,10 @@ public struct EnterAmountView: View {
             
             KeyPadView(
                 content: $enteredAmount,
-                configuration: currency.maximumFractionDigits > 0 ? .decimal() : .number(),
+                configuration: calculator.currency.maximumFractionDigits > 0 ? .decimal() : .number(),
                 rules: KeyPadView.CurrencyRules(
                     maxIntegerDigits: 9,
-                    maxDecimalDigits: currency.maximumFractionDigits
+                    maxDecimalDigits: calculator.currency.maximumFractionDigits
                 )
             )
             .padding([.leading, .trailing], -20)

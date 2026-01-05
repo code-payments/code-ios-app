@@ -256,6 +256,11 @@ struct CurrencyInfoScreen: View {
             .sheet(isPresented: $isShowingSellAmountEntry) {
                 CurrencySellAmountScreen(viewModel: currencySellViewModel)
             }
+            .onChange(of: isShowingSellAmountEntry) { _, isPresented in
+                if isPresented {
+                    currencySellViewModel.reset()
+                }
+            }
             .sheet(isPresented: $isShowingFundingSelection) {
                 PartialSheet {
                     VStack {
