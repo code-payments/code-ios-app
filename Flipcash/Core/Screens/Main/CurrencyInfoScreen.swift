@@ -72,22 +72,24 @@ struct CurrencyInfoScreen: View {
         if let supplyFromBonding = mintMetadata.supplyFromBonding {
             supply = Int(supplyFromBonding)
         }
-        
-        let curve = BondingCurve()
-        let mCap  = try! curve.marketCap(for: supply)
-        
+
+        let curve = DiscreteBondingCurve()
+        guard let mCap = curve.marketCap(for: supply) else {
+            return 0
+        }
+
         let usdc = try! Quarks(
             fiatDecimal: mCap,
             currencyCode: .usd,
             decimals: mintMetadata.mint.mintDecimals
         )
-        
+
         let exchanged = try! ExchangedFiat(
             underlying: usdc,
             rate: ratesController.rateForBalanceCurrency(),
             mint: .usdc
         )
-        
+
         return exchanged.converted
     }
     
