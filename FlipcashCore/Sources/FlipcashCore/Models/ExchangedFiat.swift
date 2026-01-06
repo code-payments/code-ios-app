@@ -70,36 +70,49 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         self.mint = mint
     }
     
+    private static let bondingCurve = DiscreteBondingCurve()
+    nonisolated(unsafe) private static let rounding = Rounding(.toNearestOrEven, 36)
+
     public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, tvl: UInt64?) -> ExchangedFiat {
         // `quarks` are expected to be either USDC
         // or custom currency quarks that we'll need
         // to run through the bonding curve to get a
         // valuation
-        
+
         let exchanged: ExchangedFiat
-        
+
         if mint != PublicKey.usdc {
-            
+
             // We can't pass 0 quarks into the sell function
             // because we won't get an accurate rate. In the
             // event that there's a 0 quark balance, we'll
             // pass 1 quark just to get the fx rate.
             let quarksToSell = quarks == 0 ? 1 : quarks
-            
-            let curve     = BondingCurve()
-            let valuation = curve.sell(
-                quarks: Int(quarksToSell),
+
+            guard let valuation = bondingCurve.sell(
+                tokenQuarks: Int(quarksToSell),
                 feeBps: 0,
                 tvl: Int(tvl!)
-            )
+            ) else {
+                // Fallback to USDC if curve calculation fails
+                return try! ExchangedFiat(
+                    underlying: Quarks(
+                        quarks: quarks,
+                        currencyCode: .usd,
+                        decimals: mint.mintDecimals
+                    ),
+                    rate: rate,
+                    mint: mint
+                )
+            }
 
             let decimalQuarks = BigDecimal(Int(quarksToSell))
             let fiatRate = BigDecimal(rate.fx)
             let fx = valuation.netUSDC
                 // Division need to divide by tokens, not quarks
-                .divide(decimalQuarks.scaleDown(mint.mintDecimals), r)
+                .divide(decimalQuarks.scaleDown(mint.mintDecimals), Self.rounding)
                 // Premultiply the fiat rate (ie. CAD, etc)
-                .multiply(fiatRate, r)
+                .multiply(fiatRate, Self.rounding)
 
             exchanged = try! ExchangedFiat(
                 underlying: Quarks(
@@ -113,7 +126,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 ),
                 mint: mint
             )
-            
+
         } else {
             exchanged = try! ExchangedFiat(
                 underlying: Quarks(
@@ -125,7 +138,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 mint: mint
             )
         }
-        
+
         return exchanged
     }
     
@@ -134,23 +147,25 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             return nil
         }
 
-        let valuation: BondingCurve.Valuation
-        let curve    = BondingCurve()
+        let valuation: DiscreteBondingCurve.Valuation
         let decimals = mint.mintDecimals
 
         if mint != PublicKey.usdc {
-            valuation = try! curve.tokensForValueExchange(
+            guard let computed = bondingCurve.tokensForValueExchange(
                 fiat: BigDecimal(amount),
                 fiatRate: BigDecimal(rate.fx),
                 tvl: Int(tvl)
-            )
+            ) else {
+                return nil
+            }
+            valuation = computed
         } else {
             valuation = .init(
                 tokens: BigDecimal(amount),
                 fx: BigDecimal(rate.fx)
             )
         }
-        
+
         // The rate for the underlying token
         // represented as the 'region' of Rate
         // so in the below example - CAD
@@ -158,7 +173,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             fx: valuation.fx.asDecimal(),
             currency: rate.currency
         )
-        
+
         // This a new fx rate for the token valued in USDC
         // so if the spot price for a token is $0.01 this
         // is an example of CAD -> Tokens:
@@ -166,7 +181,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         // - Rate: 1.40
         // - $3.57 USD
         // - 3.57 / 0.01 = # of tokens
-        
+
         let exchanged: ExchangedFiat
         if rate.currency == .usd {
             exchanged = ExchangedFiat(
@@ -183,7 +198,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 rate: underlyingRate,
                 mint: mint
             )
-            
+
         } else {
             exchanged = try! ExchangedFiat(
                 converted: .init(
@@ -195,8 +210,8 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 mint: mint
             )
         }
-        
-        return  exchanged
+
+        return exchanged
     }
     
     public func subtracting(_ exchangedFiat: ExchangedFiat) throws -> ExchangedFiat {

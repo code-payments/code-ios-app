@@ -43,14 +43,16 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         // curve liquidity provider, we'll compute their
         // equivalent USDC value
         if let coreMintLocked, let sellFeeBps {
-            let usdcQuarks = Self.bondingCurve.sell(
-                quarks: Int(quarks),
+            guard let sellEstimate = Self.bondingCurve.sell(
+                tokenQuarks: Int(quarks),
                 feeBps: sellFeeBps,
                 tvl: Int(coreMintLocked)
-            )
-            
+            ) else {
+                throw Error.missingStoredCoreMintForNonUSDCToken
+            }
+
             self.usdcValue = try! Quarks(
-                fiatDecimal: usdcQuarks.netUSDC.asDecimal(),
+                fiatDecimal: sellEstimate.netUSDC.asDecimal(),
                 currencyCode: .usd,
                 decimals: 6
             )
@@ -85,5 +87,5 @@ extension StoredBalance {
 }
 
 extension StoredBalance {
-    private static let bondingCurve = BondingCurve()
+    private static let bondingCurve = DiscreteBondingCurve()
 }

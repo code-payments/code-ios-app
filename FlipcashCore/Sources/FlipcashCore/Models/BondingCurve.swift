@@ -10,6 +10,11 @@ import Foundation
 
 public let r = Rounding(.toNearestOrEven, 70)
 
+/// The continuous exponential bonding curve implementation.
+///
+/// - Important: This type is deprecated. Use ``DiscreteBondingCurve`` instead,
+///   which provides exact, deterministic pricing that matches the Rust implementation.
+@available(*, deprecated, message: "Use DiscreteBondingCurve instead for deterministic pricing")
 public struct BondingCurve: Sendable {
     
     public static let defaultA = BigDecimal("11400.230149967394933471")
