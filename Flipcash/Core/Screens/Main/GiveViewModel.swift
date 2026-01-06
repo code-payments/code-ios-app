@@ -50,9 +50,10 @@ class GiveViewModel: ObservableObject {
                 return nil
             }
 
+            let rate = ratesController.rateForEntryCurrency()
             return ExchangedFiat.computeFromEntered(
                 amount: amount,
-                rate: ratesController.rateForEntryCurrency(),
+                rate: rate,
                 mint: mint,
                 tvl: tvl
             )
