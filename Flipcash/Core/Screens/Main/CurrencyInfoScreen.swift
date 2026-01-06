@@ -183,18 +183,20 @@ struct CurrencyInfoScreen: View {
                             }
 
                             // Market Cap
-
                             if !isUSDC {
-                                section(spacing: 0) {
-                                    VStack(alignment: .leading) {
-                                        Text("Market Cap")
-                                            .foregroundStyle(Color.textSecondary)
-                                            .font(.appTextMedium)
-                                        Text("\(marketCap.formatted())")
-                                            .foregroundStyle(Color.textMain)
-                                            .font(.appDisplayMedium)
-                                    }
+                                VStack(alignment: .leading) {
+                                    Text("Market Cap")
+                                        .foregroundStyle(Color.textSecondary)
+                                        .font(.appTextMedium)
+                                        .padding(.horizontal, 20)
+                                    StockChart(
+                                        startValue: 0,
+                                        endValue: Double(truncating: marketCap.decimalValue as NSDecimalNumber),
+                                        selectedRange: .all,
+                                        accentColor: .green
+                                    )
                                 }
+                                    .padding(.bottom, 20) // Maintain the padding of .section
                                 
                                 // Append enough content to scroll below the floating footer
                                 Color
