@@ -206,12 +206,14 @@ private struct LongPressGestureView: UIViewRepresentable {
             }
         }
         
-        // Allow scroll view to work simultaneously until long press is recognized
+        // Allow scroll view to work simultaneously until long press is recognized.
+        // It is important to disable the contentSwipe gesture so it doesn't interfer with
+        // the user scrubbing the chart
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
-            true
+            return otherGestureRecognizer.name != "UINavigationController.contentSwipe"
         }
     }
 }
