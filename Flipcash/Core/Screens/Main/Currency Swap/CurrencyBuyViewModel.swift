@@ -1,0 +1,139 @@
+//
+//  CurrencyBuyViewModel.swift
+//  Code
+//
+//  Created by Raul Riera on 2025-12-18.
+//
+
+import SwiftUI
+import FlipcashCore
+import FlipcashUI
+
+@MainActor
+class CurrencyBuyViewModel: ObservableObject {
+    @Published var actionButtonState: ButtonState = .normal
+    @Published var enteredAmount: String = ""
+    @Published var dialogItem: DialogItem?
+        
+    var enteredFiat: ExchangedFiat? {
+        guard !enteredAmount.isEmpty else {
+            return nil
+        }
+                
+        guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
+            return nil
+        }
+        
+        let mint: PublicKey = .usdc       
+        let rate = ratesController.rateForEntryCurrency()
+        
+        return try! ExchangedFiat(
+            converted: .init(
+                fiatDecimal: amount,
+                currencyCode: rate.currency,
+                decimals: mint.mintDecimals
+            ),
+            rate: rate,
+            mint: mint
+        )
+    }
+        
+    var canPerformAction: Bool {
+        return enteredFiat != nil
+    }
+    
+    var screenTitle: String {
+        return "Amount To Buy"
+    }
+    
+    var maxPossibleAmount: ExchangedFiat {
+        let entryRate = ratesController.rateForEntryCurrency()
+        let zero      = try! ExchangedFiat(underlying: 0, rate: entryRate, mint: .usdc)
+        
+        guard let balance = session.balance(for: .usdc) else {
+            return zero
+        }
+        
+        return balance.computeExchangedValue(with: entryRate)
+    }
+    
+    private let session: Session
+    private let ratesController: RatesController
+    private let destination: PublicKey
+    
+    // MARK: - Init -
+    
+    init(currencyPublicKey: PublicKey, container: Container, sessionContainer: SessionContainer) {
+        self.destination     = currencyPublicKey
+        self.session         = sessionContainer.session
+        self.ratesController = sessionContainer.ratesController
+    }
+        
+    // MARK: - Actions -
+    
+    func reset() {
+        actionButtonState = .normal
+        enteredAmount = ""
+    }
+    
+    func amountEnteredAction() {
+        guard enteredFiat != nil else {
+            return
+        }
+
+        performBuy()
+    }
+            
+    private func performBuy() {
+        guard let buyAmount = enteredFiat else { return }
+
+        actionButtonState = .loading
+
+        Task {
+            do {
+                try await session.buy(amount: buyAmount, of: destination)
+
+                await MainActor.run {
+                    showSuccessDialog()
+                }
+            } catch {
+                await MainActor.run {
+                    actionButtonState = .normal
+                    showInsufficientBalanceError()
+                }
+            }
+        }
+    }
+        
+    // MARK: - Reset -
+    
+    private func resetEnteredAmount() {
+        enteredAmount = ""
+    }
+        
+    // MARK: - Dialogs -
+    
+    private func showSuccessDialog() {
+        dialogItem = .init(
+            style: .success,
+            title: "Your Funds Will Be Available Soon",
+            subtitle: "They should be available in a few minutes. If you have any issues please contact support@flipcash.com",
+            dismissable: false
+        ) {
+            .okay(kind: .standard) { [weak self] in
+                self?.actionButtonState = .success
+            }
+        }
+    }
+    
+    private func showInsufficientBalanceError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "Insufficient Balance",
+            subtitle: "Please enter a lower amount and try again",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+}

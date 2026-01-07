@@ -203,8 +203,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/dbart01/SQLite.swift",
       "state" : {
-        "branch" : "master",
-        "revision" : "cc06d5f90773825ea75495b69af5d9ff98234ee1"
+        "revision" : "66f8ce3b4feec7cdcdffb1f9b13a333a5d7d84e8"
       }
     },
     {

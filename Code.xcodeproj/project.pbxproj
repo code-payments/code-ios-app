@@ -2750,7 +2750,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 264;
+				CURRENT_PROJECT_VERSION = 269;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
@@ -2779,7 +2779,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.26;
+				MARKETING_VERSION = 1.0.27;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2802,7 +2802,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 264;
+				CURRENT_PROJECT_VERSION = 269;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
@@ -2831,7 +2831,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.26;
+				MARKETING_VERSION = 1.0.27;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2854,7 +2854,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 264;
+				CURRENT_PROJECT_VERSION = 269;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
@@ -2879,7 +2879,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.26;
+				MARKETING_VERSION = 1.0.27;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -2901,7 +2901,7 @@
 				CODE_SIGN_ENTITLEMENTS = "Flipcash/Supporting Files/Flipcash.entitlements";
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 264;
+				CURRENT_PROJECT_VERSION = 269;
 				DEVELOPMENT_ASSET_PATHS = "\"Flipcash/Preview Content\"";
 				DEVELOPMENT_TEAM = SC677X4LH6;
 				ENABLE_PREVIEWS = YES;
@@ -2926,7 +2926,7 @@
 					"@executable_path/Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.26;
+				MARKETING_VERSION = 1.0.27;
 				PRODUCT_BUNDLE_IDENTIFIER = com.flipcash.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

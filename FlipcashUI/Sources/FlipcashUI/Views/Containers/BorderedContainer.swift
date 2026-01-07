@@ -10,19 +10,19 @@ import SwiftUI
 
 public struct BorderedContainer<T>: View where T: View {
     
-    public let content: () -> T
+    public let content: T
     
     // MARK: - Init -
     
-    public init(@ViewBuilder content: @escaping () -> T) {
-        self.content = content
+    public init(@ViewBuilder content: () -> T) {
+        self.content = content()
     }
     
     // MARK: - Body -
     
     public var body: some View {
         VStack(spacing: 0) {
-            content()
+            content
         }
         .frame(maxWidth: .infinity)
         .background(
