@@ -90,18 +90,25 @@ public struct ChartLineView: View {
         .chartYScale(domain: yAxisDomain)
         .id(dataIdentifier)
         .scrollDisabled(true)
-        .chartGesture { proxy in
-            // This value prevents the Chart from stealing the touch event of the parent ScrollView
-            DragGesture(minimumDistance: 25)
-                .onChanged { value in
-                    if let date: Date = proxy.value(atX: value.location.x) {
+        .chartOverlay { proxy in
+            LongPressGestureView(
+                minimumDuration: 0.15,
+                onBegan: { location in
+                    if let date: Date = proxy.value(atX: location.x) {
                         onScrubChange?(date)
                         triggerSelectionHaptic()
                     }
-                }
-                .onEnded { _ in
+                },
+                onChanged: { location in
+                    if let date: Date = proxy.value(atX: location.x) {
+                        onScrubChange?(date)
+                        triggerSelectionHaptic()
+                    }
+                },
+                onEnded: {
                     onScrubEnd?()
                 }
+            )
         }
     }
     
@@ -137,4 +144,74 @@ public struct ChartLineView: View {
     )
     .frame(height: 200)
     .padding()
+}
+
+// MARK: - Long Press Gesture View
+
+/// A UIKit-based long press gesture that provides location and doesn't hijack scroll
+private struct LongPressGestureView: UIViewRepresentable {
+    let minimumDuration: TimeInterval
+    let onBegan: (CGPoint) -> Void
+    let onChanged: (CGPoint) -> Void
+    let onEnded: () -> Void
+    
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        
+        let gesture = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleGesture(_:))
+        )
+        gesture.minimumPressDuration = minimumDuration
+        gesture.delegate = context.coordinator
+        view.addGestureRecognizer(gesture)
+        
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onBegan: onBegan, onChanged: onChanged, onEnded: onEnded)
+    }
+    
+    class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        let onBegan: (CGPoint) -> Void
+        let onChanged: (CGPoint) -> Void
+        let onEnded: () -> Void
+        
+        init(
+            onBegan: @escaping (CGPoint) -> Void,
+            onChanged: @escaping (CGPoint) -> Void,
+            onEnded: @escaping () -> Void
+        ) {
+            self.onBegan = onBegan
+            self.onChanged = onChanged
+            self.onEnded = onEnded
+        }
+        
+        @objc func handleGesture(_ gesture: UILongPressGestureRecognizer) {
+            let location = gesture.location(in: gesture.view)
+            
+            switch gesture.state {
+            case .began:
+                onBegan(location)
+            case .changed:
+                onChanged(location)
+            case .ended, .cancelled, .failed:
+                onEnded()
+            default:
+                break
+            }
+        }
+        
+        // Allow scroll view to work simultaneously until long press is recognized
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+    }
 }
