@@ -97,7 +97,6 @@ public struct StockChart: View {
                 viewModel.endScrub()
             }
         )
-        .padding(.trailing, 16)
         .frame(height: 200)
     }
     
