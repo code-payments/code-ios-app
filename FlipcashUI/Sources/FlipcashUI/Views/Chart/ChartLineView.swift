@@ -180,6 +180,7 @@ private struct LongPressGestureView: UIViewRepresentable {
         let onBegan: (CGPoint) -> Void
         let onChanged: (CGPoint) -> Void
         let onEnded: () -> Void
+        private weak var scrollView: UIScrollView?
         
         init(
             onBegan: @escaping (CGPoint) -> Void,
@@ -193,27 +194,46 @@ private struct LongPressGestureView: UIViewRepresentable {
         
         @objc func handleGesture(_ gesture: UILongPressGestureRecognizer) {
             let location = gesture.location(in: gesture.view)
-            
+
             switch gesture.state {
             case .began:
+                scrollView = gesture.view?.nearestScrollView()
+                scrollView?.panGestureRecognizer.isEnabled = false
+                scrollView?.panGestureRecognizer.isEnabled = true // reset if it was mid-gesture
                 onBegan(location)
+
             case .changed:
                 onChanged(location)
+
             case .ended, .cancelled, .failed:
+                // Re-enable scrolling
+                scrollView?.panGestureRecognizer.isEnabled = true
                 onEnded()
+
             default:
                 break
             }
         }
         
         // Allow scroll view to work simultaneously until long press is recognized.
-        // It is important to disable the contentSwipe gesture so it doesn't interfer with
+        // It is important to disable the contentSwipe gesture and sheet dismissal so it doesn't interfer with
         // the user scrubbing the chart
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
-            return otherGestureRecognizer.name != "UINavigationController.contentSwipe"
+            return otherGestureRecognizer.name != "UINavigationController.contentSwipe" && otherGestureRecognizer.name != "_UISheetInteractionBackgroundDismissRecognizer"
         }
+    }
+}
+
+private extension UIView {
+    func nearestScrollView() -> UIScrollView? {
+        var v: UIView? = self
+        while let cur = v {
+            if let sv = cur as? UIScrollView { return sv }
+            v = cur.superview
+        }
+        return nil
     }
 }
