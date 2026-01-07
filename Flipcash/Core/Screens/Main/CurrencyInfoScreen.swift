@@ -185,18 +185,20 @@ struct CurrencyInfoScreen: View {
                             }
 
                             // Market Cap
-
                             if !isUSDC {
-                                section(spacing: 0) {
-                                    VStack(alignment: .leading) {
-                                        Text("Market Cap")
-                                            .foregroundStyle(Color.textSecondary)
-                                            .font(.appTextMedium)
-                                        Text("\(marketCap.formatted())")
-                                            .foregroundStyle(Color.textMain)
-                                            .font(.appDisplayMedium)
-                                    }
+                                VStack(alignment: .leading) {
+                                    Text("Market Cap")
+                                        .foregroundStyle(Color.textSecondary)
+                                        .font(.appTextMedium)
+                                        .padding(.horizontal, 20)
+                                    StockChart(
+                                        startValue: 0,
+                                        endValue: Double(truncating: marketCap.decimalValue as NSDecimalNumber),
+                                        selectedRange: .all,
+                                        accentColor: .green
+                                    )
                                 }
+                                    .padding(.bottom, 20) // Maintain the padding of .section
                                 
                                 // Append enough content to scroll below the floating footer
                                 Color
@@ -209,23 +211,16 @@ struct CurrencyInfoScreen: View {
                 
                 // Floating Footer
                 if !isUSDC {
-                    VStack {
-                        Spacer()
-                        section {
-                            HStack(spacing: 12) {
-                                CodeButton(style: .filledAlternative, title: "Buy") {
-                                    isShowingFundingSelection = true
-                                }
-                                
-                                if balance.quarks > 0 {
-                                    CodeButton(style: .filledSecondary, title: "Sell") {
-                                        isShowingSellAmountEntry = true
-                                    }
-                                }
+                    CurrencyInfoScreenFooter {
+                        CodeButton(style: .filledAlternative, title: "Buy") {
+                            isShowingFundingSelection = true
+                        }
+                        
+                        if balance.quarks > 0 {
+                            CodeButton(style: .filledSecondary, title: "Sell") {
+                                isShowingSellAmountEntry = true
                             }
                         }
-                        .background(Color.backgroundMain)
-                        .ignoresSafeArea()
                     }
                 }
             }
@@ -334,7 +329,6 @@ struct CurrencyInfoScreen: View {
 }
 
 struct ExpandableText: View {
-    
     @State private var isExpanded: Bool
     
     private let text: String
@@ -402,7 +396,6 @@ struct ExpandableText: View {
 }
 
 private struct ScrollButton: View {
-    
     let image: Image
     let text: String
     let action: () -> Void
@@ -422,6 +415,33 @@ private struct ScrollButton: View {
             .frame(height: 40)
             .background(Color(r: 12, g: 37, b: 24))
             .cornerRadius(10)
+        }
+    }
+}
+
+struct CurrencyInfoScreenFooter<Content>: View where Content: View {
+    let content: Content
+    
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+    
+    var body: some View {
+        VStack {
+            Spacer()
+
+                HStack(spacing: 12) {
+                    content
+                }
+                .padding(20)
+                .background {
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.backgroundMain, Color.backgroundMain, .clear]),
+                        startPoint: .bottom,
+                        endPoint: .top,
+                    )
+                    .ignoresSafeArea()
+                }
         }
     }
 }
