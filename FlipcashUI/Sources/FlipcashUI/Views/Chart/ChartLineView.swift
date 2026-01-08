@@ -7,21 +7,15 @@ public struct ChartLineView: View {
     let accentColor: Color
     let scrubbedPoint: ChartDataPoint?
     let isScrubbing: Bool
-    let onScrubChange: ((Date) -> Void)?
+    let onScrubChange: ((Int) -> Void)?
     let onScrubEnd: (() -> Void)?
-    
-    /// Unique identifier for the current data set to force fresh renders
-    private var dataIdentifier: String {
-        guard let first = dataPoints.first, let last = dataPoints.last else { return "empty" }
-        return "\(first.date.timeIntervalSince1970)-\(last.date.timeIntervalSince1970)-\(dataPoints.count)"
-    }
     
     public init(
         dataPoints: [ChartDataPoint],
         accentColor: Color,
         scrubbedPoint: ChartDataPoint? = nil,
         isScrubbing: Bool = false,
-        onScrubChange: ((Date) -> Void)? = nil,
+        onScrubChange: ((Int) -> Void)? = nil,
         onScrubEnd: (() -> Void)? = nil
     ) {
         self.dataPoints = dataPoints
@@ -36,14 +30,14 @@ public struct ChartLineView: View {
         Chart {
             ForEach(dataPoints) { point in
                 LineMark(
-                    x: .value("Date", point.date),
+                    x: .value("Position", point.normalizedPosition),
                     y: .value("Value", point.value)
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(accentColor)
                 
                 AreaMark(
-                    x: .value("Date", point.date),
+                    x: .value("Position", point.normalizedPosition),
                     y: .value("Value", point.value)
                 )
                 .interpolationMethod(.catmullRom)
@@ -63,7 +57,7 @@ public struct ChartLineView: View {
             // Endpoint indicator (hidden when scrubbing)
             if !isScrubbing, let lastPoint = dataPoints.last {
                 PointMark(
-                    x: .value("Date", lastPoint.date),
+                    x: .value("Position", lastPoint.normalizedPosition),
                     y: .value("Value", lastPoint.value)
                 )
                 .foregroundStyle(accentColor)
@@ -72,12 +66,12 @@ public struct ChartLineView: View {
             
             // Scrubber indicator
             if let scrubbed = scrubbedPoint {
-                RuleMark(x: .value("Date", scrubbed.date))
+                RuleMark(x: .value("Position", scrubbed.normalizedPosition))
                     .foregroundStyle(accentColor.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 2]))
                 
                 PointMark(
-                    x: .value("Date", scrubbed.date),
+                    x: .value("Position", scrubbed.normalizedPosition),
                     y: .value("Value", scrubbed.value)
                 )
                 .foregroundStyle(accentColor)
@@ -87,28 +81,35 @@ public struct ChartLineView: View {
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartLegend(.hidden)
-        .chartYScale(domain: yAxisDomain)
-        .id(dataIdentifier)
+        .chartXScale(domain: 0...1)
+        .chartYScale(domain: yAxisDomain, type: .linear)
         .scrollDisabled(true)
         .chartOverlay { proxy in
             LongPressGestureView(
                 minimumDuration: 0.15,
                 onBegan: { location in
-                    if let date: Date = proxy.value(atX: location.x) {
-                        onScrubChange?(date)
-                        triggerSelectionHaptic()
-                    }
+                    handleScrub(at: location, proxy: proxy)
                 },
                 onChanged: { location in
-                    if let date: Date = proxy.value(atX: location.x) {
-                        onScrubChange?(date)
-                        triggerSelectionHaptic()
-                    }
+                    handleScrub(at: location, proxy: proxy)
                 },
                 onEnded: {
                     onScrubEnd?()
                 }
             )
+        }
+    }
+    
+    /// Handles scrubbing by converting normalized position to point ID
+    private func handleScrub(at location: CGPoint, proxy: ChartProxy) {
+        if let normalizedX: Double = proxy.value(atX: location.x) {
+            // Find the closest data point by normalized position
+            if let closest = dataPoints.min(by: {
+                abs($0.normalizedPosition - normalizedX) < abs($1.normalizedPosition - normalizedX)
+            }) {
+                onScrubChange?(closest.id)
+                triggerSelectionHaptic()
+            }
         }
     }
     
@@ -130,10 +131,13 @@ public struct ChartLineView: View {
 }
 
 #Preview {
-    let points = (0..<30).map { i in
+    let count = 30
+    let points = (0..<count).map { i in
         ChartDataPoint(
+            id: i,
             date: Date().addingTimeInterval(TimeInterval(i * 86400)),
-            value: Double.random(in: 100...150)
+            value: Double.random(in: 100...150),
+            normalizedPosition: Double(i) / Double(count - 1)
         )
     }
     

@@ -51,7 +51,11 @@ public struct StockChart: View {
             ChartRangePicker(
                 selectedRange: Binding(
                     get: { viewModel.selectedRange },
-                    set: { viewModel.selectRange($0) }
+                    set: { range in
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            viewModel.selectRange(range)
+                        }
+                    }
                 ),
                 accentColor: Color(r: 18, g: 42, b: 29) // FIXME: What is the Figma color?
             )
@@ -90,8 +94,8 @@ public struct StockChart: View {
             accentColor: displayColor,
             scrubbedPoint: viewModel.scrubbedPoint,
             isScrubbing: viewModel.isScrubbing,
-            onScrubChange: { date in
-                viewModel.updateScrub(for: date)
+            onScrubChange: { pointId in
+                viewModel.updateScrub(pointId: pointId)
             },
             onScrubEnd: {
                 viewModel.endScrub()

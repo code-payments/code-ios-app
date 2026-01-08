@@ -62,9 +62,12 @@ public final class ChartViewModel {
         generateData()
     }
     
+    /// Fixed number of data points for smooth animations between ranges
+    private static let fixedPointCount = 50
+    
     /// Generates random data points between start and end values
     public func generateData() {
-        let count = selectedRange.dataPointCount
+        let count = Self.fixedPointCount
         let startDate = selectedRange.startDate
         let endDate = Date()
         
@@ -80,6 +83,7 @@ public final class ChartViewModel {
         
         for i in 0..<count {
             let date = startDate.addingTimeInterval(step * Double(i))
+            let normalizedPosition = Double(i) / Double(count - 1)
             
             // Add randomness while following the trend
             let noise = Double.random(in: -0.05...0.05) * abs(endValue - startValue)
@@ -91,7 +95,12 @@ public final class ChartViewModel {
                 currentValue = targetValue
             }
             
-            points.append(ChartDataPoint(date: date, value: currentValue))
+            points.append(ChartDataPoint(
+                id: i,
+                date: date,
+                value: currentValue,
+                normalizedPosition: normalizedPosition
+            ))
         }
         
         dataPoints = points
@@ -110,18 +119,14 @@ public final class ChartViewModel {
         generateData()
     }
     
-    /// Finds the nearest data point to the given date
-    public func findDataPoint(nearestTo date: Date) -> ChartDataPoint? {
-        guard !dataPoints.isEmpty else { return nil }
-        
-        return dataPoints.min(by: { point1, point2 in
-            abs(point1.date.timeIntervalSince(date)) < abs(point2.date.timeIntervalSince(date))
-        })
+    /// Finds a data point by its ID
+    public func findDataPoint(byId id: Int) -> ChartDataPoint? {
+        dataPoints.first { $0.id == id }
     }
     
-    /// Updates the scrubbed point based on a date from chart proxy
-    public func updateScrub(for date: Date) {
-        guard let newPoint = findDataPoint(nearestTo: date) else { return }
+    /// Updates the scrubbed point based on a point ID from the chart
+    public func updateScrub(pointId: Int) {
+        guard let newPoint = findDataPoint(byId: pointId) else { return }
         
         if !isScrubbing {
             beginScrub()
