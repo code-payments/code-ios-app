@@ -195,10 +195,12 @@ struct CurrencyInfoScreen: View {
                                         startValue: 0,
                                         endValue: Double(truncating: marketCap.decimalValue as NSDecimalNumber),
                                         selectedRange: .all,
-                                        accentColor: .green
+                                        positiveColor: .actionAlternative,
+                                        negativeColor: Color(r: 228, g: 42, b: 42)
                                     )
                                 }
-                                    .padding(.bottom, 20) // Maintain the padding of .section
+                                    .padding(.top, 20)
+                                    .padding(.bottom, 20)
                                 
                                 // Append enough content to scroll below the floating footer
                                 Color

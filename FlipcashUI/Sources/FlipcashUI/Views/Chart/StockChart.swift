@@ -4,7 +4,8 @@ import SwiftUI
 public struct StockChart: View {
     @State private var viewModel: ChartViewModel
     
-    private let accentColor: Color
+    private let positiveColor: Color
+    private let negativeColor: Color
     private let valueFormatter: (Double) -> String
     private let dateFormatter: (Date) -> String
     
@@ -13,14 +14,16 @@ public struct StockChart: View {
     ///   - startValue: The starting value for the data range
     ///   - endValue: The ending value for the data range
     ///   - selectedRange: The initial time range selection (defaults to .all)
-    ///   - accentColor: The chart line and accent color
+    ///   - positiveColor: The chart line color on positive values
+    ///   - negativeColor: The chart line color on negative values
     ///   - valueFormatter: Optional custom formatter for displaying values
     ///   - dateFormatter: Optional custom formatter for displaying dates
     public init(
         startValue: Double,
         endValue: Double,
         selectedRange: ChartRange = .all,
-        accentColor: Color = .green,
+        positiveColor: Color = .green,
+        negativeColor: Color = .red,
         valueFormatter: ((Double) -> String)? = nil,
         dateFormatter: ((Date) -> String)? = nil
     ) {
@@ -31,7 +34,8 @@ public struct StockChart: View {
                 selectedRange: selectedRange
             )
         )
-        self.accentColor = accentColor
+        self.positiveColor = positiveColor
+        self.negativeColor = negativeColor
         self.valueFormatter = valueFormatter ?? { value in
             String(format: "$%.2f", value)
         }
@@ -45,16 +49,21 @@ public struct StockChart: View {
             headerView
                 .padding(.horizontal, 20)
             
-            // Full screen width, no padding
             chartView
+                .padding(.trailing, 20)
             
             ChartRangePicker(
                 selectedRange: Binding(
                     get: { viewModel.selectedRange },
-                    set: { viewModel.selectRange($0) }
+                    set: { range in
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            viewModel.selectRange(range)
+                        }
+                    }
                 ),
-                accentColor: Color(r: 18, g: 42, b: 29) // FIXME: What is the Figma color?
+                accentColor: Color(r: 18, g: 42, b: 29)
             )
+                .padding(.horizontal, 20)
         }
     }
     
@@ -68,16 +77,24 @@ public struct StockChart: View {
                 .contentTransition(.numericText())
             
             Text(changeText)
-                .font(.subheadline)
+                .font(.appTextSmall)
                 .fontWeight(.medium)
-                .foregroundStyle(displayColor)
+                .foregroundStyle(viewModel.isScrubbing ? .textSecondary : displayColor)
+                .padding(.horizontal, viewModel.isScrubbing ? 0: 6)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 4).fill(displayColor.opacity(viewModel.isScrubbing ? 0 : 0.2)))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy, value: viewModel.displayValue)
     }
     
     /// Formatted change text with context (e.g., "+ $17.52 all time")
+    /// When scrubbing, shows the date of the selected point instead
     private var changeText: String {
+        if viewModel.isScrubbing, let scrubbedPoint = viewModel.scrubbedPoint {
+            return dateFormatter(scrubbedPoint.date)
+        }
+        
         let change = viewModel.valueChange
         let prefix = change >= 0 ? "+ " : "- "
         let formatted = valueFormatter(abs(change))
@@ -90,8 +107,8 @@ public struct StockChart: View {
             accentColor: displayColor,
             scrubbedPoint: viewModel.scrubbedPoint,
             isScrubbing: viewModel.isScrubbing,
-            onScrubChange: { date in
-                viewModel.updateScrub(for: date)
+            onScrubChange: { pointId in
+                viewModel.updateScrub(pointId: pointId)
             },
             onScrubEnd: {
                 viewModel.endScrub()
@@ -103,7 +120,7 @@ public struct StockChart: View {
     // MARK: - Computed Properties
     
     private var displayColor: Color {
-        viewModel.isPositive ? accentColor : .red
+        viewModel.isPositive ? positiveColor : negativeColor
     }
 }
 
@@ -112,7 +129,6 @@ public struct StockChart: View {
         startValue: 100,
         endValue: 142.50,
         selectedRange: .all,
-        accentColor: .green
     )
     .padding()
 }
@@ -122,7 +138,6 @@ public struct StockChart: View {
         startValue: 150,
         endValue: 120,
         selectedRange: .month,
-        accentColor: .green
     )
     .padding()
 }
@@ -132,7 +147,6 @@ public struct StockChart: View {
         startValue: 50,
         endValue: 85,
         selectedRange: .week,
-        accentColor: .blue
     )
     .padding()
     .preferredColorScheme(.dark)
