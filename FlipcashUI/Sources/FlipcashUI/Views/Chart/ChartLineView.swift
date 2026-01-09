@@ -26,17 +26,18 @@ public struct ChartLineView: View {
         self.onScrubEnd = onScrubEnd
     }
     
+    /// Data points to draw the line up to (all points when not scrubbing, up to scrubbed point when scrubbing)
+    private var lineDataPoints: [ChartDataPoint] {
+        guard isScrubbing, let scrubbed = scrubbedPoint else {
+            return dataPoints
+        }
+        return dataPoints.filter { $0.id <= scrubbed.id }
+    }
+    
     public var body: some View {
         Chart {
+            // Area mark for the full chart (always visible)
             ForEach(dataPoints) { point in
-                LineMark(
-                    x: .value("Position", point.normalizedPosition),
-                    y: .value("Value", point.value)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(accentColor)
-                .lineStyle(.init(lineWidth: 4))
-
                 AreaMark(
                     x: .value("Position", point.normalizedPosition),
                     y: .value("Value", point.value)
@@ -53,6 +54,17 @@ public struct ChartLineView: View {
                         endPoint: .bottom
                     )
                 )
+            }
+            
+            // Line mark only up to the current position (scrubbed point or end)
+            ForEach(lineDataPoints) { point in
+                LineMark(
+                    x: .value("Position", point.normalizedPosition),
+                    y: .value("Value", point.value)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(accentColor)
+                .lineStyle(.init(lineWidth: 4))
             }
             
             // Endpoint indicator (hidden when scrubbing)
@@ -88,6 +100,7 @@ public struct ChartLineView: View {
                 minimumDuration: 0.15,
                 onBegan: { location in
                     handleScrub(at: location, proxy: proxy)
+                    triggerSelectionHaptic(at: location)
                 },
                 onChanged: { location in
                     handleScrub(at: location, proxy: proxy)
@@ -107,7 +120,6 @@ public struct ChartLineView: View {
                 abs($0.normalizedPosition - normalizedX) < abs($1.normalizedPosition - normalizedX)
             }) {
                 onScrubChange?(closest.id)
-                triggerSelectionHaptic()
             }
         }
     }
@@ -123,9 +135,14 @@ public struct ChartLineView: View {
         return (minValue - padding)...(maxValue + padding)
     }
     
-    private func triggerSelectionHaptic() {
+    private func triggerSelectionHaptic(at location: CGPoint) {
         let generator = UISelectionFeedbackGenerator()
-        generator.selectionChanged()
+        if #available(iOS 17.5, *) {
+            generator.selectionChanged(at: location)
+        } else {
+            // Fallback on earlier versions
+            generator.selectionChanged()
+        }
     }
 }
 
