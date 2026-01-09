@@ -73,19 +73,24 @@ public struct StockChart: View {
                 .contentTransition(.numericText())
             
             Text(changeText)
-                .font(.subheadline)
+                .font(.appTextSmall)
                 .fontWeight(.medium)
-                .foregroundStyle(displayColor)
-                .padding(.horizontal, 6)
+                .foregroundStyle(viewModel.isScrubbing ? .textSecondary : displayColor)
+                .padding(.horizontal, viewModel.isScrubbing ? 0: 6)
                 .padding(.vertical, 4)
-                .background(RoundedRectangle(cornerRadius: 4).fill(displayColor.opacity(0.2)))
+                .background(RoundedRectangle(cornerRadius: 4).fill(displayColor.opacity(viewModel.isScrubbing ? 0 : 0.2)))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy, value: viewModel.displayValue)
     }
     
     /// Formatted change text with context (e.g., "+ $17.52 all time")
+    /// When scrubbing, shows the date of the selected point instead
     private var changeText: String {
+        if viewModel.isScrubbing, let scrubbedPoint = viewModel.scrubbedPoint {
+            return dateFormatter(scrubbedPoint.date)
+        }
+        
         let change = viewModel.valueChange
         let prefix = change >= 0 ? "+ " : "- "
         let formatted = valueFormatter(abs(change))

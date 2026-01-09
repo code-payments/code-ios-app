@@ -35,6 +35,7 @@ public struct ChartLineView: View {
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(accentColor)
+                .lineStyle(.init(lineWidth: 4))
 
                 AreaMark(
                     x: .value("Position", point.normalizedPosition),
