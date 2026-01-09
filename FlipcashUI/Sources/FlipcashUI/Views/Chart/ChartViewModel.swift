@@ -63,7 +63,7 @@ public final class ChartViewModel {
     }
     
     /// Fixed number of data points for smooth animations between ranges
-    private static let fixedPointCount = 50
+    private static let fixedPointCount = 100
     
     /// Generates random data points between start and end values
     public func generateData() {
