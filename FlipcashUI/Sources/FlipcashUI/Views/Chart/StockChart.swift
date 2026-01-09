@@ -4,7 +4,8 @@ import SwiftUI
 public struct StockChart: View {
     @State private var viewModel: ChartViewModel
     
-    private let accentColor: Color
+    private let positiveColor: Color
+    private let negativeColor: Color
     private let valueFormatter: (Double) -> String
     private let dateFormatter: (Date) -> String
     
@@ -13,14 +14,16 @@ public struct StockChart: View {
     ///   - startValue: The starting value for the data range
     ///   - endValue: The ending value for the data range
     ///   - selectedRange: The initial time range selection (defaults to .all)
-    ///   - accentColor: The chart line and accent color
+    ///   - positiveColor: The chart line color on positive values
+    ///   - negativeColor: The chart line color on negative values
     ///   - valueFormatter: Optional custom formatter for displaying values
     ///   - dateFormatter: Optional custom formatter for displaying dates
     public init(
         startValue: Double,
         endValue: Double,
         selectedRange: ChartRange = .all,
-        accentColor: Color = .green,
+        positiveColor: Color = .green,
+        negativeColor: Color = .red,
         valueFormatter: ((Double) -> String)? = nil,
         dateFormatter: ((Date) -> String)? = nil
     ) {
@@ -31,7 +34,8 @@ public struct StockChart: View {
                 selectedRange: selectedRange
             )
         )
-        self.accentColor = accentColor
+        self.positiveColor = positiveColor
+        self.negativeColor = negativeColor
         self.valueFormatter = valueFormatter ?? { value in
             String(format: "$%.2f", value)
         }
@@ -116,7 +120,7 @@ public struct StockChart: View {
     // MARK: - Computed Properties
     
     private var displayColor: Color {
-        viewModel.isPositive ? accentColor : .red
+        viewModel.isPositive ? positiveColor : negativeColor
     }
 }
 
@@ -125,7 +129,6 @@ public struct StockChart: View {
         startValue: 100,
         endValue: 142.50,
         selectedRange: .all,
-        accentColor: .green
     )
     .padding()
 }
@@ -135,7 +138,6 @@ public struct StockChart: View {
         startValue: 150,
         endValue: 120,
         selectedRange: .month,
-        accentColor: .green
     )
     .padding()
 }
@@ -145,7 +147,6 @@ public struct StockChart: View {
         startValue: 50,
         endValue: 85,
         selectedRange: .week,
-        accentColor: .blue
     )
     .padding()
     .preferredColorScheme(.dark)

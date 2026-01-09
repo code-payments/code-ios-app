@@ -193,7 +193,8 @@ struct CurrencyInfoScreen: View {
                                         startValue: 0,
                                         endValue: Double(truncating: marketCap.decimalValue as NSDecimalNumber),
                                         selectedRange: .all,
-                                        accentColor: .actionAlternative
+                                        positiveColor: .actionAlternative,
+                                        negativeColor: Color(r: 228, g: 42, b: 42)
                                     )
                                 }
                                     .padding(.top, 20)
