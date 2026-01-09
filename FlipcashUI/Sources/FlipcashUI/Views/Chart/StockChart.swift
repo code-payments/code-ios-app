@@ -45,8 +45,8 @@ public struct StockChart: View {
             headerView
                 .padding(.horizontal, 20)
             
-            // Full screen width, no padding
             chartView
+                .padding(.trailing, 20)
             
             ChartRangePicker(
                 selectedRange: Binding(
@@ -57,8 +57,9 @@ public struct StockChart: View {
                         }
                     }
                 ),
-                accentColor: Color(r: 18, g: 42, b: 29) // FIXME: What is the Figma color?
+                accentColor: Color(r: 18, g: 42, b: 29)
             )
+                .padding(.horizontal, 20)
         }
     }
     
@@ -75,6 +76,9 @@ public struct StockChart: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(displayColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 4).fill(displayColor.opacity(0.2)))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy, value: viewModel.displayValue)

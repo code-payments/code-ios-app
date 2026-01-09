@@ -35,7 +35,7 @@ public struct ChartLineView: View {
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(accentColor)
-                
+
                 AreaMark(
                     x: .value("Position", point.normalizedPosition),
                     y: .value("Value", point.value)
@@ -60,22 +60,20 @@ public struct ChartLineView: View {
                     x: .value("Position", lastPoint.normalizedPosition),
                     y: .value("Value", lastPoint.value)
                 )
-                .foregroundStyle(accentColor)
-                .symbolSize(60)
+                .symbol {
+                    ScrubIndicator(borderColor: accentColor)
+                }
             }
             
             // Scrubber indicator
             if let scrubbed = scrubbedPoint {
-                RuleMark(x: .value("Position", scrubbed.normalizedPosition))
-                    .foregroundStyle(accentColor.opacity(0.5))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 2]))
-                
                 PointMark(
                     x: .value("Position", scrubbed.normalizedPosition),
                     y: .value("Value", scrubbed.value)
                 )
-                .foregroundStyle(accentColor)
-                .symbolSize(80)
+                .symbol {
+                    ScrubIndicator(borderColor: accentColor)
+                }
             }
         }
         .chartXAxis(.hidden)
@@ -148,6 +146,24 @@ public struct ChartLineView: View {
     )
     .frame(height: 200)
     .padding()
+}
+
+// MARK: - Custom Scrub Indicator
+
+private struct ScrubIndicator: View {
+    let borderColor: Color
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color(r: 10, g: 52, b: 27))
+                .frame(width: 20, height: 20)
+
+            Circle()
+                .stroke(borderColor, lineWidth: 2)
+                .frame(width: 10, height: 10)
+        }
+    }
 }
 
 // MARK: - Long Press Gesture View

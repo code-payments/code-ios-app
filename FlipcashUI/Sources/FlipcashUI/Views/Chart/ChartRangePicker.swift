@@ -38,7 +38,6 @@ public struct ChartRangePicker: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal)
     }
 }
 
