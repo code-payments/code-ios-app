@@ -55,26 +55,40 @@ public struct ChartLineView: View {
                     )
                 )
             }
+
+            // Always-visible base line for context
+            ForEach(dataPoints) { point in
+                LineMark(
+                    x: .value("Position", point.normalizedPosition),
+                    y: .value("Value", point.value),
+                    series: .value("Line", "Baseline")
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(accentColor.mixed(with: .black, by: 0.4))
+                .lineStyle(.init(lineWidth: 3))
+            }
             
             // Line mark only up to the current position (scrubbed point or end)
             ForEach(lineDataPoints) { point in
                 LineMark(
                     x: .value("Position", point.normalizedPosition),
-                    y: .value("Value", point.value)
+                    y: .value("Value", point.value),
+                    series: .value("Line", "Active")
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(accentColor)
-                .lineStyle(.init(lineWidth: 4))
+                .lineStyle(.init(lineWidth: 3))
             }
             
-            // Endpoint indicator (hidden when scrubbing)
-            if !isScrubbing, let lastPoint = dataPoints.last {
+            // Endpoint indicator
+            if let lastPoint = dataPoints.last {
                 PointMark(
                     x: .value("Position", lastPoint.normalizedPosition),
                     y: .value("Value", lastPoint.value)
                 )
                 .symbol {
                     ScrubIndicator(borderColor: accentColor)
+                        .opacity(isScrubbing ? 0.5 : 1.0)
                 }
             }
             
@@ -174,10 +188,12 @@ private struct ScrubIndicator: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color(r: 10, g: 52, b: 27))
+                .fill(borderColor)
                 .frame(width: 20, height: 20)
+                .opacity(0.2)
 
             Circle()
+                .fill(borderColor.mixed(with: .black, by: 0.6))
                 .stroke(borderColor, lineWidth: 2)
                 .frame(width: 10, height: 10)
         }

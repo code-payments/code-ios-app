@@ -40,7 +40,11 @@ public struct StockChart: View {
             String(format: "$%.2f", value)
         }
         self.dateFormatter = dateFormatter ?? { date in
-            date.formatted(date: .abbreviated, time: .omitted)
+            if Calendar.current.isDateInToday(date) {
+                return date.formatted(date: .omitted, time: .standard)
+            } else {
+                return date.formatted(date: .abbreviated, time: .omitted)
+            }
         }
     }
     
@@ -82,7 +86,13 @@ public struct StockChart: View {
                 .foregroundStyle(viewModel.isScrubbing ? .textSecondary : displayColor)
                 .padding(.horizontal, viewModel.isScrubbing ? 0: 6)
                 .padding(.vertical, 4)
-                .background(RoundedRectangle(cornerRadius: 4).fill(displayColor.opacity(viewModel.isScrubbing ? 0 : 0.2)))
+                .background {
+                    if !viewModel.isScrubbing {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(displayColor)
+                            .opacity(0.2)
+                    }
+                }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .animation(.snappy, value: viewModel.displayValue)
