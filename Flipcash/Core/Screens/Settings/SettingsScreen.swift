@@ -10,7 +10,6 @@ import FlipcashUI
 import FlipcashCore
 
 struct SettingsScreen: View {
-    
     @EnvironmentObject private var betaFlags: BetaFlags
     @EnvironmentObject private var preferences: Preferences
     
@@ -62,46 +61,6 @@ struct SettingsScreen: View {
                     logoHeader()
                         .padding(.top, -44)
                         .padding(.bottom, 30)
-
-                    // Action Buttons
-                    HStack(spacing: 10) {
-                        CodeButton(
-                            style: .filledMedium,
-                            title: "Add Cash",
-                            action: presentOnramp
-                        )
-                        .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
-                            AddCashScreen(
-                                isPresented: $onrampViewModel.isMethodSelectionPresented,
-                                container: container,
-                                sessionContainer: sessionContainer
-                            )
-                        }
-                        .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
-                            PartialSheet(background: .backgroundMain) {
-                                PresetAddCashScreen(
-                                    isPresented: $onrampViewModel.isOnrampPresented,
-                                    container: container,
-                                    sessionContainer: sessionContainer
-                                )
-                            }
-                        }
-                        
-                        CodeButton(
-                            style: .filledMediumSecondary,
-                            title: "Withdraw"
-                        ) {
-                            isShowingWithdrawFlow.toggle()
-                        }
-                        .sheet(isPresented: $isShowingWithdrawFlow) {
-                            WithdrawDescriptionScreen(
-                                isPresented: $isShowingWithdrawFlow,
-                                container: container,
-                                sessionContainer: sessionContainer
-                            )
-                        }
-                    }
-                    .padding(.bottom, 10)
                     
                     // Content
                     ScrollBox(color: .backgroundMain) {
@@ -141,6 +100,29 @@ struct SettingsScreen: View {
                     BetaFlagsScreen(container: container)
                 }
             }
+            .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
+                AddCashScreen(
+                    isPresented: $onrampViewModel.isMethodSelectionPresented,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
+            .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
+                PartialSheet(background: .backgroundMain) {
+                    PresetAddCashScreen(
+                        isPresented: $onrampViewModel.isOnrampPresented,
+                        container: container,
+                        sessionContainer: sessionContainer
+                    )
+                }
+            }
+            .sheet(isPresented: $isShowingWithdrawFlow) {
+                WithdrawDescriptionScreen(
+                    isPresented: $isShowingWithdrawFlow,
+                    container: container,
+                    sessionContainer: sessionContainer
+                )
+            }
         }
     }
 
@@ -170,21 +152,19 @@ struct SettingsScreen: View {
                 pathItem: .myAccount
             )
             
-            row(
-//                path: $path,
-                asset: .deposit,
-                title: "Deposit Solana USDC",
-//                pathItem: .depositUSDC
-            ) {
-                onrampViewModel.presentMethodSelection()
-            }
-            
             navigationRow(
                 path: $path,
                 asset: .settings,
                 title: "App Settings",
                 pathItem: .appSettings
             )
+            
+            row(
+                asset: .withdraw,
+                title: "Withdraw Funds",
+            ) {
+                isShowingWithdrawFlow.toggle()
+            }
             
             navigationRow(
                 path: $path,
@@ -253,13 +233,18 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func advancedFeaturesList() -> some View {
         VStack(alignment: .leading, spacing: 0) {
-
             row(systemImage: "slider.horizontal.3", title: "Bill Creator") {
                 isPresented = false
                 Task {
                     try await Task.delay(milliseconds: 250)
                     session.isShowingBillEditor = true
                 }
+            }
+            row(
+                asset: .deposit,
+                title: "Deposit Funds",
+            ) {
+                presentOnramp()
             }
         }
         .font(.appDisplayXS)
