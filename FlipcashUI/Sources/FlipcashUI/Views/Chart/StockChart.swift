@@ -115,6 +115,7 @@ public struct StockChart: View {
         ChartLineView(
             dataPoints: viewModel.dataPoints,
             accentColor: displayColor,
+            secondaryColor: secondaryColor,
             scrubbedPoint: viewModel.scrubbedPoint,
             isScrubbing: viewModel.isScrubbing,
             onScrubChange: { pointId in
@@ -131,6 +132,10 @@ public struct StockChart: View {
     
     private var displayColor: Color {
         viewModel.isPositive ? positiveColor : negativeColor
+    }
+        
+    private var secondaryColor: Color {
+        viewModel.isPositive ? Color(r: 17, g: 53, b: 34) : Color(r: 60, g: 37, b: 37)
     }
 }
 
