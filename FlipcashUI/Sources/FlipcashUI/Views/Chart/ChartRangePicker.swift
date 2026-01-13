@@ -46,7 +46,7 @@ public struct ChartRangePicker: View {
         @State private var range: ChartRange = .all
         
         var body: some View {
-            ChartRangePicker(selectedRange: $range, accentColor: .green)
+            ChartRangePicker(selectedRange: $range, accentColor: .mint)
         }
     }
     

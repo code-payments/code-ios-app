@@ -5,6 +5,7 @@ import SwiftUI
 public struct ChartLineView: View {
     let dataPoints: [ChartDataPoint]
     let accentColor: Color
+    let secondaryColor: Color
     let scrubbedPoint: ChartDataPoint?
     let isScrubbing: Bool
     let onScrubChange: ((Int) -> Void)?
@@ -13,6 +14,7 @@ public struct ChartLineView: View {
     public init(
         dataPoints: [ChartDataPoint],
         accentColor: Color,
+        secondaryColor: Color,
         scrubbedPoint: ChartDataPoint? = nil,
         isScrubbing: Bool = false,
         onScrubChange: ((Int) -> Void)? = nil,
@@ -20,6 +22,7 @@ public struct ChartLineView: View {
     ) {
         self.dataPoints = dataPoints
         self.accentColor = accentColor
+        self.secondaryColor = secondaryColor
         self.scrubbedPoint = scrubbedPoint
         self.isScrubbing = isScrubbing
         self.onScrubChange = onScrubChange
@@ -36,6 +39,30 @@ public struct ChartLineView: View {
     
     public var body: some View {
         Chart {
+            // Always-visible base line for context
+            ForEach(dataPoints) { point in
+                LineMark(
+                    x: .value("Position", point.normalizedPosition),
+                    y: .value("Value", point.value),
+                    series: .value("Line", "Baseline")
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(secondaryColor)
+                .lineStyle(.init(lineWidth: 3))
+            }
+            
+            // Line mark only up to the current position (scrubbed point or end)
+            ForEach(lineDataPoints) { point in
+                LineMark(
+                    x: .value("Position", point.normalizedPosition),
+                    y: .value("Value", point.value),
+                    series: .value("Line", "Active")
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(accentColor)
+                .lineStyle(.init(lineWidth: 3))
+            }
+            
             // Area mark for the full chart (always visible)
             ForEach(dataPoints) { point in
                 AreaMark(
@@ -46,8 +73,7 @@ public struct ChartLineView: View {
                 .foregroundStyle(
                     LinearGradient(
                         colors: [
-                            accentColor.opacity(0.3),
-                            accentColor.opacity(0.1),
+                            accentColor.opacity(0.25),
                             accentColor.opacity(0.0)
                         ],
                         startPoint: .top,
@@ -56,25 +82,17 @@ public struct ChartLineView: View {
                 )
             }
             
-            // Line mark only up to the current position (scrubbed point or end)
-            ForEach(lineDataPoints) { point in
-                LineMark(
-                    x: .value("Position", point.normalizedPosition),
-                    y: .value("Value", point.value)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(accentColor)
-                .lineStyle(.init(lineWidth: 4))
-            }
-            
-            // Endpoint indicator (hidden when scrubbing)
-            if !isScrubbing, let lastPoint = dataPoints.last {
+            // Endpoint indicator
+            if let lastPoint = dataPoints.last {
                 PointMark(
                     x: .value("Position", lastPoint.normalizedPosition),
                     y: .value("Value", lastPoint.value)
                 )
                 .symbol {
-                    ScrubIndicator(borderColor: accentColor)
+                    ScrubIndicator(
+                        backgroundColor: accentColor,
+                        borderColor: isScrubbing ? secondaryColor : accentColor,
+                        isBackgroundHidden: isScrubbing)
                 }
             }
             
@@ -85,7 +103,10 @@ public struct ChartLineView: View {
                     y: .value("Value", scrubbed.value)
                 )
                 .symbol {
-                    ScrubIndicator(borderColor: accentColor)
+                    ScrubIndicator(
+                        backgroundColor: accentColor,
+                        borderColor: accentColor,
+                        isBackgroundHidden: false)
                 }
             }
         }
@@ -160,6 +181,7 @@ public struct ChartLineView: View {
     return ChartLineView(
         dataPoints: points,
         accentColor: .green,
+        secondaryColor: .mint,
         scrubbedPoint: points[15]
     )
     .frame(height: 200)
@@ -169,15 +191,19 @@ public struct ChartLineView: View {
 // MARK: - Custom Scrub Indicator
 
 private struct ScrubIndicator: View {
+    let backgroundColor: Color
     let borderColor: Color
+    var isBackgroundHidden: Bool
     
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color(r: 10, g: 52, b: 27))
+                .fill(backgroundColor)
                 .frame(width: 20, height: 20)
+                .opacity(isBackgroundHidden ? 0 : 0.2)
 
             Circle()
+                .fill(backgroundColor.mixed(with: .black, by: 0.35))
                 .stroke(borderColor, lineWidth: 2)
                 .frame(width: 10, height: 10)
         }
