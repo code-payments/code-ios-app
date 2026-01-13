@@ -55,25 +55,16 @@ struct SettingsScreen: View {
     var body: some View {
         NavigationStack(path: $path) {
             Background(color: .backgroundMain) {
-                VStack(alignment: .center, spacing: 0) {
-
-                    // Logo Header
-                    logoHeader()
-                        .padding(.top, -44)
-                        .padding(.bottom, 30)
-                    
+                VStack(alignment: .center, spacing: 0) {     
                     // Content
-                    ScrollBox(color: .backgroundMain) {
-                        ScrollView(showsIndicators: false) {
-                            list()
-                        }
+                    ScrollView(showsIndicators: false) {
+                        list()
                     }
                     
                     // Footer
                     footer()
                 }
-                .padding(.top, 10)
-                .padding(.bottom, 10)
+                .padding(.vertical, 10)
                 .padding(.horizontal, 20)
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -81,6 +72,9 @@ struct SettingsScreen: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     ToolbarCloseButton(binding: $isPresented)
+                }
+                ToolbarItem(placement: .principal) {
+                    logoHeader()
                 }
             }
             .navigationDestination(for: SettingsPath.self) { path in
@@ -220,10 +214,8 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func advancedFeaturesScreen() -> some View {
         Background(color: .backgroundMain) {
-            ScrollBox(color: .backgroundMain) {
-                ScrollView(showsIndicators: false) {
-                    advancedFeaturesList()
-                }
+            ScrollView(showsIndicators: false) {
+                advancedFeaturesList()
             }
             .padding(.horizontal, 20)
         }
@@ -255,10 +247,8 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func myAccountScreen() -> some View {
         Background(color: .backgroundMain) {
-            ScrollBox(color: .backgroundMain) {
-                ScrollView(showsIndicators: false) {
-                    myAccountList()
-                }
+            ScrollView(showsIndicators: false) {
+                myAccountList()
             }
             .padding(.horizontal, 20)
         }
@@ -317,10 +307,8 @@ struct SettingsScreen: View {
     
     @ViewBuilder private func appSettingsScreen() -> some View {
         Background(color: .backgroundMain) {
-            ScrollBox(color: .backgroundMain) {
-                ScrollView(showsIndicators: false) {
-                    appSettingsList()
-                }
+            ScrollView(showsIndicators: false) {
+                appSettingsList()
             }
             .padding(.horizontal, 20)
         }
