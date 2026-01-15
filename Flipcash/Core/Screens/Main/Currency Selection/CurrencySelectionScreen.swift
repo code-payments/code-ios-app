@@ -30,21 +30,19 @@ struct CurrencySelectionScreen: View {
     var body: some View {
         NavigationView {
             Background(color: .backgroundMain) {
-                ScrollBox(color: .backgroundMain) {
-                    List {
-                        Group {
-                            if viewModel.isSearching {
-                                searchingCurrencies()
-                            } else {
-                                recentCurrencies()
-                                otherCurrencies()
-                            }
+                List {
+                    Group {
+                        if viewModel.isSearching {
+                            searchingCurrencies()
+                        } else {
+                            recentCurrencies()
+                            otherCurrencies()
                         }
-                        .listRowSeparatorTint(Color.rowSeparator)
                     }
-                    .listStyle(.grouped)
-                    .scrollContentBackground(.hidden)
+                    .listRowSeparatorTint(Color.rowSeparator)
                 }
+                .listStyle(.grouped)
+                .scrollContentBackground(.hidden)
             }
             .navigationTitle("Select Currency")
             .navigationBarTitleDisplayMode(.inline)
