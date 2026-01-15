@@ -30,7 +30,7 @@ struct EnterWalletAmountScreen: View {
         return try! Quarks(
             fiatDecimal: amount,
             currencyCode: .usd,
-            decimals: PublicKey.usdc.mintDecimals
+            decimals: PublicKey.usdf.mintDecimals
         )
     }
     

@@ -47,10 +47,10 @@ struct EnterAmountCalculator {
         }
         
         // Convert the transaction limit from USD to the entry currency before comparing
-        // Always use USDC decimals (6) since maxTransactionAmount comes from limits which are stored in USDC decimals
+        // Always use USDF decimals (6) since maxTransactionAmount comes from limits which are stored in USDC decimals
         let transactionLimitInEntryCurrency = maxTransactionAmount.converting(
             to: rate,
-            decimals: PublicKey.usdc.mintDecimals
+            decimals: PublicKey.usdf.mintDecimals
         )
         
         return min(maxBalance.converted, transactionLimitInEntryCurrency)

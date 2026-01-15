@@ -10,7 +10,6 @@ import Foundation
 import FlipcashAPI
 
 final class IntentCreateAccount: IntentType {
-    
     let id: PublicKey
     let owner: PublicKey
     let mint: PublicKey
@@ -49,7 +48,7 @@ public enum AccountKind {
 // MARK: - Proto -
 
 extension IntentCreateAccount {
-    func metadata() -> Code_Transaction_V2_Metadata {
+    func metadata() -> Ocp_Transaction_V1_Metadata {
         .with {
             $0.openAccounts = .with {
                 switch kind {

@@ -11,11 +11,11 @@ import FlipcashAPI
 import Combine
 import GRPC
 
-final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
+final class AccountInfoService: CodeService<Ocp_Account_V1_AccountNIOClient> {
     func fetchAccountInfo(type: AccountInfoType, owner: KeyPair, completion: @Sendable @escaping (Result<AccountInfo, ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
-        let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
+        let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
         }
@@ -35,9 +35,6 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
                 
                 if var account {
 //                    trace(.success, components: "Balance: \(account.fiat.formatted(suffix: " USD"))")
-                    if type == .primary {
-                        account.nextPoolIndex = Int(response.nextPoolIndex)
-                    }
                     completion(.success(account))
                 } else {
                     trace(.failure, components: "Account not in list of accounts returned: \(response.tokenAccountInfos)")
@@ -57,14 +54,13 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
     func fetchPrimaryAccounts(owner: KeyPair, completion: @Sendable @escaping (Result<[AccountInfo], ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
-        let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
+        let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
         }
         
         let call = service.getTokenAccountInfos(request)
         call.handle(on: queue) { response in
-            
             let error = ErrorFetchBalance(rawValue: response.result.rawValue) ?? .unknown
             if error == .ok {
                 let accounts: [AccountInfo] = response.tokenAccountInfos.filter {
@@ -88,7 +84,7 @@ final class AccountInfoService: CodeService<Code_Account_V1_AccountNIOClient> {
     func fetchLinkedAccountBalance(owner: KeyPair, account: PublicKey, completion: @Sendable @escaping (Result<Quarks, ErrorFetchBalance>) -> Void) {
 //        trace(.send, components: "Owner: \(owner.publicKey.base58)")
         
-        let request = Code_Account_V1_GetTokenAccountInfosRequest.with {
+        let request = Ocp_Account_V1_GetTokenAccountInfosRequest.with {
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
         }
@@ -131,7 +127,7 @@ public enum AccountInfoType: Sendable {
     case giftCard
     case pool
     
-    fileprivate var proto: Code_Common_V1_AccountType {
+    fileprivate var proto: Ocp_Common_V1_AccountType {
         switch self {
         case .primary:  return .primary
         case .giftCard: return .remoteSendGiftCard
@@ -152,19 +148,19 @@ public enum ErrorFetchBalance: Int, Error, Equatable, Sendable {
 
 // MARK: - Interceptors -
 
-extension InterceptorFactory: Code_Account_V1_AccountClientInterceptorFactoryProtocol {
-    func makeIsCodeAccountInterceptors() -> [GRPC.ClientInterceptor<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse>] {
+extension InterceptorFactory: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol {
+    func makeGetTokenAccountInfosInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Account_V1_GetTokenAccountInfosRequest, FlipcashAPI.Ocp_Account_V1_GetTokenAccountInfosResponse>] {
         makeInterceptors()
     }
     
-    func makeGetTokenAccountInfosInterceptors() -> [GRPC.ClientInterceptor<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>] {
+    func makeIsOcpAccountInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Account_V1_IsOcpAccountRequest, FlipcashAPI.Ocp_Account_V1_IsOcpAccountResponse>] {
         makeInterceptors()
     }
 }
 
 // MARK: - GRPCClientType -
 
-extension Code_Account_V1_AccountNIOClient: GRPCClientType {
+extension Ocp_Account_V1_AccountNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
         self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
     }

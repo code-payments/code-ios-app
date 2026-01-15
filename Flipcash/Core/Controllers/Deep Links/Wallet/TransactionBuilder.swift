@@ -9,24 +9,24 @@ import Foundation
 import SolanaSwift
 
 extension PublicKey {
-    static let usdcMint     = try! PublicKey(string: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+    static let usdfMint     = try! PublicKey(string: "5AMAA9JV9H97YYVxx8F6FsCMmTwXSuTTQneiup4RYAUQ")
     static let tokenProgram = try! PublicKey(string: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 }
 
 enum TransactionBuilder {
-    static func usdcTransfer(fromOwner: PublicKey, toOwner: PublicKey, quarks: UInt64, shouldCreateTokenAccount: Bool, recentBlockhash: String) throws -> Transaction {
+    static func usdfTransfer(fromOwner: PublicKey, toOwner: PublicKey, quarks: UInt64, shouldCreateTokenAccount: Bool, recentBlockhash: String) throws -> Transaction {
         var instructions: [TransactionInstruction] = []
         
         // Derive associated token accounts
-        let usdcATASource = try PublicKey.associatedTokenAddress(
+        let usdfATASource = try PublicKey.associatedTokenAddress(
             walletAddress: fromOwner,
-            tokenMintAddress: .usdcMint,
+            tokenMintAddress: .usdfMint,
             tokenProgramId: .tokenProgram
         )
         
-        let usdcATADestination = try PublicKey.associatedTokenAddress(
+        let usdfATADestination = try PublicKey.associatedTokenAddress(
             walletAddress: toOwner,
-            tokenMintAddress: .usdcMint,
+            tokenMintAddress: .usdfMint,
             tokenProgramId: .tokenProgram
         )
         
@@ -34,7 +34,7 @@ enum TransactionBuilder {
         if shouldCreateTokenAccount {
             instructions.append(
                 try AssociatedTokenProgram.createAssociatedTokenAccountInstruction(
-                    mint: .usdcMint,
+                    mint: .usdfMint,
                     owner: toOwner,
                     payer: fromOwner,
                     tokenProgramId: PublicKey.tokenProgram
@@ -45,9 +45,9 @@ enum TransactionBuilder {
         // Checked transfer
         instructions.append(
             TokenProgram.transferCheckedInstruction(
-                source: usdcATASource,
-                mint: .usdcMint,
-                destination: usdcATADestination,
+                source: usdfATASource,
+                mint: .usdfMint,
+                destination: usdfATADestination,
                 owner: fromOwner,
                 multiSigners: [],
                 amount: quarks,

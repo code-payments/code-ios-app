@@ -39,7 +39,7 @@ struct PresetAddCashScreen: View {
                             let fiat = try! Quarks(
                                 fiatInt: amount,
                                 currencyCode: .usd,
-                                decimals: PublicKey.usdc.mintDecimals
+                                decimals: PublicKey.usdf.mintDecimals
                             )
                             Analytics.onrampAmountPresetSelected(amount: fiat)
                         case .more:

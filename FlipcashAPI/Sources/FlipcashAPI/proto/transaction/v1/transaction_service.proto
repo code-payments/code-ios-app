@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package code.transaction.v2;
+package ocp.transaction.v1;
 
-option go_package = "github.com/code-payments/code-protobuf-api/generated/go/transaction/v2;transaction";
-option java_package = "com.codeinc.gen.transaction.v2";
-option objc_class_prefix = "APBTransactionV2";
+option go_package = "github.com/code-payments/ocp-protobuf-api/generated/go/transaction/v1;transaction";
+option java_package = "com.codeinc.gen.transaction.v1";
+option objc_class_prefix = "APBTransactionV1";
 
 import "common/v1/model.proto";
 import "google/protobuf/timestamp.proto";
@@ -69,26 +69,26 @@ service Transaction {
     //       it is close to or is auto-returned, then OK will be returned.
     rpc VoidGiftCard(VoidGiftCardRequest) returns (VoidGiftCardResponse);
 
-    // StartSwap begins the process for swapping tokens by coordinating verified metadata
-    // for non-custodial state management tracking.
-    rpc StartSwap(stream StartSwapRequest) returns (stream StartSwapResponse);
+    // StatefulSwap swaps tokens using a non-custodial state-management system.
+    // The high-level flow mirrors SubmitIntent closely. However, due to the
+    // unreliability of swaps, they do not fit within the broader intent system.
+    // This results in a few key differences:
+    //  * Client is (potentially) involved in additional steps to complete the
+    //    swap within the state machine
+    //  * Transactions are submitted on a best-effort basis outside of the Code
+    //    Sequencer
+    //  * Balance changes are applied after the transaction has finalized
+    //
+    // Swap transaction signatures are collected up-front. They are executed once the
+    // swap is funded.
+    rpc StatefulSwap(stream StatefulSwapRequest) returns (stream StatefulSwapResponse);
 
     // GetSwap gets metadata for a swap
     rpc GetSwap(GetSwapRequest) returns (GetSwapResponse);
 
-    // GetPendingSwaps get swaps that are pending client actions which include:
-    //  1. Swaps that need a call to SubmitIntent to fund the VM swap PDA (ie. in a CREATED state)
-    //  2. Swaps that need to be executed via the Swap RPC (ie. in a FUNDED state)
+    // GetPendingSwaps gets swaps that are pending client actions which include:
+    //  * Swaps that need a call to SubmitIntent to fund the VM swap PDA
     rpc GetPendingSwaps(GetPendingSwapsRequest) returns (GetPendingSwapsResponse);
-
-    // Swap performs an on-chain swap. The high-level flow mirrors SubmitIntent
-    // closely. However, due to the time-sensitive nature and unreliability of
-    // swaps, they do not fit within the broader intent system. This results in
-    // a few key differences:
-    //  * Transactions are submitted on a best-effort basis outside of the Code
-    //    Sequencer within the RPC handler
-    //  * Balance changes are applied after the transaction has finalized
-    rpc Swap(stream SwapRequest) returns (stream SwapResponse);
 }
 
 //
@@ -124,9 +124,6 @@ message SubmitIntentRequest {
         // private key of the owner account. This provides an authentication mechanism
         // to the RPC.
         common.v1.Signature signature = 5 [(validate.rules).message.required = true];
-
-        // Deprecated device token
-        reserved 6;
     }
 
     message SubmitSignatures {
@@ -236,14 +233,8 @@ message GetLimitsResponse {
     // Send limits keyed by currency
     map<string, SendLimit> send_limits_by_currency = 2;
 
-    reserved 3; // Deprecated deposit limit
-
-    reserved 4; // Deprecated micro payment limits
-
-    reserved 5; // Deprecated buy module limits
-
     // The amount of USD transacted since the consumption timestamp
-    double usd_transacted = 6 [(validate.rules).double.gte = 0];;
+    double usd_transacted = 3 [(validate.rules).double.gte = 0];;
 }
 
 message CanWithdrawToAccountRequest {
@@ -251,10 +242,8 @@ message CanWithdrawToAccountRequest {
     // token account.
    common.v1.SolanaAccountId account = 1 [(validate.rules).message.required = true];
 
-   // The mint that the withdraw will be operating against. For backwards
-   // compatibility, if no mint is set, then it is assumed to be the core
-   // mint.
-   common.v1.SolanaAccountId mint = 2;
+   // The mint that the withdraw will be operating against
+   common.v1.SolanaAccountId mint = 2 [(validate.rules).message.required = true];;
 }
 
 message CanWithdrawToAccountResponse {
@@ -346,15 +335,15 @@ message VoidGiftCardResponse {
     }
 }
 
-message StartSwapRequest {
+message StatefulSwapRequest {
     oneof request {
         option (validate.required) = true;
 
-        Start           start            = 1;
-        SubmitSignature submit_signature = 2;
+        Initiate         initiate          = 1;
+        SubmitSignatures submit_signatures = 2;
     }
 
-    message Start {
+    message Initiate {
         oneof kind {
             option (validate.required) = true;
 
@@ -369,7 +358,7 @@ message StartSwapRequest {
             // The source mint that will be swapped from
             common.v1.SolanaAccountId from_mint = 2 [(validate.rules).message.required = true];
 
-            // The destination mint that will be swapped from
+            // The destination mint that will be swapped to
             common.v1.SolanaAccountId to_mint = 3 [(validate.rules).message.required = true];
 
             // The amount to swap from the source mint in quarks.
@@ -377,34 +366,46 @@ message StartSwapRequest {
 
             // Where "amount" of "from_mint" will be sent from to the VM swap PDA
             FundingSource funding_source = 5 [(validate.rules).enum = {
-                in: [1] // FUNDING_SOURCE_SUBMIT_INTENT
+                in: [1, 2] // FUNDING_SOURCE_SUBMIT_INTENT, FUNDING_SOURCE_EXTERNAL_WALLET
             }];
 
             // The ID of the "transaction" to lookup funding state.
             //
-            // For SWAP_FUNDING_SOURCE_SUBMIT_INTENT, this value is the base58 encoded intent ID.
+            // For FUNDING_SOURCE_SUBMIT_INTENT, this value is the base58 encoded intent ID.
+            // For FUNDING_SOURCE_EXTERNAL_WALLET, this value is the base58 encoded transaction signature.
             string funding_id = 6 [(validate.rules).string = {
                 min_len: 32,
-                max_len: 44,
+                max_len: 88,
             }];
         }
 
         // The owner account starting the swap
         common.v1.SolanaAccountId owner = 9 [(validate.rules).message.required = true];
 
-        // The signature is of serialize(StartSwapRequest.Start) without this field
-        // set using the  private key of the owner account. This provides an authentication
+        // The user authority account that will sign to authorize the swap.
+        //
+        // For Currency Creator program buy/sell flows, this should be a random one-time use account.
+        common.v1.SolanaAccountId swap_authority = 10 [(validate.rules).message.required = true];
+
+        // The signature of serialize(VerifiedSwapMetadata) for the swap being initiated.
+        common.v1.Signature proof_signature = 11 [(validate.rules).message.required = true];
+
+        // The signature is of serialize(StatefulSwapRequest.Initiate) without this field
+        // set using the private key of the owner account. This provides an authentication
         // mechanism to the RPC.
-        common.v1.Signature signature = 10 [(validate.rules).message.required = true];
+        common.v1.Signature signature = 12 [(validate.rules).message.required = true];
     }
 
-    message SubmitSignature {
-        // The signature of the verified swap metadata
-        common.v1.Signature signature = 1 [(validate.rules).message.required = true];
+    message SubmitSignatures {
+        // The signatures for the locally constructed swap transaction
+        repeated common.v1.Signature transaction_signatures = 1 [(validate.rules).repeated = {
+            min_items: 2
+            max_items: 2
+        }];
     }
 }
 
-message StartSwapResponse {
+message StatefulSwapResponse {
     oneof response {
         option (validate.required) = true;
 
@@ -418,208 +419,6 @@ message StartSwapResponse {
             option (validate.required) = true;
 
             CurrencyCreator currency_creator = 1;
-        }
-
-        message CurrencyCreator {
-            // The nonce that is reserved for use in the swap transaction
-            common.v1.SolanaAccountId nonce = 1 [(validate.rules).message.required = true];
-
-            // The blockhash that is reserved for use in the swap transaction
-            common.v1.Blockhash blockhash = 2 [(validate.rules).message.required = true];
-        }
-    }
-
-    message Success {
-        Code code = 1;
-        enum Code {
-            OK = 0;
-        }
-    }
-
-    message Error {
-        Code code = 1;
-        enum Code {
-            // Denied by a guard (spam, money laundering, etc)
-            DENIED = 0;
-            // There is an issue with the provided signature
-            SIGNATURE_ERROR = 1;
-            // The swap metadata failed server-side validation
-            INVALID_SWAP = 2;
-        }
-
-        repeated ErrorDetails error_details = 2;
-    } 
-}
-
-message GetSwapRequest {
-    common.v1.SwapId id = 1 [(validate.rules).message.required = true];
-    
-    common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
-
-    // The signature is of serialize(GetSwapRequest) without this field set using the
-    // private key of the owner account. This provides an authentication mechanism
-    // to the RPC.
-    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
-}
-
-message GetSwapResponse {
-    Result result = 1;
-    enum Result {
-        OK        = 0;
-        NOT_FOUND = 1;
-        DENIED    = 2;
-    }
-
-    SwapMetadata swap = 2;
-}
-
-message GetPendingSwapsRequest{
-    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
-
-    // The signature is of serialize(GetPendingSwapsRequest) without this field set
-    // using the private key of the owner account. This provides an authentication
-    // mechanism to the RPC.
-    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
-}
-
-message GetPendingSwapsResponse {
-    Result result = 1;
-    enum Result {
-        OK        = 0;
-        NOT_FOUND = 1;
-    }
-
-    repeated SwapMetadata swaps = 2 [(validate.rules).repeated = {
-        max_items: 1024 // Arbitrary
-    }];
-}
-
-message SwapRequest {
-    oneof request {
-        option (validate.required) = true;
-
-        Initiate         initiate          = 1;
-        SubmitSignatures submit_signatures = 2;
-    }
-
-    message Initiate {
-        oneof kind {
-            option (validate.required) = true;
-
-            Stateless stateless = 1;
-            Stateful  stateful  = 2;
-        }
-
-        message Stateless {
-            // The verified owner account public key
-            common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
-
-            // The source mint that will be swapped from
-            common.v1.SolanaAccountId from_mint = 2 [(validate.rules).message.required = true];
-
-            // The destination mint that will be swapped to
-            common.v1.SolanaAccountId to_mint = 3 [(validate.rules).message.required = true];
-
-            // The amount to swap from the source mint in quarks.
-            uint64 amount = 4 [(validate.rules).uint64.gt = 0];
-
-            // The user authority account that will sign to authorize the swap.
-            //
-            // For Currency Creator program buy/sell flows, this should be a random one-time use account.
-            common.v1.SolanaAccountId swap_authority = 5 [(validate.rules).message.required = true];
-
-            // Whether the client wants the RPC to wait for blockchain status. If false,
-            // then the RPC will return Success when the swap is submitted to the blockchain.
-            // Otherwise, the RPC will observe and report back the status of the transaction.
-            bool wait_for_blockchain_status = 6;
-
-            // The signature is of serialize(Stateless) without this field set using the
-            // private key of the owner account. This provides an authentication mechanism
-            // to the RPC.
-            common.v1.Signature signature = 7 [(validate.rules).message.required = true];
-        }
-
-        message Stateful {
-            // The ID of the swap to execute
-            common.v1.SwapId swap_id = 1 [(validate.rules).message.required = true];
-
-            // The verified owner account public key
-            common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
-
-            // The user authority account that will sign to authorize the swap.
-            //
-            // For Currency Creator program buy/sell flows, this should be a random one-time use account.
-            common.v1.SolanaAccountId swap_authority = 3 [(validate.rules).message.required = true];
-
-            // The signature is of serialize(Stateful) without this field set using the
-            // private key of the owner account. This provides an authentication mechanism
-            // to the RPC.
-            common.v1.Signature signature = 4 [(validate.rules).message.required = true];
-        }
-    }
-
-    message SubmitSignatures {
-        // The signatures for the locally constructed swap transaction
-        repeated common.v1.Signature signatures = 1 [(validate.rules).repeated = {
-            min_items: 2
-            max_items: 2
-        }];
-    }
-}
-
-message SwapResponse {
-    oneof response {
-        option (validate.required) = true;
-
-        ServerParameters server_parameters = 1;
-        Success          success           = 2;
-        Error            error             = 3;
-    }
-
-    message ServerParameters {
-        oneof kind {
-            option (validate.required) = true;
-
-            CurrencyCreatorStateless currency_creator_stateless = 1;
-            CurrencyCreatorStateful  currency_creator_stateful  = 2;
-        }
-
-        // Server parameters when executing stateless buy/sell flows against the
-        // Currency Creator program
-        //
-        // Note: The transaction and instruction formats are nearly identical to
-        // the stateful flow, except the system::AdvanceNonce instruction is
-        // ommitted in favour of using a latest blockhash.
-        //
-        // Note: This will be deprecated in favour of the stateful version. For
-        // PoC of swap flow only.
-        message CurrencyCreatorStateless {
-            // Subisdizer account that will be paying for the swap
-            common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
-
-            // Recent blockhash
-            common.v1.Blockhash recent_blockhash = 2 [(validate.rules).message.required = true];
-
-            // ALTs that should be used when constructing the versioned transaction
-            repeated common.v1.SolanaAddressLookupTable alts = 3;
-
-            // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
-            // instruction. If the value is 0, then the instruction can be omitted.
-            uint32 compute_unit_limit = 4;
-
-            // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
-            // instruction. If the value is 0, then the instruction can be omitted.
-            uint64 compute_unit_price = 5;
-
-            // Value provided into the Memo::Memo instruction. If the value length is 0,
-            // then the instruction can be omitted.
-            string memo_value = 6 [(validate.rules).string. max_len = 64];
-
-            // The memory account where the destination virtual Timelock account lives
-            common.v1.SolanaAccountId memory_account = 7 [(validate.rules).message.required = true];
-
-            // The memory index where the destination virtual Timelock account lives
-            uint32 memory_index = 8;
         }
 
         // Server parameters when executing stateful buy/sell flows against the
@@ -664,40 +463,43 @@ message SwapResponse {
         //  10. Token::CloseAccount (closes Core Mint temporary account)
         //  11. Token::CloseAccount (closes from_mint temporary account)
         //  12. VM::CloseSwapAccountIfEmpty (closes from_mint VM swap ATA if empty)
-        message CurrencyCreatorStateful {
+        message CurrencyCreator {
             // Subisdizer account that will be paying for the swap
             common.v1.SolanaAccountId payer = 1 [(validate.rules).message.required = true];
 
+            // The nonce that is reserved for use in the swap transaction
+            common.v1.SolanaAccountId nonce = 2 [(validate.rules).message.required = true];
+
+            // The blockhash that is reserved for use in the swap transaction
+            common.v1.Blockhash blockhash = 3 [(validate.rules).message.required = true];
+
             // ALTs that should be used when constructing the versioned transaction
-            repeated common.v1.SolanaAddressLookupTable alts = 2;
+            repeated common.v1.SolanaAddressLookupTable alts = 4;
 
             // Compute unit limit provided to the ComputeBudget::SetComputeUnitLimit
             // instruction. If the value is 0, then the instruction can be omitted.
-            uint32 compute_unit_limit = 3;
+            uint32 compute_unit_limit = 5;
 
             // Compute unit price provided in the ComputeBudget::SetComputeUnitPrice
             // instruction. If the value is 0, then the instruction can be omitted.
-            uint64 compute_unit_price = 4;
+            uint64 compute_unit_price = 6;
 
             // Value provided into the Memo::Memo instruction. If the value length is 0,
             // then the instruction can be omitted.
-            string memo_value = 5 [(validate.rules).string. max_len = 64];
+            string memo_value = 7 [(validate.rules).string. max_len = 64];
 
             // The memory account where the destination virtual Timelock account lives
-            common.v1.SolanaAccountId memory_account = 6 [(validate.rules).message.required = true];
+            common.v1.SolanaAccountId memory_account = 8 [(validate.rules).message.required = true];
 
             // The memory index where the destination virtual Timelock account lives
-            uint32 memory_index = 7;
+            uint32 memory_index = 9;
         }
     }
 
     message Success {
         Code code = 1;
         enum Code {
-            // The swap was submitted to the blockchain.
-            SWAP_SUBMITTED = 0;
-            // The swap was finalized on the blockchain.
-            SWAP_FINALIZED = 1;
+            OK = 0;
         }
     }
 
@@ -706,16 +508,57 @@ message SwapResponse {
         enum Code {
             // Denied by a guard (spam, money laundering, etc)
             DENIED = 0;
-            // There is an issue with the provided signature.
+            // There is an issue with the provided proof or transaction signatures
             SIGNATURE_ERROR = 1;
-            // The swap failed server-side validation
+            // The swap metadata failed server-side validation
             INVALID_SWAP = 2;
-            // The submitted swap transaction failed. Attempt the swap again.
-            SWAP_FAILED = 3;
         }
 
         repeated ErrorDetails error_details = 2;
     }
+}
+
+message GetSwapRequest {
+    common.v1.SwapId id = 1 [(validate.rules).message.required = true];
+
+    common.v1.SolanaAccountId owner = 2 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(GetSwapRequest) without this field set using the
+    // private key of the owner account. This provides an authentication mechanism
+    // to the RPC.
+    common.v1.Signature signature = 3 [(validate.rules).message.required = true];
+}
+
+message GetSwapResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        NOT_FOUND = 1;
+        DENIED    = 2;
+    }
+
+    SwapMetadata swap = 2;
+}
+
+message GetPendingSwapsRequest{
+    common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
+
+    // The signature is of serialize(GetPendingSwapsRequest) without this field set
+    // using the private key of the owner account. This provides an authentication
+    // mechanism to the RPC.
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+}
+
+message GetPendingSwapsResponse {
+    Result result = 1;
+    enum Result {
+        OK        = 0;
+        NOT_FOUND = 1;
+    }
+
+    repeated SwapMetadata swaps = 2 [(validate.rules).repeated = {
+        max_items: 1024 // Arbitrary
+    }];
 }
 
 //
@@ -728,16 +571,10 @@ message Metadata {
         option (validate.required) = true;
 
         OpenAccountsMetadata            open_accounts             = 1;
-        SendPublicPaymentMetadata       send_public_payment       = 6;
-        ReceivePaymentsPubliclyMetadata receive_payments_publicly = 7;
-        PublicDistributionMetadata      public_distribution       = 9;
+        SendPublicPaymentMetadata       send_public_payment       = 2;
+        ReceivePaymentsPubliclyMetadata receive_payments_publicly = 3;
+        PublicDistributionMetadata      public_distribution       = 4;
     }
-
-    reserved 2; // Deprecated SendPrivatePaymentMetadata
-    reserved 3; // Deprecated ReceivePaymentsPrivatelyMetadata
-    reserved 4; // Deprecated UpgradePrivacyMetadata
-    reserved 5; // Deprecated MigrateToPrivacy2022Metadata
-    reserved 8; // Deprecated EstablishRelationshipMetadata
 }
 
 // Open a set of accounts
@@ -759,10 +596,8 @@ message OpenAccountsMetadata {
     }
 
 
-    // The mint that this action will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 2;
+    // The mint that this action will be operating against
+    common.v1.SolanaAccountId mint = 2 [(validate.rules).message.required = true];;
 }
 
 // Send a payment to a destination account publicly.
@@ -789,28 +624,26 @@ message OpenAccountsMetadata {
 message SendPublicPaymentMetadata {
     // The source account where funds will be sent from. Currently, this is always
     // the user's primary account.
-    common.v1.SolanaAccountId source = 4 [(validate.rules).message.required = true];
+    common.v1.SolanaAccountId source = 1 [(validate.rules).message.required = true];
 
     // The destination token account to send funds to.
-    common.v1.SolanaAccountId destination = 1 [(validate.rules).message.required = true];
+    common.v1.SolanaAccountId destination = 2 [(validate.rules).message.required = true];
 
     // Destination owner account, which is required for withdrawals that intend
     // to create an ATA. Every other variation of this intent can omit this field.
-    common.v1.SolanaAccountId destination_owner = 6;
+    common.v1.SolanaAccountId destination_owner = 3;
 
     // The exchange data of total funds being sent to the destination
-    ExchangeData exchange_data = 2 [(validate.rules).message.required = true];
+    ExchangeData exchange_data = 4 [(validate.rules).message.required = true];
 
     // Is the payment a withdrawal?
-    bool is_withdrawal = 3;
+    bool is_withdrawal = 5;
 
     // Is the payment going to a new gift card? Note is_withdrawal must be false.
-    bool is_remote_send = 5;
+    bool is_remote_send = 6;
 
-    // The mint that this intent will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 7;
+    // The mint that this intent will be operating against
+    common.v1.SolanaAccountId mint = 7 [(validate.rules).message.required = true];;
 }
 
 // Receive funds into a user-owned account publicly. All use cases of this intent
@@ -830,19 +663,14 @@ message ReceivePaymentsPubliclyMetadata {
     // the only use case for this intent and validation enforces the flag to true.
     bool is_remote_send = 3 [(validate.rules).bool.const = true];
 
-    // Deprecated is_issuer_voiding_gift_card
-    reserved 4;
-
     // If is_remote_send is true, the original exchange data that was provided as
     // part of creating the gift card account. This is purely a server-provided value.
     // SubmitIntent will disallow this being set.
-    ExchangeData exchange_data = 5;
+    ExchangeData exchange_data = 4;
 
 
-    // The mint that this intent will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 6;
+    // The mint that this intent will be operating against
+    common.v1.SolanaAccountId mint = 5 [(validate.rules).message.required = true];;
 }
 
 // Distribute funds from a pool account publicly to one or more user-owned accounts.
@@ -875,10 +703,8 @@ message PublicDistributionMetadata {
     }
 
 
-    // The mint that this intent will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 3;
+    // The mint that this intent will be operating against
+    common.v1.SolanaAccountId mint = 3 [(validate.rules).message.required = true];;
 }
 
 //
@@ -898,16 +724,10 @@ message Action {
         option (validate.required) = true;
 
         OpenAccountAction       open_account        = 2;
-        NoPrivacyTransferAction no_privacy_transfer = 5;
-        NoPrivacyWithdrawAction no_privacy_withdraw = 6;
-        FeePaymentAction        fee_payment         = 10;
+        NoPrivacyTransferAction no_privacy_transfer = 3;
+        NoPrivacyWithdrawAction no_privacy_withdraw = 4;
+        FeePaymentAction        fee_payment         = 5;
     }
-
-    reserved 3; // Deprecated CloseEmptyAccountAction 
-    reserved 4; // Deprecated CloseDormantAccountAction
-    reserved 7; // Deprecated TemporaryPrivacyTransferAction
-    reserved 8; // Deprecated TemporaryPrivacyExchangeAction
-    reserved 9; // Deprecated PermanentPrivacyUpgradeAction
 }
 
 // No client signature required
@@ -935,10 +755,8 @@ message OpenAccountAction {
     common.v1.Signature authority_signature = 6 [(validate.rules).message.required = true];
 
 
-    // The mint that this action will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 7;
+    // The mint that this action will be operating against
+    common.v1.SolanaAccountId mint = 7 [(validate.rules).message.required = true];;
 }
 
 // Compact message signature required
@@ -956,10 +774,8 @@ message NoPrivacyTransferAction {
     uint64 amount = 4 [(validate.rules).uint64.gt = 0];
 
 
-    // The mint that this action will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 5;
+    // The mint that this action will be operating against
+    common.v1.SolanaAccountId mint = 5 [(validate.rules).message.required = true];;
 }
 
 // Compact message signature required
@@ -986,10 +802,8 @@ message NoPrivacyWithdrawAction {
     bool is_auto_return = 6;
 
 
-    // The mint that this action will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 7;
+    // The mint that this action will be operating against
+    common.v1.SolanaAccountId mint = 7 [(validate.rules).message.required = true];;
 }
 
 // Compact message signature required
@@ -1011,10 +825,8 @@ message FeePaymentAction {
     uint64 amount = 4 [(validate.rules).uint64.gt = 0];
 
 
-    // The mint that this action will be operating against. For backwards
-    // compatibility, if no mint is set, then it is assumed to be the core
-    // mint.
-    common.v1.SolanaAccountId mint = 5;
+    // The mint that this action will be operating against
+    common.v1.SolanaAccountId mint = 5 [(validate.rules).message.required = true];;
 }
 
 //
@@ -1040,16 +852,10 @@ message ServerParameter {
         option (validate.required) = true;
 
         OpenAccountServerParameter       open_account        = 3;
-        NoPrivacyTransferServerParameter no_privacy_transfer = 6;
-        NoPrivacyWithdrawServerParameter no_privacy_withdraw = 7;
-        FeePaymentServerParameter        fee_payment         = 11;
+        NoPrivacyTransferServerParameter no_privacy_transfer = 4;
+        NoPrivacyWithdrawServerParameter no_privacy_withdraw = 5;
+        FeePaymentServerParameter        fee_payment         = 6;
     }
-
-    reserved 4;  // Deprecated CloseEmptyAccountServerParameter
-    reserved 5;  // Deprecated CloseDormantAccountServerParameter
-    reserved 8;  // Deprecated TemporaryPrivacyTransferServerParameter
-    reserved 9;  // Deprecated TemporaryPrivacyExchangeServerParameter
-    reserved 10; // Deprecated PermanentPrivacyUpgradeServerParameter
 }
 
 // For transactions, the nonce is a standard nonce on Solana
@@ -1158,9 +964,7 @@ message ExchangeData {
     uint64 quarks = 4 [(validate.rules).uint64.gt = 0];
 
     // The crypto mint that is being operated against for the exchange.
-    // For backwards compatibility, if no mint is set, then it is assumed
-    // to be the core mint.
-    common.v1.SolanaAccountId mint = 5;
+    common.v1.SolanaAccountId mint = 5 [(validate.rules).message.required = true];;
 }
 
 message ExchangeDataWithoutRate {
@@ -1196,11 +1000,8 @@ message VerifiedSwapMetadata {
 // VerifiedCurrencyCreatorSwapMetadata is verified metadata for swaps against the
 // Currency Creator program
 message VerifiedCurrencyCreatorSwapMetadata {
-    // Verifiable client-side parameters that were provided during the StartSwap RPC
-    StartSwapRequest.Start.CurrencyCreator client_parameters = 1 [(validate.rules).message.required = true];
-
-    // Verifiable agreed-upon server-side parameters that were provided during the StartSwap RPC
-    StartSwapResponse.ServerParameters.CurrencyCreator server_parameters = 2 [(validate.rules).message.required = true]; 
+    // Verifiable client-side parameters that were provided during the StatefulSwap RPC
+    StatefulSwapRequest.Initiate.CurrencyCreator client_parameters = 1 [(validate.rules).message.required = true];
 }
 
 message SwapMetadata {
@@ -1237,6 +1038,7 @@ enum AirdropType {
 }
 
 enum FundingSource {
-    FUNDING_SOURCE_UNKNOWN = 0;
-    FUNDING_SOURCE_SUBMIT_INTENT = 1;
+    FUNDING_SOURCE_UNKNOWN         = 0;
+    FUNDING_SOURCE_SUBMIT_INTENT   = 1;
+    FUNDING_SOURCE_EXTERNAL_WALLET = 2;
 }

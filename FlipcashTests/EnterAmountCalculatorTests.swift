@@ -27,7 +27,7 @@ import FlipcashCore
             underlying: underlying,
             converted: converted,
             rate: testRate,
-            mint: .usdc
+            mint: .usdf
         )
     }
     
@@ -177,7 +177,7 @@ import FlipcashCore
         )
         
         let result = calculator.maxEnterAmount(maxBalance: balance)
-        let expectedLimit = limit.converting(to: Rate.oneToOne, decimals: PublicKey.usdc.mintDecimals)
+        let expectedLimit = limit.converting(to: Rate.oneToOne, decimals: PublicKey.usdf.mintDecimals)
         
         #expect(result == expectedLimit)
     }

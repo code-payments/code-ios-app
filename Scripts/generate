@@ -1,5 +1,44 @@
 #!/usr/bin/env bash
 
+# This script requires protoc and Swift protobuf plugins to be installed.
+#
+# Install with Homebrew:
+#    brew install protobuf swift-protobuf grpc-swift
+#
+# After installation, you may need to restart your terminal or IDE.
+
+# Add Homebrew paths to ensure protoc and plugins are found
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+# Check if protoc is available
+if ! command -v protoc &> /dev/null; then
+    echo "Error: protoc is not installed or not in PATH"
+    echo "Install it with: brew install protobuf swift-protobuf grpc-swift"
+    exit 1
+fi
+
+# Check if Swift protobuf plugin is available
+if ! command -v protoc-gen-swift &> /dev/null; then
+    echo "Error: protoc-gen-swift is not installed or not in PATH"
+    echo "Install it with: brew install swift-protobuf"
+    exit 1
+fi
+
+# Check if gRPC Swift plugin is available
+# Note: grpc-swift 2.x uses versioned plugin name (protoc-gen-grpc-swift-2)
+GRPC_PLUGIN=""
+if command -v protoc-gen-grpc-swift &> /dev/null; then
+    GRPC_PLUGIN="grpc-swift"
+elif command -v protoc-gen-grpc-swift-2 &> /dev/null; then
+    GRPC_PLUGIN="grpc-swift-2"
+else
+    echo "Error: protoc-gen-grpc-swift is not installed or not in PATH"
+    echo "Install it with: brew install protoc-gen-grpc-swift"
+    exit 1
+fi
+
+echo "Using gRPC plugin: $GRPC_PLUGIN"
+
 CURRENT_DIR=$(pwd)
 PROTO_DIR="$1"
 OUTPUT_DIR="$2"
@@ -34,9 +73,9 @@ do
     protoc \
         -I$PROTO_DIR \
         "$PROTO_FILE" \
-        --grpc-swift_opt=Visibility=Public \
-        --grpc-swift_opt=FileNaming=PathToUnderscores \
-        --grpc-swift_out="$OUTPUT_DIR" \
+        --${GRPC_PLUGIN}_opt=Visibility=Public \
+        --${GRPC_PLUGIN}_opt=FileNaming=PathToUnderscores \
+        --${GRPC_PLUGIN}_out="$OUTPUT_DIR" \
         --swift_opt=Visibility=Public \
         --swift_opt=FileNaming=PathToUnderscores \
         --swift_out="$OUTPUT_DIR"

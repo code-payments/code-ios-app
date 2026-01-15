@@ -16,10 +16,11 @@ class IntentSwap {
     let amount: UInt64
     let direction: SwapDirection
     let waitForBlockchain: Bool
+    let proofSignature: Signature
     
     var parameters: SwapResponseServerParameters?
         
-    init(id: SwapId, owner: KeyPair, metadata: VerifiedSwapMetadata, swapAuthority: KeyPair, amount: UInt64, direction: SwapDirection, waitForBlockchain: Bool) {
+    init(id: SwapId, owner: KeyPair, metadata: VerifiedSwapMetadata, swapAuthority: KeyPair, amount: UInt64, direction: SwapDirection, waitForBlockchain: Bool, proofSignature: Signature) {
         self.id = id
         self.owner = owner
         self.verifiedMetadata = metadata
@@ -27,6 +28,7 @@ class IntentSwap {
         self.amount = amount
         self.direction = direction
         self.waitForBlockchain = waitForBlockchain
+        self.proofSignature = proofSignature
     }
     
     func sign(using parameters: SwapResponseServerParameters) -> [Signature] {
@@ -53,14 +55,14 @@ extension IntentSwap {
 }
 
 extension IntentSwap {
-    func requestToSubmitSignatures() throws -> Code_Transaction_V2_SwapRequest {
+    func requestToSubmitSignatures() throws -> Ocp_Transaction_V1_StatefulSwapRequest {
         guard let parameters else {
             throw Error.missingSwapParametersProvided
         }
         
         return .with {
             $0.submitSignatures = .with {
-                $0.signatures = sign(using: parameters).map({ key in
+                $0.transactionSignatures = sign(using: parameters).map({ key in
                     key.proto
                 })
             }

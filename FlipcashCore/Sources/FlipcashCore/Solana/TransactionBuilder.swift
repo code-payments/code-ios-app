@@ -50,7 +50,7 @@ extension TransactionBuilder {
             (params.payer, params.recentBlockhash, params.alts)
         }
         
-        let coreMint = MintMetadata.usdc
+        let coreMint = MintMetadata.usdf
         
         let instructions = switch direction {
         case .buy(let targetMint):

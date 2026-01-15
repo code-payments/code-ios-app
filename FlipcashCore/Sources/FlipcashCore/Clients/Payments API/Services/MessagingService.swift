@@ -12,7 +12,7 @@ import Combine
 import GRPC
 import SwiftProtobuf
 
-class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
+class MessagingService: CodeService<Ocp_Messaging_V1_MessagingNIOClient> {
     
 //    typealias KeepAliveMessageStreamReference = BidirectionalStreamReference<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>
 //    
@@ -84,12 +84,12 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
     func openMessageStream(rendezvous: KeyPair, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) -> AnyCancellable {
         trace(.open, components: "Rendezvous: \(rendezvous.publicKey.base58)")
         
-        let request = Code_Messaging_V1_OpenMessageStreamRequest.with {
+        let request = Ocp_Messaging_V1_OpenMessageStreamRequest.with {
             $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey
             $0.signature = $0.sign(with: rendezvous)
         }
         
-        let streamReference = StreamReference<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>()
+        let streamReference = StreamReference<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>()
         openMessageStream(assigningTo: streamReference, request: request, rendezvous: rendezvous.publicKey, completion: completion)
         
         return AnyCancellable {
@@ -97,7 +97,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
-    private func openMessageStream(assigningTo reference: StreamReference<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>, request: Code_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
+    private func openMessageStream(assigningTo reference: StreamReference<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>, request: Ocp_Messaging_V1_OpenMessageStreamRequest, rendezvous: PublicKey, completion: @MainActor @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
         let queue = self.queue
         let stream = service.openMessageStream(request) { [weak self] response in
             
@@ -148,7 +148,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
     func fetchMessages(rendezvous: KeyPair, completion: @Sendable @escaping (Result<[StreamMessage], Error>) -> Void) {
         trace(.send, components: "Rendezvous: \(rendezvous.publicKey.base58)")
         
-        let request = Code_Messaging_V1_PollMessagesRequest.with {
+        let request = Ocp_Messaging_V1_PollMessagesRequest.with {
             $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey
             $0.signature = $0.sign(with: rendezvous)
         }
@@ -171,10 +171,10 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         let stringsIDs = ids.map { "Message ID: \($0.data.hexEncodedString())" }
         trace(.send, components: stringsIDs)
         
-        let request = Code_Messaging_V1_AckMessagesRequest.with {
+        let request = Ocp_Messaging_V1_AckMessagesRequest.with {
             $0.rendezvousKey = rendezvous.codeRendezvousKey
             $0.messageIds = ids.map { id in
-                Code_Messaging_V1_MessageId.with { $0.value = id.data }
+                Ocp_Messaging_V1_MessageId.with { $0.value = id.data }
             }
         }
         
@@ -195,7 +195,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
-    private func requestToGrabBill(destination: PublicKey) -> Code_Messaging_V1_Message {
+    private func requestToGrabBill(destination: PublicKey) -> Ocp_Messaging_V1_Message {
         .with {
             $0.requestToGrabBill = .with {
                 $0.requestorAccount = destination.solanaAccountID
@@ -203,7 +203,7 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         }
     }
     
-    private func requestToGiveBill(mint: PublicKey) -> Code_Messaging_V1_Message {
+    private func requestToGiveBill(mint: PublicKey) -> Ocp_Messaging_V1_Message {
         .with {
             $0.requestToGiveBill = .with {
                 $0.mint = mint.solanaAccountID
@@ -246,11 +246,11 @@ class MessagingService: CodeService<Code_Messaging_V1_MessagingNIOClient> {
         )
     }
     
-    private func sendRendezvousMessage(message: Code_Messaging_V1_Message, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
-        let request = Code_Messaging_V1_SendMessageRequest.with {
+    private func sendRendezvousMessage(message: Ocp_Messaging_V1_Message, rendezvous: KeyPair, completion: @Sendable @escaping (Result<Bool, Error>) -> Void) {
+        let request = Ocp_Messaging_V1_SendMessageRequest.with {
             $0.message = message
             $0.rendezvousKey = rendezvous.publicKey.codeRendezvousKey
-            $0.signature = Code_Common_V1_Signature.with {
+            $0.signature = Ocp_Common_V1_Signature.with {
                 $0.value = rendezvous.sign(try! message.serializedData()).data
             }
         }
@@ -285,31 +285,31 @@ extension MessagingService {
 
 // MARK: - Interceptors -
 
-extension InterceptorFactory: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol {
-    func makeOpenMessageStreamWithKeepAliveInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, FlipcashAPI.Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>] {
+extension InterceptorFactory: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol {
+    func makeOpenMessageStreamWithKeepAliveInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, FlipcashAPI.Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>] {
         makeInterceptors()
     }
     
-    func makePollMessagesInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Messaging_V1_PollMessagesRequest, FlipcashAPI.Code_Messaging_V1_PollMessagesResponse>] {
+    func makePollMessagesInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Messaging_V1_PollMessagesRequest, FlipcashAPI.Ocp_Messaging_V1_PollMessagesResponse>] {
         makeInterceptors()
     }
     
-    func makeSendMessageInterceptors() -> [ClientInterceptor<Code_Messaging_V1_SendMessageRequest, Code_Messaging_V1_SendMessageResponse>] {
+    func makeSendMessageInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse>] {
         makeInterceptors()
     }
     
-    func makeAckMessagesInterceptors() -> [ClientInterceptor<Code_Messaging_V1_AckMessagesRequest, Code_Messaging_V1_AckMesssagesResponse>] {
+    func makeAckMessagesInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse>] {
         makeInterceptors()
     }
     
-    func makeOpenMessageStreamInterceptors() -> [ClientInterceptor<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>] {
+    func makeOpenMessageStreamInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>] {
         makeInterceptors()
     }
 }
 
 // MARK: - GRPCClientType -
 
-extension Code_Messaging_V1_MessagingNIOClient: GRPCClientType {
+extension Ocp_Messaging_V1_MessagingNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
         self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
     }
@@ -317,13 +317,13 @@ extension Code_Messaging_V1_MessagingNIOClient: GRPCClientType {
 
 // MARK: - Message IDs -
 
-extension Code_Messaging_V1_MessageId {
+extension Ocp_Messaging_V1_MessageId {
     var hexEncoded: String {
         value.hexEncodedString()
     }
 }
 
-extension Array where Element == Code_Messaging_V1_Message {
+extension Array where Element == Ocp_Messaging_V1_Message {
     var hexEncodedIDs: [String] {
         map { $0.id.hexEncoded }
     }

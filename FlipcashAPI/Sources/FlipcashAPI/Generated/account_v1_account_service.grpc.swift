@@ -11,48 +11,48 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Code_Account_V1_AccountClient`, then call methods of this protocol to make API calls.
-public protocol Code_Account_V1_AccountClientProtocol: GRPCClient {
+/// Usage: instantiate `Ocp_Account_V1_AccountClient`, then call methods of this protocol to make API calls.
+public protocol Ocp_Account_V1_AccountClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol? { get }
+  var interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol? { get }
 
-  func isCodeAccount(
-    _ request: Code_Account_V1_IsCodeAccountRequest,
+  func isOcpAccount(
+    _ request: Ocp_Account_V1_IsOcpAccountRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse>
+  ) -> UnaryCall<Ocp_Account_V1_IsOcpAccountRequest, Ocp_Account_V1_IsOcpAccountResponse>
 
   func getTokenAccountInfos(
-    _ request: Code_Account_V1_GetTokenAccountInfosRequest,
+    _ request: Ocp_Account_V1_GetTokenAccountInfosRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>
+  ) -> UnaryCall<Ocp_Account_V1_GetTokenAccountInfosRequest, Ocp_Account_V1_GetTokenAccountInfosResponse>
 }
 
-extension Code_Account_V1_AccountClientProtocol {
+extension Ocp_Account_V1_AccountClientProtocol {
   public var serviceName: String {
-    return "code.account.v1.Account"
+    return "ocp.account.v1.Account"
   }
 
-  /// IsCodeAccount returns whether an owner account is a Code account. This hints
+  /// IsOcpAccount returns whether an owner account is a OCP account. This hints
   /// to the client whether the account can be logged in, used for making payments,
   /// etc.
   ///
   /// - Parameters:
-  ///   - request: Request to send to IsCodeAccount.
+  ///   - request: Request to send to IsOcpAccount.
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func isCodeAccount(
-    _ request: Code_Account_V1_IsCodeAccountRequest,
+  public func isOcpAccount(
+    _ request: Ocp_Account_V1_IsOcpAccountRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse> {
+  ) -> UnaryCall<Ocp_Account_V1_IsOcpAccountRequest, Ocp_Account_V1_IsOcpAccountResponse> {
     return self.makeUnaryCall(
-      path: Code_Account_V1_AccountClientMetadata.Methods.isCodeAccount.path,
+      path: Ocp_Account_V1_AccountClientMetadata.Methods.isOcpAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeIsCodeAccountInterceptors() ?? []
+      interceptors: self.interceptors?.makeIsOcpAccountInterceptors() ?? []
     )
   }
 
-  /// GetTokenAccountInfos returns token account metadata relevant to the Code owner
+  /// GetTokenAccountInfos returns token account metadata relevant to the OCP owner
   /// account.
   ///
   /// - Parameters:
@@ -60,11 +60,11 @@ extension Code_Account_V1_AccountClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func getTokenAccountInfos(
-    _ request: Code_Account_V1_GetTokenAccountInfosRequest,
+    _ request: Ocp_Account_V1_GetTokenAccountInfosRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse> {
+  ) -> UnaryCall<Ocp_Account_V1_GetTokenAccountInfosRequest, Ocp_Account_V1_GetTokenAccountInfosResponse> {
     return self.makeUnaryCall(
-      path: Code_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos.path,
+      path: Ocp_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? []
@@ -73,24 +73,24 @@ extension Code_Account_V1_AccountClientProtocol {
 }
 
 @available(*, deprecated)
-extension Code_Account_V1_AccountClient: @unchecked Sendable {}
+extension Ocp_Account_V1_AccountClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Code_Account_V1_AccountNIOClient")
-public final class Code_Account_V1_AccountClient: Code_Account_V1_AccountClientProtocol {
+@available(*, deprecated, renamed: "Ocp_Account_V1_AccountNIOClient")
+public final class Ocp_Account_V1_AccountClient: Ocp_Account_V1_AccountClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol?
+  private var _interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol? {
+  public var interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the code.account.v1.Account service.
+  /// Creates a client for the ocp.account.v1.Account service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -99,7 +99,7 @@ public final class Code_Account_V1_AccountClient: Code_Account_V1_AccountClientP
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol? = nil
+    interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -107,12 +107,12 @@ public final class Code_Account_V1_AccountClient: Code_Account_V1_AccountClientP
   }
 }
 
-public struct Code_Account_V1_AccountNIOClient: Code_Account_V1_AccountClientProtocol {
+public struct Ocp_Account_V1_AccountNIOClient: Ocp_Account_V1_AccountClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol?
+  public var interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the code.account.v1.Account service.
+  /// Creates a client for the ocp.account.v1.Account service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -121,7 +121,7 @@ public struct Code_Account_V1_AccountNIOClient: Code_Account_V1_AccountClientPro
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol? = nil
+    interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -130,49 +130,49 @@ public struct Code_Account_V1_AccountNIOClient: Code_Account_V1_AccountClientPro
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Code_Account_V1_AccountAsyncClientProtocol: GRPCClient {
+public protocol Ocp_Account_V1_AccountAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol? { get }
+  var interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol? { get }
 
-  func makeIsCodeAccountCall(
-    _ request: Code_Account_V1_IsCodeAccountRequest,
+  func makeIsOcpAccountCall(
+    _ request: Ocp_Account_V1_IsOcpAccountRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse>
+  ) -> GRPCAsyncUnaryCall<Ocp_Account_V1_IsOcpAccountRequest, Ocp_Account_V1_IsOcpAccountResponse>
 
   func makeGetTokenAccountInfosCall(
-    _ request: Code_Account_V1_GetTokenAccountInfosRequest,
+    _ request: Ocp_Account_V1_GetTokenAccountInfosRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>
+  ) -> GRPCAsyncUnaryCall<Ocp_Account_V1_GetTokenAccountInfosRequest, Ocp_Account_V1_GetTokenAccountInfosResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Code_Account_V1_AccountAsyncClientProtocol {
+extension Ocp_Account_V1_AccountAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Code_Account_V1_AccountClientMetadata.serviceDescriptor
+    return Ocp_Account_V1_AccountClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol? {
+  public var interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol? {
     return nil
   }
 
-  public func makeIsCodeAccountCall(
-    _ request: Code_Account_V1_IsCodeAccountRequest,
+  public func makeIsOcpAccountCall(
+    _ request: Ocp_Account_V1_IsOcpAccountRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse> {
+  ) -> GRPCAsyncUnaryCall<Ocp_Account_V1_IsOcpAccountRequest, Ocp_Account_V1_IsOcpAccountResponse> {
     return self.makeAsyncUnaryCall(
-      path: Code_Account_V1_AccountClientMetadata.Methods.isCodeAccount.path,
+      path: Ocp_Account_V1_AccountClientMetadata.Methods.isOcpAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeIsCodeAccountInterceptors() ?? []
+      interceptors: self.interceptors?.makeIsOcpAccountInterceptors() ?? []
     )
   }
 
   public func makeGetTokenAccountInfosCall(
-    _ request: Code_Account_V1_GetTokenAccountInfosRequest,
+    _ request: Ocp_Account_V1_GetTokenAccountInfosRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse> {
+  ) -> GRPCAsyncUnaryCall<Ocp_Account_V1_GetTokenAccountInfosRequest, Ocp_Account_V1_GetTokenAccountInfosResponse> {
     return self.makeAsyncUnaryCall(
-      path: Code_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos.path,
+      path: Ocp_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? []
@@ -181,25 +181,25 @@ extension Code_Account_V1_AccountAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Code_Account_V1_AccountAsyncClientProtocol {
-  public func isCodeAccount(
-    _ request: Code_Account_V1_IsCodeAccountRequest,
+extension Ocp_Account_V1_AccountAsyncClientProtocol {
+  public func isOcpAccount(
+    _ request: Ocp_Account_V1_IsOcpAccountRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Code_Account_V1_IsCodeAccountResponse {
+  ) async throws -> Ocp_Account_V1_IsOcpAccountResponse {
     return try await self.performAsyncUnaryCall(
-      path: Code_Account_V1_AccountClientMetadata.Methods.isCodeAccount.path,
+      path: Ocp_Account_V1_AccountClientMetadata.Methods.isOcpAccount.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeIsCodeAccountInterceptors() ?? []
+      interceptors: self.interceptors?.makeIsOcpAccountInterceptors() ?? []
     )
   }
 
   public func getTokenAccountInfos(
-    _ request: Code_Account_V1_GetTokenAccountInfosRequest,
+    _ request: Ocp_Account_V1_GetTokenAccountInfosRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Code_Account_V1_GetTokenAccountInfosResponse {
+  ) async throws -> Ocp_Account_V1_GetTokenAccountInfosResponse {
     return try await self.performAsyncUnaryCall(
-      path: Code_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos.path,
+      path: Ocp_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? []
@@ -208,15 +208,15 @@ extension Code_Account_V1_AccountAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Code_Account_V1_AccountAsyncClient: Code_Account_V1_AccountAsyncClientProtocol {
+public struct Ocp_Account_V1_AccountAsyncClient: Ocp_Account_V1_AccountAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol?
+  public var interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Code_Account_V1_AccountClientInterceptorFactoryProtocol? = nil
+    interceptors: Ocp_Account_V1_AccountClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -224,57 +224,57 @@ public struct Code_Account_V1_AccountAsyncClient: Code_Account_V1_AccountAsyncCl
   }
 }
 
-public protocol Code_Account_V1_AccountClientInterceptorFactoryProtocol: Sendable {
+public protocol Ocp_Account_V1_AccountClientInterceptorFactoryProtocol: Sendable {
 
-  /// - Returns: Interceptors to use when invoking 'isCodeAccount'.
-  func makeIsCodeAccountInterceptors() -> [ClientInterceptor<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse>]
+  /// - Returns: Interceptors to use when invoking 'isOcpAccount'.
+  func makeIsOcpAccountInterceptors() -> [ClientInterceptor<Ocp_Account_V1_IsOcpAccountRequest, Ocp_Account_V1_IsOcpAccountResponse>]
 
   /// - Returns: Interceptors to use when invoking 'getTokenAccountInfos'.
-  func makeGetTokenAccountInfosInterceptors() -> [ClientInterceptor<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>]
+  func makeGetTokenAccountInfosInterceptors() -> [ClientInterceptor<Ocp_Account_V1_GetTokenAccountInfosRequest, Ocp_Account_V1_GetTokenAccountInfosResponse>]
 }
 
-public enum Code_Account_V1_AccountClientMetadata {
+public enum Ocp_Account_V1_AccountClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "Account",
-    fullName: "code.account.v1.Account",
+    fullName: "ocp.account.v1.Account",
     methods: [
-      Code_Account_V1_AccountClientMetadata.Methods.isCodeAccount,
-      Code_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos,
+      Ocp_Account_V1_AccountClientMetadata.Methods.isOcpAccount,
+      Ocp_Account_V1_AccountClientMetadata.Methods.getTokenAccountInfos,
     ]
   )
 
   public enum Methods {
-    public static let isCodeAccount = GRPCMethodDescriptor(
-      name: "IsCodeAccount",
-      path: "/code.account.v1.Account/IsCodeAccount",
+    public static let isOcpAccount = GRPCMethodDescriptor(
+      name: "IsOcpAccount",
+      path: "/ocp.account.v1.Account/IsOcpAccount",
       type: GRPCCallType.unary
     )
 
     public static let getTokenAccountInfos = GRPCMethodDescriptor(
       name: "GetTokenAccountInfos",
-      path: "/code.account.v1.Account/GetTokenAccountInfos",
+      path: "/ocp.account.v1.Account/GetTokenAccountInfos",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Code_Account_V1_AccountProvider: CallHandlerProvider {
-  var interceptors: Code_Account_V1_AccountServerInterceptorFactoryProtocol? { get }
+public protocol Ocp_Account_V1_AccountProvider: CallHandlerProvider {
+  var interceptors: Ocp_Account_V1_AccountServerInterceptorFactoryProtocol? { get }
 
-  /// IsCodeAccount returns whether an owner account is a Code account. This hints
+  /// IsOcpAccount returns whether an owner account is a OCP account. This hints
   /// to the client whether the account can be logged in, used for making payments,
   /// etc.
-  func isCodeAccount(request: Code_Account_V1_IsCodeAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Account_V1_IsCodeAccountResponse>
+  func isOcpAccount(request: Ocp_Account_V1_IsOcpAccountRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Account_V1_IsOcpAccountResponse>
 
-  /// GetTokenAccountInfos returns token account metadata relevant to the Code owner
+  /// GetTokenAccountInfos returns token account metadata relevant to the OCP owner
   /// account.
-  func getTokenAccountInfos(request: Code_Account_V1_GetTokenAccountInfosRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Account_V1_GetTokenAccountInfosResponse>
+  func getTokenAccountInfos(request: Ocp_Account_V1_GetTokenAccountInfosRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Account_V1_GetTokenAccountInfosResponse>
 }
 
-extension Code_Account_V1_AccountProvider {
+extension Ocp_Account_V1_AccountProvider {
   public var serviceName: Substring {
-    return Code_Account_V1_AccountServerMetadata.serviceDescriptor.fullName[...]
+    return Ocp_Account_V1_AccountServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -284,20 +284,20 @@ extension Code_Account_V1_AccountProvider {
     context: CallHandlerContext
   ) -> GRPCServerHandlerProtocol? {
     switch name {
-    case "IsCodeAccount":
+    case "IsOcpAccount":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Account_V1_IsCodeAccountRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Account_V1_IsCodeAccountResponse>(),
-        interceptors: self.interceptors?.makeIsCodeAccountInterceptors() ?? [],
-        userFunction: self.isCodeAccount(request:context:)
+        requestDeserializer: ProtobufDeserializer<Ocp_Account_V1_IsOcpAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Account_V1_IsOcpAccountResponse>(),
+        interceptors: self.interceptors?.makeIsOcpAccountInterceptors() ?? [],
+        userFunction: self.isOcpAccount(request:context:)
       )
 
     case "GetTokenAccountInfos":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Account_V1_GetTokenAccountInfosRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Account_V1_GetTokenAccountInfosResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Account_V1_GetTokenAccountInfosRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Account_V1_GetTokenAccountInfosResponse>(),
         interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? [],
         userFunction: self.getTokenAccountInfos(request:context:)
       )
@@ -310,37 +310,37 @@ extension Code_Account_V1_AccountProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Code_Account_V1_AccountAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Ocp_Account_V1_AccountAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Code_Account_V1_AccountServerInterceptorFactoryProtocol? { get }
+  var interceptors: Ocp_Account_V1_AccountServerInterceptorFactoryProtocol? { get }
 
-  /// IsCodeAccount returns whether an owner account is a Code account. This hints
+  /// IsOcpAccount returns whether an owner account is a OCP account. This hints
   /// to the client whether the account can be logged in, used for making payments,
   /// etc.
-  func isCodeAccount(
-    request: Code_Account_V1_IsCodeAccountRequest,
+  func isOcpAccount(
+    request: Ocp_Account_V1_IsOcpAccountRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Account_V1_IsCodeAccountResponse
+  ) async throws -> Ocp_Account_V1_IsOcpAccountResponse
 
-  /// GetTokenAccountInfos returns token account metadata relevant to the Code owner
+  /// GetTokenAccountInfos returns token account metadata relevant to the OCP owner
   /// account.
   func getTokenAccountInfos(
-    request: Code_Account_V1_GetTokenAccountInfosRequest,
+    request: Ocp_Account_V1_GetTokenAccountInfosRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Account_V1_GetTokenAccountInfosResponse
+  ) async throws -> Ocp_Account_V1_GetTokenAccountInfosResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Code_Account_V1_AccountAsyncProvider {
+extension Ocp_Account_V1_AccountAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Code_Account_V1_AccountServerMetadata.serviceDescriptor
+    return Ocp_Account_V1_AccountServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Code_Account_V1_AccountServerMetadata.serviceDescriptor.fullName[...]
+    return Ocp_Account_V1_AccountServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Code_Account_V1_AccountServerInterceptorFactoryProtocol? {
+  public var interceptors: Ocp_Account_V1_AccountServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -349,20 +349,20 @@ extension Code_Account_V1_AccountAsyncProvider {
     context: CallHandlerContext
   ) -> GRPCServerHandlerProtocol? {
     switch name {
-    case "IsCodeAccount":
+    case "IsOcpAccount":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Account_V1_IsCodeAccountRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Account_V1_IsCodeAccountResponse>(),
-        interceptors: self.interceptors?.makeIsCodeAccountInterceptors() ?? [],
-        wrapping: { try await self.isCodeAccount(request: $0, context: $1) }
+        requestDeserializer: ProtobufDeserializer<Ocp_Account_V1_IsOcpAccountRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Account_V1_IsOcpAccountResponse>(),
+        interceptors: self.interceptors?.makeIsOcpAccountInterceptors() ?? [],
+        wrapping: { try await self.isOcpAccount(request: $0, context: $1) }
       )
 
     case "GetTokenAccountInfos":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Account_V1_GetTokenAccountInfosRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Account_V1_GetTokenAccountInfosResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Account_V1_GetTokenAccountInfosRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Account_V1_GetTokenAccountInfosResponse>(),
         interceptors: self.interceptors?.makeGetTokenAccountInfosInterceptors() ?? [],
         wrapping: { try await self.getTokenAccountInfos(request: $0, context: $1) }
       )
@@ -373,37 +373,37 @@ extension Code_Account_V1_AccountAsyncProvider {
   }
 }
 
-public protocol Code_Account_V1_AccountServerInterceptorFactoryProtocol: Sendable {
+public protocol Ocp_Account_V1_AccountServerInterceptorFactoryProtocol: Sendable {
 
-  /// - Returns: Interceptors to use when handling 'isCodeAccount'.
+  /// - Returns: Interceptors to use when handling 'isOcpAccount'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeIsCodeAccountInterceptors() -> [ServerInterceptor<Code_Account_V1_IsCodeAccountRequest, Code_Account_V1_IsCodeAccountResponse>]
+  func makeIsOcpAccountInterceptors() -> [ServerInterceptor<Ocp_Account_V1_IsOcpAccountRequest, Ocp_Account_V1_IsOcpAccountResponse>]
 
   /// - Returns: Interceptors to use when handling 'getTokenAccountInfos'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetTokenAccountInfosInterceptors() -> [ServerInterceptor<Code_Account_V1_GetTokenAccountInfosRequest, Code_Account_V1_GetTokenAccountInfosResponse>]
+  func makeGetTokenAccountInfosInterceptors() -> [ServerInterceptor<Ocp_Account_V1_GetTokenAccountInfosRequest, Ocp_Account_V1_GetTokenAccountInfosResponse>]
 }
 
-public enum Code_Account_V1_AccountServerMetadata {
+public enum Ocp_Account_V1_AccountServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "Account",
-    fullName: "code.account.v1.Account",
+    fullName: "ocp.account.v1.Account",
     methods: [
-      Code_Account_V1_AccountServerMetadata.Methods.isCodeAccount,
-      Code_Account_V1_AccountServerMetadata.Methods.getTokenAccountInfos,
+      Ocp_Account_V1_AccountServerMetadata.Methods.isOcpAccount,
+      Ocp_Account_V1_AccountServerMetadata.Methods.getTokenAccountInfos,
     ]
   )
 
   public enum Methods {
-    public static let isCodeAccount = GRPCMethodDescriptor(
-      name: "IsCodeAccount",
-      path: "/code.account.v1.Account/IsCodeAccount",
+    public static let isOcpAccount = GRPCMethodDescriptor(
+      name: "IsOcpAccount",
+      path: "/ocp.account.v1.Account/IsOcpAccount",
       type: GRPCCallType.unary
     )
 
     public static let getTokenAccountInfos = GRPCMethodDescriptor(
       name: "GetTokenAccountInfos",
-      path: "/code.account.v1.Account/GetTokenAccountInfos",
+      path: "/ocp.account.v1.Account/GetTokenAccountInfos",
       type: GRPCCallType.unary
     )
   }

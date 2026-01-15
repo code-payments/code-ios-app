@@ -21,13 +21,13 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Code_Messaging_V1_OpenMessageStreamRequest: Sendable {
+public struct Ocp_Messaging_V1_OpenMessageStreamRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var rendezvousKey: Code_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Code_Messaging_V1_RendezvousKey()}
+  public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
@@ -38,8 +38,8 @@ public struct Code_Messaging_V1_OpenMessageStreamRequest: Sendable {
   /// The signature is of serialize(OpenMessageStreamRequest) using rendezvous_key.
   ///
   /// todo: Make required once clients migrate
-  public var signature: Code_Common_V1_Signature {
-    get {return _signature ?? Code_Common_V1_Signature()}
+  public var signature: Ocp_Common_V1_Signature {
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
@@ -51,41 +51,41 @@ public struct Code_Messaging_V1_OpenMessageStreamRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
-  fileprivate var _signature: Code_Common_V1_Signature? = nil
+  fileprivate var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
 }
 
-public struct Code_Messaging_V1_OpenMessageStreamResponse: Sendable {
+public struct Ocp_Messaging_V1_OpenMessageStreamResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var messages: [Code_Messaging_V1_Message] = []
+  public var messages: [Ocp_Messaging_V1_Message] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: Sendable {
+public struct Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var requestOrPong: Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest.OneOf_RequestOrPong? = nil
+  public var requestOrPong: Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest.OneOf_RequestOrPong? = nil
 
-  public var request: Code_Messaging_V1_OpenMessageStreamRequest {
+  public var request: Ocp_Messaging_V1_OpenMessageStreamRequest {
     get {
       if case .request(let v)? = requestOrPong {return v}
-      return Code_Messaging_V1_OpenMessageStreamRequest()
+      return Ocp_Messaging_V1_OpenMessageStreamRequest()
     }
     set {requestOrPong = .request(newValue)}
   }
 
-  public var pong: Code_Common_V1_ClientPong {
+  public var pong: Ocp_Common_V1_ClientPong {
     get {
       if case .pong(let v)? = requestOrPong {return v}
-      return Code_Common_V1_ClientPong()
+      return Ocp_Common_V1_ClientPong()
     }
     set {requestOrPong = .pong(newValue)}
   }
@@ -93,33 +93,33 @@ public struct Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: Sendable 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_RequestOrPong: Equatable, Sendable {
-    case request(Code_Messaging_V1_OpenMessageStreamRequest)
-    case pong(Code_Common_V1_ClientPong)
+    case request(Ocp_Messaging_V1_OpenMessageStreamRequest)
+    case pong(Ocp_Common_V1_ClientPong)
 
   }
 
   public init() {}
 }
 
-public struct Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: Sendable {
+public struct Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var responseOrPing: Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse.OneOf_ResponseOrPing? = nil
+  public var responseOrPing: Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse.OneOf_ResponseOrPing? = nil
 
-  public var response: Code_Messaging_V1_OpenMessageStreamResponse {
+  public var response: Ocp_Messaging_V1_OpenMessageStreamResponse {
     get {
       if case .response(let v)? = responseOrPing {return v}
-      return Code_Messaging_V1_OpenMessageStreamResponse()
+      return Ocp_Messaging_V1_OpenMessageStreamResponse()
     }
     set {responseOrPing = .response(newValue)}
   }
 
-  public var ping: Code_Common_V1_ServerPing {
+  public var ping: Ocp_Common_V1_ServerPing {
     get {
       if case .ping(let v)? = responseOrPing {return v}
-      return Code_Common_V1_ServerPing()
+      return Ocp_Common_V1_ServerPing()
     }
     set {responseOrPing = .ping(newValue)}
   }
@@ -127,21 +127,21 @@ public struct Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: Sendable
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_ResponseOrPing: Equatable, Sendable {
-    case response(Code_Messaging_V1_OpenMessageStreamResponse)
-    case ping(Code_Common_V1_ServerPing)
+    case response(Ocp_Messaging_V1_OpenMessageStreamResponse)
+    case ping(Ocp_Common_V1_ServerPing)
 
   }
 
   public init() {}
 }
 
-public struct Code_Messaging_V1_PollMessagesRequest: Sendable {
+public struct Ocp_Messaging_V1_PollMessagesRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var rendezvousKey: Code_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Code_Messaging_V1_RendezvousKey()}
+  public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
@@ -150,8 +150,8 @@ public struct Code_Messaging_V1_PollMessagesRequest: Sendable {
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
   /// The signature is of serialize(PollMessagesRequest) using rendezvous_key.
-  public var signature: Code_Common_V1_Signature {
-    get {return _signature ?? Code_Common_V1_Signature()}
+  public var signature: Ocp_Common_V1_Signature {
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
@@ -163,29 +163,29 @@ public struct Code_Messaging_V1_PollMessagesRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
-  fileprivate var _signature: Code_Common_V1_Signature? = nil
+  fileprivate var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
 }
 
-public struct Code_Messaging_V1_PollMessagesResponse: Sendable {
+public struct Ocp_Messaging_V1_PollMessagesResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var messages: [Code_Messaging_V1_Message] = []
+  public var messages: [Ocp_Messaging_V1_Message] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 }
 
-public struct Code_Messaging_V1_AckMessagesRequest: Sendable {
+public struct Ocp_Messaging_V1_AckMessagesRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var rendezvousKey: Code_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Code_Messaging_V1_RendezvousKey()}
+  public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
@@ -193,21 +193,21 @@ public struct Code_Messaging_V1_AckMessagesRequest: Sendable {
   /// Clears the value of `rendezvousKey`. Subsequent reads from it will return its default value.
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
-  public var messageIds: [Code_Messaging_V1_MessageId] = []
+  public var messageIds: [Ocp_Messaging_V1_MessageId] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
+  fileprivate var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
 }
 
-public struct Code_Messaging_V1_AckMesssagesResponse: Sendable {
+public struct Ocp_Messaging_V1_AckMesssagesResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Code_Messaging_V1_AckMesssagesResponse.Result = .ok
+  public var result: Ocp_Messaging_V1_AckMesssagesResponse.Result = .ok
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -235,7 +235,7 @@ public struct Code_Messaging_V1_AckMesssagesResponse: Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Code_Messaging_V1_AckMesssagesResponse.Result] = [
+    public static let allCases: [Ocp_Messaging_V1_AckMesssagesResponse.Result] = [
       .ok,
     ]
 
@@ -244,14 +244,14 @@ public struct Code_Messaging_V1_AckMesssagesResponse: Sendable {
   public init() {}
 }
 
-public struct Code_Messaging_V1_SendMessageRequest: Sendable {
+public struct Ocp_Messaging_V1_SendMessageRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The message to send. Types of messages clients can send are restricted.
-  public var message: Code_Messaging_V1_Message {
-    get {return _message ?? Code_Messaging_V1_Message()}
+  public var message: Ocp_Messaging_V1_Message {
+    get {return _message ?? Ocp_Messaging_V1_Message()}
     set {_message = newValue}
   }
   /// Returns true if `message` has been explicitly set.
@@ -260,8 +260,8 @@ public struct Code_Messaging_V1_SendMessageRequest: Sendable {
   public mutating func clearMessage() {self._message = nil}
 
   /// The rendezvous key that the message should be routed to.
-  public var rendezvousKey: Code_Messaging_V1_RendezvousKey {
-    get {return _rendezvousKey ?? Code_Messaging_V1_RendezvousKey()}
+  public var rendezvousKey: Ocp_Messaging_V1_RendezvousKey {
+    get {return _rendezvousKey ?? Ocp_Messaging_V1_RendezvousKey()}
     set {_rendezvousKey = newValue}
   }
   /// Returns true if `rendezvousKey` has been explicitly set.
@@ -270,8 +270,8 @@ public struct Code_Messaging_V1_SendMessageRequest: Sendable {
   public mutating func clearRendezvousKey() {self._rendezvousKey = nil}
 
   /// The signature is of serialize(Message) using the PrivateKey of the keypair.
-  public var signature: Code_Common_V1_Signature {
-    get {return _signature ?? Code_Common_V1_Signature()}
+  public var signature: Ocp_Common_V1_Signature {
+    get {return _signature ?? Ocp_Common_V1_Signature()}
     set {_signature = newValue}
   }
   /// Returns true if `signature` has been explicitly set.
@@ -283,21 +283,21 @@ public struct Code_Messaging_V1_SendMessageRequest: Sendable {
 
   public init() {}
 
-  fileprivate var _message: Code_Messaging_V1_Message? = nil
-  fileprivate var _rendezvousKey: Code_Messaging_V1_RendezvousKey? = nil
-  fileprivate var _signature: Code_Common_V1_Signature? = nil
+  fileprivate var _message: Ocp_Messaging_V1_Message? = nil
+  fileprivate var _rendezvousKey: Ocp_Messaging_V1_RendezvousKey? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
 }
 
-public struct Code_Messaging_V1_SendMessageResponse: Sendable {
+public struct Ocp_Messaging_V1_SendMessageResponse: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Code_Messaging_V1_SendMessageResponse.Result = .ok
+  public var result: Ocp_Messaging_V1_SendMessageResponse.Result = .ok
 
   /// Set if result == OK.
-  public var messageID: Code_Messaging_V1_MessageId {
-    get {return _messageID ?? Code_Messaging_V1_MessageId()}
+  public var messageID: Ocp_Messaging_V1_MessageId {
+    get {return _messageID ?? Ocp_Messaging_V1_MessageId()}
     set {_messageID = newValue}
   }
   /// Returns true if `messageID` has been explicitly set.
@@ -334,7 +334,7 @@ public struct Code_Messaging_V1_SendMessageResponse: Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Code_Messaging_V1_SendMessageResponse.Result] = [
+    public static let allCases: [Ocp_Messaging_V1_SendMessageResponse.Result] = [
       .ok,
       .noActiveStream,
     ]
@@ -343,13 +343,13 @@ public struct Code_Messaging_V1_SendMessageResponse: Sendable {
 
   public init() {}
 
-  fileprivate var _messageID: Code_Messaging_V1_MessageId? = nil
+  fileprivate var _messageID: Ocp_Messaging_V1_MessageId? = nil
 }
 
 /// RendezvousKey is a unique key pair, typically derived from a scan code payload,
 /// which is used to establish a secure communication channel anonymously to coordinate
 /// a flow using messages.
-public struct Code_Messaging_V1_RendezvousKey: Sendable {
+public struct Ocp_Messaging_V1_RendezvousKey: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -363,7 +363,7 @@ public struct Code_Messaging_V1_RendezvousKey: Sendable {
 
 /// MessageId identifies a message. It is only guaranteed to be unique when
 /// paired with a destination (i.e. the rendezvous public key).
-public struct Code_Messaging_V1_MessageId: Sendable {
+public struct Ocp_Messaging_V1_MessageId: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -378,15 +378,15 @@ public struct Code_Messaging_V1_MessageId: Sendable {
 /// Request that a pulled out bill be sent to the requested address.
 ///
 /// This message type is only initiated by clients.
-public struct Code_Messaging_V1_RequestToGrabBill: Sendable {
+public struct Ocp_Messaging_V1_RequestToGrabBill: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// Requestor is the virtual token account on the VM to which a payment
   /// should be sent.
-  public var requestorAccount: Code_Common_V1_SolanaAccountId {
-    get {return _requestorAccount ?? Code_Common_V1_SolanaAccountId()}
+  public var requestorAccount: Ocp_Common_V1_SolanaAccountId {
+    get {return _requestorAccount ?? Ocp_Common_V1_SolanaAccountId()}
     set {_requestorAccount = newValue}
   }
   /// Returns true if `requestorAccount` has been explicitly set.
@@ -398,20 +398,20 @@ public struct Code_Messaging_V1_RequestToGrabBill: Sendable {
 
   public init() {}
 
-  fileprivate var _requestorAccount: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _requestorAccount: Ocp_Common_V1_SolanaAccountId? = nil
 }
 
 /// Request that a bill be given in the desired mint
 ///
 /// This message type is only initiated by clients.
-public struct Code_Messaging_V1_RequestToGiveBill: Sendable {
+public struct Ocp_Messaging_V1_RequestToGiveBill: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
   /// The mint that the bill will be received in
-  public var mint: Code_Common_V1_SolanaAccountId {
-    get {return _mint ?? Code_Common_V1_SolanaAccountId()}
+  public var mint: Ocp_Common_V1_SolanaAccountId {
+    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
     set {_mint = newValue}
   }
   /// Returns true if `mint` has been explicitly set.
@@ -423,10 +423,10 @@ public struct Code_Messaging_V1_RequestToGiveBill: Sendable {
 
   public init() {}
 
-  fileprivate var _mint: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
 }
 
-public struct Code_Messaging_V1_Message: Sendable {
+public struct Ocp_Messaging_V1_Message: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -437,8 +437,8 @@ public struct Code_Messaging_V1_Message: Sendable {
   /// Server generates the message to:
   ///     1. Reserve the ability for any future ID changes
   ///     2. Prevent clients attempting to collide message IDs.
-  public var id: Code_Messaging_V1_MessageId {
-    get {return _id ?? Code_Messaging_V1_MessageId()}
+  public var id: Ocp_Messaging_V1_MessageId {
+    get {return _id ?? Ocp_Messaging_V1_MessageId()}
     set {_id = newValue}
   }
   /// Returns true if `id` has been explicitly set.
@@ -449,8 +449,8 @@ public struct Code_Messaging_V1_Message: Sendable {
   /// The signature sent from SendMessageRequest, which will be injected by server.
   /// This enables clients to ensure no MITM attacks were performed to hijack contents
   /// of the typed message. This is only applicable for messages not generated by server.
-  public var sendMessageRequestSignature: Code_Common_V1_Signature {
-    get {return _sendMessageRequestSignature ?? Code_Common_V1_Signature()}
+  public var sendMessageRequestSignature: Ocp_Common_V1_Signature {
+    get {return _sendMessageRequestSignature ?? Ocp_Common_V1_Signature()}
     set {_sendMessageRequestSignature = newValue}
   }
   /// Returns true if `sendMessageRequestSignature` has been explicitly set.
@@ -458,45 +458,43 @@ public struct Code_Messaging_V1_Message: Sendable {
   /// Clears the value of `sendMessageRequestSignature`. Subsequent reads from it will return its default value.
   public mutating func clearSendMessageRequestSignature() {self._sendMessageRequestSignature = nil}
 
-  /// Next field number is 13
-  public var kind: Code_Messaging_V1_Message.OneOf_Kind? = nil
+  public var kind: Ocp_Messaging_V1_Message.OneOf_Kind? = nil
 
-  public var requestToGrabBill: Code_Messaging_V1_RequestToGrabBill {
+  public var requestToGrabBill: Ocp_Messaging_V1_RequestToGrabBill {
     get {
       if case .requestToGrabBill(let v)? = kind {return v}
-      return Code_Messaging_V1_RequestToGrabBill()
+      return Ocp_Messaging_V1_RequestToGrabBill()
     }
     set {kind = .requestToGrabBill(newValue)}
   }
 
-  public var requestToGiveBill: Code_Messaging_V1_RequestToGiveBill {
+  public var requestToGiveBill: Ocp_Messaging_V1_RequestToGiveBill {
     get {
       if case .requestToGiveBill(let v)? = kind {return v}
-      return Code_Messaging_V1_RequestToGiveBill()
+      return Ocp_Messaging_V1_RequestToGiveBill()
     }
     set {kind = .requestToGiveBill(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  /// Next field number is 13
   public enum OneOf_Kind: Equatable, Sendable {
-    case requestToGrabBill(Code_Messaging_V1_RequestToGrabBill)
-    case requestToGiveBill(Code_Messaging_V1_RequestToGiveBill)
+    case requestToGrabBill(Ocp_Messaging_V1_RequestToGrabBill)
+    case requestToGiveBill(Ocp_Messaging_V1_RequestToGiveBill)
 
   }
 
   public init() {}
 
-  fileprivate var _id: Code_Messaging_V1_MessageId? = nil
-  fileprivate var _sendMessageRequestSignature: Code_Common_V1_Signature? = nil
+  fileprivate var _id: Ocp_Messaging_V1_MessageId? = nil
+  fileprivate var _sendMessageRequestSignature: Ocp_Common_V1_Signature? = nil
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "code.messaging.v1"
+fileprivate let _protobuf_package = "ocp.messaging.v1"
 
-extension Code_Messaging_V1_OpenMessageStreamRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_OpenMessageStreamRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OpenMessageStreamRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}rendezvous_key\0\u{1}signature\0")
 
@@ -527,7 +525,7 @@ extension Code_Messaging_V1_OpenMessageStreamRequest: SwiftProtobuf.Message, Swi
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_OpenMessageStreamRequest, rhs: Code_Messaging_V1_OpenMessageStreamRequest) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_OpenMessageStreamRequest, rhs: Ocp_Messaging_V1_OpenMessageStreamRequest) -> Bool {
     if lhs._rendezvousKey != rhs._rendezvousKey {return false}
     if lhs._signature != rhs._signature {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -535,7 +533,7 @@ extension Code_Messaging_V1_OpenMessageStreamRequest: SwiftProtobuf.Message, Swi
   }
 }
 
-extension Code_Messaging_V1_OpenMessageStreamResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_OpenMessageStreamResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OpenMessageStreamResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}messages\0")
 
@@ -558,14 +556,14 @@ extension Code_Messaging_V1_OpenMessageStreamResponse: SwiftProtobuf.Message, Sw
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_OpenMessageStreamResponse, rhs: Code_Messaging_V1_OpenMessageStreamResponse) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_OpenMessageStreamResponse, rhs: Ocp_Messaging_V1_OpenMessageStreamResponse) -> Bool {
     if lhs.messages != rhs.messages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OpenMessageStreamWithKeepAliveRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}request\0\u{1}pong\0")
 
@@ -576,7 +574,7 @@ extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: SwiftProtobuf
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Code_Messaging_V1_OpenMessageStreamRequest?
+        var v: Ocp_Messaging_V1_OpenMessageStreamRequest?
         var hadOneofValue = false
         if let current = self.requestOrPong {
           hadOneofValue = true
@@ -589,7 +587,7 @@ extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: SwiftProtobuf
         }
       }()
       case 2: try {
-        var v: Code_Common_V1_ClientPong?
+        var v: Ocp_Common_V1_ClientPong?
         var hadOneofValue = false
         if let current = self.requestOrPong {
           hadOneofValue = true
@@ -625,14 +623,14 @@ extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest: SwiftProtobuf
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, rhs: Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, rhs: Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest) -> Bool {
     if lhs.requestOrPong != rhs.requestOrPong {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".OpenMessageStreamWithKeepAliveResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}response\0\u{1}ping\0")
 
@@ -643,7 +641,7 @@ extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: SwiftProtobu
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try {
-        var v: Code_Messaging_V1_OpenMessageStreamResponse?
+        var v: Ocp_Messaging_V1_OpenMessageStreamResponse?
         var hadOneofValue = false
         if let current = self.responseOrPing {
           hadOneofValue = true
@@ -656,7 +654,7 @@ extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: SwiftProtobu
         }
       }()
       case 2: try {
-        var v: Code_Common_V1_ServerPing?
+        var v: Ocp_Common_V1_ServerPing?
         var hadOneofValue = false
         if let current = self.responseOrPing {
           hadOneofValue = true
@@ -692,14 +690,14 @@ extension Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse: SwiftProtobu
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse, rhs: Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse, rhs: Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse) -> Bool {
     if lhs.responseOrPing != rhs.responseOrPing {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_PollMessagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_PollMessagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PollMessagesRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}rendezvous_key\0\u{1}signature\0")
 
@@ -730,7 +728,7 @@ extension Code_Messaging_V1_PollMessagesRequest: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_PollMessagesRequest, rhs: Code_Messaging_V1_PollMessagesRequest) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_PollMessagesRequest, rhs: Ocp_Messaging_V1_PollMessagesRequest) -> Bool {
     if lhs._rendezvousKey != rhs._rendezvousKey {return false}
     if lhs._signature != rhs._signature {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -738,7 +736,7 @@ extension Code_Messaging_V1_PollMessagesRequest: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-extension Code_Messaging_V1_PollMessagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_PollMessagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PollMessagesResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}messages\0")
 
@@ -761,14 +759,14 @@ extension Code_Messaging_V1_PollMessagesResponse: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_PollMessagesResponse, rhs: Code_Messaging_V1_PollMessagesResponse) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_PollMessagesResponse, rhs: Ocp_Messaging_V1_PollMessagesResponse) -> Bool {
     if lhs.messages != rhs.messages {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_AckMessagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_AckMessagesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AckMessagesRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}rendezvous_key\0\u{3}message_ids\0")
 
@@ -799,7 +797,7 @@ extension Code_Messaging_V1_AckMessagesRequest: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_AckMessagesRequest, rhs: Code_Messaging_V1_AckMessagesRequest) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_AckMessagesRequest, rhs: Ocp_Messaging_V1_AckMessagesRequest) -> Bool {
     if lhs._rendezvousKey != rhs._rendezvousKey {return false}
     if lhs.messageIds != rhs.messageIds {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -807,7 +805,7 @@ extension Code_Messaging_V1_AckMessagesRequest: SwiftProtobuf.Message, SwiftProt
   }
 }
 
-extension Code_Messaging_V1_AckMesssagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_AckMesssagesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AckMesssagesResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0")
 
@@ -830,18 +828,18 @@ extension Code_Messaging_V1_AckMesssagesResponse: SwiftProtobuf.Message, SwiftPr
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_AckMesssagesResponse, rhs: Code_Messaging_V1_AckMesssagesResponse) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_AckMesssagesResponse, rhs: Ocp_Messaging_V1_AckMesssagesResponse) -> Bool {
     if lhs.result != rhs.result {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_AckMesssagesResponse.Result: SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_AckMesssagesResponse.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0")
 }
 
-extension Code_Messaging_V1_SendMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_SendMessageRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendMessageRequest"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}message\0\u{3}rendezvous_key\0\u{1}signature\0")
 
@@ -876,7 +874,7 @@ extension Code_Messaging_V1_SendMessageRequest: SwiftProtobuf.Message, SwiftProt
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_SendMessageRequest, rhs: Code_Messaging_V1_SendMessageRequest) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_SendMessageRequest, rhs: Ocp_Messaging_V1_SendMessageRequest) -> Bool {
     if lhs._message != rhs._message {return false}
     if lhs._rendezvousKey != rhs._rendezvousKey {return false}
     if lhs._signature != rhs._signature {return false}
@@ -885,7 +883,7 @@ extension Code_Messaging_V1_SendMessageRequest: SwiftProtobuf.Message, SwiftProt
   }
 }
 
-extension Code_Messaging_V1_SendMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_SendMessageResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SendMessageResponse"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}message_id\0")
 
@@ -916,7 +914,7 @@ extension Code_Messaging_V1_SendMessageResponse: SwiftProtobuf.Message, SwiftPro
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_SendMessageResponse, rhs: Code_Messaging_V1_SendMessageResponse) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_SendMessageResponse, rhs: Ocp_Messaging_V1_SendMessageResponse) -> Bool {
     if lhs.result != rhs.result {return false}
     if lhs._messageID != rhs._messageID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -924,11 +922,11 @@ extension Code_Messaging_V1_SendMessageResponse: SwiftProtobuf.Message, SwiftPro
   }
 }
 
-extension Code_Messaging_V1_SendMessageResponse.Result: SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_SendMessageResponse.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}NO_ACTIVE_STREAM\0")
 }
 
-extension Code_Messaging_V1_RendezvousKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_RendezvousKey: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RendezvousKey"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -951,14 +949,14 @@ extension Code_Messaging_V1_RendezvousKey: SwiftProtobuf.Message, SwiftProtobuf.
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_RendezvousKey, rhs: Code_Messaging_V1_RendezvousKey) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_RendezvousKey, rhs: Ocp_Messaging_V1_RendezvousKey) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_MessageId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_MessageId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".MessageId"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -981,14 +979,14 @@ extension Code_Messaging_V1_MessageId: SwiftProtobuf.Message, SwiftProtobuf._Mes
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_MessageId, rhs: Code_Messaging_V1_MessageId) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_MessageId, rhs: Ocp_Messaging_V1_MessageId) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_RequestToGrabBill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_RequestToGrabBill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RequestToGrabBill"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}requestor_account\0")
 
@@ -1015,14 +1013,14 @@ extension Code_Messaging_V1_RequestToGrabBill: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_RequestToGrabBill, rhs: Code_Messaging_V1_RequestToGrabBill) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_RequestToGrabBill, rhs: Ocp_Messaging_V1_RequestToGrabBill) -> Bool {
     if lhs._requestorAccount != rhs._requestorAccount {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".RequestToGiveBill"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mint\0")
 
@@ -1049,16 +1047,16 @@ extension Code_Messaging_V1_RequestToGiveBill: SwiftProtobuf.Message, SwiftProto
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_RequestToGiveBill, rhs: Code_Messaging_V1_RequestToGiveBill) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_RequestToGiveBill, rhs: Ocp_Messaging_V1_RequestToGiveBill) -> Bool {
     if lhs._mint != rhs._mint {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Message"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}request_to_grab_bill\0\u{3}send_message_request_signature\0\u{4}\u{a}request_to_give_bill\0\u{c}\u{4}\u{1}\u{c}\u{5}\u{1}\u{c}\u{6}\u{1}\u{c}\u{7}\u{1}\u{c}\u{8}\u{1}\u{c}\u{9}\u{1}\u{c}\u{a}\u{1}\u{c}\u{b}\u{1}\u{c}\u{c}\u{1}")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}send_message_request_signature\0\u{3}request_to_grab_bill\0\u{3}request_to_give_bill\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1067,8 +1065,9 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
       // enabled. https://github.com/apple/swift-protobuf/issues/1034
       switch fieldNumber {
       case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
-      case 2: try {
-        var v: Code_Messaging_V1_RequestToGrabBill?
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._sendMessageRequestSignature) }()
+      case 3: try {
+        var v: Ocp_Messaging_V1_RequestToGrabBill?
         var hadOneofValue = false
         if let current = self.kind {
           hadOneofValue = true
@@ -1080,9 +1079,8 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
           self.kind = .requestToGrabBill(v)
         }
       }()
-      case 3: try { try decoder.decodeSingularMessageField(value: &self._sendMessageRequestSignature) }()
-      case 13: try {
-        var v: Code_Messaging_V1_RequestToGiveBill?
+      case 4: try {
+        var v: Ocp_Messaging_V1_RequestToGiveBill?
         var hadOneofValue = false
         if let current = self.kind {
           hadOneofValue = true
@@ -1107,19 +1105,24 @@ extension Code_Messaging_V1_Message: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try { if let v = self._id {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
     } }()
-    try { if case .requestToGrabBill(let v)? = self.kind {
+    try { if let v = self._sendMessageRequestSignature {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    try { if let v = self._sendMessageRequestSignature {
+    switch self.kind {
+    case .requestToGrabBill?: try {
+      guard case .requestToGrabBill(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    } }()
-    try { if case .requestToGiveBill(let v)? = self.kind {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
-    } }()
+    }()
+    case .requestToGiveBill?: try {
+      guard case .requestToGiveBill(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
+    }()
+    case nil: break
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Messaging_V1_Message, rhs: Code_Messaging_V1_Message) -> Bool {
+  public static func ==(lhs: Ocp_Messaging_V1_Message, rhs: Ocp_Messaging_V1_Message) -> Bool {
     if lhs._id != rhs._id {return false}
     if lhs._sendMessageRequestSignature != rhs._sendMessageRequestSignature {return false}
     if lhs.kind != rhs.kind {return false}

@@ -85,7 +85,6 @@ extension Database {
                 table.coreMintVault     <- mint.launchpadMetadata?.coreMintVault,
                 table.coreMintFees      <- mint.launchpadMetadata?.coreMintFees,
                 table.supplyFromBonding <- mint.launchpadMetadata?.supplyFromBonding,
-                table.coreMintLocked    <- mint.launchpadMetadata?.coreMintLocked,
                 table.sellFeeBps        <- mint.launchpadMetadata?.sellFeeBps,
                 
                 table.updatedAt         <- date,

@@ -15,7 +15,7 @@ struct SessionTests {
 
     // MARK: - Test Data
 
-    static let mint = PublicKey.usdc
+    static let mint = PublicKey.usdf
     static let rate = Rate(fx: 1.0, currency: .usd)
 
     /// Helper to create a mock session with a specific balance

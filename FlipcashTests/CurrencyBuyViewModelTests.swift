@@ -33,7 +33,7 @@ struct CurrencyBuyViewModelTests {
         try! sessionContainer.database.insert(snapshot: snapshot)
         
         return CurrencyBuyViewModel(
-            currencyPublicKey: .usdc,
+            currencyPublicKey: .usdf,
             container: container,
             sessionContainer: sessionContainer
         )

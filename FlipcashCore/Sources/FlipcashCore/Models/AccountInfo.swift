@@ -188,7 +188,7 @@ extension AccountInfo {
 }
 
 extension AccountInfo {
-    public init(_ info: Code_Account_V1_TokenAccountInfo) throws {
+    public init(_ info: Ocp_Account_V1_TokenAccountInfo) throws {
         guard
             let balanceSource = BalanceSource(info.balanceSource),
             let managementState = ManagementState(info.managementState),
@@ -238,7 +238,7 @@ extension AccountInfo {
 }
 
 extension AccountInfo.BalanceSource {
-    public init?(_ source: Code_Account_V1_TokenAccountInfo.BalanceSource) {
+    public init?(_ source: Ocp_Account_V1_TokenAccountInfo.BalanceSource) {
         switch source {
         case .unknown:
             self = .unknown
@@ -253,7 +253,7 @@ extension AccountInfo.BalanceSource {
 }
 
 extension AccountInfo.ManagementState {
-    public init?(_ state: Code_Account_V1_TokenAccountInfo.ManagementState) {
+    public init?(_ state: Ocp_Account_V1_TokenAccountInfo.ManagementState) {
         switch state {
         case .unknown:
             self = .unknown
@@ -278,7 +278,7 @@ extension AccountInfo.ManagementState {
 }
 
 extension AccountInfo.BlockchainState {
-    public init?(_ state: Code_Account_V1_TokenAccountInfo.BlockchainState) {
+    public init?(_ state: Ocp_Account_V1_TokenAccountInfo.BlockchainState) {
         switch state {
         case .unknown:
             self = .unknown
@@ -293,7 +293,7 @@ extension AccountInfo.BlockchainState {
 }
 
 extension AccountInfo.ClaimState {
-    public init?(_ state: Code_Account_V1_TokenAccountInfo.ClaimState) {
+    public init?(_ state: Ocp_Account_V1_TokenAccountInfo.ClaimState) {
         switch state {
         case .unknown:
             self = .unknown

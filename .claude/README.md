@@ -279,7 +279,6 @@ struct StoredBalance {
     let symbol: String              // "USDC", "FLIP", etc.
     let name: String                // Display name
     let supplyFromBonding: UInt64?  // Circulating supply
-    let coreMintLocked: UInt64?     // TVL in USDC
     let sellFeeBps: Int?            // Sell fee (100 = 1%)
     let mint: PublicKey             // Token mint address
     let vmAuthority: PublicKey?     // VM authority
@@ -294,7 +293,7 @@ struct StoredBalance {
   let estimation = bondingCurve.sell(
       quarks: quarks,
       feeBps: sellFeeBps,
-      tvl: coreMintLocked
+      tvl: supplyFromBonding
   )
   usdcValue = estimation.netUSDC
   ```
@@ -318,7 +317,6 @@ struct StoredMintMetadata {
     let currencyConfig: PublicKey?
     let liquidityPool: PublicKey?
     let supplyFromBonding: UInt64?
-    let coreMintLocked: UInt64?
     let sellFeeBps: Int?
 }
 ```
@@ -580,7 +578,6 @@ CREATE TABLE mint (
     coreMintVault     BLOB,
     coreMintFees      BLOB,
     supplyFromBonding INTEGER,
-    coreMintLocked    INTEGER,
     sellFeeBps        INTEGER,
 
     updatedAt         REAL
@@ -732,7 +729,7 @@ let exchanged = ExchangedFiat.computeFromQuarks(
     quarks: quarks,
     mint: mint,
     rate: rate,
-    tvl: coreMintLocked
+    tvl: supplyFromBonding
 )
 ```
 

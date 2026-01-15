@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package code.common.v1;
+package ocp.common.v1;
 
-option go_package = "github.com/code-payments/code-protobuf-api/generated/go/common/v1;common";
+option go_package = "github.com/code-payments/ocp-protobuf-api/generated/go/common/v1;common";
 option java_package = "com.codeinc.gen.common.v1";
 option objc_class_prefix = "CPBCommonV1";
 
@@ -11,26 +11,14 @@ import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 // AccountType associates a type to an account, which infers how an account is used
-// within the Code ecosystem.
+// within the OCP ecosystem.
 enum AccountType {
     UNKNOWN                  = 0;
     PRIMARY                  = 1;
-    REMOTE_SEND_GIFT_CARD    = 12;
-    SWAP                     = 14;
-    ASSOCIATED_TOKEN_ACCOUNT = 15;
-    POOL                     = 16;
-
-    reserved 2;  // Deprecated TEMPORARY_INCOMING
-    reserved 3;  // Deprecated TEMPORARY_OUTGOING
-    reserved 4;  // Deprecated BUCKET_1_KIN
-    reserved 5;  // Deprecated BUCKET_10_KIN
-    reserved 6;  // Deprecated BUCKET_100_KIN
-    reserved 7;  // Deprecated BUCKET_1_000_KIN
-    reserved 8;  // Deprecated BUCKET_10_000_KIN
-    reserved 9;  // Deprecated BUCKET_100_000_KIN
-    reserved 10; // Deprecated BUCKET_1_000_000_KIN
-    reserved 11; // Deprecated LEGACY_PRIMARY_2022
-    reserved 13; // Deprecated RELATIONSHIP
+    REMOTE_SEND_GIFT_CARD    = 2;
+    SWAP                     = 3;
+    ASSOCIATED_TOKEN_ACCOUNT = 4;
+    POOL                     = 5;
 }
 
 // SolanaAccountId is a raw binary Ed25519 public key for a Solana account
@@ -77,7 +65,7 @@ message Signature {
 }
 
 // IntentId is a client-side generated ID that maps to an intent to perform actions
-// on the blockchain fulfilled by the Code sequencer.
+// on the blockchain fulfilled by the OCP sequencer.
 message IntentId {
     bytes value = 1 [(validate.rules).bytes = {
         min_len: 32
@@ -143,4 +131,13 @@ message ClientPong {
     // Timestamp the Pong was sent on the stream, for server to get a sense
     // of potential network latency
     google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+}
+
+enum Interval {
+    RAW     = 0;
+    SECOND  = 1;
+    MINUTE  = 2;
+    HOUR    = 3;
+    DAY     = 4;
+    WEEK    = 5;
 }

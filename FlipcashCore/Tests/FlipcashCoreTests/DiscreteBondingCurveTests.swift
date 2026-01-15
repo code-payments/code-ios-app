@@ -751,7 +751,7 @@ struct DiscreteHighLevelAPITests {
 
     @Test("6.3 Buy estimation with 0% fee")
     func buyWithZeroFeeBps() {
-        let estimate = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, tvl: 1_000_000)  // 1 USDC
+        let estimate = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, supplyQuarks: 1_000_000)  // 1 USDC
         #expect(estimate != nil)
         if let estimate = estimate {
             #expect(estimate.grossTokens == estimate.netTokens)
@@ -761,7 +761,7 @@ struct DiscreteHighLevelAPITests {
 
     @Test("6.4 Buy estimation with 1% fee")
     func buyWith100FeeBps() {
-        let estimate = curve.buy(usdcQuarks: 1_000_000, feeBps: 100, tvl: 1_000_000)  // 1 USDC, 1% fee
+        let estimate = curve.buy(usdcQuarks: 1_000_000, feeBps: 100, supplyQuarks: 1_000_000)  // 1 USDC, 1% fee
         #expect(estimate != nil)
         if let estimate = estimate {
             #expect(estimate.netTokens < estimate.grossTokens)
@@ -771,7 +771,7 @@ struct DiscreteHighLevelAPITests {
 
     @Test("6.5 Buy estimation with 10% fee")
     func buyWithLargeFee() {
-        let estimate = curve.buy(usdcQuarks: 1_000_000, feeBps: 1000, tvl: 1_000_000)  // 1 USDC, 10% fee
+        let estimate = curve.buy(usdcQuarks: 1_000_000, feeBps: 1000, supplyQuarks: 1_000_000)  // 1 USDC, 10% fee
         #expect(estimate != nil)
         if let estimate = estimate {
             // Net should be approximately 90% of gross
@@ -782,12 +782,13 @@ struct DiscreteHighLevelAPITests {
 
     @Test("6.6 Sell estimation with 0% fee")
     func sellWithZeroFeeBps() {
-        // First buy some tokens to have something to sell
+        // Sell 100 tokens - supply must be at least 100 tokens
         let tokenQuarks = 100 * 10_000_000_000  // 100 tokens in quarks
-        let estimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, tvl: 10_000_000)
+        let supplyQuarks = 200 * 10_000_000_000  // 200 tokens supply (must be >= tokens to sell)
+        let estimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
         #expect(estimate != nil)
         if let estimate = estimate {
-            #expect(estimate.grossUSDC == estimate.netUSDC)
+            #expect(estimate.grossUSDF == estimate.netUSDF)
             #expect(estimate.fees == .zero)
         }
     }
@@ -795,22 +796,24 @@ struct DiscreteHighLevelAPITests {
     @Test("6.7 Sell estimation with 1% fee")
     func sellWith100FeeBps() {
         let tokenQuarks = 100 * 10_000_000_000  // 100 tokens in quarks
-        let estimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 100, tvl: 10_000_000)
+        let supplyQuarks = 200 * 10_000_000_000  // 200 tokens supply
+        let estimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 100, supplyQuarks: supplyQuarks)
         #expect(estimate != nil)
         if let estimate = estimate {
-            #expect(estimate.netUSDC < estimate.grossUSDC)
+            #expect(estimate.netUSDF < estimate.grossUSDF)
             #expect(estimate.fees > .zero)
         }
     }
 
     @Test("6.8 net + fees equals gross for sells")
     func sellNetPlusFeeEqualsGross() {
-        let tokenQuarks = 100 * 10_000_000_000
-        let estimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 100, tvl: 10_000_000)
+        let tokenQuarks = 100 * 10_000_000_000  // 100 tokens
+        let supplyQuarks = 200 * 10_000_000_000  // 200 tokens supply
+        let estimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 100, supplyQuarks: supplyQuarks)
         #expect(estimate != nil)
         if let estimate = estimate {
-            let sum = estimate.netUSDC.add(estimate.fees, testRounding)
-            #expect(isApproximatelyEqual(sum, estimate.grossUSDC))
+            let sum = estimate.netUSDF.add(estimate.fees, testRounding)
+            #expect(isApproximatelyEqual(sum, estimate.grossUSDF))
         }
     }
 
@@ -829,26 +832,28 @@ struct DiscreteHighLevelAPITests {
 
     @Test("6.10 Buy then sell roundtrip")
     func buyThenSellRoundtrip() {
-        let initialTVL = 1_000_000  // 1 USDC
+        // Start with 1000 tokens supply
+        let initialSupplyQuarks = 1000 * 10_000_000_000
         let usdcToSpend = 1_000_000  // 1 USDC
 
-        // Buy
-        guard let buyEstimate = curve.buy(usdcQuarks: usdcToSpend, feeBps: 0, tvl: initialTVL) else {
+        // Buy tokens at current supply
+        guard let buyEstimate = curve.buy(usdcQuarks: usdcToSpend, feeBps: 0, supplyQuarks: initialSupplyQuarks) else {
             Issue.record("Buy failed")
             return
         }
 
         // Sell the tokens we bought
+        // The new supply is initial + tokens bought
         let tokenQuarks = Int(buyEstimate.netTokens.multiply(BigDecimal(10_000_000_000), testRounding).round(Rounding(.towardZero, 0)).asString(.plain))!
-        let newTVL = initialTVL + usdcToSpend  // TVL increased
+        let newSupplyQuarks = initialSupplyQuarks + tokenQuarks
 
-        guard let sellEstimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, tvl: newTVL) else {
+        guard let sellEstimate = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: newSupplyQuarks) else {
             Issue.record("Sell failed")
             return
         }
 
         // Should get approximately what we spent
-        let usdcRecovered = sellEstimate.netUSDC.multiply(BigDecimal(1_000_000), testRounding)
+        let usdcRecovered = sellEstimate.netUSDF.multiply(BigDecimal(1_000_000), testRounding)
         // For discrete curves, step-based pricing introduces quantization.
         // At low token counts (100 tokens from $1) the rounding can cause ~10% loss
         // because each step is 100 tokens and we're right at the boundary.
@@ -944,7 +949,7 @@ struct DiscreteTokensForValueExchangeTests {
         let result = curve.tokensForValueExchange(
             fiat: .zero,
             fiatRate: BigDecimal("1.0"),
-            tvl: 10 * usdcQuarksPerDollar
+            supplyQuarks: 10 * usdcQuarksPerDollar
         )
         #expect(result == nil)
     }
@@ -954,7 +959,7 @@ struct DiscreteTokensForValueExchangeTests {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("-5.0"),
             fiatRate: BigDecimal("1.0"),
-            tvl: 10 * usdcQuarksPerDollar
+            supplyQuarks: 10 * usdcQuarksPerDollar
         )
         #expect(result == nil)
     }
@@ -966,7 +971,7 @@ struct DiscreteTokensForValueExchangeTests {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("1.0"),  // $1 USD
             fiatRate: BigDecimal("1.0"),  // 1:1 rate
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         #expect(result != nil)
@@ -989,14 +994,14 @@ struct DiscreteTokensForValueExchangeTests {
         let cadResult = curve.tokensForValueExchange(
             fiat: BigDecimal("5.0"),
             fiatRate: BigDecimal("1.4"),
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         // $3.57 USD directly
         let usdResult = curve.tokensForValueExchange(
             fiat: BigDecimal("3.571428571428"),  // 5/1.4
             fiatRate: BigDecimal("1.0"),
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         #expect(cadResult != nil)
@@ -1020,7 +1025,7 @@ struct DiscreteTokensForValueExchangeTests {
         let result = curve.tokensForValueExchange(
             fiat: fiat,
             fiatRate: fiatRate,
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         #expect(result != nil)
@@ -1039,7 +1044,7 @@ struct DiscreteTokensForValueExchangeTests {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("1.0"),
             fiatRate: BigDecimal("1.0"),
-            tvl: -1
+            supplyQuarks: -1
         )
         // Should either return nil or handle gracefully
         // The implementation converts to BigDecimal which handles negatives
@@ -1052,7 +1057,7 @@ struct DiscreteTokensForValueExchangeTests {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("500.0"),  // $500
             fiatRate: BigDecimal("1.0"),
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         #expect(result != nil)
@@ -1068,7 +1073,7 @@ struct DiscreteTokensForValueExchangeTests {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("0.01"),  // 1 cent
             fiatRate: BigDecimal("1.0"),
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         #expect(result != nil)
@@ -1107,7 +1112,7 @@ struct DiscreteTokensForValueExchangeTests {
         guard let exchangeResult = curve.tokensForValueExchange(
             fiat: usdcValue,
             fiatRate: BigDecimal("1.0"),
-            tvl: tvl
+            supplyQuarks: tvl
         ) else {
             Issue.record("Failed to get tokens via tokensForValueExchange")
             return
@@ -1127,19 +1132,19 @@ struct DiscreteTokensForValueExchangeTests {
         let usdResult = curve.tokensForValueExchange(
             fiat: BigDecimal("10.0"),
             fiatRate: BigDecimal("1.0"),  // $10 USD = $10 USD
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         let eurResult = curve.tokensForValueExchange(
             fiat: BigDecimal("9.0"),
             fiatRate: BigDecimal("0.9"),  // €9 EUR = $10 USD
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         let gbpResult = curve.tokensForValueExchange(
             fiat: BigDecimal("8.0"),
             fiatRate: BigDecimal("0.8"),  // £8 GBP = $10 USD
-            tvl: tvl
+            supplyQuarks: tvl
         )
 
         #expect(usdResult != nil)
@@ -1153,16 +1158,22 @@ struct DiscreteTokensForValueExchangeTests {
         }
     }
 
-    @Test("9.11 Zero TVL returns nil")
-    func zeroTVLReturnsNil() {
+    @Test("9.11 Zero supply returns valid result at step 0")
+    func zeroSupplyReturnsValidResult() {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("1.0"),
             fiatRate: BigDecimal("1.0"),
-            tvl: 0  // No TVL = supply 0, can't exchange anything
+            supplyQuarks: 0  // Supply 0 = step 0, price $0.01
         )
 
-        // At TVL 0, there are no tokens to exchange - should return nil
-        #expect(result == nil)
+        // At supply 0, we're at step 0 with price $0.01
+        // $1 should buy ~100 tokens
+        #expect(result != nil, "Zero supply is valid - at step 0")
+        if let result = result {
+            #expect(result.tokens.isPositive)
+            // At $0.01/token, $1 should buy ~100 tokens
+            #expect(isApproximatelyEqual(result.tokens, BigDecimal("100"), tolerance: BigDecimal("1")))
+        }
     }
 
     @Test("9.12 Valuation struct has correct values")
@@ -1460,7 +1471,7 @@ struct DiscreteRealWorldTests {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("1"),
             fiatRate: BigDecimal("1.38262"),
-            tvl: 231_804_283
+            supplyQuarks: 231_804_283
         )
 
         #expect(result != nil, "Should return a valid result")
@@ -1525,26 +1536,22 @@ struct DiscreteAdditionalCoverageTests {
             // Try to sell more tokens than exist
             // currentSupply is in whole tokens, multiply by quarksPerToken
             let oversellQuarks = (currentSupply + 1000) * DiscreteBondingCurve.quarksPerToken
-            let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, tvl: tvl)
+            let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, supplyQuarks: tvl)
             #expect(result == nil, "Selling more tokens than supply should return nil")
         }
     }
 
     @Test("12.2 Selling exactly all tokens succeeds")
     func sellExactSupplySucceeds() {
-        // Small TVL = small supply
-        let tvl = 1_000_000  // $1 in USDC quarks
-        let supply = curve.supplyFromTVL(tvl)
-        #expect(supply != nil)
+        // 100 tokens supply
+        let supplyTokens = 100
+        let supplyQuarks = supplyTokens * DiscreteBondingCurve.quarksPerToken
 
-        if let currentSupply = supply, currentSupply > 0 {
-            // Sell exactly the current supply (leaves 0 tokens)
-            let exactQuarks = currentSupply * DiscreteBondingCurve.quarksPerToken
-            let result = curve.sell(tokenQuarks: exactQuarks, feeBps: 0, tvl: tvl)
-            #expect(result != nil, "Selling exact supply should succeed")
-            if let result = result {
-                #expect(result.grossUSDC > .zero, "Should receive positive USDC")
-            }
+        // Sell exactly the current supply (leaves 0 tokens)
+        let result = curve.sell(tokenQuarks: supplyQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
+        #expect(result != nil, "Selling exact supply should succeed")
+        if let result = result {
+            #expect(result.grossUSDF > .zero, "Should receive positive USDC")
         }
     }
 
@@ -1557,7 +1564,7 @@ struct DiscreteAdditionalCoverageTests {
         if let currentSupply = supply {
             // Try to sell supply + 1 tokens
             let oversellQuarks = (currentSupply + 1) * DiscreteBondingCurve.quarksPerToken
-            let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, tvl: tvl)
+            let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, supplyQuarks: tvl)
             #expect(result == nil, "Selling supply+1 tokens should return nil")
         }
     }
@@ -1608,7 +1615,7 @@ struct DiscreteAdditionalCoverageTests {
         // Negative TVL (if it were allowed) - implementation uses Int so this tests guard
         // Actually test with TVL at max supply to exceed bounds
         let maxTVL = Int.max  // Unrealistic TVL
-        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, tvl: maxTVL)
+        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, supplyQuarks: maxTVL)
         // This should either return nil or a valid bounded result
         if let result = result {
             #expect(result.grossTokens >= .zero)
@@ -1625,7 +1632,7 @@ struct DiscreteAdditionalCoverageTests {
         // At max supply (21M tokens), can't buy more
         // This is tested indirectly - if supplyFromTVL returns maxSupply area
         let veryHighTVL = 100_000_000_000_000  // $100M TVL
-        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, tvl: veryHighTVL)
+        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 0, supplyQuarks: veryHighTVL)
         // Should work at high TVL but below max
         #expect(result != nil, "Should be able to buy at high but valid TVL")
     }
@@ -1694,7 +1701,7 @@ struct DiscreteAdditionalCoverageTests {
 
     @Test("12.12 Buy with 100% fee yields zero net tokens")
     func buyWith100PercentFee() {
-        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 10_000, tvl: 10_000_000)  // 100% fee
+        let result = curve.buy(usdcQuarks: 1_000_000, feeBps: 10_000, supplyQuarks: 10_000_000)  // 100% fee
         #expect(result != nil)
         if let result = result {
             #expect(result.netTokens == .zero, "100% fee should yield zero net tokens")
@@ -1705,25 +1712,30 @@ struct DiscreteAdditionalCoverageTests {
     @Test("12.13 Sell with 100% fee yields zero net USDC")
     func sellWith100PercentFee() {
         let tokenQuarks = 100 * DiscreteBondingCurve.quarksPerToken
-        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 10_000, tvl: 10_000_000)  // 100% fee
+        let supplyQuarks = 200 * DiscreteBondingCurve.quarksPerToken  // Supply must be >= tokens to sell
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 10_000, supplyQuarks: supplyQuarks)  // 100% fee
         #expect(result != nil)
         if let result = result {
-            #expect(result.netUSDC == .zero, "100% fee should yield zero net USDC")
-            #expect(result.fees == result.grossUSDC, "All USDC should be fees")
+            #expect(result.netUSDF == .zero, "100% fee should yield zero net USDC")
+            #expect(result.fees == result.grossUSDF, "All USDC should be fees")
         }
     }
 
     // MARK: - tokensForValueExchange Additional Coverage
 
-    @Test("12.14 tokensForValueExchange with fiat exceeding TVL returns nil")
-    func tokensForValueExchangeExceedingTVL() {
-        // Try to exchange $100 when TVL is only $10
+    @Test("12.14 tokensForValueExchange works with any supply level")
+    func tokensForValueExchangeAtAnySupply() {
+        // With supply-based semantics, you can buy tokens at any valid supply level
+        // The price increases as supply increases
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("100.0"),
             fiatRate: BigDecimal("1.0"),
-            tvl: 10_000_000  // $10 TVL
+            supplyQuarks: 1000 * 10_000_000_000  // 1000 tokens supply
         )
-        #expect(result == nil, "Exchanging more than TVL should return nil")
+        #expect(result != nil, "Should be able to buy tokens at any valid supply")
+        if let result = result {
+            #expect(result.tokens.isPositive)
+        }
     }
 
     @Test("12.15 tokensForValueExchange at TVL boundary")
@@ -1733,7 +1745,7 @@ struct DiscreteAdditionalCoverageTests {
         let result = curve.tokensForValueExchange(
             fiat: BigDecimal("10.0"),  // Exactly $10
             fiatRate: BigDecimal("1.0"),
-            tvl: tvl
+            supplyQuarks: tvl
         )
         // This should return nil because newTVL would be 0 (can't have negative/zero TVL)
         // OR it could return the full supply - depends on implementation

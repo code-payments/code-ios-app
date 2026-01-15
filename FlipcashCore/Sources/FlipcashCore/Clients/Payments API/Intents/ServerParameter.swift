@@ -62,7 +62,7 @@ extension ServerParameter.Parameter {
 // MARK: - Proto -
 
 extension ServerParameter {
-    init(_ proto: Code_Transaction_V2_ServerParameter) throws {
+    init(_ proto: Ocp_Transaction_V1_ServerParameter) throws {
         self.init(
             actionID: Int(proto.actionID),
             parameter: try Parameter(proto),
@@ -77,7 +77,7 @@ extension ServerParameter {
 }
 
 extension ServerParameter.Parameter {
-    init?(_ proto: Code_Transaction_V2_ServerParameter) throws {
+    init?(_ proto: Ocp_Transaction_V1_ServerParameter) throws {
         switch proto.type {
             
         case .feePayment(let param):

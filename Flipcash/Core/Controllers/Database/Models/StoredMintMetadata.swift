@@ -27,16 +27,15 @@ struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
     let coreMintVault: PublicKey?
     let coreMintFees: PublicKey?
     let supplyFromBonding: UInt64?
-    let coreMintLocked: UInt64?
     let sellFeeBps: Int?
-    
+
     let updatedAt: Date
     
     var id: PublicKey {
         mint
     }
     
-    init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, coreMintLocked: UInt64?, sellFeeBps: Int?, updatedAt: Date) {
+    init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, sellFeeBps: Int?, updatedAt: Date) {
         self.mint = mint
         self.name = name
         self.symbol = symbol
@@ -54,7 +53,6 @@ struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
         self.coreMintVault = coreMintVault
         self.coreMintFees = coreMintFees
         self.supplyFromBonding = supplyFromBonding
-        self.coreMintLocked = coreMintLocked
         self.sellFeeBps = sellFeeBps
         self.updatedAt = updatedAt
     }
@@ -83,9 +81,7 @@ extension StoredMintMetadata {
                   let authority = authority,
                   let mintVault = mintVault,
                   let coreMintVault = coreMintVault,
-                  let coreMintFees = coreMintFees,
                   let supplyFromBonding = supplyFromBonding,
-                  let coreMintLocked = coreMintLocked,
                   let sellFeeBps = sellFeeBps else {
                 return nil
             }
@@ -96,9 +92,8 @@ extension StoredMintMetadata {
                 authority: authority,
                 mintVault: mintVault,
                 coreMintVault: coreMintVault,
-                coreMintFees: coreMintFees,
+                coreMintFees: nil,
                 supplyFromBonding: supplyFromBonding,
-                coreMintLocked: coreMintLocked,
                 sellFeeBps: sellFeeBps
             )
         }()

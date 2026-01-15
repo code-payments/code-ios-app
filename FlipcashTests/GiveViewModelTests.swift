@@ -33,34 +33,33 @@ struct GiveViewModelTests {
 
     /// Helper to create ExchangedBalance
     static func createExchangedBalance(
-        mint: PublicKey = .usdc,
+        mint: PublicKey = .usdf,
         quarks: UInt64 = 1_000_000,
-        tvl: UInt64? = nil
+        supplyQuarks: UInt64? = nil
     ) -> ExchangedBalance {
-        // For non-USDC tokens, TVL is required by StoredBalance
-        // For USDC, TVL should be nil
-        let effectiveTVL: UInt64?
+        // For non-USDF tokens, supplyQuarks is required by StoredBalance
+        // For USDF, supplyQuarks should be nil
+        let effectiveSupplyQuarks: UInt64?
         let effectiveSellFeeBps: Int?
 
-        if mint == .usdc {
-            effectiveTVL = nil
+        if mint == .usdf {
+            effectiveSupplyQuarks = nil
             effectiveSellFeeBps = nil
         } else {
-            // Non-USDC tokens must have TVL
-            // Use $1M default - low TVL causes issues with discrete bonding curve
-            effectiveTVL = tvl ?? 1_000_000_000_000 // Default to $1M TVL
+            // Non-USDF tokens must have supply
+            // Use 10,000 tokens default (10,000 * 10^10 quarks)
+            effectiveSupplyQuarks = supplyQuarks ?? 10_000 * 10_000_000_000
             effectiveSellFeeBps = 0
         }
 
         let stored = try! StoredBalance(
             quarks: quarks,
-            symbol: mint == .usdc ? "USDC" : "TOKEN",
-            name: mint == .usdc ? "USD Coin" : "Test Token",
-            supplyFromBonding: nil,
-            coreMintLocked: effectiveTVL,
+            symbol: mint == .usdf ? "USDF" : "TOKEN",
+            name: mint == .usdf ? "USDF Coin" : "Test Token",
+            supplyFromBonding: effectiveSupplyQuarks,
             sellFeeBps: effectiveSellFeeBps,
             mint: mint,
-            vmAuthority: mint == .usdc ? nil : .usdcAuthority,
+            vmAuthority: mint == .usdf ? nil : .usdcAuthority,
             updatedAt: Date(),
             imageURL: nil
         )
@@ -70,7 +69,7 @@ struct GiveViewModelTests {
                 quarks: quarks,
                 mint: mint,
                 rate: .oneToOne,
-                tvl: effectiveTVL
+                supplyQuarks: effectiveSupplyQuarks
             )
         )
     }
@@ -175,7 +174,7 @@ struct GiveViewModelTests {
         // Given: View model with USDC balance
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
-            mint: .usdc,
+            mint: .usdf,
             quarks: 100_000_000
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
@@ -194,12 +193,12 @@ struct GiveViewModelTests {
     @Test
     func testEnteredFiat_BondedToken_CalculatesCorrectly() {
         // Given: View model with bonded token
-        // TVL $1M supports ~100,000 tokens at discrete curve prices
+        // 10,000 tokens supply supports reasonable exchange amounts
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
-            mint: .usdcAuthority,
+            mint: .jeffy,
             quarks: 1_000_000_000_000, // 100 tokens (10 decimals)
-            tvl: 1_000_000_000_000 // $1M TVL
+            supplyQuarks: 10_000 * 10_000_000_000 // 10,000 tokens supply
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "0.50"
@@ -216,9 +215,9 @@ struct GiveViewModelTests {
         // Given: View model with bonded token where user has significant balance
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
-            mint: .usdcAuthority,
+            mint: .jeffy,
             quarks: 5_000_000_000_000, // 500 tokens (10 decimals)
-            tvl: 10_000_000_000_000 // $10M TVL
+            supplyQuarks: 50_000 * 10_000_000_000 // 50,000 tokens supply
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "5.00"
@@ -231,13 +230,13 @@ struct GiveViewModelTests {
     }
 
     @Test
-    func testEnteredFiat_BondedToken_LargeTVL() {
-        // Given: View model with realistic TVL ($100M)
+    func testEnteredFiat_BondedToken_LargeSupply() {
+        // Given: View model with large supply (100,000 tokens)
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
-            mint: .usdcAuthority,
+            mint: .jeffy,
             quarks: 10_000_000_000_000, // 1,000 tokens
-            tvl: 100_000_000_000_000 // $100M TVL
+            supplyQuarks: 100_000 * 10_000_000_000 // 100,000 tokens supply
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
         viewModel.enteredAmount = "25.00"
@@ -293,46 +292,45 @@ struct GiveViewModelTests {
         #expect(canGive == true)
     }
 
-    // MARK: - Bonding Curve TVL Boundary Tests
-    // Note: TVL-exceeded tests are covered at the DiscreteBondingCurve unit test level (test 12.14).
+    // MARK: - Bonding Curve Supply Boundary Tests
     // These integration tests verify the successful path through GiveViewModel.
 
     @Test
-    func testEnteredFiat_BondedToken_ModestTVL_SmallAmount_Succeeds() {
-        // Given: View model with bonded token and modest TVL
-        // TVL is $10K, user tries to exchange $100 (valid)
+    func testEnteredFiat_BondedToken_ModestSupply_SmallAmount_Succeeds() {
+        // Given: View model with bonded token and modest supply
+        // 1,000 tokens supply, user tries to exchange $100 (valid)
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
-            mint: .usdcAuthority,
+            mint: .jeffy,
             quarks: 10_000_000_000_000, // 1,000 tokens
-            tvl: 10_000_000_000 // $10K TVL
+            supplyQuarks: 1_000 * 10_000_000_000 // 1,000 tokens supply
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
-        viewModel.enteredAmount = "100.00"  // $100 < $10K TVL
+        viewModel.enteredAmount = "1.00"  // $1 is valid for this supply
 
         // When: Checking if can give
         let canGive = viewModel.canGive
 
-        // Then: Should be able to give (amount within TVL)
-        #expect(canGive == true, "Should allow exchange amount within TVL")
+        // Then: Should be able to give (amount within supply)
+        #expect(canGive == true, "Should allow exchange amount within supply")
     }
 
     @Test
-    func testEnteredFiat_BondedToken_AmountWellUnderTVL_Succeeds() {
-        // Given: View model where entered amount is well under TVL
+    func testEnteredFiat_BondedToken_AmountWellUnderMaxSupply_Succeeds() {
+        // Given: View model where entered amount is well under max supply value
         let viewModel = Self.createViewModel()
         let balance = Self.createExchangedBalance(
-            mint: .usdcAuthority,
-            quarks: 100_000_000_000_000,
-            tvl: 10_000_000_000_000 // $10M TVL
+            mint: .jeffy,
+            quarks: 100_000_000_000_000, // 10,000 tokens
+            supplyQuarks: 50_000 * 10_000_000_000 // 50,000 tokens supply
         )
         viewModel.selectCurrencyAction(exchangedBalance: balance)
-        viewModel.enteredAmount = "500.00"  // $500 << $10M TVL
+        viewModel.enteredAmount = "10.00"  // $10 well within available
 
         // When: Checking if can give
         let canGive = viewModel.canGive
 
         // Then: Should be able to give
-        #expect(canGive == true, "Should allow exchange amount well under TVL")
+        #expect(canGive == true, "Should allow exchange amount well under max supply value")
     }
 }

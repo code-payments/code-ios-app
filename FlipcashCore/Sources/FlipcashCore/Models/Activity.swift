@@ -132,16 +132,17 @@ extension Activity.Kind {
 
 extension Activity.Metadata {
     init?(_ proto: Flipcash_Activity_V1_Notification.OneOf_AdditionalMetadata?) {
-        if let proto {
-            switch proto {
-            case .welcomeBonus, .gaveCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .paidCrypto, .distributedCrypto:
-                return nil
-            case .sentCrypto(let metadata):
-                self = .cashLink(.init(metadata))
-            }
-            
-        } else {
+        guard let proto else { return nil }
+
+        switch proto {
+        case .welcomeBonus, .gaveCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .paidCrypto, .distributedCrypto:
             return nil
+        case .sentCrypto(let metadata):
+            do {
+                self = try .cashLink(.init(metadata))
+            } catch {
+                return nil
+            }
         }
     }
 }

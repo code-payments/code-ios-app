@@ -60,9 +60,9 @@ public struct SendLimit: Codable, Equatable, Hashable, Sendable {
 // MARK: - Proto -
 
 extension Limits {
-    init(proto: Code_Transaction_V2_GetLimitsResponse, sinceDate: Date, fetchDate: Date) {
+    init(proto: Ocp_Transaction_V1_GetLimitsResponse, sinceDate: Date, fetchDate: Date) {
         
-        let decimals = PublicKey.usdc.mintDecimals
+        let decimals = PublicKey.usdf.mintDecimals
 
         let container: [CurrencyCode: SendLimit] = Dictionary(uniqueKeysWithValues: proto.sendLimitsByCurrency.compactMap { code, limit in
             guard let currency = try? CurrencyCode(currencyCode: code) else {

@@ -73,16 +73,15 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     private static let bondingCurve = DiscreteBondingCurve()
     nonisolated(unsafe) private static let rounding = Rounding(.toNearestOrEven, 36)
 
-    public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, tvl: UInt64?) -> ExchangedFiat {
-        // `quarks` are expected to be either USDC
+    public static func computeFromQuarks(quarks: UInt64, mint: PublicKey, rate: Rate, supplyQuarks: UInt64?) -> ExchangedFiat {
+        // `quarks` are expected to be either USDF
         // or custom currency quarks that we'll need
         // to run through the bonding curve to get a
         // valuation
 
         let exchanged: ExchangedFiat
 
-        if mint != PublicKey.usdc {
-
+        if mint != PublicKey.usdf {
             // We can't pass 0 quarks into the sell function
             // because we won't get an accurate rate. In the
             // event that there's a 0 quark balance, we'll
@@ -92,7 +91,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             guard let valuation = bondingCurve.sell(
                 tokenQuarks: Int(quarksToSell),
                 feeBps: 0,
-                tvl: Int(tvl!)
+                supplyQuarks: Int(supplyQuarks!)
             ) else {
                 // Fallback to USDC if curve calculation fails
                 return try! ExchangedFiat(
@@ -108,7 +107,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 
             let decimalQuarks = BigDecimal(Int(quarksToSell))
             let fiatRate = BigDecimal(rate.fx)
-            let fx = valuation.netUSDC
+            let fx = valuation.netUSDF
                 // Division need to divide by tokens, not quarks
                 .divide(decimalQuarks.scaleDown(mint.mintDecimals), Self.rounding)
                 // Premultiply the fiat rate (ie. CAD, etc)
@@ -117,7 +116,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
             exchanged = try! ExchangedFiat(
                 underlying: Quarks(
                     quarks: quarks,
-                    currencyCode: .usd, // USDC value
+                    currencyCode: .usd, // USDF value
                     decimals: mint.mintDecimals
                 ),
                 rate: .init(
@@ -132,7 +131,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 underlying: Quarks(
                     quarks: quarks,
                     currencyCode: .usd,
-                    decimals: PublicKey.usdc.mintDecimals
+                    decimals: PublicKey.usdf.mintDecimals
                 ),
                 rate: rate,
                 mint: mint
@@ -142,7 +141,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         return exchanged
     }
     
-    public static func computeFromEntered(amount: Foundation.Decimal, rate: Rate, mint: PublicKey, tvl: UInt64) -> ExchangedFiat? {
+    public static func computeFromEntered(amount: Foundation.Decimal, rate: Rate, mint: PublicKey, supplyQuarks: UInt64) -> ExchangedFiat? {
         guard amount > 0 else {
             return nil
         }
@@ -150,11 +149,11 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         let valuation: DiscreteBondingCurve.Valuation
         let decimals = mint.mintDecimals
 
-        if mint != PublicKey.usdc {
+        if mint != PublicKey.usdf {
             guard let computed = bondingCurve.tokensForValueExchange(
                 fiat: BigDecimal(amount),
                 fiatRate: BigDecimal(rate.fx),
-                tvl: Int(tvl)
+                supplyQuarks: Int(supplyQuarks)
             ) else {
                 return nil
             }
@@ -293,7 +292,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 // MARK: - Proto -
 
 extension ExchangedFiat {
-    init(_ proto: Code_Transaction_V2_ExchangeData) throws {
+    init(_ proto: Ocp_Transaction_V1_ExchangeData) throws {
         let currency = try CurrencyCode(currencyCode: proto.currency)
         let mint     = try PublicKey(proto.mint.value)
         self.init(

@@ -99,6 +99,6 @@ struct CurrencySellConfirmationScreen: View {
 }
 
 #Preview {
-    let amount = try! ExchangedFiat(underlying: 10_000_000_000_000, rate: .oneToOne, mint: .usdc)
-    CurrencySellConfirmationScreen(mint: .usdc, amount: amount)
+    let amount = try! ExchangedFiat(underlying: 10_000_000_000_000, rate: .oneToOne, mint: .usdf)
+    CurrencySellConfirmationScreen(mint: .usdf, amount: amount)
 }

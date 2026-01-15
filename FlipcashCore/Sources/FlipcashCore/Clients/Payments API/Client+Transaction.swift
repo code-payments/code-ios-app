@@ -28,17 +28,7 @@ extension Client {
             ) { c.resume(with: $0) }
         }
     }
-    
-    public func distributePoolWinnings(source: AccountCluster, distributions: [PoolDistribution], owner: KeyPair) async throws {
-        _ = try await withCheckedThrowingContinuation { c in
-            transactionService.distributePoolWinnings(
-                source: source,
-                distributions: distributions,
-                owner: owner
-            ) { c.resume(with: $0) }
-        }
-    }
-    
+        
     public func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(
@@ -62,10 +52,10 @@ extension Client {
         }
     }
     
-    public func receiveCashLink(usdc: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
+    public func receiveCashLink(usdf: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.receiveCashLink(
-                usdc: usdc,
+                usdf: usdf,
                 ownerCluster: ownerCluster,
                 giftCard: giftCard
             ) { c.resume(with: $0) }
@@ -88,7 +78,7 @@ extension Client {
     }
     
     // MARK: - Swaps -
-    public func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster,) async throws -> Void {
+    public func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster) async throws -> Void {
         try await withCheckedThrowingContinuation { c in
             transactionService.buy(amount: amount, of: token, owner: owner) { c.resume(with: $0) }
         }

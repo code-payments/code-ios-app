@@ -24,7 +24,7 @@ class CurrencyBuyViewModel: ObservableObject {
             return nil
         }
         
-        let mint: PublicKey = .usdc       
+        let mint: PublicKey = .usdf
         let rate = ratesController.rateForEntryCurrency()
         
         return try! ExchangedFiat(
@@ -48,9 +48,9 @@ class CurrencyBuyViewModel: ObservableObject {
     
     var maxPossibleAmount: ExchangedFiat {
         let entryRate = ratesController.rateForEntryCurrency()
-        let zero      = try! ExchangedFiat(underlying: 0, rate: entryRate, mint: .usdc)
+        let zero = try! ExchangedFiat(underlying: 0, rate: entryRate, mint: .usdf)
         
-        guard let balance = session.balance(for: .usdc) else {
+        guard let balance = session.balance(for: .usdf) else {
             return zero
         }
         

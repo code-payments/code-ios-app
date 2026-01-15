@@ -45,8 +45,8 @@ class GiveViewModel: ObservableObject {
         let mint = selectedBalance.stored.mint
         
         // Only applies for bonded tokens
-        if mint != .usdc {
-            guard let tvl = selectedBalance.stored.coreMintLocked else {
+        if mint != .usdf {
+            guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
                 return nil
             }
 
@@ -55,7 +55,7 @@ class GiveViewModel: ObservableObject {
                 amount: amount,
                 rate: rate,
                 mint: mint,
-                tvl: tvl
+                supplyQuarks: supplyQuarks
             )
             
         } else {

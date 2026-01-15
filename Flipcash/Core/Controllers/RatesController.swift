@@ -112,7 +112,7 @@ class RatesController: ObservableObject {
         let exchangedFiat = try ExchangedFiat(
             converted: amount,
             rate: rate,
-            mint: .usdc
+            mint: .usdf
         )
         
         return exchangedFiat
@@ -137,7 +137,7 @@ class RatesController: ObservableObject {
     /// Get the currently selected token, or a default if none is selected
     /// - Parameter defaultMint: The default mint to return if none is selected. Defaults to USDC.
     /// - Returns: The selected token or the default
-    func getSelectedToken(default defaultMint: PublicKey = .usdc) -> StoredMintMetadata? {
+    func getSelectedToken(default defaultMint: PublicKey = .usdf) -> StoredMintMetadata? {
         let mint = selectedTokenMint ?? defaultMint
         
         return try! database.getMintMetadata(mint: mint)

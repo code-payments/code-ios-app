@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package code.currency.v1;
+package ocp.currency.v1;
 
-option go_package = "github.com/code-payments/code-protobuf-api/generated/go/currency/v1;currency";
+option go_package = "github.com/code-payments/ocp-protobuf-api/generated/go/currency/v1;currency";
 option java_package = "com.codeinc.gen.currency.v1";
 option objc_class_prefix = "CPBCurrencyV1";
 
@@ -17,6 +17,9 @@ service Currency {
 
     // GetMints gets mint account metadata by address
     rpc GetMints(GetMintsRequest) returns (GetMintsResponse);
+
+    // GetHistoricalMintData returns historical market data for a mint
+    rpc GetHistoricalMintData(GetHistoricalMintDataRequest) returns (GetHistoricalMintDataResponse);
 }
 
 message GetAllRatesRequest {
@@ -60,6 +63,45 @@ message GetMintsResponse {
     }
 
     map<string, Mint> metadata_by_address = 2;
+}
+
+message GetHistoricalMintDataRequest {
+    // The mint address to get historical data for
+    common.v1.SolanaAccountId address = 1 [(validate.rules).message.required = true];
+
+    // The currency code for the returned market data (e.g., "usd")
+    string currency_code = 2 [(validate.rules).string = {
+        pattern: "^[a-z]{3,4}$"
+    }];
+
+    oneof range {
+        option (validate.required) = true;
+
+        PredefinedRange predefined_range = 3;
+    }
+
+    enum PredefinedRange {
+        ALL_TIME   = 0;
+        LAST_DAY   = 1;
+        LAST_WEEK  = 2;
+        LAST_MONTH = 3;
+        LAST_YEAR  = 4;
+    }
+}
+
+message GetHistoricalMintDataResponse {
+    Result result = 1;
+    enum Result {
+        OK = 0;
+
+        // The requested mint or currency was not found
+        NOT_FOUND = 1;
+
+        // No data available for the requested time range
+        MISSING_DATA = 2;
+    }
+
+    repeated HistoricalMintData data = 2;
 }
 
 message Mint {
@@ -118,6 +160,9 @@ message VmMetadata {
     // Lock duration of Virtual Timelock Accounts on the VM, currently hardcoded
     // to 21 days
     uint32 lock_duration_in_days = 3 [(validate.rules).uint32.const = 21];
+
+    // VM omnibus address
+    common.v1.SolanaAccountId omnibus = 4 [(validate.rules).message.required = true];
 }
 
 message LaunchpadMetadata {
@@ -139,21 +184,17 @@ message LaunchpadMetadata {
     // The address where core mint tokens are locked against the liquidity pool
     common.v1.SolanaAccountId core_mint_vault = 6 [(validate.rules).message.required = true];
 
-    // Reserved for mint_fees if we enable buy fees
-    reserved 7;
-
-    // The address where core mint fees are paid
-    common.v1.SolanaAccountId core_mint_fees = 8 [(validate.rules).message.required = true];
-
     // Current circulating mint token supply in quarks
-    uint64 supply_from_bonding = 9;
-
-    // Current core mint quarks locked in the liquidity pool
-    uint64 core_mint_locked = 10;
-
-    // Reserved for buy_fee_bps if we enable buy fees
-    reserved 11;
+    uint64 supply_from_bonding = 7;
 
     // Precent fee for sells in basis points, currently hardcoded to 1%
-    uint32 sell_fee_bps = 12 [(validate.rules).uint32.const = 100];
+    uint32 sell_fee_bps = 8 [(validate.rules).uint32.const = 100];
+}
+
+message HistoricalMintData {
+    // Timestamp for this data point
+    google.protobuf.Timestamp timestamp = 1 [(validate.rules).timestamp.required = true];
+
+    // Market capitalization at this point in time
+    double market_cap = 2;
 }

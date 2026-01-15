@@ -1,4 +1,3 @@
 Vendor/* linguist-vendored
 */*.framework/* linguist-vendored
-
-*/*.framework/* linguist-generated
+FlipcashAPI/Sources/FlipcashAPI/Generated/** linguist-generated

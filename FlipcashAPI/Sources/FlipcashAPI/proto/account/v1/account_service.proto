@@ -1,43 +1,43 @@
 syntax = "proto3";
 
-package code.account.v1;
+package ocp.account.v1;
 
-option go_package = "github.com/code-payments/code-protobuf-api/generated/go/account/v1;account";
+option go_package = "github.com/code-payments/ocp-protobuf-api/generated/go/account/v1;account";
 option java_package = "com.codeinc.gen.account.v1";
 option objc_class_prefix = "CPBAccountV1";
 
 import "common/v1/model.proto";
-import "transaction/v2/transaction_service.proto";
+import "transaction/v1/transaction_service.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
 
 service Account {
-    // IsCodeAccount returns whether an owner account is a Code account. This hints
+    // IsOcpAccount returns whether an owner account is a OCP account. This hints
     // to the client whether the account can be logged in, used for making payments,
     // etc.
-    rpc IsCodeAccount(IsCodeAccountRequest) returns (IsCodeAccountResponse);
+    rpc IsOcpAccount(IsOcpAccountRequest) returns (IsOcpAccountResponse);
 
-    // GetTokenAccountInfos returns token account metadata relevant to the Code owner
+    // GetTokenAccountInfos returns token account metadata relevant to the OCP owner
     // account.
     rpc GetTokenAccountInfos(GetTokenAccountInfosRequest) returns (GetTokenAccountInfosResponse);
 }
 
-message IsCodeAccountRequest {
+message IsOcpAccountRequest {
     // The owner account to check against.
     common.v1.SolanaAccountId owner = 1 [(validate.rules).message.required = true];
 
-    // The signature is of serialize(IsCodeAccountRequest) without this field set
+    // The signature is of serialize(IsOcpAccountRequest) without this field set
     // using the private key of the owner account. This provides an authentication
     // mechanism to the RPC.
     common.v1.Signature signature = 2 [(validate.rules).message.required = true];
 }
 
-message IsCodeAccountResponse {
+message IsOcpAccountResponse {
     Result result = 1;
     enum Result {
-        // The account is a Code account.
+        // The account is an OCP account.
         OK = 0;
-        // The account is not a Code account.
+        // The account is not an OCP account.
         NOT_FOUND = 1;
         // The account exists, but at least one timelock account is unlocked.
         UNLOCKED_TIMELOCK_ACCOUNT = 2;
@@ -84,9 +84,6 @@ message GetTokenAccountInfosResponse {
     }
 
     map<string, TokenAccountInfo> token_account_infos = 2;
-
-    // The next index clients should use for POOL account types
-    uint64 next_pool_index = 3;
 }
 
 message TokenAccountInfo {
@@ -119,32 +116,32 @@ message TokenAccountInfo {
         // The account's balance was fetched directly from a finalized state on the
         // blockchain.
         BALANCE_SOURCE_BLOCKCHAIN = 1;
-        // The account's balance was calculated using cached values in Code. Accuracy
+        // The account's balance was calculated using cached values in OCP. Accuracy
         // is only guaranteed when management_state is LOCKED.
         BALANCE_SOURCE_CACHE = 2;
     }
 
-    // The balance in quarks, as observed by Code. This may not reflect the value
+    // The balance in quarks, as observed by the OCP. This may not reflect the value
     // on the blockchain and could be non-zero even if the account hasn't been created.
     // Use balance_source to determine how this value was calculated.
     uint64 balance = 7;
 
-    // The state of the account as it pertains to Code's ability to manage funds.
+    // The state of the account as it pertains to the OCP's ability to manage funds.
     ManagementState management_state = 8;
     enum ManagementState {
         // The state of the account is unknown. This may be returned when the
         // data source is unstable and a reliable state cannot be determined.
         MANAGEMENT_STATE_UNKNOWN = 0;
-        // Code does not maintain a management state and won't move funds for this
+        // OCP does not maintain a management state and won't move funds for this
         // account.
         MANAGEMENT_STATE_NONE = 1;
         // The account is in the process of transitioning to the LOCKED state.
         MANAGEMENT_STATE_LOCKING = 2;
-        // The account's funds are locked and Code has co-signing authority.
+        // The account's funds are locked and OCP has co-signing authority.
         MANAGEMENT_STATE_LOCKED = 3;
         // The account is in the process of transitioning to the UNLOCKED state.
         MANAGEMENT_STATE_UNLOCKING = 4;
-        // The account's funds are unlocked and Code no longer has co-signing
+        // The account's funds are unlocked and OCP no longer has co-signing
         // authority. The account must transition to the LOCKED state to have
         // management capabilities.
         MANAGEMENT_STATE_UNLOCKED = 5;
@@ -167,12 +164,9 @@ message TokenAccountInfo {
         BLOCKCHAIN_STATE_EXISTS = 2;
     }
 
-    // Deprecated must_rotate
-    reserved 10;
-
     // Whether an account is claimed. This only applies to relevant account types
     // (eg. REMOTE_SEND_GIFT_CARD).
-    ClaimState claim_state = 11;
+    ClaimState claim_state = 10;
     enum ClaimState {
         // The account doesn't have a concept of being claimed, or the state
         // could not be fetched by server.
@@ -194,20 +188,17 @@ message TokenAccountInfo {
     //     the balance, in quarks, may be greater than the original quark value.
     //  3. The balance could have been received, so the total balance can show
     //     as zero.
-    transaction.v2.ExchangeData original_exchange_data = 12;
+    transaction.v1.ExchangeData original_exchange_data = 11;
 
     // The token account's mint
-    common.v1.SolanaAccountId mint = 13;
+    common.v1.SolanaAccountId mint = 12;
 
-    // Deprecated relationship
-    reserved 16;
-
-    // Time the account was created, if available. For Code accounts, this is
+    // Time the account was created, if available. For OCP accounts, this is
     // the time of intent submission. Otherwise, for external accounts, it is
-    // the tiem created on the blockchain.
-    google.protobuf.Timestamp created_at = 17;
+    // the time created on the blockchain.
+    google.protobuf.Timestamp created_at = 13;
 
     // For REMOTE_SEND_GIFT_CARD, if requesting_owner was provided, was
     // requesting_owner the issuer of the account.
-    bool is_gift_card_issuer = 18;
+    bool is_gift_card_issuer = 14;
 }

@@ -428,8 +428,8 @@ extension DiscreteBondingCurve {
 
     /// Estimation result for a sell operation
     public struct SellEstimation: Sendable {
-        public let grossUSDC: BigDecimal
-        public let netUSDC: BigDecimal
+        public let grossUSDF: BigDecimal
+        public let netUSDF: BigDecimal
         public let fees: BigDecimal
     }
 
@@ -459,14 +459,14 @@ extension DiscreteBondingCurve {
     /// - Parameters:
     ///   - usdcQuarks: Amount of USDC to spend (in quarks, 6 decimals)
     ///   - feeBps: Fee in basis points (100 = 1%)
-    ///   - tvl: Current total value locked in quarks
+    ///   - supplyQuarks: Current token supply in quarks (10 decimals)
     /// - Returns: Buy estimation with gross tokens, net tokens, and fees
-    public func buy(usdcQuarks: Int, feeBps: Int, tvl: Int) -> BuyEstimation? {
+    public func buy(usdcQuarks: Int, feeBps: Int, supplyQuarks: Int) -> BuyEstimation? {
         // Convert USDC quarks to USDC units
         let usdcValue = BigDecimal(usdcQuarks).divide(BigDecimal(1_000_000), Self.rounding)
 
-        // Get current supply from TVL using cumulative table inverse lookup
-        guard let currentSupply = supplyFromTVL(tvl) else { return nil }
+        // Convert supply quarks to whole tokens
+        let currentSupply = supplyQuarks / Self.quarksPerToken
 
         // Calculate tokens bought
         guard let grossTokens = valueToTokens(currentSupply: currentSupply, value: usdcValue) else {
@@ -486,14 +486,14 @@ extension DiscreteBondingCurve {
     /// - Parameters:
     ///   - tokenQuarks: Amount of tokens to sell (in quarks, 10 decimals)
     ///   - feeBps: Fee in basis points (100 = 1%)
-    ///   - tvl: Current total value locked in quarks
+    ///   - supplyQuarks: Current token supply in quarks (10 decimals)
     /// - Returns: Sell estimation with gross USDC, net USDC, and fees
-    public func sell(tokenQuarks: Int, feeBps: Int, tvl: Int) -> SellEstimation? {
+    public func sell(tokenQuarks: Int, feeBps: Int, supplyQuarks: Int) -> SellEstimation? {
         // Convert token quarks to whole tokens
         let tokens = tokenQuarks / Self.quarksPerToken
 
-        // Get current supply from TVL
-        guard let currentSupply = supplyFromTVL(tvl) else { return nil }
+        // Convert supply quarks to whole tokens
+        let currentSupply = supplyQuarks / Self.quarksPerToken
 
         // New supply after selling
         let newSupply = currentSupply - tokens
@@ -505,29 +505,28 @@ extension DiscreteBondingCurve {
             return nil
         }
 
-        let grossUSDC = currentValue.subtract(newValue, Self.rounding)
+        let grossUSDF = currentValue.subtract(newValue, Self.rounding)
 
         // Apply fee
         let feeMultiplier = BigDecimal(feeBps).divide(BigDecimal(10_000), Self.rounding)
-        let fees = grossUSDC.multiply(feeMultiplier, Self.rounding)
-        let netUSDC = grossUSDC.subtract(fees, Self.rounding)
+        let fees = grossUSDF.multiply(feeMultiplier, Self.rounding)
+        let netUSDF = grossUSDF.subtract(fees, Self.rounding)
 
-        return SellEstimation(grossUSDC: grossUSDC, netUSDC: netUSDC, fees: fees)
+        return SellEstimation(grossUSDF: grossUSDF, netUSDF: netUSDF, fees: fees)
     }
 
     /// Calculate how many tokens can be obtained for a given fiat amount.
     ///
-    /// Uses the same mathematical approach as the original continuous curve:
-    /// computes tokens based on the supply difference between current TVL
-    /// and (current TVL - USDC value). This maintains compatibility with
-    /// server-side validation.
+    /// Uses the bonding curve's valueToTokens method to compute how many tokens
+    /// can be purchased for the given USDC value at the current supply level.
+    /// This matches the server-side implementation.
     ///
     /// - Parameters:
     ///   - fiat: Amount in local fiat currency (e.g., CAD)
     ///   - fiatRate: Exchange rate from fiat to USD (e.g., 1.4 for CAD/USD)
-    ///   - tvl: Current total value locked in USDC quarks (6 decimals)
+    ///   - supplyQuarks: Current token supply in quarks (10 decimals)
     /// - Returns: Valuation containing tokens received and effective exchange rate
-    public func tokensForValueExchange(fiat: BigDecimal, fiatRate: BigDecimal, tvl: Int) -> Valuation? {
+    public func tokensForValueExchange(fiat: BigDecimal, fiatRate: BigDecimal, supplyQuarks: Int) -> Valuation? {
         guard fiat.isPositive else {
             return nil
         }
@@ -539,25 +538,13 @@ extension DiscreteBondingCurve {
             return nil
         }
 
-        // Convert TVL from quarks to USDC units
-        let currentTVL = BigDecimal(tvl).divide(BigDecimal(1_000_000), Self.rounding)
+        // Convert supply quarks to whole tokens
+        let currentSupply = supplyQuarks / Self.quarksPerToken
 
-        // Calculate new TVL after spending (subtract, matching old continuous curve approach)
-        let newTVL = currentTVL.subtract(usdcValue, Self.rounding)
-
-        guard !newTVL.isNegative else {
-            // Can't spend more than the TVL
+        // Use valueToTokens directly (matching server's approach)
+        guard let tokens = valueToTokens(currentSupply: currentSupply, value: usdcValue) else {
             return nil
         }
-
-        // Get precise supply at current TVL (interpolated within step)
-        let currentSupply = preciseSupplyFromTVL(currentTVL)
-
-        // Get precise supply at new (lower) TVL
-        let newSupply = preciseSupplyFromTVL(newTVL)
-
-        // Tokens = difference in supply (current is higher, new is lower)
-        let tokens = currentSupply.subtract(newSupply, Self.rounding)
 
         guard tokens.isPositive else {
             return nil

@@ -28,20 +28,20 @@ struct CurrencyInfoScreen: View {
         updateableMint.value
     }
 
-    private var isUSDC: Bool {
-        mintMetadata.mint == .usdc
+    private var isUSDF: Bool {
+        mintMetadata.mint == .usdf
     }
 
     private var currencyDescription: String {
-        if isUSDC {
-            return "Your cash reserves are held in USDC, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDC for U.S. dollars whenever you like."
+        if isUSDF {
+            return "Your cash reserves are held in USDF, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDF for U.S. dollars whenever you like."
         } else {
             return mintMetadata.bio ?? "No information"
         }
     }
     
     private var proportion: CGFloat {
-        if isUSDC {
+        if isUSDF {
             return 0.24
         } else {
             return 0.35
@@ -56,7 +56,7 @@ struct CurrencyInfoScreen: View {
     }
     
     private var reserveBalance: Quarks {
-        let balance   = session.balance(for: .usdc)
+        let balance   = session.balance(for: .usdf)
         let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
         
         return exchanged?.converted ?? 0
@@ -87,7 +87,7 @@ struct CurrencyInfoScreen: View {
         let exchanged = try! ExchangedFiat(
             underlying: usdc,
             rate: ratesController.rateForBalanceCurrency(),
-            mint: .usdc
+            mint: .usdf
         )
 
         return exchanged.converted
@@ -153,7 +153,7 @@ struct CurrencyInfoScreen: View {
 
                                 Spacer()
 
-                                if !isUSDC {
+                                if !isUSDF {
                                     CodeButton(style: .filledSecondary, title: "View Transaction History") {
                                         isShowingTransactionHistory.toggle()
                                     }
@@ -165,7 +165,7 @@ struct CurrencyInfoScreen: View {
                             // Currency Info
 
                             section(spacing: 20) {
-                                if !isUSDC {
+                                if !isUSDF {
                                     HStack {
                                         Image(systemName: "text.justify.left")
                                             .padding(.bottom, -1)
@@ -185,7 +185,7 @@ struct CurrencyInfoScreen: View {
                             }
 
                             // Market Cap
-                            if !isUSDC {
+                            if !isUSDF {
                                 marketCapSection()
                                 
                                 // Append enough content to scroll below the floating footer
@@ -198,7 +198,7 @@ struct CurrencyInfoScreen: View {
                 }
                 
                 // Floating Footer
-                if !isUSDC {
+                if !isUSDF {
                     CurrencyInfoScreenFooter {
                         CodeButton(style: .filledAlternative, title: "Buy") {
                             isShowingFundingSelection = true
@@ -221,8 +221,8 @@ struct CurrencyInfoScreen: View {
             }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
-                    EnterWalletAmountScreen { usdc in
-                        try await walletConnection.requestTransfer(usdc: usdc)
+                    EnterWalletAmountScreen { quarks in
+                        try await walletConnection.requestTransfer(usdf: quarks)
                         walletConnection.isShowingAmountEntry = false
                     }
                     .toolbar {
@@ -279,7 +279,7 @@ struct CurrencyInfoScreen: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                if isUSDC {
+                if isUSDF {
                     Text("Cash Reserves")
                         .font(.appBarButton)
                         .foregroundStyle(Color.textMain)

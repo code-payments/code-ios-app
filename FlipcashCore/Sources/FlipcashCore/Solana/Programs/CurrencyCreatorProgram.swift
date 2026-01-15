@@ -13,7 +13,7 @@ public enum CurrencyCreatorProgram: CommandType {
 }
 
 extension CurrencyCreatorProgram {
-    public static let address = try! PublicKey(base58: "ccZLx5N31asHhCa7hFmvdC9EGYVam13L8WXPTjPEiJY")
+    public static let address = try! PublicKey(base58: "ccJYP5gjZqcEHaphcxAZvkxCrnTVfYMjyhSYkpQtf8Z")
 }
 
 extension CurrencyCreatorProgram {

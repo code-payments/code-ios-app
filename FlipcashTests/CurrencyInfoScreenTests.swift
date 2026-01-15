@@ -79,7 +79,7 @@ struct CurrencyInfoScreenTests {
         let exchanged = try ExchangedFiat(
             underlying: usdc,
             rate: .oneToOne,  // 1:1 rate for USD
-            mint: .usdc
+            mint: .usdf
         )
 
         #expect(exchanged.converted.quarks > 0, "Converted quarks should be positive")
@@ -103,7 +103,7 @@ struct CurrencyInfoScreenTests {
         let usdExchanged = try ExchangedFiat(
             underlying: usdQuarks,
             rate: .oneToOne,
-            mint: .usdc
+            mint: .usdf
         )
 
         // CAD value (1.4x rate)
@@ -111,7 +111,7 @@ struct CurrencyInfoScreenTests {
         let cadExchanged = try ExchangedFiat(
             underlying: usdQuarks,
             rate: cadRate,
-            mint: .usdc
+            mint: .usdf
         )
 
         // CAD converted value should be ~1.4x USD

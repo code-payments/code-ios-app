@@ -18,13 +18,13 @@ class CurrencySellViewModel: ObservableObject {
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else { return nil }
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else { return nil }
-        guard let tvl = currencyMetadata.coreMintLocked else { return nil }
-                
+        guard let supplyQuarks = currencyMetadata.supplyFromBonding else { return nil }
+
         return ExchangedFiat.computeFromEntered(
             amount: amount,
             rate: ratesController.rateForEntryCurrency(),
             mint: currencyMetadata.mint,
-            tvl: tvl
+            supplyQuarks: supplyQuarks
         )
     }
         

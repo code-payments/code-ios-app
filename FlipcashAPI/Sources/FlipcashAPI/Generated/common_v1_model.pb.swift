@@ -22,15 +22,15 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
 }
 
 /// AccountType associates a type to an account, which infers how an account is used
-/// within the Code ecosystem.
-public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum, Swift.CaseIterable {
+/// within the OCP ecosystem.
+public enum Ocp_Common_V1_AccountType: SwiftProtobuf.Enum, Swift.CaseIterable {
   public typealias RawValue = Int
   case unknown // = 0
   case primary // = 1
-  case remoteSendGiftCard // = 12
-  case swap // = 14
-  case associatedTokenAccount // = 15
-  case pool // = 16
+  case remoteSendGiftCard // = 2
+  case swap // = 3
+  case associatedTokenAccount // = 4
+  case pool // = 5
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -41,10 +41,10 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum, Swift.CaseIterable {
     switch rawValue {
     case 0: self = .unknown
     case 1: self = .primary
-    case 12: self = .remoteSendGiftCard
-    case 14: self = .swap
-    case 15: self = .associatedTokenAccount
-    case 16: self = .pool
+    case 2: self = .remoteSendGiftCard
+    case 3: self = .swap
+    case 4: self = .associatedTokenAccount
+    case 5: self = .pool
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -53,16 +53,16 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum, Swift.CaseIterable {
     switch self {
     case .unknown: return 0
     case .primary: return 1
-    case .remoteSendGiftCard: return 12
-    case .swap: return 14
-    case .associatedTokenAccount: return 15
-    case .pool: return 16
+    case .remoteSendGiftCard: return 2
+    case .swap: return 3
+    case .associatedTokenAccount: return 4
+    case .pool: return 5
     case .UNRECOGNIZED(let i): return i
     }
   }
 
   // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Code_Common_V1_AccountType] = [
+  public static let allCases: [Ocp_Common_V1_AccountType] = [
     .unknown,
     .primary,
     .remoteSendGiftCard,
@@ -73,8 +73,58 @@ public enum Code_Common_V1_AccountType: SwiftProtobuf.Enum, Swift.CaseIterable {
 
 }
 
+public enum Ocp_Common_V1_Interval: SwiftProtobuf.Enum, Swift.CaseIterable {
+  public typealias RawValue = Int
+  case raw // = 0
+  case second // = 1
+  case minute // = 2
+  case hour // = 3
+  case day // = 4
+  case week // = 5
+  case UNRECOGNIZED(Int)
+
+  public init() {
+    self = .raw
+  }
+
+  public init?(rawValue: Int) {
+    switch rawValue {
+    case 0: self = .raw
+    case 1: self = .second
+    case 2: self = .minute
+    case 3: self = .hour
+    case 4: self = .day
+    case 5: self = .week
+    default: self = .UNRECOGNIZED(rawValue)
+    }
+  }
+
+  public var rawValue: Int {
+    switch self {
+    case .raw: return 0
+    case .second: return 1
+    case .minute: return 2
+    case .hour: return 3
+    case .day: return 4
+    case .week: return 5
+    case .UNRECOGNIZED(let i): return i
+    }
+  }
+
+  // The compiler won't synthesize support with the UNRECOGNIZED case.
+  public static let allCases: [Ocp_Common_V1_Interval] = [
+    .raw,
+    .second,
+    .minute,
+    .hour,
+    .day,
+    .week,
+  ]
+
+}
+
 /// SolanaAccountId is a raw binary Ed25519 public key for a Solana account
-public struct Code_Common_V1_SolanaAccountId: Sendable {
+public struct Ocp_Common_V1_SolanaAccountId: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -87,13 +137,13 @@ public struct Code_Common_V1_SolanaAccountId: Sendable {
 }
 
 /// A Solana address lookup table used in versioned transactions
-public struct Code_Common_V1_SolanaAddressLookupTable: Sendable {
+public struct Ocp_Common_V1_SolanaAddressLookupTable: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var address: Code_Common_V1_SolanaAccountId {
-    get {return _address ?? Code_Common_V1_SolanaAccountId()}
+  public var address: Ocp_Common_V1_SolanaAccountId {
+    get {return _address ?? Ocp_Common_V1_SolanaAccountId()}
     set {_address = newValue}
   }
   /// Returns true if `address` has been explicitly set.
@@ -101,17 +151,17 @@ public struct Code_Common_V1_SolanaAddressLookupTable: Sendable {
   /// Clears the value of `address`. Subsequent reads from it will return its default value.
   public mutating func clearAddress() {self._address = nil}
 
-  public var entries: [Code_Common_V1_SolanaAccountId] = []
+  public var entries: [Ocp_Common_V1_SolanaAccountId] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
 
-  fileprivate var _address: Code_Common_V1_SolanaAccountId? = nil
+  fileprivate var _address: Ocp_Common_V1_SolanaAccountId? = nil
 }
 
 /// Transaction is a raw binary Solana transaction
-public struct Code_Common_V1_Transaction: Sendable {
+public struct Ocp_Common_V1_Transaction: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -125,7 +175,7 @@ public struct Code_Common_V1_Transaction: Sendable {
 }
 
 /// Blockhash is a raw binary Solana blockchash
-public struct Code_Common_V1_Blockhash: Sendable {
+public struct Ocp_Common_V1_Blockhash: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -138,7 +188,7 @@ public struct Code_Common_V1_Blockhash: Sendable {
 }
 
 /// Signature is a raw binary Ed25519 signature
-public struct Code_Common_V1_Signature: Sendable {
+public struct Ocp_Common_V1_Signature: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -151,8 +201,8 @@ public struct Code_Common_V1_Signature: Sendable {
 }
 
 /// IntentId is a client-side generated ID that maps to an intent to perform actions
-/// on the blockchain fulfilled by the Code sequencer.
-public struct Code_Common_V1_IntentId: Sendable {
+/// on the blockchain fulfilled by the OCP sequencer.
+public struct Ocp_Common_V1_IntentId: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -165,7 +215,7 @@ public struct Code_Common_V1_IntentId: Sendable {
 }
 
 /// SwapId is a client-side generated ID that maps to a swap.
-public struct Code_Common_V1_SwapId: Sendable {
+public struct Ocp_Common_V1_SwapId: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -178,7 +228,7 @@ public struct Code_Common_V1_SwapId: Sendable {
 }
 
 /// Hash is a raw binary 32 byte hash value
-public struct Code_Common_V1_Hash: Sendable {
+public struct Ocp_Common_V1_Hash: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -191,7 +241,7 @@ public struct Code_Common_V1_Hash: Sendable {
 }
 
 /// UUID is a 16 byte UUID value
-public struct Code_Common_V1_UUID: Sendable {
+public struct Ocp_Common_V1_UUID: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -204,7 +254,7 @@ public struct Code_Common_V1_UUID: Sendable {
 }
 
 /// Request is a generic wrapper for gRPC requests
-public struct Code_Common_V1_Request: Sendable {
+public struct Ocp_Common_V1_Request: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -223,12 +273,12 @@ public struct Code_Common_V1_Request: Sendable {
 }
 
 /// Response is a generic wrapper for gRPC responses
-public struct Code_Common_V1_Response: Sendable {
+public struct Ocp_Common_V1_Response: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  public var result: Code_Common_V1_Response.Result = .ok
+  public var result: Ocp_Common_V1_Response.Result = .ok
 
   public var body: Data = Data()
 
@@ -263,7 +313,7 @@ public struct Code_Common_V1_Response: Sendable {
     }
 
     // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Code_Common_V1_Response.Result] = [
+    public static let allCases: [Ocp_Common_V1_Response.Result] = [
       .ok,
       .error,
     ]
@@ -273,7 +323,7 @@ public struct Code_Common_V1_Response: Sendable {
   public init() {}
 }
 
-public struct Code_Common_V1_ServerPing: Sendable {
+public struct Ocp_Common_V1_ServerPing: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -307,7 +357,7 @@ public struct Code_Common_V1_ServerPing: Sendable {
   fileprivate var _pingDelay: SwiftProtobuf.Google_Protobuf_Duration? = nil
 }
 
-public struct Code_Common_V1_ClientPong: Sendable {
+public struct Ocp_Common_V1_ClientPong: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
@@ -332,13 +382,17 @@ public struct Code_Common_V1_ClientPong: Sendable {
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
-fileprivate let _protobuf_package = "code.common.v1"
+fileprivate let _protobuf_package = "ocp.common.v1"
 
-extension Code_Common_V1_AccountType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}PRIMARY\0\u{2}\u{b}REMOTE_SEND_GIFT_CARD\0\u{2}\u{2}SWAP\0\u{1}ASSOCIATED_TOKEN_ACCOUNT\0\u{1}POOL\0")
+extension Ocp_Common_V1_AccountType: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}PRIMARY\0\u{1}REMOTE_SEND_GIFT_CARD\0\u{1}SWAP\0\u{1}ASSOCIATED_TOKEN_ACCOUNT\0\u{1}POOL\0")
 }
 
-extension Code_Common_V1_SolanaAccountId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Interval: SwiftProtobuf._ProtoNameProviding {
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0RAW\0\u{1}SECOND\0\u{1}MINUTE\0\u{1}HOUR\0\u{1}DAY\0\u{1}WEEK\0")
+}
+
+extension Ocp_Common_V1_SolanaAccountId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SolanaAccountId"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -361,14 +415,14 @@ extension Code_Common_V1_SolanaAccountId: SwiftProtobuf.Message, SwiftProtobuf._
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_SolanaAccountId, rhs: Code_Common_V1_SolanaAccountId) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_SolanaAccountId, rhs: Ocp_Common_V1_SolanaAccountId) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_SolanaAddressLookupTable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_SolanaAddressLookupTable: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SolanaAddressLookupTable"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}entries\0")
 
@@ -399,7 +453,7 @@ extension Code_Common_V1_SolanaAddressLookupTable: SwiftProtobuf.Message, SwiftP
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_SolanaAddressLookupTable, rhs: Code_Common_V1_SolanaAddressLookupTable) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_SolanaAddressLookupTable, rhs: Ocp_Common_V1_SolanaAddressLookupTable) -> Bool {
     if lhs._address != rhs._address {return false}
     if lhs.entries != rhs.entries {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -407,7 +461,7 @@ extension Code_Common_V1_SolanaAddressLookupTable: SwiftProtobuf.Message, SwiftP
   }
 }
 
-extension Code_Common_V1_Transaction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Transaction: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Transaction"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -430,14 +484,14 @@ extension Code_Common_V1_Transaction: SwiftProtobuf.Message, SwiftProtobuf._Mess
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Transaction, rhs: Code_Common_V1_Transaction) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_Transaction, rhs: Ocp_Common_V1_Transaction) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_Blockhash: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Blockhash: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Blockhash"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -460,14 +514,14 @@ extension Code_Common_V1_Blockhash: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Blockhash, rhs: Code_Common_V1_Blockhash) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_Blockhash, rhs: Ocp_Common_V1_Blockhash) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_Signature: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Signature: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Signature"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -490,14 +544,14 @@ extension Code_Common_V1_Signature: SwiftProtobuf.Message, SwiftProtobuf._Messag
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Signature, rhs: Code_Common_V1_Signature) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_Signature, rhs: Ocp_Common_V1_Signature) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_IntentId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_IntentId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".IntentId"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -520,14 +574,14 @@ extension Code_Common_V1_IntentId: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_IntentId, rhs: Code_Common_V1_IntentId) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_IntentId, rhs: Ocp_Common_V1_IntentId) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_SwapId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_SwapId: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".SwapId"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -550,14 +604,14 @@ extension Code_Common_V1_SwapId: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_SwapId, rhs: Code_Common_V1_SwapId) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_SwapId, rhs: Ocp_Common_V1_SwapId) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_Hash: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Hash: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Hash"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -580,14 +634,14 @@ extension Code_Common_V1_Hash: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Hash, rhs: Code_Common_V1_Hash) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_Hash, rhs: Ocp_Common_V1_Hash) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_UUID: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_UUID: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".UUID"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}value\0")
 
@@ -610,14 +664,14 @@ extension Code_Common_V1_UUID: SwiftProtobuf.Message, SwiftProtobuf._MessageImpl
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_UUID, rhs: Code_Common_V1_UUID) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_UUID, rhs: Ocp_Common_V1_UUID) -> Bool {
     if lhs.value != rhs.value {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Code_Common_V1_Request: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Request: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Request"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}version\0\u{1}service\0\u{1}method\0\u{1}body\0")
 
@@ -652,7 +706,7 @@ extension Code_Common_V1_Request: SwiftProtobuf.Message, SwiftProtobuf._MessageI
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Request, rhs: Code_Common_V1_Request) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_Request, rhs: Ocp_Common_V1_Request) -> Bool {
     if lhs.version != rhs.version {return false}
     if lhs.service != rhs.service {return false}
     if lhs.method != rhs.method {return false}
@@ -662,7 +716,7 @@ extension Code_Common_V1_Request: SwiftProtobuf.Message, SwiftProtobuf._MessageI
   }
 }
 
-extension Code_Common_V1_Response: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Response: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Response"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{1}body\0\u{1}message\0")
 
@@ -693,7 +747,7 @@ extension Code_Common_V1_Response: SwiftProtobuf.Message, SwiftProtobuf._Message
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_Response, rhs: Code_Common_V1_Response) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_Response, rhs: Ocp_Common_V1_Response) -> Bool {
     if lhs.result != rhs.result {return false}
     if lhs.body != rhs.body {return false}
     if lhs.message != rhs.message {return false}
@@ -702,11 +756,11 @@ extension Code_Common_V1_Response: SwiftProtobuf.Message, SwiftProtobuf._Message
   }
 }
 
-extension Code_Common_V1_Response.Result: SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_Response.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}ERROR\0")
 }
 
-extension Code_Common_V1_ServerPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_ServerPing: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ServerPing"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}timestamp\0\u{3}ping_delay\0")
 
@@ -737,7 +791,7 @@ extension Code_Common_V1_ServerPing: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_ServerPing, rhs: Code_Common_V1_ServerPing) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_ServerPing, rhs: Ocp_Common_V1_ServerPing) -> Bool {
     if lhs._timestamp != rhs._timestamp {return false}
     if lhs._pingDelay != rhs._pingDelay {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
@@ -745,7 +799,7 @@ extension Code_Common_V1_ServerPing: SwiftProtobuf.Message, SwiftProtobuf._Messa
   }
 }
 
-extension Code_Common_V1_ClientPong: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+extension Ocp_Common_V1_ClientPong: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ClientPong"
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}timestamp\0")
 
@@ -772,7 +826,7 @@ extension Code_Common_V1_ClientPong: SwiftProtobuf.Message, SwiftProtobuf._Messa
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Code_Common_V1_ClientPong, rhs: Code_Common_V1_ClientPong) -> Bool {
+  public static func ==(lhs: Ocp_Common_V1_ClientPong, rhs: Ocp_Common_V1_ClientPong) -> Bool {
     if lhs._timestamp != rhs._timestamp {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

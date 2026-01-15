@@ -20,7 +20,7 @@ protocol ActionType {
     func compactMessages() throws -> [CompactMessage]
     func signatures() throws -> [Signature]
     
-    func action() -> Code_Transaction_V2_Action    
+    func action() -> Ocp_Transaction_V1_Action    
 }
 
 enum ActionTypeError: Error {

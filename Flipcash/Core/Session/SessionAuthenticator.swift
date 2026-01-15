@@ -73,9 +73,13 @@ final class SessionAuthenticator: ObservableObject {
             self.completeLogin(with: initializedAccount)
         } didFindRecentAccount: { [weak self] keyAccount in
             Task {
-                if let account = try await self?.initialize(using: keyAccount.mnemonic, isRegistration: false) {
-                    self?.completeLogin(with: account)
-                    Analytics.autoLoginComplete()
+                do {
+                    if let account = try await self?.initialize(using: keyAccount.mnemonic, isRegistration: false) {
+                        self?.completeLogin(with: account)
+                        Analytics.autoLoginComplete()
+                    }
+                } catch {
+                    self?.logout()
                 }
             }
         }
@@ -94,11 +98,9 @@ final class SessionAuthenticator: ObservableObject {
             accountManager.upsert(keyAccount: userAccount.keyAccount)
             
         } else {
-            
             if let recentAccount = accountManager.fetchHistorical(sortBy: .lastSeen).first {
                 didFindRecentAccount(recentAccount.account)
             } else {
-                
                 state = .loggedOut
                 
                 // Only attempt to recover if there was an
@@ -258,7 +260,7 @@ final class SessionAuthenticator: ObservableObject {
         
         let cluster = AccountCluster(
             authority: derivedKey,
-            mint: .usdc, // Initial account is always USDC
+            mint: .usdf, // Initial account is always USDF
             timeAuthority: .usdcAuthority
         )
         
@@ -269,7 +271,7 @@ final class SessionAuthenticator: ObservableObject {
             // if the accounts have been previously created
             try await client.createAccounts(
                 owner: cluster.authority.keyPair,
-                mint: .usdc, // USDC is the foundation mint
+                mint: .usdf, // USDF is the foundation mint
                 cluster: cluster,
                 kind: .primary,
                 derivationIndex: 0
@@ -466,7 +468,7 @@ struct InitializedAccount {
         self.keyAccount = keyAccount
         self.owner = .init(
             authority: .derive(using: .primary(), mnemonic: keyAccount.mnemonic),
-            mint: .usdc, // Initial account is always USDC
+            mint: .usdf, // Initial account is always USDF
             timeAuthority: .usdcAuthority
         )
         self.userID = userID

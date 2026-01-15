@@ -191,8 +191,8 @@ public final class WalletConnection: ObservableObject {
     }
     
     /// Uses Phantom `signAllTransactions` (replaces deprecated `signAndSendTransaction`) to sign a single
-    /// TokenProgram.transferChecked for a USDC (SPL Token) transfer. Phantom returns signed tx; your backend/client should broadcast it.
-    func requestTransfer(usdc: Quarks) async throws {
+    /// TokenProgram.transferChecked for a USDF (SPL Token) transfer. Phantom returns signed tx; your backend/client should broadcast it.
+    func requestTransfer(usdf: Quarks) async throws {
         guard let connectedSession = Keychain.connectedWalletSession else {
             print("[WalletConnection] Error: no connected session")
             return
@@ -201,22 +201,22 @@ public final class WalletConnection: ObservableObject {
         let depositAddress = owner.depositPublicKey
         
         do {
-            // 1. Build USDC transfer with ATA handling
+            // 1. Build USDF transfer with ATA handling
             let walletOwner    = try PublicKey(string: connectedSession.walletPublicKey.base58)
             let depositAddress = try PublicKey(string: depositAddress.base58)
             
             let destinationExists = try await solanaClient.apiClient.checkIfAssociatedTokenAccountExists(
                 owner: depositAddress,
-                mint: PublicKey.usdcMint.base58EncodedString,
+                mint: PublicKey.usdfMint.base58EncodedString,
                 tokenProgramId: PublicKey.tokenProgram
             )
             
             let recentBlockhash = try await solanaClient.apiClient.getLatestBlockhash(commitment: "finalized")
             
-            var transaction = try TransactionBuilder.usdcTransfer(
+            var transaction = try TransactionBuilder.usdfTransfer(
                 fromOwner: walletOwner,
                 toOwner: depositAddress,
-                quarks: usdc.quarks,
+                quarks: usdf.quarks,
                 shouldCreateTokenAccount: !destinationExists,
                 recentBlockhash: recentBlockhash
             )
@@ -251,9 +251,9 @@ public final class WalletConnection: ObservableObject {
                 return
             }
 
-            Analytics.walletRequestAmount(amount: usdc)
+            Analytics.walletRequestAmount(amount: usdf)
             url.openWithApplication()
-            print("[WalletConnection] Requested transfer of \(usdc) USDC to \(depositAddress.base58EncodedString)")
+            print("[WalletConnection] Requested transfer of \(usdf) USDF to \(depositAddress.base58EncodedString)")
             
         } catch {
             print("[WalletConnection] requestTransfer error: \(error)")

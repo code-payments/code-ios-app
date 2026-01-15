@@ -9,30 +9,27 @@ import Foundation
 import FlipcashCore
 
 struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
-    
     let quarks: UInt64
     let symbol: String
     let name: String
     let supplyFromBonding: UInt64?
-    let coreMintLocked: UInt64?
     let sellFeeBps: Int?
     let mint: PublicKey
     let vmAuthority: PublicKey?
     let updatedAt: Date
     let imageURL: URL?
     
-    let usdcValue: Quarks
+    let usdf: Quarks
     
     var id: PublicKey {
         mint
     }
     
-    init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, coreMintLocked: UInt64?, sellFeeBps: Int?, mint: PublicKey, vmAuthority: PublicKey?, updatedAt: Date, imageURL: URL?) throws {
+    init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, sellFeeBps: Int?, mint: PublicKey, vmAuthority: PublicKey?, updatedAt: Date, imageURL: URL?) throws {
         self.quarks            = quarks
         self.symbol            = symbol
         self.name              = name
         self.supplyFromBonding = supplyFromBonding
-        self.coreMintLocked    = coreMintLocked
         self.sellFeeBps        = sellFeeBps
         self.mint              = mint
         self.vmAuthority       = vmAuthority
@@ -42,30 +39,30 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         // For non-USDC currencies that have a bonding
         // curve liquidity provider, we'll compute their
         // equivalent USDC value
-        if let coreMintLocked, let sellFeeBps {
+        if let supplyFromBonding, let sellFeeBps {
             guard let sellEstimate = Self.bondingCurve.sell(
                 tokenQuarks: Int(quarks),
                 feeBps: sellFeeBps,
-                tvl: Int(coreMintLocked)
+                supplyQuarks: Int(supplyFromBonding)
             ) else {
-                throw Error.missingStoredCoreMintForNonUSDCToken
+                throw Error.missingStoredCoreMintForNonReserveToken
             }
 
-            self.usdcValue = try! Quarks(
-                fiatDecimal: sellEstimate.netUSDC.asDecimal(),
+            self.usdf = try! Quarks(
+                fiatDecimal: sellEstimate.netUSDF.asDecimal(),
                 currencyCode: .usd,
                 decimals: 6
             )
             
         } else {
-            guard symbol == "USDC" else {
-                throw Error.missingStoredCoreMintForNonUSDCToken
+            guard symbol == "USDF" else {
+                throw Error.missingStoredCoreMintForNonReserveToken
             }
             
-            self.usdcValue = Quarks(
+            self.usdf = Quarks(
                 quarks: quarks,
                 currencyCode: .usd,
-                decimals: PublicKey.usdc.mintDecimals
+                decimals: PublicKey.usdf.mintDecimals
             )
         }
     }
@@ -75,14 +72,14 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
             quarks: quarks,
             mint: mint,
             rate: rate,
-            tvl: coreMintLocked
+            supplyQuarks: supplyFromBonding
         )
     }
 }
 
 extension StoredBalance {
     enum Error: Swift.Error {
-        case missingStoredCoreMintForNonUSDCToken
+        case missingStoredCoreMintForNonReserveToken
     }
 }
 

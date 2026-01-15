@@ -14,27 +14,59 @@ import SwiftProtobuf
 import NIO
 
 /// Service for managing token swap operations
-final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, @unchecked Sendable {
-    
-    typealias BidirectionalStartSwapStream = BidirectionalStreamReference<Code_Transaction_V2_StartSwapRequest, Code_Transaction_V2_StartSwapResponse>
-    typealias BidirectionalSwapStream = BidirectionalStreamReference<Code_Transaction_V2_SwapRequest, Code_Transaction_V2_SwapResponse>
+final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @unchecked Sendable {
+    typealias BidirectionalSwapStream = BidirectionalStreamReference<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>
     
     // MARK: - StartSwap -
-    
+
     /// StartSwap initiates the swap process by coordinating verified metadata with the server.
     /// This establishes the swap state and reserves blockchain resources (nonce + blockhash).
     func startSwap(
         swapId: SwapId,
-        fromMint: PublicKey,
-        toMint: PublicKey,
+        direction: SwapDirection,
         amount: Quarks,
         fundingID: PublicKey,
         owner: KeyPair,
         completion: @escaping (Result<SwapMetadata, ErrorSwap>) -> Void
     ) {
+        let fromMint = direction.sourceMint.address
+        let toMint = direction.destinationMint.address
         trace(.send, components: "Swap ID: \(swapId.publicKey.base58)", "From: \(fromMint.base58)", "To: \(toMint.base58)", "Amount: \(amount.formatted())")
+
+        // Validate that required metadata is present for transaction building
+        switch direction {
+        case .buy(let targetMint):
+            guard targetMint.vmMetadata != nil else {
+                trace(.failure, components: "Target mint \(targetMint.symbol) missing VM metadata")
+                completion(.failure(.invalidSwap))
+                return
+            }
+            guard targetMint.launchpadMetadata != nil else {
+                trace(.failure, components: "Target mint \(targetMint.symbol) missing launchpad metadata")
+                completion(.failure(.invalidSwap))
+                return
+            }
+        case .sell(let sourceMint):
+            guard sourceMint.vmMetadata != nil else {
+                trace(.failure, components: "Source mint \(sourceMint.symbol) missing VM metadata")
+                completion(.failure(.invalidSwap))
+                return
+            }
+            guard sourceMint.launchpadMetadata != nil else {
+                trace(.failure, components: "Source mint \(sourceMint.symbol) missing launchpad metadata")
+                completion(.failure(.invalidSwap))
+                return
+            }
+        }
+
+        // Also validate that USDF (core mint) has VM metadata
+        guard MintMetadata.usdf.vmMetadata != nil else {
+            trace(.failure, components: "USDF missing VM metadata")
+            completion(.failure(.invalidSwap))
+            return
+        }
         
-        let reference = BidirectionalStartSwapStream()
+        let reference = BidirectionalSwapStream()
         let queue = self.queue // Capture queue, not self
         
         // Store client parameters for verification metadata construction
@@ -51,14 +83,18 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
         // a strong reference to the stream at all times. Doing so ensures that the
         // callers don't have to manage the pointer to this stream and keep it alive
         reference.retain()
-        
+
+        // Generate swap authority keypair for transaction signing
+        let swapAuthority = KeyPair.generate()!
+
         // Store server parameters when received
         var receivedServerParameters: VerifiedSwapMetadata.ServerParameters?
+        var receivedResponseParams: SwapResponseServerParameters?
         var verifiedMetadataSignature: Signature?
-        
-        reference.stream = service.startSwap { result in
+
+        reference.stream = service.statefulSwap { result in
             switch result.response {
-                
+
                 // 2. Upon successful submission of the Start message, server will
                 // respond with parameters (nonce + blockhash) that we need to sign
             case .serverParameters(let parameters):
@@ -68,45 +104,53 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
                     completion(.failure(.unknown))
                     return
                 }
-                
+
                 guard let serverParameters = VerifiedSwapMetadata.ServerParameters(serverParams) else {
                     trace(.failure, components: "Failed to parse server parameters")
                     _ = reference.stream?.sendEnd()
                     completion(.failure(.unknown))
                     return
                 }
-                
+
+                guard let responseParams = SwapResponseServerParameters(parameters) else {
+                    trace(.failure, components: "Failed to parse response parameters")
+                    _ = reference.stream?.sendEnd()
+                    completion(.failure(.unknown))
+                    return
+                }
+
                 // Store for later use in success response
                 receivedServerParameters = serverParameters
-                
+                receivedResponseParams = responseParams
+
                 // Construct verified metadata for signing
                 let verifiedMetadata = VerifiedSwapMetadata(
                     clientParameters: clientParameters,
                     serverParameters: serverParameters
                 )
-                
-                do {
-                    // Sign the verified metadata to prevent tampering
-                    let data = try verifiedMetadata.proto.serializedData()
-                    let signature = owner.sign(data)
-                    verifiedMetadataSignature = signature
-                    
-                    // Send signature back to server
-                    let submitSignature = Code_Transaction_V2_StartSwapRequest.with {
-                        $0.submitSignature = .with {
-                            $0.signature = signature.proto
-                        }
+
+                // Build the swap transaction and sign with both owner and swapAuthority
+                let transaction = TransactionBuilder.swap(
+                    responseParams: responseParams,
+                    metadata: verifiedMetadata,
+                    authority: owner.publicKey,
+                    swapAuthority: swapAuthority.publicKey,
+                    direction: direction,
+                    amount: amount.quarks
+                )
+                let signatures = transaction.signatures(using: owner, swapAuthority)
+                verifiedMetadataSignature = signatures.first
+
+                // Send both signatures back to server
+                let submitSignature = Ocp_Transaction_V1_StatefulSwapRequest.with {
+                    $0.submitSignatures = .with {
+                        $0.transactionSignatures = signatures.map { $0.proto }
                     }
-                    
-                    _ = reference.stream?.sendMessage(submitSignature)
-                    
-                    trace(.receive, components: "Received server parameters. Submitting signature...", "Nonce: \(serverParameters.nonce.base58)", "Blockhash: \(serverParameters.blockhash.base58)")
-                    
-                } catch {
-                    trace(.failure, components: "Failed to serialize verified metadata: \(error)")
-                    _ = reference.stream?.sendEnd()
-                    completion(.failure(.unknown))
                 }
+
+                _ = reference.stream?.sendMessage(submitSignature)
+
+                trace(.receive, components: "Received server parameters. Submitting \(signatures.count) signatures...", "Nonce: \(serverParameters.nonce.base58)", "Blockhash: \(serverParameters.blockhash.base58)")
                 
                 // 3. If submitted signature is valid, we'll receive a success
                 // and the swap state will be created on the server
@@ -189,286 +233,47 @@ final class SwapService: CodeService<Code_Transaction_V2_TransactionNIOClient>, 
         }
         
         // 1. Send `Start` request with client parameters
-        let startRequest = Code_Transaction_V2_StartSwapRequest.with {
-            $0.start = .with {
-                $0.currencyCreator = clientParameters.proto
-                $0.owner = owner.publicKey.solanaAccountID
-                $0.signature = $0.sign(with: owner)
-            }
-        }
-        _ = reference.stream?.sendMessage(startRequest)
-    }
-    
-    // MARK: - GetSwap -
-    
-    /// GetSwap fetches the current state and metadata for a specific swap
-    func getSwap(
-        swapId: SwapId,
-        owner: KeyPair
-    ) async throws -> SwapMetadata {
-        trace(.send, components: "Swap ID: \(swapId.publicKey.base58)")
-        
-        let request = Code_Transaction_V2_GetSwapRequest.with {
-            $0.id = swapId.codeSwapID
-            $0.owner = owner.publicKey.solanaAccountID
-            $0.signature = $0.sign(with: owner)
-        }
-        
-        return try await withCheckedThrowingContinuation { continuation in
-            let call = service.getSwap(request)
-            call.response.whenComplete { result in
-                switch result {
-                case .success(let response):
-                    let error = ErrorGetSwap(rawValue: response.result.rawValue) ?? .unknown
-                    guard error == .ok else {
-                        trace(.failure, components: "Error: \(error)", "Swap ID: \(swapId.publicKey.base58)")
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                    
-                    guard let metadata = SwapMetadata(response.swap) else {
-                        trace(.failure, components: "Failed to parse swap metadata", "Swap ID: \(swapId.publicKey.base58)")
-                        continuation.resume(throwing: ErrorGetSwap.failedToParse)
-                        return
-                    }
-                    
-                    trace(.success, components: "Swap ID: \(swapId.publicKey.base58)", "State: \(metadata.state)")
-                    continuation.resume(returning: metadata)
-                    
-                case .failure(let error):
-                    trace(.failure, components: "gRPC error: \(error)", "Swap ID: \(swapId.publicKey.base58)")
-                    continuation.resume(throwing: ErrorGetSwap.unknown)
-                }
-            }
-        }
-    }
-    
-    // MARK: - Poll & Execute -
-    
-    /// Polls GetSwap until the swap reaches FUNDED state, then executes it
-    func executeSwap(
-        swapId: SwapId,
-        metadata: VerifiedSwapMetadata,
-        direction: SwapDirection,
-        amount: UInt64,
-        owner: KeyPair,
-        swapAuthority: KeyPair,
-        maxAttempts: Int,
-        interval: TimeInterval
-    ) async throws -> Result<SwapResult, ErrorSwap> {
-        _ = try await pollSwapUntilFunded(
-            swapId: swapId,
-            owner: owner,
-            maxAttempts: maxAttempts,
-            interval: interval,
-            attempt: 0
-        )
-        
-        let swapIntent = IntentSwap(
-            id: swapId,
-            owner: owner,
-            metadata: metadata,
-            swapAuthority: swapAuthority,
-            amount: amount,
-            direction: direction,
-            waitForBlockchain: true
-        )
-        
-        // Once funded, execute the swap
-        return try await executeSwapInternal(intent: swapIntent)
-    }
-    
-    /// Polls GetSwap until the swap reaches FUNDED state or times out
-    private func pollSwapUntilFunded(
-        swapId: SwapId,
-        owner: KeyPair,
-        maxAttempts: Int,
-        interval: TimeInterval,
-        attempt: Int
-    ) async throws -> SwapMetadata {
-        guard attempt < maxAttempts else {
-            trace(.failure, components: "Polling timed out after \(maxAttempts) attempts", "Swap ID: \(swapId.publicKey.base58)")
-            throw ErrorSwap.unknown
-        }
-        
-        let metadata: SwapMetadata
-        do {
-            metadata = try await getSwap(swapId: swapId, owner: owner)
-        } catch {
-            trace(.failure, components: "Failed to get swap state: \(error)", "Swap ID: \(swapId.publicKey.base58)")
-            throw ErrorSwap.unknown
-        }
-        
-        switch metadata.state {
-        case .funded:
-            // Swap is ready to execute
-            return metadata
-            
-        case .finalized:
-            // Already finalized (server executed it)
-            return metadata
-            
-        case .failed, .cancelled:
-            // Swap failed or was cancelled
-            trace(.failure, components: "Swap reached terminal state: \(metadata.state)", "Swap ID: \(swapId.publicKey.base58)")
-            throw ErrorSwap.unknown
-            
-        case .created, .funding, .submitting, .cancelling:
-            // Still in progress, poll again
-            trace(.receive, components: "Swap state: \(metadata.state), polling again...", "Attempt \(attempt + 1)/\(maxAttempts)")
-            
-            try await Task.sleep(until: .now + .seconds(interval), tolerance: nil)
-            return try await pollSwapUntilFunded(
-                swapId: swapId,
-                owner: owner,
-                maxAttempts: maxAttempts,
-                interval: interval,
-                attempt: attempt + 1
-            )
-            
-        case .unknown:
-            trace(.failure, components: "Swap in unknown state", "Swap ID: \(swapId.publicKey.base58)")
-            throw ErrorSwap.unknown
-        }
-    }
-    
-    // MARK: - Execute Swap -
-    
-    /// Executes a swap that's in FUNDED state
-    private func executeSwapInternal(
-        intent: IntentSwap
-    ) async throws -> Result<SwapResult, ErrorSwap> {
-        trace(.send, components: "Executing swap", "Swap ID: \(intent.id.publicKey.base58)")
-        
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                let reference = BidirectionalSwapStream()
-                let queue = self.queue // Capture queue, not self
-                
-                reference.retain()
-                
-                reference.stream = service.swap { result in
-                    switch result.response {
-                        
-                        // Server provides parameters needed to build the swap transaction
-                    case .serverParameters(let parameters):
-                        trace(.receive, components: "Received server parameters for swap execution")
-                        
-                        do {
-                            guard let props = SwapResponseServerParameters(parameters) else {
-                                _ = reference.stream?.sendEnd()
-                                continuation.resume(throwing: ErrorSwap.unknown)
-                                return
-                            }
-                            
-                            intent.parameters = props
-                            
-                            let submitSignatures = try intent.requestToSubmitSignatures()
-                            _ = reference.stream?.sendMessage(submitSignatures)
-                        } catch {
-                            trace(.failure, components: 
-                                "Failed to sign transaction",
-                                "Error: \(error)"
-                            )
-                            _ = reference.stream?.sendEnd()
-                            continuation.resume(throwing: ErrorSwap.signatureError)
-                            return
-                        }
-                        
-                        // Swap was submitted or finalized
-                    case .success(let success):
-                        let result: SwapResult
-                        switch success.code {
-                        case .swapSubmitted:
-                            result = .submitted
-                        case .swapFinalized:
-                            result = .finalized
-                        case .UNRECOGNIZED:
-                            result = .submitted
-                        }
-                        
-                        trace(.success, components: "Swap completed: \(result)", "Swap ID: \(intent.id.publicKey.base58)")
-                        _ = reference.stream?.sendEnd()
-                        continuation.resume(returning: .success(result))
-                        
-                        // Error during swap execution
-                    case .error(let error):
-                        trace(.failure, components: "Swap execution error: \(error)")
-                        var container: [String] = []
-                    
-                        container.append("Code: \(error.code)")
-                        
-                        let errors = error.errorDetails.flatMap { details -> [String] in
-                            switch details.type {
-                            case .reasonString(let reason):
-                                return [
-                                    "Reason: \(reason.reason)"
-                                ]
-                                
-                            case .invalidSignature(let signatureDetails):
-                                let expected = SolanaTransaction.init(data: signatureDetails.expectedTransaction.value)!
-                                let derived = intent.transaction(using: intent.parameters!)
-                                
-                                return [
-                                    "Action index: \(signatureDetails.actionID)",
-                                    "Invalid signature: \((try? Signature(signatureDetails.providedSignature.value).base58) ?? "nil")",
-                                    "Expected transaction bytes: \(expected.encode().hexEncodedString())",
-                                    "Derived transaction bytes: \(derived.encode().hexEncodedString())",
-                                ]
-                            default:
-                                return []
-                            }
-                        }
-                        
-                        container.append(contentsOf: errors)
+        // (swapAuthority is generated above for use in both the Initiate and ServerParameters handling)
 
-                        trace(.failure, components: container)
-                        _ = reference.stream?.sendEnd()
-                        continuation.resume(returning: .failure(ErrorSwap.init(error: error)))
-                        
-                    case .none:
-                        trace(.failure, components: "No response from server")
-                        _ = reference.stream?.sendEnd()
-                        continuation.resume(throwing: ErrorSwap.unknown)
-                    }
+        // The server requires a proof signature with the Initiate request.
+        // The proof signature must sign the full VerifiedSwapMetadata proto,
+        // which wraps the client parameters in:
+        //   VerifiedSwapMetadata { currency_creator { client_parameters = ... } }
+        do {
+            let clientProto = clientParameters.proto
+
+            // Build the full VerifiedSwapMetadata proto structure
+            let verifiedMetadataProto = Ocp_Transaction_V1_VerifiedSwapMetadata.with {
+                $0.currencyCreator = .with {
+                    $0.clientParameters = clientProto
                 }
-                
-                reference.stream?.status.whenCompleteBlocking(onto: queue) { result in
-                    switch result {
-                    case .success(let status):
-                        if status.code == .ok {
-                            trace(.success, components: "Swap stream closed")
-                        } else {
-                            trace(.warning, components: "Swap stream closed: \(status)")
-                            continuation.resume(throwing: ErrorSwap.grpcStatus(status))
-                        }
-                        
-                    case .failure(let error):
-                        trace(.failure, components: "GRPC Error - swap stream closed: \(error)")
-                        continuation.resume(throwing: ErrorSwap.grpcError(error))
-                    }
-                    
-                    reference.release()
-                }
-                
-                // Send initiate request
-                let initiateRequest = Code_Transaction_V2_SwapRequest.with {
-                    $0.initiate = .with {
-                        $0.kind = .stateful(
-                            Code_Transaction_V2_SwapRequest.Initiate.Stateful.with {
-                                $0.swapID = intent.id.codeSwapID
-                                $0.owner = intent.owner.publicKey.solanaAccountID
-                                $0.swapAuthority = intent.swapAuthority.publicKey.solanaAccountID
-                                $0.signature = $0.sign(with: intent.owner)
-                            }
-                        )
-                    }
-                }
-                
-                _ = reference.stream?.sendMessage(initiateRequest)
             }
-        } onCancel: {
-            trace(.failure, components: "swap cancelled")
+            let serialized = try verifiedMetadataProto.serializedData()
+            let proof = owner.sign(serialized)
+
+            let startRequest = Ocp_Transaction_V1_StatefulSwapRequest.with {
+                $0.initiate = .with {
+                    $0.kind = .currencyCreator(clientProto)
+                    $0.owner = owner.publicKey.solanaAccountID
+                    $0.swapAuthority = swapAuthority.publicKey.solanaAccountID
+                    $0.proofSignature = proof.proto
+                    $0.signature = $0.sign(with: owner)
+                }
+            }
+
+            do {
+                let bytes = try startRequest.serializedData()
+                trace(.send, components: "StartSwap initiate proto (hex): \(bytes.hexEncodedString())")
+            } catch {
+                trace(.warning, components: "Failed to serialize StartSwap initiate proto for logging: \(error)")
+            }
+
+            _ = reference.stream?.sendMessage(startRequest)
+        } catch {
+            trace(.failure, components: "Failed to serialize client parameters for proof signature: \(error)")
+            _ = reference.stream?.sendEnd()
+            completion(.failure(.unknown))
+            return
         }
     }
 }
@@ -493,15 +298,7 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
     /// gRPC error
     case grpcError(Error)
     
-    init(error: Code_Transaction_V2_StartSwapResponse.Error) {
-        let reasonStrings: [String] = error.errorDetails.compactMap {
-            if case .reasonString(let object) = $0.type {
-                return !object.reason.isEmpty ? object.reason : nil
-            } else {
-                return nil
-            }
-        }
-        
+    init(error: Ocp_Transaction_V1_StatefulSwapResponse.Error) {
         switch error.code {
         case .denied:
             let reasons: [DeniedReason] = error.errorDetails.compactMap {
@@ -516,39 +313,6 @@ public enum ErrorSwap: Error, CustomStringConvertible, CustomDebugStringConverti
             
         case .invalidSwap:
             self = .invalidSwap
-        case .signatureError:
-            self = .signatureError
-            
-        case .UNRECOGNIZED:
-            self = .unknown
-        }
-    }
-    
-    init(error: Code_Transaction_V2_SwapResponse.Error) {
-        let reasonStrings: [String] = error.errorDetails.compactMap {
-            if case .reasonString(let object) = $0.type {
-                return !object.reason.isEmpty ? object.reason : nil
-            } else {
-                return nil
-            }
-        }
-        
-        switch error.code {
-        case .denied:
-            let reasons: [DeniedReason] = error.errorDetails.compactMap {
-                if case .denied(let details) = $0.type {
-                    return DeniedReason(rawValue: details.code.rawValue)
-                } else {
-                    return nil
-                }
-            }
-            
-            self = .denied(reasons)
-            
-        case .invalidSwap:
-            self = .invalidSwap
-        case .swapFailed:
-            self = .failed
         case .signatureError:
             self = .signatureError
             

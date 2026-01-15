@@ -14,9 +14,8 @@ import SwiftProtobuf
 import NIO
 import DeviceCheck
 
-class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> {
-    
-    typealias BidirectionalStream = BidirectionalStreamReference<Code_Transaction_V2_SubmitIntentRequest, Code_Transaction_V2_SubmitIntentResponse>
+class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
+    typealias BidirectionalStream = BidirectionalStreamReference<Ocp_Transaction_V1_SubmitIntentRequest, Ocp_Transaction_V1_SubmitIntentResponse>
     
     // Swap service for managing token swaps
     private(set) lazy var swapService: SwapService = {
@@ -73,28 +72,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             }
         }
     }
-    
-    func distributePoolWinnings(source: AccountCluster, distributions: [PoolDistribution], owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send)
         
-        let intent = IntentDistributePoolWinnings(
-            source: source,
-            distributions: distributions
-        )
-        
-        submit(intent: intent, owner: owner) { result in
-            switch result {
-            case .success(_):
-                trace(.success)
-                completion(.success(()))
-                
-            case .failure(let error):
-                trace(.failure, components: "Error: \(error)")
-                completion(.failure(error))
-            }
-        }
-    }
-    
     func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
         
@@ -125,7 +103,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     }
     
     func sendCashLink(exchangedFiat: ExchangedFiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(exchangedFiat.underlying.formatted(suffix: " USDC"))")
+        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(exchangedFiat.underlying.formatted(suffix: " USDF"))")
         
         let intent = IntentSendCashLink(
             rendezvous: rendezvous,
@@ -147,13 +125,13 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
     
-    func receiveCashLink(usdc: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
-        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(usdc.formatted(suffix: " USDC"))")
+    func receiveCashLink(usdf: Quarks, ownerCluster: AccountCluster, giftCard: GiftCardCluster, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+        trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(usdf.formatted(suffix: " USDF"))")
         
         let intent = IntentReceiveCashLink(
             ownerCluster: ownerCluster,
             giftCard: giftCard,
-            usdc: usdc
+            usdf: usdf
         )
         
         submit(intent: intent, owner: ownerCluster.authority.keyPair) { result in
@@ -172,7 +150,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     func voidCashLink(giftCardVault: PublicKey, owner: KeyPair, completion: @Sendable @escaping (Result<(), ErrorVoidGiftCard>) -> Void) {
         trace(.send, components: "Gift card: \(giftCardVault.base58)")
         
-        let request = Code_Transaction_V2_VoidGiftCardRequest.with {
+        let request = Ocp_Transaction_V1_VoidGiftCardRequest.with {
             $0.giftCardVault = giftCardVault.solanaAccountID
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
@@ -199,7 +177,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     func airdrop(type: AirdropType, owner: KeyPair, completion: @Sendable @escaping (Result<PaymentMetadata, ErrorAirdrop>) -> Void) {
         trace(.send)
         
-        let request = Code_Transaction_V2_AirdropRequest.with {
+        let request = Ocp_Transaction_V1_AirdropRequest.with {
             $0.airdropType = type.grpcType
             $0.owner = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
@@ -232,94 +210,57 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     
     // MARK: - Swaps -
     
-    /// A buy is a swap from USDC to desired token
+    /// A buy is a swap from USDF to desired token
     func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
-            
         trace(.send, components: "Starting \(amount.converted.formatted()) buy of \(token.symbol)")
-            
-        // Generate unique identifiers for this swap
+
         let swapId = SwapId.generate()
         let fundingIntentID = PublicKey.generate()!
-            
-        // Phase 1: StartSwap - Create swap state and reserve nonce + blockhash
+
+        let swapService = self.swapService
+        let ownerKeyPair = owner.authority.keyPair
+
+        // Phase 1: StartSwap
         swapService.startSwap(
             swapId: swapId,
-            fromMint: .usdc,
-            toMint: token.address,
+            direction: .buy(mint: token),
             amount: amount.underlying,
             fundingID: fundingIntentID,
-            owner: owner.authority.keyPair
-        ) { [weak self] result in
-            guard let self = self else { return }
+            owner: ownerKeyPair
+        ) { result in
             switch result {
             case .success(let metadata):
                 trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
-                    
-                // Phase 2: SubmitIntent - Fund the VM swap PDA
-                // Create funding intent that transfers from source cluster to VM swap account
+
+                // Phase 2: Perform the swap
                 let fundingIntent = IntentFundSwap(
                     intentID: fundingIntentID,
                     swapId: metadata.swapId,
                     sourceCluster: owner,
                     amount: amount,
-                    fromMint: .usdc,
+                    fromMint: .usdf,
                     toMint: token
                 )
-                    
-                let swapper = self.swapService
-                    
-                self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { [swapper] fundingResult in
+
+                self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
                     switch fundingResult {
                     case .success:
-                        trace(.success, components: "Swap funded", "Funding Intent ID: \(fundingIntentID.base58)")
-                            
-                        // Generate one-time swap authority
-                        let swapAuthority = KeyPair.generate()!
-                            
-                        // Phase 3 & 4: Poll until funded, then execute
-                        Task {
-                            do {
-                                let executeResult = try await swapper.executeSwap(
-                                    swapId: swapId,
-                                    metadata: metadata.verifiedMetadata,
-                                    direction: .buy(mint: token),
-                                    amount: metadata.amount.quarks,
-                                    owner: owner.authority.keyPair,
-                                    swapAuthority: swapAuthority,
-                                    maxAttempts: 30,
-                                    interval: 1.0
-                                )
-                                
-                                switch executeResult {
-                                case .success(let result):
-                                    trace(.success, components: "Swap completed: \(result)")
-                                    completion(.success(()))
-                                    
-                                case .failure(let error):
-                                    trace(.failure, components: "Swap execution failed: \(error)")
-                                    completion(.failure(error))
-                                }
-                            } catch {
-                                trace(.failure, components: "Swap execution threw: \(error)")
-                                completion(.failure(.unknown))
-                            }
-                        }
-                            
+                        trace(.success, components: "Swap completed", "Intent ID: \(fundingIntentID.base58)")
+                        completion(.success(()))
                     case .failure(let error):
-                        trace(.failure, components: "Failed to fund swap: \(error)")
-                        // Map ErrorSubmitIntent to ErrorSwap
+                        trace(.failure, components: "Failed to swap: \(error)")
                         completion(.failure(.unknown))
                     }
                 }
-                    
+
             case .failure(let error):
                 trace(.failure, components: "Failed to start swap: \(error)")
                 completion(.failure(error))
             }
         }
     }
-    
-    /// A sell is a swap from token to USDC
+
+    /// A sell is a swap from token to USDF
     func sell(amount: ExchangedFiat, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
         trace(.send, components: "Starting sell of \(token.symbol) for \(amount.converted.formatted())")
         
@@ -337,8 +278,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         // Phase 1: StartSwap - Create swap state and reserve nonce + blockhash
         swapService.startSwap(
             swapId: swapId,
-            fromMint: token.address,
-            toMint: .usdc,
+            direction: .sell(mint: token),
             amount: amount.underlying,
             fundingID: fundingIntentID,
             owner: owner.authority.keyPair
@@ -349,55 +289,21 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
                 trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
                 
                 // Phase 2: SubmitIntent - Fund the VM swap PDA
-                // Create funding intent that transfers from source cluster to VM swap account
                 let fundingIntent = IntentFundSwap(
                     intentID: fundingIntentID,
                     swapId: metadata.swapId,
                     sourceCluster: owner.use(mint: token.address, timeAuthority: tokenVmAuthority),
                     amount: amount,
                     fromMint: token,
-                    toMint: .usdc
+                    toMint: .usdf
                 )
-                
-                let swapper = self.swapService
-                
-                self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { [swapper] fundingResult in
+                                
+                self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { fundingResult in
                     switch fundingResult {
                     case .success:
-                        trace(.success, components: "Swap funded", "Funding Intent ID: \(fundingIntentID.base58)")
-                        
-                        // Generate one-time swap authority
-                        let swapAuthority = KeyPair.generate()!
-                        
-                        // Phase 3 & 4: Poll until funded, then execute
-                        Task {
-                            do {
-                                let executeResult = try await swapper.executeSwap(
-                                    swapId: swapId,
-                                    metadata: metadata.verifiedMetadata,
-                                    direction: .sell(mint: token),
-                                    amount: metadata.amount.quarks,
-                                    owner: owner.authority.keyPair,
-                                    swapAuthority: swapAuthority,
-                                    maxAttempts: 30,
-                                    interval: 1.0
-                                )
-                                
-                                switch executeResult {
-                                case .success(let result):
-                                    trace(.success, components: "Swap completed: \(result)")
-                                    completion(.success(()))
-                                    
-                                case .failure(let error):
-                                    trace(.failure, components: "Swap execution failed: \(error)")
-                                    completion(.failure(error))
-                                }
-                            } catch {
-                                trace(.failure, components: "Swap execution threw: \(error)")
-                                completion(.failure(.unknown))
-                            }
-                        }
-                        
+                        trace(.success, components: "Swap completed", "Intent ID: \(fundingIntentID.base58)")
+                        completion(.success(()))
+                                                
                     case .failure(let error):
                         trace(.failure, components: "Failed to fund swap: \(error)")
                         // Map ErrorSubmitIntent to ErrorSwap
@@ -531,16 +437,33 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
             reference.release()
         }
         
-        // Send `submitActions` request with
-        // actions generated by the intent
+        // Send `submitActions` request with actions generated by the intent
+        // Log action-level details to verify we are opening the expected account
+        intent.actions.enumerated().forEach { idx, action in
+            if let open = action as? ActionOpenAccount {
+                trace(.send, components: "Action[\(idx)]: OpenAccount", "owner: \(open.owner.base58)", "authority: \(open.cluster.authority.keyPair.publicKey.base58)", "token: \(open.cluster.vaultPublicKey.base58)", "mint: \(open.mint.base58)", "index: \(open.derivationIndex)")
+            } else if let transfer = action as? ActionTransfer {
+                trace(.send, components: "Action[\(idx)]: Transfer", "amount: \(transfer.amount)", "destination: \(transfer.destination.base58)")
+            } else {
+                trace(.send, components: "Action[\(idx)]: \(type(of: action))")
+            }
+        }
+
         let submitActions = intent.requestToSubmitActions(owner: owner)
+        do {
+            let bytes = try submitActions.serializedData()
+            trace(.send, components: "Type: \(T.self)", "Submitting submitActions proto (hex): \(bytes.hexEncodedString())")
+        } catch {
+            trace(.warning, components: "Type: \(T.self)", "Failed to serialize submitActions for logging: \(error)")
+        }
+
         _ = reference.stream?.sendMessage(submitActions)
     }
     
     // MARK: - Status -
     
     func fetchIntentMetadata(owner: KeyPair, intentID: PublicKey, completion: @Sendable @escaping (Result<IntentMetadata, ErrorFetchIntentMetadata>) -> Void) {
-        let request = Code_Transaction_V2_GetIntentMetadataRequest.with {
+        let request = Ocp_Transaction_V1_GetIntentMetadataRequest.with {
             $0.intentID  = intentID.codeIntentID
             $0.owner     = owner.publicKey.solanaAccountID
             $0.signature = $0.sign(with: owner)
@@ -576,7 +499,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         
         let fetchDate: Date = .now
         
-        let request = Code_Transaction_V2_GetLimitsRequest.with {
+        let request = Ocp_Transaction_V1_GetLimitsRequest.with {
             $0.owner         = owner.publicKey.solanaAccountID
             $0.consumedSince = .init(date: date)
             $0.signature     = $0.sign(with: owner)
@@ -611,7 +534,7 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
     func fetchDestinationMetadata(destination: PublicKey, mint: PublicKey, completion: @Sendable @escaping (Result<DestinationMetadata, Never>) -> Void) {
         trace(.send, components: "Destination: \(destination.base58)")
         
-        let request = Code_Transaction_V2_CanWithdrawToAccountRequest.with {
+        let request = Ocp_Transaction_V1_CanWithdrawToAccountRequest.with {
             $0.account = destination.solanaAccountID
             $0.mint    = mint.solanaAccountID
         }
@@ -649,6 +572,9 @@ class TransactionService: CodeService<Code_Transaction_V2_TransactionNIOClient> 
         }
     }
 }
+
+// Mark TransactionService as unchecked Sendable to allow using it from @Sendable closures
+extension TransactionService: @unchecked Sendable {}
 
 // MARK: - Types -
 
@@ -748,7 +674,7 @@ public enum ErrorSubmitIntent: Error, CustomStringConvertible, CustomDebugString
     /// gRPC error
     case grpcError(Error)
     
-    init(error: Code_Transaction_V2_SubmitIntentResponse.Error) {
+    init(error: Ocp_Transaction_V1_SubmitIntentResponse.Error) {
         let reasonStrings: [String] = error.errorDetails.compactMap {
             if case .reasonString(let object) = $0.type {
                 return !object.reason.isEmpty ? object.reason : nil
@@ -839,53 +765,47 @@ public enum ErrorAirdrop: Int, Error {
 
 // MARK: - Interceptors -
 
-extension InterceptorFactory: Code_Transaction_V2_TransactionClientInterceptorFactoryProtocol {
-    
-    func makeVoidGiftCardInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_VoidGiftCardRequest, FlipcashAPI.Code_Transaction_V2_VoidGiftCardResponse>] {
+extension InterceptorFactory: Ocp_Transaction_V1_TransactionClientInterceptorFactoryProtocol {
+    func makeVoidGiftCardInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_VoidGiftCardRequest, FlipcashAPI.Ocp_Transaction_V1_VoidGiftCardResponse>] {
         makeInterceptors()
     }
     
-    func makeAirdropInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_AirdropRequest, Code_Transaction_V2_AirdropResponse>] {
+    func makeAirdropInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_AirdropRequest, Ocp_Transaction_V1_AirdropResponse>] {
         makeInterceptors()
     }
     
-    func makeCanWithdrawToAccountInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_CanWithdrawToAccountRequest, Code_Transaction_V2_CanWithdrawToAccountResponse>] {
+    func makeCanWithdrawToAccountInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_CanWithdrawToAccountRequest, Ocp_Transaction_V1_CanWithdrawToAccountResponse>] {
         makeInterceptors()
     }
     
-    func makeGetIntentMetadataInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetIntentMetadataRequest, Code_Transaction_V2_GetIntentMetadataResponse>] {
+    func makeGetIntentMetadataInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_GetIntentMetadataRequest, Ocp_Transaction_V1_GetIntentMetadataResponse>] {
         makeInterceptors()
     }
     
-    func makeGetLimitsInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_GetLimitsRequest, Code_Transaction_V2_GetLimitsResponse>] {
+    func makeGetLimitsInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_GetLimitsRequest, Ocp_Transaction_V1_GetLimitsResponse>] {
         makeInterceptors()
     }
     
-    func makeSubmitIntentInterceptors() -> [GRPC.ClientInterceptor<Code_Transaction_V2_SubmitIntentRequest, Code_Transaction_V2_SubmitIntentResponse>] {
+    func makeSubmitIntentInterceptors() -> [GRPC.ClientInterceptor<Ocp_Transaction_V1_SubmitIntentRequest, Ocp_Transaction_V1_SubmitIntentResponse>] {
+        makeInterceptors()
+    }
+        
+    func makeStatefulSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_StatefulSwapRequest, FlipcashAPI.Ocp_Transaction_V1_StatefulSwapResponse>] {
         makeInterceptors()
     }
     
-    // Swap-related interceptors
-    func makeStartSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_StartSwapRequest, FlipcashAPI.Code_Transaction_V2_StartSwapResponse>] {
+    func makeGetSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_GetSwapRequest, FlipcashAPI.Ocp_Transaction_V1_GetSwapResponse>] {
         makeInterceptors()
     }
     
-    func makeGetSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetSwapRequest, FlipcashAPI.Code_Transaction_V2_GetSwapResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeGetPendingSwapsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_GetPendingSwapsRequest, FlipcashAPI.Code_Transaction_V2_GetPendingSwapsResponse>] {
-        makeInterceptors()
-    }
-    
-    func makeSwapInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Transaction_V2_SwapRequest, FlipcashAPI.Code_Transaction_V2_SwapResponse>] {
+    func makeGetPendingSwapsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Transaction_V1_GetPendingSwapsRequest, FlipcashAPI.Ocp_Transaction_V1_GetPendingSwapsResponse>] {
         makeInterceptors()
     }
 }
 
 // MARK: - GRPCClientType -
 
-extension Code_Transaction_V2_TransactionNIOClient: GRPCClientType {
+extension Ocp_Transaction_V1_TransactionNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
         self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
     }

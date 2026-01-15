@@ -122,7 +122,7 @@ class Session: ObservableObject {
             usdBalance += exchanged.converted.decimalValue
         }
         
-        let balanceMint = PublicKey.usdc
+        let balanceMint = PublicKey.usdf
         let totalUSD    = try! Quarks(
             fiatDecimal: usdBalance,
             currencyCode: .usd,
@@ -132,7 +132,7 @@ class Session: ObservableObject {
         let exchanged = try! ExchangedFiat(
             underlying: totalUSD,
             rate: ratesController.rateForBalanceCurrency(),
-            mint: .usdc
+            mint: .usdf
         )
         
         return exchanged
@@ -140,8 +140,8 @@ class Session: ObservableObject {
     
     var balances: [StoredBalance] {
         updateableBalances.value.sorted { lhs, rhs in
-            if lhs.usdcValue != rhs.usdcValue {
-                return lhs.usdcValue > rhs.usdcValue
+            if lhs.usdf != rhs.usdf {
+                return lhs.usdf > rhs.usdf
             } else {
                 return lhs.name.lexicographicallyPrecedes(rhs.name)
             }
@@ -153,7 +153,7 @@ class Session: ObservableObject {
             let exchangedFiat = stored.computeExchangedValue(with: rate)
 
             // Filter out balances with zero fiat value after conversion (except for USDC)
-            guard stored.mint == .usdc || exchangedFiat.hasDisplayableValue() else {
+            guard stored.mint == .usdf || exchangedFiat.hasDisplayableValue() else {
                 return nil
             }
 
@@ -539,19 +539,18 @@ class Session: ObservableObject {
     func buy(amount: ExchangedFiat, of mint: PublicKey) async throws {
         do {
             let token = try await fetchMintMetadata(mint: mint)
-            // For buys, verify we have sufficient USDC balance
-            // The amount.mint is the destination token, but amount.underlying is USDC
-            guard let usdcBalance = balance(for: .usdc) else {
+            // For buys, verify we have sufficient USDF balance
+            guard let usdfBalance = balance(for: .usdf) else {
                 throw Error.insufficientBalance
             }
-            
-            // Check if we have enough USDC to cover the buy
-            guard amount.underlying.quarks <= usdcBalance.quarks else {
+
+            // Check if we have enough USDF to cover the buy
+            guard amount.underlying.quarks <= usdfBalance.quarks else {
                 throw Error.insufficientBalance
             }
-        
+
             trace(.note, components: "buying \(amount.converted.formatted()) of \(token.symbol)")
-            
+
             try await client.buy(amount: amount, of: token.metadata, owner: owner)
         }
     }
@@ -560,12 +559,12 @@ class Session: ObservableObject {
         do {
             let token = try await fetchMintMetadata(mint: mint)
             // For sells, verify we have sufficient token balance
-            // The amount.mint is the destination token, but amount.underlying is USDC
+            // The amount.mint is the destination token, but amount.underlying is USDF
             guard let tokenBalance = balance(for: token.mint) else {
                 throw Error.insufficientBalance
             }
             
-            // Check if we have enough USDC to cover the swap
+            // Check if we have enough USDF to cover the swap
             guard amount.underlying.quarks <= tokenBalance.quarks else {
                 throw Error.insufficientBalance
             }
@@ -1017,7 +1016,7 @@ class Session: ObservableObject {
                 
                 // Deposit the gift card
                 try await client.receiveCashLink(
-                    usdc: exchangedFiat.underlying,
+                    usdf: exchangedFiat.underlying,
                     ownerCluster: owner.use(
                         mint: vmMint,
                         timeAuthority: vmAuthority

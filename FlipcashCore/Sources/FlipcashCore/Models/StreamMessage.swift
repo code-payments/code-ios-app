@@ -49,7 +49,7 @@ extension StreamMessage {
 
 extension StreamMessage {
 
-    init(_ message: Code_Messaging_V1_Message) throws {
+    init(_ message: Ocp_Messaging_V1_Message) throws {
         self.id = ID(data: message.id.value)
         
         switch message.kind {

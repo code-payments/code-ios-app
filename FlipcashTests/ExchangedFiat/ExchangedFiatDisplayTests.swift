@@ -20,7 +20,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .usd),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -34,7 +34,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .usd),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable
@@ -48,7 +48,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .usd),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -62,7 +62,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .usd),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable
@@ -78,7 +78,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .jpy),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -92,7 +92,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .jpy),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable
@@ -106,7 +106,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .jpy),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -122,7 +122,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .eur),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -136,7 +136,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .eur),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable
@@ -152,7 +152,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .cad),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -166,7 +166,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .cad),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable
@@ -182,7 +182,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .gbp),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -196,7 +196,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: underlying,
             rate: Rate(fx: 1.0, currency: .gbp),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable
@@ -211,7 +211,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: Quarks(quarks: 0 as UInt64, currencyCode: .usd, decimals: 6),
             rate: Rate(fx: 1.0, currency: .usd),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable
@@ -224,7 +224,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: Quarks(quarks: 1_000_000_000_000 as UInt64, currencyCode: .usd, decimals: 6),
             rate: Rate(fx: 1.0, currency: .usd),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable
@@ -240,7 +240,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: Quarks(quarks: 7_000 as UInt64, currencyCode: .usd, decimals: 6),
             rate: Rate(fx: 1.4, currency: .cad),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should not be displayable (below C$0.01)
@@ -254,7 +254,7 @@ struct ExchangedFiatDisplayTests {
         let exchangedFiat = try ExchangedFiat(
             underlying: Quarks(quarks: 8_000 as UInt64, currencyCode: .usd, decimals: 6),
             rate: Rate(fx: 1.4, currency: .cad),
-            mint: .usdc
+            mint: .usdf
         )
 
         // When/Then: Should be displayable (above C$0.01)
@@ -262,13 +262,14 @@ struct ExchangedFiatDisplayTests {
     }
 
     @Test
-    func testHasDisplayableValue_BondedToken_WithTVL_CalculatesCorrectly() throws {
+    func testHasDisplayableValue_BondedToken_WithSupply_CalculatesCorrectly() throws {
         // Given: Bonded token with small value
+        // Using a non-USDF mint with supply quarks (100 tokens = 100 * 10^10 quarks)
         let exchangedFiat = ExchangedFiat.computeFromQuarks(
             quarks: 5_000 as UInt64,
-            mint: .usdcAuthority,
+            mint: .jeffy, // Use a non-USDF mint to trigger bonding curve
             rate: Rate(fx: 1.0, currency: .usd),
-            tvl: 1_000_000 as UInt64 // $1 TVL
+            supplyQuarks: 100 * 10_000_000_000 as UInt64 // 100 tokens supply
         )
 
         // When/Then: Result depends on bonding curve calculation

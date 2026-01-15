@@ -16,7 +16,7 @@ protocol IntentType: AnyObject {
     
     func signatures() throws -> [Signature]
     
-    func metadata() -> Code_Transaction_V2_Metadata
+    func metadata() -> Ocp_Transaction_V1_Metadata
 }
 
 extension IntentType {
@@ -49,7 +49,7 @@ enum IntentError: Swift.Error {
 // MARK: - Proto -
 
 extension IntentType {
-    func requestToSubmitSignatures() throws -> Code_Transaction_V2_SubmitIntentRequest {
+    func requestToSubmitSignatures() throws -> Ocp_Transaction_V1_SubmitIntentRequest {
         let signatures = try signatures().map { $0.proto }
         return .with {
             $0.submitSignatures = .with {
@@ -60,7 +60,7 @@ extension IntentType {
 }
 
 extension IntentType {
-    func requestToSubmitActions(owner: KeyPair) -> Code_Transaction_V2_SubmitIntentRequest {
+    func requestToSubmitActions(owner: KeyPair) -> Ocp_Transaction_V1_SubmitIntentRequest {
         .with {
             $0.submitActions = .with {
                 $0.owner = owner.publicKey.solanaAccountID

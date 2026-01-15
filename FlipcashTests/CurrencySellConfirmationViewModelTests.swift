@@ -24,7 +24,7 @@ struct CurrencySellConfirmationViewModelTests {
     static func createExchangedFiat(
         underlyingQuarks: UInt64 = 10_000_000_000_000,  // 10,000 USD (9 decimals)
         convertedQuarks: UInt64 = 13_500_000_000,       // 13,500 CAD (6 decimals) = 10,000 * 1.35
-        mint: PublicKey = .usdc
+        mint: PublicKey = .usdf
     ) -> ExchangedFiat {
         let underlying = Quarks(quarks: underlyingQuarks, currencyCode: .usd, decimals: 9)
         let converted = Quarks(quarks: convertedQuarks, currencyCode: .cad, decimals: 6)
@@ -39,7 +39,7 @@ struct CurrencySellConfirmationViewModelTests {
     
     /// Helper to create a test view model
     static func createViewModel(
-        mint: PublicKey = .usdc,
+        mint: PublicKey = .usdf,
         amount: ExchangedFiat? = nil
     ) -> CurrencySellConfirmationViewModel {
         let exchangedFiat = amount ?? createExchangedFiat(mint: mint)
@@ -230,7 +230,7 @@ struct CurrencySellConfirmationViewModelTests {
     @Test
     func testAmountAfterFee_PreservesMint() {
         // Given: Amount with specific mint
-        let mint = PublicKey.usdc
+        let mint = PublicKey.usdf
         let viewModel = Self.createViewModel(mint: mint)
         
         // When: Getting amount after fee

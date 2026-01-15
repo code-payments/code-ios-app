@@ -52,18 +52,18 @@ public struct MintMetadata: Equatable, Sendable {
         self.vmMetadata = vmMetadata
         self.launchpadMetadata = launchpadMetadata
     }
-    
-    public static let usdc: MintMetadata =
+        
+    public static let usdf: MintMetadata =
         .init(
-            address: PublicKey.usdc,
+            address: PublicKey.usdf,
             decimals: 6,
-            name: "USDC",
-            symbol: "USDC",
+            name: "USDF",
+            symbol: "USDF",
             description: "",
             imageURL: URL(string: "https://raw.githubusercontent.com/p2p-org/solana-token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"),
             vmMetadata: .init(
                 vm: PublicKey.deriveVMAccount(
-                    mint: PublicKey.usdc,
+                    mint: PublicKey.usdf,
                     timeAuthority: .usdcAuthority,
                     lockout: TimelockDerivedAccounts.lockoutInDays
                 )!.publicKey,
@@ -124,13 +124,10 @@ public struct LaunchpadMetadata: Equatable, Sendable {
     public let coreMintVault: PublicKey
 
     /// The address where core mint fees are paid
-    public let coreMintFees: PublicKey
+    public let coreMintFees: PublicKey?
 
     /// Current circulating mint token supply in quarks
     public let supplyFromBonding: UInt64
-
-    /// Current core mint quarks locked in the liquidity pool
-    public let coreMintLocked: UInt64
 
     /// Percent fee for sells in basis points (hardcoded to 1% = 100 bps)
     public let sellFeeBps: Int
@@ -142,9 +139,8 @@ public struct LaunchpadMetadata: Equatable, Sendable {
         authority: PublicKey,
         mintVault: PublicKey,
         coreMintVault: PublicKey,
-        coreMintFees: PublicKey,
+        coreMintFees: PublicKey?,
         supplyFromBonding: UInt64,
-        coreMintLocked: UInt64,
         sellFeeBps: Int
     ) {
         self.currencyConfig = currencyConfig
@@ -155,7 +151,6 @@ public struct LaunchpadMetadata: Equatable, Sendable {
         self.coreMintVault = coreMintVault
         self.coreMintFees = coreMintFees
         self.supplyFromBonding = supplyFromBonding
-        self.coreMintLocked = coreMintLocked
         self.sellFeeBps = sellFeeBps
     }
 }
@@ -169,7 +164,7 @@ enum MintMetadataError: Swift.Error {
 // MARK: - Proto -
 
 extension MintMetadata {
-    init(_ proto: Code_Currency_V1_Mint) throws {
+    init(_ proto: Ocp_Currency_V1_Mint) throws {
         self.init(
             address: try PublicKey(proto.address.value),
             decimals: Int(proto.decimals),
@@ -201,7 +196,7 @@ extension MintMetadata {
 }
 
 extension VMMetadata {
-    init(_ proto: Code_Currency_V1_VmMetadata) throws {
+    init(_ proto: Ocp_Currency_V1_VmMetadata) throws {
         self.init(
             vm: try PublicKey(proto.vm.value),
             authority: try PublicKey(proto.authority.value),
@@ -211,7 +206,7 @@ extension VMMetadata {
 }
 
 extension LaunchpadMetadata {
-    init(_ proto: Code_Currency_V1_LaunchpadMetadata) throws {
+    init(_ proto: Ocp_Currency_V1_LaunchpadMetadata) throws {
         self.init(
             currencyConfig: try PublicKey(proto.currencyConfig.value),
             liquidityPool: try PublicKey(proto.liquidityPool.value),
@@ -219,9 +214,8 @@ extension LaunchpadMetadata {
             authority: try PublicKey(proto.authority.value),
             mintVault: try PublicKey(proto.mintVault.value),
             coreMintVault: try PublicKey(proto.coreMintVault.value),
-            coreMintFees: try PublicKey(proto.coreMintFees.value),
+            coreMintFees: nil,
             supplyFromBonding: proto.supplyFromBonding,
-            coreMintLocked: proto.coreMintLocked,
             sellFeeBps: Int(proto.sellFeeBps)
         )
     }

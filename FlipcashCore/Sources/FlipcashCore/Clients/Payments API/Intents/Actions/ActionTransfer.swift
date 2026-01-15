@@ -65,7 +65,7 @@ extension ActionTransfer {
 // MARK: - Proto -
 
 extension ActionTransfer {
-    func action() -> Code_Transaction_V2_Action {
+    func action() -> Ocp_Transaction_V1_Action {
         .with {
             $0.id = UInt32(id)
             $0.noPrivacyTransfer = .with {

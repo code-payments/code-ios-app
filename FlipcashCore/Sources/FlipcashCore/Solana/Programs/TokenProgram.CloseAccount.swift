@@ -54,7 +54,7 @@ extension TokenProgram.CloseAccount: InstructionType {
             accounts: [
                 .writable(publicKey: account),
                 .writable(publicKey: destination),
-                .readonly(publicKey: owner)
+                .readonly(publicKey: owner, signer: true)
             ],
             data: encode()
         )

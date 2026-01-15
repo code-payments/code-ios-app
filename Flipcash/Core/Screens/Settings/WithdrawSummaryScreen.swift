@@ -28,7 +28,7 @@ struct WithdrawSummaryScreen: View {
             return Quarks(
                 quarks: 0 as UInt64,
                 currencyCode: .usd,
-                decimals: PublicKey.usdc.mintDecimals
+                decimals: PublicKey.usdf.mintDecimals
             ).formatted()
         }
     }

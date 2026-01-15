@@ -158,7 +158,7 @@ struct AccountSelectionScreen: View {
                 using: .primary(),
                 mnemonic: description.account.mnemonic
             ),
-            mint: .usdc,
+            mint: .usdf,
             timeAuthority: .usdcAuthority
         )
 
@@ -205,8 +205,8 @@ struct AccountSelectionScreen: View {
                             var totalUSDCQuarks: UInt64 = 0
 
                             for info in accountInfos {
-                                if info.mint == .usdc {
-                                    // Direct USDC balance
+                                if info.mint == .usdf {
+                                    // Direct USDF balance
                                     totalUSDCQuarks += info.quarks
                                 } else {
                                     // Custom token - would need bonding curve calculation
@@ -219,13 +219,13 @@ struct AccountSelectionScreen: View {
                             let usdcFiat = Quarks(
                                 quarks: totalUSDCQuarks,
                                 currencyCode: .usd,
-                                decimals: PublicKey.usdc.mintDecimals
+                                decimals: PublicKey.usdf.mintDecimals
                             )
 
                             let exchangedFiat = try ExchangedFiat(
                                 underlying: usdcFiat,
                                 rate: rate,
-                                mint: .usdc
+                                mint: .usdf
                             )
 
                             await update(owner: owner.publicKey) {
@@ -281,7 +281,7 @@ class HistoricalAccount: Identifiable {
         self.mnemonic = details.account.mnemonic
         self.cluster  = AccountCluster(
             authority: .derive(using: .primary(), mnemonic: details.account.mnemonic),
-            mint: .usdc,
+            mint: .usdf,
             timeAuthority: .usdcAuthority
         )
     }

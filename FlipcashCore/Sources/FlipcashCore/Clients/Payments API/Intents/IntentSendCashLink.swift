@@ -59,7 +59,7 @@ final class IntentSendCashLink: IntentType {
 // MARK: - Proto -
 
 extension IntentSendCashLink {
-    func metadata() -> Code_Transaction_V2_Metadata {
+    func metadata() -> Ocp_Transaction_V1_Metadata {
         .with {
             $0.sendPublicPayment = .with {
                 $0.source       = sourceCluster.vaultPublicKey.solanaAccountID

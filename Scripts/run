@@ -43,7 +43,7 @@ elif [[ "$APP" == "flipcashPayments" ]]; then
     PROTOS_DIR="../FlipcashAPI/Sources/FlipcashAPI/proto"
     DEPS_DIR="../FlipcashAPI/Sources/FlipcashAPI/proto_deps"
     GENERATED_DIR="../FlipcashAPI/Sources/FlipcashAPI/Generated"
-    PULL_REPO="code-payments/code-protobuf-api"
+    PULL_REPO="code-payments/ocp-protobuf-api"
     PULL_BRANCH="main"
     PREFIX=""
     

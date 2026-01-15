@@ -43,13 +43,13 @@ public struct SwapId: Hashable, Codable, Sendable {
 // MARK: - Proto Conversion -
 
 extension SwapId {
-    public var codeSwapID: Code_Common_V1_SwapId {
-        var swapID = Code_Common_V1_SwapId()
+    public var codeSwapID: Ocp_Common_V1_SwapId {
+        var swapID = Ocp_Common_V1_SwapId()
         swapID.value = value
         return swapID
     }
     
-    public init?(_ proto: Code_Common_V1_SwapId) {
+    public init?(_ proto: Ocp_Common_V1_SwapId) {
         self.init(data: proto.value)
     }
 }
@@ -70,12 +70,12 @@ public enum SwapState: Int, Sendable {
 }
 
 extension SwapState {
-    public init(_ proto: Code_Transaction_V2_SwapMetadata.State) {
+    public init(_ proto: Ocp_Transaction_V1_SwapMetadata.State) {
         self = SwapState(rawValue: proto.rawValue) ?? .unknown
     }
     
-    public var protoState: Code_Transaction_V2_SwapMetadata.State {
-        Code_Transaction_V2_SwapMetadata.State(rawValue: rawValue) ?? .unknown
+    public var protoState: Ocp_Transaction_V1_SwapMetadata.State {
+        Ocp_Transaction_V1_SwapMetadata.State(rawValue: rawValue) ?? .unknown
     }
 }
 
@@ -88,12 +88,12 @@ public enum FundingSource: Int, Sendable {
 }
 
 extension FundingSource {
-    public init(_ proto: Code_Transaction_V2_FundingSource) {
+    public init(_ proto: Ocp_Transaction_V1_FundingSource) {
         self = FundingSource(rawValue: proto.rawValue) ?? .unknown
     }
     
-    public var protoSource: Code_Transaction_V2_FundingSource {
-        Code_Transaction_V2_FundingSource(rawValue: rawValue) ?? .unknown
+    public var protoSource: Ocp_Transaction_V1_FundingSource {
+        Ocp_Transaction_V1_FundingSource(rawValue: rawValue) ?? .unknown
     }
 }
 
@@ -155,7 +155,7 @@ public struct VerifiedSwapMetadata: Sendable {
 // MARK: - Proto Conversion -
 
 extension VerifiedSwapMetadata.ClientParameters {
-    public init?(_ proto: Code_Transaction_V2_StartSwapRequest.Start.CurrencyCreator) {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator) {
         guard
             let swapId = SwapId(proto.id),
             let fromMint = try? PublicKey(proto.fromMint.value),
@@ -175,7 +175,7 @@ extension VerifiedSwapMetadata.ClientParameters {
         )
     }
     
-    public var proto: Code_Transaction_V2_StartSwapRequest.Start.CurrencyCreator {
+    public var proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator {
         .with {
             $0.id = id.codeSwapID
             $0.fromMint = fromMint.solanaAccountID
@@ -188,7 +188,7 @@ extension VerifiedSwapMetadata.ClientParameters {
 }
 
 extension VerifiedSwapMetadata.ServerParameters {
-    public init?(_ proto: Code_Transaction_V2_StartSwapResponse.ServerParameters.CurrencyCreator) {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator) {
         guard
             let nonce = try? PublicKey(proto.nonce.value),
             let blockhash = try? Hash(proto.blockhash.value)
@@ -198,39 +198,56 @@ extension VerifiedSwapMetadata.ServerParameters {
         
         self.init(nonce: nonce, blockhash: blockhash)
     }
-    
-    public var proto: Code_Transaction_V2_StartSwapResponse.ServerParameters.CurrencyCreator {
-        .with {
-            $0.nonce = nonce.solanaAccountID
-            $0.blockhash = .with { $0.value = blockhash.data }
-        }
-    }
 }
 
+//extension VerifiedSwapMetadata.ServerParameters {
+//    public init?(_ proto: Code_Transaction_V2_StartSwapResponse.ServerParameters.CurrencyCreator) {
+//        guard
+//            let nonce = try? PublicKey(proto.nonce.value),
+//            let blockhash = try? Hash(proto.blockhash.value)
+//        else {
+//            return nil
+//        }
+//        
+//        self.init(nonce: nonce, blockhash: blockhash)
+//    }
+//    
+//    public var proto: Code_Transaction_V2_StartSwapResponse.ServerParameters.CurrencyCreator {
+//        .with {
+//            $0.nonce = nonce.solanaAccountID
+//            $0.blockhash = .with { $0.value = blockhash.data }
+//        }
+//    }
+//}
+
 extension VerifiedSwapMetadata {
-    public init?(_ proto: Code_Transaction_V2_VerifiedSwapMetadata) {
+    public init?(_ proto: Ocp_Transaction_V1_VerifiedSwapMetadata) {
         guard case .currencyCreator(let verified) = proto.kind else {
             return nil
         }
         
-        guard
-            let clientParams = ClientParameters(verified.clientParameters),
-            let serverParams = ServerParameters(verified.serverParameters)
-        else {
+        guard let clientParams = ClientParameters(verified.clientParameters) else {
             return nil
         }
         
+        // For GetSwap responses, we don't have server parameters in the proto
+        // Use placeholder values that will be overwritten when executing
+        let placeholderKey = try! PublicKey(Data(repeating: 0, count: 32))
+        let placeholderHash = try! Hash(Data(repeating: 0, count: 32))
+        
         self.init(
             clientParameters: clientParams,
-            serverParameters: serverParams
+            serverParameters: ServerParameters(
+                nonce: placeholderKey,
+                blockhash: placeholderHash
+            )
         )
     }
     
-    public var proto: Code_Transaction_V2_VerifiedSwapMetadata {
+    public var proto: Ocp_Transaction_V1_VerifiedSwapMetadata {
         .with {
             $0.currencyCreator = .with {
                 $0.clientParameters = clientParameters.proto
-                $0.serverParameters = serverParameters.proto
             }
         }
     }
@@ -284,7 +301,7 @@ public struct SwapMetadata: Sendable {
 // MARK: - Proto Conversion -
 
 extension SwapMetadata {
-    public init?(_ proto: Code_Transaction_V2_SwapMetadata) {
+    public init?(_ proto: Ocp_Transaction_V1_SwapMetadata) {
         guard
             let verifiedMetadata = VerifiedSwapMetadata(proto.verifiedMetadata),
             let signature = try? Signature(proto.signature.value)
@@ -297,14 +314,6 @@ extension SwapMetadata {
             state: SwapState(proto.state),
             signature: signature
         )
-    }
-    
-    public var proto: Code_Transaction_V2_SwapMetadata {
-        .with {
-            $0.verifiedMetadata = verifiedMetadata.proto
-            $0.state = state.protoState
-            $0.signature = signature.proto
-        }
     }
 }
 
@@ -385,45 +394,45 @@ public struct SwapResponseServerParameters {
 // MARK: - Proto Conversion -
 
 extension SwapResponseServerParameters.CurrencyCreatorStateless {
-    public init?(_ proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateless) {
-        guard
-            let payer = try? PublicKey(proto.payer.value),
-            let recentBlockhash = try? Hash(proto.recentBlockhash.value),
-            let memoryAccount = try? PublicKey(proto.memoryAccount.value)
-        else {
-            return nil
-        }
-        
-        let alts = proto.alts.compactMap { AddressLookupTable($0) }
-        
-        self.init(
-            payer: payer,
-            recentBlockhash: recentBlockhash,
-            alts: alts,
-            computeUnitLimit: proto.computeUnitLimit,
-            computeUnitPrice: proto.computeUnitPrice,
-            memoValue: proto.memoValue,
-            memoryAccount: memoryAccount,
-            memoryIndex: proto.memoryIndex
-        )
-    }
-    
-    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateless {
-        .with {
-            $0.payer = payer.solanaAccountID
-            $0.recentBlockhash = .with { $0.value = recentBlockhash.data }
-            $0.alts = alts.map { $0.proto }
-            $0.computeUnitLimit = computeUnitLimit
-            $0.computeUnitPrice = computeUnitPrice
-            $0.memoValue = memoValue
-            $0.memoryAccount = memoryAccount.solanaAccountID
-            $0.memoryIndex = memoryIndex
-        }
-    }
+//    public init?(_ proto: Ocp_Transaction_V1_SwapResponse.ServerParameters.CurrencyCreatorStateless) {
+//        guard
+//            let payer = try? PublicKey(proto.payer.value),
+//            let recentBlockhash = try? Hash(proto.recentBlockhash.value),
+//            let memoryAccount = try? PublicKey(proto.memoryAccount.value)
+//        else {
+//            return nil
+//        }
+//        
+//        let alts = proto.alts.compactMap { AddressLookupTable($0) }
+//        
+//        self.init(
+//            payer: payer,
+//            recentBlockhash: recentBlockhash,
+//            alts: alts,
+//            computeUnitLimit: proto.computeUnitLimit,
+//            computeUnitPrice: proto.computeUnitPrice,
+//            memoValue: proto.memoValue,
+//            memoryAccount: memoryAccount,
+//            memoryIndex: proto.memoryIndex
+//        )
+//    }
+//    
+//    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateless {
+//        .with {
+//            $0.payer = payer.solanaAccountID
+//            $0.recentBlockhash = .with { $0.value = recentBlockhash.data }
+//            $0.alts = alts.map { $0.proto }
+//            $0.computeUnitLimit = computeUnitLimit
+//            $0.computeUnitPrice = computeUnitPrice
+//            $0.memoValue = memoValue
+//            $0.memoryAccount = memoryAccount.solanaAccountID
+//            $0.memoryIndex = memoryIndex
+//        }
+//    }
 }
 
 extension SwapResponseServerParameters.CurrencyCreatorStateful {
-    public init?(_ proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateful) {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters.CurrencyCreator) {
         guard
             let payer = try? PublicKey(proto.payer.value),
             let memoryAccount = try? PublicKey(proto.memoryAccount.value)
@@ -442,31 +451,13 @@ extension SwapResponseServerParameters.CurrencyCreatorStateful {
             memoryAccount: memoryAccount,
             memoryIndex: proto.memoryIndex
         )
-    }
-    
-    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters.CurrencyCreatorStateful {
-        .with {
-            $0.payer = payer.solanaAccountID
-            $0.alts = alts.map { $0.proto }
-            $0.computeUnitLimit = computeUnitLimit
-            $0.computeUnitPrice = computeUnitPrice
-            $0.memoValue = memoValue
-            $0.memoryAccount = memoryAccount.solanaAccountID
-            $0.memoryIndex = memoryIndex
-        }
     }
 }
 
 extension SwapResponseServerParameters {
-    public init?(_ proto: Code_Transaction_V2_SwapResponse.ServerParameters) {
+    public init?(_ proto: Ocp_Transaction_V1_StatefulSwapResponse.ServerParameters) {
         switch proto.kind {
-        case .currencyCreatorStateless(let stateless):
-            guard let params = CurrencyCreatorStateless(stateless) else {
-                return nil
-            }
-            self.init(kind: .stateless(params))
-            
-        case .currencyCreatorStateful(let stateful):
+        case .currencyCreator(let stateful):
             guard let params = CurrencyCreatorStateful(stateful) else {
                 return nil
             }
@@ -476,27 +467,16 @@ extension SwapResponseServerParameters {
             return nil
         }
     }
-    
-    public var proto: Code_Transaction_V2_SwapResponse.ServerParameters {
-        .with {
-            switch kind {
-            case .stateless(let params):
-                $0.currencyCreatorStateless = params.proto
-            case .stateful(let params):
-                $0.currencyCreatorStateful = params.proto
-            }
-        }
-    }
 }
 
 enum SwapDirection {
-    case buy(mint: MintMetadata)                 // USDC -> Bonded Token
-    case sell(mint: MintMetadata)                // Bonded Token -> USDC
+    case buy(mint: MintMetadata)                 // USDF -> Bonded Token
+    case sell(mint: MintMetadata)                // Bonded Token -> USDF
     
     var sourceMint: MintMetadata {
         switch self {
         case .buy:
-            return .usdc
+            return .usdf
         case .sell(let mint):
             return mint
         }
@@ -507,7 +487,7 @@ enum SwapDirection {
         case .buy(let mint):
             return mint
         case .sell:
-            return .usdc
+            return .usdf
         }
     }
 }

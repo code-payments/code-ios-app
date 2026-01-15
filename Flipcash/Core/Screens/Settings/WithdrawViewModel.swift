@@ -51,8 +51,8 @@ class WithdrawViewModel: ObservableObject {
         let mint = selectedBalance.stored.mint
         
         // Only applies for bonded tokens
-        if mint != .usdc {
-            guard let tvl = selectedBalance.stored.coreMintLocked else {
+        if mint != .usdf {
+            guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
                 return nil
             }
 
@@ -60,7 +60,7 @@ class WithdrawViewModel: ObservableObject {
                 amount: amount,
                 rate: .oneToOne, // Withdrawals are forced to usd
                 mint: mint,
-                tvl: tvl
+                supplyQuarks: supplyQuarks
             )
         } else {
             return try! ExchangedFiat(
@@ -106,7 +106,7 @@ class WithdrawViewModel: ObservableObject {
         }
         
         if destinationMetadata.requiresInitialization && destinationMetadata.fee.quarks > 0 {
-            if enteredFiat.mint == .usdc {
+            if enteredFiat.mint == .usdf {
                 return try? enteredFiat.subtracting(fee: destinationMetadata.fee)
             } else {
                 guard let exchangedFee else {
@@ -150,7 +150,7 @@ class WithdrawViewModel: ObservableObject {
         let zero = try! ExchangedFiat(
             underlying: 0,
             rate: .oneToOne,
-            mint: .usdc
+            mint: .usdf
         )
         
         guard let mint = selectedBalance?.stored.mint else {
@@ -173,7 +173,7 @@ class WithdrawViewModel: ObservableObject {
             return nil
         }
         
-        guard let currentTVL = selectedBalance.stored.coreMintLocked else {
+        guard let supplyQuarks = selectedBalance.stored.supplyFromBonding else {
             return nil
         }
 
@@ -186,7 +186,7 @@ class WithdrawViewModel: ObservableObject {
             amount: destinationMetadata.fee.decimalValue,
             rate: .oneToOne, // Fee is charged in USDC
             mint: enteredFiat.mint,
-            tvl: currentTVL
+            supplyQuarks: supplyQuarks
         )
     }
     
@@ -230,7 +230,7 @@ class WithdrawViewModel: ObservableObject {
         }
         
         let fee: Quarks
-        if enteredFiat.mint == .usdc {
+        if enteredFiat.mint == .usdf {
             fee = destinationMetadata.fee
         } else {
             fee = exchangedFee?.underlying ?? 0

@@ -40,7 +40,7 @@ public enum AirdropType: Int, Codable, Equatable, Sendable {
 
 extension AirdropType {
     
-    init(_ grpcType: Code_Transaction_V2_AirdropType) throws {
+    init(_ grpcType: Ocp_Transaction_V1_AirdropType) throws {
         switch grpcType {
         case .unknown:
             self = .unknown
@@ -53,7 +53,7 @@ extension AirdropType {
         }
     }
     
-    var grpcType: Code_Transaction_V2_AirdropType {
+    var grpcType: Ocp_Transaction_V1_AirdropType {
         switch self {
         case .unknown:
             return .unknown

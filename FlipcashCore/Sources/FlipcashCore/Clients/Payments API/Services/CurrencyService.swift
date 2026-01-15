@@ -11,12 +11,12 @@ import FlipcashAPI
 import GRPC
 import NIO
 
-class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
+class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> {
     
     func fetchExchangeRates(completion: @Sendable @escaping (Result<RatesSnapshot, Error>) -> Void) {
 //        trace(.send)
         
-        let call = service.getAllRates(Code_Currency_V1_GetAllRatesRequest())
+        let call = service.getAllRates(Ocp_Currency_V1_GetAllRatesRequest())
         call.handle(on: queue) { response in
             let rates = response.rates.compactMap { key, value in
                 try? Rate(
@@ -56,7 +56,7 @@ class CurrencyService: CodeService<Code_Currency_V1_CurrencyNIOClient> {
     func fetchMints(mints: [PublicKey], completion: @Sendable @escaping (Result<[PublicKey: MintMetadata], Error>) -> Void) {
         trace(.send)
         
-        var request = Code_Currency_V1_GetMintsRequest()
+        var request = Ocp_Currency_V1_GetMintsRequest()
         request.addresses = mints.map(\.solanaAccountID)
         
         let call = service.getMints(request)
@@ -97,19 +97,23 @@ public enum ErrorRateHistory: Int, Error {
 
 // MARK: - Interceptors -
 
-extension InterceptorFactory: Code_Currency_V1_CurrencyClientInterceptorFactoryProtocol {
-    func makeGetMintsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Code_Currency_V1_GetMintsRequest, FlipcashAPI.Code_Currency_V1_GetMintsResponse>] {
+extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol {
+    func makeGetAllRatesInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetAllRatesRequest, FlipcashAPI.Ocp_Currency_V1_GetAllRatesResponse>] {
         makeInterceptors()
     }
     
-    func makeGetAllRatesInterceptors() -> [ClientInterceptor<Code_Currency_V1_GetAllRatesRequest, Code_Currency_V1_GetAllRatesResponse>] {
+    func makeGetMintsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetMintsRequest, FlipcashAPI.Ocp_Currency_V1_GetMintsResponse>] {
+        makeInterceptors()
+    }
+    
+    func makeGetHistoricalMintDataInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetHistoricalMintDataRequest, FlipcashAPI.Ocp_Currency_V1_GetHistoricalMintDataResponse>] {
         makeInterceptors()
     }
 }
 
 // MARK: - GRPCClientType -
 
-extension Code_Currency_V1_CurrencyNIOClient: GRPCClientType {
+extension Ocp_Currency_V1_CurrencyNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
         self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
     }

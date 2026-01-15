@@ -48,7 +48,7 @@ extension MessageAddressTableLookup {
 }
 
 extension AddressLookupTable {
-    public init?(_ proto: Code_Common_V1_SolanaAddressLookupTable) {
+    public init?(_ proto: Ocp_Common_V1_SolanaAddressLookupTable) {
         guard
             let entries = try? proto.entries.map({ id in
                 try PublicKey(id.value)
@@ -61,7 +61,7 @@ extension AddressLookupTable {
         self.init(publicKey: address, addresses: entries)
     }
     
-    public var proto: Code_Common_V1_SolanaAddressLookupTable {
+    public var proto: Ocp_Common_V1_SolanaAddressLookupTable {
         .with {
             $0.address = publicKey.solanaAccountID
             $0.entries = addresses.map { $0.solanaAccountID }

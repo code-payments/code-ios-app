@@ -106,13 +106,6 @@ extension SwapInstructionBuilder {
             ).instruction()
         )
         
-        guard let feeTargetAccount = PublicKey.deriveAssociatedAccount(
-            from: sourceVM.authority,
-            mint: sourceMintMetadata.address
-        )?.publicKey else {
-            fatalError("Failed to derive fee base account for \(sourceMintMetadata.symbol)")
-        }
-        
         // 7. CurrencyCreator::SellAndDepositIntoVm
         instructions.append(
             CurrencyCreatorProgram.SellAndDepositIntoVm(
@@ -121,19 +114,16 @@ extension SwapInstructionBuilder {
                 vmMemoryIndex: UInt16(serverParams.memoryIndex),
                 seller: swapAuthority,
                 pool: sourceLaunchpad.liquidityPool,
-                currency: sourceLaunchpad.currencyConfig,
                 targetMint: sourceMintMetadata.address,
                 baseMint: coreMintMetadata.address,
                 vaultTarget: sourceLaunchpad.mintVault,
                 vaultBase: sourceLaunchpad.coreMintVault,
                 sellerTarget: temporarySourceMintAta.address,
-                feeTarget: feeTargetAccount,
-                feeBase: sourceLaunchpad.coreMintFees,
                 vmAuthority: coreVM.authority,
                 vm: coreVM.vm,
                 vmMemory: serverParams.memoryAccount,
                 vmOmnibus: coreVM.omnibus,
-                vtaOwner: authority,
+                vtaOwner: authority
             ).instruction()
         )
         

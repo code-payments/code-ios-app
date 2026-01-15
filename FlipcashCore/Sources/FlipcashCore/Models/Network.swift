@@ -17,18 +17,18 @@ extension Network {
     var hostForCore: String {
         switch self {
         case .mainNet:
-            return "fc.api.flipcash-infra.net"
+            return "fc-v2.api.flipcash-infra.net"
         case .testNet:
-            return "fc.api.flipcash-infra.net"
+            return "fc-v2.api.flipcash-infra.net"
         }
     }
     
     var hostForPayments: String {
         switch self {
         case .mainNet:
-            return "ocp.api.flipcash-infra.net"
+            return "ocp-v2.api.flipcash-infra.net"
         case .testNet:
-            return "ocp.api.flipcash-infra.net"
+            return "ocp-v2.api.flipcash-infra.net"
         }
     }
 

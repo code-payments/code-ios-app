@@ -87,8 +87,8 @@ struct AddCashScreen: View {
             }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
-                    EnterWalletAmountScreen { usdc in
-                        try await walletConnection.requestTransfer(usdc: usdc)
+                    EnterWalletAmountScreen { quarks in
+                        try await walletConnection.requestTransfer(usdf: quarks)
                         walletConnection.isShowingAmountEntry = false
                     }
                     .toolbar {
@@ -191,8 +191,8 @@ struct AddCashScreen: View {
             }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
-                    EnterWalletAmountScreen { usdc in
-                        try await walletConnection.requestTransfer(usdc: usdc)
+                    EnterWalletAmountScreen { quarks in
+                        try await walletConnection.requestTransfer(usdf: quarks)
                         walletConnection.isShowingAmountEntry = false
                     }
                     .toolbar {

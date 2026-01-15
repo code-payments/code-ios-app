@@ -40,7 +40,7 @@ struct ActionOpenAccount: ActionType {
 // MARK: - Proto -
 
 extension ActionOpenAccount {
-    func action() -> Code_Transaction_V2_Action {
+    func action() -> Ocp_Transaction_V1_Action {
         .with {
             $0.id = UInt32(id)
             $0.openAccount = .with {
@@ -57,7 +57,7 @@ extension ActionOpenAccount {
 }
 
 extension AccountKind {
-    var proto: Code_Common_V1_AccountType {
+    var proto: Ocp_Common_V1_AccountType {
         switch self {
         case .primary:  return .primary
         case .giftCard: return .remoteSendGiftCard

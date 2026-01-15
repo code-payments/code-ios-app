@@ -11,41 +11,41 @@ import NIOConcurrencyHelpers
 import SwiftProtobuf
 
 
-/// Usage: instantiate `Code_Messaging_V1_MessagingClient`, then call methods of this protocol to make API calls.
-public protocol Code_Messaging_V1_MessagingClientProtocol: GRPCClient {
+/// Usage: instantiate `Ocp_Messaging_V1_MessagingClient`, then call methods of this protocol to make API calls.
+public protocol Ocp_Messaging_V1_MessagingClientProtocol: GRPCClient {
   var serviceName: String { get }
-  var interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol? { get }
+  var interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol? { get }
 
   func openMessageStream(
-    _ request: Code_Messaging_V1_OpenMessageStreamRequest,
+    _ request: Ocp_Messaging_V1_OpenMessageStreamRequest,
     callOptions: CallOptions?,
-    handler: @escaping (Code_Messaging_V1_OpenMessageStreamResponse) -> Void
-  ) -> ServerStreamingCall<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>
+    handler: @escaping (Ocp_Messaging_V1_OpenMessageStreamResponse) -> Void
+  ) -> ServerStreamingCall<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>
 
   func openMessageStreamWithKeepAlive(
     callOptions: CallOptions?,
-    handler: @escaping (Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse) -> Void
-  ) -> BidirectionalStreamingCall<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>
+    handler: @escaping (Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse) -> Void
+  ) -> BidirectionalStreamingCall<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>
 
   func pollMessages(
-    _ request: Code_Messaging_V1_PollMessagesRequest,
+    _ request: Ocp_Messaging_V1_PollMessagesRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Code_Messaging_V1_PollMessagesRequest, Code_Messaging_V1_PollMessagesResponse>
+  ) -> UnaryCall<Ocp_Messaging_V1_PollMessagesRequest, Ocp_Messaging_V1_PollMessagesResponse>
 
   func ackMessages(
-    _ request: Code_Messaging_V1_AckMessagesRequest,
+    _ request: Ocp_Messaging_V1_AckMessagesRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Code_Messaging_V1_AckMessagesRequest, Code_Messaging_V1_AckMesssagesResponse>
+  ) -> UnaryCall<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse>
 
   func sendMessage(
-    _ request: Code_Messaging_V1_SendMessageRequest,
+    _ request: Ocp_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions?
-  ) -> UnaryCall<Code_Messaging_V1_SendMessageRequest, Code_Messaging_V1_SendMessageResponse>
+  ) -> UnaryCall<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse>
 }
 
-extension Code_Messaging_V1_MessagingClientProtocol {
+extension Ocp_Messaging_V1_MessagingClientProtocol {
   public var serviceName: String {
-    return "code.messaging.v1.Messaging"
+    return "ocp.messaging.v1.Messaging"
   }
 
   /// OpenMessageStream opens a stream of messages. Messages are routed using the
@@ -74,12 +74,12 @@ extension Code_Messaging_V1_MessagingClientProtocol {
   ///   - handler: A closure called when each response is received from the server.
   /// - Returns: A `ServerStreamingCall` with futures for the metadata and status.
   public func openMessageStream(
-    _ request: Code_Messaging_V1_OpenMessageStreamRequest,
+    _ request: Ocp_Messaging_V1_OpenMessageStreamRequest,
     callOptions: CallOptions? = nil,
-    handler: @escaping (Code_Messaging_V1_OpenMessageStreamResponse) -> Void
-  ) -> ServerStreamingCall<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse> {
+    handler: @escaping (Ocp_Messaging_V1_OpenMessageStreamResponse) -> Void
+  ) -> ServerStreamingCall<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse> {
     return self.makeServerStreamingCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOpenMessageStreamInterceptors() ?? [],
@@ -122,10 +122,10 @@ extension Code_Messaging_V1_MessagingClientProtocol {
   /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
   public func openMessageStreamWithKeepAlive(
     callOptions: CallOptions? = nil,
-    handler: @escaping (Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse) -> Void
-  ) -> BidirectionalStreamingCall<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> {
+    handler: @escaping (Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse) -> Void
+  ) -> BidirectionalStreamingCall<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> {
     return self.makeBidirectionalStreamingCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOpenMessageStreamWithKeepAliveInterceptors() ?? [],
       handler: handler
@@ -144,11 +144,11 @@ extension Code_Messaging_V1_MessagingClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func pollMessages(
-    _ request: Code_Messaging_V1_PollMessagesRequest,
+    _ request: Ocp_Messaging_V1_PollMessagesRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Messaging_V1_PollMessagesRequest, Code_Messaging_V1_PollMessagesResponse> {
+  ) -> UnaryCall<Ocp_Messaging_V1_PollMessagesRequest, Ocp_Messaging_V1_PollMessagesResponse> {
     return self.makeUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.pollMessages.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.pollMessages.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makePollMessagesInterceptors() ?? []
@@ -163,11 +163,11 @@ extension Code_Messaging_V1_MessagingClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func ackMessages(
-    _ request: Code_Messaging_V1_AckMessagesRequest,
+    _ request: Ocp_Messaging_V1_AckMessagesRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Messaging_V1_AckMessagesRequest, Code_Messaging_V1_AckMesssagesResponse> {
+  ) -> UnaryCall<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse> {
     return self.makeUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.ackMessages.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.ackMessages.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? []
@@ -181,11 +181,11 @@ extension Code_Messaging_V1_MessagingClientProtocol {
   ///   - callOptions: Call options.
   /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
   public func sendMessage(
-    _ request: Code_Messaging_V1_SendMessageRequest,
+    _ request: Ocp_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions? = nil
-  ) -> UnaryCall<Code_Messaging_V1_SendMessageRequest, Code_Messaging_V1_SendMessageResponse> {
+  ) -> UnaryCall<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse> {
     return self.makeUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.sendMessage.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.sendMessage.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
@@ -194,24 +194,24 @@ extension Code_Messaging_V1_MessagingClientProtocol {
 }
 
 @available(*, deprecated)
-extension Code_Messaging_V1_MessagingClient: @unchecked Sendable {}
+extension Ocp_Messaging_V1_MessagingClient: @unchecked Sendable {}
 
-@available(*, deprecated, renamed: "Code_Messaging_V1_MessagingNIOClient")
-public final class Code_Messaging_V1_MessagingClient: Code_Messaging_V1_MessagingClientProtocol {
+@available(*, deprecated, renamed: "Ocp_Messaging_V1_MessagingNIOClient")
+public final class Ocp_Messaging_V1_MessagingClient: Ocp_Messaging_V1_MessagingClientProtocol {
   private let lock = Lock()
   private var _defaultCallOptions: CallOptions
-  private var _interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol?
+  private var _interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol?
   public let channel: GRPCChannel
   public var defaultCallOptions: CallOptions {
     get { self.lock.withLock { return self._defaultCallOptions } }
     set { self.lock.withLockVoid { self._defaultCallOptions = newValue } }
   }
-  public var interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol? {
+  public var interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol? {
     get { self.lock.withLock { return self._interceptors } }
     set { self.lock.withLockVoid { self._interceptors = newValue } }
   }
 
-  /// Creates a client for the code.messaging.v1.Messaging service.
+  /// Creates a client for the ocp.messaging.v1.Messaging service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -220,7 +220,7 @@ public final class Code_Messaging_V1_MessagingClient: Code_Messaging_V1_Messagin
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol? = nil
+    interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self._defaultCallOptions = defaultCallOptions
@@ -228,12 +228,12 @@ public final class Code_Messaging_V1_MessagingClient: Code_Messaging_V1_Messagin
   }
 }
 
-public struct Code_Messaging_V1_MessagingNIOClient: Code_Messaging_V1_MessagingClientProtocol {
+public struct Ocp_Messaging_V1_MessagingNIOClient: Ocp_Messaging_V1_MessagingClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol?
+  public var interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol?
 
-  /// Creates a client for the code.messaging.v1.Messaging service.
+  /// Creates a client for the ocp.messaging.v1.Messaging service.
   ///
   /// - Parameters:
   ///   - channel: `GRPCChannel` to the service host.
@@ -242,7 +242,7 @@ public struct Code_Messaging_V1_MessagingNIOClient: Code_Messaging_V1_MessagingC
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol? = nil
+    interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -251,51 +251,51 @@ public struct Code_Messaging_V1_MessagingNIOClient: Code_Messaging_V1_MessagingC
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Code_Messaging_V1_MessagingAsyncClientProtocol: GRPCClient {
+public protocol Ocp_Messaging_V1_MessagingAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol? { get }
+  var interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol? { get }
 
   func makeOpenMessageStreamCall(
-    _ request: Code_Messaging_V1_OpenMessageStreamRequest,
+    _ request: Ocp_Messaging_V1_OpenMessageStreamRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncServerStreamingCall<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>
+  ) -> GRPCAsyncServerStreamingCall<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>
 
   func makeOpenMessageStreamWithKeepAliveCall(
     callOptions: CallOptions?
-  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>
+  ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>
 
   func makePollMessagesCall(
-    _ request: Code_Messaging_V1_PollMessagesRequest,
+    _ request: Ocp_Messaging_V1_PollMessagesRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Messaging_V1_PollMessagesRequest, Code_Messaging_V1_PollMessagesResponse>
+  ) -> GRPCAsyncUnaryCall<Ocp_Messaging_V1_PollMessagesRequest, Ocp_Messaging_V1_PollMessagesResponse>
 
   func makeAckMessagesCall(
-    _ request: Code_Messaging_V1_AckMessagesRequest,
+    _ request: Ocp_Messaging_V1_AckMessagesRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Messaging_V1_AckMessagesRequest, Code_Messaging_V1_AckMesssagesResponse>
+  ) -> GRPCAsyncUnaryCall<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse>
 
   func makeSendMessageCall(
-    _ request: Code_Messaging_V1_SendMessageRequest,
+    _ request: Ocp_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Code_Messaging_V1_SendMessageRequest, Code_Messaging_V1_SendMessageResponse>
+  ) -> GRPCAsyncUnaryCall<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Code_Messaging_V1_MessagingAsyncClientProtocol {
+extension Ocp_Messaging_V1_MessagingAsyncClientProtocol {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Code_Messaging_V1_MessagingClientMetadata.serviceDescriptor
+    return Ocp_Messaging_V1_MessagingClientMetadata.serviceDescriptor
   }
 
-  public var interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol? {
+  public var interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol? {
     return nil
   }
 
   public func makeOpenMessageStreamCall(
-    _ request: Code_Messaging_V1_OpenMessageStreamRequest,
+    _ request: Ocp_Messaging_V1_OpenMessageStreamRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncServerStreamingCall<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse> {
+  ) -> GRPCAsyncServerStreamingCall<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse> {
     return self.makeAsyncServerStreamingCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOpenMessageStreamInterceptors() ?? []
@@ -304,20 +304,20 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
 
   public func makeOpenMessageStreamWithKeepAliveCall(
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncBidirectionalStreamingCall<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> {
+  ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> {
     return self.makeAsyncBidirectionalStreamingCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOpenMessageStreamWithKeepAliveInterceptors() ?? []
     )
   }
 
   public func makePollMessagesCall(
-    _ request: Code_Messaging_V1_PollMessagesRequest,
+    _ request: Ocp_Messaging_V1_PollMessagesRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Messaging_V1_PollMessagesRequest, Code_Messaging_V1_PollMessagesResponse> {
+  ) -> GRPCAsyncUnaryCall<Ocp_Messaging_V1_PollMessagesRequest, Ocp_Messaging_V1_PollMessagesResponse> {
     return self.makeAsyncUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.pollMessages.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.pollMessages.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makePollMessagesInterceptors() ?? []
@@ -325,11 +325,11 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
   }
 
   public func makeAckMessagesCall(
-    _ request: Code_Messaging_V1_AckMessagesRequest,
+    _ request: Ocp_Messaging_V1_AckMessagesRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Messaging_V1_AckMessagesRequest, Code_Messaging_V1_AckMesssagesResponse> {
+  ) -> GRPCAsyncUnaryCall<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse> {
     return self.makeAsyncUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.ackMessages.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.ackMessages.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? []
@@ -337,11 +337,11 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
   }
 
   public func makeSendMessageCall(
-    _ request: Code_Messaging_V1_SendMessageRequest,
+    _ request: Ocp_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Code_Messaging_V1_SendMessageRequest, Code_Messaging_V1_SendMessageResponse> {
+  ) -> GRPCAsyncUnaryCall<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse> {
     return self.makeAsyncUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.sendMessage.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.sendMessage.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
@@ -350,13 +350,13 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Code_Messaging_V1_MessagingAsyncClientProtocol {
+extension Ocp_Messaging_V1_MessagingAsyncClientProtocol {
   public func openMessageStream(
-    _ request: Code_Messaging_V1_OpenMessageStreamRequest,
+    _ request: Ocp_Messaging_V1_OpenMessageStreamRequest,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncResponseStream<Code_Messaging_V1_OpenMessageStreamResponse> {
+  ) -> GRPCAsyncResponseStream<Ocp_Messaging_V1_OpenMessageStreamResponse> {
     return self.performAsyncServerStreamingCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOpenMessageStreamInterceptors() ?? []
@@ -366,9 +366,9 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
   public func openMessageStreamWithKeepAlive<RequestStream>(
     _ requests: RequestStream,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncResponseStream<Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> where RequestStream: Sequence, RequestStream.Element == Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest {
+  ) -> GRPCAsyncResponseStream<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> where RequestStream: Sequence, RequestStream.Element == Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest {
     return self.performAsyncBidirectionalStreamingCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
       requests: requests,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOpenMessageStreamWithKeepAliveInterceptors() ?? []
@@ -378,9 +378,9 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
   public func openMessageStreamWithKeepAlive<RequestStream>(
     _ requests: RequestStream,
     callOptions: CallOptions? = nil
-  ) -> GRPCAsyncResponseStream<Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest {
+  ) -> GRPCAsyncResponseStream<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest {
     return self.performAsyncBidirectionalStreamingCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive.path,
       requests: requests,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeOpenMessageStreamWithKeepAliveInterceptors() ?? []
@@ -388,11 +388,11 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
   }
 
   public func pollMessages(
-    _ request: Code_Messaging_V1_PollMessagesRequest,
+    _ request: Ocp_Messaging_V1_PollMessagesRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Code_Messaging_V1_PollMessagesResponse {
+  ) async throws -> Ocp_Messaging_V1_PollMessagesResponse {
     return try await self.performAsyncUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.pollMessages.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.pollMessages.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makePollMessagesInterceptors() ?? []
@@ -400,11 +400,11 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
   }
 
   public func ackMessages(
-    _ request: Code_Messaging_V1_AckMessagesRequest,
+    _ request: Ocp_Messaging_V1_AckMessagesRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Code_Messaging_V1_AckMesssagesResponse {
+  ) async throws -> Ocp_Messaging_V1_AckMesssagesResponse {
     return try await self.performAsyncUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.ackMessages.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.ackMessages.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? []
@@ -412,11 +412,11 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
   }
 
   public func sendMessage(
-    _ request: Code_Messaging_V1_SendMessageRequest,
+    _ request: Ocp_Messaging_V1_SendMessageRequest,
     callOptions: CallOptions? = nil
-  ) async throws -> Code_Messaging_V1_SendMessageResponse {
+  ) async throws -> Ocp_Messaging_V1_SendMessageResponse {
     return try await self.performAsyncUnaryCall(
-      path: Code_Messaging_V1_MessagingClientMetadata.Methods.sendMessage.path,
+      path: Ocp_Messaging_V1_MessagingClientMetadata.Methods.sendMessage.path,
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeSendMessageInterceptors() ?? []
@@ -425,15 +425,15 @@ extension Code_Messaging_V1_MessagingAsyncClientProtocol {
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public struct Code_Messaging_V1_MessagingAsyncClient: Code_Messaging_V1_MessagingAsyncClientProtocol {
+public struct Ocp_Messaging_V1_MessagingAsyncClient: Ocp_Messaging_V1_MessagingAsyncClientProtocol {
   public var channel: GRPCChannel
   public var defaultCallOptions: CallOptions
-  public var interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol?
+  public var interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol?
 
   public init(
     channel: GRPCChannel,
     defaultCallOptions: CallOptions = CallOptions(),
-    interceptors: Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol? = nil
+    interceptors: Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol? = nil
   ) {
     self.channel = channel
     self.defaultCallOptions = defaultCallOptions
@@ -441,73 +441,73 @@ public struct Code_Messaging_V1_MessagingAsyncClient: Code_Messaging_V1_Messagin
   }
 }
 
-public protocol Code_Messaging_V1_MessagingClientInterceptorFactoryProtocol: Sendable {
+public protocol Ocp_Messaging_V1_MessagingClientInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when invoking 'openMessageStream'.
-  func makeOpenMessageStreamInterceptors() -> [ClientInterceptor<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>]
+  func makeOpenMessageStreamInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>]
 
   /// - Returns: Interceptors to use when invoking 'openMessageStreamWithKeepAlive'.
-  func makeOpenMessageStreamWithKeepAliveInterceptors() -> [ClientInterceptor<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>]
+  func makeOpenMessageStreamWithKeepAliveInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>]
 
   /// - Returns: Interceptors to use when invoking 'pollMessages'.
-  func makePollMessagesInterceptors() -> [ClientInterceptor<Code_Messaging_V1_PollMessagesRequest, Code_Messaging_V1_PollMessagesResponse>]
+  func makePollMessagesInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_PollMessagesRequest, Ocp_Messaging_V1_PollMessagesResponse>]
 
   /// - Returns: Interceptors to use when invoking 'ackMessages'.
-  func makeAckMessagesInterceptors() -> [ClientInterceptor<Code_Messaging_V1_AckMessagesRequest, Code_Messaging_V1_AckMesssagesResponse>]
+  func makeAckMessagesInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse>]
 
   /// - Returns: Interceptors to use when invoking 'sendMessage'.
-  func makeSendMessageInterceptors() -> [ClientInterceptor<Code_Messaging_V1_SendMessageRequest, Code_Messaging_V1_SendMessageResponse>]
+  func makeSendMessageInterceptors() -> [ClientInterceptor<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse>]
 }
 
-public enum Code_Messaging_V1_MessagingClientMetadata {
+public enum Ocp_Messaging_V1_MessagingClientMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "Messaging",
-    fullName: "code.messaging.v1.Messaging",
+    fullName: "ocp.messaging.v1.Messaging",
     methods: [
-      Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream,
-      Code_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive,
-      Code_Messaging_V1_MessagingClientMetadata.Methods.pollMessages,
-      Code_Messaging_V1_MessagingClientMetadata.Methods.ackMessages,
-      Code_Messaging_V1_MessagingClientMetadata.Methods.sendMessage,
+      Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStream,
+      Ocp_Messaging_V1_MessagingClientMetadata.Methods.openMessageStreamWithKeepAlive,
+      Ocp_Messaging_V1_MessagingClientMetadata.Methods.pollMessages,
+      Ocp_Messaging_V1_MessagingClientMetadata.Methods.ackMessages,
+      Ocp_Messaging_V1_MessagingClientMetadata.Methods.sendMessage,
     ]
   )
 
   public enum Methods {
     public static let openMessageStream = GRPCMethodDescriptor(
       name: "OpenMessageStream",
-      path: "/code.messaging.v1.Messaging/OpenMessageStream",
+      path: "/ocp.messaging.v1.Messaging/OpenMessageStream",
       type: GRPCCallType.serverStreaming
     )
 
     public static let openMessageStreamWithKeepAlive = GRPCMethodDescriptor(
       name: "OpenMessageStreamWithKeepAlive",
-      path: "/code.messaging.v1.Messaging/OpenMessageStreamWithKeepAlive",
+      path: "/ocp.messaging.v1.Messaging/OpenMessageStreamWithKeepAlive",
       type: GRPCCallType.bidirectionalStreaming
     )
 
     public static let pollMessages = GRPCMethodDescriptor(
       name: "PollMessages",
-      path: "/code.messaging.v1.Messaging/PollMessages",
+      path: "/ocp.messaging.v1.Messaging/PollMessages",
       type: GRPCCallType.unary
     )
 
     public static let ackMessages = GRPCMethodDescriptor(
       name: "AckMessages",
-      path: "/code.messaging.v1.Messaging/AckMessages",
+      path: "/ocp.messaging.v1.Messaging/AckMessages",
       type: GRPCCallType.unary
     )
 
     public static let sendMessage = GRPCMethodDescriptor(
       name: "SendMessage",
-      path: "/code.messaging.v1.Messaging/SendMessage",
+      path: "/ocp.messaging.v1.Messaging/SendMessage",
       type: GRPCCallType.unary
     )
   }
 }
 
 /// To build a server, implement a class that conforms to this protocol.
-public protocol Code_Messaging_V1_MessagingProvider: CallHandlerProvider {
-  var interceptors: Code_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
+public protocol Ocp_Messaging_V1_MessagingProvider: CallHandlerProvider {
+  var interceptors: Ocp_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
 
   /// OpenMessageStream opens a stream of messages. Messages are routed using the
   /// public key of a rendezvous keypair derived by both the sender and the
@@ -528,7 +528,7 @@ public protocol Code_Messaging_V1_MessagingProvider: CallHandlerProvider {
   ///   6. The payment recipient sends the destination address in a RequestToGrabBill message.
   ///   7. The payment sender receives the RequestToGrabBill message in real time, submits the intent
   ///      for the payment to the provided destination, and then closes the stream.
-  func openMessageStream(request: Code_Messaging_V1_OpenMessageStreamRequest, context: StreamingResponseCallContext<Code_Messaging_V1_OpenMessageStreamResponse>) -> EventLoopFuture<GRPCStatus>
+  func openMessageStream(request: Ocp_Messaging_V1_OpenMessageStreamRequest, context: StreamingResponseCallContext<Ocp_Messaging_V1_OpenMessageStreamResponse>) -> EventLoopFuture<GRPCStatus>
 
   /// OpenMessageStreamWithKeepAlive is like OpenMessageStream, but enables a ping/pong
   /// keepalive to determine the health of the stream at both the client and server.
@@ -555,7 +555,7 @@ public protocol Code_Messaging_V1_MessagingProvider: CallHandlerProvider {
   ///
   /// Note: This API will enforce OpenMessageStreamRequest.signature is set as part of migration
   ///       to this newer protocol
-  func openMessageStreamWithKeepAlive(context: StreamingResponseCallContext<Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>) -> EventLoopFuture<(StreamEvent<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>) -> Void>
+  func openMessageStreamWithKeepAlive(context: StreamingResponseCallContext<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>) -> EventLoopFuture<(StreamEvent<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>) -> Void>
 
   /// PollMessages is like OpenMessageStream, but uses a polling flow for receiving
   /// messages. Updates are not real-time and depedent on the polling interval.
@@ -563,19 +563,19 @@ public protocol Code_Messaging_V1_MessagingProvider: CallHandlerProvider {
   ///
   /// This is a temporary RPC until OpenMessageStream can be built out generically on
   /// both client and server, while supporting things like multiple listeners.
-  func pollMessages(request: Code_Messaging_V1_PollMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Messaging_V1_PollMessagesResponse>
+  func pollMessages(request: Ocp_Messaging_V1_PollMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Messaging_V1_PollMessagesResponse>
 
   /// AckMessages acks one or more messages that have been successfully delivered to
   /// the client.
-  func ackMessages(request: Code_Messaging_V1_AckMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Messaging_V1_AckMesssagesResponse>
+  func ackMessages(request: Ocp_Messaging_V1_AckMessagesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Messaging_V1_AckMesssagesResponse>
 
   /// SendMessage sends a message.
-  func sendMessage(request: Code_Messaging_V1_SendMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Code_Messaging_V1_SendMessageResponse>
+  func sendMessage(request: Ocp_Messaging_V1_SendMessageRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Messaging_V1_SendMessageResponse>
 }
 
-extension Code_Messaging_V1_MessagingProvider {
+extension Ocp_Messaging_V1_MessagingProvider {
   public var serviceName: Substring {
-    return Code_Messaging_V1_MessagingServerMetadata.serviceDescriptor.fullName[...]
+    return Ocp_Messaging_V1_MessagingServerMetadata.serviceDescriptor.fullName[...]
   }
 
   /// Determines, calls and returns the appropriate request handler, depending on the request's method.
@@ -588,8 +588,8 @@ extension Code_Messaging_V1_MessagingProvider {
     case "OpenMessageStream":
       return ServerStreamingServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_OpenMessageStreamRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_OpenMessageStreamResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_OpenMessageStreamRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_OpenMessageStreamResponse>(),
         interceptors: self.interceptors?.makeOpenMessageStreamInterceptors() ?? [],
         userFunction: self.openMessageStream(request:context:)
       )
@@ -597,8 +597,8 @@ extension Code_Messaging_V1_MessagingProvider {
     case "OpenMessageStreamWithKeepAlive":
       return BidirectionalStreamingServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>(),
         interceptors: self.interceptors?.makeOpenMessageStreamWithKeepAliveInterceptors() ?? [],
         observerFactory: self.openMessageStreamWithKeepAlive(context:)
       )
@@ -606,8 +606,8 @@ extension Code_Messaging_V1_MessagingProvider {
     case "PollMessages":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_PollMessagesRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_PollMessagesResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_PollMessagesRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_PollMessagesResponse>(),
         interceptors: self.interceptors?.makePollMessagesInterceptors() ?? [],
         userFunction: self.pollMessages(request:context:)
       )
@@ -615,8 +615,8 @@ extension Code_Messaging_V1_MessagingProvider {
     case "AckMessages":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_AckMessagesRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_AckMesssagesResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_AckMessagesRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_AckMesssagesResponse>(),
         interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? [],
         userFunction: self.ackMessages(request:context:)
       )
@@ -624,8 +624,8 @@ extension Code_Messaging_V1_MessagingProvider {
     case "SendMessage":
       return UnaryServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_SendMessageRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_SendMessageResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_SendMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_SendMessageResponse>(),
         interceptors: self.interceptors?.makeSendMessageInterceptors() ?? [],
         userFunction: self.sendMessage(request:context:)
       )
@@ -638,9 +638,9 @@ extension Code_Messaging_V1_MessagingProvider {
 
 /// To implement a server, implement an object which conforms to this protocol.
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-public protocol Code_Messaging_V1_MessagingAsyncProvider: CallHandlerProvider, Sendable {
+public protocol Ocp_Messaging_V1_MessagingAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
-  var interceptors: Code_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
+  var interceptors: Ocp_Messaging_V1_MessagingServerInterceptorFactoryProtocol? { get }
 
   /// OpenMessageStream opens a stream of messages. Messages are routed using the
   /// public key of a rendezvous keypair derived by both the sender and the
@@ -662,8 +662,8 @@ public protocol Code_Messaging_V1_MessagingAsyncProvider: CallHandlerProvider, S
   ///   7. The payment sender receives the RequestToGrabBill message in real time, submits the intent
   ///      for the payment to the provided destination, and then closes the stream.
   func openMessageStream(
-    request: Code_Messaging_V1_OpenMessageStreamRequest,
-    responseStream: GRPCAsyncResponseStreamWriter<Code_Messaging_V1_OpenMessageStreamResponse>,
+    request: Ocp_Messaging_V1_OpenMessageStreamRequest,
+    responseStream: GRPCAsyncResponseStreamWriter<Ocp_Messaging_V1_OpenMessageStreamResponse>,
     context: GRPCAsyncServerCallContext
   ) async throws
 
@@ -693,8 +693,8 @@ public protocol Code_Messaging_V1_MessagingAsyncProvider: CallHandlerProvider, S
   /// Note: This API will enforce OpenMessageStreamRequest.signature is set as part of migration
   ///       to this newer protocol
   func openMessageStreamWithKeepAlive(
-    requestStream: GRPCAsyncRequestStream<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>,
-    responseStream: GRPCAsyncResponseStreamWriter<Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>,
+    requestStream: GRPCAsyncRequestStream<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>,
+    responseStream: GRPCAsyncResponseStreamWriter<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>,
     context: GRPCAsyncServerCallContext
   ) async throws
 
@@ -705,35 +705,35 @@ public protocol Code_Messaging_V1_MessagingAsyncProvider: CallHandlerProvider, S
   /// This is a temporary RPC until OpenMessageStream can be built out generically on
   /// both client and server, while supporting things like multiple listeners.
   func pollMessages(
-    request: Code_Messaging_V1_PollMessagesRequest,
+    request: Ocp_Messaging_V1_PollMessagesRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Messaging_V1_PollMessagesResponse
+  ) async throws -> Ocp_Messaging_V1_PollMessagesResponse
 
   /// AckMessages acks one or more messages that have been successfully delivered to
   /// the client.
   func ackMessages(
-    request: Code_Messaging_V1_AckMessagesRequest,
+    request: Ocp_Messaging_V1_AckMessagesRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Messaging_V1_AckMesssagesResponse
+  ) async throws -> Ocp_Messaging_V1_AckMesssagesResponse
 
   /// SendMessage sends a message.
   func sendMessage(
-    request: Code_Messaging_V1_SendMessageRequest,
+    request: Ocp_Messaging_V1_SendMessageRequest,
     context: GRPCAsyncServerCallContext
-  ) async throws -> Code_Messaging_V1_SendMessageResponse
+  ) async throws -> Ocp_Messaging_V1_SendMessageResponse
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
-extension Code_Messaging_V1_MessagingAsyncProvider {
+extension Ocp_Messaging_V1_MessagingAsyncProvider {
   public static var serviceDescriptor: GRPCServiceDescriptor {
-    return Code_Messaging_V1_MessagingServerMetadata.serviceDescriptor
+    return Ocp_Messaging_V1_MessagingServerMetadata.serviceDescriptor
   }
 
   public var serviceName: Substring {
-    return Code_Messaging_V1_MessagingServerMetadata.serviceDescriptor.fullName[...]
+    return Ocp_Messaging_V1_MessagingServerMetadata.serviceDescriptor.fullName[...]
   }
 
-  public var interceptors: Code_Messaging_V1_MessagingServerInterceptorFactoryProtocol? {
+  public var interceptors: Ocp_Messaging_V1_MessagingServerInterceptorFactoryProtocol? {
     return nil
   }
 
@@ -745,8 +745,8 @@ extension Code_Messaging_V1_MessagingAsyncProvider {
     case "OpenMessageStream":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_OpenMessageStreamRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_OpenMessageStreamResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_OpenMessageStreamRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_OpenMessageStreamResponse>(),
         interceptors: self.interceptors?.makeOpenMessageStreamInterceptors() ?? [],
         wrapping: { try await self.openMessageStream(request: $0, responseStream: $1, context: $2) }
       )
@@ -754,8 +754,8 @@ extension Code_Messaging_V1_MessagingAsyncProvider {
     case "OpenMessageStreamWithKeepAlive":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>(),
         interceptors: self.interceptors?.makeOpenMessageStreamWithKeepAliveInterceptors() ?? [],
         wrapping: { try await self.openMessageStreamWithKeepAlive(requestStream: $0, responseStream: $1, context: $2) }
       )
@@ -763,8 +763,8 @@ extension Code_Messaging_V1_MessagingAsyncProvider {
     case "PollMessages":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_PollMessagesRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_PollMessagesResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_PollMessagesRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_PollMessagesResponse>(),
         interceptors: self.interceptors?.makePollMessagesInterceptors() ?? [],
         wrapping: { try await self.pollMessages(request: $0, context: $1) }
       )
@@ -772,8 +772,8 @@ extension Code_Messaging_V1_MessagingAsyncProvider {
     case "AckMessages":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_AckMessagesRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_AckMesssagesResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_AckMessagesRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_AckMesssagesResponse>(),
         interceptors: self.interceptors?.makeAckMessagesInterceptors() ?? [],
         wrapping: { try await self.ackMessages(request: $0, context: $1) }
       )
@@ -781,8 +781,8 @@ extension Code_Messaging_V1_MessagingAsyncProvider {
     case "SendMessage":
       return GRPCAsyncServerHandler(
         context: context,
-        requestDeserializer: ProtobufDeserializer<Code_Messaging_V1_SendMessageRequest>(),
-        responseSerializer: ProtobufSerializer<Code_Messaging_V1_SendMessageResponse>(),
+        requestDeserializer: ProtobufDeserializer<Ocp_Messaging_V1_SendMessageRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Messaging_V1_SendMessageResponse>(),
         interceptors: self.interceptors?.makeSendMessageInterceptors() ?? [],
         wrapping: { try await self.sendMessage(request: $0, context: $1) }
       )
@@ -793,70 +793,70 @@ extension Code_Messaging_V1_MessagingAsyncProvider {
   }
 }
 
-public protocol Code_Messaging_V1_MessagingServerInterceptorFactoryProtocol: Sendable {
+public protocol Ocp_Messaging_V1_MessagingServerInterceptorFactoryProtocol: Sendable {
 
   /// - Returns: Interceptors to use when handling 'openMessageStream'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeOpenMessageStreamInterceptors() -> [ServerInterceptor<Code_Messaging_V1_OpenMessageStreamRequest, Code_Messaging_V1_OpenMessageStreamResponse>]
+  func makeOpenMessageStreamInterceptors() -> [ServerInterceptor<Ocp_Messaging_V1_OpenMessageStreamRequest, Ocp_Messaging_V1_OpenMessageStreamResponse>]
 
   /// - Returns: Interceptors to use when handling 'openMessageStreamWithKeepAlive'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeOpenMessageStreamWithKeepAliveInterceptors() -> [ServerInterceptor<Code_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Code_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>]
+  func makeOpenMessageStreamWithKeepAliveInterceptors() -> [ServerInterceptor<Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveRequest, Ocp_Messaging_V1_OpenMessageStreamWithKeepAliveResponse>]
 
   /// - Returns: Interceptors to use when handling 'pollMessages'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makePollMessagesInterceptors() -> [ServerInterceptor<Code_Messaging_V1_PollMessagesRequest, Code_Messaging_V1_PollMessagesResponse>]
+  func makePollMessagesInterceptors() -> [ServerInterceptor<Ocp_Messaging_V1_PollMessagesRequest, Ocp_Messaging_V1_PollMessagesResponse>]
 
   /// - Returns: Interceptors to use when handling 'ackMessages'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeAckMessagesInterceptors() -> [ServerInterceptor<Code_Messaging_V1_AckMessagesRequest, Code_Messaging_V1_AckMesssagesResponse>]
+  func makeAckMessagesInterceptors() -> [ServerInterceptor<Ocp_Messaging_V1_AckMessagesRequest, Ocp_Messaging_V1_AckMesssagesResponse>]
 
   /// - Returns: Interceptors to use when handling 'sendMessage'.
   ///   Defaults to calling `self.makeInterceptors()`.
-  func makeSendMessageInterceptors() -> [ServerInterceptor<Code_Messaging_V1_SendMessageRequest, Code_Messaging_V1_SendMessageResponse>]
+  func makeSendMessageInterceptors() -> [ServerInterceptor<Ocp_Messaging_V1_SendMessageRequest, Ocp_Messaging_V1_SendMessageResponse>]
 }
 
-public enum Code_Messaging_V1_MessagingServerMetadata {
+public enum Ocp_Messaging_V1_MessagingServerMetadata {
   public static let serviceDescriptor = GRPCServiceDescriptor(
     name: "Messaging",
-    fullName: "code.messaging.v1.Messaging",
+    fullName: "ocp.messaging.v1.Messaging",
     methods: [
-      Code_Messaging_V1_MessagingServerMetadata.Methods.openMessageStream,
-      Code_Messaging_V1_MessagingServerMetadata.Methods.openMessageStreamWithKeepAlive,
-      Code_Messaging_V1_MessagingServerMetadata.Methods.pollMessages,
-      Code_Messaging_V1_MessagingServerMetadata.Methods.ackMessages,
-      Code_Messaging_V1_MessagingServerMetadata.Methods.sendMessage,
+      Ocp_Messaging_V1_MessagingServerMetadata.Methods.openMessageStream,
+      Ocp_Messaging_V1_MessagingServerMetadata.Methods.openMessageStreamWithKeepAlive,
+      Ocp_Messaging_V1_MessagingServerMetadata.Methods.pollMessages,
+      Ocp_Messaging_V1_MessagingServerMetadata.Methods.ackMessages,
+      Ocp_Messaging_V1_MessagingServerMetadata.Methods.sendMessage,
     ]
   )
 
   public enum Methods {
     public static let openMessageStream = GRPCMethodDescriptor(
       name: "OpenMessageStream",
-      path: "/code.messaging.v1.Messaging/OpenMessageStream",
+      path: "/ocp.messaging.v1.Messaging/OpenMessageStream",
       type: GRPCCallType.serverStreaming
     )
 
     public static let openMessageStreamWithKeepAlive = GRPCMethodDescriptor(
       name: "OpenMessageStreamWithKeepAlive",
-      path: "/code.messaging.v1.Messaging/OpenMessageStreamWithKeepAlive",
+      path: "/ocp.messaging.v1.Messaging/OpenMessageStreamWithKeepAlive",
       type: GRPCCallType.bidirectionalStreaming
     )
 
     public static let pollMessages = GRPCMethodDescriptor(
       name: "PollMessages",
-      path: "/code.messaging.v1.Messaging/PollMessages",
+      path: "/ocp.messaging.v1.Messaging/PollMessages",
       type: GRPCCallType.unary
     )
 
     public static let ackMessages = GRPCMethodDescriptor(
       name: "AckMessages",
-      path: "/code.messaging.v1.Messaging/AckMessages",
+      path: "/ocp.messaging.v1.Messaging/AckMessages",
       type: GRPCCallType.unary
     )
 
     public static let sendMessage = GRPCMethodDescriptor(
       name: "SendMessage",
-      path: "/code.messaging.v1.Messaging/SendMessage",
+      path: "/ocp.messaging.v1.Messaging/SendMessage",
       type: GRPCCallType.unary
     )
   }

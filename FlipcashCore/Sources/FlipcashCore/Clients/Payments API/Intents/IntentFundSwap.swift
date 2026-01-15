@@ -28,27 +28,28 @@ final class IntentFundSwap: IntentType {
         sourceCluster: AccountCluster,
         amount: ExchangedFiat,
         fromMint: MintMetadata,
-        toMint: MintMetadata,
+        toMint: MintMetadata
     ) {
         self.id = intentID
         self.swapId = swapId
         self.sourceCluster = sourceCluster
         self.amount = amount
-        
+
+        // Use VM swap accounts for destination (NOT regular timelock)
         guard let timelockAccounts = fromMint.timelockSwapAccounts(owner: sourceCluster.authorityPublicKey) else {
-            fatalError("Failed to derive PDA for \(toMint.symbol)")
+            fatalError("Failed to derive VM swap PDA for \(fromMint.symbol)")
         }
-        
+
         self.destination = timelockAccounts.ata.publicKey
         self.destinationOwner = timelockAccounts.pda.publicKey
-        
+
         let transfer = ActionTransfer(
             amount: amount.underlying,
             sourceCluster: sourceCluster,
             destination: destination,
             mint: fromMint.address
         )
-        
+
         self.actionGroup = ActionGroup(actions: [transfer])
     }
 }
@@ -56,7 +57,7 @@ final class IntentFundSwap: IntentType {
 // MARK: - Proto -
 
 extension IntentFundSwap {
-    func metadata() -> Code_Transaction_V2_Metadata {
+    func metadata() -> Ocp_Transaction_V1_Metadata {
         .with {
             $0.sendPublicPayment = .with {
                 $0.source = sourceCluster.vaultPublicKey.solanaAccountID

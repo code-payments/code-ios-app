@@ -26,7 +26,7 @@ extension IntentMetadata {
 // MARK: - Proto -
 
 extension IntentMetadata {
-    init(_ metadata: Code_Transaction_V2_Metadata) throws {
+    init(_ metadata: Ocp_Transaction_V1_Metadata) throws {
         guard let type = metadata.type else {
             throw Error.unsupportedMetadataType
         }

@@ -247,7 +247,7 @@ public struct BillView: View {
                         
                         HStack {
                             // Mint
-                            Text(PublicKey.usdc.base58)
+                            Text(PublicKey.usdf.base58)
                                 .foregroundColor(.textMain.opacity(0.2))
                                 .font(geometry.mintFont)
                             Spacer()

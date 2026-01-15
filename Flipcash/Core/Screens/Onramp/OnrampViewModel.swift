@@ -93,7 +93,7 @@ class OnrampViewModel: ObservableObject {
             return nil
         }
         
-        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdc.mintDecimals) else {
+        guard let converted = try? Quarks(fiatDecimal: amount, currencyCode: currency, decimals: PublicKey.usdf.mintDecimals) else {
             trace(.failure, components: "[Onramp] Invalid amount for entry")
             return nil
         }
@@ -101,7 +101,7 @@ class OnrampViewModel: ObservableObject {
         return try! ExchangedFiat(
             converted: converted,
             rate: rate,
-            mint: .usdc
+            mint: .usdf
         )
     }
     
