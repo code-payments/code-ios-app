@@ -16,7 +16,7 @@ public struct ChartRangePicker: View {
         HStack(spacing: 0) {
             ForEach(ChartRange.allCases) { range in
                 Button {
-                    withAnimation(.snappy(duration: 0.25)) {
+                    withAnimation(.snappy(duration: 0.15)) {
                         selectedRange = range
                     }
                 } label: {
