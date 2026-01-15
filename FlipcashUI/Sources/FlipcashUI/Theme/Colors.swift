@@ -23,6 +23,7 @@ extension Color {
     
     public static let action              = Color(r: 255, g: 255, b: 255)
     public static let actionDisabled      = Color(r: 23,  g: 39,  b: 29)
+    public static let actionAlternative   = Color(r: 49, g: 156, b: 88)
     
     public static let bannerDark          = Color(r: 15,  g: 12,  b: 31)
     public static let bannerError         = Color(r: 188, g: 52,  b: 52)
@@ -37,7 +38,7 @@ extension Color {
     public static let backgroundRow       = Color(r: 7,   g: 31,  b: 16)
     public static let rowSeparator        = Color(r: 255, g: 255, b: 255, o: 0.1)
     
-    public static let checkmarkBackground = Color(r: 115, g: 121, b: 160)
+    public static let checkmarkBackground = Color(r: 255, g: 255, b: 255)
     
     public static let cameraOverlay       = Color(r: 0, g: 0, b: 0, o: 0.4)
     

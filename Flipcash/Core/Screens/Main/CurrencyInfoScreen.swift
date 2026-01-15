@@ -14,8 +14,15 @@ struct CurrencyInfoScreen: View {
     @StateObject private var updateableMint: Updateable<StoredMintMetadata>
     
     @State private var isShowingTransactionHistory: Bool = false
+    @State private var isShowingFundingSelection: Bool = false
+    @State private var isShowingBuyAmountEntry: Bool = false
+    @State private var isShowingSellAmountEntry: Bool = false
     
     @ObservedObject private var session: Session
+    @ObservedObject private var walletConnection: WalletConnection
+    
+    @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
+    @StateObject private var currencySellViewModel: CurrencySellViewModel
     
     private var mintMetadata: StoredMintMetadata {
         updateableMint.value
@@ -27,7 +34,7 @@ struct CurrencyInfoScreen: View {
 
     private var currencyDescription: String {
         if isUSDC {
-            return "Your cash reserves are held in USDF, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDF for U.S. dollars whenever you like."
+            return "Your cash reserves are held in USDC, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDC for U.S. dollars whenever you like."
         } else {
             return mintMetadata.bio ?? "No information"
         }
@@ -48,6 +55,13 @@ struct CurrencyInfoScreen: View {
         return exchanged?.converted ?? 0
     }
     
+    private var reserveBalance: Quarks {
+        let balance   = session.balance(for: .usdc)
+        let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+        
+        return exchanged?.converted ?? 0
+    }
+    
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
@@ -58,22 +72,24 @@ struct CurrencyInfoScreen: View {
         if let supplyFromBonding = mintMetadata.supplyFromBonding {
             supply = Int(supplyFromBonding)
         }
-        
-        let curve = BondingCurve()
-        let mCap  = try! curve.marketCap(for: supply)
-        
+
+        let curve = DiscreteBondingCurve()
+        guard let mCap = curve.marketCap(for: supply) else {
+            return 0
+        }
+
         let usdc = try! Quarks(
             fiatDecimal: mCap,
             currencyCode: .usd,
             decimals: mintMetadata.mint.mintDecimals
         )
-        
+
         let exchanged = try! ExchangedFiat(
             underlying: usdc,
             rate: ratesController.rateForBalanceCurrency(),
             mint: .usdc
         )
-        
+
         return exchanged.converted
     }
     
@@ -85,84 +101,131 @@ struct CurrencyInfoScreen: View {
         self.ratesController  = sessionContainer.ratesController
         self.session          = sessionContainer.session
         self.sessionContainer = sessionContainer
+        self.walletConnection = sessionContainer.walletConnection
         
         let database = sessionContainer.database
+        let metadata = try! database.getMintMetadata(mint: mint)!
         
         _updateableMint = .init(wrappedValue: Updateable {
-            try! database.getMintMetadata(mint: mint)!
+            metadata
         })
+        
+        _currencyBuyViewModel = .init(
+            wrappedValue: CurrencyBuyViewModel(
+                currencyPublicKey: mint,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
+        
+        _currencySellViewModel = .init(
+            wrappedValue: CurrencySellViewModel(
+                currencyMetadata: metadata,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
     }
     
     // MARK: - Body -
     
     var body: some View {
         Background(color: .backgroundMain) {
-            GeometryReader { g in
-                ScrollView {
-                    VStack(spacing: 0) {
+            ZStack {
+                // Scrollable Content
+                GeometryReader { g in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // Header
 
-                        // Header
+                            section {
+                                Spacer()
 
-                        section {
-                            Spacer()
-
-                            AmountText(
-                                flagStyle: balance.currencyCode.flagStyle,
-                                content: balance.formatted(),
-                                showChevron: false
-                            )
-                            .font(.appDisplayMedium)
-                            .foregroundStyle(Color.textMain)
-                            .frame(maxWidth: .infinity)
-                            .padding(.bottom, 30)
-
-                            Spacer()
-
-                            if !isUSDC {
-                                CodeButton(style: .filledSecondary, title: "View Transaction History") {
-                                    isShowingTransactionHistory.toggle()
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: g.size.height * proportion)
-
-                        // Currency Info
-
-                        section(spacing: 20) {
-                            if !isUSDC {
-                                HStack {
-                                    Image(systemName: "text.justify.left")
-                                        .padding(.bottom, -1)
-                                    Text("Currency Info")
-                                }
-                                .font(.appBarButton)
+                                AmountText(
+                                    flagStyle: balance.currencyCode.flagStyle,
+                                    content: balance.formatted(),
+                                    showChevron: false
+                                )
+                                .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
+                                .frame(maxWidth: .infinity)
+                                .padding(.bottom, 30)
+
+                                Spacer()
+
+                                if !isUSDC {
+                                    CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                                        isShowingTransactionHistory.toggle()
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: g.size.height * proportion)
+
+                            // Currency Info
+
+                            section(spacing: 20) {
+                                if !isUSDC {
+                                    HStack {
+                                        Image(systemName: "text.justify.left")
+                                            .padding(.bottom, -1)
+                                        Text("Currency Info")
+                                    }
+                                    .font(.appBarButton)
+                                    .foregroundStyle(Color.textMain)
+                                }
+
+                                Text(currencyDescription)
+                                    .foregroundStyle(Color.textSecondary)
+                                    .font(.appTextSmall)
+    //                            {
+    //                                AnyView(drawer())
+    //                            }
+    //                            .font(.system(size: 14, weight: .bold))
                             }
 
-                            Text(currencyDescription)
-                                .foregroundStyle(Color.textSecondary)
-                                .font(.appTextSmall)
-//                            {
-//                                AnyView(drawer())
-//                            }
-//                            .font(.system(size: 14, weight: .bold))
+                            // Market Cap
+
+                            if !isUSDC {
+                                section(spacing: 0) {
+                                    VStack(alignment: .leading) {
+                                        Text("Market Cap")
+                                            .foregroundStyle(Color.textSecondary)
+                                            .font(.appTextMedium)
+                                        Text("\(marketCap.formatted())")
+                                            .foregroundStyle(Color.textMain)
+                                            .font(.appDisplayMedium)
+                                    }
+                                }
+                                
+                                // Append enough content to scroll below the floating footer
+                                Color
+                                    .clear
+                                    .padding(.bottom, 100)
+                            }
                         }
-
-                        // Market Cap
-
-                        if !isUSDC {
-                            section(spacing: 0) {
-                                VStack(alignment: .leading) {
-                                    Text("Market Cap")
-                                        .foregroundStyle(Color.textSecondary)
-                                        .font(.appTextMedium)
-                                    Text("\(marketCap.formatted())")
-                                        .foregroundStyle(Color.textMain)
-                                        .font(.appDisplayMedium)
+                    }
+                }
+                
+                // Floating Footer
+                if !isUSDC {
+                    VStack {
+                        Spacer()
+                        section {
+                            HStack(spacing: 12) {
+                                CodeButton(style: .filledAlternative, title: "Buy") {
+                                    isShowingFundingSelection = true
+                                }
+                                
+                                if balance.quarks > 0 {
+                                    CodeButton(style: .filledSecondary, title: "Sell") {
+                                        isShowingSellAmountEntry = true
+                                    }
                                 }
                             }
                         }
+                        .background(Color.backgroundMain)
+                        .ignoresSafeArea()
                     }
                 }
             }
@@ -173,6 +236,63 @@ struct CurrencyInfoScreen: View {
                     sessionContainer: sessionContainer
                 )
             }
+            .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
+                NavigationStack {
+                    EnterWalletAmountScreen { usdc in
+                        try await walletConnection.requestTransfer(usdc: usdc)
+                        walletConnection.isShowingAmountEntry = false
+                    }
+                    .toolbar {
+                        ToolbarCloseButton(binding: $walletConnection.isShowingAmountEntry)
+                    }
+                }
+            }
+            .sheet(isPresented: $isShowingBuyAmountEntry) {
+                NavigationStack {
+                    CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
+                    .toolbar {
+                        ToolbarCloseButton(binding: $isShowingBuyAmountEntry)
+                    }
+                }
+            }
+            .sheet(isPresented: $isShowingSellAmountEntry) {
+                CurrencySellAmountScreen(viewModel: currencySellViewModel)
+            }
+            .onChange(of: isShowingSellAmountEntry) { _, isPresented in
+                if isPresented {
+                    currencySellViewModel.reset()
+                }
+            }
+            .sheet(isPresented: $isShowingFundingSelection) {
+                PartialSheet {
+                    VStack {
+                        HStack {
+                            Text("Select Purchase Method")
+                                .font(.appBarButton)
+                                .foregroundStyle(Color.textMain)
+                            Spacer()
+                        }
+                        .padding(.vertical, 20)
+                        
+                        if reserveBalance.quarks > 0 {
+                            CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
+                                isShowingBuyAmountEntry = true
+                                isShowingFundingSelection = false
+                            }
+                        }
+                        
+                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
+                            walletConnection.connectToPhantom()
+                            isShowingFundingSelection = false
+                        }
+                        CodeButton(style: .subtle, title: "Dismiss") {
+                            isShowingFundingSelection = false
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .dialog(item: $walletConnection.dialogItem)
         }
         .toolbar {
             ToolbarItem(placement: .principal) {

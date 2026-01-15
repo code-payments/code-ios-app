@@ -1,6 +1,6 @@
 //
 //  TimelockProgram.swift
-//  FlipchatServices
+//  FlipcashCore
 //
 //  Created by Dima Bart.
 //  Copyright © 2021 Code Inc. All rights reserved.
@@ -17,7 +17,10 @@ extension VMProgram {
 }
 
 extension VMProgram {
-    public enum Command: UInt64 {
-        case placeholder = 0x00
+    public enum Command: UInt8 {
+        case unknown = 0
+        case transferForSwap = 17
+        case closeSwapAccountIfEmpty = 19
     }
 }
+

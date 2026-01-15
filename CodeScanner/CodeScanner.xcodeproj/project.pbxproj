@@ -44,7 +44,7 @@
 		9AD5D82325F26CD2007388AE /* Exception.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D80125F26CD2007388AE /* Exception.h */; };
 		9AD5D88525F26EE9007388AE /* Code.mm in Sources */ = {isa = PBXBuildFile; fileRef = 9AD5D88325F26EE9007388AE /* Code.mm */; settings = {COMPILER_FLAGS = "-w"; }; };
 		9AD5D88625F26EE9007388AE /* Code.h in Headers */ = {isa = PBXBuildFile; fileRef = 9AD5D88425F26EE9007388AE /* Code.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		9AD5E68725F2BFD0007388AE /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E68625F2BFD0007388AE /* opencv2.framework */; };
+		9AD5E68725F2BFD0007388AE /* opencv2.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9AD5E68625F2BFD0007388AE /* opencv2.xcframework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,7 +98,7 @@
 		9AD5D80125F26CD2007388AE /* Exception.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Exception.h; sourceTree = "<group>"; };
 		9AD5D88325F26EE9007388AE /* Code.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Code.mm; sourceTree = "<group>"; };
 		9AD5D88425F26EE9007388AE /* Code.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Code.h; sourceTree = "<group>"; };
-		9AD5E68625F2BFD0007388AE /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
+		9AD5E68625F2BFD0007388AE /* opencv2.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = opencv2.xcframework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,7 +106,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9AD5E68725F2BFD0007388AE /* opencv2.framework in Frameworks */,
+				9AD5E68725F2BFD0007388AE /* opencv2.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -227,7 +227,7 @@
 		9AD5E68525F2BFC1007388AE /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				9AD5E68625F2BFD0007388AE /* opencv2.framework */,
+				9AD5E68625F2BFD0007388AE /* opencv2.xcframework */,
 			);
 			path = Frameworks;
 			sourceTree = "<group>";

@@ -23,27 +23,16 @@ public struct EnterAmountView: View {
     private let action: () -> Void
     private let currencySelectionAction: (() -> Void)?
     
-    private var maxTransactionAmount: Quarks {
-        guard let limit = session.singleTransactionLimitFor(currency: currency) else {
-            return 0
-        }
-        
-        return limit
-    }
+    // MARK: - Calculator -
     
-    private var currency: CurrencyCode {
-        switch mode {
-        case .currency:
-            rateController.entryCurrency
-        case .onramp:
-            rateController.onrampCurrency
-        case .walletDeposit, .phantomDeposit, .withdraw:
-            .usd
-        }
-    }
-    
-    func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
-        maxBalance.converted
+    private var calculator: EnterAmountCalculator {
+        EnterAmountCalculator(
+            mode: mode,
+            entryCurrency: rateController.entryCurrency,
+            onrampCurrency: rateController.onrampCurrency,
+            transactionLimitProvider: session.singleTransactionLimitFor(currency:),
+            rateProvider: rateController.rate(for:)
+        )
     }
     
     // MARK: - Init -
@@ -80,8 +69,8 @@ public struct EnterAmountView: View {
                         AmountField(
                             content: $enteredAmount,
                             defaultValue: mode.defaultValue,
-                            prefix: .flagStyle(currency.flagStyle),
-                            formatter: mode.formatter(with: currency),
+                            prefix: .flagStyle(calculator.currency.flagStyle),
+                            formatter: mode.formatter(with: calculator.currency),
                             suffix: nil,
                             showChevron: currencySelectionAction != nil
                         )
@@ -90,13 +79,13 @@ public struct EnterAmountView: View {
                     
                     switch subtitle {
                     case .singleTransactionLimit:
-                        Text("Enter up to \(maxTransactionAmount.formatted())")
+                        Text("Enter up to \(calculator.maxTransactionAmount.formatted())")
                             .fixedSize()
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
                         
                     case .balanceWithLimit(let maxBalance):
-                        Text("Enter up to \(maxEnterAmount(maxBalance: maxBalance).formatted())")
+                        Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
                             .fixedSize()
                             .foregroundColor(.textSecondary)
                             .font(.appTextMedium)
@@ -116,10 +105,10 @@ public struct EnterAmountView: View {
             
             KeyPadView(
                 content: $enteredAmount,
-                configuration: currency.maximumFractionDigits > 0 ? .decimal() : .number(),
+                configuration: calculator.currency.maximumFractionDigits > 0 ? .decimal() : .number(),
                 rules: KeyPadView.CurrencyRules(
                     maxIntegerDigits: 9,
-                    maxDecimalDigits: currency.maximumFractionDigits
+                    maxDecimalDigits: calculator.currency.maximumFractionDigits
                 )
             )
             .padding([.leading, .trailing], -20)
@@ -146,21 +135,18 @@ extension EnterAmountView {
         case currency
         case onramp
         case withdraw
+        case buy
         
         fileprivate func formatter(with currency: CurrencyCode) -> NumberFormatter {
             switch self {
-            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw:
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy:
                 return .fiat(currency: currency, minimumFractionDigits: 0)
             }
         }
         
         fileprivate var defaultValue: AmountField.DefaultValue {
             switch self {
-            case .phantomDeposit: return .number("0")
-            case .walletDeposit:  return .number("0")
-            case .currency:       return .number("0")
-            case .onramp:         return .number("0")
-            case .withdraw:       return .number("0")
+            case .currency, .onramp, .walletDeposit, .phantomDeposit, .withdraw, .buy: return .number("0")
             }
         }
         
@@ -173,6 +159,7 @@ extension EnterAmountView {
             case .currency: return "Next"
             case .onramp:   return "Add Cash"
             case .withdraw: return "Next"
+            case .buy: return "Buy"
             }
         }
         
@@ -183,6 +170,7 @@ extension EnterAmountView {
             case .currency:       return .filled
             case .onramp:         return .filledApplePay
             case .withdraw:       return .filled
+            case .buy:            return .filled
             }
         }
     }

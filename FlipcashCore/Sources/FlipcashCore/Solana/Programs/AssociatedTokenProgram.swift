@@ -18,6 +18,7 @@ extension AssociatedTokenProgram {
 
 extension AssociatedTokenProgram {
     public enum Command: Byte {
-        case unknown
+        case create = 0
+        case createIdempotent = 1
     }
 }

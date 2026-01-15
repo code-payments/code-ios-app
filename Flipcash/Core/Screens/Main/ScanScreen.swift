@@ -20,14 +20,15 @@ struct ScanScreen: View {
     
     @StateObject private var viewModel: ScanViewModel
     
+    @StateObject private var giveViewModel: GiveViewModel
+    
     @State private var cameraAuthorizer = CameraAuthorizer()
     
     @State private var isShowingBalance: Bool = false
     @State private var isShowingSettings: Bool = false
-    @State private var isShowingGive: Bool = false
-
+    
     @State private var sendButtonState: ButtonState = .normal
-    @State private var billEditorColors: [Color] = GradientStop.gradientPresets.randomElement()?.map { $0.color } ?? []
+    @State private var billEditorColors: [Color] = [GradientStop.solidPresets.randomElement()?.color ?? .blue]
     
     private var toast: String? {
         if let toast = session.toast {
@@ -69,6 +70,13 @@ struct ScanScreen: View {
         
         _viewModel = .init(
             wrappedValue: ScanViewModel(
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        )
+        
+        _giveViewModel = .init(
+            wrappedValue: GiveViewModel(
                 container: container,
                 sessionContainer: sessionContainer
             )
@@ -317,16 +325,10 @@ struct ScanScreen: View {
                 maxHeight: 80,
                 fullWidth: true,
                 aligment: .bottom,
-                binding: $isShowingGive
+                binding: $giveViewModel.isPresented
             )
-            .sheet(isPresented: $isShowingGive) {
-                GiveScreen(
-                    viewModel: GiveViewModel(
-                        isPresented: $isShowingGive,
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
-                )
+            .sheet(isPresented: $giveViewModel.isPresented) {
+                GiveScreen(viewModel: giveViewModel)
             }
             
 //            LargeButton(

@@ -1,0 +1,12 @@
+framework module opencv2 {
+    umbrella header "opencv2.hpp"
+
+    export *
+    module * { export * }
+
+    link framework "Accelerate"
+    link framework "CoreGraphics"
+    link framework "CoreVideo"
+    link framework "QuartzCore"
+    link framework "UIKit"
+}

@@ -15,9 +15,7 @@ struct SelectCurrencyScreen: View {
     
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
-    
-    @ObservedObject private var viewModel: GiveViewModel
-    
+        
     @State private var selectedBalance: ExchangedBalance?
     
     private var balances: [ExchangedBalance] {
@@ -35,25 +33,10 @@ struct SelectCurrencyScreen: View {
     let fixedRate: Rate?
     
     // MARK: - Init -
-    init(isPresented: Binding<Bool>, kind: Kind = .give, fixedRate: Rate?, container: Container, sessionContainer: SessionContainer) {
+    init(isPresented: Binding<Bool>, kind: Kind, fixedRate: Rate?) {
         self._isPresented        = isPresented
         self.kind                = kind
         self.fixedRate           = fixedRate
-        
-        self._viewModel = .init(
-            wrappedValue: GiveViewModel(
-                isPresented: isPresented,
-                container: container,
-                sessionContainer: sessionContainer
-            )
-        )
-    }
-    
-    init(isPresented: Binding<Bool>, kind: Kind = .give, fixedRate: Rate?, viewModel: GiveViewModel) {
-        self._isPresented        = isPresented
-        self.kind                = kind
-        self.fixedRate           = fixedRate
-        self.viewModel           = viewModel
     }
     
     // MARK: - Body -
@@ -69,8 +52,8 @@ struct SelectCurrencyScreen: View {
                                 showSelected: shouldShowSelected(balance),
                             ) {
                                 switch kind {
-                                case .give:
-                                    viewModel.selectCurrencyAction(exchangedBalance: balance)
+                                case .give(let action):
+                                    action(balance)
                                     isPresented = false
                                     
                                 case .select(let action):
@@ -97,7 +80,7 @@ struct SelectCurrencyScreen: View {
 
 extension SelectCurrencyScreen {
     enum Kind {
-        case give
+        case give((ExchangedBalance) -> Void)
         case select((ExchangedBalance) -> Void)
     }
 }
@@ -161,6 +144,7 @@ struct CurrencyLabel: View {
             
             if let isSelected {
                 CheckView(active: isSelected)
+                    .padding(.leading, 12)
             }
         }
     }

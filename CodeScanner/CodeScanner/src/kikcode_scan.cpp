@@ -1,6 +1,7 @@
 #include "kikcode_scan.h"
 #include "scanner.h"
 #include <algorithm>
+#include <opencv2/imgproc.hpp>
 
 using namespace cv;
 
