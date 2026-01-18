@@ -63,7 +63,7 @@ private struct GlassEffectModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content
-                .glassEffect()
+                .glassEffect(.regular.interactive())
         } else {
             // Fallback to RoundButton style for iOS 17
             content
