@@ -121,6 +121,15 @@ case .insufficient(let shortfall):
 - `Flipchat/` - Legacy chat app (inactive)
 - `PoolController` and pools-related code - feature is deprecated
 
+### Package.resolved Policy
+
+**Always commit the workspace Package.resolved:**
+
+- ✅ `Code.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` - MUST be committed
+- ❌ Individual package `Package.resolved` files - ignored by git
+
+This ensures deterministic builds across all developers and CI systems while minimizing merge conflicts. The workspace Package.resolved is the single source of truth for all dependency versions.
+
 ---
 
 ## Architecture & Patterns

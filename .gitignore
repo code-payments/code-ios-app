@@ -36,3 +36,10 @@ fastlane/README.md
 ## App Store Connect API Key (never commit)
 *.p8
 AuthKey*.p8
+
+## Swift Package Manager
+# Ignore package-level Package.resolved (use workspace version)
+Package.resolved
+
+# But allow workspace Package.resolved
+!*.xcodeproj/**/Package.resolved
