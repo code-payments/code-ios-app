@@ -62,26 +62,7 @@ public struct ChartLineView: View {
                 .foregroundStyle(accentColor)
                 .lineStyle(.init(lineWidth: 3))
             }
-            
-            // Area mark for the full chart (always visible)
-            ForEach(dataPoints) { point in
-                AreaMark(
-                    x: .value("Position", point.normalizedPosition),
-                    y: .value("Value", point.value)
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            accentColor.opacity(0.25),
-                            accentColor.opacity(0.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            }
-            
+                        
             // Endpoint indicator
             if let lastPoint = dataPoints.last {
                 PointMark(
@@ -116,6 +97,13 @@ public struct ChartLineView: View {
         .chartXScale(domain: 0...1)
         .chartYScale(domain: yAxisDomain, type: .linear)
         .scrollDisabled(true)
+        .background {
+            AnimatableAreaGradient(
+                color: accentColor,
+                dataPoints: dataPoints,
+                yAxisDomain: yAxisDomain
+            )
+        }
         .chartOverlay { proxy in
             LongPressGestureView(
                 minimumDuration: 0.15,
@@ -186,6 +174,44 @@ public struct ChartLineView: View {
     )
     .frame(height: 200)
     .padding()
+}
+
+// MARK: - Animatable Area Gradient
+
+/// Draws a gradient that's masked to the chart area shape and animates color changes
+private struct AnimatableAreaGradient: View {
+    let color: Color
+    let dataPoints: [ChartDataPoint]
+    let yAxisDomain: ClosedRange<Double>
+    
+    var body: some View {
+        // Gradient rectangle masked by the area shape
+        LinearGradient(
+            colors: [
+                color.opacity(0.25),
+                color.opacity(0.0)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .mask {
+            // Use a chart as the mask shape
+            Chart {
+                ForEach(dataPoints) { point in
+                    AreaMark(
+                        x: .value("Position", point.normalizedPosition),
+                        y: .value("Value", point.value)
+                    )
+                    .interpolationMethod(.catmullRom)
+                }
+            }
+            .chartXAxis(.hidden)
+            .chartYAxis(.hidden)
+            .chartLegend(.hidden)
+            .chartXScale(domain: 0...1)
+            .chartYScale(domain: yAxisDomain, type: .linear)
+        }
+    }
 }
 
 // MARK: - Custom Scrub Indicator
