@@ -24,28 +24,26 @@ struct BetaFlagsScreen: View {
     
     var body: some View {
         Background(color: .backgroundMain) {
-            ScrollBox(color: .backgroundMain) {
-                LazyTable(spacing: 0) {
-                    ForEach(BetaFlags.Option.allCases) { option in
-                        HStack(spacing: 12) {
-                            Toggle(isOn: betaFlags.bindingFor(option: option)) {
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(option.localizedTitle)
-                                        .foregroundColor(.textMain)
-                                        .font(.appTextMedium)
-                                    Text(option.localizedDescription)
-                                        .foregroundColor(.textSecondary)
-                                        .font(.appTextHeading)
-                                        .multilineTextAlignment(.leading)
-                                }
-                                .padding(.trailing, 20)
+            LazyTable(spacing: 0) {
+                ForEach(BetaFlags.Option.allCases) { option in
+                    HStack(spacing: 12) {
+                        Toggle(isOn: betaFlags.bindingFor(option: option)) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(option.localizedTitle)
+                                    .foregroundColor(.textMain)
+                                    .font(.appTextMedium)
+                                Text(option.localizedDescription)
+                                    .foregroundColor(.textSecondary)
+                                    .font(.appTextHeading)
+                                    .multilineTextAlignment(.leading)
                             }
-                            .tint(.textSuccess)
-                            .padding([.top, .bottom], 10)
+                            .padding(.trailing, 20)
                         }
-                        .padding(20)
-                        .vSeparator(color: .rowSeparator, position: .bottom)
+                        .tint(.textSuccess)
+                        .padding([.top, .bottom], 10)
                     }
+                    .padding(20)
+                    .vSeparator(color: .rowSeparator, position: .bottom)
                 }
             }
         }

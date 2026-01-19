@@ -41,7 +41,7 @@ public struct StockChart: View {
         }
         self.dateFormatter = dateFormatter ?? { date in
             if Calendar.current.isDateInToday(date) {
-                return date.formatted(date: .omitted, time: .standard)
+                return date.formatted(date: .omitted, time: .shortened)
             } else {
                 return date.formatted(date: .abbreviated, time: .omitted)
             }
@@ -60,7 +60,7 @@ public struct StockChart: View {
                 selectedRange: Binding(
                     get: { viewModel.selectedRange },
                     set: { range in
-                        withAnimation(.easeInOut(duration: 0.35)) {
+                        withAnimation {
                             viewModel.selectRange(range)
                         }
                     }
@@ -92,6 +92,10 @@ public struct StockChart: View {
                             .fill(displayColor)
                             .opacity(0.2)
                     }
+                }
+                .mask {
+                    RoundedRectangle(cornerRadius: 4)
+                        .transition(.crossFade)
                 }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -146,6 +150,7 @@ public struct StockChart: View {
         selectedRange: .all,
     )
     .padding()
+    .preferredColorScheme(.dark)
 }
 
 #Preview("Negative Trend") {
@@ -153,15 +158,6 @@ public struct StockChart: View {
         startValue: 150,
         endValue: 120,
         selectedRange: .month,
-    )
-    .padding()
-}
-
-#Preview("Dark Mode") {
-    StockChart(
-        startValue: 50,
-        endValue: 85,
-        selectedRange: .week,
     )
     .padding()
     .preferredColorScheme(.dark)
