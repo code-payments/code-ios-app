@@ -238,32 +238,19 @@ private extension AppDelegate {
             bar.setBackgroundImage(background, for: .any, barMetrics: .default)
             bar.shadowImage = background
         }
-        
-//        let tableView = UITableView.appearance()
-//        tableView.backgroundColor = UIColor.backgroundMain
-//        tableView.separatorStyle = .singleLine
-//        tableView.separatorInset = UIEdgeInsets(top: 0.0, left: 20.0, bottom: 0.0, right: 0.0)
-//        tableView.separatorColor = .rowSeparator
-//        tableView.showsVerticalScrollIndicator = false
-//        tableView.showsHorizontalScrollIndicator = false
-//
-//        let selectionView = UIView()
-//        selectionView.backgroundColor = UIColor.white.withAlphaComponent(0.1)
-//
-//        let textView = UITextView.appearance()
-//        textView.backgroundColor = .clear
-//
-//        let scrollView = UIScrollView.appearance()
-//        scrollView.keyboardDismissMode = .onDrag
     }
 }
 
 // MARK: - UINavigationController -
 
 extension UINavigationController {
-    
     /// Remove the back button in all navigation stacks
     open override func viewWillLayoutSubviews() {
+        // Only execute on iOS 18 and below
+        if #available(iOS 26, *) {
+            return
+        }
+        
         navigationBar.topItem?.backBarButtonItem = UIBarButtonItem(
             title: "",
             style: .plain,

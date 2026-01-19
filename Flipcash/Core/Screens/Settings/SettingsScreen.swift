@@ -124,6 +124,7 @@ struct SettingsScreen: View {
                     ToolbarCloseButton(binding: $isPresented)
                 }
             }
+            .navigationTitle("Settings")
             .navigationDestination(for: SettingsPath.self) { path in
                 switch path {
                 case .myAccount:
