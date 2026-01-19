@@ -21,14 +21,6 @@
                   "comment": "Support for sends"
                },
                {
-                  "/": "/pool/*",
-                  "comment": "Support for pools"
-               },
-               {
-                  "/": "/p/*",
-                  "comment": "Support for pools"
-               },
-               {
                   "/": "/verify/*",
                   "comment": "Support for email verification"
                },

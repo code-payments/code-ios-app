@@ -18,7 +18,15 @@ struct Route {
             return nil
         }
         
-        guard let path = Path.parse(path: components.path) else {
+        /// Handles route creation from multiple URL sources with different structures
+        ///
+        /// Routes can be created from two types of URLs:
+        /// - **Universal Links**: `https://example.com/path` path is in the URL path component
+        /// - **Deep Links**: `flipcash://path` path is in the URL host component
+        ///
+        /// Since the path location differs between URL schemes, this method normalizes
+        /// the extraction logic to support both formats.
+        guard let path = Path.parse(path: components.path.isEmpty ? (components.host ?? "") : components.path) else {
             return nil
         }
         
@@ -66,10 +74,9 @@ struct Route {
 
 extension Route {
     enum Path {
-        
+
         case login
         case cash
-        case pool
         case verifyEmail
         case unknown(String)
         
@@ -90,8 +97,6 @@ extension Route {
                 return .login
             case "cash", "c":
                 return .cash
-            case "pool", "p":
-                return .pool
             case "verify":
                 return .verifyEmail
             default:

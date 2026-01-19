@@ -38,34 +38,6 @@ extension Analytics {
     }
 }
 
-// MARK: - Pools -
-
-extension Analytics {
-    static func poolOpenedFromDeeplink(id: PublicKey) {
-        track(event: .poolOpened, properties: [
-            .id: id.base58
-        ])
-    }
-    
-    static func poolCreated(id: PublicKey) {
-        track(event: .poolCreated, properties: [
-            .id: id.base58
-        ])
-    }
-    
-    static func poolPlaceBet(id: PublicKey) {
-        track(event: .poolPlaceBet, properties: [
-            .id: id.base58
-        ])
-    }
-    
-    static func poolDeclareOutcome(id: PublicKey) {
-        track(event: .poolDeclareOutcome, properties: [
-            .id: id.base58
-        ])
-    }
-}
-
 // MARK: - Cash Transfer -
 
 extension Analytics {
@@ -265,15 +237,10 @@ extension Analytics {
         case buttonAllowCamera    = "Button: Allow Camera"
         case buttonAllowPush      = "Button: Allow Push"
         case buttonSkipPush       = "Button: Skip Push"
-        
+
         case autoLoginComplete    = "Auto-login complete"
         case completeOnboarding   = "Complete Onboarding"
-        
-        case poolOpened           = "Pool: Opened From Deeplink"
-        case poolCreated          = "Pool: Created"
-        case poolDeclareOutcome   = "Pool: Declare Outcome"
-        case poolPlaceBet         = "Pool: Place Bet"
-        
+
         case onrampOpenedFromSettings    = "Onramp: Opened From Settings"
         case onrampOpenedFromBalance     = "Onramp: Opened From Balance"
         case onrampOpenedFromGive        = "Onramp: Opened From Give"

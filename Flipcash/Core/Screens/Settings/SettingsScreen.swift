@@ -77,6 +77,7 @@ struct SettingsScreen: View {
                     logoHeader()
                 }
             }
+            .navigationTitle("Settings")
             .navigationDestination(for: SettingsPath.self) { path in
                 switch path {
                 case .myAccount:
