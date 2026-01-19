@@ -186,21 +186,7 @@ struct CurrencyInfoScreen: View {
 
                             // Market Cap
                             if !isUSDC {
-                                VStack(alignment: .leading) {
-                                    Text("Market Cap")
-                                        .foregroundStyle(Color.textSecondary)
-                                        .font(.appTextMedium)
-                                        .padding(.horizontal, 20)
-                                    StockChart(
-                                        startValue: 0,
-                                        endValue: Double(truncating: marketCap.decimalValue as NSDecimalNumber),
-                                        selectedRange: .all,
-                                        positiveColor: .actionAlternative,
-                                        negativeColor: Color(r: 228, g: 42, b: 42)
-                                    )
-                                }
-                                    .padding(.top, 20)
-                                    .padding(.bottom, 20)
+                                marketCapSection()
                                 
                                 // Append enough content to scroll below the floating footer
                                 Color
@@ -325,6 +311,36 @@ struct CurrencyInfoScreen: View {
                     image: .init(systemName: "network"),
                     text: "Website"
                 ) {}
+            }
+        }
+    }
+    
+    @ViewBuilder private func marketCapSection() -> some View {
+        if BetaFlags.shared.hasEnabled(.charts) {
+            VStack(alignment: .leading) {
+                Text("Market Cap")
+                    .foregroundStyle(Color.textSecondary)
+                    .font(.appTextMedium)
+                    .padding(.horizontal, 20)
+                
+                StockChart(
+                    startValue: 0,
+                    endValue: Double(truncating: marketCap.decimalValue as NSDecimalNumber),
+                    selectedRange: .all,
+                    positiveColor: .actionAlternative,
+                    negativeColor: Color(r: 228, g: 42, b: 42)
+                )
+            }
+                .padding(.top, 20)
+                .padding(.bottom, 20)
+        } else {
+            section() {
+                Text("Market Cap")
+                    .foregroundStyle(Color.textSecondary)
+                    .font(.appTextMedium)
+                Text(marketCap.formatted())
+                    .foregroundStyle(Color.textMain)
+                    .font(.appDisplayMedium)
             }
         }
     }
