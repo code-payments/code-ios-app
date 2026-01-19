@@ -187,9 +187,9 @@ private struct AnimatableAreaGradient: View {
     var body: some View {
         // Gradient rectangle masked by the area shape
         LinearGradient(
-            colors: [
-                color.opacity(0.25),
-                color.opacity(0.0)
+            stops: [
+                .init(color: color.opacity(0.2), location: 0.0),
+                .init(color: color.opacity(0.0), location: 0.9)
             ],
             startPoint: .top,
             endPoint: .bottom
