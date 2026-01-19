@@ -9,7 +9,6 @@
 import SwiftUI
 
 public struct Background<Content>: View where Content: View {
-    
     public var background: AnyView
     public var content: Content
     
@@ -28,11 +27,11 @@ public struct Background<Content>: View where Content: View {
     // MARK: - Body -
     
     public var body: some View {
-        ZStack {
-            background
-                .edgesIgnoringSafeArea(.all)
-            content
-        }
+        content
+            .background {
+                background
+                    .edgesIgnoringSafeArea(.all)
+            }
     }
 }
 

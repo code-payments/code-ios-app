@@ -42,7 +42,7 @@ struct CurrencySellConfirmationScreen: View {
                         }
                         
                         HStack {
-                            Text("1% Free")
+                            Text("1% Fee")
                             Spacer()
                             Text(viewModel.fee.converted.formatted())
                                 .font(.appTextMedium)

@@ -30,31 +30,29 @@ struct RegionSelectionScreen: View {
         NavigationView {
             Background(color: .backgroundMain) {
                 VStack {
-                    ScrollBox(color: .backgroundMain) {
-                        LazyTable(contentPadding: .scrollBox) {
-                            ForEach(regions, id: \.region.rawValue) { regionDescription in
-                                Button {
-                                    didSelectRegion(regionDescription.region)
-                                } label: {
-                                    HStack(spacing: 15) {
-                                        Flag(style: .fiat(regionDescription.region))
-                                        Text(regionDescription.localizedName)
-                                            .foregroundColor(.textMain)
-                                            .lineLimit(1)
-                                            .layoutPriority(10)
-                                        Spacer()
-                                        Text("+\(regionDescription.countryCode)")
-                                            .foregroundColor(.textSecondary)
-                                            .lineLimit(1)
-                                            .layoutPriority(10)
-                                    }
-                                    .font(.appTextMedium)
+                    LazyTable() {
+                        ForEach(regions, id: \.region.rawValue) { regionDescription in
+                            Button {
+                                didSelectRegion(regionDescription.region)
+                            } label: {
+                                HStack(spacing: 15) {
+                                    Flag(style: .fiat(regionDescription.region))
+                                    Text(regionDescription.localizedName)
+                                        .foregroundColor(.textMain)
+                                        .lineLimit(1)
+                                        .layoutPriority(10)
+                                    Spacer()
+                                    Text("+\(regionDescription.countryCode)")
+                                        .foregroundColor(.textSecondary)
+                                        .lineLimit(1)
+                                        .layoutPriority(10)
                                 }
-                                .padding([.top, .bottom], 20)
-                                .padding(.trailing, 20)
-                                .vSeparator(color: .rowSeparator)
-                                .padding(.leading, 20)
+                                .font(.appTextMedium)
                             }
+                            .padding([.top, .bottom], 20)
+                            .padding(.trailing, 20)
+                            .vSeparator(color: .rowSeparator)
+                            .padding(.leading, 20)
                         }
                     }
                 }
