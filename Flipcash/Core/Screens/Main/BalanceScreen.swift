@@ -143,7 +143,7 @@ struct BalanceScreen: View {
                 } header: {
                     header()
                         .frame(height: 80)
-                        .padding(.vertical, 50)
+                        .padding(.vertical, 40)
                 } footer: {
                     if let usdcBalance {
                         cashReservesFooter(usdcBalance: usdcBalance)
@@ -189,20 +189,14 @@ struct BalanceScreen: View {
             Button {
                 isShowingCurrencySelection.toggle()
             } label: {
-                VStack {
-                    GeometryReader { g in
-                        VStack {
-                            AmountText(
-                                flagStyle: balance.converted.currencyCode.flagStyle,
-                                content: balance.converted.formatted(),
-                                showChevron: true
-                            )
-                            .font(.appDisplayMedium)
-                            .foregroundStyle(Color.textMain)
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
+                AmountText(
+                    flagStyle: balance.converted.currencyCode.flagStyle,
+                    content: balance.converted.formatted(),
+                    showChevron: true
+                )
+                .font(.appDisplayLarge)
+                .foregroundStyle(Color.textMain)
+                .frame(maxWidth: .infinity)                
             }
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(

@@ -10,13 +10,13 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencyInfoScreen: View {
-    
     @StateObject private var updateableMint: Updateable<StoredMintMetadata>
     
     @State private var isShowingTransactionHistory: Bool = false
     @State private var isShowingFundingSelection: Bool = false
     @State private var isShowingBuyAmountEntry: Bool = false
     @State private var isShowingSellAmountEntry: Bool = false
+    @State private var isShowingCurrencySelection: Bool = false
     
     @ObservedObject private var session: Session
     @ObservedObject private var walletConnection: WalletConnection
@@ -37,14 +37,6 @@ struct CurrencyInfoScreen: View {
             return "Your cash reserves are held in USDC, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDC for U.S. dollars whenever you like."
         } else {
             return mintMetadata.bio ?? "No information"
-        }
-    }
-    
-    private var proportion: CGFloat {
-        if isUSDC {
-            return 0.24
-        } else {
-            return 0.35
         }
     }
 
@@ -133,66 +125,67 @@ struct CurrencyInfoScreen: View {
         Background(color: .backgroundMain) {
             ZStack {
                 // Scrollable Content
-                GeometryReader { g in
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            // Header
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Header
 
-                            section {
-                                Spacer()
-
+                        section(spacing: 20) {
+                            Button {
+                                isShowingCurrencySelection.toggle()
+                            } label: {
                                 AmountText(
                                     flagStyle: balance.currencyCode.flagStyle,
                                     content: balance.formatted(),
-                                    showChevron: false
+                                    showChevron: true
                                 )
-                                .font(.appDisplayMedium)
+                                .font(.appDisplayLarge)
                                 .foregroundStyle(Color.textMain)
                                 .frame(maxWidth: .infinity)
-                                .padding(.bottom, 30)
-
-                                Spacer()
-
-                                if !isUSDC {
-                                    CodeButton(style: .filledSecondary, title: "View Transaction History") {
-                                        isShowingTransactionHistory.toggle()
-                                    }
-                                }
                             }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: g.size.height * proportion)
-
-                            // Currency Info
-
-                            section(spacing: 20) {
-                                if !isUSDC {
-                                    HStack {
-                                        Image(systemName: "text.justify.left")
-                                            .padding(.bottom, -1)
-                                        Text("Currency Info")
-                                    }
-                                    .font(.appBarButton)
-                                    .foregroundStyle(Color.textMain)
-                                }
-
-                                Text(currencyDescription)
-                                    .foregroundStyle(Color.textSecondary)
-                                    .font(.appTextSmall)
-    //                            {
-    //                                AnyView(drawer())
-    //                            }
-    //                            .font(.system(size: 14, weight: .bold))
+                            .sheet(isPresented: $isShowingCurrencySelection) {
+                                CurrencySelectionScreen(
+                                    isPresented: $isShowingCurrencySelection,
+                                    kind: .balance,
+                                    ratesController: ratesController
+                                )
                             }
+                                .frame(height: 80)
+                                .padding(.vertical, 20)
 
-                            // Market Cap
                             if !isUSDC {
-                                marketCapSection()
-                                
-                                // Append enough content to scroll below the floating footer
-                                Color
-                                    .clear
-                                    .padding(.bottom, 100)
+                                CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                                    isShowingTransactionHistory.toggle()
+                                }
                             }
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        // Currency Info
+
+                        section(spacing: 20) {
+                            if !isUSDC {
+                                HStack {
+                                    Image(systemName: "text.justify.left")
+                                        .padding(.bottom, -1)
+                                    Text("Currency Info")
+                                }
+                                .font(.appBarButton)
+                                .foregroundStyle(Color.textMain)
+                            }
+
+                            Text(currencyDescription)
+                                .foregroundStyle(Color.textSecondary)
+                                .font(.appTextSmall)
+                        }
+
+                        // Market Cap
+                        if !isUSDC {
+                            marketCapSection()
+                            
+                            // Append enough content to scroll below the floating footer
+                            Color
+                                .clear
+                                .padding(.bottom, 100)
                         }
                     }
                 }
