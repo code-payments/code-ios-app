@@ -43,5 +43,6 @@ public struct PartialSheet<T>: View where T: View {
         .presentationDetents([.height(displayHeight)])
         .presentationBackgroundInteraction(canAccessBackground ? .enabled : .disabled)
         .interactiveDismissDisabled(!canDismiss)
+        .presentationBackground(background)
     }
 }
