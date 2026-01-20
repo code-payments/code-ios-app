@@ -226,20 +226,14 @@ struct BalanceScreen: View {
             Button {
                 isShowingCurrencySelection.toggle()
             } label: {
-                VStack {
-                    GeometryReader { g in
-                        VStack {
-                            AmountText(
-                                flagStyle: balance.converted.currencyCode.flagStyle,
-                                content: balance.converted.formatted(),
-                                showChevron: true
-                            )
-                            .font(.appDisplayMedium)
-                            .foregroundStyle(Color.textMain)
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
+                AmountText(
+                    flagStyle: balance.converted.currencyCode.flagStyle,
+                    content: balance.converted.formatted(),
+                    showChevron: true
+                )
+                .font(.appDisplayLarge)
+                .foregroundStyle(Color.textMain)
+                .frame(maxWidth: .infinity)                
             }
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(
