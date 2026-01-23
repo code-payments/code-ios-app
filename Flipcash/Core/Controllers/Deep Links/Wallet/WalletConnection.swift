@@ -179,7 +179,7 @@ public final class WalletConnection: ObservableObject {
         
         var c = URLComponents(string: "https://phantom.app/ul/v1/connect")!
         c.queryItems = [
-            URLQueryItem(name: "app_url",                    value: "https://flipcash.com"),
+            URLQueryItem(name: "app_url",                    value: "https://app.flipcash.com"),
             URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
             URLQueryItem(name: "cluster",                    value: "mainnet-beta"), // or "devnet"
             URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/walletConnected"),
