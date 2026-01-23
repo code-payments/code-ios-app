@@ -50,7 +50,7 @@ public struct ChartLineView: View {
                 .foregroundStyle(secondaryColor)
                 .lineStyle(.init(lineWidth: 3))
             }
-            
+
             // Line mark only up to the current position (scrubbed point or end)
             ForEach(lineDataPoints) { point in
                 LineMark(
@@ -62,7 +62,7 @@ public struct ChartLineView: View {
                 .foregroundStyle(accentColor)
                 .lineStyle(.init(lineWidth: 3))
             }
-                        
+
             // Endpoint indicator
             if let lastPoint = dataPoints.last {
                 PointMark(
@@ -76,7 +76,7 @@ public struct ChartLineView: View {
                         isBackgroundHidden: isScrubbing)
                 }
             }
-            
+
             // Scrubber indicator
             if let scrubbed = scrubbedPoint {
                 PointMark(
@@ -91,45 +91,47 @@ public struct ChartLineView: View {
                 }
             }
         }
+        .chartOverlay { proxy in
+            LongPressGestureView(
+                minimumDuration: 0.15,
+                onBegan: { [dataPoints, onScrubChange] location in
+                    // Find closest point by normalized position
+                    if let normalizedX: Double = proxy.value(atX: location.x),
+                       let closest = dataPoints.min(by: {
+                           abs($0.normalizedPosition - normalizedX) < abs($1.normalizedPosition - normalizedX)
+                       }) {
+                        onScrubChange?(closest.id)
+                    }
+                    Self.triggerSelectionHaptic(at: location)
+                },
+                onChanged: { [dataPoints, onScrubChange] location in
+                    // Find closest point by normalized position
+                    if let normalizedX: Double = proxy.value(atX: location.x),
+                       let closest = dataPoints.min(by: {
+                           abs($0.normalizedPosition - normalizedX) < abs($1.normalizedPosition - normalizedX)
+                       }) {
+                        onScrubChange?(closest.id)
+                    }
+                },
+                onEnded: {
+                    onScrubEnd?()
+                }
+            )
+            .id(dataPoints.count) // Force recreation when data count changes
+        }
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartLegend(.hidden)
         .chartXScale(domain: 0...1)
         .chartYScale(domain: yAxisDomain, type: .linear)
         .scrollDisabled(true)
+        .animation(.easeInOut(duration: 0.3), value: dataPoints)
         .background {
             AnimatableAreaGradient(
                 color: accentColor,
                 dataPoints: dataPoints,
                 yAxisDomain: yAxisDomain
             )
-        }
-        .chartOverlay { proxy in
-            LongPressGestureView(
-                minimumDuration: 0.15,
-                onBegan: { location in
-                    handleScrub(at: location, proxy: proxy)
-                    triggerSelectionHaptic(at: location)
-                },
-                onChanged: { location in
-                    handleScrub(at: location, proxy: proxy)
-                },
-                onEnded: {
-                    onScrubEnd?()
-                }
-            )
-        }
-    }
-    
-    /// Handles scrubbing by converting normalized position to point ID
-    private func handleScrub(at location: CGPoint, proxy: ChartProxy) {
-        if let normalizedX: Double = proxy.value(atX: location.x) {
-            // Find the closest data point by normalized position
-            if let closest = dataPoints.min(by: {
-                abs($0.normalizedPosition - normalizedX) < abs($1.normalizedPosition - normalizedX)
-            }) {
-                onScrubChange?(closest.id)
-            }
         }
     }
     
@@ -144,7 +146,7 @@ public struct ChartLineView: View {
         return (minValue - padding)...(maxValue + padding)
     }
     
-    private func triggerSelectionHaptic(at location: CGPoint) {
+    private static func triggerSelectionHaptic(at location: CGPoint) {
         let generator = UISelectionFeedbackGenerator()
         if #available(iOS 17.5, *) {
             generator.selectionChanged(at: location)
@@ -210,6 +212,7 @@ private struct AnimatableAreaGradient: View {
             .chartLegend(.hidden)
             .chartXScale(domain: 0...1)
             .chartYScale(domain: yAxisDomain, type: .linear)
+            .animation(.easeInOut(duration: 0.3), value: dataPoints)
         }
     }
 }
@@ -244,11 +247,11 @@ private struct LongPressGestureView: UIViewRepresentable {
     let onBegan: (CGPoint) -> Void
     let onChanged: (CGPoint) -> Void
     let onEnded: () -> Void
-    
+
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
         view.backgroundColor = .clear
-        
+
         let gesture = UILongPressGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handleGesture(_:))
@@ -256,22 +259,27 @@ private struct LongPressGestureView: UIViewRepresentable {
         gesture.minimumPressDuration = minimumDuration
         gesture.delegate = context.coordinator
         view.addGestureRecognizer(gesture)
-        
+
         return view
     }
-    
-    func updateUIView(_ uiView: UIView, context: Context) {}
-    
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Update callbacks when SwiftUI re-renders
+        context.coordinator.onBegan = onBegan
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator(onBegan: onBegan, onChanged: onChanged, onEnded: onEnded)
     }
-    
+
     class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        let onBegan: (CGPoint) -> Void
-        let onChanged: (CGPoint) -> Void
-        let onEnded: () -> Void
+        var onBegan: (CGPoint) -> Void
+        var onChanged: (CGPoint) -> Void
+        var onEnded: () -> Void
         private weak var scrollView: UIScrollView?
-        
+
         init(
             onBegan: @escaping (CGPoint) -> Void,
             onChanged: @escaping (CGPoint) -> Void,
@@ -281,7 +289,7 @@ private struct LongPressGestureView: UIViewRepresentable {
             self.onChanged = onChanged
             self.onEnded = onEnded
         }
-        
+
         @objc func handleGesture(_ gesture: UILongPressGestureRecognizer) {
             let location = gesture.location(in: gesture.view)
 
@@ -304,7 +312,7 @@ private struct LongPressGestureView: UIViewRepresentable {
                 break
             }
         }
-        
+
         // Allow scroll view to work simultaneously until long press is recognized.
         // It is important to disable the contentSwipe gesture and sheet dismissal so it doesn't interfer with
         // the user scrubbing the chart

@@ -17,7 +17,8 @@ struct CurrencyInfoScreen: View {
     @State private var isShowingFundingSelection: Bool = false
     @State private var isShowingBuyAmountEntry: Bool = false
     @State private var isShowingSellAmountEntry: Bool = false
-    
+    @State private var chartViewModel: ChartViewModel?
+
     @ObservedObject private var session: Session
     @ObservedObject private var walletConnection: WalletConnection
     
@@ -66,6 +67,7 @@ struct CurrencyInfoScreen: View {
     private let container: Container
     private let ratesController: RatesController
     private let sessionContainer: SessionContainer
+    private let marketCapController: MarketCapController
     
     private var marketCap: Quarks {
         var supply: Int = 0
@@ -124,6 +126,12 @@ struct CurrencyInfoScreen: View {
                 container: container,
                 sessionContainer: sessionContainer
             )
+        )
+
+        self.marketCapController = MarketCapController(
+            mint: mint,
+            currencyCode: sessionContainer.ratesController.balanceCurrency.rawValue,
+            client: container.client
         )
     }
     
@@ -264,7 +272,7 @@ struct CurrencyInfoScreen: View {
                             }
                         }
                         
-                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
+                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDF With") {
                             walletConnection.connectToPhantom()
                             isShowingFundingSelection = false
                         }
@@ -322,17 +330,20 @@ struct CurrencyInfoScreen: View {
                     .foregroundStyle(Color.textSecondary)
                     .font(.appTextMedium)
                     .padding(.horizontal, 20)
-                
-                StockChart(
-                    startValue: 0,
-                    endValue: Double(truncating: marketCap.decimalValue as NSDecimalNumber),
-                    selectedRange: .all,
-                    positiveColor: .actionAlternative,
-                    negativeColor: Color(r: 228, g: 42, b: 42)
-                )
+
+                if let viewModel = chartViewModel {
+                    StockChart(
+                        viewModel: viewModel,
+                        positiveColor: .actionAlternative,
+                        negativeColor: Color(r: 228, g: 42, b: 42)
+                    )
+                }
             }
-                .padding(.top, 20)
-                .padding(.bottom, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 20)
+            .task {
+                setupChart()
+            }
         } else {
             section() {
                 Text("Market Cap")
@@ -341,6 +352,33 @@ struct CurrencyInfoScreen: View {
                 Text(marketCap.formatted())
                     .foregroundStyle(Color.textMain)
                     .font(.appDisplayMedium)
+            }
+        }
+    }
+
+    private func setupChart() {
+        let viewModel = ChartViewModel(selectedRange: .all)
+        chartViewModel = viewModel
+
+        viewModel.onRangeChange = { [weak viewModel] range in
+            guard let viewModel else { return }
+            loadChartData(for: range, into: viewModel)
+        }
+
+        loadChartData(for: .all, into: viewModel)
+    }
+
+    private func loadChartData(for range: ChartRange, into viewModel: ChartViewModel) {
+        viewModel.setLoading()
+
+        Task {
+            do {
+                let chartPoints = try await marketCapController.fetchChartData(for: range)
+                viewModel.setDataPoints(chartPoints)
+            } catch let error as ChartError {
+                viewModel.setError(error)
+            } catch {
+                viewModel.setError(.networkError)
             }
         }
     }
