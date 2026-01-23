@@ -11,8 +11,7 @@ import FlipcashAPI
 import GRPC
 import NIO
 
-class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> {
-    
+class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> { 
     func fetchExchangeRates(completion: @Sendable @escaping (Result<RatesSnapshot, Error>) -> Void) {
 //        trace(.send)
         
@@ -73,7 +72,44 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> {
             
             trace(.success, components: "\(mints.count) mints")
             completion(.success(mints))
-            
+
+        } failure: { error in
+            completion(.failure(error))
+        }
+    }
+
+    func fetchHistoricalMintData(
+        mint: PublicKey,
+        range: HistoricalRange,
+        currencyCode: String,
+        completion: @Sendable @escaping (Result<[HistoricalMintDataPoint], Error>) -> Void
+    ) {
+        trace(.send)
+
+        var request = Ocp_Currency_V1_GetHistoricalMintDataRequest()
+        request.address = mint.solanaAccountID
+        request.currencyCode = currencyCode
+        request.predefinedRange = range
+
+        let call = service.getHistoricalMintData(request)
+        call.handle(on: queue) { response in
+            switch response.result {
+            case .ok:
+                let dataPoints = response.data.map { data in
+                    HistoricalMintDataPoint(
+                        date: data.timestamp.date,
+                        marketCap: data.marketCap
+                    )
+                }
+                trace(.success, components: "\(dataPoints.count) data points")
+                completion(.success(dataPoints))
+
+            case .notFound:
+                completion(.failure(ErrorRateHistory.notFound))
+
+            case .missingData, .UNRECOGNIZED:
+                completion(.failure(ErrorRateHistory.unknown))
+            }
         } failure: { error in
             completion(.failure(error))
         }
@@ -82,9 +118,16 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> {
 
 // MARK: - Types -
 
+public typealias HistoricalRange = Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange
+
 public struct RatesSnapshot: Sendable {
     public let date: Date
     public let rates: [Rate]
+}
+
+public struct HistoricalMintDataPoint: Sendable {
+    public let date: Date
+    public let marketCap: Double
 }
 
 // MARK: - Errors -

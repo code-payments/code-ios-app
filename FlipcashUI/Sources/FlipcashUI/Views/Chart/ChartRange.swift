@@ -1,4 +1,5 @@
 import Foundation
+import FlipcashCore
 
 /// Time range options for the chart display
 public enum ChartRange: String, CaseIterable, Identifiable, Sendable {
@@ -51,6 +52,17 @@ public enum ChartRange: String, CaseIterable, Identifiable, Sendable {
         case .week: 28
         case .month: 30
         case .year: 52
+        }
+    }
+
+    /// Converts to the API's HistoricalRange type
+    public var historicalRange: HistoricalRange {
+        switch self {
+        case .all: .allTime
+        case .day: .lastDay
+        case .week: .lastWeek
+        case .month: .lastMonth
+        case .year: .lastYear
         }
     }
 }
