@@ -146,31 +146,41 @@ public final class WalletConnection: ObservableObject {
             let pending = self?.pendingSwap
             self?.pendingSwap = nil
 
-            // Track signatures for swap funding notification
-            var submittedSignatures: [String] = []
-            var errorCount = 0
+            // Submit transactions in parallel and collect results
+            let results = await withTaskGroup(of: (index: Int, signature: String?).self) { group in
+                for (index, txBase58) in transactions.enumerated() {
+                    group.addTask {
+                        do {
+                            // Decode base58 -> bytes -> Data
+                            let rawBytes = Base58.toBytes(txBase58)
+                            let rawData  = Data(rawBytes)
+                            let txBase64 = rawData.base64EncodedString()
 
-            for txBase58 in transactions {
-                do {
-                    // Decode base58 -> bytes -> Data
-                    let rawBytes = Base58.toBytes(txBase58)
-                    let rawData  = Data(rawBytes)
-                    let txBase64 = rawData.base64EncodedString()
+                            let signature = try await solanaClient.apiClient.sendTransaction(
+                                transaction: txBase64,
+                                configs: .init(encoding: "base64")!
+                            )
 
-                    let signature = try await solanaClient.apiClient.sendTransaction(
-                        transaction: txBase64,
-                        configs: .init(encoding: "base64")!
-                    )
+                            print("[WalletConnection] Transaction sent: \(signature)")
+                            return (index, signature)
 
-                    print("[WalletConnection] Transaction sent: \(signature)")
-                    submittedSignatures.append(signature)
-
-                } catch {
-                    ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
-                    print("[WalletConnection] Transaction failed to send: \(error)")
-                    errorCount += 1
+                        } catch {
+                            ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
+                            print("[WalletConnection] Transaction failed to send: \(error)")
+                            return (index, nil)
+                        }
+                    }
                 }
+
+                var collected: [(index: Int, signature: String?)] = []
+                for await result in group {
+                    collected.append(result)
+                }
+                return collected.sorted { $0.index < $1.index }
             }
+
+            let submittedSignatures = results.compactMap(\.signature)
+            let errorCount = results.count - submittedSignatures.count
 
             if errorCount == 0 {
                 Analytics.walletTransactionsSubmitted()
