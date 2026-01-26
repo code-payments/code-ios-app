@@ -209,48 +209,82 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     }
     
     // MARK: - Swaps -
-    
-    /// A buy is a swap from USDF to desired token
-    func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
-        trace(.send, components: "Starting \(amount.converted.formatted()) buy of \(token.symbol)")
 
+    /// A buy is a swap from USDF to desired token (convenience method using submitIntent funding)
+    func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
         let swapId = SwapId.generate()
-        let fundingIntentID = PublicKey.generate()!
+        let fundingIntentID = KeyPair.generate()!.publicKey
+
+        buy(
+            swapId: swapId,
+            amount: amount,
+            of: token,
+            owner: owner,
+            fundingSource: .submitIntent(id: fundingIntentID),
+            completion: completion
+        )
+    }
+
+    /// A buy is a swap from USDF to desired token with specified funding source.
+    ///
+    /// - For `.submitIntent`: Phase 1 (startSwap) + Phase 2 (IntentFundSwap)
+    /// - For `.externalWallet`: Phase 1 only (funding already happened via external wallet)
+    func buy(
+        swapId: SwapId,
+        amount: ExchangedFiat,
+        of token: MintMetadata,
+        owner: AccountCluster,
+        fundingSource: FundingSource,
+        completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void
+    ) {
+        trace(.send, components: "Starting \(amount.converted.formatted()) buy of \(token.symbol) with \(fundingSource)")
 
         let swapService = self.swapService
         let ownerKeyPair = owner.authority.keyPair
 
-        // Phase 1: StartSwap
-        swapService.startSwap(
+        // Phase 1: StartSwap (always needed)
+        swapService.swap(
             swapId: swapId,
             direction: .buy(mint: token),
             amount: amount.underlying,
-            fundingID: fundingIntentID,
+            fundingSource: fundingSource,
             owner: ownerKeyPair
         ) { result in
             switch result {
             case .success(let metadata):
                 trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
 
-                // Phase 2: Perform the swap
-                let fundingIntent = IntentFundSwap(
-                    intentID: fundingIntentID,
-                    swapId: metadata.swapId,
-                    sourceCluster: owner,
-                    amount: amount,
-                    fromMint: .usdf,
-                    toMint: token
-                )
+                switch fundingSource {
+                case .submitIntent(let fundingIntentID):
+                    // Phase 2: Fund via IntentFundSwap
+                    let fundingIntent = IntentFundSwap(
+                        intentID: fundingIntentID,
+                        swapId: metadata.swapId,
+                        sourceCluster: owner,
+                        amount: amount,
+                        fromMint: .usdf,
+                        toMint: token
+                    )
 
-                self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
-                    switch fundingResult {
-                    case .success:
-                        trace(.success, components: "Swap completed", "Intent ID: \(fundingIntentID.base58)")
-                        completion(.success(()))
-                    case .failure(let error):
-                        trace(.failure, components: "Failed to swap: \(error)")
-                        completion(.failure(.unknown))
+                    self.submit(intent: fundingIntent, owner: ownerKeyPair) { fundingResult in
+                        switch fundingResult {
+                        case .success:
+                            trace(.success, components: "Swap completed", "Intent ID: \(fundingIntentID.base58)")
+                            completion(.success(()))
+                        case .failure(let error):
+                            trace(.failure, components: "Failed to swap: \(error)")
+                            completion(.failure(.unknown))
+                        }
                     }
+
+                case .externalWallet:
+                    // NO Phase 2 - funding already happened via external wallet
+                    trace(.success, components: "Swap initiated with external funding", "Swap ID: \(swapId.publicKey.base58)")
+                    completion(.success(()))
+
+                case .unknown:
+                    trace(.failure, components: "Unknown funding source")
+                    completion(.failure(.unknown))
                 }
 
             case .failure(let error):
@@ -263,24 +297,24 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     /// A sell is a swap from token to USDF
     func sell(amount: ExchangedFiat, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
         trace(.send, components: "Starting sell of \(token.symbol) for \(amount.converted.formatted())")
-        
+
         // Generate unique identifiers for this swap
         let swapId = SwapId.generate()
-        let fundingIntentID = PublicKey.generate()!
-        
+        let fundingIntentID = KeyPair.generate()!.publicKey
+
         guard let tokenVmAuthority = token.vmMetadata?.authority else {
             trace(.failure, components: "Failed to find vm authority for \(token.symbol)")
             // Map ErrorSubmitIntent to ErrorSwap
             completion(.failure(.unknown))
             return
         }
-        
+
         // Phase 1: StartSwap - Create swap state and reserve nonce + blockhash
-        swapService.startSwap(
+        swapService.swap(
             swapId: swapId,
             direction: .sell(mint: token),
             amount: amount.underlying,
-            fundingID: fundingIntentID,
+            fundingSource: .submitIntent(id: fundingIntentID),
             owner: owner.authority.keyPair
         ) { [weak self] result in
             guard let self = self else { return }

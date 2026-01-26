@@ -13,20 +13,21 @@ import SolanaSwift
 
 @MainActor
 public final class WalletConnection: ObservableObject {
-    
+
     @Published var isShowingAmountEntry: Bool = false
-    
+
     @Published var dialogItem: DialogItem?
-    
+
     @Published private(set) var session: ConnectedWalletSession?
-    
+
     var publicKey: FlipcashCore.PublicKey {
         box.publicKey
     }
-    
+
     private let box: Box
     private let owner: AccountCluster
-    
+    private let client: Client
+
     private let solanaClient = BlockchainClient(
         apiClient: JSONRPCAPIClient(
             endpoint: .init(
@@ -35,12 +36,22 @@ public final class WalletConnection: ObservableObject {
             )
         )
     )
-    
+
+    /// Pending swap info to use when Phantom returns with signed transaction
+    private var pendingSwap: PendingSwap?
+
+    private struct PendingSwap {
+        let swapId: SwapId
+        let amount: ExchangedFiat
+        let token: MintMetadata
+    }
+
     // MARK: - Init -
-    
-    init(owner: AccountCluster) {
+
+    init(owner: AccountCluster, client: Client) {
         self.owner = owner
-        
+        self.client = client
+
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession
             self.box = try! Box(secretKey: connectedWalletSession.secretKey)
@@ -130,53 +141,87 @@ public final class WalletConnection: ObservableObject {
     }
     
     private func didSignTransactions(_ transactions: [String]) {
-        Task { [solanaClient] in
-            
-            await withTaskGroup(of: Int.self) { group in
-                transactions.forEach { txBase58 in
-                    group.addTask {
-                        do {
-                            // Decode base58 -> bytes -> Data
-                            let rawBytes = Base58.toBytes(txBase58)
-                            let rawData  = Data(rawBytes)
-                            let txBase64 = rawData.base64EncodedString()
-                            
-                            let signature = try await solanaClient.apiClient.sendTransaction(
-                                transaction: txBase64,
-                                configs: .init(encoding: "base64")!
-                            )
-                            
-                            print("[WalletConnection] Transaction sent: \(signature)")
-                            return 0
-                            
-                        } catch {
-                            ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
-                            print("[WalletConnection] Transaction failed to send: \(error)")
-                            return 1
+        Task { [solanaClient, client, weak self] in
+            // Capture pending swap before processing
+            let pending = self?.pendingSwap
+            self?.pendingSwap = nil
+
+            // Track signatures for swap funding notification
+            var submittedSignatures: [String] = []
+            var errorCount = 0
+
+            for txBase58 in transactions {
+                do {
+                    // Decode base58 -> bytes -> Data
+                    let rawBytes = Base58.toBytes(txBase58)
+                    let rawData  = Data(rawBytes)
+                    let txBase64 = rawData.base64EncodedString()
+
+                    let signature = try await solanaClient.apiClient.sendTransaction(
+                        transaction: txBase64,
+                        configs: .init(encoding: "base64")!
+                    )
+
+                    print("[WalletConnection] Transaction sent: \(signature)")
+                    submittedSignatures.append(signature)
+
+                } catch {
+                    ErrorReporting.captureError(error, reason: "Failed to send Solana transaction")
+                    print("[WalletConnection] Transaction failed to send: \(error)")
+                    errorCount += 1
+                }
+            }
+
+            if errorCount == 0 {
+                Analytics.walletTransactionsSubmitted()
+
+                // If this was a swap transaction, notify server via buy()
+                if let pending, let firstSignature = submittedSignatures.first {
+                    do {
+                        let signatureKey = try Signature(base58: firstSignature)
+                        let fundingSource = FundingSource.externalWallet(transactionSignature: signatureKey)
+
+                        // Call buy() with externalWallet funding (Phase 1 only, no IntentFundSwap)
+                        try await client.buy(
+                            swapId: pending.swapId,
+                            amount: pending.amount,
+                            of: pending.token,
+                            owner: self?.owner ?? .mock,
+                            fundingSource: fundingSource
+                        )
+
+                        print("[WalletConnection] Server notified of swap funding via buy()")
+                        await MainActor.run {
+                            self?.showSuccessDialog()
+                        }
+
+                    } catch {
+                        ErrorReporting.captureError(error, reason: "Failed to notify server of swap funding")
+                        print("[WalletConnection] Failed to notify server: \(error)")
+                        await MainActor.run {
+                            self?.showSomethingWentWrongDialog()
                         }
                     }
-                }
-                
-                let errorCount = await group.reduce(into: 0) { partialResult, value in
-                    partialResult += value
-                }
-                
-                if errorCount == 0 {
-                    Analytics.walletTransactionsSubmitted()
-                    showSuccessDialog()
                 } else {
-                    Analytics.walletTransactionsFailed()
-                    showSomethingWentWrongDialog()
+                    // Regular transfer (not a swap)
+                    await MainActor.run {
+                        self?.showSuccessDialog()
+                    }
+                }
+            } else {
+                Analytics.walletTransactionsFailed()
+                await MainActor.run {
+                    self?.showSomethingWentWrongDialog()
                 }
             }
         }
     }
     
     // MARK: - Actions -
-    
+
     func connectToPhantom() {
         let nonce = UUID().uuidString
-        
+
         var c = URLComponents(string: "https://phantom.app/ul/v1/connect")!
         c.queryItems = [
             URLQueryItem(name: "app_url",                    value: "https://app.flipcash.com"),
@@ -185,7 +230,7 @@ public final class WalletConnection: ObservableObject {
             URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/walletConnected"),
             URLQueryItem(name: "nonce",                      value: nonce)
         ]
-        
+
         Analytics.walletConnect()
         c.url!.openWithApplication()
     }
@@ -260,7 +305,97 @@ public final class WalletConnection: ObservableObject {
             throw error
         }
     }
-    
+
+    /// Initiates USDC→USDF swap via Phantom wallet
+    /// 1. Generate swapId and build transaction (with swapId in memo)
+    /// 2. Send to Phantom for signing
+    /// 3. After signing: submit TX to chain, then call buy() with externalWallet funding
+    ///
+    /// - Parameters:
+    ///   - usdc: Amount of USDC to swap (in quarks)
+    ///   - token: The token to buy with the swapped USDF
+    func requestUsdcToUsdfSwap(usdc: Quarks, token: MintMetadata) async throws {
+        guard let connectedSession = Keychain.connectedWalletSession else {
+            throw Error.noSession
+        }
+
+        // 1. Generate swapId (will be used in memo AND in buy() call)
+        let swapId = SwapId.generate()
+
+        // Create ExchangedFiat for the buy() call (USDC/USDF are 1:1)
+        let amount = ExchangedFiat(underlying: usdc, converted: usdc, mint: token.address)
+
+        // 2. Build transaction with swapId in memo
+        let phantomWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
+        let flipcashOwner = owner.authorityPublicKey
+
+        let flipcashInstructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
+            sender: phantomWallet,
+            owner: flipcashOwner,
+            amount: usdc.quarks,
+            pool: .usdf,
+            swapId: swapId.publicKey
+        )
+
+        // Convert FlipcashCore instructions to SolanaSwift
+        let instructions = flipcashInstructions.map { instruction in
+            TransactionInstruction(
+                keys: instruction.accounts.map { meta in
+                    SolanaSwift.AccountMeta(
+                        publicKey: try! SolanaSwift.PublicKey(string: meta.publicKey.base58),
+                        isSigner: meta.isSigner,
+                        isWritable: meta.isWritable
+                    )
+                },
+                programId: try! SolanaSwift.PublicKey(string: instruction.program.base58),
+                data: [UInt8](instruction.data)
+            )
+        }
+
+        let recentBlockhash = try await solanaClient.apiClient.getLatestBlockhash(commitment: "finalized")
+
+        var transaction = Transaction(
+            instructions: instructions,
+            recentBlockhash: recentBlockhash,
+            feePayer: try SolanaSwift.PublicKey(string: phantomWallet.base58)
+        )
+
+        // 3. Store pending swap info (to use when Phantom returns)
+        pendingSwap = PendingSwap(swapId: swapId, amount: amount, token: token)
+
+        // 4. Serialize and send to Phantom
+        let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
+
+        let payload: [String: Any] = [
+            "transactions": [txEncoded],
+            "session": connectedSession.sessionToken
+        ]
+        let payloadData = try JSONSerialization.data(withJSONObject: payload, options: [])
+
+        let (nonce, payloadEncrypted) = try box.encryptForPhantom(
+            payload: payloadData,
+            encryptionPublicKey: connectedSession.phantomEncryptionPublicKey
+        )
+
+        var c = URLComponents(string: "https://phantom.app/ul/v1/signAllTransactions")!
+        c.queryItems = [
+            URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
+            URLQueryItem(name: "nonce",                      value: nonce),
+            URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/transactionSigned"),
+            URLQueryItem(name: "payload",                    value: payloadEncrypted)
+        ]
+
+        guard let url = c.url else {
+            pendingSwap = nil
+            print("[WalletConnection] Failed to construct signAllTransactions URL")
+            return
+        }
+
+        Analytics.walletRequestAmount(amount: amount.underlying)
+        url.openWithApplication()
+        print("[WalletConnection] Requested USDC→USDF swap of \(amount.underlying) for \(token.symbol), swapId: \(swapId.publicKey.base58)")
+    }
+
     // MARK: - Dialogs -
     
     private func showSuccessDialog() {
@@ -416,13 +551,21 @@ public enum WalletConnectionError: Error, LocalizedError {
     case keypairGenerationFailed
     case decryptionFailed
     case jsonDecodingFailed(underlying: Error)
+    case noSession
 
     public var errorDescription: String? {
         switch self {
         case .keypairGenerationFailed:   return "Failed to generate X25519 keypair."
         case .decryptionFailed:          return "Failed to decrypt payload (MAC check failed)."
         case .jsonDecodingFailed(let e): return "Failed to decode JSON: \(e.localizedDescription)"
+        case .noSession:                 return "No connected wallet session."
         }
+    }
+}
+
+extension WalletConnection {
+    enum Error: Swift.Error {
+        case noSession
     }
 }
 
@@ -479,5 +622,5 @@ private extension FlipcashCore.Keychain {
 // MARK: - Mock -
 
 extension WalletConnection {
-    static let mock = WalletConnection(owner: .mock)
+    static let mock = WalletConnection(owner: .mock, client: .mock)
 }

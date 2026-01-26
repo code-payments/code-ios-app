@@ -230,7 +230,7 @@ struct CurrencyInfoScreen: View {
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
                     EnterWalletAmountScreen { quarks in
-                        try await walletConnection.requestTransfer(usdf: quarks)
+                        try await walletConnection.requestUsdcToUsdfSwap(usdc: quarks, token: mintMetadata.metadata)
                         walletConnection.isShowingAmountEntry = false
                     }
                     .toolbar {
@@ -272,7 +272,7 @@ struct CurrencyInfoScreen: View {
                             }
                         }
                         
-                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDF With") {
+                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
                             walletConnection.connectToPhantom()
                             isShowingFundingSelection = false
                         }

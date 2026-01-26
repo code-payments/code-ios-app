@@ -82,18 +82,48 @@ extension SwapState {
 // MARK: - FundingSource -
 
 /// How swap funds are provided.
-public enum FundingSource: Int, Sendable {
-    case unknown = 0
-    case submitIntent = 1  // Funded via SubmitIntent RPC
+public enum FundingSource: Sendable, Equatable {
+    case unknown
+    case submitIntent(id: PublicKey)
+    case externalWallet(transactionSignature: Signature)
+
+    public var protoSource: Ocp_Transaction_V1_FundingSource {
+        switch self {
+        case .unknown: return .unknown
+        case .submitIntent: return .submitIntent
+        case .externalWallet: return .externalWallet
+        }
+    }
+
+    public var fundingID: String {
+        switch self {
+        case .unknown: return ""
+        case .submitIntent(let id): return id.base58
+        case .externalWallet(let signature): return signature.base58
+        }
+    }
 }
 
 extension FundingSource {
-    public init(_ proto: Ocp_Transaction_V1_FundingSource) {
-        self = FundingSource(rawValue: proto.rawValue) ?? .unknown
-    }
-    
-    public var protoSource: Ocp_Transaction_V1_FundingSource {
-        Ocp_Transaction_V1_FundingSource(rawValue: rawValue) ?? .unknown
+    /// Initialize from proto (used when parsing server responses)
+    /// Note: Associated data must be set separately since proto only contains the enum value
+    public init(_ proto: Ocp_Transaction_V1_FundingSource, fundingID: String? = nil) {
+        switch proto {
+        case .submitIntent:
+            if let fundingID, let key = try? PublicKey(base58: fundingID) {
+                self = .submitIntent(id: key)
+            } else {
+                self = .unknown
+            }
+        case .externalWallet:
+            if let fundingID, let sig = try? Signature(base58: fundingID) {
+                self = .externalWallet(transactionSignature: sig)
+            } else {
+                self = .unknown
+            }
+        default:
+            self = .unknown
+        }
     }
 }
 
@@ -122,22 +152,19 @@ public struct VerifiedSwapMetadata: Sendable {
         public let toMint: PublicKey
         public let amount: Quarks
         public let fundingSource: FundingSource
-        public let fundingID: PublicKey
-        
+
         public init(
             id: SwapId,
             fromMint: PublicKey,
             toMint: PublicKey,
             amount: Quarks,
-            fundingSource: FundingSource,
-            fundingID: PublicKey
+            fundingSource: FundingSource
         ) {
             self.id = id
             self.fromMint = fromMint
             self.toMint = toMint
             self.amount = amount
             self.fundingSource = fundingSource
-            self.fundingID = fundingID
         }
     }
     
@@ -159,22 +186,22 @@ extension VerifiedSwapMetadata.ClientParameters {
         guard
             let swapId = SwapId(proto.id),
             let fromMint = try? PublicKey(proto.fromMint.value),
-            let toMint = try? PublicKey(proto.toMint.value),
-            let fundingID = try? PublicKey(base58: proto.fundingID)
+            let toMint = try? PublicKey(proto.toMint.value)
         else {
             return nil
         }
-        
+
+        let fundingSource = FundingSource(proto.fundingSource, fundingID: proto.fundingID)
+
         self.init(
             id: swapId,
             fromMint: fromMint,
             toMint: toMint,
             amount: Quarks(integerLiteral: proto.amount),
-            fundingSource: FundingSource(proto.fundingSource),
-            fundingID: fundingID
+            fundingSource: fundingSource
         )
     }
-    
+
     public var proto: Ocp_Transaction_V1_StatefulSwapRequest.Initiate.CurrencyCreator {
         .with {
             $0.id = id.codeSwapID
@@ -182,7 +209,7 @@ extension VerifiedSwapMetadata.ClientParameters {
             $0.toMint = toMint.solanaAccountID
             $0.amount = amount.quarks
             $0.fundingSource = fundingSource.protoSource
-            $0.fundingID = fundingID.base58
+            $0.fundingID = fundingSource.fundingID
         }
     }
 }
