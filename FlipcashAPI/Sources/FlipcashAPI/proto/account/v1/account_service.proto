@@ -201,4 +201,8 @@ message TokenAccountInfo {
     // For REMOTE_SEND_GIFT_CARD, if requesting_owner was provided, was
     // requesting_owner the issuer of the account.
     bool is_gift_card_issuer = 14;
+
+    // The USD cost basis for this account, which can be used to compute currency
+    // appreciation/depreciation
+    double usd_cost_basis = 15;
 }
