@@ -50,7 +50,7 @@ extension TokenProgram.Transfer: InstructionType {
 
     public func encode() -> Data {
         var data = Data()
-        data.append(3) // Transfer instruction discriminator
+        data.append(TokenProgram.Command.transfer.rawValue)
         data.append(contentsOf: amount.bytes)
         return data
     }

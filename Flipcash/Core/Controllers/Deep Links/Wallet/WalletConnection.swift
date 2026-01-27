@@ -336,11 +336,11 @@ public final class WalletConnection: ObservableObject {
         let amount = ExchangedFiat(underlying: usdc, converted: usdc, mint: token.address)
 
         // 2. Build transaction with swapId in memo
-        let phantomWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
+        let externalWallet = try FlipcashCore.PublicKey(base58: connectedSession.walletPublicKey.base58)
         let flipcashOwner = owner.authorityPublicKey
 
-        let flipcashInstructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
-            sender: phantomWallet,
+        let instructions = SwapInstructionBuilder.buildUsdcToUsdfSwapInstructions(
+            sender: externalWallet,
             owner: flipcashOwner,
             amount: usdc.quarks,
             pool: .usdf,
@@ -348,7 +348,7 @@ public final class WalletConnection: ObservableObject {
         )
 
         // Convert FlipcashCore instructions to SolanaSwift
-        let instructions = flipcashInstructions.map { instruction in
+        let instructionsConverted = instructions.map { instruction in
             TransactionInstruction(
                 keys: instruction.accounts.map { meta in
                     SolanaSwift.AccountMeta(
@@ -365,9 +365,9 @@ public final class WalletConnection: ObservableObject {
         let recentBlockhash = try await solanaClient.apiClient.getLatestBlockhash(commitment: "finalized")
 
         var transaction = Transaction(
-            instructions: instructions,
+            instructions: instructionsConverted,
             recentBlockhash: recentBlockhash,
-            feePayer: try SolanaSwift.PublicKey(string: phantomWallet.base58)
+            feePayer: try SolanaSwift.PublicKey(string: externalWallet.base58)
         )
 
         // 3. Store pending swap info (to use when Phantom returns)
