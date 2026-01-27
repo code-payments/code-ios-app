@@ -27,4 +27,10 @@ extension Client {
             currencyService.fetchMints(mints: mints) { c.resume(with: $0) }
         }
     }
+
+    public func fetchHistoricalMintData(mint: PublicKey, range: HistoricalRange, currencyCode: String) async throws -> [HistoricalMintDataPoint] {
+        try await withCheckedThrowingContinuation { c in
+            currencyService.fetchHistoricalMintData(mint: mint, range: range, currencyCode: currencyCode) { c.resume(with: $0) }
+        }
+    }
 }
