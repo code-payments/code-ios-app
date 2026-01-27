@@ -190,6 +190,7 @@ class Session: ObservableObject {
         } didSet: { [weak self] in
             self?.objectWillChange.send()
             self?.ensureValidTokenSelection()
+            self?.updateStreamingMints()
         }
     }()
     
@@ -209,21 +210,28 @@ class Session: ObservableObject {
         self.userID            = userID
         
         _ = updateableBalances
-        
+
         // Ensure we have a valid token selected on initialization
         ensureValidTokenSelection()
-        
+
         registerPoller()
+        startStreaming()
         attemptAirdrop()
-        
+
         Task {
             try await updateProfile()
             try await updateUserFlags()
         }
     }
+
+    /// Start streaming live mint data for exchange rates
+    private func startStreaming() {
+        let mints = balances.map { $0.mint }
+        ratesController.startStreaming(mints: mints)
+    }
     
     func prepareForLogout() {
-        
+        ratesController.prepareForLogout()
     }
     
     // MARK: - Token Selection -
@@ -233,12 +241,12 @@ class Session: ObservableObject {
     /// it will automatically select the highest balance token
     private func ensureValidTokenSelection() {
         let currentBalances = balances
-        
+
         // If no balances, nothing to select
         guard !currentBalances.isEmpty else {
             return
         }
-        
+
         // Check if current selection is valid
         if let selectedTokenMint = ratesController.selectedTokenMint {
             let isValid = currentBalances.contains { $0.mint == selectedTokenMint }
@@ -246,11 +254,17 @@ class Session: ObservableObject {
                 return // Current selection is valid
             }
         }
-        
+
         // No valid selection, default to highest balance (first in sorted list)
         if let highestBalance = currentBalances.first {
             ratesController.selectToken(highestBalance.mint)
         }
+    }
+
+    /// Updates the streaming subscription with the current balance mints
+    private func updateStreamingMints() {
+        let mints = balances.map { $0.mint }
+        ratesController.updateSubscribedMints(mints)
     }
     
     // MARK: - Info -
@@ -537,42 +551,54 @@ class Session: ObservableObject {
     
     // MARK: - Swaps -
     func buy(amount: ExchangedFiat, of mint: PublicKey) async throws {
-        do {
-            let token = try await fetchMintMetadata(mint: mint)
-            // For buys, verify we have sufficient USDF balance
-            guard let usdfBalance = balance(for: .usdf) else {
-                throw Error.insufficientBalance
-            }
-
-            // Check if we have enough USDF to cover the buy
-            guard amount.underlying.quarks <= usdfBalance.quarks else {
-                throw Error.insufficientBalance
-            }
-
-            trace(.note, components: "buying \(amount.converted.formatted()) of \(token.symbol)")
-
-            try await client.buy(amount: amount, of: token.metadata, owner: owner)
+        let token = try await fetchMintMetadata(mint: mint)
+        // For buys, verify we have sufficient USDF balance
+        guard let usdfBalance = balance(for: .usdf) else {
+            throw Error.insufficientBalance
         }
+
+        // Check if we have enough USDF to cover the buy
+        guard amount.underlying.quarks <= usdfBalance.quarks else {
+            throw Error.insufficientBalance
+        }
+
+        // Get verified state for intent construction
+        guard let verifiedState = ratesController.getVerifiedState(
+            for: amount.converted.currencyCode,
+            mint: amount.mint
+        ) else {
+            throw Error.missingVerifiedState
+        }
+
+        trace(.note, components: "buying \(amount.converted.formatted()) of \(token.symbol)")
+
+        try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
     }
-    
+
     func sell(amount: ExchangedFiat, in mint: PublicKey) async throws {
-        do {
-            let token = try await fetchMintMetadata(mint: mint)
-            // For sells, verify we have sufficient token balance
-            // The amount.mint is the destination token, but amount.underlying is USDF
-            guard let tokenBalance = balance(for: token.mint) else {
-                throw Error.insufficientBalance
-            }
-            
-            // Check if we have enough USDF to cover the swap
-            guard amount.underlying.quarks <= tokenBalance.quarks else {
-                throw Error.insufficientBalance
-            }
-        
-            trace(.note, components: "selling \(amount.converted.formatted()) of \(token.symbol)")
-            
-            try await client.sell(amount: amount, in: token.metadata, owner: owner)
+        let token = try await fetchMintMetadata(mint: mint)
+        // For sells, verify we have sufficient token balance
+        // The amount.mint is the destination token, but amount.underlying is USDF
+        guard let tokenBalance = balance(for: token.mint) else {
+            throw Error.insufficientBalance
         }
+
+        // Check if we have enough USDF to cover the swap
+        guard amount.underlying.quarks <= tokenBalance.quarks else {
+            throw Error.insufficientBalance
+        }
+
+        // Get verified state for intent construction
+        guard let verifiedState = ratesController.getVerifiedState(
+            for: amount.converted.currencyCode,
+            mint: amount.mint
+        ) else {
+            throw Error.missingVerifiedState
+        }
+
+        trace(.note, components: "selling \(amount.converted.formatted()) of \(token.symbol)")
+
+        try await client.sell(amount: amount, verifiedState: verifiedState, in: token.metadata, owner: owner)
     }
     
     // MARK: - Withdrawals -
@@ -584,15 +610,24 @@ class Session: ObservableObject {
             guard let vmAuthority = try database.getVMAuthority(mint: mint) else {
                 throw Error.vmMetadataMissing
             }
-            
+
+            // Get verified state for intent construction
+            guard let verifiedState = ratesController.getVerifiedState(
+                for: exchangedFiat.converted.currencyCode,
+                mint: mint
+            ) else {
+                throw Error.missingVerifiedState
+            }
+
             try await self.client.withdraw(
                 exchangedFiat: exchangedFiat,
+                verifiedState: verifiedState,
                 fee: fee,
                 owner: owner.use(
                     mint: mint,
                     timeAuthority: vmAuthority
                 ),
-                destinationMetadata: destinationMetadata,
+                destinationMetadata: destinationMetadata
             )
             
             historyController.sync()
@@ -705,6 +740,7 @@ class Session: ObservableObject {
         let operation = SendCashOperation(
             client: client,
             database: database,
+            ratesController: ratesController,
             owner: owner,
             exchangedFiat: billDescription.exchangedFiat
         )
@@ -918,9 +954,18 @@ class Session: ObservableObject {
                 mint: exchangedFiat.mint,
                 timeAuthority: vmAuthority
             )
-            
+
+            // Get verified state for intent construction
+            guard let verifiedState = ratesController.getVerifiedState(
+                for: exchangedFiat.converted.currencyCode,
+                mint: exchangedFiat.mint
+            ) else {
+                throw Error.missingVerifiedState
+            }
+
             try await client.sendCashLink(
                 exchangedFiat: exchangedFiat,
+                verifiedState: verifiedState,
                 ownerCluster: owner,
                 giftCard: giftCard,
                 rendezvous: payload.rendezvous.publicKey
@@ -1173,6 +1218,7 @@ extension Session {
         case vmMetadataMissing
         case mintNotFound
         case insufficientBalance
+        case missingVerifiedState
     }
 }
 

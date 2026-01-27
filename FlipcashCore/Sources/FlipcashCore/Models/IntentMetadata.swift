@@ -41,12 +41,19 @@ extension IntentMetadata {
             ))
             
         case .sendPublicPayment(let meta):
-            self = .sendPayment(PaymentMetadata(
-                exchangedFiat: try ExchangedFiat(meta.exchangeData)
-            ))
-        case .publicDistribution(let meta):
-            // TODO: Implement
-            fatalError("Unimplemented")
+            // Handle oneof exchange_data - server returns serverExchangeData for submitted intents
+            switch meta.exchangeData {
+            case .serverExchangeData(let serverData):
+                self = .sendPayment(PaymentMetadata(
+                    exchangedFiat: try ExchangedFiat(serverData)
+                ))
+            case .clientExchangeData, .none:
+                // clientExchangeData is what clients send, not what server returns
+                throw Error.unsupportedMetadataType
+            }
+
+        case .publicDistribution:
+            throw Error.unsupportedMetadataType
         }
     }
 }

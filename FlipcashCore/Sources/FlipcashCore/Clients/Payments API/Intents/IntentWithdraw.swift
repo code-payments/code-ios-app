@@ -11,20 +11,22 @@ import FlipcashAPI
 import SwiftProtobuf
 
 final class IntentWithdraw: IntentType {
-    
+
     let id: PublicKey
     let sourceCluster: AccountCluster
     let fee: Quarks
     let destinationMetadata: DestinationMetadata
     let exchangedFiat: ExchangedFiat
-    
+    let verifiedState: VerifiedState
+
     var actionGroup: ActionGroup
-    
-    init(sourceCluster: AccountCluster, fee: Quarks, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat) throws {
+
+    init(sourceCluster: AccountCluster, fee: Quarks, destinationMetadata: DestinationMetadata, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) throws {
         self.id                  = PublicKey.generate()!
         self.sourceCluster       = sourceCluster
         self.fee                 = fee
         self.exchangedFiat       = exchangedFiat
+        self.verifiedState       = verifiedState
         self.destinationMetadata = destinationMetadata
         
         let destination = destinationMetadata.destination.token
@@ -74,16 +76,21 @@ extension IntentWithdraw {
                 $0.source       = sourceCluster.vaultPublicKey.solanaAccountID
                 $0.destination  = destinationMetadata.destination.token.solanaAccountID
                 $0.mint         = exchangedFiat.mint.solanaAccountID
-                $0.exchangeData = .with {
-                    $0.mint         = exchangedFiat.mint.solanaAccountID
-                    $0.quarks       = exchangedFiat.underlying.quarks
-                    $0.currency     = exchangedFiat.converted.currencyCode.rawValue
-                    $0.exchangeRate = exchangedFiat.rate.fx.doubleValue
+
+                // Use clientExchangeData with embedded proofs for submitting intents
+                $0.clientExchangeData = .with {
+                    $0.mint = exchangedFiat.mint.solanaAccountID
+                    $0.quarks = exchangedFiat.underlying.quarks
                     $0.nativeAmount = exchangedFiat.converted.doubleValue
+                    $0.coreMintFiatExchangeRate = verifiedState.rateProto
+                    if let reserveProto = verifiedState.reserveProto {
+                        $0.launchpadCurrencyReserveState = reserveProto
+                    }
                 }
+
                 $0.isWithdrawal = true
                 $0.isRemoteSend = false
-                
+
                 if let owner = destinationMetadata.destination.owner {
                     $0.destinationOwner = owner.solanaAccountID
                 }

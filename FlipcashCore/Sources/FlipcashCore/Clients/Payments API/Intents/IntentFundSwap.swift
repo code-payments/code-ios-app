@@ -12,21 +12,23 @@ import SwiftProtobuf
 
 /// Intent to fund a VM swap PDA for swap execution
 final class IntentFundSwap: IntentType {
-    
+
     let id: PublicKey
     let swapId: SwapId
     let sourceCluster: AccountCluster
     let amount: ExchangedFiat
+    let verifiedState: VerifiedState
     let destination: PublicKey
     let destinationOwner: PublicKey
-    
+
     var actionGroup: ActionGroup
-    
+
     init(
         intentID: PublicKey,
         swapId: SwapId,
         sourceCluster: AccountCluster,
         amount: ExchangedFiat,
+        verifiedState: VerifiedState,
         fromMint: MintMetadata,
         toMint: MintMetadata
     ) {
@@ -34,6 +36,7 @@ final class IntentFundSwap: IntentType {
         self.swapId = swapId
         self.sourceCluster = sourceCluster
         self.amount = amount
+        self.verifiedState = verifiedState
 
         // Use VM swap accounts for destination (NOT regular timelock)
         guard let timelockAccounts = fromMint.timelockSwapAccounts(owner: sourceCluster.authorityPublicKey) else {
@@ -64,13 +67,18 @@ extension IntentFundSwap {
                 $0.destination = destination.solanaAccountID
                 $0.destinationOwner = destinationOwner.solanaAccountID
                 $0.mint = amount.mint.solanaAccountID
-                $0.exchangeData = .with {
-                    $0.mint         = amount.mint.solanaAccountID
-                    $0.quarks       = amount.underlying.quarks
-                    $0.currency     = amount.converted.currencyCode.rawValue
-                    $0.exchangeRate = amount.rate.fx.doubleValue
+
+                // Use clientExchangeData with embedded proofs for submitting intents
+                $0.clientExchangeData = .with {
+                    $0.mint = amount.mint.solanaAccountID
+                    $0.quarks = amount.underlying.quarks
                     $0.nativeAmount = amount.converted.doubleValue
+                    $0.coreMintFiatExchangeRate = verifiedState.rateProto
+                    if let reserveProto = verifiedState.reserveProto {
+                        $0.launchpadCurrencyReserveState = reserveProto
+                    }
                 }
+
                 $0.isWithdrawal = true
                 $0.isRemoteSend = false
             }

@@ -141,6 +141,10 @@ public enum ErrorRateHistory: Int, Error {
 // MARK: - Interceptors -
 
 extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol {
+    func makeStreamLiveMintDataInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_StreamLiveMintDataRequest, FlipcashAPI.Ocp_Currency_V1_StreamLiveMintDataResponse>] {
+        makeInterceptors()
+    }
+    
     func makeGetAllRatesInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetAllRatesRequest, FlipcashAPI.Ocp_Currency_V1_GetAllRatesResponse>] {
         makeInterceptors()
     }

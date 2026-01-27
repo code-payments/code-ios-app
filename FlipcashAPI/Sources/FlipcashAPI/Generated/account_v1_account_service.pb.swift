@@ -391,6 +391,13 @@ public struct Ocp_Account_V1_TokenAccountInfo: @unchecked Sendable {
     set {_uniqueStorage()._isGiftCardIssuer = newValue}
   }
 
+  /// The USD cost basis for this account, which can be used to compute currency
+  /// appreciation/depreciation
+  public var usdCostBasis: Double {
+    get {return _storage._usdCostBasis}
+    set {_uniqueStorage()._usdCostBasis = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum BalanceSource: SwiftProtobuf.Enum, Swift.CaseIterable {
@@ -838,7 +845,7 @@ extension Ocp_Account_V1_GetTokenAccountInfosResponse.Result: SwiftProtobuf._Pro
 
 extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".TokenAccountInfo"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}owner\0\u{1}authority\0\u{3}account_type\0\u{1}index\0\u{3}balance_source\0\u{1}balance\0\u{3}management_state\0\u{3}blockchain_state\0\u{3}claim_state\0\u{3}original_exchange_data\0\u{1}mint\0\u{3}created_at\0\u{3}is_gift_card_issuer\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}owner\0\u{1}authority\0\u{3}account_type\0\u{1}index\0\u{3}balance_source\0\u{1}balance\0\u{3}management_state\0\u{3}blockchain_state\0\u{3}claim_state\0\u{3}original_exchange_data\0\u{1}mint\0\u{3}created_at\0\u{3}is_gift_card_issuer\0\u{3}usd_cost_basis\0")
 
   fileprivate class _StorageClass {
     var _address: Ocp_Common_V1_SolanaAccountId? = nil
@@ -855,6 +862,7 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
     var _mint: Ocp_Common_V1_SolanaAccountId? = nil
     var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
     var _isGiftCardIssuer: Bool = false
+    var _usdCostBasis: Double = 0
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -879,6 +887,7 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
       _mint = source._mint
       _createdAt = source._createdAt
       _isGiftCardIssuer = source._isGiftCardIssuer
+      _usdCostBasis = source._usdCostBasis
     }
   }
 
@@ -911,6 +920,7 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
         case 12: try { try decoder.decodeSingularMessageField(value: &_storage._mint) }()
         case 13: try { try decoder.decodeSingularMessageField(value: &_storage._createdAt) }()
         case 14: try { try decoder.decodeSingularBoolField(value: &_storage._isGiftCardIssuer) }()
+        case 15: try { try decoder.decodeSingularDoubleField(value: &_storage._usdCostBasis) }()
         default: break
         }
       }
@@ -965,6 +975,9 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
       if _storage._isGiftCardIssuer != false {
         try visitor.visitSingularBoolField(value: _storage._isGiftCardIssuer, fieldNumber: 14)
       }
+      if _storage._usdCostBasis.bitPattern != 0 {
+        try visitor.visitSingularDoubleField(value: _storage._usdCostBasis, fieldNumber: 15)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -988,6 +1001,7 @@ extension Ocp_Account_V1_TokenAccountInfo: SwiftProtobuf.Message, SwiftProtobuf.
         if _storage._mint != rhs_storage._mint {return false}
         if _storage._createdAt != rhs_storage._createdAt {return false}
         if _storage._isGiftCardIssuer != rhs_storage._isGiftCardIssuer {return false}
+        if _storage._usdCostBasis != rhs_storage._usdCostBasis {return false}
         return true
       }
       if !storagesAreEqual {return false}

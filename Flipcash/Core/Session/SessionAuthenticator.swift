@@ -199,7 +199,7 @@ final class SessionAuthenticator: ObservableObject {
             ratesController: ratesController
         )
         
-        let walletConnection = WalletConnection(owner: owner, client: container.client)
+        let walletConnection = WalletConnection(owner: owner, client: container.client, ratesController: ratesController)
         
         return SessionContainer(
             session: session,
