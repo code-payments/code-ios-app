@@ -222,7 +222,7 @@ struct CurrencyInfoScreen: View {
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
                     EnterWalletAmountScreen { quarks in
-                        try await walletConnection.requestTransfer(usdf: quarks)
+                        try await walletConnection.requestUsdcToUsdfSwap(usdc: quarks, token: mintMetadata.metadata)
                         walletConnection.isShowingAmountEntry = false
                     }
                     .toolbar {

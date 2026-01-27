@@ -78,12 +78,23 @@ extension Client {
     }
     
     // MARK: - Swaps -
+
+    /// Buy tokens using default submitIntent funding (Phase 1 + Phase 2)
     public func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster) async throws -> Void {
         try await withCheckedThrowingContinuation { c in
             transactionService.buy(amount: amount, of: token, owner: owner) { c.resume(with: $0) }
         }
     }
-    
+
+    /// Buy tokens with specified funding source
+    /// - For `.submitIntent`: Phase 1 (startSwap) + Phase 2 (IntentFundSwap)
+    /// - For `.externalWallet`: Phase 1 only (funding already happened via external wallet)
+    public func buy(swapId: SwapId, amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, fundingSource: FundingSource) async throws -> Void {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.buy(swapId: swapId, amount: amount, of: token, owner: owner, fundingSource: fundingSource) { c.resume(with: $0) }
+        }
+    }
+
     public func sell(amount: ExchangedFiat, in token: MintMetadata, owner: AccountCluster) async throws -> Void {
         try await withCheckedThrowingContinuation { c in
             transactionService.sell(amount: amount, in: token, owner: owner) { c.resume(with: $0) }

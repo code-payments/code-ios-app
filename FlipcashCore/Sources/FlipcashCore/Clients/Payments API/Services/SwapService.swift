@@ -17,15 +17,23 @@ import NIO
 final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @unchecked Sendable {
     typealias BidirectionalSwapStream = BidirectionalStreamReference<Ocp_Transaction_V1_StatefulSwapRequest, Ocp_Transaction_V1_StatefulSwapResponse>
     
-    // MARK: - StartSwap -
+    // MARK: - Swap -
 
-    /// StartSwap initiates the swap process by coordinating verified metadata with the server.
+    /// Swap initiates the swap process by coordinating verified metadata with the server.
     /// This establishes the swap state and reserves blockchain resources (nonce + blockhash).
-    func startSwap(
+    ///
+    /// - Parameters:
+    ///   - swapId: Unique identifier for this swap
+    ///   - direction: Buy or sell direction with mint metadata
+    ///   - amount: Amount to swap in quarks
+    ///   - fundingSource: How the swap will be funded (.submitIntent or .externalWallet)
+    ///   - owner: The owner's keypair for signing
+    ///   - completion: Callback with result
+    func swap(
         swapId: SwapId,
         direction: SwapDirection,
         amount: Quarks,
-        fundingID: PublicKey,
+        fundingSource: FundingSource,
         owner: KeyPair,
         completion: @escaping (Result<SwapMetadata, ErrorSwap>) -> Void
     ) {
@@ -75,8 +83,7 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             fromMint: fromMint,
             toMint: toMint,
             amount: amount,
-            fundingSource: .submitIntent,
-            fundingID: fundingID
+            fundingSource: fundingSource
         )
         
         // Intentionally creates a retain-cycle using closures to ensure that we have
@@ -89,7 +96,6 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
         // Store server parameters when received
         var receivedServerParameters: VerifiedSwapMetadata.ServerParameters?
-        var receivedResponseParams: SwapResponseServerParameters?
         var verifiedMetadataSignature: Signature?
 
         reference.stream = service.statefulSwap { result in
@@ -121,7 +127,6 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
 
                 // Store for later use in success response
                 receivedServerParameters = serverParameters
-                receivedResponseParams = responseParams
 
                 // Construct verified metadata for signing
                 let verifiedMetadata = VerifiedSwapMetadata(
