@@ -186,7 +186,7 @@ public final class WalletConnection: ObservableObject {
                 Analytics.walletTransactionsSubmitted()
 
                 // If this was a swap transaction, notify server via buy()
-                if let pending, let firstSignature = submittedSignatures.first {
+                if let pending, let firstSignature = submittedSignatures.first, let self {
                     do {
                         let signatureKey = try Signature(base58: firstSignature)
                         let fundingSource = FundingSource.externalWallet(transactionSignature: signatureKey)
@@ -196,26 +196,26 @@ public final class WalletConnection: ObservableObject {
                             swapId: pending.swapId,
                             amount: pending.amount,
                             of: pending.token,
-                            owner: self?.owner ?? .mock,
+                            owner: self.owner,
                             fundingSource: fundingSource
                         )
 
                         print("[WalletConnection] Server notified of swap funding via buy()")
                         await MainActor.run {
-                            self?.showSuccessDialog()
+                            self.showSuccessDialog(tokenName: pending.token.name)
                         }
 
                     } catch {
                         ErrorReporting.captureError(error, reason: "Failed to notify server of swap funding")
                         print("[WalletConnection] Failed to notify server: \(error)")
                         await MainActor.run {
-                            self?.showSomethingWentWrongDialog()
+                            self.showSomethingWentWrongDialog()
                         }
                     }
                 } else {
                     // Regular transfer (not a swap)
                     await MainActor.run {
-                        self?.showSuccessDialog()
+                        self?.showSuccessDialog(tokenName: "Funds")
                     }
                 }
             } else {
@@ -408,13 +408,13 @@ public final class WalletConnection: ObservableObject {
 
     // MARK: - Dialogs -
     
-    private func showSuccessDialog() {
+    private func showSuccessDialog(tokenName: String) {
         Task {
             let status = await PushController.fetchStatus()
             
             dialogItem = .init(
                 style: .success,
-                title: "Your Cash Will Be Available Soon",
+                title: "Your \(tokenName) Will Be Available Soon",
                 subtitle: "It should be available in a few minutes. If you have any issues please contact support@flipcash.com",
                 dismissable: true,
             ) {
@@ -438,7 +438,7 @@ public final class WalletConnection: ObservableObject {
         dialogItem = .init(
             style: .destructive,
             title: "Something Went Wrong",
-            subtitle: "Please check that you have enough SOL in your wallet to complete this transaction and try again",
+            subtitle: "Please try again later",
             dismissable: true,
         ) {
             .okay(kind: .destructive)
