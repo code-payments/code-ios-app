@@ -121,7 +121,7 @@ class SendCashOperation {
                 Task {
                     do {
                         // Get verified state for intent construction
-                        guard let verifiedState = self.ratesController.getVerifiedState(
+                        guard let verifiedState = await self.ratesController.getVerifiedState(
                             for: exchangedFiat.converted.currencyCode,
                             mint: exchangedFiat.mint
                         ) else {

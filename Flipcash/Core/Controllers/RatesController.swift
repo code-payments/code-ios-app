@@ -107,8 +107,8 @@ class RatesController: ObservableObject {
 
     /// Get verified state for intent construction.
     /// Returns nil if no verified exchange rate is available.
-    func getVerifiedState(for currency: CurrencyCode, mint: PublicKey) -> VerifiedState? {
-        verifiedProtoService.getVerifiedState(for: currency, mint: mint)
+    func getVerifiedState(for currency: CurrencyCode, mint: PublicKey) async -> VerifiedState? {
+        await verifiedProtoService.getVerifiedState(for: currency, mint: mint)
     }
 
     // MARK: - Rates -
@@ -175,7 +175,9 @@ class RatesController: ObservableObject {
     func prepareForLogout() {
         selectedTokenMint = nil
         stopStreaming()
-        verifiedProtoService.clear()
+        Task {
+            await verifiedProtoService.clear()
+        }
     }
 }
 

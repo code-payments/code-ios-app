@@ -194,12 +194,10 @@ public final class WalletConnection: ObservableObject {
                         let fundingSource = FundingSource.externalWallet(transactionSignature: signatureKey)
 
                         // Get verified state for intent construction
-                        guard let verifiedState = await MainActor.run(body: {
-                            self.ratesController.getVerifiedState(
-                                for: pending.amount.converted.currencyCode,
-                                mint: pending.amount.mint
-                            )
-                        }) else {
+                        guard let verifiedState = await self.ratesController.getVerifiedState(
+                            for: pending.amount.converted.currencyCode,
+                            mint: pending.amount.mint
+                        ) else {
                             throw Error.missingVerifiedState
                         }
 

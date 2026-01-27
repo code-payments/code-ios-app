@@ -563,7 +563,7 @@ class Session: ObservableObject {
         }
 
         // Get verified state for intent construction
-        guard let verifiedState = ratesController.getVerifiedState(
+        guard let verifiedState = await ratesController.getVerifiedState(
             for: amount.converted.currencyCode,
             mint: amount.mint
         ) else {
@@ -589,7 +589,7 @@ class Session: ObservableObject {
         }
 
         // Get verified state for intent construction
-        guard let verifiedState = ratesController.getVerifiedState(
+        guard let verifiedState = await ratesController.getVerifiedState(
             for: amount.converted.currencyCode,
             mint: amount.mint
         ) else {
@@ -612,7 +612,7 @@ class Session: ObservableObject {
             }
 
             // Get verified state for intent construction
-            guard let verifiedState = ratesController.getVerifiedState(
+            guard let verifiedState = await ratesController.getVerifiedState(
                 for: exchangedFiat.converted.currencyCode,
                 mint: mint
             ) else {
@@ -956,7 +956,7 @@ class Session: ObservableObject {
             )
 
             // Get verified state for intent construction
-            guard let verifiedState = ratesController.getVerifiedState(
+            guard let verifiedState = await ratesController.getVerifiedState(
                 for: exchangedFiat.converted.currencyCode,
                 mint: exchangedFiat.mint
             ) else {

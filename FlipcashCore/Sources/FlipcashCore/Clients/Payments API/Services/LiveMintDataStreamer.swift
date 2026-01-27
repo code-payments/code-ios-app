@@ -139,12 +139,14 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
             return
         }
 
-        switch type {
-        case .coreMintFiatExchangeRates(let batch):
-            verifiedProtoService.saveRates(batch.exchangeRates)
+        Task {
+            switch type {
+            case .coreMintFiatExchangeRates(let batch):
+                await verifiedProtoService.saveRates(batch.exchangeRates)
 
-        case .launchpadCurrencyReserveStates(let batch):
-            verifiedProtoService.saveReserveStates(batch.reserveStates)
+            case .launchpadCurrencyReserveStates(let batch):
+                await verifiedProtoService.saveReserveStates(batch.reserveStates)
+            }
         }
     }
 
