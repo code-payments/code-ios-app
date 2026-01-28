@@ -181,34 +181,24 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         // - $3.57 USD
         // - 3.57 / 0.01 = # of tokens
 
-        let exchanged: ExchangedFiat
-        if rate.currency == .usd {
-            exchanged = ExchangedFiat(
-                underlying: try! Quarks(
-                    fiatDecimal: valuation.tokens.asDecimal(),
-                    currencyCode: underlyingRate.currency,
-                    decimals: decimals
-                ),
-                converted: try! Quarks(
-                    fiatDecimal: amount,
-                    currencyCode: underlyingRate.currency,
-                    decimals: decimals
-                ),
-                rate: underlyingRate,
-                mint: mint
-            )
+        // For bonded tokens, valuation.tokens is the number of whole tokens.
+        // We need to scale it to quarks.
+        let tokenQuarks = valuation.tokens.asDecimal().scaleUpInt(decimals)
 
-        } else {
-            exchanged = try! ExchangedFiat(
-                converted: .init(
-                    fiatDecimal: amount,
-                    currencyCode: underlyingRate.currency,
-                    decimals: decimals
-                ),
-                rate: underlyingRate,
-                mint: mint
-            )
-        }
+        let exchanged = ExchangedFiat(
+            underlying: Quarks(
+                quarks: tokenQuarks,
+                currencyCode: .usd,
+                decimals: decimals
+            ),
+            converted: try! Quarks(
+                fiatDecimal: amount,
+                currencyCode: rate.currency,
+                decimals: decimals
+            ),
+            rate: underlyingRate,
+            mint: mint
+        )
 
         return exchanged
     }
