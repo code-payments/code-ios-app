@@ -11,10 +11,11 @@ import FlipcashCore
 
 struct BalanceTable: Sendable {
     static let name = "balance"
-    
+
     let table        = Table(Self.name)
     let quarks       = Expression <UInt64>    ("quarks")
     let mint         = Expression <PublicKey> ("mint")
+    let costBasis    = Expression <Double?>   ("costBasis")
     let updatedAt    = Expression <Date>      ("updatedAt")
 }
 
@@ -94,8 +95,12 @@ extension Database {
             try writer.run(balanceTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(balanceTable.mint, primaryKey: true)
                 t.column(balanceTable.quarks)
+                t.column(balanceTable.costBasis)
                 t.column(balanceTable.updatedAt)
             })
+
+            // Migration: add costBasis column if it doesn't exist
+            _ = try? writer.run(balanceTable.table.addColumn(balanceTable.costBasis))
         }
 
         try writer.transaction {

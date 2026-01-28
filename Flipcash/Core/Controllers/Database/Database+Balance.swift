@@ -18,8 +18,9 @@ extension Database {
         SELECT
             b.quarks,
             b.mint,
+            b.costBasis,
             b.updatedAt,
-        
+
             m.symbol,
             m.name,
             m.imageURL,
@@ -28,9 +29,9 @@ extension Database {
             m.vmAuthority
         FROM
             balance b
-        
+
         LEFT JOIN mint m ON m.mint = b.mint
-        
+
         ORDER BY b.quarks;
         """)
         
@@ -47,7 +48,8 @@ extension Database {
                 mint:              row[b.mint],
                 vmAuthority:       row[m.vmAuthority],
                 updatedAt:         row[b.updatedAt],
-                imageURL:          row[m.imageURL]
+                imageURL:          row[m.imageURL],
+                costBasis:         row[b.costBasis]
             )
         }
         
@@ -138,12 +140,13 @@ extension Database {
     
     // MARK: - Insert -
     
-    func insertBalance(quarks: UInt64, mint: PublicKey, date: Date) throws {
+    func insertBalance(quarks: UInt64, mint: PublicKey, costBasis: Double, date: Date) throws {
         let table = BalanceTable()
         try writer.run(
             table.table.upsert(
                 table.mint      <- mint,
                 table.quarks    <- quarks,
+                table.costBasis <- costBasis,
                 table.updatedAt <- date,
 
                 onConflictOf: table.mint,
