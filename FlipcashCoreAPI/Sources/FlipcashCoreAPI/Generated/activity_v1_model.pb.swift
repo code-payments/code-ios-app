@@ -209,20 +209,20 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
     set {additionalMetadata = .depositedCrypto(newValue)}
   }
 
-  public var boughtCrypto: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata {
+  public var paidCrypto: Flipcash_Activity_V1_PaidCryptoNotificationMetadata {
     get {
-      if case .boughtCrypto(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_BoughtCryptoNotificationMetadata()
+      if case .paidCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_PaidCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .boughtCrypto(newValue)}
+    set {additionalMetadata = .paidCrypto(newValue)}
   }
 
-  public var soldCrypto: Flipcash_Activity_V1_SoldCryptoNotificationMetadata {
+  public var distributedCrypto: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata {
     get {
-      if case .soldCrypto(let v)? = additionalMetadata {return v}
-      return Flipcash_Activity_V1_SoldCryptoNotificationMetadata()
+      if case .distributedCrypto(let v)? = additionalMetadata {return v}
+      return Flipcash_Activity_V1_DistributedCryptoNotificationMetadata()
     }
-    set {additionalMetadata = .soldCrypto(newValue)}
+    set {additionalMetadata = .distributedCrypto(newValue)}
   }
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -235,8 +235,8 @@ public struct Flipcash_Activity_V1_Notification: Sendable {
     case withdrewCrypto(Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata)
     case sentCrypto(Flipcash_Activity_V1_SentCryptoNotificationMetadata)
     case depositedCrypto(Flipcash_Activity_V1_DepositedCryptoNotificationMetadata)
-    case boughtCrypto(Flipcash_Activity_V1_BoughtCryptoNotificationMetadata)
-    case soldCrypto(Flipcash_Activity_V1_SoldCryptoNotificationMetadata)
+    case paidCrypto(Flipcash_Activity_V1_PaidCryptoNotificationMetadata)
+    case distributedCrypto(Flipcash_Activity_V1_DistributedCryptoNotificationMetadata)
 
   }
 
@@ -322,22 +322,102 @@ public struct Flipcash_Activity_V1_DepositedCryptoNotificationMetadata: Sendable
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_BoughtCryptoNotificationMetadata: Sendable {
+public struct Flipcash_Activity_V1_PaidCryptoNotificationMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  public var paymentMetadata: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.OneOf_PaymentMetadata? = nil
+
+  public var pool: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata {
+    get {
+      if case .pool(let v)? = paymentMetadata {return v}
+      return Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata()
+    }
+    set {paymentMetadata = .pool(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_PaymentMetadata: Equatable, Sendable {
+    case pool(Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata)
+
+  }
+
+  /// Payment metadata for betting pools
+  public struct PoolPaymentMetadata: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The pool that was entered for this payment
+    public var poolID: Flipcash_Pool_V1_PoolId {
+      get {return _poolID ?? Flipcash_Pool_V1_PoolId()}
+      set {_poolID = newValue}
+    }
+    /// Returns true if `poolID` has been explicitly set.
+    public var hasPoolID: Bool {return self._poolID != nil}
+    /// Clears the value of `poolID`. Subsequent reads from it will return its default value.
+    public mutating func clearPoolID() {self._poolID = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _poolID: Flipcash_Pool_V1_PoolId? = nil
+  }
 
   public init() {}
 }
 
-public struct Flipcash_Activity_V1_SoldCryptoNotificationMetadata: Sendable {
+public struct Flipcash_Activity_V1_DistributedCryptoNotificationMetadata: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
+  public var distributionMetadata: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.OneOf_DistributionMetadata? = nil
+
+  public var pool: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata {
+    get {
+      if case .pool(let v)? = distributionMetadata {return v}
+      return Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata()
+    }
+    set {distributionMetadata = .pool(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_DistributionMetadata: Equatable, Sendable {
+    case pool(Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata)
+
+  }
+
+  /// Distribution metadata for betting pools
+  public struct PoolDistributionMetadata: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The pool where funds were distributed from
+    public var poolID: Flipcash_Pool_V1_PoolId {
+      get {return _poolID ?? Flipcash_Pool_V1_PoolId()}
+      set {_poolID = newValue}
+    }
+    /// Returns true if `poolID` has been explicitly set.
+    public var hasPoolID: Bool {return self._poolID != nil}
+    /// Clears the value of `poolID`. Subsequent reads from it will return its default value.
+    public mutating func clearPoolID() {self._poolID = nil}
+
+    /// The outcome for this pool for the user that indicates the reason for
+    /// receiving the distribution.
+    public var outcome: Flipcash_Pool_V1_UserOutcome = .unknownOutcoe
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _poolID: Flipcash_Pool_V1_PoolId? = nil
+  }
 
   public init() {}
 }
@@ -386,7 +466,7 @@ extension Flipcash_Activity_V1_NotificationId: SwiftProtobuf.Message, SwiftProto
 
 extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Notification"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{1}state\0\u{3}welcome_bonus\0\u{3}gave_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}sent_crypto\0\u{3}deposited_crypto\0\u{3}bought_crypto\0\u{3}sold_crypto\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}localized_text\0\u{3}payment_amount\0\u{1}ts\0\u{3}welcome_bonus\0\u{3}gave_crypto\0\u{3}received_crypto\0\u{3}withdrew_crypto\0\u{3}sent_crypto\0\u{1}state\0\u{3}deposited_crypto\0\u{3}paid_crypto\0\u{3}distributed_crypto\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -398,8 +478,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
       case 2: try { try decoder.decodeSingularStringField(value: &self.localizedText) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._paymentAmount) }()
       case 4: try { try decoder.decodeSingularMessageField(value: &self._ts) }()
-      case 5: try { try decoder.decodeSingularEnumField(value: &self.state) }()
-      case 6: try {
+      case 5: try {
         var v: Flipcash_Activity_V1_WelcomeBonusNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
@@ -412,7 +491,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .welcomeBonus(v)
         }
       }()
-      case 7: try {
+      case 6: try {
         var v: Flipcash_Activity_V1_GaveCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
@@ -425,7 +504,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .gaveCrypto(v)
         }
       }()
-      case 8: try {
+      case 7: try {
         var v: Flipcash_Activity_V1_ReceivedCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
@@ -438,7 +517,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .receivedCrypto(v)
         }
       }()
-      case 9: try {
+      case 8: try {
         var v: Flipcash_Activity_V1_WithdrewCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
@@ -451,7 +530,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .withdrewCrypto(v)
         }
       }()
-      case 10: try {
+      case 9: try {
         var v: Flipcash_Activity_V1_SentCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
@@ -464,6 +543,7 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
           self.additionalMetadata = .sentCrypto(v)
         }
       }()
+      case 10: try { try decoder.decodeSingularEnumField(value: &self.state) }()
       case 11: try {
         var v: Flipcash_Activity_V1_DepositedCryptoNotificationMetadata?
         var hadOneofValue = false
@@ -478,29 +558,29 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
         }
       }()
       case 12: try {
-        var v: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata?
+        var v: Flipcash_Activity_V1_PaidCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .boughtCrypto(let m) = current {v = m}
+          if case .paidCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .boughtCrypto(v)
+          self.additionalMetadata = .paidCrypto(v)
         }
       }()
       case 13: try {
-        var v: Flipcash_Activity_V1_SoldCryptoNotificationMetadata?
+        var v: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata?
         var hadOneofValue = false
         if let current = self.additionalMetadata {
           hadOneofValue = true
-          if case .soldCrypto(let m) = current {v = m}
+          if case .distributedCrypto(let m) = current {v = m}
         }
         try decoder.decodeSingularMessageField(value: &v)
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.additionalMetadata = .soldCrypto(v)
+          self.additionalMetadata = .distributedCrypto(v)
         }
       }()
       default: break
@@ -525,43 +605,46 @@ extension Flipcash_Activity_V1_Notification: SwiftProtobuf.Message, SwiftProtobu
     try { if let v = self._ts {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     } }()
-    if self.state != .unknown {
-      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 5)
-    }
     switch self.additionalMetadata {
     case .welcomeBonus?: try {
       guard case .welcomeBonus(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
     }()
     case .gaveCrypto?: try {
       guard case .gaveCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
     }()
     case .receivedCrypto?: try {
       guard case .receivedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     }()
     case .withdrewCrypto?: try {
       guard case .withdrewCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
     }()
     case .sentCrypto?: try {
       guard case .sentCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 10)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
     }()
+    default: break
+    }
+    if self.state != .unknown {
+      try visitor.visitSingularEnumField(value: self.state, fieldNumber: 10)
+    }
+    switch self.additionalMetadata {
     case .depositedCrypto?: try {
       guard case .depositedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
     }()
-    case .boughtCrypto?: try {
-      guard case .boughtCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .paidCrypto?: try {
+      guard case .paidCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 12)
     }()
-    case .soldCrypto?: try {
-      guard case .soldCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
+    case .distributedCrypto?: try {
+      guard case .distributedCrypto(let v)? = self.additionalMetadata else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 13)
     }()
-    case nil: break
+    default: break
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -712,39 +795,166 @@ extension Flipcash_Activity_V1_DepositedCryptoNotificationMetadata: SwiftProtobu
   }
 }
 
-extension Flipcash_Activity_V1_BoughtCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".BoughtCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+extension Flipcash_Activity_V1_PaidCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PaidCryptoNotificationMetadata"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}pool\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata?
+        var hadOneofValue = false
+        if let current = self.paymentMetadata {
+          hadOneofValue = true
+          if case .pool(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.paymentMetadata = .pool(v)
+        }
+      }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .pool(let v)? = self.paymentMetadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_BoughtCryptoNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata) -> Bool {
+    if lhs.paymentMetadata != rhs.paymentMetadata {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
 }
 
-extension Flipcash_Activity_V1_SoldCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".SoldCryptoNotificationMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+extension Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Activity_V1_PaidCryptoNotificationMetadata.protoMessageName + ".PoolPaymentMetadata"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pool_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    // Load everything into unknown fields
-    while try decoder.nextFieldNumber() != nil {}
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._poolID) }()
+      default: break
+      }
+    }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._poolID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
-  public static func ==(lhs: Flipcash_Activity_V1_SoldCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_SoldCryptoNotificationMetadata) -> Bool {
+  public static func ==(lhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata, rhs: Flipcash_Activity_V1_PaidCryptoNotificationMetadata.PoolPaymentMetadata) -> Bool {
+    if lhs._poolID != rhs._poolID {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_DistributedCryptoNotificationMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".DistributedCryptoNotificationMetadata"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}pool\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata?
+        var hadOneofValue = false
+        if let current = self.distributionMetadata {
+          hadOneofValue = true
+          if case .pool(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.distributionMetadata = .pool(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if case .pool(let v)? = self.distributionMetadata {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata, rhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata) -> Bool {
+    if lhs.distributionMetadata != rhs.distributionMetadata {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.protoMessageName + ".PoolDistributionMetadata"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pool_id\0\u{1}outcome\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._poolID) }()
+      case 2: try { try decoder.decodeSingularEnumField(value: &self.outcome) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._poolID {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.outcome != .unknownOutcoe {
+      try visitor.visitSingularEnumField(value: self.outcome, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata, rhs: Flipcash_Activity_V1_DistributedCryptoNotificationMetadata.PoolDistributionMetadata) -> Bool {
+    if lhs._poolID != rhs._poolID {return false}
+    if lhs.outcome != rhs.outcome {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

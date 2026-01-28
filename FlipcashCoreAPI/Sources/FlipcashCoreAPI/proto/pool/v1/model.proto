@@ -1,0 +1,217 @@
+syntax = "proto3";
+
+package flipcash.pool.v1;
+
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/pool/v1;poolpb";
+option java_package = "com.codeinc.flipcash.gen.pool.v1";
+option objc_class_prefix = "FPBPoolV1";
+
+import "common/v1/common.proto";
+import "profile/v1/model.proto";
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+// PoolId uniquely identifies a pool via a rendezvous public key
+message PoolId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// Resolution is a resolution to a pool that declares the winning outcome chosen
+// by the pool creator
+message Resolution {
+    oneof kind {
+        option (validate.required) = true;
+
+        // The yes/no outcome the creator has chosen as the winning outcome
+        bool boolean_resolution = 1;
+
+        // A refund to all participants. No outcome was decided
+        Refund refund_resolution = 2;
+    }
+
+    message Refund {
+    }
+}
+
+// Pool metadata signed by the rendezvous key
+message SignedPoolMetadata {
+     PoolId id = 1 [(validate.rules).message.required = true];
+
+    // The user ID that created this pool
+    common.v1.UserId creator = 2 [(validate.rules).message.required = true];
+
+    // The pool name, which should ask a yes/no question to bet against
+    string name = 3 [(validate.rules).string = {
+        min_len: 1
+        max_len: 256
+    }];
+
+    // The buy in amount for a bet
+    common.v1.FiatPaymentAmount buy_in = 4 [(validate.rules).message.required = true];
+
+    // Destination where bet payments will be made to fund the pool
+    common.v1.PublicKey funding_destination = 5 [(validate.rules).message.required = true];
+
+    // Is the pool currently open to take bets?
+    bool is_open = 6;
+
+    // The pool resolution, if one is made
+    Resolution resolution = 7;
+
+    // Timestamp pool was created at
+    google.protobuf.Timestamp created_at = 8 [(validate.rules).timestamp.required = true];
+
+    // Timestamp the pool was closed at
+    google.protobuf.Timestamp closed_at = 9;
+}
+
+// Pool metadata
+message PoolMetadata {
+    SignedPoolMetadata verified_metadata = 1 [(validate.rules).message.required = true];
+    
+    // Signature of the SignedPoolMetadata message with the rendezvous public key of the pool
+    common.v1.Signature rendezvous_signature = 2 [(validate.rules).message.required = true];
+
+    // The set of bets made against this pool
+    repeated BetMetadata bets = 3 [(validate.rules).repeated = {
+        max_items: 1024
+    }];
+
+    // Consolidated summary of bets made against this pool
+    BetSummary bet_summary = 7 [(validate.rules).message.required = true];
+
+    // User-specific summary data related to this pool. This is provided against
+    // authenticated RPCs
+    UserPoolSummary user_summary = 8;
+
+    // Paging token specific to each user that enables access to paging APIs
+    common.v1.PagingToken paging_token = 4;
+
+    // Has the funding destination been initialized? Bet payments cannot be made
+    // until this has occurred.
+    bool is_funding_destination_initialized = 5;
+
+    // Derivation index used to derive the pool account's authority. This is only
+    // valid against authenticated RPCs made by the pool creator
+    uint64 derivation_index = 6;
+
+    // The creator's user profile
+    profile.v1.UserProfile creator_profile = 9;
+}
+
+// BetId uniquely identifies a bet via an intent ID
+message BetId {
+    bytes value = 1 [(validate.rules).bytes = {
+        min_len: 32
+        max_len: 32
+    }];
+}
+
+// BetOutcome is the user's outcome that they bet against
+message BetOutcome {
+    oneof kind {
+        option (validate.required) = true;
+
+        // The yes/no outcome the user has bet against
+        bool boolean_outcome = 1;
+    }
+}
+
+// BetSummary contains a consolidated summary of bets made against a pool
+message BetSummary {
+    oneof kind {
+        option (validate.required) = true;
+
+        // The yes/no outcome users have bet in the pool
+        BooleanBetSummary boolean_summary = 1;
+    }
+
+    message BooleanBetSummary {
+        uint32 num_yes = 1;
+        uint32 num_no  = 2;
+    }
+
+    // The total fiat paid for bets against the pool
+    common.v1.FiatPaymentAmount total_amount_bet = 10 [(validate.rules).message.required = true];
+}
+
+message UserPoolSummary {
+    // The outcome for the user for a pool
+    oneof outcome {
+        option (validate.required) = true;
+
+        NoOutcome     none = 1;
+        WinOutcome    win = 2;
+        LoseOutcome   lose = 3;
+        RefundOutcome refund = 4;
+    }
+
+    // Pool isn't resolved, so no user outcome is available
+    message NoOutcome {
+    }
+
+    // User is a winner in the pool
+    message WinOutcome {
+        common.v1.FiatPaymentAmount amount_won = 1 [(validate.rules).message.required = true];
+
+        common.v1.FiatPaymentAmount total_amount_received = 2 [(validate.rules).message.required = true];
+    }
+
+    // User is a loser in the pool
+    message LoseOutcome {
+        common.v1.FiatPaymentAmount amount_lost = 1 [(validate.rules).message.required = true];
+    }
+
+    // User was refunded
+    message RefundOutcome {
+        common.v1.FiatPaymentAmount amount_refunded = 1 [(validate.rules).message.required = true];
+    }
+}
+
+// UserOutcome is an enum of states for user outcomes in a pool
+enum UserOutcome {
+    UNKNOWN_OUTCOE = 0;
+    // Pool isn't resolved, so no user outcome is available
+    NO_OUTCOME     = 1;
+    // User is a winner in the pool
+    WIN_OUTCOME    = 2;
+    // User is a loser in the pool
+    LOSE_OUTCOME   = 3;
+    // User was refunded
+    REFUND_OUTCOME = 4;
+}
+
+// Bet metadata signed by the rendezvous key
+message SignedBetMetadata {
+    BetId bet_id = 1 [(validate.rules).message.required = true];
+
+    // The user making the bet, which is unique for a given pool
+    common.v1.UserId user_id = 2 [(validate.rules).message.required = true];
+
+    // The outcome the user has bet against
+    BetOutcome selected_outcome = 3 [(validate.rules).message.required = true];
+
+    // The destination where payout will be made if the user selected the correct
+    // outcome.
+    common.v1.PublicKey payout_destination = 4 [(validate.rules).message.required = true];
+
+    // Timestamp the bet was made
+    google.protobuf.Timestamp ts = 5 [(validate.rules).timestamp.required = true];
+}
+
+// Bet metadata
+message BetMetadata {
+    SignedBetMetadata verified_metadata = 1 [(validate.rules).message.required = true];
+
+     // Signature of the SignedBetMetadata message with the rendezvous public key of the pool
+    common.v1.Signature rendezvous_signature = 2 [(validate.rules).message.required = true];
+
+    // Has the intent for bet payment been submitted?
+    bool is_intent_submitted = 3;
+
+    // The better's user profile
+    profile.v1.UserProfile better_profile = 4;
+}

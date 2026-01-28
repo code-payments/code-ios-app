@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package flipcash.iap.v1;
 
-option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/iap/v1;iappb";
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/iap/v1;iappb";
 option java_package = "com.codeinc.flipcash.gen.iap.v1";
 option objc_class_prefix = "FPBIapV1";
 

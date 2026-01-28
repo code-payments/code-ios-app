@@ -2,11 +2,12 @@ syntax = "proto3";
 
 package flipcash.event.v1;
 
-option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/event/v1;eventpb";
+option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/event/v1;eventpb";
 option java_package = "com.codeinc.flipcash.gen.events.v1";
 option objc_class_prefix = "FPBEventV1";
 
 import "common/v1/common.proto";
+import "pool/v1/model.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "validate/validate.proto";
@@ -28,6 +29,13 @@ message Event {
         option (validate.required) = true;
 
         TestEvent test = 3;
+
+        //
+        // Section: Betting pools
+        //
+
+        PoolResolvedEvent  pool_resolved   = 100;
+        PoolBetUpdateEvent pool_bet_update = 101;
     }
 }
 
@@ -55,6 +63,27 @@ message TestEvent {
     repeated string hops = 1;
 
     uint64 nonce = 2;
+}
+
+// Event sent when a pool has been resolved
+message PoolResolvedEvent {
+    // The latest signed pool metadata, which is guaranteed to contain a resolution
+    pool.v1.SignedPoolMetadata pool = 1 [(validate.rules).message.required = true];
+
+    // The final bet summary for the pool
+    pool.v1.BetSummary bet_summary = 2 [(validate.rules).message.required = true];
+
+    // The user's outcome for the pool
+    pool.v1.UserPoolSummary user_summary = 3 [(validate.rules).message.required = true];
+}
+
+// Event sent when a bet is made against a pool
+message PoolBetUpdateEvent {
+    // The pool ID the bet update is for
+    pool.v1.PoolId pool_id = 1 [(validate.rules).message.required = true];
+
+    // The latest bet summary for the pool
+    pool.v1.BetSummary bet_summary = 2 [(validate.rules).message.required = true];
 }
 
 message ServerPing {
