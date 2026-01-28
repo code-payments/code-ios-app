@@ -86,22 +86,17 @@ struct ExchangedFiatComputeFromEnteredTests {
     // 1000 tokens supply = 10^13 quarks
     private let testSupplyQuarks: UInt64 = 1000 * Self.quarksPerToken
 
-    @Test("Zero supply returns valid result for non-USDC mint")
-    func zeroSupplyReturnsValidResult() {
-        // Zero supply means we're at step 0 with price $0.01
-        // This is a valid state - tokens can be bought
+    @Test("Zero supply returns nil (no TVL to exchange from)")
+    func zeroSupplyReturnsNil() {
+        // Zero supply means zero TVL - nothing to exchange from
         let result = ExchangedFiat.computeFromEntered(
             amount: Decimal(5.0),
             rate: .oneToOne,
             mint: testMint,
-            supplyQuarks: 0  // Zero supply = step 0, price $0.01
+            supplyQuarks: 0
         )
 
-        #expect(result != nil, "Zero supply is valid - at step 0")
-        if let result = result {
-            #expect(result.converted.quarks > 0, "Should have positive converted quarks")
-            #expect(result.underlying.quarks > 0, "Should have positive underlying quarks")
-        }
+        #expect(result == nil, "Zero supply means zero TVL, exchange should return nil")
     }
 
     @Test("Zero amount returns nil")
