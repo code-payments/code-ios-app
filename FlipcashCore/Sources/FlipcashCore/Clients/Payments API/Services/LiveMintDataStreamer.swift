@@ -27,6 +27,11 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
     private var streamReference: StreamReference?
     private var subscribedMints: [PublicKey] = []
     private var isStreaming = false
+    private var isReconnecting = false
+    private var reconnectAttempts = 0
+    private var reconnectTask: Task<Void, Never>?
+    private static let maxReconnectDelay: TimeInterval = 30.0
+    private static let baseReconnectDelay: TimeInterval = 1.0
 
     // MARK: - Init
 
@@ -60,6 +65,10 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
     /// Stop the stream
     public func stop() {
         isStreaming = false
+        isReconnecting = false
+        reconnectAttempts = 0
+        reconnectTask?.cancel()
+        reconnectTask = nil
         streamReference?.destroy()
         streamReference = nil
         trace(.note, components: "Stopped live mint data stream")
@@ -73,7 +82,9 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
 
         if isStreaming {
             // Close existing stream and reopen with new mints
-            streamReference?.cancel()
+            // destroy() properly cleans up timeouts, cancels the stream, and releases references
+            streamReference?.destroy()
+            streamReference = nil
             openStream()
         }
     }
@@ -85,6 +96,17 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
             trace(.warning, components: "Cannot open stream: not streaming or no mints")
             return
         }
+
+        // Clean up any existing stream before creating a new one
+        if let existing = streamReference {
+            trace(.note, components: "Cleaning up existing stream before opening new one")
+            existing.destroy()
+            streamReference = nil
+        }
+
+        // Reset reconnect state on successful stream open
+        isReconnecting = false
+        reconnectAttempts = 0
 
         trace(.open, components: "Opening live mint data stream for \(subscribedMints.count) mints")
 
@@ -195,14 +217,38 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
     private func reconnect() {
         guard isStreaming else { return }
 
-        // Clean up old stream
-        streamReference?.release()
+        // Prevent multiple concurrent reconnection attempts
+        guard !isReconnecting else {
+            trace(.note, components: "Already reconnecting, skipping duplicate attempt")
+            return
+        }
+        isReconnecting = true
+
+        // Clean up previous streams
+        streamReference?.destroy()
         streamReference = nil
 
-        // Delay before reconnecting
-        queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self, self.isStreaming else { return }
-            self.openStream()
+        // Calculate exponential backoff delay
+        reconnectAttempts += 1
+        let delay = min(
+            Self.baseReconnectDelay * pow(2.0, Double(reconnectAttempts - 1)),
+            Self.maxReconnectDelay
+        )
+
+        trace(.note, components: "Reconnecting in \(delay)s (attempt \(reconnectAttempts))")
+
+        // Delay before reconnecting with exponential backoff
+        reconnectTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+
+            guard !Task.isCancelled, let self, self.isStreaming else {
+                self?.isReconnecting = false
+                return
+            }
+
+            self.queue.async {
+                self.openStream()
+            }
         }
     }
 }
