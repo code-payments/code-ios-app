@@ -31,7 +31,7 @@ public struct ValueAppreciation: View {
             if isPositive {
                 Text("from currency appreciation")
             } else {
-                Text("from currency deppreciation")
+                Text("from currency depreciation")
             }
         }
             .font(.appTextSmall)
