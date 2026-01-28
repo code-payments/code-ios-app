@@ -158,7 +158,9 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
 
         // Send pong response
         let pongRequest = Ocp_Currency_V1_StreamLiveMintDataRequest.with {
-            $0.pong = Ocp_Common_V1_ClientPong()
+            $0.pong = Ocp_Common_V1_ClientPong.with {
+                $0.timestamp = .init(seconds: Int64(Date().timeIntervalSince1970))
+            }
         }
 
         _ = streamReference?.stream?.sendMessage(pongRequest)
