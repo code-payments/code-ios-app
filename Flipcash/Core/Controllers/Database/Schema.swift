@@ -47,15 +47,6 @@ struct MintTable: Sendable {
     let updatedAt         = Expression <Date>       ("updatedAt")
 }
 
-struct RateTable: Sendable {
-    static let name = "rate"
-    
-    let table        = Table(Self.name)
-    let currency     = Expression <String> ("currency")
-    let fx           = Expression <Double> ("fx")
-    let date         = Expression <Date>   ("updatedAt")
-}
-
 struct ActivityTable: Sendable {
     static let name = "activity"
     
@@ -95,11 +86,10 @@ extension Expression {
 extension Database {
     func createTablesIfNeeded() throws {
         let balanceTable          = BalanceTable()
-        let rateTable             = RateTable()
         let mintTable             = MintTable()
         let activityTable         = ActivityTable()
         let cashLinkMetadataTable = CashLinkMetadataTable()
-        
+
         try writer.transaction {
             try writer.run(balanceTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(balanceTable.mint, primaryKey: true)
@@ -107,15 +97,7 @@ extension Database {
                 t.column(balanceTable.updatedAt)
             })
         }
-        
-        try writer.transaction {
-            try writer.run(rateTable.table.create(ifNotExists: true, withoutRowid: true) { t in
-                t.column(rateTable.currency, primaryKey: true)
-                t.column(rateTable.fx)
-                t.column(rateTable.date)
-            })
-        }
-        
+
         try writer.transaction {
             try writer.run(mintTable.table.create(ifNotExists: true, withoutRowid: true) { t in
                 t.column(mintTable.mint, primaryKey: true)

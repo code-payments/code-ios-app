@@ -11,32 +11,7 @@ import FlipcashAPI
 import GRPC
 import NIO
 
-class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> { 
-    func fetchExchangeRates(completion: @Sendable @escaping (Result<RatesSnapshot, Error>) -> Void) {
-//        trace(.send)
-        
-        let call = service.getAllRates(Ocp_Currency_V1_GetAllRatesRequest())
-        call.handle(on: queue) { response in
-            let rates = response.rates.compactMap { key, value in
-                try? Rate(
-                    fx: Decimal(value),
-                    currencyCode: key
-                )
-            }
-            
-            let snapshot = RatesSnapshot(
-                date: response.asOf.date,
-                rates: rates
-            )
-            
-//            trace(.success, components: "\(rates.count) rates")
-            completion(.success(snapshot))
-            
-        } failure: { error in
-            completion(.failure(error))
-        }
-    }
-    
+class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> {
     func fetchMint(mint: PublicKey, completion: @Sendable @escaping (Result<MintMetadata, Error>) -> Void) {
         fetchMints(mints: [mint]) {
             switch $0 {
@@ -119,11 +94,6 @@ class CurrencyService: CodeService<Ocp_Currency_V1_CurrencyNIOClient> {
 // MARK: - Types -
 
 public typealias HistoricalRange = Ocp_Currency_V1_GetHistoricalMintDataRequest.PredefinedRange
-
-public struct RatesSnapshot: Sendable {
-    public let date: Date
-    public let rates: [Rate]
-}
 
 public struct HistoricalMintDataPoint: Sendable {
     public let date: Date

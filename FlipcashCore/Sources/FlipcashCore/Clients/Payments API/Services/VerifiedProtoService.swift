@@ -7,6 +7,7 @@
 //
 
 import Foundation
+@preconcurrency import Combine
 import FlipcashAPI
 
 /// Service that manages verified exchange rate and reserve state proofs received from streaming.
@@ -19,20 +20,34 @@ public actor VerifiedProtoService {
     /// Reserve states keyed by mint address
     private var reserveStates: [PublicKey: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState] = [:]
 
+    /// Publisher for rate updates. Emits array of Rate when rates are saved.
+    public nonisolated let ratesPublisher = PassthroughSubject<[Rate], Never>()
+
     public init() {}
 
     // MARK: - Save Methods
 
-    /// Save verified exchange rates from streaming batch
+    /// Save verified exchange rates from streaming batch.
+    /// Publishes the parsed rates via `ratesPublisher` for observers.
     public func saveRates(_ rates: [Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate]) {
+        var parsedRates: [Rate] = []
+
         for rate in rates {
             guard let currency = try? CurrencyCode(currencyCode: rate.exchangeRate.currencyCode) else {
                 continue
             }
             exchangeRates[currency] = rate
+            parsedRates.append(Rate(
+                fx: Decimal(rate.exchangeRate.exchangeRate),
+                currency: currency
+            ))
         }
 
         trace(.receive, components: "Saved \(rates.count) verified exchange rates")
+
+        if !parsedRates.isEmpty {
+            ratesPublisher.send(parsedRates)
+        }
     }
 
     /// Save verified reserve states from streaming batch
@@ -79,6 +94,18 @@ public actor VerifiedProtoService {
     /// Get the verified exchange rate proto directly (for display or debugging)
     public func getVerifiedRate(for currency: CurrencyCode) -> Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate? {
         exchangeRates[currency]
+    }
+
+    /// Get simple exchange rate for display purposes.
+    /// Extracts the fx rate from the verified proto.
+    public func rate(for currency: CurrencyCode) -> Rate? {
+        guard let proto = exchangeRates[currency] else {
+            return nil
+        }
+        return Rate(
+            fx: Decimal(proto.exchangeRate.exchangeRate),
+            currency: currency
+        )
     }
 
     /// Get the verified reserve state proto directly (for display or debugging)

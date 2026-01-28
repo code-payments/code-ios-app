@@ -6,11 +6,11 @@
 //
 
 import Foundation
+import Combine
 import FlipcashCore
 
 @MainActor
 class RatesController: ObservableObject {
-
     @Published var entryCurrency: CurrencyCode = .usd {
         willSet {
             LocalDefaults.entryCurrency = newValue
@@ -50,6 +50,9 @@ class RatesController: ObservableObject {
     /// Current list of mints being streamed
     private var streamedMints: [PublicKey] = []
 
+    /// Combine cancellables
+    private var cancellables = Set<AnyCancellable>()
+
     // MARK: - Init -
 
     init(container: Container, database: Database) {
@@ -79,6 +82,14 @@ class RatesController: ObservableObject {
         liveMintDataStreamer = client.createLiveMintDataStreamer(
             verifiedProtoService: verifiedProtoService
         )
+
+        // Subscribe to rate updates from the verified proto service
+        verifiedProtoService.ratesPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] rates in
+                self?.updateRates(rates)
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Streaming Lifecycle -
@@ -112,31 +123,41 @@ class RatesController: ObservableObject {
     }
 
     // MARK: - Rates -
-    
+
+    /// Cache of rates from streaming. Published so views update automatically.
+    @Published private(set) var cachedRates: [CurrencyCode: Rate] = [:]
+
     func rateForBalanceCurrency() -> Rate {
         rate(for: balanceCurrency) ?? .oneToOne
     }
-    
+
     func rateForEntryCurrency() -> Rate {
         rate(for: entryCurrency) ?? .oneToOne
     }
-    
+
     func rate(for currency: CurrencyCode) -> Rate? {
-        try? database.rate(for: currency)
+        cachedRates[currency]
     }
-    
+
     func exchangedFiat(for amount: Quarks) throws -> ExchangedFiat {
         guard let rate = rate(for: amount.currencyCode) else {
             throw Error.exchangeRateUnavailable
         }
-        
+
         let exchangedFiat = try ExchangedFiat(
             converted: amount,
             rate: rate,
             mint: .usdf
         )
-        
+
         return exchangedFiat
+    }
+
+    /// Called when streaming receives new rates. Updates the cache.
+    func updateRates(_ rates: [Rate]) {
+        for rate in rates {
+            cachedRates[rate.currency] = rate
+        }
     }
     
     // MARK: - Token -

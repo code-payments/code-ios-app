@@ -145,7 +145,47 @@ extension Database {
                 table.mint      <- mint,
                 table.quarks    <- quarks,
                 table.updatedAt <- date,
-                
+
+                onConflictOf: table.mint,
+            )
+        )
+    }
+
+    func insert(mints: [MintMetadata], date: Date) throws {
+        try transaction {
+            for mint in mints {
+                try $0.insert(mint: mint, date: date)
+            }
+        }
+    }
+
+    private func insert(mint: MintMetadata, date: Date) throws {
+        let table = MintTable()
+        try writer.run(
+            table.table.upsert(
+                table.mint              <- mint.address,
+                table.name              <- mint.name,
+                table.symbol            <- mint.symbol,
+                table.decimals          <- mint.decimals,
+                table.bio               <- mint.description,
+                table.imageURL          <- mint.imageURL,
+
+                table.vmAddress         <- mint.vmMetadata?.vm,
+                table.vmAuthority       <- mint.vmMetadata?.authority,
+                table.lockDuration      <- mint.vmMetadata?.lockDurationInDays,
+
+                table.currencyConfig    <- mint.launchpadMetadata?.currencyConfig,
+                table.liquidityPool     <- mint.launchpadMetadata?.liquidityPool,
+                table.seed              <- mint.launchpadMetadata?.seed,
+                table.authority         <- mint.launchpadMetadata?.authority,
+                table.mintVault         <- mint.launchpadMetadata?.mintVault,
+                table.coreMintVault     <- mint.launchpadMetadata?.coreMintVault,
+                table.coreMintFees      <- mint.launchpadMetadata?.coreMintFees,
+                table.supplyFromBonding <- mint.launchpadMetadata?.supplyFromBonding,
+                table.sellFeeBps        <- mint.launchpadMetadata?.sellFeeBps,
+
+                table.updatedAt         <- date,
+
                 onConflictOf: table.mint,
             )
         )
