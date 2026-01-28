@@ -484,7 +484,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             if let open = action as? ActionOpenAccount {
                 trace(.send, components: "Action[\(idx)]: OpenAccount", "owner: \(open.owner.base58)", "authority: \(open.cluster.authority.keyPair.publicKey.base58)", "token: \(open.cluster.vaultPublicKey.base58)", "mint: \(open.mint.base58)", "index: \(open.derivationIndex)")
             } else if let transfer = action as? ActionTransfer {
-                trace(.send, components: "Action[\(idx)]: Transfer", "amount: \(transfer.amount)", "destination: \(transfer.destination.base58)")
+                trace(.send, components: "Action[\(idx)]: Transfer", "quarks: \(transfer.amount.quarks)", "destination: \(transfer.destination.base58)")
             } else {
                 trace(.send, components: "Action[\(idx)]: \(type(of: action))")
             }
