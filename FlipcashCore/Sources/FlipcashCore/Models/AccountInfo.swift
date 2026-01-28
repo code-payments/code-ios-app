@@ -56,10 +56,14 @@ public struct AccountInfo: Equatable, Sendable {
     public var exchangedFiat: ExchangedFiat?
     
     public var nextPoolIndex: Int?
-    
+
+    /// The USD cost basis for this account, which can be used to compute currency
+    /// appreciation/depreciation
+    public var usdCostBasis: Double
+
     // MARK: - Init -
-    
-    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?) {
+
+    init(address: PublicKey, mint: PublicKey, owner: PublicKey?, authority: PublicKey?, balanceSource: BalanceSource, quarks: UInt64, managementState: ManagementState, blockchainState: BlockchainState, claimState: ClaimState, exchangedFiat: ExchangedFiat?, nextPoolIndex: Int?, usdCostBasis: Double) {
         self.address         = address
         self.mint            = mint
         self.owner           = owner
@@ -71,6 +75,7 @@ public struct AccountInfo: Equatable, Sendable {
         self.claimState      = claimState
         self.exchangedFiat   = exchangedFiat
         self.nextPoolIndex   = nextPoolIndex
+        self.usdCostBasis    = usdCostBasis
     }
 }
 
@@ -232,7 +237,8 @@ extension AccountInfo {
             blockchainState: blockchainState,
             claimState: claimState,
             exchangedFiat: exchangedFiat,
-            nextPoolIndex: nil
+            nextPoolIndex: nil,
+            usdCostBasis: info.usdCostBasis
         )
     }
 }

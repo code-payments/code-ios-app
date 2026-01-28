@@ -49,6 +49,30 @@ struct BalanceScreen: View {
         balances.first { $0.stored.mint == .usdf && $0.stored.quarks > 0 }
     }
     
+    private var appreciation: (Quarks, isPositive: Bool)? {
+        var totalAppreciation: Decimal = 0
+
+        for balance in balances {
+            guard let (value, isPositive) = balance.stored.computeAppreciation(with: balanceRate) else {
+                continue
+            }
+            let amount = value.converted.decimalValue
+            totalAppreciation += isPositive ? amount : -amount
+        }
+
+        // Return nil if no appreciation data available
+        guard totalAppreciation != 0 else { return nil }
+
+        let isPositive = totalAppreciation >= 0
+        let quarks = try! Quarks(
+            fiatDecimal: abs(totalAppreciation),
+            currencyCode: balanceRate.currency,
+            decimals: PublicKey.usdf.mintDecimals
+        )
+
+        return (quarks, isPositive)
+    }
+    
     // MARK: - Init -
     
     init(isPresented: Binding<Bool>, container: Container, sessionContainer: SessionContainer) {
@@ -141,9 +165,15 @@ struct BalanceScreen: View {
                     }
 
                 } header: {
-                    header()
-                        .frame(height: 80)
-                        .padding(.vertical, 50)
+                    VStack {
+                        header()
+                            .frame(height: 60)
+                        
+                        if let (amount, isPositive) = appreciation {
+                            ValueAppreciation(amount: amount, isPositive: isPositive)
+                        }
+                    }
+                        .padding(.vertical, 30)
                 } footer: {
                     if let reservesBalance {
                         cashReservesFooter(reservesBalance: reservesBalance)
@@ -267,7 +297,7 @@ struct BalanceScreen: View {
 struct ExchangedBalance: Identifiable, Hashable {
     let stored: StoredBalance
     let exchangedFiat: ExchangedFiat
-    
+
     var id: PublicKey {
         stored.id
     }

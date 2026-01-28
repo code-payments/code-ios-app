@@ -63,6 +63,13 @@ struct CurrencyInfoScreen: View {
         return exchanged?.converted ?? 0
     }
     
+    private var appreciation: (amount: Quarks, isPositive: Bool)? {
+        let balance = session.balance(for: mintMetadata.mint)
+        guard let (appreciation, isPositive) = balance?.computeAppreciation(with: ratesController.rateForBalanceCurrency()) else { return nil }
+        
+        return (appreciation.converted, isPositive)
+    }
+    
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
@@ -157,7 +164,11 @@ struct CurrencyInfoScreen: View {
                                 .font(.appDisplayMedium)
                                 .foregroundStyle(Color.textMain)
                                 .frame(maxWidth: .infinity)
-                                .padding(.bottom, 30)
+                                .padding(.bottom, 20)
+                                
+                                if !isUSDF, let (amount, isPositive) = appreciation {
+                                    ValueAppreciation(amount: amount, isPositive: isPositive)
+                                }
 
                                 Spacer()
 
@@ -355,7 +366,7 @@ struct CurrencyInfoScreen: View {
             }
         }
     }
-
+    
     private func setupChart() {
         let viewModel = ChartViewModel(selectedRange: .all)
         chartViewModel = viewModel

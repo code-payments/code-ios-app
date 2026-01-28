@@ -469,6 +469,7 @@ class Session: ObservableObject {
                 try? database.insertBalance(
                     quarks: account.quarks,
                     mint: account.mint,
+                    costBasis: account.usdCostBasis,
                     date: now
                 )
             }
