@@ -34,11 +34,8 @@ struct CurrencyInfoScreen: View {
     }
 
     private var currencyDescription: String {
-        if isUSDF {
-            return "Your cash reserves are held in USDF, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDF for U.S. dollars whenever you like."
-        } else {
-            return mintMetadata.bio ?? "No information"
-        }
+        return mintMetadata.bio ?? "No information"
+
     }
 
     private var balance: Quarks {
@@ -144,7 +141,7 @@ struct CurrencyInfoScreen: View {
                     VStack(spacing: 0) {
                         // Header
 
-                        section(spacing: 20) {
+                        section {
                             Button {
                                 isShowingCurrencySelection.toggle()
                             } label: {
@@ -157,36 +154,26 @@ struct CurrencyInfoScreen: View {
                                 .foregroundStyle(Color.textMain)
                                 .frame(maxWidth: .infinity)
                             }
-                            .sheet(isPresented: $isShowingCurrencySelection) {
-                                CurrencySelectionScreen(
-                                    isPresented: $isShowingCurrencySelection,
-                                    kind: .balance,
-                                    ratesController: ratesController
-                                )
+                                .frame(height: 60)
+                            
+                            if !isUSDF, let (amount, isPositive) = appreciation {
+                                ValueAppreciation(amount: amount, isPositive: isPositive)
+                                    .padding(.top, 8)
                             }
-                                .frame(height: 80)
-                                .padding(.vertical, 20)
 
-                            // Market Cap
                             if !isUSDF {
-                                marketCapSection()
-                                
-                                // Append enough content to scroll below the floating footer
-                                Color
-                                    .clear
-                                    .padding(.bottom, 100)
-
                                 CodeButton(style: .filledSecondary, title: "View Transaction History") {
                                     isShowingTransactionHistory.toggle()
                                 }
                             }
                         }
+                        .padding(.vertical, 12)
                         .frame(maxWidth: .infinity)
 
                         // Currency Info
 
                         section(spacing: 20) {
-                            if !isUSDC {
+                            if !isUSDF {
                                 HStack {
                                     Image(systemName: "text.justify.left")
                                         .padding(.bottom, -1)
@@ -202,7 +189,7 @@ struct CurrencyInfoScreen: View {
                         }
 
                         // Market Cap
-                        if !isUSDC {
+                        if !isUSDF {
                             marketCapSection()
                             
                             // Append enough content to scroll below the floating footer
@@ -256,6 +243,13 @@ struct CurrencyInfoScreen: View {
             }
             .sheet(isPresented: $isShowingSellAmountEntry) {
                 CurrencySellAmountScreen(viewModel: currencySellViewModel)
+            }
+            .sheet(isPresented: $isShowingCurrencySelection) {
+                CurrencySelectionScreen(
+                    isPresented: $isShowingCurrencySelection,
+                    kind: .balance,
+                    ratesController: ratesController
+                )
             }
             .onChange(of: isShowingSellAmountEntry) { _, isPresented in
                 if isPresented {
