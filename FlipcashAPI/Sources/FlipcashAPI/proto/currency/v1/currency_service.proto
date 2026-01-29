@@ -13,6 +13,8 @@ import "google/protobuf/timestamp.proto";
 service Currency {
     // GetAllRates returns the exchange rates for the core mint token against all
     // available currencies
+    //
+    // Deprecated: Use StreamLiveMintData instead
     rpc GetAllRates(GetAllRatesRequest) returns (GetAllRatesResponse);
 
     // GetMints gets mint account metadata by address
@@ -20,6 +22,9 @@ service Currency {
 
     // GetHistoricalMintData returns historical market data for a mint
     rpc GetHistoricalMintData(GetHistoricalMintDataRequest) returns (GetHistoricalMintDataResponse);
+
+    // StreamLiveMintData streams live mint data for a set of mints
+    rpc StreamLiveMintData(stream StreamLiveMintDataRequest) returns (stream StreamLiveMintDataResponse);
 }
 
 message GetAllRatesRequest {
@@ -104,6 +109,42 @@ message GetHistoricalMintDataResponse {
     repeated HistoricalMintData data = 2;
 }
 
+message StreamLiveMintDataRequest {
+    oneof type {
+        option (validate.required) = true;
+
+        Request              request = 1;
+        common.v1.ClientPong pong    = 2;
+    }
+
+    message Request {
+        // The set of mints to receive live data against. To update the set of mints,
+        // close the current stream and open a new one with the new set.
+        repeated common.v1.SolanaAccountId mints = 1 [(validate.rules).repeated = {
+            min_items: 1
+            max_items: 1024 // Arbitrary
+        }];
+    }
+}
+
+message StreamLiveMintDataResponse {
+    oneof type {
+        option (validate.required) = true;
+
+        LiveData             data = 1;
+        common.v1.ServerPing ping = 2;
+    }
+
+    message LiveData {
+        oneof type {
+            option (validate.required) = true;
+
+            VerifiedCoreMintFiatExchangeRateBatch      core_mint_fiat_exchange_rates     = 1;
+            VerifiedLaunchapdCurrencyReserveStateBatch launchpad_currency_reserve_states = 2;
+        }
+    }
+}
+
 message Mint {
     // Token mint address
     common.v1.SolanaAccountId address = 1 [(validate.rules).message.required = true];
@@ -185,6 +226,8 @@ message LaunchpadMetadata {
     common.v1.SolanaAccountId core_mint_vault = 6 [(validate.rules).message.required = true];
 
     // Current circulating mint token supply in quarks
+    //
+    // Deprecated: Use supply value from StreamLiveMintData
     uint64 supply_from_bonding = 7;
 
     // Precent fee for sells in basis points, currently hardcoded to 1%
@@ -197,4 +240,56 @@ message HistoricalMintData {
 
     // Market capitalization at this point in time
     double market_cap = 2;
+}
+
+message CoreMintFiatExchangeRate {
+    // The currency code for the fiat exchange rate
+    string currency_code = 1 [(validate.rules).string = {
+        pattern: "^[a-z]{3,4}$"
+    }];
+
+    // The exchange rate against the core mint
+    double exchange_rate = 2;
+
+    // Timestamp for this data point
+    google.protobuf.Timestamp timestamp = 3 [(validate.rules).timestamp.required = true];
+}
+
+// CoreMintFiatExchangeRate with a server signature for proof for use in a payment
+message VerifiedCoreMintFiatExchangeRate {
+    CoreMintFiatExchangeRate exchange_rate = 1 [(validate.rules).message.required = true];
+
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];
+}
+
+message VerifiedCoreMintFiatExchangeRateBatch {
+    repeated VerifiedCoreMintFiatExchangeRate exchange_rates = 2  [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 256 // Arbitrary
+    }];
+}
+
+message LaunchpadCurrencyReserveState {
+    // Launchpad currency mint address
+    common.v1.SolanaAccountId mint = 1 [(validate.rules).message.required = true];
+
+    // Current circulating mint token supply in quarks
+    uint64 supply_from_bonding = 2;
+
+    // Timestamp for this data point
+    google.protobuf.Timestamp timestamp = 3 [(validate.rules).timestamp.required = true];
+}
+
+// LaunchpadCurrencyReserveState with a server signature for proof for use in a payment
+message VerifiedLaunchpadCurrencyReserveState {
+    LaunchpadCurrencyReserveState reserve_state = 1 [(validate.rules).message.required = true];;
+
+    common.v1.Signature signature = 2 [(validate.rules).message.required = true];;
+}
+
+message VerifiedLaunchapdCurrencyReserveStateBatch {
+    repeated VerifiedLaunchpadCurrencyReserveState reserve_states = 2  [(validate.rules).repeated = {
+        min_items: 1
+        max_items: 1024 // Arbitrary
+    }];
 }

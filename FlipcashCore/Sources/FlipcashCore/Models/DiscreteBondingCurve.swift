@@ -517,10 +517,6 @@ extension DiscreteBondingCurve {
 
     /// Calculate how many tokens can be obtained for a given fiat amount.
     ///
-    /// Uses the bonding curve's valueToTokens method to compute how many tokens
-    /// can be purchased for the given USDC value at the current supply level.
-    /// This matches the server-side implementation.
-    ///
     /// - Parameters:
     ///   - fiat: Amount in local fiat currency (e.g., CAD)
     ///   - fiatRate: Exchange rate from fiat to USD (e.g., 1.4 for CAD/USD)
@@ -541,10 +537,27 @@ extension DiscreteBondingCurve {
         // Convert supply quarks to whole tokens
         let currentSupply = supplyQuarks / Self.quarksPerToken
 
-        // Use valueToTokens directly (matching server's approach)
-        guard let tokens = valueToTokens(currentSupply: currentSupply, value: usdcValue) else {
+        // Calculate TVL from supply (value of all tokens from 0 to currentSupply)
+        guard let currentTVL = tokensToValue(currentSupply: 0, tokens: currentSupply) else {
             return nil
         }
+
+        // Cannot exchange more value than exists in TVL
+        guard usdcValue <= currentTVL else {
+            return nil
+        }
+
+        // New TVL after subtracting the exchange value
+        let newTVL = currentTVL.subtract(usdcValue, Self.rounding)
+
+        // Get precise supply at current TVL
+        let currentSupplyPrecise = preciseSupplyFromTVL(currentTVL)
+
+        // Get precise supply at new (lower) TVL
+        let newSupplyPrecise = preciseSupplyFromTVL(newTVL)
+
+        // Tokens = difference in supply
+        let tokens = currentSupplyPrecise.subtract(newSupplyPrecise, Self.rounding)
 
         guard tokens.isPositive else {
             return nil

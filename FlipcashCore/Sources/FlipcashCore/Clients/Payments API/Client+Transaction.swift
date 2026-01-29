@@ -17,10 +17,11 @@ extension Client {
         }
     }
     
-    public func transfer(exchangedFiat: ExchangedFiat, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
+    public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.transfer(
                 exchangedFiat: exchangedFiat,
+                verifiedState: verifiedState,
                 sourceCluster: owner,
                 destination: destination,
                 owner: owner.authority.keyPair,
@@ -28,11 +29,12 @@ extension Client {
             ) { c.resume(with: $0) }
         }
     }
-        
-    public func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
+
+    public func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: Quarks, owner: AccountCluster, destinationMetadata: DestinationMetadata) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.withdraw(
                 exchangedFiat: exchangedFiat,
+                verifiedState: verifiedState,
                 fee: fee,
                 sourceCluster: owner,
                 destinationMetadata: destinationMetadata,
@@ -40,11 +42,12 @@ extension Client {
             ) { c.resume(with: $0) }
         }
     }
-    
-    public func sendCashLink(exchangedFiat: ExchangedFiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey) async throws {
+
+    public func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey) async throws {
         _ = try await withCheckedThrowingContinuation { c in
             transactionService.sendCashLink(
                 exchangedFiat: exchangedFiat,
+                verifiedState: verifiedState,
                 ownerCluster: ownerCluster,
                 giftCard: giftCard,
                 rendezvous: rendezvous
@@ -80,24 +83,24 @@ extension Client {
     // MARK: - Swaps -
 
     /// Buy tokens using default submitIntent funding (Phase 1 + Phase 2)
-    public func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster) async throws -> Void {
+    public func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> Void {
         try await withCheckedThrowingContinuation { c in
-            transactionService.buy(amount: amount, of: token, owner: owner) { c.resume(with: $0) }
+            transactionService.buy(amount: amount, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
         }
     }
 
     /// Buy tokens with specified funding source
     /// - For `.submitIntent`: Phase 1 (startSwap) + Phase 2 (IntentFundSwap)
     /// - For `.externalWallet`: Phase 1 only (funding already happened via external wallet)
-    public func buy(swapId: SwapId, amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, fundingSource: FundingSource) async throws -> Void {
+    public func buy(swapId: SwapId, amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, fundingSource: FundingSource) async throws -> Void {
         try await withCheckedThrowingContinuation { c in
-            transactionService.buy(swapId: swapId, amount: amount, of: token, owner: owner, fundingSource: fundingSource) { c.resume(with: $0) }
+            transactionService.buy(swapId: swapId, amount: amount, verifiedState: verifiedState, of: token, owner: owner, fundingSource: fundingSource) { c.resume(with: $0) }
         }
     }
 
-    public func sell(amount: ExchangedFiat, in token: MintMetadata, owner: AccountCluster) async throws -> Void {
+    public func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster) async throws -> Void {
         try await withCheckedThrowingContinuation { c in
-            transactionService.sell(amount: amount, in: token, owner: owner) { c.resume(with: $0) }
+            transactionService.sell(amount: amount, verifiedState: verifiedState, in: token, owner: owner) { c.resume(with: $0) }
         }
     }
     

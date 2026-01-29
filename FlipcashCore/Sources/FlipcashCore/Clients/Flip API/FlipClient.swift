@@ -23,7 +23,6 @@ public class FlipClient: ObservableObject {
     internal let activityService: ActivityService
     internal let iapService: IAPService
     internal let pushService: PushService
-    internal let poolService: PoolService
     internal let thirdPartyService: ThirdPartyService
     internal let phoneService: PhoneService
     internal let emailService: EmailService
@@ -43,7 +42,6 @@ public class FlipClient: ObservableObject {
         self.activityService   = ActivityService(channel: channel, queue: queue)
         self.iapService        = IAPService(channel: channel, queue: queue)
         self.pushService       = PushService(channel: channel, queue: queue)
-        self.poolService       = PoolService(channel: channel, queue: queue)
         self.thirdPartyService = ThirdPartyService(channel: channel, queue: queue)
         self.phoneService      = PhoneService(channel: channel, queue: queue)
         self.emailService      = EmailService(channel: channel, queue: queue)

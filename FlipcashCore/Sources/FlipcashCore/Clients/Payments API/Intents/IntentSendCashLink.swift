@@ -11,19 +11,21 @@ import FlipcashAPI
 import SwiftProtobuf
 
 final class IntentSendCashLink: IntentType {
-    
+
     let id: PublicKey
     let sourceCluster: AccountCluster
     let giftCard: GiftCardCluster
     let exchangedFiat: ExchangedFiat
-    
+    let verifiedState: VerifiedState
+
     var actionGroup: ActionGroup
-    
-    init(rendezvous: PublicKey, sourceCluster: AccountCluster, giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat) {
+
+    init(rendezvous: PublicKey, sourceCluster: AccountCluster, giftCard: GiftCardCluster, exchangedFiat: ExchangedFiat, verifiedState: VerifiedState) {
         self.id               = rendezvous
         self.sourceCluster    = sourceCluster
         self.giftCard         = giftCard
         self.exchangedFiat    = exchangedFiat
+        self.verifiedState    = verifiedState
         
         let openGiftCardAction = ActionOpenAccount(
             kind: .giftCard,
@@ -65,13 +67,18 @@ extension IntentSendCashLink {
                 $0.source       = sourceCluster.vaultPublicKey.solanaAccountID
                 $0.destination  = giftCard.cluster.vaultPublicKey.solanaAccountID
                 $0.mint         = exchangedFiat.mint.solanaAccountID
-                $0.exchangeData = .with {
-                    $0.mint         = exchangedFiat.mint.solanaAccountID
-                    $0.quarks       = exchangedFiat.underlying.quarks
-                    $0.currency     = exchangedFiat.converted.currencyCode.rawValue
-                    $0.exchangeRate = exchangedFiat.rate.fx.doubleValue
+
+                // Use clientExchangeData with embedded proofs for submitting intents
+                $0.clientExchangeData = .with {
+                    $0.mint = exchangedFiat.mint.solanaAccountID
+                    $0.quarks = exchangedFiat.underlying.quarks
                     $0.nativeAmount = exchangedFiat.converted.doubleValue
+                    $0.coreMintFiatExchangeRate = verifiedState.rateProto
+                    if let reserveProto = verifiedState.reserveProto {
+                        $0.launchpadCurrencyReserveState = reserveProto
+                    }
                 }
+
                 $0.isWithdrawal = false
                 $0.isRemoteSend = true
             }

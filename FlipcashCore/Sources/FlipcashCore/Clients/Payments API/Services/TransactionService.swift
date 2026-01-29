@@ -49,39 +49,41 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     }
     
     // MARK: - Transfer -
-    
-    func transfer(exchangedFiat: ExchangedFiat, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+
+    func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, sourceCluster: AccountCluster, destination: PublicKey, owner: KeyPair, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
-        
+
         let intent = IntentTransfer(
             rendezvous: rendezvous,
             sourceCluster: sourceCluster,
             destination: destination,
-            exchangedFiat: exchangedFiat
+            exchangedFiat: exchangedFiat,
+            verifiedState: verifiedState
         )
-        
+
         submit(intent: intent, owner: owner) { result in
             switch result {
             case .success(_):
                 trace(.success)
                 completion(.success(()))
-                
+
             case .failure(let error):
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
             }
         }
     }
-        
-    func withdraw(exchangedFiat: ExchangedFiat, fee: Quarks, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+
+    func withdraw(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, fee: Quarks, sourceCluster: AccountCluster, destinationMetadata: DestinationMetadata, owner: KeyPair, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send)
-        
+
         do {
             let intent = try IntentWithdraw(
                 sourceCluster: sourceCluster,
                 fee: fee,
                 destinationMetadata: destinationMetadata,
-                exchangedFiat: exchangedFiat
+                exchangedFiat: exchangedFiat,
+                verifiedState: verifiedState
             )
             
             submit(intent: intent, owner: owner) { result in
@@ -102,22 +104,23 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
         }
     }
     
-    func sendCashLink(exchangedFiat: ExchangedFiat, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
+    func sendCashLink(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, ownerCluster: AccountCluster, giftCard: GiftCardCluster, rendezvous: PublicKey, completion: @Sendable @escaping (Result<(), Error>) -> Void) {
         trace(.send, components: "Gift card vault: \(giftCard.cluster.vaultPublicKey.base58)", "Amount: \(exchangedFiat.underlying.formatted(suffix: " USDF"))")
-        
+
         let intent = IntentSendCashLink(
             rendezvous: rendezvous,
             sourceCluster: ownerCluster,
             giftCard: giftCard,
-            exchangedFiat: exchangedFiat
+            exchangedFiat: exchangedFiat,
+            verifiedState: verifiedState
         )
-        
+
         submit(intent: intent, owner: ownerCluster.authority.keyPair) { result in
             switch result {
             case .success(_):
                 trace(.success)
                 completion(.success(()))
-                
+
             case .failure(let error):
                 trace(.failure, components: "Error: \(error)")
                 completion(.failure(error))
@@ -211,13 +214,14 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     // MARK: - Swaps -
 
     /// A buy is a swap from USDF to desired token (convenience method using submitIntent funding)
-    func buy(amount: ExchangedFiat, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
+    func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
         let swapId = SwapId.generate()
         let fundingIntentID = KeyPair.generate()!.publicKey
 
         buy(
             swapId: swapId,
             amount: amount,
+            verifiedState: verifiedState,
             of: token,
             owner: owner,
             fundingSource: .submitIntent(id: fundingIntentID),
@@ -232,6 +236,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     func buy(
         swapId: SwapId,
         amount: ExchangedFiat,
+        verifiedState: VerifiedState,
         of token: MintMetadata,
         owner: AccountCluster,
         fundingSource: FundingSource,
@@ -262,6 +267,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
                         swapId: metadata.swapId,
                         sourceCluster: owner,
                         amount: amount,
+                        verifiedState: verifiedState,
                         fromMint: .usdf,
                         toMint: token
                     )
@@ -295,7 +301,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
     }
 
     /// A sell is a swap from token to USDF
-    func sell(amount: ExchangedFiat, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
+    func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster, completion: @Sendable @escaping (Result<Void, ErrorSwap>) -> Void) {
         trace(.send, components: "Starting sell of \(token.symbol) for \(amount.converted.formatted())")
 
         // Generate unique identifiers for this swap
@@ -321,30 +327,31 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             switch result {
             case .success(let metadata):
                 trace(.success, components: "Swap state created", "Swap ID: \(swapId.publicKey.base58)")
-                
+
                 // Phase 2: SubmitIntent - Fund the VM swap PDA
                 let fundingIntent = IntentFundSwap(
                     intentID: fundingIntentID,
                     swapId: metadata.swapId,
                     sourceCluster: owner.use(mint: token.address, timeAuthority: tokenVmAuthority),
                     amount: amount,
+                    verifiedState: verifiedState,
                     fromMint: token,
                     toMint: .usdf
                 )
-                                
+
                 self.submit(intent: fundingIntent, owner: owner.authority.keyPair) { fundingResult in
                     switch fundingResult {
                     case .success:
                         trace(.success, components: "Swap completed", "Intent ID: \(fundingIntentID.base58)")
                         completion(.success(()))
-                                                
+
                     case .failure(let error):
                         trace(.failure, components: "Failed to fund swap: \(error)")
                         // Map ErrorSubmitIntent to ErrorSwap
                         completion(.failure(.unknown))
                     }
                 }
-                
+
             case .failure(let error):
                 trace(.failure, components: "Failed to start swap: \(error)")
                 completion(.failure(error))
@@ -477,7 +484,7 @@ class TransactionService: CodeService<Ocp_Transaction_V1_TransactionNIOClient> {
             if let open = action as? ActionOpenAccount {
                 trace(.send, components: "Action[\(idx)]: OpenAccount", "owner: \(open.owner.base58)", "authority: \(open.cluster.authority.keyPair.publicKey.base58)", "token: \(open.cluster.vaultPublicKey.base58)", "mint: \(open.mint.base58)", "index: \(open.derivationIndex)")
             } else if let transfer = action as? ActionTransfer {
-                trace(.send, components: "Action[\(idx)]: Transfer", "amount: \(transfer.amount)", "destination: \(transfer.destination.base58)")
+                trace(.send, components: "Action[\(idx)]: Transfer", "quarks: \(transfer.amount.quarks)", "destination: \(transfer.destination.base58)")
             } else {
                 trace(.send, components: "Action[\(idx)]: \(type(of: action))")
             }

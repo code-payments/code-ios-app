@@ -18,19 +18,21 @@ class SendCashOperation {
 
     private let client: Client
     private let database: Database
+    private let ratesController: RatesController
     private let owner: AccountCluster
     private let exchangedFiat: ExchangedFiat
 
     private var messageStream: AnyCancellable? = nil
     private var hasProcessedPayment = false
-    
+
     // MARK: - Init -
-    
-    init(client: Client, database: Database, owner: AccountCluster, exchangedFiat: ExchangedFiat) {
-        self.client       = client
-        self.database     = database
-        self.owner        = owner
-        self.exchangedFiat = exchangedFiat
+
+    init(client: Client, database: Database, ratesController: RatesController, owner: AccountCluster, exchangedFiat: ExchangedFiat) {
+        self.client          = client
+        self.database        = database
+        self.ratesController = ratesController
+        self.owner           = owner
+        self.exchangedFiat   = exchangedFiat
         self.payload      = .init(
             kind: .cashMulticurrency,
             fiat: exchangedFiat.converted,
@@ -118,8 +120,17 @@ class SendCashOperation {
                 // 2. Send the funds to destination
                 Task {
                     do {
+                        // Get verified state for intent construction
+                        guard let verifiedState = await self.ratesController.getVerifiedState(
+                            for: exchangedFiat.converted.currencyCode,
+                            mint: exchangedFiat.mint
+                        ) else {
+                            throw Error.missingVerifiedState
+                        }
+
                         try await self.client.transfer(
                             exchangedFiat: exchangedFiat,
+                            verifiedState: verifiedState,
                             owner: owner,
                             destination: paymentMetadata.account,
                             rendezvous: rendezvous.publicKey
@@ -154,5 +165,6 @@ extension SendCashOperation {
     enum Error: Swift.Error {
         case invalidPaymentDestinationSignature
         case missingMintMetadata
+        case missingVerifiedState
     }
 }

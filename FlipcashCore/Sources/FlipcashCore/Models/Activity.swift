@@ -54,6 +54,8 @@ extension Activity {
         case deposited    = 5
         case paid         = 6
         case distributed  = 7
+        case bought       = 8
+        case sold         = 9
         case unknown
     }
 }

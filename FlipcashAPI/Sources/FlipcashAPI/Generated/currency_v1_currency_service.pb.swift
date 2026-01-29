@@ -310,6 +310,122 @@ public struct Ocp_Currency_V1_GetHistoricalMintDataResponse: Sendable {
   public init() {}
 }
 
+public struct Ocp_Currency_V1_StreamLiveMintDataRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var type: Ocp_Currency_V1_StreamLiveMintDataRequest.OneOf_Type? = nil
+
+  public var request: Ocp_Currency_V1_StreamLiveMintDataRequest.Request {
+    get {
+      if case .request(let v)? = type {return v}
+      return Ocp_Currency_V1_StreamLiveMintDataRequest.Request()
+    }
+    set {type = .request(newValue)}
+  }
+
+  public var pong: Ocp_Common_V1_ClientPong {
+    get {
+      if case .pong(let v)? = type {return v}
+      return Ocp_Common_V1_ClientPong()
+    }
+    set {type = .pong(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Type: Equatable, Sendable {
+    case request(Ocp_Currency_V1_StreamLiveMintDataRequest.Request)
+    case pong(Ocp_Common_V1_ClientPong)
+
+  }
+
+  public struct Request: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    /// The set of mints to receive live data against. To update the set of mints,
+    /// close the current stream and open a new one with the new set.
+    public var mints: [Ocp_Common_V1_SolanaAccountId] = []
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_StreamLiveMintDataResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var type: Ocp_Currency_V1_StreamLiveMintDataResponse.OneOf_Type? = nil
+
+  public var data: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData {
+    get {
+      if case .data(let v)? = type {return v}
+      return Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData()
+    }
+    set {type = .data(newValue)}
+  }
+
+  public var ping: Ocp_Common_V1_ServerPing {
+    get {
+      if case .ping(let v)? = type {return v}
+      return Ocp_Common_V1_ServerPing()
+    }
+    set {type = .ping(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Type: Equatable, Sendable {
+    case data(Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData)
+    case ping(Ocp_Common_V1_ServerPing)
+
+  }
+
+  public struct LiveData: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var type: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData.OneOf_Type? = nil
+
+    public var coreMintFiatExchangeRates: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch {
+      get {
+        if case .coreMintFiatExchangeRates(let v)? = type {return v}
+        return Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch()
+      }
+      set {type = .coreMintFiatExchangeRates(newValue)}
+    }
+
+    public var launchpadCurrencyReserveStates: Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch {
+      get {
+        if case .launchpadCurrencyReserveStates(let v)? = type {return v}
+        return Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch()
+      }
+      set {type = .launchpadCurrencyReserveStates(newValue)}
+    }
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public enum OneOf_Type: Equatable, Sendable {
+      case coreMintFiatExchangeRates(Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch)
+      case launchpadCurrencyReserveStates(Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch)
+
+    }
+
+    public init() {}
+  }
+
+  public init() {}
+}
+
 public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -511,6 +627,8 @@ public struct Ocp_Currency_V1_LaunchpadMetadata: Sendable {
   public mutating func clearCoreMintVault() {self._coreMintVault = nil}
 
   /// Current circulating mint token supply in quarks
+  ///
+  /// Deprecated: Use supply value from StreamLiveMintData
   public var supplyFromBonding: UInt64 = 0
 
   /// Precent fee for sells in basis points, currently hardcoded to 1%
@@ -551,6 +669,158 @@ public struct Ocp_Currency_V1_HistoricalMintData: Sendable {
   public init() {}
 
   fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+public struct Ocp_Currency_V1_CoreMintFiatExchangeRate: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The currency code for the fiat exchange rate
+  public var currencyCode: String = String()
+
+  /// The exchange rate against the core mint
+  public var exchangeRate: Double = 0
+
+  /// Timestamp for this data point
+  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_timestamp = newValue}
+  }
+  /// Returns true if `timestamp` has been explicitly set.
+  public var hasTimestamp: Bool {return self._timestamp != nil}
+  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
+  public mutating func clearTimestamp() {self._timestamp = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// CoreMintFiatExchangeRate with a server signature for proof for use in a payment
+public struct Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var exchangeRate: Ocp_Currency_V1_CoreMintFiatExchangeRate {
+    get {return _exchangeRate ?? Ocp_Currency_V1_CoreMintFiatExchangeRate()}
+    set {_exchangeRate = newValue}
+  }
+  /// Returns true if `exchangeRate` has been explicitly set.
+  public var hasExchangeRate: Bool {return self._exchangeRate != nil}
+  /// Clears the value of `exchangeRate`. Subsequent reads from it will return its default value.
+  public mutating func clearExchangeRate() {self._exchangeRate = nil}
+
+  public var signature: Ocp_Common_V1_Signature {
+    get {return _signature ?? Ocp_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _exchangeRate: Ocp_Currency_V1_CoreMintFiatExchangeRate? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+}
+
+public struct Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var exchangeRates: [Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_LaunchpadCurrencyReserveState: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Launchpad currency mint address
+  public var mint: Ocp_Common_V1_SolanaAccountId {
+    get {return _mint ?? Ocp_Common_V1_SolanaAccountId()}
+    set {_mint = newValue}
+  }
+  /// Returns true if `mint` has been explicitly set.
+  public var hasMint: Bool {return self._mint != nil}
+  /// Clears the value of `mint`. Subsequent reads from it will return its default value.
+  public mutating func clearMint() {self._mint = nil}
+
+  /// Current circulating mint token supply in quarks
+  public var supplyFromBonding: UInt64 = 0
+
+  /// Timestamp for this data point
+  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
+    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
+    set {_timestamp = newValue}
+  }
+  /// Returns true if `timestamp` has been explicitly set.
+  public var hasTimestamp: Bool {return self._timestamp != nil}
+  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
+  public mutating func clearTimestamp() {self._timestamp = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _mint: Ocp_Common_V1_SolanaAccountId? = nil
+  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+}
+
+/// LaunchpadCurrencyReserveState with a server signature for proof for use in a payment
+public struct Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var reserveState: Ocp_Currency_V1_LaunchpadCurrencyReserveState {
+    get {return _reserveState ?? Ocp_Currency_V1_LaunchpadCurrencyReserveState()}
+    set {_reserveState = newValue}
+  }
+  /// Returns true if `reserveState` has been explicitly set.
+  public var hasReserveState: Bool {return self._reserveState != nil}
+  /// Clears the value of `reserveState`. Subsequent reads from it will return its default value.
+  public mutating func clearReserveState() {self._reserveState = nil}
+
+  public var signature: Ocp_Common_V1_Signature {
+    get {return _signature ?? Ocp_Common_V1_Signature()}
+    set {_signature = newValue}
+  }
+  /// Returns true if `signature` has been explicitly set.
+  public var hasSignature: Bool {return self._signature != nil}
+  /// Clears the value of `signature`. Subsequent reads from it will return its default value.
+  public mutating func clearSignature() {self._signature = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _reserveState: Ocp_Currency_V1_LaunchpadCurrencyReserveState? = nil
+  fileprivate var _signature: Ocp_Common_V1_Signature? = nil
+}
+
+public struct Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var reserveStates: [Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
 }
 
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
@@ -800,6 +1070,237 @@ extension Ocp_Currency_V1_GetHistoricalMintDataResponse: SwiftProtobuf.Message, 
 
 extension Ocp_Currency_V1_GetHistoricalMintDataResponse.Result: SwiftProtobuf._ProtoNameProviding {
   public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}NOT_FOUND\0\u{1}MISSING_DATA\0")
+}
+
+extension Ocp_Currency_V1_StreamLiveMintDataRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StreamLiveMintDataRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}request\0\u{1}pong\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Currency_V1_StreamLiveMintDataRequest.Request?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .request(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .request(v)
+        }
+      }()
+      case 2: try {
+        var v: Ocp_Common_V1_ClientPong?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .pong(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .pong(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.type {
+    case .request?: try {
+      guard case .request(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .pong?: try {
+      guard case .pong(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_StreamLiveMintDataRequest, rhs: Ocp_Currency_V1_StreamLiveMintDataRequest) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_StreamLiveMintDataRequest.Request: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_StreamLiveMintDataRequest.protoMessageName + ".Request"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mints\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.mints) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.mints.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.mints, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_StreamLiveMintDataRequest.Request, rhs: Ocp_Currency_V1_StreamLiveMintDataRequest.Request) -> Bool {
+    if lhs.mints != rhs.mints {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_StreamLiveMintDataResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".StreamLiveMintDataResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}data\0\u{1}ping\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .data(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .data(v)
+        }
+      }()
+      case 2: try {
+        var v: Ocp_Common_V1_ServerPing?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .ping(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .ping(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.type {
+    case .data?: try {
+      guard case .data(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .ping?: try {
+      guard case .ping(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_StreamLiveMintDataResponse, rhs: Ocp_Currency_V1_StreamLiveMintDataResponse) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_StreamLiveMintDataResponse.protoMessageName + ".LiveData"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}core_mint_fiat_exchange_rates\0\u{3}launchpad_currency_reserve_states\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .coreMintFiatExchangeRates(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .coreMintFiatExchangeRates(v)
+        }
+      }()
+      case 2: try {
+        var v: Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .launchpadCurrencyReserveStates(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .launchpadCurrencyReserveStates(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.type {
+    case .coreMintFiatExchangeRates?: try {
+      guard case .coreMintFiatExchangeRates(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .launchpadCurrencyReserveStates?: try {
+      guard case .launchpadCurrencyReserveStates(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData, rhs: Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
 }
 
 extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
@@ -1080,6 +1581,232 @@ extension Ocp_Currency_V1_HistoricalMintData: SwiftProtobuf.Message, SwiftProtob
   public static func ==(lhs: Ocp_Currency_V1_HistoricalMintData, rhs: Ocp_Currency_V1_HistoricalMintData) -> Bool {
     if lhs._timestamp != rhs._timestamp {return false}
     if lhs.marketCap != rhs.marketCap {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_CoreMintFiatExchangeRate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".CoreMintFiatExchangeRate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_code\0\u{3}exchange_rate\0\u{1}timestamp\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.currencyCode) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.exchangeRate) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if !self.currencyCode.isEmpty {
+      try visitor.visitSingularStringField(value: self.currencyCode, fieldNumber: 1)
+    }
+    if self.exchangeRate.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.exchangeRate, fieldNumber: 2)
+    }
+    try { if let v = self._timestamp {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_CoreMintFiatExchangeRate, rhs: Ocp_Currency_V1_CoreMintFiatExchangeRate) -> Bool {
+    if lhs.currencyCode != rhs.currencyCode {return false}
+    if lhs.exchangeRate != rhs.exchangeRate {return false}
+    if lhs._timestamp != rhs._timestamp {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VerifiedCoreMintFiatExchangeRate"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}exchange_rate\0\u{1}signature\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._exchangeRate) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._exchangeRate {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate, rhs: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRate) -> Bool {
+    if lhs._exchangeRate != rhs._exchangeRate {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VerifiedCoreMintFiatExchangeRateBatch"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}exchange_rates\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.exchangeRates) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.exchangeRates.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.exchangeRates, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch, rhs: Ocp_Currency_V1_VerifiedCoreMintFiatExchangeRateBatch) -> Bool {
+    if lhs.exchangeRates != rhs.exchangeRates {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_LaunchpadCurrencyReserveState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".LaunchpadCurrencyReserveState"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}mint\0\u{3}supply_from_bonding\0\u{1}timestamp\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._mint) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.supplyFromBonding) }()
+      case 3: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._mint {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.supplyFromBonding != 0 {
+      try visitor.visitSingularUInt64Field(value: self.supplyFromBonding, fieldNumber: 2)
+    }
+    try { if let v = self._timestamp {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_LaunchpadCurrencyReserveState, rhs: Ocp_Currency_V1_LaunchpadCurrencyReserveState) -> Bool {
+    if lhs._mint != rhs._mint {return false}
+    if lhs.supplyFromBonding != rhs.supplyFromBonding {return false}
+    if lhs._timestamp != rhs._timestamp {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VerifiedLaunchpadCurrencyReserveState"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}reserve_state\0\u{1}signature\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._reserveState) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._signature) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._reserveState {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._signature {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState, rhs: Ocp_Currency_V1_VerifiedLaunchpadCurrencyReserveState) -> Bool {
+    if lhs._reserveState != rhs._reserveState {return false}
+    if lhs._signature != rhs._signature {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".VerifiedLaunchapdCurrencyReserveStateBatch"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{4}\u{2}reserve_states\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 2: try { try decoder.decodeRepeatedMessageField(value: &self.reserveStates) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.reserveStates.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.reserveStates, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch, rhs: Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch) -> Bool {
+    if lhs.reserveStates != rhs.reserveStates {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

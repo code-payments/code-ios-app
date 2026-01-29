@@ -43,6 +43,17 @@ public class Client: ObservableObject {
     deinit {
         trace(.warning, components: "Deallocating Client")
     }
+
+    // MARK: - Streaming -
+
+    /// Create a LiveMintDataStreamer for streaming exchange rates and reserve states
+    public func createLiveMintDataStreamer(verifiedProtoService: VerifiedProtoService) -> LiveMintDataStreamer {
+        LiveMintDataStreamer(
+            service: currencyService,
+            verifiedProtoService: verifiedProtoService,
+            queue: queue
+        )
+    }
 }
 
 extension ClientConnection {

@@ -30,6 +30,11 @@ public protocol Ocp_Currency_V1_CurrencyClientProtocol: GRPCClient {
     _ request: Ocp_Currency_V1_GetHistoricalMintDataRequest,
     callOptions: CallOptions?
   ) -> UnaryCall<Ocp_Currency_V1_GetHistoricalMintDataRequest, Ocp_Currency_V1_GetHistoricalMintDataResponse>
+
+  func streamLiveMintData(
+    callOptions: CallOptions?,
+    handler: @escaping (Ocp_Currency_V1_StreamLiveMintDataResponse) -> Void
+  ) -> BidirectionalStreamingCall<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>
 }
 
 extension Ocp_Currency_V1_CurrencyClientProtocol {
@@ -39,6 +44,8 @@ extension Ocp_Currency_V1_CurrencyClientProtocol {
 
   /// GetAllRates returns the exchange rates for the core mint token against all
   /// available currencies
+  ///
+  /// Deprecated: Use StreamLiveMintData instead
   ///
   /// - Parameters:
   ///   - request: Request to send to GetAllRates.
@@ -89,6 +96,27 @@ extension Ocp_Currency_V1_CurrencyClientProtocol {
       request: request,
       callOptions: callOptions ?? self.defaultCallOptions,
       interceptors: self.interceptors?.makeGetHistoricalMintDataInterceptors() ?? []
+    )
+  }
+
+  /// StreamLiveMintData streams live mint data for a set of mints
+  ///
+  /// Callers should use the `send` method on the returned object to send messages
+  /// to the server. The caller should send an `.end` after the final message has been sent.
+  ///
+  /// - Parameters:
+  ///   - callOptions: Call options.
+  ///   - handler: A closure called when each response is received from the server.
+  /// - Returns: A `ClientStreamingCall` with futures for the metadata and status.
+  public func streamLiveMintData(
+    callOptions: CallOptions? = nil,
+    handler: @escaping (Ocp_Currency_V1_StreamLiveMintDataResponse) -> Void
+  ) -> BidirectionalStreamingCall<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse> {
+    return self.makeBidirectionalStreamingCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? [],
+      handler: handler
     )
   }
 }
@@ -169,6 +197,10 @@ public protocol Ocp_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
     _ request: Ocp_Currency_V1_GetHistoricalMintDataRequest,
     callOptions: CallOptions?
   ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_GetHistoricalMintDataRequest, Ocp_Currency_V1_GetHistoricalMintDataResponse>
+
+  func makeStreamLiveMintDataCall(
+    callOptions: CallOptions?
+  ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -216,6 +248,16 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetHistoricalMintDataInterceptors() ?? []
     )
   }
+
+  public func makeStreamLiveMintDataCall(
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncBidirectionalStreamingCall<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse> {
+    return self.makeAsyncBidirectionalStreamingCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData.path,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -255,6 +297,30 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
       interceptors: self.interceptors?.makeGetHistoricalMintDataInterceptors() ?? []
     )
   }
+
+  public func streamLiveMintData<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Ocp_Currency_V1_StreamLiveMintDataResponse> where RequestStream: Sequence, RequestStream.Element == Ocp_Currency_V1_StreamLiveMintDataRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? []
+    )
+  }
+
+  public func streamLiveMintData<RequestStream>(
+    _ requests: RequestStream,
+    callOptions: CallOptions? = nil
+  ) -> GRPCAsyncResponseStream<Ocp_Currency_V1_StreamLiveMintDataResponse> where RequestStream: AsyncSequence & Sendable, RequestStream.Element == Ocp_Currency_V1_StreamLiveMintDataRequest {
+    return self.performAsyncBidirectionalStreamingCall(
+      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData.path,
+      requests: requests,
+      callOptions: callOptions ?? self.defaultCallOptions,
+      interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? []
+    )
+  }
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -284,6 +350,9 @@ public protocol Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol: Sendab
 
   /// - Returns: Interceptors to use when invoking 'getHistoricalMintData'.
   func makeGetHistoricalMintDataInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_GetHistoricalMintDataRequest, Ocp_Currency_V1_GetHistoricalMintDataResponse>]
+
+  /// - Returns: Interceptors to use when invoking 'streamLiveMintData'.
+  func makeStreamLiveMintDataInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyClientMetadata {
@@ -294,6 +363,7 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getAllRates,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getMints,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getHistoricalMintData,
+      Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData,
     ]
   )
 
@@ -315,6 +385,12 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
       path: "/ocp.currency.v1.Currency/GetHistoricalMintData",
       type: GRPCCallType.unary
     )
+
+    public static let streamLiveMintData = GRPCMethodDescriptor(
+      name: "StreamLiveMintData",
+      path: "/ocp.currency.v1.Currency/StreamLiveMintData",
+      type: GRPCCallType.bidirectionalStreaming
+    )
   }
 }
 
@@ -324,6 +400,8 @@ public protocol Ocp_Currency_V1_CurrencyProvider: CallHandlerProvider {
 
   /// GetAllRates returns the exchange rates for the core mint token against all
   /// available currencies
+  ///
+  /// Deprecated: Use StreamLiveMintData instead
   func getAllRates(request: Ocp_Currency_V1_GetAllRatesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_GetAllRatesResponse>
 
   /// GetMints gets mint account metadata by address
@@ -331,6 +409,9 @@ public protocol Ocp_Currency_V1_CurrencyProvider: CallHandlerProvider {
 
   /// GetHistoricalMintData returns historical market data for a mint
   func getHistoricalMintData(request: Ocp_Currency_V1_GetHistoricalMintDataRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_GetHistoricalMintDataResponse>
+
+  /// StreamLiveMintData streams live mint data for a set of mints
+  func streamLiveMintData(context: StreamingResponseCallContext<Ocp_Currency_V1_StreamLiveMintDataResponse>) -> EventLoopFuture<(StreamEvent<Ocp_Currency_V1_StreamLiveMintDataRequest>) -> Void>
 }
 
 extension Ocp_Currency_V1_CurrencyProvider {
@@ -372,6 +453,15 @@ extension Ocp_Currency_V1_CurrencyProvider {
         userFunction: self.getHistoricalMintData(request:context:)
       )
 
+    case "StreamLiveMintData":
+      return BidirectionalStreamingServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_StreamLiveMintDataRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_StreamLiveMintDataResponse>(),
+        interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? [],
+        observerFactory: self.streamLiveMintData(context:)
+      )
+
     default:
       return nil
     }
@@ -386,6 +476,8 @@ public protocol Ocp_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Send
 
   /// GetAllRates returns the exchange rates for the core mint token against all
   /// available currencies
+  ///
+  /// Deprecated: Use StreamLiveMintData instead
   func getAllRates(
     request: Ocp_Currency_V1_GetAllRatesRequest,
     context: GRPCAsyncServerCallContext
@@ -402,6 +494,13 @@ public protocol Ocp_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Send
     request: Ocp_Currency_V1_GetHistoricalMintDataRequest,
     context: GRPCAsyncServerCallContext
   ) async throws -> Ocp_Currency_V1_GetHistoricalMintDataResponse
+
+  /// StreamLiveMintData streams live mint data for a set of mints
+  func streamLiveMintData(
+    requestStream: GRPCAsyncRequestStream<Ocp_Currency_V1_StreamLiveMintDataRequest>,
+    responseStream: GRPCAsyncResponseStreamWriter<Ocp_Currency_V1_StreamLiveMintDataResponse>,
+    context: GRPCAsyncServerCallContext
+  ) async throws
 }
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
@@ -450,6 +549,15 @@ extension Ocp_Currency_V1_CurrencyAsyncProvider {
         wrapping: { try await self.getHistoricalMintData(request: $0, context: $1) }
       )
 
+    case "StreamLiveMintData":
+      return GRPCAsyncServerHandler(
+        context: context,
+        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_StreamLiveMintDataRequest>(),
+        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_StreamLiveMintDataResponse>(),
+        interceptors: self.interceptors?.makeStreamLiveMintDataInterceptors() ?? [],
+        wrapping: { try await self.streamLiveMintData(requestStream: $0, responseStream: $1, context: $2) }
+      )
+
     default:
       return nil
     }
@@ -469,6 +577,10 @@ public protocol Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol: Sendab
   /// - Returns: Interceptors to use when handling 'getHistoricalMintData'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetHistoricalMintDataInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_GetHistoricalMintDataRequest, Ocp_Currency_V1_GetHistoricalMintDataResponse>]
+
+  /// - Returns: Interceptors to use when handling 'streamLiveMintData'.
+  ///   Defaults to calling `self.makeInterceptors()`.
+  func makeStreamLiveMintDataInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_StreamLiveMintDataRequest, Ocp_Currency_V1_StreamLiveMintDataResponse>]
 }
 
 public enum Ocp_Currency_V1_CurrencyServerMetadata {
@@ -479,6 +591,7 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getAllRates,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getMints,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getHistoricalMintData,
+      Ocp_Currency_V1_CurrencyServerMetadata.Methods.streamLiveMintData,
     ]
   )
 
@@ -499,6 +612,12 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
       name: "GetHistoricalMintData",
       path: "/ocp.currency.v1.Currency/GetHistoricalMintData",
       type: GRPCCallType.unary
+    )
+
+    public static let streamLiveMintData = GRPCMethodDescriptor(
+      name: "StreamLiveMintData",
+      path: "/ocp.currency.v1.Currency/StreamLiveMintData",
+      type: GRPCCallType.bidirectionalStreaming
     )
   }
 }

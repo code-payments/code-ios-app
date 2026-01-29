@@ -27,6 +27,7 @@ public final class WalletConnection: ObservableObject {
     private let box: Box
     private let owner: AccountCluster
     private let client: Client
+    private let ratesController: RatesController
 
     private let solanaClient = BlockchainClient(
         apiClient: JSONRPCAPIClient(
@@ -48,9 +49,10 @@ public final class WalletConnection: ObservableObject {
 
     // MARK: - Init -
 
-    init(owner: AccountCluster, client: Client) {
+    init(owner: AccountCluster, client: Client, ratesController: RatesController) {
         self.owner = owner
         self.client = client
+        self.ratesController = ratesController
 
         if let connectedWalletSession = Keychain.connectedWalletSession {
             self.session = connectedWalletSession
@@ -191,10 +193,19 @@ public final class WalletConnection: ObservableObject {
                         let signatureKey = try Signature(base58: firstSignature)
                         let fundingSource = FundingSource.externalWallet(transactionSignature: signatureKey)
 
+                        // Get verified state for intent construction
+                        guard let verifiedState = await self.ratesController.getVerifiedState(
+                            for: pending.amount.converted.currencyCode,
+                            mint: pending.amount.mint
+                        ) else {
+                            throw Error.missingVerifiedState
+                        }
+
                         // Call buy() with externalWallet funding (Phase 1 only, no IntentFundSwap)
                         try await client.buy(
                             swapId: pending.swapId,
                             amount: pending.amount,
+                            verifiedState: verifiedState,
                             of: pending.token,
                             owner: self.owner,
                             fundingSource: fundingSource
@@ -576,6 +587,7 @@ public enum WalletConnectionError: Error, LocalizedError {
 extension WalletConnection {
     enum Error: Swift.Error {
         case noSession
+        case missingVerifiedState
     }
 }
 
@@ -632,5 +644,5 @@ private extension FlipcashCore.Keychain {
 // MARK: - Mock -
 
 extension WalletConnection {
-    static let mock = WalletConnection(owner: .mock, client: .mock)
+    static let mock = WalletConnection(owner: .mock, client: .mock, ratesController: .mock)
 }
