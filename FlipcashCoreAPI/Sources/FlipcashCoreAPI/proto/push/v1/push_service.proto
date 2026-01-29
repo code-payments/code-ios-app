@@ -2,11 +2,12 @@ syntax = "proto3";
 
 package flipcash.push.v1;
 
-option go_package = "github.com/code-payments/flipcash-protobuf-api/generated/go/push/v1;pushpb";
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/push/v1;pushpb";
 option java_package = "com.codeinc.flipcash.gen.push.v1";
 option objc_class_prefix = "FPBPushV1";
 
 import "common/v1/common.proto";
+import "push/v1/model.proto";
 import "validate/validate.proto";
 
 service Push {
@@ -15,14 +16,6 @@ service Push {
 
     // DeleteTokens removes all push tokens within an app install for a user
     rpc DeleteTokens(DeleteTokensRequest) returns (DeleteTokensResponse);
-}
-
-enum TokenType {
-    UNKNOWN = 0;
-    // FCM registration token for an Android device
-    FCM_ANDROID = 1;
-    // FCM registration token or an iOS device
-    FCM_APNS = 2;
 }
 
 message AddTokenRequest {

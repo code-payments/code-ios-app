@@ -20,48 +20,6 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public enum Flipcash_Push_V1_TokenType: SwiftProtobuf.Enum, Swift.CaseIterable {
-  public typealias RawValue = Int
-  case unknown // = 0
-
-  /// FCM registration token for an Android device
-  case fcmAndroid // = 1
-
-  /// FCM registration token or an iOS device
-  case fcmApns // = 2
-  case UNRECOGNIZED(Int)
-
-  public init() {
-    self = .unknown
-  }
-
-  public init?(rawValue: Int) {
-    switch rawValue {
-    case 0: self = .unknown
-    case 1: self = .fcmAndroid
-    case 2: self = .fcmApns
-    default: self = .UNRECOGNIZED(rawValue)
-    }
-  }
-
-  public var rawValue: Int {
-    switch self {
-    case .unknown: return 0
-    case .fcmAndroid: return 1
-    case .fcmApns: return 2
-    case .UNRECOGNIZED(let i): return i
-    }
-  }
-
-  // The compiler won't synthesize support with the UNRECOGNIZED case.
-  public static let allCases: [Flipcash_Push_V1_TokenType] = [
-    .unknown,
-    .fcmAndroid,
-    .fcmApns,
-  ]
-
-}
-
 public struct Flipcash_Push_V1_AddTokenRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -219,10 +177,6 @@ public struct Flipcash_Push_V1_DeleteTokensResponse: Sendable {
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "flipcash.push.v1"
-
-extension Flipcash_Push_V1_TokenType: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0UNKNOWN\0\u{1}FCM_ANDROID\0\u{1}FCM_APNS\0")
-}
 
 extension Flipcash_Push_V1_AddTokenRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".AddTokenRequest"

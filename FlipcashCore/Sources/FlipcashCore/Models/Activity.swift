@@ -120,10 +120,10 @@ extension Activity.Kind {
                 self = .cashLink
             case .depositedCrypto:
                 self = .deposited
-            case .paidCrypto:
-                self = .paid
-            case .distributedCrypto:
-                self = .distributed
+            case .boughtCrypto:
+                self = .bought
+            case .soldCrypto:
+                self = .sold
             }
             
         } else {
@@ -137,7 +137,7 @@ extension Activity.Metadata {
         guard let proto else { return nil }
 
         switch proto {
-        case .welcomeBonus, .gaveCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .paidCrypto, .distributedCrypto:
+        case .welcomeBonus, .gaveCrypto, .receivedCrypto, .withdrewCrypto, .depositedCrypto, .boughtCrypto, .soldCrypto:
             return nil
         case .sentCrypto(let metadata):
             do {

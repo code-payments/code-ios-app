@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package flipcash.push.v1;
+
+option go_package = "github.com/code-payments/flipcash2-protobuf-api/generated/go/push/v1;pushpb";
+option java_package = "com.codeinc.flipcash.gen.push.v1";
+option objc_class_prefix = "FPBPushV1";
+
+import "common/v1/common.proto";
+import "validate/validate.proto";
+
+enum TokenType {
+    UNKNOWN = 0;
+    // FCM registration token for an Android device
+    FCM_ANDROID = 1;
+    // FCM registration token or an iOS device
+    FCM_APNS = 2;
+}
+
+// Payload provided as extra data in a push
+message Payload {
+    // If present, where the app should navigate to after clicking the push
+    Navigation navigation = 1;
+}
+
+// Navigation within the app upon clicking the push
+message Navigation {
+    oneof type {
+        option (validate.required) = true;
+
+        // Currency info page for the provided mint 
+        common.v1.PublicKey currency_info = 1;
+    }
+}

@@ -67,28 +67,10 @@ public struct Flipcash_Event_V1_Event: Sendable {
     set {type = .test(newValue)}
   }
 
-  public var poolResolved: Flipcash_Event_V1_PoolResolvedEvent {
-    get {
-      if case .poolResolved(let v)? = type {return v}
-      return Flipcash_Event_V1_PoolResolvedEvent()
-    }
-    set {type = .poolResolved(newValue)}
-  }
-
-  public var poolBetUpdate: Flipcash_Event_V1_PoolBetUpdateEvent {
-    get {
-      if case .poolBetUpdate(let v)? = type {return v}
-      return Flipcash_Event_V1_PoolBetUpdateEvent()
-    }
-    set {type = .poolBetUpdate(newValue)}
-  }
-
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public enum OneOf_Type: Equatable, Sendable {
     case test(Flipcash_Event_V1_TestEvent)
-    case poolResolved(Flipcash_Event_V1_PoolResolvedEvent)
-    case poolBetUpdate(Flipcash_Event_V1_PoolBetUpdateEvent)
 
   }
 
@@ -165,83 +147,6 @@ public struct Flipcash_Event_V1_TestEvent: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
-}
-
-/// Event sent when a pool has been resolved
-public struct Flipcash_Event_V1_PoolResolvedEvent: @unchecked Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The latest signed pool metadata, which is guaranteed to contain a resolution
-  public var pool: Flipcash_Pool_V1_SignedPoolMetadata {
-    get {return _storage._pool ?? Flipcash_Pool_V1_SignedPoolMetadata()}
-    set {_uniqueStorage()._pool = newValue}
-  }
-  /// Returns true if `pool` has been explicitly set.
-  public var hasPool: Bool {return _storage._pool != nil}
-  /// Clears the value of `pool`. Subsequent reads from it will return its default value.
-  public mutating func clearPool() {_uniqueStorage()._pool = nil}
-
-  /// The final bet summary for the pool
-  public var betSummary: Flipcash_Pool_V1_BetSummary {
-    get {return _storage._betSummary ?? Flipcash_Pool_V1_BetSummary()}
-    set {_uniqueStorage()._betSummary = newValue}
-  }
-  /// Returns true if `betSummary` has been explicitly set.
-  public var hasBetSummary: Bool {return _storage._betSummary != nil}
-  /// Clears the value of `betSummary`. Subsequent reads from it will return its default value.
-  public mutating func clearBetSummary() {_uniqueStorage()._betSummary = nil}
-
-  /// The user's outcome for the pool
-  public var userSummary: Flipcash_Pool_V1_UserPoolSummary {
-    get {return _storage._userSummary ?? Flipcash_Pool_V1_UserPoolSummary()}
-    set {_uniqueStorage()._userSummary = newValue}
-  }
-  /// Returns true if `userSummary` has been explicitly set.
-  public var hasUserSummary: Bool {return _storage._userSummary != nil}
-  /// Clears the value of `userSummary`. Subsequent reads from it will return its default value.
-  public mutating func clearUserSummary() {_uniqueStorage()._userSummary = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _storage = _StorageClass.defaultInstance
-}
-
-/// Event sent when a bet is made against a pool
-public struct Flipcash_Event_V1_PoolBetUpdateEvent: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// The pool ID the bet update is for
-  public var poolID: Flipcash_Pool_V1_PoolId {
-    get {return _poolID ?? Flipcash_Pool_V1_PoolId()}
-    set {_poolID = newValue}
-  }
-  /// Returns true if `poolID` has been explicitly set.
-  public var hasPoolID: Bool {return self._poolID != nil}
-  /// Clears the value of `poolID`. Subsequent reads from it will return its default value.
-  public mutating func clearPoolID() {self._poolID = nil}
-
-  /// The latest bet summary for the pool
-  public var betSummary: Flipcash_Pool_V1_BetSummary {
-    get {return _betSummary ?? Flipcash_Pool_V1_BetSummary()}
-    set {_betSummary = newValue}
-  }
-  /// Returns true if `betSummary` has been explicitly set.
-  public var hasBetSummary: Bool {return self._betSummary != nil}
-  /// Clears the value of `betSummary`. Subsequent reads from it will return its default value.
-  public mutating func clearBetSummary() {self._betSummary = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _poolID: Flipcash_Pool_V1_PoolId? = nil
-  fileprivate var _betSummary: Flipcash_Pool_V1_BetSummary? = nil
 }
 
 public struct Flipcash_Event_V1_ServerPing: Sendable {
@@ -337,7 +242,7 @@ extension Flipcash_Event_V1_EventId: SwiftProtobuf.Message, SwiftProtobuf._Messa
 
 extension Flipcash_Event_V1_Event: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Event"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}ts\0\u{1}test\0\u{4}a\u{1}pool_resolved\0\u{3}pool_bet_update\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}ts\0\u{1}test\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -360,32 +265,6 @@ extension Flipcash_Event_V1_Event: SwiftProtobuf.Message, SwiftProtobuf._Message
           self.type = .test(v)
         }
       }()
-      case 100: try {
-        var v: Flipcash_Event_V1_PoolResolvedEvent?
-        var hadOneofValue = false
-        if let current = self.type {
-          hadOneofValue = true
-          if case .poolResolved(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.type = .poolResolved(v)
-        }
-      }()
-      case 101: try {
-        var v: Flipcash_Event_V1_PoolBetUpdateEvent?
-        var hadOneofValue = false
-        if let current = self.type {
-          hadOneofValue = true
-          if case .poolBetUpdate(let m) = current {v = m}
-        }
-        try decoder.decodeSingularMessageField(value: &v)
-        if let v = v {
-          if hadOneofValue {try decoder.handleConflictingOneOf()}
-          self.type = .poolBetUpdate(v)
-        }
-      }()
       default: break
       }
     }
@@ -402,21 +281,9 @@ extension Flipcash_Event_V1_Event: SwiftProtobuf.Message, SwiftProtobuf._Message
     try { if let v = self._ts {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     } }()
-    switch self.type {
-    case .test?: try {
-      guard case .test(let v)? = self.type else { preconditionFailure() }
+    try { if case .test(let v)? = self.type {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-    }()
-    case .poolResolved?: try {
-      guard case .poolResolved(let v)? = self.type else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 100)
-    }()
-    case .poolBetUpdate?: try {
-      guard case .poolBetUpdate(let v)? = self.type else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 101)
-    }()
-    case nil: break
-    }
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -558,129 +425,6 @@ extension Flipcash_Event_V1_TestEvent: SwiftProtobuf.Message, SwiftProtobuf._Mes
   public static func ==(lhs: Flipcash_Event_V1_TestEvent, rhs: Flipcash_Event_V1_TestEvent) -> Bool {
     if lhs.hops != rhs.hops {return false}
     if lhs.nonce != rhs.nonce {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipcash_Event_V1_PoolResolvedEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".PoolResolvedEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}pool\0\u{3}bet_summary\0\u{3}user_summary\0")
-
-  fileprivate class _StorageClass {
-    var _pool: Flipcash_Pool_V1_SignedPoolMetadata? = nil
-    var _betSummary: Flipcash_Pool_V1_BetSummary? = nil
-    var _userSummary: Flipcash_Pool_V1_UserPoolSummary? = nil
-
-      // This property is used as the initial default value for new instances of the type.
-      // The type itself is protecting the reference to its storage via CoW semantics.
-      // This will force a copy to be made of this reference when the first mutation occurs;
-      // hence, it is safe to mark this as `nonisolated(unsafe)`.
-      static nonisolated(unsafe) let defaultInstance = _StorageClass()
-
-    private init() {}
-
-    init(copying source: _StorageClass) {
-      _pool = source._pool
-      _betSummary = source._betSummary
-      _userSummary = source._userSummary
-    }
-  }
-
-  fileprivate mutating func _uniqueStorage() -> _StorageClass {
-    if !isKnownUniquelyReferenced(&_storage) {
-      _storage = _StorageClass(copying: _storage)
-    }
-    return _storage
-  }
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    _ = _uniqueStorage()
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      while let fieldNumber = try decoder.nextFieldNumber() {
-        // The use of inline closures is to circumvent an issue where the compiler
-        // allocates stack space for every case branch when no optimizations are
-        // enabled. https://github.com/apple/swift-protobuf/issues/1034
-        switch fieldNumber {
-        case 1: try { try decoder.decodeSingularMessageField(value: &_storage._pool) }()
-        case 2: try { try decoder.decodeSingularMessageField(value: &_storage._betSummary) }()
-        case 3: try { try decoder.decodeSingularMessageField(value: &_storage._userSummary) }()
-        default: break
-        }
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    try withExtendedLifetime(_storage) { (_storage: _StorageClass) in
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every if/case branch local when no optimizations
-      // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-      // https://github.com/apple/swift-protobuf/issues/1182
-      try { if let v = _storage._pool {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-      } }()
-      try { if let v = _storage._betSummary {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-      } }()
-      try { if let v = _storage._userSummary {
-        try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
-      } }()
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipcash_Event_V1_PoolResolvedEvent, rhs: Flipcash_Event_V1_PoolResolvedEvent) -> Bool {
-    if lhs._storage !== rhs._storage {
-      let storagesAreEqual: Bool = withExtendedLifetime((lhs._storage, rhs._storage)) { (_args: (_StorageClass, _StorageClass)) in
-        let _storage = _args.0
-        let rhs_storage = _args.1
-        if _storage._pool != rhs_storage._pool {return false}
-        if _storage._betSummary != rhs_storage._betSummary {return false}
-        if _storage._userSummary != rhs_storage._userSummary {return false}
-        return true
-      }
-      if !storagesAreEqual {return false}
-    }
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Flipcash_Event_V1_PoolBetUpdateEvent: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".PoolBetUpdateEvent"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}pool_id\0\u{3}bet_summary\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._poolID) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._betSummary) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._poolID {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try { if let v = self._betSummary {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Flipcash_Event_V1_PoolBetUpdateEvent, rhs: Flipcash_Event_V1_PoolBetUpdateEvent) -> Bool {
-    if lhs._poolID != rhs._poolID {return false}
-    if lhs._betSummary != rhs._betSummary {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
