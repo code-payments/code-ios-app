@@ -141,7 +141,7 @@ struct CurrencyInfoScreen: View {
                     VStack(spacing: 0) {
                         // Header
 
-                        section {
+                        VStack {
                             Button {
                                 isShowingCurrencySelection.toggle()
                             } label: {
@@ -164,11 +164,13 @@ struct CurrencyInfoScreen: View {
                                 CodeButton(style: .filledSecondary, title: "View Transaction History") {
                                     isShowingTransactionHistory.toggle()
                                 }
-                                    .padding(.top, 50)
+                                    .padding(.top, 40)
                             }
                         }
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity)
+                        .padding(.top, 30)
+                        .padding(.bottom, 25)
+                        .vSeparator(color: .rowSeparator)
+                        .padding(.horizontal, 20)
 
                         // Currency Info
 
