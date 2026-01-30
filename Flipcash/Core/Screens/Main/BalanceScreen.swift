@@ -52,14 +52,15 @@ struct BalanceScreen: View {
     private var appreciation: (Quarks, isPositive: Bool)? {
         var totalAppreciation: Decimal = 0
 
-        for balance in balances {
+        for balance in currencyBalances {
             guard let (value, isPositive) = balance.stored.computeAppreciation(with: balanceRate) else {
                 continue
             }
+            
             let amount = value.converted.decimalValue
             totalAppreciation += isPositive ? amount : -amount
         }
-
+        
         // Return nil if no appreciation data available
         guard totalAppreciation != 0 else { return nil }
 
@@ -171,6 +172,7 @@ struct BalanceScreen: View {
                         
                         if let (amount, isPositive) = appreciation {
                             ValueAppreciation(amount: amount, isPositive: isPositive)
+                                .padding(.top, 4)
                         }
                     }
                         .padding(.vertical, 30)
@@ -233,7 +235,6 @@ struct BalanceScreen: View {
                 )
                 .font(.appDisplayLarge)
                 .foregroundStyle(Color.textMain)
-                .frame(maxWidth: .infinity)                
             }
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(

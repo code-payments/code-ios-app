@@ -21,11 +21,11 @@ import FlipcashUI
 /// ```swift
 /// let controller = MarketCapController(
 ///     mint: someMint,
-///     currencyCode: "USD",
+///     ratesController: sessionContainer.ratesController,
 ///     client: container.client
 /// )
 ///
-/// // Fetch data for a specific range
+/// // Fetch data for a specific range (uses current balanceCurrency from ratesController)
 /// let chartPoints = try await controller.fetchChartData(for: .all)
 /// viewModel.setDataPoints(chartPoints)
 /// ```
@@ -43,7 +43,7 @@ final class MarketCapController {
     // MARK: - Private Properties
 
     private let mint: PublicKey
-    private let currencyCode: String
+    private let ratesController: RatesController
     private let client: Client
 
     // MARK: - Initialization
@@ -52,11 +52,11 @@ final class MarketCapController {
     ///
     /// - Parameters:
     ///   - mint: The mint public key to fetch historical data for
-    ///   - currencyCode: The currency code for value conversion (e.g., "USD")
+    ///   - ratesController: The rates controller to get the current balance currency from
     ///   - client: The API client for fetching data
-    init(mint: PublicKey, currencyCode: String, client: Client) {
+    init(mint: PublicKey, ratesController: RatesController, client: Client) {
         self.mint = mint
-        self.currencyCode = currencyCode
+        self.ratesController = ratesController
         self.client = client
     }
 
@@ -91,7 +91,7 @@ final class MarketCapController {
         let dataPoints = try await client.fetchHistoricalMintData(
             mint: mint,
             range: range.historicalRange,
-            currencyCode: currencyCode
+            currencyCode: ratesController.balanceCurrency.rawValue
         )
 
         // Need at least 2 points to draw a line

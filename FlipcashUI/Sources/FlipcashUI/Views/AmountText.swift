@@ -67,6 +67,7 @@ struct AmountText_Previews: PreviewProvider {
             AmountText(flagStyle: .fiat(.us), content: "$1,385.50")
             AmountText(flagStyle: .fiat(.jp), content: "$13,930,173.50")
         }
+        .font(.appDisplayLarge)
         .previewLayout(.fixed(width: 480, height: 100))
     }
 }

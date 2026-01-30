@@ -126,7 +126,7 @@ struct CurrencyInfoScreen: View {
 
         self.marketCapController = MarketCapController(
             mint: mint,
-            currencyCode: sessionContainer.ratesController.balanceCurrency.rawValue,
+            ratesController: sessionContainer.ratesController,
             client: container.client
         )
     }
@@ -152,7 +152,6 @@ struct CurrencyInfoScreen: View {
                                 )
                                 .font(.appDisplayLarge)
                                 .foregroundStyle(Color.textMain)
-                                .frame(maxWidth: .infinity)
                             }
                                 .frame(height: 60)
                             
@@ -165,6 +164,7 @@ struct CurrencyInfoScreen: View {
                                 CodeButton(style: .filledSecondary, title: "View Transaction History") {
                                     isShowingTransactionHistory.toggle()
                                 }
+                                    .padding(.top, 50)
                             }
                         }
                         .padding(.vertical, 12)
@@ -256,6 +256,10 @@ struct CurrencyInfoScreen: View {
                     currencySellViewModel.reset()
                 }
             }
+            .onChange(of: ratesController.balanceCurrency) { _, _ in
+                guard let viewModel = chartViewModel else { return }
+                loadChartData(for: viewModel.selectedRange, into: viewModel)
+            }
             .sheet(isPresented: $isShowingFundingSelection) {
                 PartialSheet {
                     VStack {
@@ -268,13 +272,13 @@ struct CurrencyInfoScreen: View {
                         .padding(.vertical, 20)
                         
                         if reserveBalance.quarks > 0 {
-                            CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
+                            CodeButton(style: .filled, title: "USDF Reserves (\(reserveBalance))") {
                                 isShowingBuyAmountEntry = true
                                 isShowingFundingSelection = false
                             }
                         }
                         
-                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDF With") {
+                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
                             walletConnection.connectToPhantom()
                             isShowingFundingSelection = false
                         }
