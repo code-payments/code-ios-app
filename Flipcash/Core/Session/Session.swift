@@ -553,15 +553,6 @@ class Session: ObservableObject {
     // MARK: - Swaps -
     func buy(amount: ExchangedFiat, of mint: PublicKey) async throws {
         let token = try await fetchMintMetadata(mint: mint)
-        // For buys, verify we have sufficient USDF balance
-        guard let usdfBalance = balance(for: .usdf) else {
-            throw Error.insufficientBalance
-        }
-
-        // Check if we have enough USDF to cover the buy
-        guard amount.underlying.quarks <= usdfBalance.quarks else {
-            throw Error.insufficientBalance
-        }
 
         // Get verified state for intent construction
         guard let verifiedState = await ratesController.getVerifiedState(

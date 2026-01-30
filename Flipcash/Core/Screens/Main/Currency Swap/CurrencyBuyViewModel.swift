@@ -19,15 +19,15 @@ class CurrencyBuyViewModel: ObservableObject {
         guard !enteredAmount.isEmpty else {
             return nil
         }
-                
+
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else {
             return nil
         }
-        
+
         let mint: PublicKey = .usdf
         let rate = ratesController.rateForEntryCurrency()
-        
-        return try! ExchangedFiat(
+
+        let entered = try! ExchangedFiat(
             converted: .init(
                 fiatDecimal: amount,
                 currencyCode: rate.currency,
@@ -36,6 +36,26 @@ class CurrencyBuyViewModel: ObservableObject {
             rate: rate,
             mint: mint
         )
+
+        // Cap to balance to handle rounding differences between display and entry. Since our display rounds HALF_UP
+        guard let balance = session.balance(for: .usdf) else {
+            return entered
+        }
+
+        // If entered underlying exceeds balance, cap it to the balance
+        if entered.underlying.quarks > balance.quarks {
+            return try? ExchangedFiat(
+                underlying: Quarks(
+                    quarks: balance.quarks,
+                    currencyCode: .usd,
+                    decimals: mint.mintDecimals
+                ),
+                rate: rate,
+                mint: mint
+            )
+        }
+
+        return entered
     }
         
     var canPerformAction: Bool {
