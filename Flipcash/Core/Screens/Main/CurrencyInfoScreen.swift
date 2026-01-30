@@ -332,36 +332,25 @@ struct CurrencyInfoScreen: View {
     }
     
     @ViewBuilder private func marketCapSection() -> some View {
-        if BetaFlags.shared.hasEnabled(.charts) {
-            VStack(alignment: .leading) {
-                Text("Market Cap")
-                    .foregroundStyle(Color.textSecondary)
-                    .font(.appTextMedium)
-                    .padding(.horizontal, 20)
+        VStack(alignment: .leading) {
+            Text("Market Cap")
+                .foregroundStyle(Color.textSecondary)
+                .font(.appTextMedium)
+                .padding(.horizontal, 20)
 
-                if let viewModel = chartViewModel {
-                    StockChart(
-                        viewModel: viewModel,
-                        currencyCode: ratesController.balanceCurrency,
-                        positiveColor: .actionAlternative,
-                        negativeColor: Color(r: 228, g: 42, b: 42)
-                    )
-                }
+            if let viewModel = chartViewModel {
+                StockChart(
+                    viewModel: viewModel,
+                    currencyCode: ratesController.balanceCurrency,
+                    positiveColor: .actionAlternative,
+                    negativeColor: Color(r: 228, g: 42, b: 42)
+                )
             }
-            .padding(.top, 20)
-            .padding(.bottom, 20)
-            .task {
-                setupChart()
-            }
-        } else {
-            section() {
-                Text("Market Cap")
-                    .foregroundStyle(Color.textSecondary)
-                    .font(.appTextMedium)
-                Text(marketCap.formatted())
-                    .foregroundStyle(Color.textMain)
-                    .font(.appDisplayMedium)
-            }
+        }
+        .padding(.top, 20)
+        .padding(.bottom, 20)
+        .task {
+            setupChart()
         }
     }
     

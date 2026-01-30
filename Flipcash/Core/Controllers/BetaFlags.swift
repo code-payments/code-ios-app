@@ -88,7 +88,6 @@ extension BetaFlags {
         case vibrateOnScan
         case enableCoinbase
         case coinbaseSandbox
-        case charts
         
         var id: String {
             localizedTitle
@@ -104,8 +103,6 @@ extension BetaFlags {
                 return "Enable Coinbase"
             case .coinbaseSandbox:
                 return "Coinbase Sandbox"
-            case .charts:
-                return "Charts"
             }
         }
         
@@ -119,8 +116,6 @@ extension BetaFlags {
                 return "If enabled, Coinbase onramp will be available regardless of region"
             case .coinbaseSandbox:
                 return "If enabled, all Coinbase transactions will go through the sandbox environment"
-            case .charts:
-                return "If enabled, the Charts feature will be available in the currency info screens"
             }
         }
     }
