@@ -46,7 +46,7 @@ public struct ChartLineView: View {
                     y: .value("Value", point.value),
                     series: .value("Line", "Baseline")
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(secondaryColor)
                 .lineStyle(.init(lineWidth: 3))
             }
@@ -58,7 +58,7 @@ public struct ChartLineView: View {
                     y: .value("Value", point.value),
                     series: .value("Line", "Active")
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(accentColor)
                 .lineStyle(.init(lineWidth: 3))
             }
@@ -204,7 +204,7 @@ private struct AnimatableAreaGradient: View {
                         x: .value("Position", point.normalizedPosition),
                         y: .value("Value", point.value)
                     )
-                    .interpolationMethod(.catmullRom)
+                    .interpolationMethod(.monotone)
                 }
             }
             .chartXAxis(.hidden)
