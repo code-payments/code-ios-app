@@ -165,7 +165,6 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
             switch type {
             case .coreMintFiatExchangeRates(let batch):
                 await verifiedProtoService.saveRates(batch.exchangeRates)
-
             case .launchpadCurrencyReserveStates(let batch):
                 await verifiedProtoService.saveReserveStates(batch.reserveStates)
             }
@@ -173,8 +172,6 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
     }
 
     private func handlePing(_ ping: Ocp_Common_V1_ServerPing) {
-        trace(.receive, components: "Received ping, sending pong")
-
         // Update timeout based on server's ping interval
         streamReference?.receivedPing(updatedTimeout: Int(ping.pingDelay.seconds))
 

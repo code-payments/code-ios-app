@@ -10,7 +10,6 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencyInfoScreen: View {
-    
     @StateObject private var updateableMint: Updateable<StoredMintMetadata>
     
     @State private var isShowingTransactionHistory: Bool = false
@@ -18,7 +17,8 @@ struct CurrencyInfoScreen: View {
     @State private var isShowingBuyAmountEntry: Bool = false
     @State private var isShowingSellAmountEntry: Bool = false
     @State private var chartViewModel: ChartViewModel?
-
+    @State private var isShowingCurrencySelection: Bool = false
+    
     @ObservedObject private var session: Session
     @ObservedObject private var walletConnection: WalletConnection
     
@@ -34,19 +34,8 @@ struct CurrencyInfoScreen: View {
     }
 
     private var currencyDescription: String {
-        if isUSDF {
-            return "Your cash reserves are held in USDF, a fully backed digital dollar supported 1:1 by U.S. dollars. This ensures your funds retain the same value and stability as traditional USD, while benefiting from faster, more transparent transactions on modern financial infrastructure. You can deposit additional funds at any time, or withdraw your USDF for U.S. dollars whenever you like."
-        } else {
-            return mintMetadata.bio ?? "No information"
-        }
-    }
-    
-    private var proportion: CGFloat {
-        if isUSDF {
-            return 0.24
-        } else {
-            return 0.35
-        }
+        return mintMetadata.bio ?? "No information"
+
     }
 
     private var balance: Quarks {
@@ -137,7 +126,7 @@ struct CurrencyInfoScreen: View {
 
         self.marketCapController = MarketCapController(
             mint: mint,
-            currencyCode: sessionContainer.ratesController.balanceCurrency.rawValue,
+            ratesController: sessionContainer.ratesController,
             client: container.client
         )
     }
@@ -148,70 +137,67 @@ struct CurrencyInfoScreen: View {
         Background(color: .backgroundMain) {
             ZStack {
                 // Scrollable Content
-                GeometryReader { g in
-                    ScrollView {
-                        VStack(spacing: 0) {
-                            // Header
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Header
 
-                            section {
-                                Spacer()
-
+                        VStack {
+                            Button {
+                                isShowingCurrencySelection.toggle()
+                            } label: {
                                 AmountText(
                                     flagStyle: balance.currencyCode.flagStyle,
                                     content: balance.formatted(),
-                                    showChevron: false
+                                    showChevron: true
                                 )
-                                .font(.appDisplayMedium)
+                                .font(.appDisplayLarge)
                                 .foregroundStyle(Color.textMain)
-                                .frame(maxWidth: .infinity)
-                                .padding(.bottom, 20)
-                                
-                                if !isUSDF, let (amount, isPositive) = appreciation {
-                                    ValueAppreciation(amount: amount, isPositive: isPositive)
-                                }
-
-                                Spacer()
-
-                                if !isUSDF {
-                                    CodeButton(style: .filledSecondary, title: "View Transaction History") {
-                                        isShowingTransactionHistory.toggle()
-                                    }
-                                }
                             }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: g.size.height * proportion)
-
-                            // Currency Info
-
-                            section(spacing: 20) {
-                                if !isUSDF {
-                                    HStack {
-                                        Image(systemName: "text.justify.left")
-                                            .padding(.bottom, -1)
-                                        Text("Currency Info")
-                                    }
-                                    .font(.appBarButton)
-                                    .foregroundStyle(Color.textMain)
-                                }
-
-                                Text(currencyDescription)
-                                    .foregroundStyle(Color.textSecondary)
-                                    .font(.appTextSmall)
-    //                            {
-    //                                AnyView(drawer())
-    //                            }
-    //                            .font(.system(size: 14, weight: .bold))
+                                .frame(height: 60)
+                            
+                            if !isUSDF, let (amount, isPositive) = appreciation {
+                                ValueAppreciation(amount: amount, isPositive: isPositive)
+                                    .padding(.top, 8)
                             }
 
-                            // Market Cap
                             if !isUSDF {
-                                marketCapSection()
-                                
-                                // Append enough content to scroll below the floating footer
-                                Color
-                                    .clear
-                                    .padding(.bottom, 100)
+                                CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                                    isShowingTransactionHistory.toggle()
+                                }
+                                    .padding(.top, 40)
                             }
+                        }
+                        .padding(.top, 30)
+                        .padding(.bottom, 25)
+                        .vSeparator(color: .rowSeparator)
+                        .padding(.horizontal, 20)
+
+                        // Currency Info
+
+                        section(spacing: 20) {
+                            if !isUSDF {
+                                HStack {
+                                    Image(systemName: "text.justify.left")
+                                        .padding(.bottom, -1)
+                                    Text("Currency Info")
+                                }
+                                .font(.appBarButton)
+                                .foregroundStyle(Color.textMain)
+                            }
+
+                            Text(currencyDescription)
+                                .foregroundStyle(Color.textSecondary)
+                                .font(.appTextSmall)
+                        }
+
+                        // Market Cap
+                        if !isUSDF {
+                            marketCapSection()
+                            
+                            // Append enough content to scroll below the floating footer
+                            Color
+                                .clear
+                                .padding(.bottom, 100)
                         }
                     }
                 }
@@ -260,10 +246,21 @@ struct CurrencyInfoScreen: View {
             .sheet(isPresented: $isShowingSellAmountEntry) {
                 CurrencySellAmountScreen(viewModel: currencySellViewModel)
             }
+            .sheet(isPresented: $isShowingCurrencySelection) {
+                CurrencySelectionScreen(
+                    isPresented: $isShowingCurrencySelection,
+                    kind: .balance,
+                    ratesController: ratesController
+                )
+            }
             .onChange(of: isShowingSellAmountEntry) { _, isPresented in
                 if isPresented {
                     currencySellViewModel.reset()
                 }
+            }
+            .onChange(of: ratesController.balanceCurrency) { _, _ in
+                guard let viewModel = chartViewModel else { return }
+                loadChartData(for: viewModel.selectedRange, into: viewModel)
             }
             .sheet(isPresented: $isShowingFundingSelection) {
                 PartialSheet {
@@ -277,13 +274,13 @@ struct CurrencyInfoScreen: View {
                         .padding(.vertical, 20)
                         
                         if reserveBalance.quarks > 0 {
-                            CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
+                            CodeButton(style: .filled, title: "USDF Reserves (\(reserveBalance))") {
                                 isShowingBuyAmountEntry = true
                                 isShowingFundingSelection = false
                             }
                         }
                         
-                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDF With") {
+                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
                             walletConnection.connectToPhantom()
                             isShowingFundingSelection = false
                         }
