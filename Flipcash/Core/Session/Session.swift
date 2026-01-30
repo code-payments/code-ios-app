@@ -587,9 +587,23 @@ class Session: ObservableObject {
             throw Error.missingVerifiedState
         }
 
-        trace(.note, components: "selling \(amount.converted.formatted()) of \(token.symbol)")
+        // Recalculate amount with the supply from the streaming service
+        guard let supply = verifiedState.supplyFromBonding else {
+            throw Error.missingSupply
+        }
+                
+        guard let amountRecalculated = ExchangedFiat.computeFromEntered(
+                amount: amount.converted.decimalValue,
+                rate: ratesController.rateForEntryCurrency(),
+                mint: mint,
+                supplyQuarks: supply
+        ) else {
+            throw Error.unableToConvertToFiat
+        }
 
-        try await client.sell(amount: amount, verifiedState: verifiedState, in: token.metadata, owner: owner)
+        trace(.note, components: "selling \(amountRecalculated.converted.formatted()) of \(token.symbol)")
+
+        try await client.sell(amount: amountRecalculated, verifiedState: verifiedState, in: token.metadata, owner: owner)
     }
     
     // MARK: - Withdrawals -
@@ -1210,6 +1224,9 @@ extension Session {
         case mintNotFound
         case insufficientBalance
         case missingVerifiedState
+        case missingSupply
+        case unableToConvertToFiat
+        
     }
 }
 
