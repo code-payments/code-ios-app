@@ -44,7 +44,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         if let supplyFromBonding, let sellFeeBps {
             guard let sellEstimate = Self.bondingCurve.sell(
                 tokenQuarks: Int(quarks),
-                feeBps: sellFeeBps,
+                feeBps: 0,
                 supplyQuarks: Int(supplyFromBonding)
             ) else {
                 throw Error.missingStoredCoreMintForNonReserveToken
