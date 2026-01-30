@@ -384,7 +384,7 @@ struct CurrencyInfoScreen: View {
         Task {
             do {
                 let chartPoints = try await marketCapController.fetchChartData(for: range)
-                viewModel.setDataPoints(chartPoints)
+                viewModel.setDataPoints(chartPoints, appendingCurrentValue: marketCap.doubleValue)
             } catch let error as ChartError {
                 viewModel.setError(error)
             } catch {

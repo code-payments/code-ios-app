@@ -27,7 +27,7 @@ import FlipcashUI
 ///
 /// // Fetch data for a specific range (uses current balanceCurrency from ratesController)
 /// let chartPoints = try await controller.fetchChartData(for: .all)
-/// viewModel.setDataPoints(chartPoints)
+/// viewModel.setDataPoints(chartPoints, appendingCurrentValue: currentValue)
 /// ```
 ///
 /// The controller does not manage any UI state - it only provides processed data.
