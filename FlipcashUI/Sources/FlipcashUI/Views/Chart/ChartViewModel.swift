@@ -54,7 +54,7 @@ public final class ChartViewModel {
 
     /// Dollar change from first to display value
     public var valueChange: Double {
-        guard let first = dataPoints.first else { return 0 }
+        guard let first = dataPoints.first else { return currentValue }
         return displayValue - first.value
     }
 
