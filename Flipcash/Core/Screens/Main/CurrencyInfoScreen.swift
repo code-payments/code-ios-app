@@ -154,6 +154,7 @@ struct CurrencyInfoScreen: View {
                                 .foregroundStyle(Color.textMain)
                             }
                                 .frame(height: 60)
+                                .frame(maxWidth: .infinity)
                             
                             if !isUSDF, let (amount, isPositive) = appreciation {
                                 ValueAppreciation(amount: amount, isPositive: isPositive)
