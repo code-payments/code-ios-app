@@ -1,12 +1,14 @@
 import SwiftUI
+import FlipcashCore
 
 /// A stock-style chart component with scrubbing and range selection
 public struct StockChart: View {
     @Bindable private var viewModel: ChartViewModel
+    private let currencyCode: CurrencyCode
 
     private let positiveColor: Color
     private let negativeColor: Color
-    private let valueFormatter: (Double) -> String
+    private let valueFormatter: NumberFormatter
     private let dateFormatter: (Date) -> String
 
     /// Creates a stock chart with externally-provided data via a view model
@@ -14,21 +16,24 @@ public struct StockChart: View {
     ///   - viewModel: The view model containing chart data and state
     ///   - positiveColor: The chart line color on positive values
     ///   - negativeColor: The chart line color on negative values
-    ///   - valueFormatter: Optional custom formatter for displaying values
     ///   - dateFormatter: Optional custom formatter for displaying dates
     public init(
         viewModel: ChartViewModel,
+        currencyCode: CurrencyCode,
         positiveColor: Color = .green,
         negativeColor: Color = .red,
-        valueFormatter: ((Double) -> String)? = nil,
         dateFormatter: ((Date) -> String)? = nil
     ) {
         self.viewModel = viewModel
+        self.currencyCode = currencyCode
         self.positiveColor = positiveColor
         self.negativeColor = negativeColor
-        self.valueFormatter = valueFormatter ?? { value in
-            String(format: "$%.2f", value)
-        }
+        self.valueFormatter = NumberFormatter.fiat(
+                currency: currencyCode,
+                minimumFractionDigits: currencyCode.maximumFractionDigits,
+                maximumFractionDigits: currencyCode.maximumFractionDigits,
+            )
+        
         self.dateFormatter = dateFormatter ?? { date in
             if Calendar.current.isDateInToday(date) {
                 return date.formatted(date: .omitted, time: .shortened)
@@ -65,7 +70,7 @@ public struct StockChart: View {
 
     private var headerView: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(valueFormatter(viewModel.displayValue))
+            Text(valueFormatter.string(for: viewModel.displayValue) ?? "")
                 .foregroundStyle(Color.textMain)
                 .font(.appDisplayMedium)
                 .contentTransition(.numericText())
@@ -101,7 +106,7 @@ public struct StockChart: View {
 
         let change = viewModel.valueChange
         let prefix = change >= 0 ? "+ " : "- "
-        let formatted = valueFormatter(abs(change))
+        let formatted = valueFormatter.string(for: abs(change)) ?? ""
         return "\(prefix)\(formatted) \(viewModel.selectedRange.contextLabel)"
     }
 

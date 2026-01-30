@@ -342,6 +342,7 @@ struct CurrencyInfoScreen: View {
                 if let viewModel = chartViewModel {
                     StockChart(
                         viewModel: viewModel,
+                        currencyCode: ratesController.balanceCurrency,
                         positiveColor: .actionAlternative,
                         negativeColor: Color(r: 228, g: 42, b: 42)
                     )
@@ -365,7 +366,7 @@ struct CurrencyInfoScreen: View {
     }
     
     private func setupChart() {
-        let viewModel = ChartViewModel(selectedRange: .all)
+        let viewModel = ChartViewModel(currentValue: marketCap.doubleValue, selectedRange: .all)
         chartViewModel = viewModel
 
         viewModel.onRangeChange = { [weak viewModel] range in
@@ -378,6 +379,7 @@ struct CurrencyInfoScreen: View {
 
     private func loadChartData(for range: ChartRange, into viewModel: ChartViewModel) {
         viewModel.setLoading()
+        viewModel.currentValue = marketCap.doubleValue
 
         Task {
             do {
