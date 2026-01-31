@@ -49,7 +49,7 @@ extension Database {
                 vmAuthority:       row[m.vmAuthority],
                 updatedAt:         row[b.updatedAt],
                 imageURL:          row[m.imageURL],
-                costBasis:         row[b.costBasis]
+                costBasis:         row[b.costBasis] ?? 0
             )
         }
         

@@ -49,20 +49,14 @@ struct BalanceScreen: View {
         balances.first { $0.stored.mint == .usdf && $0.stored.quarks > 0 }
     }
     
-    private var appreciation: (Quarks, isPositive: Bool)? {
+    private var appreciation: (amount: Quarks, isPositive: Bool) {
         var totalAppreciation: Decimal = 0
 
         for balance in currencyBalances {
-            guard let (value, isPositive) = balance.stored.computeAppreciation(with: balanceRate) else {
-                continue
-            }
-            
+            let (value, isPositive) = balance.stored.computeAppreciation(with: balanceRate)
             let amount = value.converted.decimalValue
             totalAppreciation += isPositive ? amount : -amount
         }
-        
-        // Return nil if no appreciation data available
-        guard totalAppreciation != 0 else { return nil }
 
         let isPositive = totalAppreciation >= 0
         let quarks = try! Quarks(
@@ -72,6 +66,10 @@ struct BalanceScreen: View {
         )
 
         return (quarks, isPositive)
+    }
+
+    private var shouldShowAppreciation: Bool {
+        appreciation.amount.decimalValue >= 0.01
     }
     
     // MARK: - Init -
@@ -170,8 +168,8 @@ struct BalanceScreen: View {
                         header()
                             .frame(height: 60)
                         
-                        if let (amount, isPositive) = appreciation {
-                            ValueAppreciation(amount: amount, isPositive: isPositive)
+                        if shouldShowAppreciation {
+                            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                                 .padding(.top, 4)
                         }
                     }
