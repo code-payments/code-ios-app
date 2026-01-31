@@ -37,7 +37,7 @@ public final class ChartViewModel {
 
     /// The display value (scrubbed or latest)
     public var displayValue: Double {
-        scrubbedPoint?.value ?? dataPoints.last?.value ?? 0
+        scrubbedPoint?.value ?? currentValue
     }
 
     /// The display date (scrubbed or latest)
@@ -54,7 +54,7 @@ public final class ChartViewModel {
 
     /// Dollar change from first to display value
     public var valueChange: Double {
-        guard let first = dataPoints.first else { return 0 }
+        guard let first = dataPoints.first else { return currentValue }
         return displayValue - first.value
     }
 
@@ -62,20 +62,38 @@ public final class ChartViewModel {
     public var isPositive: Bool {
         valueChange >= 0
     }
+    
+    /// A reference to the current value
+    public var currentValue: Double
 
     public init(
+        currentValue: Double,
         dataPoints: [ChartDataPoint] = [],
         selectedRange: ChartRange = .all,
         onRangeChange: ((ChartRange) -> Void)? = nil
     ) {
+        self.currentValue = currentValue
         self.dataPoints = dataPoints
         self.selectedRange = selectedRange
         self.onRangeChange = onRangeChange
     }
 
-    /// Updates the data points from external source
-    public func setDataPoints(_ points: [ChartDataPoint]) {
-        dataPoints = points
+    /// Updates data points and appends currentValue as the final point if different
+    public func setDataPoints(_ points: [ChartDataPoint], appendingCurrentValue currentValue: Double) {
+        var finalPoints = points
+
+        // Append current value as last point if meaningfully different
+        if let lastPoint = points.last, abs(lastPoint.value - currentValue) > 0.01 {
+            finalPoints.append(ChartDataPoint(
+                id: points.count,
+                date: Date(),
+                value: currentValue,
+                normalizedPosition: 1.0
+            ))
+        }
+
+        self.currentValue = currentValue
+        self.dataPoints = finalPoints
         loadingState = .loaded
     }
 

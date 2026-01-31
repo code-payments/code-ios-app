@@ -236,6 +236,7 @@ struct BalanceScreen: View {
                 .font(.appDisplayLarge)
                 .foregroundStyle(Color.textMain)
             }
+            .frame(maxWidth: .infinity)
             .sheet(isPresented: $isShowingCurrencySelection) {
                 CurrencySelectionScreen(
                     isPresented: $isShowingCurrencySelection,

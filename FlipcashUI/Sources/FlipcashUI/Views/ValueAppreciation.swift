@@ -37,6 +37,5 @@ public struct ValueAppreciation: View {
             .font(.appTextSmall)
             .foregroundStyle(isPositive ? .actionAlternative : Color(r: 228, g: 42, b: 42))
             .padding(.bottom, 30)
-            .frame(maxWidth: .infinity)
     }
 }

@@ -154,6 +154,7 @@ struct CurrencyInfoScreen: View {
                                 .foregroundStyle(Color.textMain)
                             }
                                 .frame(height: 60)
+                                .frame(maxWidth: .infinity)
                             
                             if !isUSDF, let (amount, isPositive) = appreciation {
                                 ValueAppreciation(amount: amount, isPositive: isPositive)
@@ -332,40 +333,30 @@ struct CurrencyInfoScreen: View {
     }
     
     @ViewBuilder private func marketCapSection() -> some View {
-        if BetaFlags.shared.hasEnabled(.charts) {
-            VStack(alignment: .leading) {
-                Text("Market Cap")
-                    .foregroundStyle(Color.textSecondary)
-                    .font(.appTextMedium)
-                    .padding(.horizontal, 20)
+        VStack(alignment: .leading) {
+            Text("Market Cap")
+                .foregroundStyle(Color.textSecondary)
+                .font(.appTextMedium)
+                .padding(.horizontal, 20)
 
-                if let viewModel = chartViewModel {
-                    StockChart(
-                        viewModel: viewModel,
-                        positiveColor: .actionAlternative,
-                        negativeColor: Color(r: 228, g: 42, b: 42)
-                    )
-                }
+            if let viewModel = chartViewModel {
+                StockChart(
+                    viewModel: viewModel,
+                    currencyCode: ratesController.balanceCurrency,
+                    positiveColor: .actionAlternative,
+                    negativeColor: Color(r: 228, g: 42, b: 42)
+                )
             }
-            .padding(.top, 20)
-            .padding(.bottom, 20)
-            .task {
-                setupChart()
-            }
-        } else {
-            section() {
-                Text("Market Cap")
-                    .foregroundStyle(Color.textSecondary)
-                    .font(.appTextMedium)
-                Text(marketCap.formatted())
-                    .foregroundStyle(Color.textMain)
-                    .font(.appDisplayMedium)
-            }
+        }
+        .padding(.top, 20)
+        .padding(.bottom, 20)
+        .task {
+            setupChart()
         }
     }
     
     private func setupChart() {
-        let viewModel = ChartViewModel(selectedRange: .all)
+        let viewModel = ChartViewModel(currentValue: marketCap.doubleValue, selectedRange: .all)
         chartViewModel = viewModel
 
         viewModel.onRangeChange = { [weak viewModel] range in
@@ -378,11 +369,12 @@ struct CurrencyInfoScreen: View {
 
     private func loadChartData(for range: ChartRange, into viewModel: ChartViewModel) {
         viewModel.setLoading()
+        viewModel.currentValue = marketCap.doubleValue
 
         Task {
             do {
                 let chartPoints = try await marketCapController.fetchChartData(for: range)
-                viewModel.setDataPoints(chartPoints)
+                viewModel.setDataPoints(chartPoints, appendingCurrentValue: marketCap.doubleValue)
             } catch let error as ChartError {
                 viewModel.setError(error)
             } catch {
