@@ -1486,10 +1486,10 @@ struct DiscreteAdditionalCoverageTests {
 
     let curve = DiscreteBondingCurve()
 
-    // MARK: - Sell Oversell Scenario (Line 500 coverage)
+    // MARK: - Sell Oversell Scenario
 
     @Test
-    func sellOversellReturnsNil() {
+    func sellOversellClamps() {
         // TVL of $10 corresponds to roughly 1000 tokens at $0.01/token
         let tvl = 10_000_000  // $10 in USDC quarks
         let supply = curve.supplyFromTVL(tvl)
@@ -1497,10 +1497,13 @@ struct DiscreteAdditionalCoverageTests {
 
         if let currentSupply = supply {
             // Try to sell more tokens than exist
-            // currentSupply is in whole tokens, multiply by quarksPerToken
+            // clamps effectiveSell to currentSupply, calculates value for requested tokens
             let oversellQuarks = (currentSupply + 1000) * DiscreteBondingCurve.quarksPerToken
             let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, supplyQuarks: tvl)
-            #expect(result == nil, "Selling more tokens than supply should return nil")
+            #expect(result != nil, "Overselling should succeed with clamping")
+            if let result = result {
+                #expect(result.grossUSDF > .zero, "Should return positive value")
+            }
         }
     }
 
@@ -1519,16 +1522,20 @@ struct DiscreteAdditionalCoverageTests {
     }
 
     @Test
-    func sellOneMoreThanSupplyReturnsNil() {
+    func sellOneMoreThanSupplyClamps() {
         let tvl = 5_000_000  // $5 in USDC quarks
         let supply = curve.supplyFromTVL(tvl)
         #expect(supply != nil)
 
         if let currentSupply = supply {
             // Try to sell supply + 1 tokens
+            // clamps effectiveSell to currentSupply
             let oversellQuarks = (currentSupply + 1) * DiscreteBondingCurve.quarksPerToken
             let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, supplyQuarks: tvl)
-            #expect(result == nil, "Selling supply+1 tokens should return nil")
+            #expect(result != nil, "Overselling by 1 token should succeed with clamping")
+            if let result = result {
+                #expect(result.grossUSDF > .zero, "Should return positive value")
+            }
         }
     }
 
@@ -1719,7 +1726,7 @@ struct DiscreteAdditionalCoverageTests {
     }
 }
 
-// MARK: - 13. Sell Estimation Tests (Android Parity)
+// MARK: - 13. Sell Estimation Tests
 
 @Suite("Discrete Bonding Curve - Sell Estimation")
 struct DiscreteSellEstimationTests {
@@ -1729,8 +1736,6 @@ struct DiscreteSellEstimationTests {
 
     @Test
     func sellPreservesFractionalTokens() {
-        // Android uses BigDecimal division which preserves fractional tokens
-        // iOS should now match this behavior
         let supplyQuarks = 200 * quarksPerToken
         let tokenQuarks = 15 * quarksPerToken / 10  // 1.5 tokens in quarks
 
@@ -1744,15 +1749,13 @@ struct DiscreteSellEstimationTests {
 
     @Test
     func sellClampsToCurrentSupply() {
-        // Android clamps tokensToSell to [0, currentSupply] when calculating supplyAfter
+        // Clamps tokensToSell to [0, currentSupply] when calculating supplyAfter
         // This means selling more than supply should still work (clamped)
         let supplyQuarks = 100 * quarksPerToken
         let tokenQuarks = 150 * quarksPerToken  // Trying to sell more than supply
 
         let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
-        // Android behavior: effectiveSell = min(150, 100) = 100, supplyAfter = 0
-        // Then calculates value for 150 tokens starting at supply 0
-        // iOS now matches this behavior
+
         #expect(result != nil, "Should handle oversell by clamping")
         if let result = result {
             #expect(result.grossUSDF.isPositive, "Should return positive value even when overselling")
@@ -1761,8 +1764,6 @@ struct DiscreteSellEstimationTests {
 
     @Test
     func sellCalculatesFromSupplyAfter() {
-        // Android calculates gross value as: curve.tokensToValue(supplyAfter, tokensToSell)
-        // This is different from iOS's previous: value(0→supply) - value(0→newSupply)
         let supplyQuarks = 300 * quarksPerToken
         let tokenQuarks = 100 * quarksPerToken
 
@@ -1790,8 +1791,7 @@ struct DiscreteSellEstimationTests {
     }
 
     @Test
-    func sellFeeCalculationMatchesAndroid() {
-        // Android: fees = grossUSDF × (feeBps / 10000)
+    func sellFeeCalculation() {
         let supplyQuarks = 500 * quarksPerToken
         let tokenQuarks = 200 * quarksPerToken
         let feeBps = 100  // 1%
