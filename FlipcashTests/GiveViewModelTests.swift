@@ -61,7 +61,8 @@ struct GiveViewModelTests {
             mint: mint,
             vmAuthority: mint == .usdf ? nil : .usdcAuthority,
             updatedAt: Date(),
-            imageURL: nil
+            imageURL: nil,
+            costBasis: 0
         )
         return ExchangedBalance(
             stored: stored,

@@ -325,6 +325,26 @@ xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhon
 - Use descriptive names that explain the scenario
 - Format: `func testMethodName_scenario_expectedResult()` or use `@Test("description")`
 
+### Test Support Extensions
+
+**Keep production code clean** - test-only helpers belong in the test target:
+
+```swift
+// ❌ BAD: Adding #if DEBUG to production code
+// Flipcash/Core/Controllers/RatesController.swift
+#if DEBUG
+func configureTestRates(...) { ... }
+#endif
+
+// ✅ GOOD: Extension in test target
+// FlipcashTests/TestSupport/RatesController+TestSupport.swift
+extension RatesController {
+    func configureTestRates(...) { ... }
+}
+```
+
+Place test support extensions in `FlipcashTests/TestSupport/` using the naming pattern `{Type}+TestSupport.swift`.
+
 ---
 
 ## Git & Workflow

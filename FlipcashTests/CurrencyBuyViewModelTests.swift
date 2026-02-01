@@ -24,14 +24,10 @@ struct CurrencyBuyViewModelTests {
     static func createViewModel() -> CurrencyBuyViewModel {
         let container = Container.mock
         let sessionContainer = SessionContainer.mock
-        
-        // Set entry currency to CAD explicitly for deterministic tests
-        sessionContainer.ratesController.entryCurrency = .cad
-        
-        // Insert CAD rate into the database
-        let snapshot = RatesSnapshot(date: Date(), rates: [cadRate])
-        try! sessionContainer.database.insert(snapshot: snapshot)
-        
+
+        // Configure entry currency and inject the CAD rate for deterministic tests
+        sessionContainer.ratesController.configureTestRates(entryCurrency: .cad, rates: [cadRate])
+
         return CurrencyBuyViewModel(
             currencyPublicKey: .usdf,
             container: container,
