@@ -13,10 +13,11 @@ import FlipcashCore
 class CurrencySellConfirmationViewModel: ObservableObject {
     let mint: PublicKey
     let amount: ExchangedFiat
-        
+
     @Published var dialogItem: DialogItem?
     @Published private(set) var actionButtonState: ButtonState = .normal
-        
+    @Published var pendingSwapId: SwapId?
+
     var canDismissSheet: Bool = false
     
     var fee: ExchangedFiat {
@@ -50,44 +51,36 @@ class CurrencySellConfirmationViewModel: ObservableObject {
     }
     
     // MARK: - Init -
-    
+
     init(mint: PublicKey, amount: ExchangedFiat) {
         self.mint = mint
         self.amount = amount
     }
     
     // MARK: - Actions -
-    
-    func performSell(using session: Session, onDismiss: @escaping () -> Void) {
+
+    func performSell(using session: Session) {
         actionButtonState = .loading
-        
+
         Task {
             do {
-                try await session.sell(amount: amount, in: mint)
-                showSuccessDialog(onDismiss: onDismiss)
+                let swapId = try await session.sell(amount: amount, in: mint)
+                // Navigate to processing screen
+                pendingSwapId = swapId
             } catch {
                 actionButtonState = .normal
                 showErrorDialog(error: error)
             }
         }
     }
-    
-    // MARK: - Dialogs -
-    
-    private func showSuccessDialog(onDismiss: @escaping () -> Void) {
-        dialogItem = .init(
-            style: .success,
-            title: "Your Funds Will Be Available Soon",
-            subtitle: "They should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-            dismissable: false
-        ) {
-            .okay(kind: .standard) { [weak self] in
-                self?.actionButtonState = .success
-                onDismiss()
-            }
-        }
+
+    func reset() {
+        actionButtonState = .normal
+        pendingSwapId = nil
     }
-    
+
+    // MARK: - Dialogs -
+
     private func showErrorDialog(error: Error) {
         dialogItem = .init(
             style: .destructive,

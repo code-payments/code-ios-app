@@ -13,11 +13,11 @@ struct CurrencySellAmountScreen: View {
     @ObservedObject private var viewModel: CurrencySellViewModel
     @Environment(\.dismiss) var dismissAction: DismissAction
     @EnvironmentObject private var ratesController: RatesController
-    
+
     @State private var isShowingCurrencySelection: Bool = false
-    
+
     // MARK: - Init -
-    
+
     init(viewModel: CurrencySellViewModel) {
         self.viewModel = viewModel
     }
@@ -47,14 +47,22 @@ struct CurrencySellAmountScreen: View {
                 switch step {
                 case .confirmation:
                     if let amount = viewModel.enteredFiat {
-                        CurrencySellConfirmationScreen(mint: viewModel.currencyMetadata.mint, amount: amount)
-                            .environment(\.dismissParentContainer, {
-                                dismissAction()
-                                // FIXME: Flows like these and Withdraw keep a reference to the view models in the parent
-                                // forcing to clear them when dismissed
-                                viewModel.reset()
-                            })
+                        CurrencySellConfirmationScreen(
+                            mint: viewModel.currencyMetadata.mint,
+                            amount: amount,
+                            path: $viewModel.path
+                        )
+                        .environment(\.dismissParentContainer, {
+                            dismissAction()
+                            viewModel.reset()
+                        })
                     }
+                case .processing(let swapId):
+                    SwapProcessingScreen(swapId: swapId, swapType: .sell)
+                        .environment(\.dismissParentContainer, {
+                            dismissAction()
+                            viewModel.reset()
+                        })
                 }
             }
             .toolbar {
