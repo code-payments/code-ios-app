@@ -57,8 +57,8 @@ struct CurrencySellAmountScreen: View {
                             viewModel.reset()
                         })
                     }
-                case .processing(let swapId):
-                    SwapProcessingScreen(swapId: swapId, swapType: .sell)
+                case .processing(let swapId, let mint):
+                    SwapProcessingScreen(swapId: swapId, swapType: .sell, mint: mint)
                         .environment(\.dismissParentContainer, {
                             dismissAction()
                             viewModel.reset()

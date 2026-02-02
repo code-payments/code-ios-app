@@ -14,14 +14,18 @@ struct SwapProcessingScreen: View {
     @StateObject private var viewModel: SwapProcessingViewModel
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var session: Session
+    @EnvironmentObject private var ratesController: RatesController
+    @EnvironmentObject private var notificationController: NotificationController
     @Environment(\.dismissParentContainer) private var dismissParentContainer
+    @State private var notificationStatus: UNAuthorizationStatus?
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType) {
+    init(swapId: SwapId, swapType: SwapType, mint: PublicKey) {
         _viewModel = StateObject(wrappedValue: SwapProcessingViewModel(
             swapId: swapId,
-            swapType: swapType
+            swapType: swapType,
+            mint: mint
         ))
     }
 
@@ -50,21 +54,48 @@ struct SwapProcessingScreen: View {
                 .padding(.horizontal, 40)
 
                 Spacer()
-
-                CodeButton(
-                    style: .filled,
-                    title: "Done"
-                ) {
-                    dismissParentContainer()
+                
+                if viewModel.isFinished {
+                    CodeButton(
+                        style: .filled,
+                        title: viewModel.actionTitle
+                    ) {
+                        dismissParentContainer()
+                    }
+                    .padding(20)
+                } else {
+                    CodeButton(
+                        state: notificationStatus == .authorized ? .successText("We will notify you") : .normal,
+                        style: .filled,
+                        title: "Notify Me When Complete"
+                    ) {
+                        Task {
+                            do {
+                                if notificationStatus == .denied {
+                                    URL.openSettings()
+                                } else {
+                                    try await PushController.authorizeAndRegister()
+                                }
+                            } catch {}
+                        }
+                    }
+                    .disabled(notificationStatus == .authorized)
+                    .padding(20)
                 }
-                .disabled(!viewModel.isFinished)
-                .padding(20)
             }
         }
+        .navigationTitle(viewModel.navigationTitle)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
         .task {
-            await viewModel.startPolling(client: client, ownerKeyPair: session.ownerKeyPair)
+            notificationStatus = await PushController.fetchStatus()
+            await viewModel.fetchMintMetadata(session: session)
+            await viewModel.startPolling(
+                client: client,
+                ownerKeyPair: session.ownerKeyPair,
+                session: session,
+                ratesController: ratesController
+            )
         }
     }
 }

@@ -496,7 +496,7 @@ class Session: ObservableObject {
             guard let mintMetadata = mints[mint] else {
                 throw Error.mintNotFound
             }
-            
+
             try database.insert(mints: [mintMetadata], date: .now)
             return try await fetchMintMetadata(mint: mint)
         }

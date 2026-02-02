@@ -116,7 +116,7 @@ class CurrencyBuyViewModel: ObservableObject {
                 let swapId = try await session.buy(amount: buyAmount, of: destination)
 
                 await MainActor.run {
-                    path.append(.processing(swapId: swapId))
+                    path.append(.processing(swapId: swapId, mint: destination))
                 }
             } catch {
                 await MainActor.run {
@@ -148,5 +148,5 @@ class CurrencyBuyViewModel: ObservableObject {
 }
 
 enum CurrencyBuyPath: Hashable {
-    case processing(swapId: SwapId)
+    case processing(swapId: SwapId, mint: PublicKey)
 }

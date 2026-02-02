@@ -17,13 +17,18 @@ class SwapProcessingViewModel: ObservableObject {
     @Published private(set) var currentState: SwapState = .created
     @Published private(set) var displayState: DisplayState = .processing
     @Published private(set) var isPolling: Bool = false
+    @Published private(set) var mintMetadata: StoredMintMetadata?
+    @Published private(set) var exchangedFiat: ExchangedFiat?
 
     var title: String {
         switch displayState {
         case .processing:
             return "Processing Your Transaction"
         case .success:
-            return "{{amount}} of {{token}}"
+            if let exchangedFiat, let mintMetadata {
+                return "\(exchangedFiat.converted.formatted()) of \(mintMetadata.name)"
+            }
+            return "Transaction Complete"
         case .failed:
             return "Something Went Wrong"
         }
@@ -50,6 +55,22 @@ class SwapProcessingViewModel: ObservableObject {
             return "OK"
         }
     }
+    
+    var navigationTitle: String {
+        switch displayState {
+        case .processing:
+            switch swapType {
+            case .buy:
+                "Purchasing \(mintMetadata?.name ?? "")"
+            case .sell:
+                "Selling \(mintMetadata?.name ?? "")"
+            }
+        case .success:
+            "Success"
+        case .failed:
+            "Transaction Failed"
+        }
+    }
 
     var isSuccess: Bool {
         displayState == .success
@@ -63,17 +84,23 @@ class SwapProcessingViewModel: ObservableObject {
 
     private let swapId: SwapId
     private let swapType: SwapType
+    private let mint: PublicKey
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType) {
+    init(swapId: SwapId, swapType: SwapType, mint: PublicKey) {
         self.swapId = swapId
         self.swapType = swapType
+        self.mint = mint
     }
 
-    // MARK: - Polling -
+    // MARK: - Fetching -
 
-    func startPolling(client: Client, ownerKeyPair: KeyPair) async {
+    func fetchMintMetadata(session: Session) async {
+        mintMetadata = try? await session.fetchMintMetadata(mint: mint)
+    }
+
+    func startPolling(client: Client, ownerKeyPair: KeyPair, session: Session, ratesController: RatesController) async {
         guard !isPolling else { return }
         isPolling = true
 
@@ -87,8 +114,16 @@ class SwapProcessingViewModel: ObservableObject {
                     self?.currentState = state
                 }
             }
-
-            handleTerminalState(metadata.state)
+            
+            switch metadata.state {
+            case .finalized:
+                fetchSwapDetails(from: metadata, ratesController: ratesController)
+                displayState = .success
+            case .failed, .cancelled:
+                displayState = .failed
+            case .unknown, .created, .funding, .funded, .submitting, .cancelling:
+                displayState = .failed
+            }
         } catch {
             // Poll limit reached or other error
             displayState = .failed
@@ -96,18 +131,35 @@ class SwapProcessingViewModel: ObservableObject {
 
         isPolling = false
     }
+    
+    private func fetchSwapDetails(from metadata: SwapMetadata, ratesController: RatesController) {
+        guard let mintMetadata else {
+            print("[SwapProcessing] mintMetadata is nil")
+            return
+        }
 
-    // MARK: - Private Helpers -
+        let rate = ratesController.rateForEntryCurrency()
 
-    private func handleTerminalState(_ state: SwapState) {
-        switch state {
-        case .finalized:
-            displayState = .success
-        case .failed, .cancelled:
-            displayState = .failed
-        case .unknown, .created, .funding, .funded, .submitting, .cancelling:
-            // Should not happen for terminal states
-            displayState = .failed
+        print("[SwapProcessing] Input:")
+        print("  - metadata.amount.quarks: \(metadata.amount.quarks)")
+        print("  - metadata.toMint: \(metadata.toMint.base58)")
+        print("  - rate: \(rate)")
+        print("  - mintMetadata.supplyFromBonding: \(String(describing: mintMetadata.supplyFromBonding))")
+
+        exchangedFiat = ExchangedFiat.computeFromQuarks(
+            quarks: metadata.amount.quarks,
+            mint: metadata.toMint,
+            rate: rate,
+            supplyQuarks: mintMetadata.supplyFromBonding
+        )
+
+        if let exchangedFiat {
+            print("[SwapProcessing] Output:")
+            print("  - exchangedFiat.underlying.quarks: \(exchangedFiat.underlying.quarks)")
+            print("  - exchangedFiat.converted.quarks: \(exchangedFiat.converted.quarks)")
+            print("  - exchangedFiat.converted.formatted(): \(exchangedFiat.converted.formatted())")
+        } else {
+            print("[SwapProcessing] exchangedFiat is nil after computation")
         }
     }
 }
