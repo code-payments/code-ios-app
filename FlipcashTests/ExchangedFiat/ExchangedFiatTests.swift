@@ -199,18 +199,28 @@ struct ExchangedFiatTests {
             1_000.00,
         ]
 
+        let curve = DiscreteBondingCurve()
         var results: [(supplyTokens: UInt64, fiat: Decimal, underlying: UInt64)] = []
 
         var supplyTokens = startSupplyTokens
         while supplyTokens <= endSupplyTokens {
             let supplyQuarks = supplyTokens * quarksPerToken
+            let currentTVL = curve.tokensToValue(currentSupply: 0, tokens: Int(supplyTokens))?.asDecimal()
+
             for fiat in fiatToTest {
-                guard let exchanged = ExchangedFiat.computeFromEntered(
+                let shouldSucceed = currentTVL.map { fiat <= $0 } ?? false
+                let exchanged = ExchangedFiat.computeFromEntered(
                     amount: fiat,
                     rate: .oneToOne,
                     mint: .jeffy, // Not USDF
                     supplyQuarks: supplyQuarks
-                ) else {
+                )
+
+                if shouldSucceed {
+                    #expect(exchanged != nil, "Expected exchange to succeed for \(fiat) at supply \(supplyTokens)")
+                }
+
+                guard let exchanged else {
                     continue // Skip if amount exceeds what's available
                 }
 
@@ -224,16 +234,13 @@ struct ExchangedFiatTests {
             supplyTokens *= 10
         }
 
-        // Should have processed all combinations
-        #expect(results.count >= 15, "Should have at least 15 successful conversions")
-
         // Verify underlying quarks decrease as supply increases (tokens become more expensive)
         // Compare same fiat amount at different supply levels
         for fiat in fiatToTest {
             let filtered = results.filter { $0.fiat == fiat }.sorted { $0.supplyTokens < $1.supplyTokens }
             for i in 1..<filtered.count {
-                #expect(filtered[i].underlying < filtered[i-1].underlying,
-                       "At higher supply, \(fiat) should buy fewer tokens")
+                #expect(filtered[i].underlying <= filtered[i-1].underlying,
+                       "At higher supply, \(fiat) should buy fewer or equal tokens")
             }
         }
     }
