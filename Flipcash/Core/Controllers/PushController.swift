@@ -15,12 +15,14 @@ import FlipcashCore
 
 @MainActor
 class PushController: ObservableObject {
-    
+
+    @Published private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
+
     private let owner: KeyPair
     private let client: FlipClient
     private let center: UNUserNotificationCenter
     private let delegate: NotificationDelegate
-    
+
     private var apnsToken: Data?
     private var uploadedFirebaseToken: String?
     
@@ -38,16 +40,24 @@ class PushController: ObservableObject {
         
         center.delegate = delegate
         Messaging.messaging().delegate = delegate
-        
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(didBecomeActiveNotification),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+
         Task {
+            await refreshAuthorizationStatus()
 
             // There's no point trying to retrieve the firebase token
             // if we're not authorized to send push as the call will
             // not return anything
-            if await Self.fetchStatus() == .notDetermined {
+            if authorizationStatus == .notDetermined {
 //                try await authorizeAndRegister()
                 // Do nothing
-                
+
             } else {
                 // Triggering APNS registration invokes the
                 // didReceiveRemoteNotificationToken function
@@ -56,6 +66,12 @@ class PushController: ObservableObject {
             }
         }
 //        resetAppBadgeCount()
+    }
+
+    @objc private func didBecomeActiveNotification() {
+        Task {
+            await refreshAuthorizationStatus()
+        }
     }
     
     func didReceiveRemoteNotificationToken(with token: Data) {
@@ -81,24 +97,11 @@ class PushController: ObservableObject {
         unregisterAPNS()
     }
     
-    // MARK: - Badge -
-    
-    func appDidBecomeActive() {
-//        resetAppBadgeCount()
+    // MARK: - Authorization Status -
+
+    func refreshAuthorizationStatus() async {
+        authorizationStatus = await Self.fetchStatus()
     }
-    
-    func appWillResignActive() {
-//        resetAppBadgeCount()
-    }
-    
-//    private func resetAppBadgeCount() {
-//        UIApplication.shared.applicationIconBadgeNumber = 0
-//        if case .loggedIn(let container) = sessionAuthenticator.state {
-//            Task {
-//                try await client.resetBadgeCount(for: container.session.organizer.ownerKeyPair)
-//            }
-//        }
-//    }
     
     // MARK: - Firebase -
     

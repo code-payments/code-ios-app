@@ -15,9 +15,8 @@ struct SwapProcessingScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
-    @EnvironmentObject private var notificationController: NotificationController
+    @EnvironmentObject private var pushController: PushController
     @Environment(\.dismissParentContainer) private var dismissParentContainer
-    @State private var notificationStatus: UNAuthorizationStatus?
 
     // MARK: - Init -
 
@@ -65,21 +64,20 @@ struct SwapProcessingScreen: View {
                     .padding(20)
                 } else {
                     CodeButton(
-                        state: notificationStatus == .authorized ? .successText("We will notify you") : .normal,
+                        state: pushController.authorizationStatus == .authorized ? .successText("We will notify you") : .normal,
                         style: .filled,
                         title: "Notify Me When Complete"
                     ) {
                         Task {
-                            do {
-                                if notificationStatus == .denied {
-                                    URL.openSettings()
-                                } else {
-                                    try await PushController.authorizeAndRegister()
-                                }
-                            } catch {}
+                            if pushController.authorizationStatus == .denied {
+                                URL.openSettings()
+                            } else {
+                                try? await PushController.authorizeAndRegister()
+                                await pushController.refreshAuthorizationStatus()
+                            }
                         }
                     }
-                    .disabled(notificationStatus == .authorized)
+                    .disabled(pushController.authorizationStatus == .authorized)
                     .padding(20)
                 }
             }
@@ -88,7 +86,6 @@ struct SwapProcessingScreen: View {
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
         .task {
-            notificationStatus = await PushController.fetchStatus()
             await viewModel.fetchMintMetadata(session: session)
             await viewModel.startPolling(
                 client: client,
