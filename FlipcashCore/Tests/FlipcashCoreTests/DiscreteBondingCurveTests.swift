@@ -1486,10 +1486,10 @@ struct DiscreteAdditionalCoverageTests {
 
     let curve = DiscreteBondingCurve()
 
-    // MARK: - Sell Oversell Scenario (Line 500 coverage)
+    // MARK: - Sell Oversell Scenario
 
     @Test
-    func sellOversellReturnsNil() {
+    func sellOversellClamps() {
         // TVL of $10 corresponds to roughly 1000 tokens at $0.01/token
         let tvl = 10_000_000  // $10 in USDC quarks
         let supply = curve.supplyFromTVL(tvl)
@@ -1497,10 +1497,13 @@ struct DiscreteAdditionalCoverageTests {
 
         if let currentSupply = supply {
             // Try to sell more tokens than exist
-            // currentSupply is in whole tokens, multiply by quarksPerToken
+            // clamps effectiveSell to currentSupply, calculates value for requested tokens
             let oversellQuarks = (currentSupply + 1000) * DiscreteBondingCurve.quarksPerToken
             let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, supplyQuarks: tvl)
-            #expect(result == nil, "Selling more tokens than supply should return nil")
+            #expect(result != nil, "Overselling should succeed with clamping")
+            if let result = result {
+                #expect(result.grossUSDF > .zero, "Should return positive value")
+            }
         }
     }
 
@@ -1519,16 +1522,20 @@ struct DiscreteAdditionalCoverageTests {
     }
 
     @Test
-    func sellOneMoreThanSupplyReturnsNil() {
+    func sellOneMoreThanSupplyClamps() {
         let tvl = 5_000_000  // $5 in USDC quarks
         let supply = curve.supplyFromTVL(tvl)
         #expect(supply != nil)
 
         if let currentSupply = supply {
             // Try to sell supply + 1 tokens
+            // clamps effectiveSell to currentSupply
             let oversellQuarks = (currentSupply + 1) * DiscreteBondingCurve.quarksPerToken
             let result = curve.sell(tokenQuarks: oversellQuarks, feeBps: 0, supplyQuarks: tvl)
-            #expect(result == nil, "Selling supply+1 tokens should return nil")
+            #expect(result != nil, "Overselling by 1 token should succeed with clamping")
+            if let result = result {
+                #expect(result.grossUSDF > .zero, "Should return positive value")
+            }
         }
     }
 
@@ -1715,6 +1722,167 @@ struct DiscreteAdditionalCoverageTests {
         // The key is it shouldn't crash
         if let result = result {
             #expect(result.tokens >= .zero)
+        }
+    }
+}
+
+// MARK: - 13. Sell Estimation Tests
+
+@Suite("Discrete Bonding Curve - Sell Estimation")
+struct DiscreteSellEstimationTests {
+
+    let curve = DiscreteBondingCurve()
+    let quarksPerToken = DiscreteBondingCurve.quarksPerToken
+
+    @Test
+    func sellPreservesFractionalTokens() {
+        let supplyQuarks = 200 * quarksPerToken
+        let tokenQuarks = 15 * quarksPerToken / 10  // 1.5 tokens in quarks
+
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
+        #expect(result != nil)
+        if let result = result {
+            #expect(result.grossUSDF.isPositive, "Should return positive value for fractional tokens")
+            // The gross value should be roughly 1.5 × spot price at supply ~198.5
+        }
+    }
+
+    @Test
+    func sellClampsToCurrentSupply() {
+        // Clamps tokensToSell to [0, currentSupply] when calculating supplyAfter
+        // This means selling more than supply should still work (clamped)
+        let supplyQuarks = 100 * quarksPerToken
+        let tokenQuarks = 150 * quarksPerToken  // Trying to sell more than supply
+
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
+
+        #expect(result != nil, "Should handle oversell by clamping")
+        if let result = result {
+            #expect(result.grossUSDF.isPositive, "Should return positive value even when overselling")
+        }
+    }
+
+    @Test
+    func sellCalculatesFromSupplyAfter() {
+        let supplyQuarks = 300 * quarksPerToken
+        let tokenQuarks = 100 * quarksPerToken
+
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
+        #expect(result != nil)
+
+        if let result = result {
+            // Manually verify: supplyAfter = 200, tokensToValue(200, 100)
+            // This should be approximately the value of buying 100 tokens starting at supply 200
+            if let expectedValue = curve.tokensToValue(currentSupply: BigDecimal(200), tokens: BigDecimal(100)) {
+                #expect(isApproximatelyEqual(result.grossUSDF, expectedValue, tolerance: BigDecimal("0.0001")),
+                       "Sell value should match tokensToValue(supplyAfter, tokens)")
+            }
+        }
+    }
+
+    @Test
+    func sellWithZeroTokensReturnsZero() {
+        let supplyQuarks = 200 * quarksPerToken
+        let result = curve.sell(tokenQuarks: 0, feeBps: 0, supplyQuarks: supplyQuarks)
+        // Should handle zero gracefully
+        if let result = result {
+            #expect(result.grossUSDF == .zero || result.grossUSDF.isPositive == false)
+        }
+    }
+
+    @Test
+    func sellFeeCalculation() {
+        let supplyQuarks = 500 * quarksPerToken
+        let tokenQuarks = 200 * quarksPerToken
+        let feeBps = 100  // 1%
+
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: feeBps, supplyQuarks: supplyQuarks)
+        #expect(result != nil)
+
+        if let result = result {
+            // Verify fee is exactly 1% of gross
+            let expectedFee = result.grossUSDF.multiply(BigDecimal("0.01"), testRounding)
+            #expect(isApproximatelyEqual(result.fees, expectedFee, tolerance: BigDecimal("0.0000001")),
+                   "Fee should be exactly feeBps/10000 of gross")
+
+            // Verify net = gross - fee
+            let expectedNet = result.grossUSDF.subtract(result.fees, testRounding)
+            #expect(isApproximatelyEqual(result.netUSDF, expectedNet, tolerance: BigDecimal("0.0000001")),
+                   "Net should equal gross minus fees")
+        }
+    }
+
+    @Test
+    func sellSmallFractionalAmount() {
+        // Test very small fractional amounts
+        let supplyQuarks = 1000 * quarksPerToken
+        let tokenQuarks = quarksPerToken / 10  // 0.1 tokens
+
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
+        #expect(result != nil)
+        if let result = result {
+            #expect(result.grossUSDF.isPositive, "Should handle small fractional amounts")
+        }
+    }
+
+    @Test
+    func sellAtHighSupply() {
+        // Test at higher supply where prices are higher
+        let supplyQuarks = 1_000_000 * quarksPerToken
+        let tokenQuarks = 1000 * quarksPerToken
+
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
+        #expect(result != nil)
+        if let result = result {
+            #expect(result.grossUSDF.isPositive)
+            // At 1M supply, price should be higher than at 0 supply
+            // So 1000 tokens should be worth more than $10 (at $0.01/token)
+            #expect(result.grossUSDF > BigDecimal("10"), "Value at high supply should be greater than low supply value")
+        }
+    }
+
+    @Test
+    func sellConsistencyWithBigDecimalOverload() {
+        // Verify the Int-based sell uses the BigDecimal tokensToValue internally
+        let supplyQuarks = 400 * quarksPerToken
+        let tokenQuarks = 150 * quarksPerToken
+
+        let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: 0, supplyQuarks: supplyQuarks)
+        #expect(result != nil)
+
+        if let result = result {
+            // Calculate expected using BigDecimal overload directly
+            let tokensToSell = BigDecimal(tokenQuarks).divide(BigDecimal(quarksPerToken), testRounding)
+            let currentSupply = BigDecimal(supplyQuarks).divide(BigDecimal(quarksPerToken), testRounding)
+            let effectiveSell = tokensToSell  // No clamping needed here
+            let supplyAfter = currentSupply.subtract(effectiveSell, testRounding)
+
+            if let expected = curve.tokensToValue(currentSupply: supplyAfter, tokens: tokensToSell) {
+                #expect(isApproximatelyEqual(result.grossUSDF, expected, tolerance: BigDecimal("0.0001")),
+                       "Int-based sell should produce same result as BigDecimal calculation")
+            }
+        }
+    }
+
+    @Test
+    func sellMultipleFeeRates() {
+        let supplyQuarks = 300 * quarksPerToken
+        let tokenQuarks = 100 * quarksPerToken
+
+        let feeRates = [0, 50, 100, 250, 500, 1000]  // 0%, 0.5%, 1%, 2.5%, 5%, 10%
+
+        var previousNet: BigDecimal?
+        for feeBps in feeRates {
+            let result = curve.sell(tokenQuarks: tokenQuarks, feeBps: feeBps, supplyQuarks: supplyQuarks)
+            #expect(result != nil, "Sell should succeed with \(feeBps) bps fee")
+
+            if let result = result {
+                // Higher fees should result in lower net
+                if let prev = previousNet {
+                    #expect(result.netUSDF < prev, "Higher fee should result in lower net")
+                }
+                previousNet = result.netUSDF
+            }
         }
     }
 }

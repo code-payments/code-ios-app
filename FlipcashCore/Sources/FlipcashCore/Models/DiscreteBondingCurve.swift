@@ -120,6 +120,65 @@ public struct DiscreteBondingCurve: Sendable {
         return startCost.add(middleCost, Self.rounding).add(endCost, Self.rounding)
     }
 
+    /// Calculates the total cost to buy a number of tokens starting at a given supply.
+    ///
+    /// This overload accepts BigDecimal parameters for precision matching with Android.
+    /// It handles partial steps at the start and end, and uses the cumulative
+    /// table for efficient calculation of complete middle steps.
+    ///
+    /// - Parameters:
+    ///   - currentSupply: Current token supply as BigDecimal (can have fractional tokens)
+    ///   - tokens: Number of tokens to buy as BigDecimal (can have fractional tokens)
+    /// - Returns: Total cost in USDC, or nil if purchase would exceed max supply
+    public func tokensToValue(currentSupply: BigDecimal, tokens: BigDecimal) -> BigDecimal? {
+        guard tokens.signum >= 0 else { return nil }
+        guard tokens.isPositive else { return .zero }
+
+        let stepSizeBD = BigDecimal(Self.stepSize)
+        let endSupply = currentSupply.add(tokens, Self.rounding)
+        let startStep = currentSupply.divide(stepSizeBD, Self.rounding).truncatedInt()
+        let endStep = endSupply.divide(stepSizeBD, Self.rounding).truncatedInt()
+
+        guard endStep < DiscreteCurveTables.pricingTable.count else {
+            return nil
+        }
+
+        // Calculate partial tokens in start step (from currentSupply to next step boundary)
+        let startStepBoundary = BigDecimal(startStep + 1).multiply(stepSizeBD, Self.rounding)
+        let tokensInStartStep: BigDecimal
+        if startStepBoundary > endSupply {
+            // All tokens are within the same step
+            tokensInStartStep = tokens
+        } else {
+            tokensInStartStep = startStepBoundary.subtract(currentSupply, Self.rounding)
+        }
+
+        // Cost for partial start step
+        let startPrice = Self.fromScaledU128(DiscreteCurveTables.pricingTable[startStep])
+        let startCost = tokensInStartStep.multiply(startPrice, Self.rounding)
+
+        // If start and end are in the same step, we're done
+        if startStep == endStep {
+            return startCost
+        }
+
+        // Cost for complete steps between start_step+1 and end_step-1 (inclusive)
+        // Use cumulative table: cumulative[end_step] - cumulative[start_step + 1]
+        let cumulativeStart = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[startStep + 1])
+        let cumulativeEnd = Self.fromScaledU128(DiscreteCurveTables.cumulativeTable[endStep])
+        let middleCost = cumulativeEnd.subtract(cumulativeStart, Self.rounding)
+
+        // Calculate partial tokens in end step (from end step boundary to end_supply)
+        let endStepBoundary = BigDecimal(endStep).multiply(stepSizeBD, Self.rounding)
+        let tokensInEndStep = endSupply.subtract(endStepBoundary, Self.rounding)
+
+        // Cost for partial end step
+        let endPrice = Self.fromScaledU128(DiscreteCurveTables.pricingTable[endStep])
+        let endCost = tokensInEndStep.multiply(endPrice, Self.rounding)
+
+        return startCost.add(middleCost, Self.rounding).add(endCost, Self.rounding)
+    }
+
     /// Calculates the number of tokens that can be purchased for a given value.
     ///
     /// This is the inverse of `tokensToValue`. It uses binary search on the
@@ -489,23 +548,24 @@ extension DiscreteBondingCurve {
     ///   - supplyQuarks: Current token supply in quarks (10 decimals)
     /// - Returns: Sell estimation with gross USDC, net USDC, and fees
     public func sell(tokenQuarks: Int, feeBps: Int, supplyQuarks: Int) -> SellEstimation? {
-        // Convert token quarks to whole tokens
-        let tokens = tokenQuarks / Self.quarksPerToken
+        // Convert token quarks to whole tokens (with precision, matching Android)
+        let quarksPerToken = BigDecimal(Self.quarksPerToken)
+        let tokensToSell = BigDecimal(tokenQuarks).divide(quarksPerToken, Self.rounding)
 
         // Convert supply quarks to whole tokens
-        let currentSupply = supplyQuarks / Self.quarksPerToken
+        let currentSupply = BigDecimal(supplyQuarks).divide(quarksPerToken, Self.rounding)
 
-        // New supply after selling
-        let newSupply = currentSupply - tokens
-        guard newSupply >= 0 else { return nil }
+        // If the balance exceeds the supply, assume the supply is the balance (matching Android)
+        let effectiveSell = tokensToSell.clamped(to: .zero, and: currentSupply)
+        let supplyAfter = currentSupply.subtract(effectiveSell, Self.rounding)
 
-        // Value difference is the sell value
-        guard let currentValue = tokensToValue(currentSupply: 0, tokens: currentSupply),
-              let newValue = tokensToValue(currentSupply: 0, tokens: newSupply) else {
+        // Calculate gross value using tokensToValue from supplyAfter (matching Android)
+        guard let grossUSDF = tokensToValue(
+            currentSupply: supplyAfter,
+            tokens: tokensToSell
+        ) else {
             return nil
         }
-
-        let grossUSDF = currentValue.subtract(newValue, Self.rounding)
 
         // Apply fee
         let feeMultiplier = BigDecimal(feeBps).divide(BigDecimal(10_000), Self.rounding)
@@ -659,6 +719,25 @@ extension DiscreteBondingCurve {
         }
 
         return low * Self.stepSize
+    }
+}
+
+// MARK: - BigDecimal Extensions
+
+private extension BigDecimal {
+    /// Clamps this value to the given range
+    func clamped(to lower: BigDecimal, and upper: BigDecimal) -> BigDecimal {
+        if self < lower {
+            return lower
+        } else if self > upper {
+            return upper
+        }
+        return self
+    }
+
+    /// Truncates to integer value (toward zero), returning 0 if conversion fails
+    func truncatedInt() -> Int {
+        Int(asString(.plain).split(separator: ".").first ?? "") ?? 0
     }
 }
 

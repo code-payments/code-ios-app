@@ -18,7 +18,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     let vmAuthority: PublicKey?
     let updatedAt: Date
     let imageURL: URL?
-    let costBasis: Double?
+    let costBasis: Double
 
     let usdf: Quarks
 
@@ -26,7 +26,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         mint
     }
     
-    init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, sellFeeBps: Int?, mint: PublicKey, vmAuthority: PublicKey?, updatedAt: Date, imageURL: URL?, costBasis: Double?) throws {
+    init(quarks: UInt64, symbol: String, name: String, supplyFromBonding: UInt64?, sellFeeBps: Int?, mint: PublicKey, vmAuthority: PublicKey?, updatedAt: Date, imageURL: URL?, costBasis: Double) throws {
         self.quarks            = quarks
         self.symbol            = symbol
         self.name              = name
@@ -44,7 +44,7 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
         if let supplyFromBonding, let sellFeeBps {
             guard let sellEstimate = Self.bondingCurve.sell(
                 tokenQuarks: Int(quarks),
-                feeBps: sellFeeBps,
+                feeBps: 0,
                 supplyQuarks: Int(supplyFromBonding)
             ) else {
                 throw Error.missingStoredCoreMintForNonReserveToken
@@ -79,24 +79,21 @@ struct StoredBalance: Identifiable, Sendable, Equatable, Hashable {
     }
 
     /// Computes the appreciation/depreciation of this balance.
-    /// Returns a tuple with the ExchangedFiat (absolute value) and whether it's a positive.
-    /// Returns nil if cost basis is not available or zero.
-    func computeAppreciation(with rate: Rate) -> (value: ExchangedFiat, isPositive: Bool)? {
-        guard let costBasis, costBasis > 0 else { return nil }
-
+    /// Returns a tuple with the ExchangedFiat (absolute value) and whether it's positive.
+    func computeAppreciation(with rate: Rate) -> (value: ExchangedFiat, isPositive: Bool) {
         let appreciationUSD = usdf.decimalValue - Decimal(costBasis)
 
-        guard let underlying = try? Quarks(
+        let underlying = try! Quarks(
             fiatDecimal: abs(appreciationUSD),
             currencyCode: .usd,
             decimals: PublicKey.usdf.mintDecimals
-        ) else { return nil }
+        )
 
-        guard let exchangedFiat = try? ExchangedFiat(
+        let exchangedFiat = try! ExchangedFiat(
             underlying: underlying,
             rate: rate,
             mint: .usdf
-        ) else { return nil }
+        )
 
         return (exchangedFiat, appreciationUSD >= 0)
     }

@@ -52,13 +52,19 @@ struct CurrencyInfoScreen: View {
         return exchanged?.converted ?? 0
     }
     
-    private var appreciation: (amount: Quarks, isPositive: Bool)? {
-        let balance = session.balance(for: mintMetadata.mint)
-        guard let (appreciation, isPositive) = balance?.computeAppreciation(with: ratesController.rateForBalanceCurrency()) else { return nil }
-        
-        return (appreciation.converted, isPositive)
+    private var appreciation: (amount: Quarks, isPositive: Bool) {
+        guard let balance = session.balance(for: mintMetadata.mint) else {
+            let zeroQuarks: UInt64 = 0
+            return (Quarks(quarks: zeroQuarks, currencyCode: ratesController.rateForBalanceCurrency().currency, decimals: PublicKey.usdf.mintDecimals), true)
+        }
+        let (appreciationValue, isPositive) = balance.computeAppreciation(with: ratesController.rateForBalanceCurrency())
+        return (appreciationValue.converted, isPositive)
     }
-    
+
+    private var shouldShowAppreciation: Bool {
+        appreciation.amount.decimalValue >= 0.01
+    }
+
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
@@ -156,8 +162,8 @@ struct CurrencyInfoScreen: View {
                                 .frame(height: 60)
                                 .frame(maxWidth: .infinity)
                             
-                            if !isUSDF, let (amount, isPositive) = appreciation {
-                                ValueAppreciation(amount: amount, isPositive: isPositive)
+                            if !isUSDF && shouldShowAppreciation {
+                                ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                                     .padding(.top, 8)
                             }
 
