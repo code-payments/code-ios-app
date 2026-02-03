@@ -4,7 +4,7 @@
       "details": [
          {
             "appIDs": [
-               "SC677X4LH6.com.flipcash.ios"
+               "SC677X4LH6.com.flipcash.app.ios"
             ],
             "components": [
                {
@@ -34,7 +34,7 @@
    },
    "webcredentials": {
       "apps": [
-         "SC677X4LH6.com.flipcash.ios"
+         "SC677X4LH6.com.flipcash.app.ios"
       ]
    }
 }
