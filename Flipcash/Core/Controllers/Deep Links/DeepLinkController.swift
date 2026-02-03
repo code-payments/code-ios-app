@@ -99,9 +99,7 @@ final class DeepLinkController {
             }
             
         case .token(let mint):
-            var action = actionForCurrencyInfo(mint: mint)
-            action.preventUserInterfaceReset = true
-            return action
+            return actionForCurrencyInfo(mint: mint)
             
         case .unknown:
             break

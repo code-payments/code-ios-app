@@ -197,9 +197,12 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         )
         
         Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
-        
-        handleTargetUrlIfNeeded(notification.request.content.userInfo["target_url"] as? String)
-                
+
+        // We intentionally don't call handleTargetUrlIfNeeded here.
+        // Deep link navigation should only happen when user taps the notification,
+        // which is handled in didReceive. This prevents unwanted navigation when
+        // a notification arrives while the app is already open.
+
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .pushNotificationWillPresent, object: nil)
         }

@@ -78,9 +78,22 @@ struct BalanceScreen: View {
     }
     
     // MARK: - Lifecycle -
-    
+
     private func onAppear() {
         historyController.sync()
+        handlePendingCurrencyInfo()
+    }
+
+    private func handlePendingCurrencyInfo() {
+        guard let mint = session.pendingCurrencyInfoMint else { return }
+
+        // Find the balance for this mint and navigate to it
+        if let balance = balances.first(where: { $0.stored.mint == mint }) {
+            selectedBalance = balance
+        }
+
+        // Clear the pending mint
+        session.pendingCurrencyInfoMint = nil
     }
     
     // MARK: - Body -
