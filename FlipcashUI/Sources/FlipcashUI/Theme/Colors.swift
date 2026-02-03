@@ -33,7 +33,7 @@ extension Color {
     
     public static let button              = Color(r: 28,  g: 24,  b: 52)
     
-    public static let backgroundMain      = Color(r: 0,   g: 26,  b: 12)
+    public static let backgroundMain      = Color("background")
     public static let backgroundAction    = Color(r: 255, g: 255, b: 255)
     public static let backgroundRow       = Color(r: 7,   g: 31,  b: 16)
     public static let rowSeparator        = Color(r: 255, g: 255, b: 255, o: 0.1)
