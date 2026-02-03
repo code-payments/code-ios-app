@@ -520,4 +520,49 @@ struct SessionTests {
         // This should NOT produce "You're 0 Yen short" error
         // Instead, it should send the actual balance
     }
+
+    // MARK: - Total Balance Consistency Tests
+
+    @Test("Session.totalBalance matches sum of balances(for:) converted values")
+    static func testTotalBalance_MatchesBalancesForRate() throws {
+        // This test verifies that Session.totalBalance produces a result
+        // consistent with what balances(for:) returns for the same rate.
+        //
+        // Bug context: The header showed $8.09 but the rows summed to $8.10
+        // because totalBalance was converting after summing USD values,
+        // while rows converted individually.
+
+        let sessionContainer = SessionContainer.mock
+
+        // Configure a non-USD rate to ensure the test exercises currency conversion
+        let cadRate = Rate(fx: 1.40, currency: .cad)
+        sessionContainer.ratesController.configureTestRates(
+            entryCurrency: .cad,
+            rates: [cadRate]
+        )
+
+        let session = sessionContainer.session
+
+        // Get the total balance from Session
+        let total = session.totalBalance
+
+        // Verify preconditions: rate is not USD and total is non-zero
+        #expect(total.rate.currency != .usd, "Rate should not be USD to exercise conversion")
+        #expect(total.converted.decimalValue > 0, "Total should be non-zero to be a meaningful test")
+
+        // Use the same rate that totalBalance used
+        let rate = total.rate
+
+        // Get individual balances and sum their converted values
+        let individualBalances = session.balances(for: rate)
+        let sumOfConverted = individualBalances.reduce(Decimal(0)) { sum, balance in
+            sum + balance.exchangedFiat.converted.decimalValue
+        }
+
+        // The total's converted value should equal the sum of individual converted values
+        #expect(
+            total.converted.decimalValue == sumOfConverted,
+            "totalBalance (\(total.converted.decimalValue)) should equal sum of balances(for:) (\(sumOfConverted))"
+        )
+    }
 }
