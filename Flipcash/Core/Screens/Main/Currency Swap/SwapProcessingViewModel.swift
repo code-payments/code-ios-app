@@ -85,13 +85,15 @@ class SwapProcessingViewModel: ObservableObject {
     private let swapId: SwapId
     private let swapType: SwapType
     private let mint: PublicKey
+    private let amount: ExchangedFiat
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, mint: PublicKey) {
+    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
         self.swapId = swapId
         self.swapType = swapType
         self.mint = mint
+        self.amount = amount
     }
 
     // MARK: - Fetching -
@@ -100,7 +102,7 @@ class SwapProcessingViewModel: ObservableObject {
         mintMetadata = try? await session.fetchMintMetadata(mint: mint)
     }
 
-    func startPolling(client: Client, ownerKeyPair: KeyPair, session: Session, ratesController: RatesController) async {
+    func startPolling(client: Client, ownerKeyPair: KeyPair) async {
         guard !isPolling else { return }
         isPolling = true
 
@@ -117,7 +119,7 @@ class SwapProcessingViewModel: ObservableObject {
             
             switch metadata.state {
             case .finalized:
-                fetchSwapDetails(from: metadata, ratesController: ratesController)
+                setSwapDetails()
                 displayState = .success
             case .failed, .cancelled:
                 displayState = .failed
@@ -132,35 +134,8 @@ class SwapProcessingViewModel: ObservableObject {
         isPolling = false
     }
     
-    private func fetchSwapDetails(from metadata: SwapMetadata, ratesController: RatesController) {
-        guard let mintMetadata else {
-            print("[SwapProcessing] mintMetadata is nil")
-            return
-        }
-
-        let rate = ratesController.rateForEntryCurrency()
-
-        print("[SwapProcessing] Input:")
-        print("  - metadata.amount.quarks: \(metadata.amount.quarks)")
-        print("  - metadata.toMint: \(metadata.toMint.base58)")
-        print("  - rate: \(rate)")
-        print("  - mintMetadata.supplyFromBonding: \(String(describing: mintMetadata.supplyFromBonding))")
-
-        exchangedFiat = ExchangedFiat.computeFromQuarks(
-            quarks: metadata.amount.quarks,
-            mint: metadata.toMint,
-            rate: rate,
-            supplyQuarks: mintMetadata.supplyFromBonding
-        )
-
-        if let exchangedFiat {
-            print("[SwapProcessing] Output:")
-            print("  - exchangedFiat.underlying.quarks: \(exchangedFiat.underlying.quarks)")
-            print("  - exchangedFiat.converted.quarks: \(exchangedFiat.converted.quarks)")
-            print("  - exchangedFiat.converted.formatted(): \(exchangedFiat.converted.formatted())")
-        } else {
-            print("[SwapProcessing] exchangedFiat is nil after computation")
-        }
+    private func setSwapDetails() {
+        exchangedFiat = amount
     }
 }
 

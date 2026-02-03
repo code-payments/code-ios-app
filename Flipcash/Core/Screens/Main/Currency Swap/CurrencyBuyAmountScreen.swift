@@ -45,8 +45,8 @@ struct CurrencyBuyAmountScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: CurrencyBuyPath.self) { step in
                 switch step {
-                case .processing(let swapId, let mint):
-                    SwapProcessingScreen(swapId: swapId, swapType: .buy, mint: mint)
+                case .processing(let swapId, let mint, let amount):
+                    SwapProcessingScreen(swapId: swapId, swapType: .buy, mint: mint, amount: amount)
                         .environment(\.dismissParentContainer, {
                             dismissAction()
                             viewModel.reset()

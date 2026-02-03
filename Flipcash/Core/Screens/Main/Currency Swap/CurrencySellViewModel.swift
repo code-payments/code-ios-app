@@ -79,5 +79,5 @@ class CurrencySellViewModel: ObservableObject {
 
 enum CurrencySellPath: Hashable {
     case confirmation
-    case processing(swapId: SwapId, mint: PublicKey)
+    case processing(swapId: SwapId, mint: PublicKey, amount: ExchangedFiat)
 }

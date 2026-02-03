@@ -14,17 +14,17 @@ struct SwapProcessingScreen: View {
     @StateObject private var viewModel: SwapProcessingViewModel
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var session: Session
-    @EnvironmentObject private var ratesController: RatesController
     @EnvironmentObject private var pushController: PushController
     @Environment(\.dismissParentContainer) private var dismissParentContainer
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, mint: PublicKey) {
+    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
         _viewModel = StateObject(wrappedValue: SwapProcessingViewModel(
             swapId: swapId,
             swapType: swapType,
-            mint: mint
+            mint: mint,
+            amount: amount
         ))
     }
 
@@ -89,9 +89,7 @@ struct SwapProcessingScreen: View {
             await viewModel.fetchMintMetadata(session: session)
             await viewModel.startPolling(
                 client: client,
-                ownerKeyPair: session.ownerKeyPair,
-                session: session,
-                ratesController: ratesController
+                ownerKeyPair: session.ownerKeyPair
             )
         }
     }
