@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FlipcashCore
 
 struct Route {
     
@@ -78,6 +79,7 @@ extension Route {
         case login
         case cash
         case verifyEmail
+        case token(PublicKey)
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -99,6 +101,11 @@ extension Route {
                 return .cash
             case "verify":
                 return .verifyEmail
+            case "token":
+                guard components.count > 1, let mint = try? PublicKey(base58: components[1]) else {
+                    return nil
+                }
+                return .token(mint)
             default:
                 return .unknown(url.lastPathComponent)
             }

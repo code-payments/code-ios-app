@@ -384,6 +384,26 @@ struct ScanScreen: View {
                         sessionContainer: sessionContainer
                     )
                 }
+                .sheet(item: $session.pendingCurrencyInfoMint) { mint in
+                    NavigationStack {
+                        CurrencyInfoScreen(
+                            mint: mint,
+                            container: container,
+                            sessionContainer: sessionContainer
+                        )
+                        .navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button {
+                                    session.pendingCurrencyInfoMint = nil
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .foregroundStyle(Color.textMain)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         .padding(.bottom, 10)
