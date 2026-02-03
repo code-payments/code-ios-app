@@ -73,7 +73,7 @@ struct CurrencySellConfirmationScreen: View {
                 Spacer()
                 
                 VStack {
-                    Text("Review the above before confirming.\nOnce made, your transaction is irreverible.")
+                    Text("Review the above before confirming.\nOnce made, your transaction is irreversible.")
                         .font(.appTextSmall)
                         .foregroundStyle(Color.textSecondary)
                         .multilineTextAlignment(.center)
