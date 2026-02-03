@@ -72,8 +72,9 @@ final class ExternalSwapController: ObservableObject {
         walletConnection.isShowingAmountEntry = false
     }
 
-    /// Dismisses the processing screen and restores wallet dialogs.
+    /// Dismisses the processing screen and clears any pending wallet dialogs.
     func dismissProcessing() {
+        walletConnection.dialogItem = nil
         processing = nil
     }
 }
