@@ -49,7 +49,6 @@ struct CurrencyBuyAmountScreen: View {
                     SwapProcessingScreen(swapId: swapId, swapType: .buy, mint: mint, amount: amount)
                         .environment(\.dismissParentContainer, {
                             dismissAction()
-                            viewModel.reset()
                         })
                 }
             }

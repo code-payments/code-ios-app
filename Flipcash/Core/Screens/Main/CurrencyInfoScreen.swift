@@ -18,10 +18,9 @@ struct CurrencyInfoScreen: View {
     @State private var isShowingSellAmountEntry: Bool = false
     @State private var chartViewModel: ChartViewModel?
     @State private var isShowingCurrencySelection: Bool = false
+    @StateObject private var externalSwapController: ExternalSwapController
     
     @ObservedObject private var session: Session
-    @ObservedObject private var walletConnection: WalletConnection
-    
     @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
     @StateObject private var currencySellViewModel: CurrencySellViewModel
     
@@ -101,7 +100,10 @@ struct CurrencyInfoScreen: View {
         self.ratesController  = sessionContainer.ratesController
         self.session          = sessionContainer.session
         self.sessionContainer = sessionContainer
-        self.walletConnection = sessionContainer.walletConnection
+        
+        _externalSwapController = .init(
+            wrappedValue: ExternalSwapController(walletConnection: sessionContainer.walletConnection)
+        )
         
         let database = sessionContainer.database
         let metadata = try! database.getMintMetadata(mint: mint)!
@@ -225,14 +227,28 @@ struct CurrencyInfoScreen: View {
                     sessionContainer: sessionContainer
                 )
             }
-            .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
+            .navigationDestination(item: $externalSwapController.processing) { item in
+                SwapProcessingScreen(
+                    swapId: item.swapId,
+                    swapType: .buy,
+                    mint: item.mint,
+                    amount: item.amount
+                )
+                .environment(\.dismissParentContainer, {
+                    externalSwapController.dismissProcessing()
+                })
+            }
+            .sheet(isPresented: externalSwapController.isShowingAmountEntry) {
                 NavigationStack {
                     EnterWalletAmountScreen { quarks in
-                        try await walletConnection.requestUsdcToUsdfSwap(usdc: quarks, token: mintMetadata.metadata)
-                        walletConnection.isShowingAmountEntry = false
+                        try await externalSwapController.requestSwap(
+                            usdc: quarks,
+                            mint: mintMetadata.mint,
+                            token: mintMetadata.metadata
+                        )
                     }
                     .toolbar {
-                        ToolbarCloseButton(binding: $walletConnection.isShowingAmountEntry)
+                        ToolbarCloseButton(binding: externalSwapController.isShowingAmountEntry)
                     }
                 }
             }
@@ -248,6 +264,11 @@ struct CurrencyInfoScreen: View {
                     kind: .balance,
                     ratesController: ratesController
                 )
+            }
+            .onChange(of: isShowingBuyAmountEntry) { _, isPresented in
+                if isPresented {
+                    currencyBuyViewModel.reset()
+                }
             }
             .onChange(of: isShowingSellAmountEntry) { _, isPresented in
                 if isPresented {
@@ -277,7 +298,7 @@ struct CurrencyInfoScreen: View {
                         }
                         
                         CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
-                            walletConnection.connectToPhantom()
+                            externalSwapController.connectToPhantom()
                             isShowingFundingSelection = false
                         }
                         CodeButton(style: .subtle, title: "Dismiss") {
@@ -287,7 +308,7 @@ struct CurrencyInfoScreen: View {
                     .padding()
                 }
             }
-            .dialog(item: $walletConnection.dialogItem)
+            .dialog(item: externalSwapController.dialogItem)
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -378,6 +399,7 @@ struct CurrencyInfoScreen: View {
         }
     }
 }
+
 
 struct ExpandableText: View {
     @State private var isExpanded: Bool

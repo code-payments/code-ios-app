@@ -335,7 +335,7 @@ public final class WalletConnection: ObservableObject {
     /// - Parameters:
     ///   - usdc: Amount of USDC to swap (in quarks)
     ///   - token: The token to buy with the swapped USDF
-    func requestUsdcToUsdfSwap(usdc: Quarks, token: MintMetadata) async throws {
+    func requestUsdcToUsdfSwap(usdc: Quarks, token: MintMetadata) async throws -> (swapId: SwapId, amount: ExchangedFiat) {
         guard let connectedSession = Keychain.connectedWalletSession else {
             throw Error.noSession
         }
@@ -409,12 +409,14 @@ public final class WalletConnection: ObservableObject {
         guard let url = c.url else {
             pendingSwap = nil
             print("[WalletConnection] Failed to construct signAllTransactions URL")
-            return
+            throw Error.invalidURL
         }
 
         Analytics.walletRequestAmount(amount: amount.underlying)
         url.openWithApplication()
         print("[WalletConnection] Requested USDC→USDF swap of \(amount.underlying) for \(token.symbol), swapId: \(swapId.publicKey.base58)")
+
+        return (swapId: swapId, amount: amount)
     }
 
     // MARK: - Dialogs -
@@ -588,6 +590,7 @@ extension WalletConnection {
     enum Error: Swift.Error {
         case noSession
         case missingVerifiedState
+        case invalidURL
     }
 }
 

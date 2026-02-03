@@ -26,24 +26,36 @@ public struct CircularLoadingView: View {
     }
 
     public var body: some View {
-        ZStack {
-            // Background ring
-            Circle()
-                .stroke(ringColor, lineWidth: lineWidth)
+        // GeometryReader with explicit frame/position is required to prevent the rotating
+        // segment from drifting away from the background ring. Using overlay or ZStack alone
+        // causes coordinate space misalignment during animation in certain layout contexts.
+        GeometryReader { geometry in
+            let size = min(geometry.size.width, geometry.size.height)
+            let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
 
-            // Animated highlight segment
-            Circle()
-                .trim(from: 0, to: 0.25)
-                .stroke(highlightColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                .animation(
-                    .linear(duration: 1.0)
-                    .repeatForever(autoreverses: false),
-                    value: isAnimating
-                )
+            ZStack {
+                // Background ring
+                Circle()
+                    .stroke(ringColor, lineWidth: lineWidth)
+                    .frame(width: size, height: size)
+                    .position(center)
+
+                // Animated highlight segment
+                Circle()
+                    .trim(from: 0, to: 0.25)
+                    .stroke(highlightColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .frame(width: size, height: size)
+                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                    .position(center)
+            }
         }
         .onAppear {
-            isAnimating = true
+            withAnimation(
+                .linear(duration: 1.0)
+                .repeatForever(autoreverses: false)
+            ) {
+                isAnimating = true
+            }
         }
     }
 }
