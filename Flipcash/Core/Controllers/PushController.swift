@@ -197,7 +197,12 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         )
         
         Messaging.messaging().appDidReceiveMessage(notification.request.content.userInfo)
-        
+
+        // We intentionally don't call handleTargetUrlIfNeeded here.
+        // Deep link navigation should only happen when user taps the notification,
+        // which is handled in didReceive. This prevents unwanted navigation when
+        // a notification arrives while the app is already open.
+
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .pushNotificationWillPresent, object: nil)
         }
@@ -210,6 +215,8 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         
         Messaging.messaging().appDidReceiveMessage(response.notification.request.content.userInfo)
         
+        handleTargetUrlIfNeeded(response.notification.request.content.userInfo["target_url"] as? String)
+        
         DispatchQueue.main.async {
             NotificationCenter.default.post(name: .pushNotificationReceived, object: nil)
         }
@@ -219,6 +226,20 @@ private class NotificationDelegate: NSObject, @preconcurrency UNUserNotification
         trace(.warning, components: "Received FCM token: \(fcmToken ?? "nil")")
         Task {
             try await self.didReceiveFCMToken?(fcmToken)
+        }
+    }
+    
+    private func handleTargetUrlIfNeeded(_ urlString: String?) {
+        guard let urlString, let url = URL(string: urlString) else {
+            return
+        }
+        
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: .pushDeepLinkReceived,
+                object: nil,
+                userInfo: ["url": url]
+            )
         }
     }
 }

@@ -6,27 +6,33 @@
 //
 
 import Foundation
+import FlipcashCore
 
 struct Route {
-    
+
     let path: Path
     let properties: [String: String]
     let fragments: [Fragment.Key: Fragment]
-    
+
     init?(url: URL) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
             return nil
         }
-        
-        /// Handles route creation from multiple URL sources with different structures
-        ///
-        /// Routes can be created from two types of URLs:
-        /// - **Universal Links**: `https://example.com/path` path is in the URL path component
-        /// - **Deep Links**: `flipcash://path` path is in the URL host component
-        ///
-        /// Since the path location differs between URL schemes, this method normalizes
-        /// the extraction logic to support both formats.
-        guard let path = Path.parse(path: components.path.isEmpty ? (components.host ?? "") : components.path) else {
+
+        // Normalize path extraction for both URL types:
+        // - Universal Links: https://app.flipcash.com/token/ABC → path = "/token/ABC"
+        // - Deep Links: flipcash://token/ABC → host = "token", path = "/ABC"
+        //   Need to combine as "/token/ABC"
+        let normalizedPath: String
+        if components.scheme == "flipcash", let host = components.host {
+            // Deep link: combine host + path
+            normalizedPath = "/\(host)\(components.path)"
+        } else {
+            // Universal link: use path directly
+            normalizedPath = components.path
+        }
+
+        guard let path = Path.parse(path: normalizedPath) else {
             return nil
         }
         
@@ -78,6 +84,7 @@ extension Route {
         case login
         case cash
         case verifyEmail
+        case token(PublicKey)
         case unknown(String)
         
         static func parse(path: String) -> Path? {
@@ -99,6 +106,11 @@ extension Route {
                 return .cash
             case "verify":
                 return .verifyEmail
+            case "token":
+                guard components.count > 1, let mint = try? PublicKey(base58: components[1]) else {
+                    return nil
+                }
+                return .token(mint)
             default:
                 return .unknown(url.lastPathComponent)
             }

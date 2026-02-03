@@ -27,6 +27,10 @@
                {
                   "/": "/wallet/*",
                   "comment": "Support for wallet connections"
+               },
+               {
+                  "/": "/token/*",
+                  "comment": "Support for currency info screens"
                }
             ]
          }

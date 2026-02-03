@@ -41,6 +41,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         setupAppearance()
         
         assignHost()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePushDeepLinkNotification(_:)),
+            name: .pushDeepLinkReceived,
+            object: nil
+        )
         
 //        let contentView = ContentView() // Your SwiftUI view
 //        let hostingController = UIHostingController(rootView: contentView)
@@ -158,6 +165,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         return true
+    }
+
+    @objc private func handlePushDeepLinkNotification(_ notification: Notification) {
+        guard let url = notification.userInfo?["url"] as? URL else {
+            return
+        }
+
+        _ = handleOpenURL(url: url)
     }
     
     // MARK: - Push Notifications -

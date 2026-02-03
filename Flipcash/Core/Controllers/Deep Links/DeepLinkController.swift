@@ -98,6 +98,9 @@ final class DeepLinkController {
                 return action
             }
             
+        case .token(let mint):
+            return actionForCurrencyInfo(mint: mint)
+            
         case .unknown:
             break
         }
@@ -128,6 +131,13 @@ final class DeepLinkController {
                     clientData: clientData
                 )
             ),
+            sessionAuthenticator: sessionAuthenticator
+        )
+    }
+
+    private func actionForCurrencyInfo(mint: PublicKey) -> DeepLinkAction {
+        DeepLinkAction(
+            kind: .currencyInfo(mint),
             sessionAuthenticator: sessionAuthenticator
         )
     }
@@ -203,6 +213,11 @@ struct DeepLinkAction {
             if case .loggedIn(let container) = sessionAuthenticator.state {
                 container.onrampViewModel.confirmEmailFromDeeplinkAction(verification: description)
             }
+
+        case .currencyInfo(let mint):
+            if case .loggedIn(let container) = sessionAuthenticator.state {
+                container.session.pendingCurrencyInfoMint = mint
+            }
         }
     }
 }
@@ -214,6 +229,7 @@ extension DeepLinkAction {
         case accessKey(MnemonicPhrase)
         case receiveCashLink(MnemonicPhrase)
         case verifyEmail(VerificationDescription)
+        case currencyInfo(PublicKey)
     }
 }
 

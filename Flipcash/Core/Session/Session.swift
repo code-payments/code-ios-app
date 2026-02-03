@@ -33,6 +33,7 @@ class Session: ObservableObject {
 
     @Published var coinbaseOrder: OnrampOrderResponse?
     @Published var isShowingBillEditor: Bool = false
+    @Published var pendingCurrencyInfoMint: PublicKey? = nil
 
     private var grabStarts: [PublicKey: Date] = [:]
 
