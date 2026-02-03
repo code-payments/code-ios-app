@@ -12,17 +12,18 @@ import FlipcashCore
 struct CurrencySellConfirmationScreen: View {
     let mint: PublicKey
     let amount: ExchangedFiat
-    
+    @Binding var path: [CurrencySellPath]
+
     @StateObject private var viewModel: CurrencySellConfirmationViewModel
-    
+
     @EnvironmentObject private var session: Session
-    @Environment(\.dismissParentContainer) private var dismissParentContainer
-    
+
     // MARK: - Init -
-    
-    init(mint: PublicKey, amount: ExchangedFiat) {
+
+    init(mint: PublicKey, amount: ExchangedFiat, path: Binding<[CurrencySellPath]>) {
         self.mint = mint
         self.amount = amount
+        self._path = path
         self._viewModel = StateObject(wrappedValue: CurrencySellConfirmationViewModel(mint: mint, amount: amount))
     }
         
@@ -89,16 +90,22 @@ struct CurrencySellConfirmationScreen: View {
         .interactiveDismissDisabled(!viewModel.canDismissSheet)
         .dialog(item: $viewModel.dialogItem)
         .navigationTitle("Confirm Sale")
+        .onChange(of: viewModel.pendingSwapId) { _, swapId in
+            if let swapId {
+                path.append(.processing(swapId: swapId, mint: mint, amount: viewModel.amountAfterFee))
+            }
+        }
     }
-    
+
     // MARK: - Actions -
-    
+
     private func performSell() {
-        viewModel.performSell(using: session, onDismiss: dismissParentContainer)
+        viewModel.performSell(using: session)
     }
 }
 
 #Preview {
+    @Previewable @State var path: [CurrencySellPath] = []
     let amount = try! ExchangedFiat(underlying: 10_000_000_000_000, rate: .oneToOne, mint: .usdf)
-    CurrencySellConfirmationScreen(mint: .usdf, amount: amount)
+    CurrencySellConfirmationScreen(mint: .usdf, amount: amount, path: $path)
 }

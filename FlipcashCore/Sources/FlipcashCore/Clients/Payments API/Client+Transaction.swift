@@ -83,7 +83,8 @@ extension Client {
     // MARK: - Swaps -
 
     /// Buy tokens using default submitIntent funding (Phase 1 + Phase 2)
-    public func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> Void {
+    @discardableResult
+    public func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
         try await withCheckedThrowingContinuation { c in
             transactionService.buy(amount: amount, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
         }
@@ -92,13 +93,15 @@ extension Client {
     /// Buy tokens with specified funding source
     /// - For `.submitIntent`: Phase 1 (startSwap) + Phase 2 (IntentFundSwap)
     /// - For `.externalWallet`: Phase 1 only (funding already happened via external wallet)
-    public func buy(swapId: SwapId, amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, fundingSource: FundingSource) async throws -> Void {
+    @discardableResult
+    public func buy(swapId: SwapId, amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, fundingSource: FundingSource) async throws -> SwapId {
         try await withCheckedThrowingContinuation { c in
             transactionService.buy(swapId: swapId, amount: amount, verifiedState: verifiedState, of: token, owner: owner, fundingSource: fundingSource) { c.resume(with: $0) }
         }
     }
 
-    public func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster) async throws -> Void {
+    @discardableResult
+    public func sell(amount: ExchangedFiat, verifiedState: VerifiedState, in token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
         try await withCheckedThrowingContinuation { c in
             transactionService.sell(amount: amount, verifiedState: verifiedState, in: token, owner: owner) { c.resume(with: $0) }
         }
@@ -126,7 +129,85 @@ extension Client {
             transactionService.fetchIntentMetadata(owner: owner, intentID: intentID) { c.resume(with: $0) }
         }
     }
-    
+
+    // MARK: - Swap Status -
+
+    /// Fetches the current state of a swap
+    public func fetchSwapMetadata(swapId: SwapId, owner: KeyPair) async throws -> SwapMetadata {
+        try await withCheckedThrowingContinuation { c in
+            transactionService.swapService.getSwap(swapId: swapId, owner: owner) { result in
+                switch result {
+                case .success(let metadata):
+                    c.resume(returning: metadata)
+                case .failure(let error):
+                    c.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Polls swap state until a terminal state is reached or max attempts exceeded.
+    ///
+    /// Terminal states: `.finalized`, `.failed`, `.cancelled`
+    ///
+    /// - Parameters:
+    ///   - swapId: The swap to poll
+    ///   - owner: Owner keypair for authentication
+    ///   - maxAttempts: Maximum number of poll attempts (default 60)
+    ///   - onStateChange: Optional callback for state changes (called on each poll)
+    /// - Returns: Final SwapMetadata when terminal state is reached
+    /// - Throws: ClientError.pollLimitReached if max attempts exceeded
+    public func pollSwapState(
+        swapId: SwapId,
+        owner: KeyPair,
+        maxAttempts: Int = 60,
+        onStateChange: (@Sendable (SwapState) -> Void)? = nil
+    ) async throws -> SwapMetadata {
+        var lastState: SwapState?
+
+        for i in 0..<maxAttempts {
+            // Backoff strategy: start at 500ms, increase by 100ms every 10 polls
+            // Poll 0-9: 500ms, Poll 10-19: 600ms, Poll 20-29: 700ms, etc.
+            let delay = 500 + (100 * (i / 10))
+
+            if i > 0 {
+                try await Task.delay(milliseconds: delay)
+            }
+
+            trace(.poll, components: "SwapState", "Attempt \(i + 1)/\(maxAttempts)", "Delay: \(delay)ms", "Swap ID: \(swapId.publicKey.base58)")
+
+            do {
+                let metadata = try await fetchSwapMetadata(swapId: swapId, owner: owner)
+
+                // Notify of state change
+                if metadata.state != lastState {
+                    lastState = metadata.state
+                    onStateChange?(metadata.state)
+                }
+
+                // Check for terminal states
+                switch metadata.state {
+                case .finalized, .failed, .cancelled:
+                    trace(.success, components: "SwapState", "Terminal state reached: \(metadata.state)")
+                    return metadata
+                case .unknown, .created, .funding, .funded, .submitting, .cancelling:
+                    // Continue polling
+                    continue
+                }
+            } catch ErrorGetSwap.notFound {
+                // Swap not yet visible, continue polling
+                trace(.warning, components: "SwapState", "Swap not found yet, continuing...")
+                continue
+            } catch {
+                // Log but continue polling for transient errors
+                trace(.warning, components: "SwapState", "Poll error: \(error), continuing...")
+                continue
+            }
+        }
+
+        throw ClientError.pollLimitReached
+    }
+
     // MARK: - Limits -
     
     public func fetchTransactionLimits(owner: KeyPair, since date: Date) async throws -> Limits {

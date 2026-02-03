@@ -14,6 +14,7 @@ class CurrencyBuyViewModel: ObservableObject {
     @Published var actionButtonState: ButtonState = .normal
     @Published var enteredAmount: String = ""
     @Published var dialogItem: DialogItem?
+    @Published var path: [CurrencyBuyPath] = []
         
     var enteredFiat: ExchangedFiat? {
         guard !enteredAmount.isEmpty else {
@@ -80,9 +81,9 @@ class CurrencyBuyViewModel: ObservableObject {
     private let session: Session
     private let ratesController: RatesController
     private let destination: PublicKey
-    
+
     // MARK: - Init -
-    
+
     init(currencyPublicKey: PublicKey, container: Container, sessionContainer: SessionContainer) {
         self.destination     = currencyPublicKey
         self.session         = sessionContainer.session
@@ -94,6 +95,7 @@ class CurrencyBuyViewModel: ObservableObject {
     func reset() {
         actionButtonState = .normal
         enteredAmount = ""
+        path = []
     }
     
     func amountEnteredAction() {
@@ -111,10 +113,10 @@ class CurrencyBuyViewModel: ObservableObject {
 
         Task {
             do {
-                try await session.buy(amount: buyAmount, of: destination)
+                let swapId = try await session.buy(amount: buyAmount, of: destination)
 
                 await MainActor.run {
-                    showSuccessDialog()
+                    path.append(.processing(swapId: swapId, mint: destination, amount: buyAmount))
                 }
             } catch {
                 await MainActor.run {
@@ -132,20 +134,7 @@ class CurrencyBuyViewModel: ObservableObject {
     }
         
     // MARK: - Dialogs -
-    
-    private func showSuccessDialog() {
-        dialogItem = .init(
-            style: .success,
-            title: "Your Funds Will Be Available Soon",
-            subtitle: "They should be available in a few minutes. If you have any issues please contact support@flipcash.com",
-            dismissable: false
-        ) {
-            .okay(kind: .standard) { [weak self] in
-                self?.actionButtonState = .success
-            }
-        }
-    }
-    
+
     private func showInsufficientBalanceError() {
         dialogItem = .init(
             style: .destructive,
@@ -156,4 +145,8 @@ class CurrencyBuyViewModel: ObservableObject {
             .okay(kind: .destructive)
         }
     }
+}
+
+enum CurrencyBuyPath: Hashable {
+    case processing(swapId: SwapId, mint: PublicKey, amount: ExchangedFiat)
 }

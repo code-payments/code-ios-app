@@ -496,7 +496,7 @@ class Session: ObservableObject {
             guard let mintMetadata = mints[mint] else {
                 throw Error.mintNotFound
             }
-            
+
             try database.insert(mints: [mintMetadata], date: .now)
             return try await fetchMintMetadata(mint: mint)
         }
@@ -551,7 +551,9 @@ class Session: ObservableObject {
     }
     
     // MARK: - Swaps -
-    func buy(amount: ExchangedFiat, of mint: PublicKey) async throws {
+
+    @discardableResult
+    func buy(amount: ExchangedFiat, of mint: PublicKey) async throws -> SwapId {
         let token = try await fetchMintMetadata(mint: mint)
 
         // Get verified state for intent construction
@@ -564,10 +566,11 @@ class Session: ObservableObject {
 
         trace(.note, components: "buying \(amount.converted.formatted()) of \(token.symbol)")
 
-        try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
+        return try await client.buy(amount: amount, verifiedState: verifiedState, of: token.metadata, owner: owner)
     }
 
-    func sell(amount: ExchangedFiat, in mint: PublicKey) async throws {
+    @discardableResult
+    func sell(amount: ExchangedFiat, in mint: PublicKey) async throws -> SwapId {
         let token = try await fetchMintMetadata(mint: mint)
 
         // Get verified state for intent construction
@@ -582,7 +585,7 @@ class Session: ObservableObject {
         guard let supply = verifiedState.supplyFromBonding else {
             throw Error.missingSupply
         }
-                
+
         guard let amountRecalculated = ExchangedFiat.computeFromEntered(
                 amount: amount.converted.decimalValue,
                 rate: ratesController.rateForEntryCurrency(),
@@ -594,7 +597,7 @@ class Session: ObservableObject {
 
         trace(.note, components: "selling \(amountRecalculated.converted.formatted()) of \(token.symbol)")
 
-        try await client.sell(amount: amountRecalculated, verifiedState: verifiedState, in: token.metadata, owner: owner)
+        return try await client.sell(amount: amountRecalculated, verifiedState: verifiedState, in: token.metadata, owner: owner)
     }
     
     // MARK: - Withdrawals -

@@ -237,12 +237,7 @@ struct CurrencyInfoScreen: View {
                 }
             }
             .sheet(isPresented: $isShowingBuyAmountEntry) {
-                NavigationStack {
-                    CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
-                    .toolbar {
-                        ToolbarCloseButton(binding: $isShowingBuyAmountEntry)
-                    }
-                }
+                CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
             }
             .sheet(isPresented: $isShowingSellAmountEntry) {
                 CurrencySellAmountScreen(viewModel: currencySellViewModel)

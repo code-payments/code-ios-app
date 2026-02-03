@@ -281,6 +281,61 @@ final class SwapService: CodeService<Ocp_Transaction_V1_TransactionNIOClient>, @
             return
         }
     }
+
+    // MARK: - GetSwap -
+
+    /// Fetches the current state of a swap by its ID.
+    ///
+    /// - Parameters:
+    ///   - swapId: The unique identifier of the swap
+    ///   - owner: The owner's keypair for authentication
+    ///   - completion: Callback with result containing SwapMetadata or ErrorGetSwap
+    func getSwap(
+        swapId: SwapId,
+        owner: KeyPair,
+        completion: @escaping (Result<SwapMetadata, ErrorGetSwap>) -> Void
+    ) {
+        trace(.send, components: "GetSwap", "Swap ID: \(swapId.publicKey.base58)")
+
+        var request = Ocp_Transaction_V1_GetSwapRequest()
+        request.id = swapId.codeSwapID
+        request.owner = owner.publicKey.solanaAccountID
+        request.signature = request.sign(with: owner)
+
+        let call = service.getSwap(request)
+
+        call.response.whenCompleteBlocking(onto: queue) { result in
+            switch result {
+            case .success(let response):
+                switch response.result {
+                case .ok:
+                    guard let metadata = SwapMetadata(response.swap) else {
+                        trace(.failure, components: "GetSwap", "Failed to parse swap metadata")
+                        completion(.failure(.failedToParse))
+                        return
+                    }
+                    trace(.success, components: "GetSwap", "State: \(metadata.state)")
+                    completion(.success(metadata))
+
+                case .notFound:
+                    trace(.failure, components: "GetSwap", "Swap not found")
+                    completion(.failure(.notFound))
+
+                case .denied:
+                    trace(.failure, components: "GetSwap", "Access denied")
+                    completion(.failure(.denied))
+
+                case .UNRECOGNIZED:
+                    trace(.failure, components: "GetSwap", "Unknown result")
+                    completion(.failure(.unknown))
+                }
+
+            case .failure(let error):
+                trace(.failure, components: "GetSwap", "gRPC error: \(error)")
+                completion(.failure(.unknown))
+            }
+        }
+    }
 }
 
 // MARK: - Types -
