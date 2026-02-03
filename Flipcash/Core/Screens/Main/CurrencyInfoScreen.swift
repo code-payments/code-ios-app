@@ -265,6 +265,11 @@ struct CurrencyInfoScreen: View {
                     ratesController: ratesController
                 )
             }
+            .onChange(of: isShowingBuyAmountEntry) { _, isPresented in
+                if isPresented {
+                    currencyBuyViewModel.reset()
+                }
+            }
             .onChange(of: isShowingSellAmountEntry) { _, isPresented in
                 if isPresented {
                     currencySellViewModel.reset()
