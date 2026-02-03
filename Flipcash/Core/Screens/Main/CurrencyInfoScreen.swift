@@ -61,10 +61,6 @@ struct CurrencyInfoScreen: View {
         return (appreciationValue.converted, isPositive)
     }
 
-    private var shouldShowAppreciation: Bool {
-        appreciation.amount.decimalValue >= 0.01
-    }
-
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
@@ -162,12 +158,10 @@ struct CurrencyInfoScreen: View {
                                 .frame(height: 60)
                                 .frame(maxWidth: .infinity)
                             
-                            if !isUSDF && shouldShowAppreciation {
+                            if !isUSDF {
                                 ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                                     .padding(.top, 8)
-                            }
 
-                            if !isUSDF {
                                 CodeButton(style: .filledSecondary, title: "View Transaction History") {
                                     isShowingTransactionHistory.toggle()
                                 }

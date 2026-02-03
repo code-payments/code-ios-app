@@ -67,10 +67,6 @@ struct BalanceScreen: View {
 
         return (quarks, isPositive)
     }
-
-    private var shouldShowAppreciation: Bool {
-        appreciation.amount.decimalValue >= 0.01
-    }
     
     // MARK: - Init -
     
@@ -168,10 +164,8 @@ struct BalanceScreen: View {
                         header()
                             .frame(height: 60)
                         
-                        if shouldShowAppreciation {
-                            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
-                                .padding(.top, 4)
-                        }
+                        ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
+                            .padding(.top, 4)
                     }
                         .padding(.vertical, 30)
                 } footer: {
