@@ -325,6 +325,28 @@ xcodebuild test -scheme Flipcash -destination 'platform=iOS Simulator,name=iPhon
 - Use descriptive names that explain the scenario
 - Format: `func testMethodName_scenario_expectedResult()` or use `@Test("description")`
 
+### Test the Actual Implementation
+
+**NEVER recreate functionality in tests.** Always test the actual implementation:
+
+```swift
+// ❌ BAD: Recreates the logic, proves nothing about the real code
+@Test func testTotalBalance() {
+    let sum = balance1.converted.decimalValue + balance2.converted.decimalValue
+    let total = Quarks(fiatDecimal: sum, ...)
+    #expect(total.formatted() == "$8.10")  // Tests nothing real
+}
+
+// ✅ GOOD: Tests the actual Session.totalBalance implementation
+@Test func testTotalBalance() {
+    let session = makeTestSession(balances: [balance1, balance2])
+    let total = session.totalBalance
+    #expect(total.converted.formatted() == "$8.10")
+}
+```
+
+If the code under test is difficult to call directly, create test support extensions or mock dependencies rather than duplicating the logic.
+
 ### Test Support Extensions
 
 **Keep production code clean** - test-only helpers belong in the test target:
