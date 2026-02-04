@@ -274,7 +274,6 @@
 		9AED11EE25910F020088D902 /* Localized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AED11ED25910F020088D902 /* Localized.swift */; };
 		9AEF190C260A74C400EB2410 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = 9AEF190B260A74C400EB2410 /* Localizable.stringsdict */; };
 		9AEF1912260A7BCF00EB2410 /* UIApplication+Root.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEF1911260A7BCF00EB2410 /* UIApplication+Root.swift */; };
-		9AEFE83925B1F201001FCB19 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 9AEFE83825B1F201001FCB19 /* LaunchScreen.storyboard */; };
 		9AEFE84425B1F3BF001FCB19 /* IntroScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEFE84325B1F3BF001FCB19 /* IntroScreen.swift */; };
 		9AEFE84E25B61EAB001FCB19 /* GiveKinScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEFE84D25B61EAB001FCB19 /* GiveKinScreen.swift */; };
 		9AEFE85425B74A4A001FCB19 /* ScanScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEFE85325B74A49001FCB19 /* ScanScreen.swift */; };
@@ -583,7 +582,6 @@
 		9AED11ED25910F020088D902 /* Localized.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Localized.swift; sourceTree = "<group>"; };
 		9AEF190B260A74C400EB2410 /* Localizable.stringsdict */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; path = Localizable.stringsdict; sourceTree = "<group>"; };
 		9AEF1911260A7BCF00EB2410 /* UIApplication+Root.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIApplication+Root.swift"; sourceTree = "<group>"; };
-		9AEFE83825B1F201001FCB19 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		9AEFE84325B1F3BF001FCB19 /* IntroScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroScreen.swift; sourceTree = "<group>"; };
 		9AEFE84D25B61EAB001FCB19 /* GiveKinScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GiveKinScreen.swift; sourceTree = "<group>"; };
 		9AEFE85325B74A49001FCB19 /* ScanScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanScreen.swift; sourceTree = "<group>"; };
@@ -1244,7 +1242,6 @@
 			isa = PBXGroup;
 			children = (
 				9AED1107258BE1320088D902 /* Assets.xcassets */,
-				9AEFE83825B1F201001FCB19 /* LaunchScreen.storyboard */,
 				9AED110C258BE1320088D902 /* Info.plist */,
 				9A1A8272286608D500A4979F /* GoogleService-Info.plist */,
 			);
@@ -1828,7 +1825,6 @@
 				9A7C408128DDE0C7007DA414 /* Localizable.strings in Resources */,
 				9AC784B22BDC36FF00EFAE83 /* PrivacyInfo.xcprivacy in Resources */,
 				9AED110B258BE1320088D902 /* Preview Assets.xcassets in Resources */,
-				9AEFE83925B1F201001FCB19 /* LaunchScreen.storyboard in Resources */,
 				9AED1108258BE1320088D902 /* Assets.xcassets in Resources */,
 				9AEF190C260A74C400EB2410 /* Localizable.stringsdict in Resources */,
 				9A1A8274286608D500A4979F /* GoogleService-Info.plist in Resources */,
@@ -2771,7 +2767,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2823,7 +2819,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2871,7 +2867,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2918,7 +2914,7 @@
 				INFOPLIST_KEY_NSCameraUsageDescription = "Flipcash enables you to receive cash by pointing your camera at the digital bill displayed on another user's phone.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We will save your Access Key to your library.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
