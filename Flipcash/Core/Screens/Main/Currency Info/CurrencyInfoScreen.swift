@@ -199,7 +199,7 @@ struct CurrencyInfoScreen: View {
                         .frame(height: 60)
                         .frame(maxWidth: .infinity)
 
-                        if !isUSDF {
+                        if !isUSDF && balance.quarks > 0 {
                             ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                                 .padding(.top, 8)
 
