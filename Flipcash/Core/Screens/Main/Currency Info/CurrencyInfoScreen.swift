@@ -10,8 +10,8 @@ import FlipcashUI
 import FlipcashCore
 
 struct CurrencyInfoScreen: View {
-    @StateObject private var updateableMint: Updateable<StoredMintMetadata>
-    
+    @StateObject private var viewModel: CurrencyInfoViewModel
+
     @State private var isShowingTransactionHistory: Bool = false
     @State private var isShowingFundingSelection: Bool = false
     @State private var isShowingBuyAmountEntry: Bool = false
@@ -19,42 +19,44 @@ struct CurrencyInfoScreen: View {
     @State private var chartViewModel: ChartViewModel?
     @State private var isShowingCurrencySelection: Bool = false
     @StateObject private var externalSwapController: ExternalSwapController
-    
+
     @ObservedObject private var session: Session
     @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
-    @StateObject private var currencySellViewModel: CurrencySellViewModel
-    
-    private var mintMetadata: StoredMintMetadata {
-        updateableMint.value
+    @State private var currencySellViewModel: CurrencySellViewModel?
+
+    private var mintMetadata: StoredMintMetadata? {
+        viewModel.mintMetadata
     }
 
     private var isUSDF: Bool {
-        mintMetadata.mint == .usdf
+        mintMetadata?.mint == .usdf
     }
 
     private var currencyDescription: String {
-        return mintMetadata.bio ?? "No information"
-
+        return mintMetadata?.bio ?? "No information"
     }
 
     private var balance: Quarks {
+        guard let mintMetadata else { return 0 }
         let balance   = session.balance(for: mintMetadata.mint)
         let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
 
         return exchanged?.converted ?? 0
     }
-    
+
     private var reserveBalance: Quarks {
         let balance   = session.balance(for: .usdf)
         let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
-        
+
         return exchanged?.converted ?? 0
     }
-    
+
     private var appreciation: (amount: Quarks, isPositive: Bool) {
-        guard let balance = session.balance(for: mintMetadata.mint) else {
-            let zeroQuarks: UInt64 = 0
-            return (Quarks(quarks: zeroQuarks, currencyCode: ratesController.rateForBalanceCurrency().currency, decimals: PublicKey.usdf.mintDecimals), true)
+        let zeroQuarks: UInt64 = 0
+        let zero = Quarks(quarks: zeroQuarks, currencyCode: ratesController.rateForBalanceCurrency().currency, decimals: PublicKey.usdf.mintDecimals)
+
+        guard let mintMetadata, let balance = session.balance(for: mintMetadata.mint) else {
+            return (zero, true)
         }
         let (appreciationValue, isPositive) = balance.computeAppreciation(with: ratesController.rateForBalanceCurrency())
         return (appreciationValue.converted, isPositive)
@@ -65,8 +67,10 @@ struct CurrencyInfoScreen: View {
     private let ratesController: RatesController
     private let sessionContainer: SessionContainer
     private let marketCapController: MarketCapController
-    
+
     private var marketCap: Quarks {
+        guard let mintMetadata else { return 0 }
+
         var supply: Int = 0
         if let supplyFromBonding = mintMetadata.supplyFromBonding {
             supply = Int(supplyFromBonding)
@@ -91,38 +95,28 @@ struct CurrencyInfoScreen: View {
 
         return exchanged.converted
     }
-    
+
     // MARK: - Init -
-    
+
     init(mint: PublicKey, container: Container, sessionContainer: SessionContainer) {
         self.mint             = mint
         self.container        = container
         self.ratesController  = sessionContainer.ratesController
         self.session          = sessionContainer.session
         self.sessionContainer = sessionContainer
-        
+
+        _viewModel = .init(wrappedValue: CurrencyInfoViewModel(
+            mint: mint,
+            sessionContainer: sessionContainer
+        ))
+
         _externalSwapController = .init(
             wrappedValue: ExternalSwapController(walletConnection: sessionContainer.walletConnection)
         )
-        
-        let database = sessionContainer.database
-        let metadata = try! database.getMintMetadata(mint: mint)!
-        
-        _updateableMint = .init(wrappedValue: Updateable {
-            metadata
-        })
-        
+
         _currencyBuyViewModel = .init(
             wrappedValue: CurrencyBuyViewModel(
                 currencyPublicKey: mint,
-                container: container,
-                sessionContainer: sessionContainer
-            )
-        )
-        
-        _currencySellViewModel = .init(
-            wrappedValue: CurrencySellViewModel(
-                currencyMetadata: metadata,
                 container: container,
                 sessionContainer: sessionContainer
             )
@@ -136,195 +130,282 @@ struct CurrencyInfoScreen: View {
     }
     
     // MARK: - Body -
-    
+
     var body: some View {
         Background(color: .backgroundMain) {
-            ZStack {
-                // Scrollable Content
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // Header
-
-                        VStack {
-                            Button {
-                                isShowingCurrencySelection.toggle()
-                            } label: {
-                                AmountText(
-                                    flagStyle: balance.currencyCode.flagStyle,
-                                    content: balance.formatted(),
-                                    showChevron: true
-                                )
-                                .font(.appDisplayLarge)
-                                .foregroundStyle(Color.textMain)
-                            }
-                                .frame(height: 60)
-                                .frame(maxWidth: .infinity)
-                            
-                            if !isUSDF {
-                                ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
-                                    .padding(.top, 8)
-
-                                CodeButton(style: .filledSecondary, title: "View Transaction History") {
-                                    isShowingTransactionHistory.toggle()
-                                }
-                                    .padding(.top, 40)
-                            }
-                        }
-                        .padding(.top, 30)
-                        .padding(.bottom, 25)
-                        .vSeparator(color: .rowSeparator)
-                        .padding(.horizontal, 20)
-
-                        // Currency Info
-
-                        section(spacing: 20) {
-                            if !isUSDF {
-                                HStack {
-                                    Image(systemName: "text.justify.left")
-                                        .padding(.bottom, -1)
-                                    Text("Currency Info")
-                                }
-                                .font(.appBarButton)
-                                .foregroundStyle(Color.textMain)
-                            }
-
-                            Text(currencyDescription)
-                                .foregroundStyle(Color.textSecondary)
-                                .font(.appTextSmall)
-                        }
-
-                        // Market Cap
-                        if !isUSDF {
-                            marketCapSection()
-                            
-                            // Append enough content to scroll below the floating footer
-                            Color
-                                .clear
-                                .padding(.bottom, 100)
-                        }
-                    }
-                }
-                
-                // Floating Footer
-                if !isUSDF {
-                    CurrencyInfoScreenFooter {
-                        CodeButton(style: .filled, title: "Buy") {
-                            isShowingFundingSelection = true
-                        }
-                        
-                        if balance.quarks > 0 {
-                            CodeButton(style: .filledSecondary, title: "Sell") {
-                                isShowingSellAmountEntry = true
-                            }
-                        }
-                    }
-                }
+            switch viewModel.loadingState {
+            case .loading:
+                loadingView()
+            case .loaded(let metadata):
+                loadedContent(metadata: metadata)
+            case .error(let error):
+                errorView(error: error)
             }
-            .navigationDestination(isPresented: $isShowingTransactionHistory) {
-                TransactionHistoryScreen(
-                    mintMetadata: mintMetadata,
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                toolbarContent()
+            }
+        }
+        .task {
+            await viewModel.loadMintMetadata()
+
+            if let metadata = viewModel.mintMetadata, currencySellViewModel == nil {
+                currencySellViewModel = CurrencySellViewModel(
+                    currencyMetadata: metadata,
                     container: container,
                     sessionContainer: sessionContainer
                 )
             }
-            .navigationDestination(item: $externalSwapController.processing) { item in
-                SwapProcessingScreen(
-                    swapId: item.swapId,
-                    swapType: .buy,
-                    mint: item.mint,
-                    amount: item.amount
-                )
-                .environment(\.dismissParentContainer, {
-                    externalSwapController.dismissProcessing()
-                })
-            }
-            .sheet(isPresented: externalSwapController.isShowingAmountEntry) {
-                NavigationStack {
-                    EnterWalletAmountScreen { quarks in
-                        try await externalSwapController.requestSwap(
-                            usdc: quarks,
-                            mint: mintMetadata.mint,
-                            token: mintMetadata.metadata
-                        )
-                    }
-                    .toolbar {
-                        ToolbarCloseButton(binding: externalSwapController.isShowingAmountEntry)
-                    }
-                }
-            }
-            .sheet(isPresented: $isShowingBuyAmountEntry) {
-                CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
-            }
-            .sheet(isPresented: $isShowingSellAmountEntry) {
-                CurrencySellAmountScreen(viewModel: currencySellViewModel)
-            }
-            .sheet(isPresented: $isShowingCurrencySelection) {
-                CurrencySelectionScreen(
-                    isPresented: $isShowingCurrencySelection,
-                    kind: .balance,
-                    ratesController: ratesController
-                )
-            }
-            .onChange(of: isShowingBuyAmountEntry) { _, isPresented in
-                if isPresented {
-                    currencyBuyViewModel.reset()
-                }
-            }
-            .onChange(of: isShowingSellAmountEntry) { _, isPresented in
-                if isPresented {
-                    currencySellViewModel.reset()
-                }
-            }
-            .onChange(of: ratesController.balanceCurrency) { _, _ in
-                guard let viewModel = chartViewModel else { return }
-                loadChartData(for: viewModel.selectedRange, into: viewModel)
-            }
-            .sheet(isPresented: $isShowingFundingSelection) {
-                PartialSheet {
-                    VStack {
-                        HStack {
-                            Text("Select Purchase Method")
-                                .font(.appBarButton)
-                                .foregroundStyle(Color.textMain)
-                            Spacer()
-                        }
-                        .padding(.vertical, 20)
-                        
-                        if reserveBalance.quarks > 0 {
-                            CodeButton(style: .filled, title: "USDF Reserves (\(reserveBalance))") {
-                                isShowingBuyAmountEntry = true
-                                isShowingFundingSelection = false
-                            }
-                        }
-                        
-                        CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
-                            externalSwapController.connectToPhantom()
-                            isShowingFundingSelection = false
-                        }
-                        CodeButton(style: .subtle, title: "Dismiss") {
-                            isShowingFundingSelection = false
-                        }
-                    }
-                    .padding()
-                }
-            }
-            .dialog(item: externalSwapController.dialogItem)
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                if isUSDF {
-                    Text("Cash Reserves")
-                        .font(.appBarButton)
-                        .foregroundStyle(Color.textMain)
-                } else {
-                    CurrencyLabel(
-                        imageURL: mintMetadata.imageURL,
-                        name: mintMetadata.name,
-                        amount: nil
+    }
+
+    @ViewBuilder private func loadingView() -> some View {
+        VStack {
+            Spacer()
+            LoadingView(color: .textMain)
+            Spacer()
+        }
+    }
+
+    @ViewBuilder private func errorView(error: CurrencyInfoViewModel.Error) -> some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundStyle(Color.textSecondary)
+
+            Text(errorTitle(for: error))
+                .font(.appTextLarge)
+                .foregroundStyle(Color.textMain)
+
+            Text(errorSubtitle(for: error))
+                .font(.appTextSmall)
+                .foregroundStyle(Color.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            Spacer()
+
+            CodeButton(style: .filled, title: "Try Again") {
+                Task {
+                    await viewModel.loadMintMetadata()
+                }
+            }
+            .padding(20)
+        }
+    }
+
+    private func errorTitle(for error: CurrencyInfoViewModel.Error) -> String {
+        switch error {
+        case .mintNotFound:
+            return "Currency Not Found"
+        case .networkError:
+            return "Connection Error"
+        }
+    }
+
+    private func errorSubtitle(for error: CurrencyInfoViewModel.Error) -> String {
+        switch error {
+        case .mintNotFound:
+            return "This currency could not be found. It may no longer exist."
+        case .networkError:
+            return "Please check your connection and try again."
+        }
+    }
+
+    @ViewBuilder private func toolbarContent() -> some View {
+        if let metadata = mintMetadata {
+            if metadata.mint == .usdf {
+                Text("Cash Reserves")
+                    .font(.appBarButton)
+                    .foregroundStyle(Color.textMain)
+            } else {
+                CurrencyLabel(
+                    imageURL: metadata.imageURL,
+                    name: metadata.name,
+                    amount: nil
+                )
+            }
+        } else {
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder private func loadedContent(metadata: StoredMintMetadata) -> some View {
+        ZStack {
+            // Scrollable Content
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Header
+
+                    VStack {
+                        Button {
+                            isShowingCurrencySelection.toggle()
+                        } label: {
+                            AmountText(
+                                flagStyle: balance.currencyCode.flagStyle,
+                                content: balance.formatted(),
+                                showChevron: true
+                            )
+                            .font(.appDisplayLarge)
+                            .foregroundStyle(Color.textMain)
+                        }
+                            .frame(height: 60)
+                            .frame(maxWidth: .infinity)
+
+                        if !isUSDF {
+                            ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
+                                .padding(.top, 8)
+
+                            CodeButton(style: .filledSecondary, title: "View Transaction History") {
+                                isShowingTransactionHistory.toggle()
+                            }
+                                .padding(.top, 40)
+                        }
+                    }
+                    .padding(.top, 30)
+                    .padding(.bottom, 25)
+                    .vSeparator(color: .rowSeparator)
+                    .padding(.horizontal, 20)
+
+                    // Currency Info
+
+                    section(spacing: 20) {
+                        if !isUSDF {
+                            HStack {
+                                Image(systemName: "text.justify.left")
+                                    .padding(.bottom, -1)
+                                Text("Currency Info")
+                            }
+                            .font(.appBarButton)
+                            .foregroundStyle(Color.textMain)
+                        }
+
+                        Text(currencyDescription)
+                            .foregroundStyle(Color.textSecondary)
+                            .font(.appTextSmall)
+                    }
+
+                    // Market Cap
+                    if !isUSDF {
+                        marketCapSection()
+
+                        // Append enough content to scroll below the floating footer
+                        Color
+                            .clear
+                            .padding(.bottom, 100)
+                    }
+                }
+            }
+
+            // Floating Footer
+            if !isUSDF {
+                CurrencyInfoScreenFooter {
+                    CodeButton(style: .filledAlternative, title: "Buy") {
+                        isShowingFundingSelection = true
+                    }
+
+                    if balance.quarks > 0 {
+                        CodeButton(style: .filledSecondary, title: "Sell") {
+                            isShowingSellAmountEntry = true
+                        }
+                    }
+                }
+            }
+        }
+        .navigationDestination(isPresented: $isShowingTransactionHistory) {
+            TransactionHistoryScreen(
+                mintMetadata: metadata,
+                container: container,
+                sessionContainer: sessionContainer
+            )
+        }
+        .navigationDestination(item: $externalSwapController.processing) { item in
+            SwapProcessingScreen(
+                swapId: item.swapId,
+                swapType: .buy,
+                mint: item.mint,
+                amount: item.amount
+            )
+            .environment(\.dismissParentContainer, {
+                externalSwapController.dismissProcessing()
+            })
+        }
+        .sheet(isPresented: externalSwapController.isShowingAmountEntry) {
+            NavigationStack {
+                EnterWalletAmountScreen { quarks in
+                    try await externalSwapController.requestSwap(
+                        usdc: quarks,
+                        mint: metadata.mint,
+                        token: metadata.metadata
                     )
                 }
+                .toolbar {
+                    ToolbarCloseButton(binding: externalSwapController.isShowingAmountEntry)
+                }
             }
         }
+        .sheet(isPresented: $isShowingBuyAmountEntry) {
+            CurrencyBuyAmountScreen(viewModel: currencyBuyViewModel)
+        }
+        .sheet(isPresented: $isShowingSellAmountEntry) {
+            if let sellViewModel = currencySellViewModel {
+                CurrencySellAmountScreen(viewModel: sellViewModel)
+            }
+        }
+        .sheet(isPresented: $isShowingCurrencySelection) {
+            CurrencySelectionScreen(
+                isPresented: $isShowingCurrencySelection,
+                kind: .balance,
+                ratesController: ratesController
+            )
+        }
+        .onChange(of: isShowingBuyAmountEntry) { _, isPresented in
+            if isPresented {
+                currencyBuyViewModel.reset()
+            }
+        }
+        .onChange(of: isShowingSellAmountEntry) { _, isPresented in
+            if isPresented {
+                currencySellViewModel?.reset()
+            }
+        }
+        .onChange(of: ratesController.balanceCurrency) { _, _ in
+            guard let chartVM = chartViewModel else { return }
+            loadChartData(for: chartVM.selectedRange, into: chartVM)
+        }
+        .sheet(isPresented: $isShowingFundingSelection) {
+            PartialSheet {
+                VStack {
+                    HStack {
+                        Text("Select Purchase Method")
+                            .font(.appBarButton)
+                            .foregroundStyle(Color.textMain)
+                        Spacer()
+                    }
+                    .padding(.vertical, 20)
+
+                    if reserveBalance.quarks > 0 {
+                        CodeButton(style: .filled, title: "USDF Reserves (\(reserveBalance))") {
+                            isShowingBuyAmountEntry = true
+                            isShowingFundingSelection = false
+                        }
+                    }
+
+                    CodeButton(style: .filledCustom(Image.asset(.phantom), "Phantom"), title: "Solana USDC With") {
+                        externalSwapController.connectToPhantom()
+                        isShowingFundingSelection = false
+                    }
+                    CodeButton(style: .subtle, title: "Dismiss") {
+                        isShowingFundingSelection = false
+                    }
+                }
+                .padding()
+            }
+        }
+        .dialog(item: externalSwapController.dialogItem)
     }
     
     @ViewBuilder private func section(spacing: CGFloat = 0, @ViewBuilder builder: () -> some View) -> some View {
