@@ -567,6 +567,28 @@ class Session: ObservableObject {
     func buy(amount: ExchangedFiat, of mint: PublicKey) async throws -> SwapId {
         let token = try await fetchMintMetadata(mint: mint)
 
+        // Ensure vmAuthority exists for the target mint
+        guard let vmAuthority = token.vmAuthority else {
+            throw Error.vmMetadataMissing
+        }
+
+        // Create the account cluster for the target mint
+        let targetMintCluster = AccountCluster(
+            authority: owner.authority,
+            mint: mint,
+            timeAuthority: vmAuthority
+        )
+
+        // Ensure the timelock vault account exists for this mint.
+        // This is a no-op if the account already exists
+        try await client.createAccounts(
+            owner: ownerKeyPair,
+            mint: mint,
+            cluster: targetMintCluster,
+            kind: .primary,
+            derivationIndex: 0
+        )
+
         // Get verified state for intent construction
         guard let verifiedState = await ratesController.getVerifiedState(
             for: amount.converted.currencyCode,
