@@ -16,7 +16,6 @@ struct ScanScreen: View {
     @EnvironmentObject private var betaFlags: BetaFlags
     
     @ObservedObject private var session: Session
-    @ObservedObject private var onrampViewModel: OnrampViewModel
     
     @StateObject private var viewModel: ScanViewModel
     
@@ -66,7 +65,6 @@ struct ScanScreen: View {
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
-        self.onrampViewModel  = sessionContainer.onrampViewModel
         
         _viewModel = .init(
             wrappedValue: ScanViewModel(
@@ -150,22 +148,6 @@ struct ScanScreen: View {
                 )
             }
             .interactiveDismissDisabled()
-        }
-        .sheet(item: $onrampViewModel.emailVerificationDescription) { verification in
-            AddCashScreen(
-                isPresented: Binding(
-                    get: {
-                        onrampViewModel.emailVerificationDescription != nil
-                    },
-                    set: { presented in
-                        if !presented {
-                            onrampViewModel.emailVerificationDescription = nil
-                        }
-                    }
-                ),
-                container: container,
-                sessionContainer: sessionContainer
-            )
         }
         .dialog(item: $session.dialogItem)
     }
