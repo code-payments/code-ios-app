@@ -106,6 +106,8 @@ struct IntroScreen: View {
                     LoginScreen()
                 case .accessKey:
                     AccessKeyScreen(viewModel: viewModel)
+                case .accessKeyHelp:
+                    AccessKeyHelpScreen()
                 case .buyAccount:
                     BuyAccountScreen(viewModel: viewModel)
                 case .purchasePending:

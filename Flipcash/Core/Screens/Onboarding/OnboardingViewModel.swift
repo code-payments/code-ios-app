@@ -431,6 +431,7 @@ extension OnboardingViewModel: StoreControllerDelegate {
 enum OnboardingPath {
     case login
     case accessKey
+    case accessKeyHelp
     case buyAccount
     case pushPermissions
     case cameraAccess

@@ -79,7 +79,16 @@ struct LoginScreen: View {
                             disabled: enteredMnemonic() == nil,
                             action: attemptLogin
                         )
-                        
+
+                        NavigationLink(value: OnboardingPath.accessKeyHelp) {
+                            Text("Can't Find Your Access Key?")
+                                .font(.appTextMedium)
+                                .foregroundColor(Color.textMain.opacity(0.6))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: Metrics.buttonHeight)
+                        }
+                        .disabled(!buttonState.isNormal)
+
                         if betaFlags.accessGranted {
                             CodeButton(
                                 style: .subtle,
