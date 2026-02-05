@@ -48,17 +48,32 @@ class CurrencyInfoViewModel: ObservableObject {
         self.mint = mint
         self.session = sessionContainer.session
         self.database = sessionContainer.database
+
+        // Load from database immediately if available (fast path)
+        if let cachedMetadata = try? database.getMintMetadata(mint: mint) {
+            setupUpdateable(with: cachedMetadata)
+            loadingState = .loaded(cachedMetadata)
+        }
     }
 
     func loadMintMetadata() async {
+        // If already loaded from cache, no need to show loading state
+        let wasAlreadyLoaded = isLoaded
+
         do {
             let metadata = try await session.fetchMintMetadata(mint: mint)
             setupUpdateable(with: metadata)
             loadingState = .loaded(metadata)
         } catch Session.Error.mintNotFound {
-            loadingState = .error(.mintNotFound)
+            // Only show error if we didn't have cached data
+            if !wasAlreadyLoaded {
+                loadingState = .error(.mintNotFound)
+            }
         } catch {
-            loadingState = .error(.networkError)
+            // Only show error if we didn't have cached data
+            if !wasAlreadyLoaded {
+                loadingState = .error(.networkError)
+            }
         }
     }
 
