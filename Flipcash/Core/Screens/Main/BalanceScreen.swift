@@ -22,7 +22,7 @@ struct BalanceScreen: View {
     @State private var isShowingCurrencySelection: Bool  = false
     @State private var dialogItem: DialogItem?
     @State private var selectedActivity: Activity?
-    @State private var selectedBalance: ExchangedBalance?
+    @State private var selectedMint: PublicKey?
     
     private var balance: ExchangedFiat {
         session.totalBalance
@@ -87,10 +87,7 @@ struct BalanceScreen: View {
     private func handlePendingCurrencyInfo() {
         guard let mint = session.pendingCurrencyInfoMint else { return }
 
-        // Find the balance for this mint and navigate to it
-        if let balance = balances.first(where: { $0.stored.mint == mint }) {
-            selectedBalance = balance
-        }
+        selectedMint = mint
 
         // Clear the pending mint
         session.pendingCurrencyInfoMint = nil
@@ -122,9 +119,9 @@ struct BalanceScreen: View {
             .onAppear(perform: onAppear)
             .navigationTitle("Wallet")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(item: $selectedBalance) { balance in
+            .navigationDestination(item: $selectedMint) { mint in
                 CurrencyInfoScreen(
-                    mint: balance.stored.mint,
+                    mint: mint,
                     container: container,
                     sessionContainer: sessionContainer
                 )
@@ -165,7 +162,7 @@ struct BalanceScreen: View {
                     if hasBalances {
                         ForEach(currencyBalances) { balance in
                             CurrencyBalanceRow(exchangedBalance: balance) {
-                                selectedBalance = balance
+                                selectedMint = balance.stored.mint
                             }
                         }
                     } else {
@@ -199,7 +196,7 @@ struct BalanceScreen: View {
             Divider()
             
             Button {
-                selectedBalance = reservesBalance
+                selectedMint = reservesBalance.stored.mint
             } label: {
                 HStack(spacing: 8) {
                     Text("Cash Reserves")
