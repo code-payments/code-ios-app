@@ -20,7 +20,7 @@ public struct BorderedButton: View {
     }
     
     private var fillColor: Color {
-        Color(r: 29, g: 46, b: 35)
+        Color.action.opacity(0.1)
     }
     
     private var textColor: Color {

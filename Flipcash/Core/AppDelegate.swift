@@ -49,11 +49,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             object: nil
         )
         
-//        let contentView = ContentView() // Your SwiftUI view
-//        let hostingController = UIHostingController(rootView: contentView)
-//        window?.rootViewController = hostingController
-//        window?.makeKeyAndVisible()
-        
         return true
     }
     
@@ -68,12 +63,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             .tint(Color.textMain)
         
         let controller = UIHostingController(rootView: screen)
-        controller.view.backgroundColor = .backgroundMain
+        controller.view.backgroundColor = UIColor(.backgroundMain)
         window.rootViewController = controller
         
         window.makeKeyAndVisible()
-        
-//        addOverlayIfNeeded()
     }
     
     // MARK: - Lifecycle -
@@ -203,17 +196,17 @@ private extension AppDelegate {
     func setupAppearance() {
         let largeAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.appDisplayLarge,
-            .foregroundColor: UIColor.textMain,
+            .foregroundColor: UIColor(.textMain),
         ]
                               
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.appTitle,
-            .foregroundColor: UIColor.textMain,
+            .foregroundColor: UIColor(.textMain),
         ]
         
         let buttonAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.appBarButton,
-            .foregroundColor: UIColor.textMain,
+            .foregroundColor: UIColor(.textMain),
         ]
         
         let buttonAppearance = UIBarButtonItemAppearance()
@@ -237,7 +230,7 @@ private extension AppDelegate {
             bar.isTranslucent = true
         } else {
             // iOS < 26: Use custom background
-            let background = UIImage.solid(color: .backgroundMain)
+            let background = UIImage.solid(color: UIColor(.backgroundMain))
             let barAppearance = UINavigationBarAppearance()
             barAppearance.configureWithOpaqueBackground()
             barAppearance.backgroundImage = background

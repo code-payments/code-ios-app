@@ -17,7 +17,7 @@ public struct PartialSheet<T>: View where T: View {
     
     @State private var displayHeight: CGFloat = UIScreen.main.bounds.height
     
-    public init(background: Color = .backgroundMain, canDismiss: Bool = true, canAccessBackground: Bool = false, @ViewBuilder content: () -> T) {
+    public init(background: Color = .backgroundSecondary, canDismiss: Bool = true, canAccessBackground: Bool = false, @ViewBuilder content: () -> T) {
         self.background = background
         self.canDismiss = canDismiss
         self.canAccessBackground = canAccessBackground

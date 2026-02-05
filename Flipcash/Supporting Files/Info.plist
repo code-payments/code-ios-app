@@ -21,6 +21,11 @@
 	</array>
 	<key>SQLiteVersion</key>
 	<integer>6</integer>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>background</string>
+	</dict>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
