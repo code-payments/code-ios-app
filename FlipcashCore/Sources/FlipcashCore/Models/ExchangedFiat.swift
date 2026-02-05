@@ -336,6 +336,35 @@ extension ExchangedFiat {
     }
 }
 
+// MARK: - Collection -
+
+extension Collection where Element == ExchangedFiat {
+    public func total(rate: Rate) -> ExchangedFiat {
+        var totalConverted: Foundation.Decimal = 0
+        var totalUnderlying: Foundation.Decimal = 0
+
+        forEach { exchanged in
+            totalConverted += exchanged.converted.decimalValue
+            totalUnderlying += exchanged.underlying.decimalValue
+        }
+
+        return ExchangedFiat(
+            underlying: try! Quarks(
+                fiatDecimal: totalUnderlying,
+                currencyCode: .usd,
+                decimals: PublicKey.usdf.mintDecimals
+            ),
+            converted: try! Quarks(
+                fiatDecimal: totalConverted,
+                currencyCode: rate.currency,
+                decimals: PublicKey.usdf.mintDecimals
+            ),
+            rate: rate,
+            mint: .usdf
+        )
+    }
+}
+
 extension ExchangedFiat {
     public enum Error: Swift.Error {
         case invalidCurrency
