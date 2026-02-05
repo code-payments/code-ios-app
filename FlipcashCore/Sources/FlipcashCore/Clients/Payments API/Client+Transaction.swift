@@ -16,6 +16,33 @@ extension Client {
             transactionService.createAccounts(owner: owner, mint: mint, cluster: cluster, kind: kind, derivationIndex: derivationIndex) { c.resume(with: $0) }
         }
     }
+
+    /// Ensures that a timelock vault account exists for the given mint.
+    /// This is a no-op if the account already exists.
+    ///
+    /// - Parameters:
+    ///   - owner: The owner's keypair for signing
+    ///   - ownerAuthority: The owner's authority (DerivedKey)
+    ///   - token: The mint metadata containing VM authority information
+    public func ensureAccountExists(owner: KeyPair, ownerAuthority: DerivedKey, token: MintMetadata) async throws {
+        guard let vmMetadata = token.vmMetadata else {
+            throw ClientError.vmMetadataMissing
+        }
+
+        let cluster = AccountCluster(
+            authority: ownerAuthority,
+            mint: token.address,
+            timeAuthority: vmMetadata.authority
+        )
+
+        try await createAccounts(
+            owner: owner,
+            mint: token.address,
+            cluster: cluster,
+            kind: .primary,
+            derivationIndex: 0
+        )
+    }
     
     public func transfer(exchangedFiat: ExchangedFiat, verifiedState: VerifiedState, owner: AccountCluster, destination: PublicKey, rendezvous: PublicKey) async throws {
         _ = try await withCheckedThrowingContinuation { c in
@@ -85,7 +112,14 @@ extension Client {
     /// Buy tokens using default submitIntent funding (Phase 1 + Phase 2)
     @discardableResult
     public func buy(amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster) async throws -> SwapId {
-        try await withCheckedThrowingContinuation { c in
+        // Ensure the timelock vault account exists for this mint
+        try await ensureAccountExists(
+            owner: owner.authority.keyPair,
+            ownerAuthority: owner.authority,
+            token: token
+        )
+
+        return try await withCheckedThrowingContinuation { c in
             transactionService.buy(amount: amount, verifiedState: verifiedState, of: token, owner: owner) { c.resume(with: $0) }
         }
     }
@@ -95,7 +129,14 @@ extension Client {
     /// - For `.externalWallet`: Phase 1 only (funding already happened via external wallet)
     @discardableResult
     public func buy(swapId: SwapId, amount: ExchangedFiat, verifiedState: VerifiedState, of token: MintMetadata, owner: AccountCluster, fundingSource: FundingSource) async throws -> SwapId {
-        try await withCheckedThrowingContinuation { c in
+        // Ensure the timelock vault account exists for this mint
+        try await ensureAccountExists(
+            owner: owner.authority.keyPair,
+            ownerAuthority: owner.authority,
+            token: token
+        )
+
+        return try await withCheckedThrowingContinuation { c in
             transactionService.buy(swapId: swapId, amount: amount, verifiedState: verifiedState, of: token, owner: owner, fundingSource: fundingSource) { c.resume(with: $0) }
         }
     }
@@ -229,4 +270,5 @@ extension Client {
 
 public enum ClientError: Error {
     case pollLimitReached
+    case vmMetadataMissing
 }
