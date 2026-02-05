@@ -16,16 +16,16 @@ class GiveViewModel: ObservableObject {
     @Published var actionState: ButtonState = .normal
     
     @Published var dialogItem: DialogItem?
-    
+    @Published var isShowingDepositFlow = false
+
     var canGive: Bool {
         enteredFiat != nil && (enteredFiat?.underlying.quarks ?? 0) > 0
     }
-    
+
     let container: Container
     let sessionContainer: SessionContainer
     let session: Session
     let ratesController: RatesController
-    let onrampViewModel: OnrampViewModel
     
     @Published private(set) var selectedBalance: ExchangedBalance?
     
@@ -89,7 +89,6 @@ class GiveViewModel: ObservableObject {
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         self.ratesController  = sessionContainer.ratesController
-        self.onrampViewModel  = sessionContainer.onrampViewModel
         
         // Session now guarantees a valid token is selected if balances exist
         let rate = ratesController.rateForEntryCurrency()
@@ -148,9 +147,8 @@ class GiveViewModel: ObservableObject {
     
     // MARK: - Navigation -
     
-    private func presentOnramp() {
-        onrampViewModel.presentRoot()
-        Analytics.onrampOpenedFromGive()
+    private func presentDeposit() {
+        isShowingDepositFlow = true
     }
     
     // MARK: - Errors -
@@ -163,7 +161,7 @@ class GiveViewModel: ObservableObject {
             dismissable: true
         ) {
             .destructive("Add More Cash") { [weak self] in
-                self?.presentOnramp()
+                self?.presentDeposit()
             };
             .dismiss(kind: .subtle)
         }
@@ -177,7 +175,7 @@ class GiveViewModel: ObservableObject {
             dismissable: true
         ) {
             .destructive("Add More Cash") { [weak self] in
-                self?.presentOnramp()
+                self?.presentDeposit()
             };
             .dismiss(kind: .subtle)
         }

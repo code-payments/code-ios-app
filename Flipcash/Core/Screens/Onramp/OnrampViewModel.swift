@@ -14,8 +14,6 @@ class OnrampViewModel: ObservableObject {
     
     @Published var isOnrampPresented: Bool = false
     
-    @Published var isMethodSelectionPresented: Bool = false
-    
     @Published var isShowingVerificationFlow: Bool = false {
         didSet {
             UIApplication.isInterfaceResetDisabled = isShowingVerificationFlow
@@ -272,20 +270,6 @@ class OnrampViewModel: ObservableObject {
     
     // MARK: - Navigation -
     
-    func presentRoot() {
-        reset()
-        if BetaFlags.shared.hasEnabled(.enableCoinbase) || session.hasPreferredOnrampProvider {
-            isOnrampPresented = true
-        } else {
-            isMethodSelectionPresented = true
-        }
-    }
-    
-    func presentMethodSelection() {
-        reset()
-        isMethodSelectionPresented = true
-    }
-    
     func navigateToRoot() {
         onrampPath = []
     }
@@ -345,12 +329,6 @@ class OnrampViewModel: ObservableObject {
     }
     
     // MARK: - Actions -
-    
-    func addCashWithDebitCardAction() {
-        isMethodSelectionPresented = false
-        reset()
-        isOnrampPresented = true
-    }
     
     func addWithApplePayAction() {
         let selectedPreset  = selectedPreset

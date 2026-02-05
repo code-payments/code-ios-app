@@ -14,7 +14,6 @@ struct GiveScreen: View {
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var ratesController: RatesController
     
-    @ObservedObject private var onrampViewModel: OnrampViewModel
     @ObservedObject private var viewModel: GiveViewModel
     
     @State private var isShowingCurrencySelection: Bool = false
@@ -40,8 +39,7 @@ struct GiveScreen: View {
     // MARK: - Init -
     
     init(viewModel: GiveViewModel) {
-        self.viewModel       = viewModel
-        self.onrampViewModel = viewModel.sessionContainer.onrampViewModel
+        self.viewModel = viewModel
     }
     
     // MARK: - Body -
@@ -92,20 +90,14 @@ struct GiveScreen: View {
                     )
                 }
             }
-            .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
-                AddCashScreen(
-                    isPresented: $onrampViewModel.isMethodSelectionPresented,
-                    container: viewModel.container,
-                    sessionContainer: viewModel.sessionContainer
-                )
-            }
-            .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
-                PartialSheet(background: .backgroundMain) {
-                    PresetAddCashScreen(
-                        isPresented: $onrampViewModel.isOnrampPresented,
-                        container: viewModel.container,
-                        sessionContainer: viewModel.sessionContainer
-                    )
+            .sheet(isPresented: $viewModel.isShowingDepositFlow) {
+                NavigationStack {
+                    DepositCurrencyListScreen(selectedMint: viewModel.selectedBalance?.stored.mint)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                ToolbarCloseButton(binding: $viewModel.isShowingDepositFlow)
+                            }
+                        }
                 }
             }
             .sheet(isPresented: $isShowingTokenSelection) {
@@ -118,7 +110,6 @@ struct GiveScreen: View {
                 )
             }
             .dialog(item: $dialogItem)
-            .dialog(item: $onrampViewModel.purchaseSuccess)
             .dialog(item: $viewModel.dialogItem)
         }
     }

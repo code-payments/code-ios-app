@@ -23,6 +23,7 @@ struct SettingsScreen: View {
     @State private var isShowingAccountSelection = false
     @State private var isShowingLogoutConfirmation = false
     @State private var isShowingAccessKey = false
+    @State private var isShowingDepositFlow = false
     
     @State private var dialogItem: DialogItem?
     @State private var debugTapCount: Int = 0
@@ -84,31 +85,20 @@ struct SettingsScreen: View {
                     myAccountScreen()
                 case .advancedFeatures:
                     advancedFeaturesScreen()
-                case .depositUSDC:
-                    DepositDescriptionScreen(
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
                 case .appSettings:
                     appSettingsScreen()
                 case .betaFlagss:
                     BetaFlagsScreen(container: container)
                 }
             }
-            .sheet(isPresented: $onrampViewModel.isMethodSelectionPresented) {
-                AddCashScreen(
-                    isPresented: $onrampViewModel.isMethodSelectionPresented,
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
-            }
-            .sheet(isPresented: $onrampViewModel.isOnrampPresented) {
-                PartialSheet(background: .backgroundMain) {
-                    PresetAddCashScreen(
-                        isPresented: $onrampViewModel.isOnrampPresented,
-                        container: container,
-                        sessionContainer: sessionContainer
-                    )
+            .sheet(isPresented: $isShowingDepositFlow) {
+                NavigationStack {
+                    DepositCurrencyListScreen()
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                ToolbarCloseButton(binding: $isShowingDepositFlow)
+                            }
+                        }
                 }
             }
             .sheet(isPresented: $isShowingWithdrawFlow) {
@@ -237,7 +227,7 @@ struct SettingsScreen: View {
                 asset: .deposit,
                 title: "Deposit Funds",
             ) {
-                presentOnramp()
+                isShowingDepositFlow = true
             }
         }
         .font(.appDisplayXS)
@@ -442,11 +432,6 @@ struct SettingsScreen: View {
         }
     }
 
-    private func presentOnramp() {
-        onrampViewModel.presentRoot()
-        Analytics.onrampOpenedFromSettings()
-    }
-    
     private func switchAccount(to account: AccountDescription) {
         Task {
             isPresented = false
@@ -472,7 +457,6 @@ extension SettingsScreen {
     enum SettingsPath {
         case myAccount
         case advancedFeatures
-        case depositUSDC
         case appSettings
         case betaFlagss
     }
