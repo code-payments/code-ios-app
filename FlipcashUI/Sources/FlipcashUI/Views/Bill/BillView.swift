@@ -53,25 +53,45 @@ public struct BillView: View {
         // Custom bill colors for select
         // currencies that are know now
         switch mint {
-//        case .usdc:
         case .jeffy:
             return [
                 Color(r: 120, g: 49,  b: 0),   // #783100
                 Color(r: 238, g: 186, b: 127), // #EEBA7F
             ]
 
-        case .knickNight:
+        case .bogey:
             return [
-                Color(r: 20,  g: 67,  b: 255), // #1443FF
-                Color(r: 255, g: 154, b: 60),  // #FF9A3C
-                Color(r: 255, g: 125, b: 12),  // #FF7D0C
+                Color(r: 0,   g: 77,  b: 15),  // #004D0F
+                Color(r: 106, g: 136, b: 112), // #6A8870
+                Color(r: 171, g: 231, b: 183), // #ABE7B7
             ]
 
-        case .farmerCoin:
+        case .marketCoin:
             return [
-                Color(r: 95,  g: 95,  b: 1),   // #5F5F01
-                Color(r: 174, g: 174, b: 13),  // #AEAE0D
-                Color(r: 203, g: 223, b: 122), // #CBDF7A
+                Color(r: 131, g: 94,  b: 51),  // #835E33
+                Color(r: 210, g: 149, b: 79),  // #D2954F
+                Color(r: 255, g: 213, b: 116), // #FFD574
+            ]
+
+        case .bits:
+            return [
+                Color(r: 9,   g: 51,  b: 114), // #093372
+                Color(r: 62,  g: 112, b: 188), // #3E70BC
+                Color(r: 172, g: 190, b: 221), // #ACBEDD
+            ]
+
+        case .float:
+            return [
+                Color(r: 187, g: 79,  b: 33),  // #BB4F21
+                Color(r: 175, g: 159, b: 158), // #AF9F9E
+                Color(r: 200, g: 137, b: 103), // #C88967
+            ]
+
+        case .xp:
+            return [
+                Color(r: 86,  g: 33,  b: 187), // #5621BB
+                Color(r: 169, g: 155, b: 214), // #A99BD6
+                Color(r: 78,  g: 170, b: 197), // #4EAAC5
             ]
 
         default:
@@ -485,6 +505,16 @@ private extension GeometryProxy {
             style: FillStyle(eoFill: true, antialiased: true)
         )
     }
+}
+
+/// Temporary hardcoded mint address to style bills. These will be removed by a server response in the future
+private extension PublicKey {
+    static let jeffy = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+    static let xp = try! PublicKey(base58: "6oZnhB1FPrUaDfhRCVZnbVWNKVx9wgj84vKGH7eMpzXL")
+    static let marketCoin = try! PublicKey(base58: "311m6Sb1814PfAxkEcqq6MNdBiVZLr8VWuAWDSC72euW")
+    static let bits = try! PublicKey(base58: "A3e8dzb1y4gqGP2cnCS3UU8dm5YNrFpZBpjjdoZdtfnB")
+    static let float = try! PublicKey(base58: "5APqK9YUZupKt7rRUrpYy6WV3RPuxA71ZtKJffDUMdPP")
+    static let bogey = try! PublicKey(base58: "3AhBb1fpDTp1F9hPkZjRPDejXBM9S5vfpVdvn66vLYnT")
 }
 
 // MARK: - Previews -
