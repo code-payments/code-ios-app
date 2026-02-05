@@ -147,6 +147,17 @@ struct CurrencyInfoScreen: View {
             ToolbarItem(placement: .principal) {
                 toolbarContent()
             }
+            if !isUSDF {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        let url = URL(string: "https://app.flipcash.com/token/\(mint.base58)")!
+                        ShareSheet.present(url: url)
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .foregroundStyle(Color.textMain)
+                    }
+                }
+            }
         }
         .task {
             await viewModel.loadMintMetadata()
