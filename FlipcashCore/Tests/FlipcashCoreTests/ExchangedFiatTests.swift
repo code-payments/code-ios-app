@@ -205,3 +205,95 @@ struct ExchangedFiatComputeFromEnteredTests {
         // Test passes as long as we don't crash
     }
 }
+
+// MARK: - Collection.total Tests
+
+@Suite("ExchangedFiat Collection.total")
+struct ExchangedFiatTotalTests {
+
+    private static let usdRate = Rate.oneToOne
+    private static let cadRate = Rate(fx: 1.4, currency: .cad)
+
+    @Test("Total of empty collection returns zero")
+    func emptyCollection() {
+        let items: [ExchangedFiat] = []
+        let result = items.total(rate: Self.usdRate)
+
+        #expect(result.underlying.quarks == 0)
+        #expect(result.converted.quarks == 0)
+        #expect(result.mint == PublicKey.usdf)
+    }
+
+    @Test("Total of single element equals that element")
+    func singleElement() throws {
+        let item = try ExchangedFiat(
+            underlying: Quarks(quarks: 5_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+            rate: Self.usdRate,
+            mint: .usdf
+        )
+
+        let result = [item].total(rate: Self.usdRate)
+
+        #expect(result.underlying.quarks == item.underlying.quarks)
+        #expect(result.converted.quarks == item.converted.quarks)
+    }
+
+    @Test("Total sums multiple USDF balances")
+    func multipleUSDF() throws {
+        let a = try ExchangedFiat(
+            underlying: Quarks(quarks: 3_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+            rate: Self.usdRate,
+            mint: .usdf
+        )
+        let b = try ExchangedFiat(
+            underlying: Quarks(quarks: 5_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+            rate: Self.usdRate,
+            mint: .usdf
+        )
+
+        let result = [a, b].total(rate: Self.usdRate)
+
+        #expect(result.underlying.quarks == 8_000_000)
+        #expect(result.converted.quarks == 8_000_000)
+    }
+
+    @Test("Total preserves rate currency")
+    func preservesCurrency() throws {
+        let item = try ExchangedFiat(
+            underlying: Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+            rate: Self.cadRate,
+            mint: .usdf
+        )
+
+        let result = [item].total(rate: Self.cadRate)
+
+        #expect(result.rate.currency == .cad)
+        #expect(result.converted.currencyCode == .cad)
+    }
+
+    @Test("Total sums mixed mints correctly")
+    func mixedMints() throws {
+        // USDF balance: $3.00
+        let usdfBalance = try ExchangedFiat(
+            underlying: Quarks(quarks: 3_000_000 as UInt64, currencyCode: .usd, decimals: 6),
+            rate: Self.usdRate,
+            mint: .usdf
+        )
+
+        // Bonded token balance via computeFromQuarks
+        let supplyQuarks: UInt64 = 1000 * 10_000_000_000
+        let bondedBalance = ExchangedFiat.computeFromQuarks(
+            quarks: 50_000_000_000 as UInt64,
+            mint: .jeffy,
+            rate: Self.usdRate,
+            supplyQuarks: supplyQuarks
+        )
+
+        let result = [usdfBalance, bondedBalance].total(rate: Self.usdRate)
+
+        // Total should exceed the USDF-only balance
+        #expect(result.underlying.quarks > usdfBalance.underlying.quarks)
+        #expect(result.converted.quarks > usdfBalance.converted.quarks)
+        #expect(result.mint == PublicKey.usdf)
+    }
+}

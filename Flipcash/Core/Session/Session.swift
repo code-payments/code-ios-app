@@ -119,34 +119,9 @@ class Session: ObservableObject {
     var totalBalance: ExchangedFiat {
         let rate = ratesController.rateForBalanceCurrency()
 
-        // Sum the converted values from individual balances to ensure the total
-        // matches what's displayed in the rows (avoids rounding discrepancies
-        // when summing USD values then converting vs converting then summing)
-        var totalConverted: Decimal = 0
-        var totalUnderlying: Decimal = 0
-
-        balances.forEach { balance in
-            let exchanged = balance.computeExchangedValue(with: rate)
-            totalConverted += exchanged.converted.decimalValue
-            totalUnderlying += exchanged.underlying.decimalValue
-        }
-
-        let balanceMint = PublicKey.usdf
-
-        return ExchangedFiat(
-            underlying: try! Quarks(
-                fiatDecimal: totalUnderlying,
-                currencyCode: .usd,
-                decimals: balanceMint.mintDecimals
-            ),
-            converted: try! Quarks(
-                fiatDecimal: totalConverted,
-                currencyCode: rate.currency,
-                decimals: balanceMint.mintDecimals
-            ),
-            rate: rate,
-            mint: .usdf
-        )
+        return balances
+            .map { $0.computeExchangedValue(with: rate) }
+            .total(rate: rate)
     }
     
     var balances: [StoredBalance] {

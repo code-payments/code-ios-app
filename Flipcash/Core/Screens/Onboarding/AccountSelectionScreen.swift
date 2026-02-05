@@ -198,7 +198,6 @@ struct AccountSelectionScreen: View {
     }
 
     private func fetchBalances() {
-        // Capture rate before entering async context
         let rate = balanceRate
 
         Task {
@@ -207,38 +206,23 @@ struct AccountSelectionScreen: View {
                     group.addTask {
                         let owner = historicalAccount.details.account.owner
                         do {
-                            // Fetch ALL primary accounts (all mints) for this owner
                             let accountInfos = try await client.fetchPrimaryAccounts(owner: owner)
+                            let mints = Set(accountInfos.map { $0.mint })
+                            let mintMetadata = try await client.fetchMints(mints: Array(mints))
 
-                            // Calculate total USDC value across all mints
-                            var totalUSDCQuarks: UInt64 = 0
-
-                            for info in accountInfos {
-                                if info.mint == .usdf {
-                                    // Direct USDF balance
-                                    totalUSDCQuarks += info.quarks
-                                } else {
-                                    // Custom token - would need bonding curve calculation
-                                    // For now, we'll skip non-USDC tokens in account selection
-                                    // as we don't have token metadata available here
+                            let totalBalance = accountInfos
+                                .map { info in
+                                    ExchangedFiat.computeFromQuarks(
+                                        quarks: info.quarks,
+                                        mint: info.mint,
+                                        rate: rate,
+                                        supplyQuarks: mintMetadata[info.mint]?.launchpadMetadata?.supplyFromBonding
+                                    )
                                 }
-                            }
-
-                            // Convert total USDC to display currency
-                            let usdcFiat = Quarks(
-                                quarks: totalUSDCQuarks,
-                                currencyCode: .usd,
-                                decimals: PublicKey.usdf.mintDecimals
-                            )
-
-                            let exchangedFiat = try ExchangedFiat(
-                                underlying: usdcFiat,
-                                rate: rate,
-                                mint: .usdf
-                            )
+                                .total(rate: rate)
 
                             await update(owner: owner.publicKey) {
-                                $0.setBalance(exchangedFiat)
+                                $0.setBalance(totalBalance)
                             }
 
                         } catch ErrorFetchBalance.notFound {
