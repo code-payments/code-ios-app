@@ -130,7 +130,7 @@ struct SettingsScreen: View {
             Image.asset(.flipcashBrand)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(maxHeight: 45)
+                .frame(maxHeight: 34)
         }
         .buttonStyle(.plain)
     }
