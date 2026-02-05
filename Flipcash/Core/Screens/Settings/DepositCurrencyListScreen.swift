@@ -15,10 +15,14 @@ struct DepositCurrencyListScreen: View {
     @EnvironmentObject private var ratesController: RatesController
 
     @State private var selectedBalance: ExchangedBalance?
-    @State private var isShowingDeposit: Bool = false
+    @State private var selectedMint: PublicKey?
 
     private var balances: [ExchangedBalance] {
         session.balances(for: ratesController.rateForEntryCurrency())
+    }
+
+    init(selectedMint: PublicKey? = nil) {
+        _selectedMint = State(initialValue: selectedMint)
     }
 
     // MARK: - Body -
@@ -40,13 +44,14 @@ struct DepositCurrencyListScreen: View {
         }
         .navigationTitle("Select Currency")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $isShowingDeposit) {
-            if let balance = selectedBalance {
-                DepositScreen(
-                    cluster: depositCluster(for: balance.stored),
-                    name: balance.stored.name
-                )
-            }
+        .navigationDestination(item: $selectedBalance) { balance in
+            DepositScreen(
+                cluster: depositCluster(for: balance.stored),
+                name: balance.stored.name
+            )
+        }
+        .onAppear {
+            handleAutoSelect()
         }
     }
 
@@ -54,7 +59,12 @@ struct DepositCurrencyListScreen: View {
 
     private func selectCurrency(_ balance: ExchangedBalance) {
         selectedBalance = balance
-        isShowingDeposit = true
+    }
+
+    private func handleAutoSelect() {
+        guard let mint = selectedMint else { return }
+        selectedMint = nil
+        selectedBalance = balances.first(where: { $0.stored.mint == mint })
     }
 
     private func depositCluster(for balance: StoredBalance) -> AccountCluster {

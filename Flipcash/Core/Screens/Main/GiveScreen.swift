@@ -92,7 +92,7 @@ struct GiveScreen: View {
             }
             .sheet(isPresented: $viewModel.isShowingDepositFlow) {
                 NavigationStack {
-                    DepositCurrencyListScreen()
+                    DepositCurrencyListScreen(selectedMint: viewModel.selectedBalance?.stored.mint)
                         .toolbar {
                             ToolbarItem(placement: .navigationBarTrailing) {
                                 ToolbarCloseButton(binding: $viewModel.isShowingDepositFlow)
