@@ -80,10 +80,7 @@ struct AddCashScreen: View {
                 }
             }
             .navigationDestination(isPresented: $isShowingDepositScreen) {
-                DepositDescriptionScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
+                DepositCurrencyListScreen()
             }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
@@ -184,10 +181,7 @@ struct AddCashScreen: View {
                 }
             }
             .navigationDestination(isPresented: $isShowingDepositScreen) {
-                DepositDescriptionScreen(
-                    container: container,
-                    sessionContainer: sessionContainer
-                )
+                DepositCurrencyListScreen()
             }
             .sheet(isPresented: $walletConnection.isShowingAmountEntry) {
                 NavigationStack {
