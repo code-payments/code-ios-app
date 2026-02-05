@@ -168,6 +168,7 @@ struct ScanScreen: View {
             )
         }
         .dialog(item: $session.dialogItem)
+        .dialog(item: $giveViewModel.dialogItem)
     }
     
     @ViewBuilder private func cameraViewport() -> some View {

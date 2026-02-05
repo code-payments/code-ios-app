@@ -75,9 +75,16 @@ class GiveViewModel: ObservableObject {
     @Published var isPresented = false {
         didSet {
             if isPresented {
-                self.enteredAmount = ""
+                let rate = ratesController.rateForEntryCurrency()
+                let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
+
+                if hasGiveableBalance {
+                    self.enteredAmount = ""
+                } else {
+                    self.isPresented = false
+                    showNoBalanceError()
+                }
             }
-            
         }
     }
     
@@ -93,12 +100,15 @@ class GiveViewModel: ObservableObject {
         
         // Session now guarantees a valid token is selected if balances exist
         let rate = ratesController.rateForEntryCurrency()
-        if let selectedTokenMint = ratesController.selectedTokenMint {
-            self.selectedBalance = sessionContainer.session.balances(for: rate)
-                .first(where: { $0.stored.mint == selectedTokenMint })
+        let availableBalances = sessionContainer.session.balances(for: rate)
+            .filter { $0.stored.mint != .usdf }
+
+        if let selectedTokenMint = ratesController.selectedTokenMint,
+           let balance = availableBalances.first(where: { $0.stored.mint == selectedTokenMint }) {
+            self.selectedBalance = balance
         } else {
             // Fallback to highest balance if somehow no token is selected
-            self.selectedBalance = sessionContainer.session.balances(for: rate).first
+            self.selectedBalance = availableBalances.first
         }
     }
     
@@ -155,6 +165,17 @@ class GiveViewModel: ObservableObject {
     
     // MARK: - Errors -
     
+    private func showNoBalanceError() {
+        dialogItem = .init(
+            style: .destructive,
+            title: "No Balance Yet",
+            subtitle: "Get another Flipcash user to give you some cash to get a balance",
+            dismissable: true
+        ) {
+            .okay(kind: .destructive)
+        }
+    }
+
     private func showInsufficientBalanceError() {
         dialogItem = .init(
             style: .destructive,

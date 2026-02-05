@@ -19,7 +19,13 @@ struct SelectCurrencyScreen: View {
     @State private var selectedBalance: ExchangedBalance?
     
     private var balances: [ExchangedBalance] {
-        session.balances(for: fixedRate ?? ratesController.rateForEntryCurrency())
+        let allBalances = session.balances(for: fixedRate ?? ratesController.rateForEntryCurrency())
+        switch kind {
+        case .give:
+            return allBalances.filter { $0.stored.mint != .usdf }
+        case .select:
+            return allBalances
+        }
     }
     
     private func shouldShowSelected(_ balance: ExchangedBalance) -> Bool? {
