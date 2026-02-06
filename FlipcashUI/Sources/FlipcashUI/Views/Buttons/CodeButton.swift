@@ -254,7 +254,7 @@ private extension CodeButton {
                 
             case .filledSecondary, .filledMediumSecondary:
                 if isDisabled {
-                    return Color(r: 19, g: 30, b: 24)
+                    return .textActionSecondaryDisabled
                 } else {
                     return .textMain
                 }

@@ -13,16 +13,17 @@ extension Color {
     public static let mainAccent          = Color(r: 255, g: 255, b: 255)
     
     public static let textMain            = Color(r: 255, g: 255, b: 255)
-    public static let textSecondary       = Color(r: 118, g: 128, b: 122)
+    public static let textSecondary       = Color(r: 123, g: 123, b: 123)
     public static let textAction          = Color.black
-    public static let textActionDisabled  = Color(r: 72,  g: 84,  b: 77)
-    public static let textGoogle          = Color(r: 47,  g: 22,  b: 175)
+    public static let textActionDisabled  = Color(r: 78,  g: 78,  b: 78)
     public static let textError           = Color(r: 255, g: 131, b: 131)
     public static let textSuccess         = Color(r: 73 , g: 213, b: 23)
     public static let textWarning         = Color(r: 255, g: 243, b: 131)
     
     public static let action              = Color(r: 255, g: 255, b: 255)
-    public static let actionDisabled      = Color(r: 23,  g: 39,  b: 29)
+    public static let actionDisabled      = Color(r: 30,  g: 30,  b: 30)
+    public static let textActionSecondaryDisabled = Color(r: 24, g: 24, b: 24)
+    public static let strokeDisabled      = Color(r: 48,  g: 48,  b: 48)
     public static let actionAlternative   = Color(r: 49, g: 156, b: 88)
     
     public static let bannerDark          = Color(r: 15,  g: 12,  b: 31)
