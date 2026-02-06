@@ -60,7 +60,7 @@ class OnboardingViewModel: ObservableObject {
     // MARK: - Action -
     
     func loginAction() {
-        navigateToLogin()
+        navigateToAccountSelection()
     }
     
     func createAccountAction() {
@@ -198,6 +198,22 @@ class OnboardingViewModel: ObservableObject {
 //        }
 //    }
     
+    func recoverExistingAccount(accountDescription: AccountDescription) {
+        Task {
+            do {
+                let initializedAccount = try await sessionAuthenticator.initialize(
+                    using: accountDescription.account.mnemonic,
+                    isRegistration: false
+                )
+
+                try await Task.delay(milliseconds: 500)
+                sessionAuthenticator.completeLogin(with: initializedAccount)
+            } catch {
+                // Login failed silently
+            }
+        }
+    }
+
     func allowCameraAccessAction() {
         Task {
             do {
@@ -392,9 +408,13 @@ class OnboardingViewModel: ObservableObject {
     func navigateToRoot() {
         path = []
     }
-    
+
+    func navigateToAccountSelection() {
+        path = [.accountSelection]
+    }
+
     func navigateToLogin() {
-        path = [.login]
+        path = [.accountSelection, .login]
     }
     
     func navigateToAccessKey() {
@@ -429,6 +449,7 @@ extension OnboardingViewModel: StoreControllerDelegate {
 // MARK: - Path -
 
 enum OnboardingPath {
+    case accountSelection
     case login
     case accessKey
     case accessKeyHelp

@@ -13,14 +13,11 @@ struct LoginScreen: View {
     
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var sessionAuthenticator: SessionAuthenticator
-    @EnvironmentObject private var betaFlags: BetaFlags
-    
+
     @State private var buttonState: ButtonState = .normal
     @State private var inputText: String = ""
     @State private var autocompleteResults: [String] = []
-    
-    @State private var isShowingAccountSelection = false
-    
+
     @FocusState private var isFocused: Bool
     
     private let language = Mnemonic.Language.english
@@ -34,13 +31,7 @@ struct LoginScreen: View {
     var body: some View {
         Background(color: .backgroundMain) {
             VStack {
-                VStack(alignment: .center, spacing: 20) {
-                    Text("Check your photos for the Access Key you saved when you first created your account.")
-                        .font(.appTextSmall)
-                        .foregroundColor(.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                    
+                VStack(alignment: .center, spacing: 20) {                    
                     InputContainer(size: .custom(120)) {
                         TextEditor(text: $inputText)
                             .focused($isFocused)
@@ -88,25 +79,6 @@ struct LoginScreen: View {
                                 .frame(height: Metrics.buttonHeight)
                         }
                         .disabled(!buttonState.isNormal)
-
-                        if betaFlags.accessGranted {
-                            CodeButton(
-                                style: .subtle,
-                                title: "Recover Existing Account",
-                                disabled: !buttonState.isNormal
-                            ) {
-                                isFocused = false
-                                isShowingAccountSelection.toggle()
-                            }
-                            .sheet(isPresented: $isShowingAccountSelection) {
-                                AccountSelectionScreen(
-                                    isPresented: $isShowingAccountSelection,
-                                    sessionAuthenticator: sessionAuthenticator,
-                                    action: recoverExistingAccount
-                                )
-                                .environmentObject(client)
-                            }
-                        }
                     }
                 }
                 .foregroundColor(.textMain)
@@ -155,19 +127,6 @@ struct LoginScreen: View {
         }
     }
         
-    private func recoverExistingAccount(accountDescription: AccountDescription) {
-        isShowingAccountSelection = false
-        
-        dismissKeyboard()
-        
-        Task {
-            buttonState = .loading
-            try await login(mnemonic: accountDescription.account.mnemonic)
-            try await Task.delay(milliseconds: 500)
-            buttonState = .normal
-        }
-    }
-    
     private func login(mnemonic: MnemonicPhrase) async throws {
         buttonState = .loading
         do {

@@ -102,6 +102,14 @@ struct IntroScreen: View {
             .navigationBarHidden(true)
             .navigationDestination(for: OnboardingPath.self) { path in
                 switch path {
+                case .accountSelection:
+                    AccountSelectionScreen(
+                        sessionAuthenticator: sessionAuthenticator,
+                        action: viewModel.recoverExistingAccount,
+                        onEnterDifferentKey: {
+                            viewModel.path.append(.login)
+                        }
+                    )
                 case .login:
                     LoginScreen()
                 case .accessKey:
