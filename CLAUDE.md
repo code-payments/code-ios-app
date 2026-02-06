@@ -37,6 +37,12 @@ When adding new information, place it in the appropriate existing section. Remov
 
 ---
 
+## Reflections
+
+**Review [`.claude/reflections/index.md`](.claude/reflections/index.md) before making changes.** This log documents past situations where fixes went off track — over-engineering, breaking existing patterns, or introducing regressions. Reading it helps avoid repeating the same mistakes.
+
+---
+
 ## Behavior & Approach
 
 ### Working Style
