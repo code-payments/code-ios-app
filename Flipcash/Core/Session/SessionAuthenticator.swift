@@ -73,9 +73,13 @@ final class SessionAuthenticator: ObservableObject {
             self.completeLogin(with: initializedAccount)
         } didFindRecentAccount: { [weak self] keyAccount in
             Task {
-                if let account = try await self?.initialize(using: keyAccount.mnemonic, isRegistration: false) {
-                    self?.completeLogin(with: account)
-                    Analytics.autoLoginComplete()
+                do {
+                    if let account = try await self?.initialize(using: keyAccount.mnemonic, isRegistration: false) {
+                        self?.completeLogin(with: account)
+                        Analytics.autoLoginComplete()
+                    }
+                } catch {
+                    self?.logout()
                 }
             }
         }
