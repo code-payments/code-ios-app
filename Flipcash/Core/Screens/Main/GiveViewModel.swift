@@ -79,6 +79,7 @@ class GiveViewModel: ObservableObject {
                 let hasGiveableBalance = session.balances(for: rate).contains { $0.stored.mint != .usdf }
 
                 if hasGiveableBalance {
+                    refreshSelectedBalance()
                     self.enteredAmount = ""
                 } else {
                     self.isPresented = false
@@ -87,30 +88,31 @@ class GiveViewModel: ObservableObject {
             }
         }
     }
-    
+
     // MARK: - Init -
-    
+
     init(container: Container, sessionContainer: SessionContainer) {
         self.isPresented      = false
         self.container        = container
         self.sessionContainer = sessionContainer
         self.session          = sessionContainer.session
         self.ratesController  = sessionContainer.ratesController
-        
-        // Session now guarantees a valid token is selected if balances exist
+    }
+
+    private func refreshSelectedBalance() {
         let rate = ratesController.rateForEntryCurrency()
-        let availableBalances = sessionContainer.session.balances(for: rate)
+        let availableBalances = session.balances(for: rate)
             .filter { $0.stored.mint != .usdf }
 
         if let selectedTokenMint = ratesController.selectedTokenMint,
-           let balance = availableBalances.first(where: { $0.stored.mint == selectedTokenMint }) {
-            self.selectedBalance = balance
-        } else {
-            // Fallback to highest balance if somehow no token is selected
-            self.selectedBalance = availableBalances.first
+           let match = availableBalances.first(where: { $0.stored.mint == selectedTokenMint }) {
+            selectedBalance = match
+        } else if let first = availableBalances.first {
+            selectedBalance = first
+            ratesController.selectToken(first.stored.mint)
         }
     }
-    
+
     // MARK: - Action -
     
     func giveAction() {

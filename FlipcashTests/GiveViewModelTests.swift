@@ -90,6 +90,73 @@ struct GiveViewModelTests {
         #expect(viewModel.canGive == false)
     }
 
+    // MARK: - Presentation Tests
+
+    @Test("Presenting with no giveable balances dismisses and shows error")
+    func testPresentation_NoBalances_DismissesAndShowsError() {
+        let viewModel = Self.createViewModel()
+
+        viewModel.isPresented = true
+
+        #expect(viewModel.isPresented == false)
+        #expect(viewModel.dialogItem != nil)
+        #expect(viewModel.selectedBalance == nil)
+    }
+
+    // MARK: - Currency Selection Sync Tests
+
+    @Test("Selecting a currency syncs selectedBalance and ratesController")
+    func testSelectCurrency_SyncsBalanceAndRatesController() {
+        let viewModel = Self.createViewModel()
+        let balance = Self.createExchangedBalance(
+            mint: .jeffy,
+            quarks: 1_000_000_000_000,
+            supplyQuarks: 10_000 * 10_000_000_000
+        )
+
+        viewModel.selectCurrencyAction(exchangedBalance: balance)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(viewModel.ratesController.selectedTokenMint == .jeffy)
+        #expect(viewModel.ratesController.isSelectedToken(.jeffy) == true)
+    }
+
+    @Test("Switching currency updates both selectedBalance and ratesController")
+    func testSelectCurrency_SwitchingUpdatesSync() {
+        let viewModel = Self.createViewModel()
+        let firstBalance = Self.createExchangedBalance(
+            mint: .jeffy,
+            quarks: 1_000_000_000_000,
+            supplyQuarks: 10_000 * 10_000_000_000
+        )
+        let secondBalance = Self.createExchangedBalance(
+            mint: .usdf,
+            quarks: 5_000_000
+        )
+
+        viewModel.selectCurrencyAction(exchangedBalance: firstBalance)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .jeffy)
+        #expect(viewModel.ratesController.selectedTokenMint == .jeffy)
+
+        viewModel.selectCurrencyAction(exchangedBalance: secondBalance)
+
+        #expect(viewModel.selectedBalance?.stored.mint == .usdf)
+        #expect(viewModel.ratesController.selectedTokenMint == .usdf)
+        #expect(viewModel.ratesController.isSelectedToken(.jeffy) == false)
+    }
+
+    @Test("Selecting a currency clears entered amount")
+    func testSelectCurrency_ClearsEnteredAmount() {
+        let viewModel = Self.createViewModel()
+        let balance = Self.createExchangedBalance()
+        viewModel.enteredAmount = "42.00"
+
+        viewModel.selectCurrencyAction(exchangedBalance: balance)
+
+        #expect(viewModel.enteredAmount == "")
+    }
+
     // MARK: - canGive Tests
 
     @Test
