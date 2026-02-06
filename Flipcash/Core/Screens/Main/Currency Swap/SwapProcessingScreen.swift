@@ -91,6 +91,10 @@ struct SwapProcessingScreen: View {
                 client: client,
                 ownerKeyPair: session.ownerKeyPair
             )
+
+            if viewModel.isSuccess {
+                session.updatePostTransaction()
+            }
         }
     }
 }

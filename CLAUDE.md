@@ -399,6 +399,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Modifying generated proto files | Update service files instead |
 | Working on pools/betting code | Feature is deprecated, ignore it |
 | Adding unnecessary abstractions | Keep it simple, solve the current problem |
+| Completing a transaction without refreshing balances | Call `session.updatePostTransaction()` after any transaction completes |
 
 ---
 
