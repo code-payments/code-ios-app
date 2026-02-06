@@ -25,7 +25,7 @@ public struct ValueAppreciation: View {
                 .padding(4)
                 .background {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isPositive ? .actionAlternative : Color(r: 228, g: 42, b: 42))
+                        .fill(isPositive ? Color.Sentiment.positive : Color.Sentiment.negative)
                         .opacity(0.2)
                 }
             if isPositive {
@@ -35,7 +35,7 @@ public struct ValueAppreciation: View {
             }
         }
             .font(.appTextSmall)
-            .foregroundStyle(isPositive ? .actionAlternative : Color(r: 228, g: 42, b: 42))
+            .foregroundStyle(isPositive ? Color.Sentiment.positive : Color.Sentiment.negative)
             .padding(.bottom, 30)
     }
 }
