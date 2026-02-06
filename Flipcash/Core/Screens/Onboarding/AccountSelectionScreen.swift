@@ -13,14 +13,13 @@ struct AccountSelectionScreen: View {
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var ratesController: RatesController
 
-    @Binding public var isPresented: Bool
-
     private let sessionAuthenticator: SessionAuthenticator
     private let accountManager: AccountManager
 
     @State private var accounts: [HistoricalAccount] = []
 
     private let action: (AccountDescription) -> Void
+    private let onEnterDifferentKey: (() -> Void)?
 
     private var balanceRate: Rate {
         // HACK: @EnvironmentObject crashes if not injected. This view can be instantiated
@@ -38,18 +37,18 @@ struct AccountSelectionScreen: View {
 
     // MARK: - Init -
 
-    public init(isPresented: Binding<Bool>, sessionAuthenticator: SessionAuthenticator, action: @escaping (AccountDescription) -> Void) {
-        self._isPresented = isPresented
+    public init(sessionAuthenticator: SessionAuthenticator, action: @escaping (AccountDescription) -> Void, onEnterDifferentKey: (() -> Void)? = nil) {
         self.sessionAuthenticator = sessionAuthenticator
         self.accountManager = sessionAuthenticator.accountManager
         self.action = action
+        self.onEnterDifferentKey = onEnterDifferentKey
     }
 
     // MARK: - Body -
 
     var body: some View {
-        NavigationView {
-            Background(color: .backgroundMain) {
+        Background(color: .backgroundMain) {
+            VStack(spacing: 0) {
                 List {
                     ForEach(accounts) { account in
                         row(for: account)
@@ -59,15 +58,20 @@ struct AccountSelectionScreen: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-            }
-            .navigationTitle("Select Account")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    ToolbarCloseButton(binding: $isPresented)
+
+                if let onEnterDifferentKey {
+                    CodeButton(
+                        style: .subtle,
+                        title: "Enter a Different Access Key",
+                        action: onEnterDifferentKey
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
             }
         }
+        .navigationTitle("Select Account")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             fetchAccounts()
             fetchBalances()

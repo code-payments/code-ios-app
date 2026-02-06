@@ -20,7 +20,6 @@ struct SettingsScreen: View {
     @State private var path: [SettingsPath] = []
     
     @State private var isShowingWithdrawFlow = false
-    @State private var isShowingAccountSelection = false
     @State private var isShowingLogoutConfirmation = false
     @State private var isShowingAccessKey = false
     @State private var isShowingDepositFlow = false
@@ -89,6 +88,11 @@ struct SettingsScreen: View {
                     appSettingsScreen()
                 case .betaFlagss:
                     BetaFlagsScreen(container: container)
+                case .accountSelection:
+                    AccountSelectionScreen(
+                        sessionAuthenticator: sessionAuthenticator,
+                        action: switchAccount
+                    )
                 }
             }
             .sheet(isPresented: $isShowingDepositFlow) {
@@ -167,16 +171,13 @@ struct SettingsScreen: View {
                     pathItem: .betaFlagss
                 )
                 
-                row(asset: .switchAccounts, title: "Switch Accounts", badge: betaBadge()) {
-                    isShowingAccountSelection.toggle()
-                }
-                .sheet(isPresented: $isShowingAccountSelection) {
-                    AccountSelectionScreen(
-                        isPresented: $isShowingAccountSelection,
-                        sessionAuthenticator: sessionAuthenticator,
-                        action: switchAccount
-                    )
-                }
+                navigationRow(
+                    path: $path,
+                    asset: .switchAccounts,
+                    title: "Switch Accounts",
+                    badge: betaBadge(),
+                    pathItem: .accountSelection
+                )
             }
             
             row(asset: .logout, title: "Log Out") {
@@ -459,5 +460,6 @@ extension SettingsScreen {
         case advancedFeatures
         case appSettings
         case betaFlagss
+        case accountSelection
     }
 }
