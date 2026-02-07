@@ -108,8 +108,9 @@ struct ExchangedFiatTests {
 
         #expect(usd.underlying.quarks == 0) // 0 Tokens
         #expect(usd.converted.quarks == 0) // $0 USD
-        // Note: With 0 tokens, the exchange rate is 0 (no tokens to value)
-        #expect(usd.rate.fx.formatted(to: 10) == "0.0000000000")
+        // Note: With 0 quarks, computeFromQuarks uses 1 quark to derive a
+        // meaningful fx rate, so the rate is non-zero even though the value is 0
+        #expect(usd.rate.fx > 0)
     }
     
     @Test

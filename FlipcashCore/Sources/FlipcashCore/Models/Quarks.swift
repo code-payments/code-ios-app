@@ -119,25 +119,7 @@ public struct Quarks: Equatable, Hashable, Codable, Sendable {
             decimals: decimals
         )
     }
-    
-    public func subtractingScaled(_ value: Quarks) throws -> Quarks {
-        guard value.currencyCode == currencyCode else {
-            throw Error.currencyCodeMismatch
-        }
         
-        let (lhs, rhs, decimals) = try align(with: value)
-        
-        guard lhs.quarks >= rhs.quarks else {
-            throw Error.invalidNegativeValue
-        }
-        
-        return Quarks(
-            quarks: lhs.quarks - rhs.quarks,
-            currencyCode: currencyCode,
-            decimals: decimals
-        )
-    }
-    
     /// Returns a copy of this Fiat scaled to `targetDecimals`.
     /// If `targetDecimals` is greater than `decimals`, quarks are scaled up.
     /// If smaller, quarks are scaled down. Currency code is preserved.
@@ -175,16 +157,6 @@ public struct Quarks: Equatable, Hashable, Codable, Sendable {
             self.scaled(to: target),
             other.scaled(to: target),
             target
-        )
-    }
-    
-    // MARK: - Fee -
-    
-    public func calculateFee(bps: Int) -> Quarks {
-        Quarks(
-            quarks: quarks * UInt64(bps) / 10_000,
-            currencyCode: currencyCode,
-            decimals: decimals
         )
     }
 }
@@ -264,135 +236,5 @@ extension Quarks: Comparable {
             print(error)
             return false
         }
-    }
-        
-//    public static func < (lhs: Self, rhs: Self) -> Bool {
-//        lhs.quarks < rhs.quarks
-//    }
-//    
-//    public static func <= (lhs: Self, rhs: Self) -> Bool {
-//        lhs.quarks <= rhs.quarks
-//    }
-//    
-//    public static func >= (lhs: Self, rhs: Self) -> Bool {
-//        lhs.quarks >= rhs.quarks
-//    }
-//    
-//    public static func > (lhs: Self, rhs: Self) -> Bool {
-//        lhs.quarks > rhs.quarks
-//    }
-}
-
-// MARK: - Operations -
-
-//extension Fiat {
-//    public static func + (lhs: Self, rhs: Self) -> Fiat {
-//        Fiat(quarks: lhs.quarks + rhs.quarks)
-//    }
-//    
-//    public static func - (lhs: Self, rhs: Self) -> Fiat {
-//        guard lhs >= rhs else {
-//            return 0
-//        }
-//        return Fiat(quarks: lhs.quarks - rhs.quarks)
-//    }
-//    
-//    public static func * (lhs: Self, rhs: Int) -> Fiat {
-//        Fiat(quarks: lhs.quarks * UInt64(rhs))
-//    }
-//
-//    public static func / (lhs: Self, rhs: Int) -> Int {
-//        Int((lhs.quarks / UInt64(rhs)).toFiatTruncating)
-//    }
-//}
-
-// MARK: - Decimal -
-
-//private extension Decimal {
-//    
-//    static let multiplier: Decimal = 1_000_000
-//    
-//    var toQuarks: UInt64 {
-//        let rounded = (self * .multiplier).rounded(to: 0)
-//        return NSDecimalNumber(decimal: rounded).uint64Value
-//    }
-//    
-//    var toFiat: Decimal {
-//        self / .multiplier
-//    }
-//}
-
-extension Decimal {
-    public func rounded(to decimalPlaces: Int) -> Decimal {
-        var current = self
-        var rounded = Decimal()
-        NSDecimalRound(&rounded, &current, decimalPlaces, .plain)
-        return rounded
-    }
-
-    func roundedInt() -> Int {
-        (rounded(to: 0) as NSDecimalNumber).intValue
-    }
-}
-
-//private extension UInt64 {
-//    
-//    static let multiplier: UInt64 = 1_000_000
-//    
-//    var toQuarks: UInt64 {
-//        self * .multiplier
-//    }
-//    
-//    var toFiat: Decimal {
-//        Decimal(self) / .multiplier
-//    }
-//}
-
-extension UInt64 {
-    private func pow10(_ n: Int) -> UInt64 {
-        return (0..<n).reduce(1) { acc, _ in acc * 10 }
-    }
-    
-    func scaleDown(_ d: Int) -> Decimal {
-        let factor = Decimal(pow10(d))
-        return Decimal(self) / factor
-    }
-    
-    func scaleDownInt(_ d: Int) -> UInt64 {
-        let factor = pow10(d)
-        return self / factor
-    }
-
-    func scaleUp(_ d: Int) -> UInt64 {
-        let factor = pow10(d)
-        return self * factor
-    }
-}
-
-extension Decimal {
-    private func pow10(_ n: Int) -> Decimal {
-        var result: Decimal = 1
-        for _ in 0..<n {
-            result *= 10
-        }
-        return result
-    }
-
-    func scaleDown(_ d: Int) -> Decimal {
-        return self / pow10(d)
-    }
-    
-    func scaleUp(_ d: Int) -> Decimal {
-        self * pow10(d)
-    }
-
-    func scaleUpInt(_ d: Int) -> UInt64 {
-        let scaled = scaleUp(d)
-        var rounded = Foundation.Decimal()
-        var current = scaled
-        // Use .plain (HALF_UP) rounding mode to match Kotlin's rounding behavior
-        // .plain rounds to nearest, ties away from zero
-        NSDecimalRound(&rounded, &current, 0, .plain)
-        return NSDecimalNumber(decimal: rounded).uint64Value
     }
 }

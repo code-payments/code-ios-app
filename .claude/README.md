@@ -72,7 +72,7 @@ code-ios-app/
 │   ├── Models/
 │   │   ├── Fiat.swift             # Quarks struct - currency amounts (smallest unit)
 │   │   ├── ExchangedFiat.swift    # Multi-currency values (underlying + converted)
-│   │   ├── BondingCurve.swift     # Pricing curves
+│   │   ├── DiscreteBondingCurve.swift  # Discrete step-based pricing curves
 │   │   └── MintMetadata.swift     # Token metadata
 │   ├── Clients/
 │   │   ├── Flip API/              # Backend API
@@ -235,39 +235,37 @@ struct ExchangedFiat {
 - `computeFromQuarks()` - From raw quarks with bonding curve
 - `computeFromEntered()` - From user-entered amount
 
-#### 3. BondingCurve
+#### 3. DiscreteBondingCurve
 
-Exponential pricing curve for custom currencies:
+Discrete step-based bonding curve using pre-computed lookup tables for deterministic pricing across all clients (iOS, Android, Rust):
 
 ```swift
-struct BondingCurve {
-    let a: BigDecimal  // Curve parameter (default: 11400.23...)
-    let b: BigDecimal  // Curve parameter (default: 0.000000877...)
-    let c: BigDecimal  // Curve parameter (default: 0.000000877...)
+struct DiscreteBondingCurve {
+    static let stepSize: Int = 100           // 100 tokens per step
+    static let maxSupply: Int = 21_000_000   // 21M tokens
+    static let quarksPerToken: Int = 10_000_000_000  // 10 decimals
 }
 ```
 
-**Price Formula:**
-```
-P(S) = a * b * e^(c*S)
-```
-
-Where:
-- `S` = Current supply (in tokens)
-- `P(S)` = Spot price at supply S
+**Pricing Model:**
+- Supply is divided into steps of 100 tokens
+- Within each step, price is constant (from lookup table)
+- 210,001 entries loaded from binary resource files
 
 **Key Methods:**
-- `spotPrice(supply:)` - Get current price
-- `costToBuy(quarks:supply:)` - Calculate cost to buy tokens
-- `valueFromSelling(quarks:tvl:)` - Calculate value from selling tokens
-- `tokensBought(withUSDC:tvl:)` - Calculate tokens received for USDC
-- `buy()` / `sell()` - With fee calculations
+- `spotPrice(at:)` - Price at a given supply level
+- `tokensToValue(currentSupply:tokens:)` - Cost to buy tokens (handles partial steps)
+- `valueToTokens(currentSupply:value:)` - Tokens for a given USDC value (binary search)
+- `buy(usdcQuarks:feeBps:supplyQuarks:)` - Buy estimation with fees
+- `sell(tokenQuarks:feeBps:supplyQuarks:)` - Sell estimation with fees
+- `tokensForValueExchange(fiat:fiatRate:supplyQuarks:)` - Fiat → tokens via TVL
+- `marketCap(for:)` - Market cap at a given supply
 
 **Parameters:**
 - Start price: $0.01
-- End price: $1,000,000
 - Max supply: 21,000,000 tokens
-- Sell fee: 1% (100 bps)
+- Step size: 100 tokens
+- Token decimals: 10
 
 ### Database Models
 
@@ -288,14 +286,14 @@ struct StoredBalance {
 
 **USDC Value Calculation:**
 - **USDC balances:** `usdcValue = quarks` (1:1)
-- **Custom currencies:** Uses bonding curve:
+- **Custom currencies:** Uses discrete bonding curve:
   ```swift
   let estimation = bondingCurve.sell(
-      quarks: quarks,
-      feeBps: sellFeeBps,
-      tvl: supplyFromBonding
+      tokenQuarks: quarks,
+      feeBps: 0,
+      supplyQuarks: supplyFromBonding
   )
-  usdcValue = estimation.netUSDC
+  usdcValue = estimation.netUSDF
   ```
 
 #### StoredMintMetadata
@@ -677,20 +675,20 @@ let build = AppMeta.build
 ### Testing Multi-Currency
 
 ```swift
-// Test bonding curve
-let curve = BondingCurve()
+// Test discrete bonding curve
+let curve = DiscreteBondingCurve()
 let estimation = curve.sell(
-    quarks: 1_000_000_000, // 1 token (10 decimals)
-    feeBps: 100,           // 1% fee
-    tvl: 100_000_000       // $100 USDC locked
+    tokenQuarks: 10_000_000_000, // 1 token (10 decimals)
+    feeBps: 100,                 // 1% fee
+    supplyQuarks: 1000 * 10_000_000_000  // 1000 tokens supply
 )
-print(estimation.netUSDC) // USDC received
+print(estimation?.netUSDF) // USDC received
 
-// Test Quarks alignment
-let quarks1 = Quarks(quarks: 100, currencyCode: .usd, decimals: 6)
-let quarks2 = Quarks(quarks: 100, currencyCode: .usd, decimals: 2)
-let result = try quarks1.subtractingScaled(quarks2)
-// Automatically scales to common decimals
+// Test Quarks arithmetic
+let quarks1 = Quarks(quarks: 1_500_000 as UInt64, currencyCode: .usd, decimals: 6)
+let quarks2 = Quarks(quarks: 500_000 as UInt64, currencyCode: .usd, decimals: 6)
+let result = try quarks1.subtracting(quarks2)
+// result.quarks == 1_000_000 ($1.00)
 ```
 
 ### Common Patterns
@@ -729,7 +727,7 @@ let exchanged = ExchangedFiat.computeFromQuarks(
     quarks: quarks,
     mint: mint,
     rate: rate,
-    tvl: supplyFromBonding
+    supplyQuarks: supplyFromBonding
 )
 ```
 
@@ -932,7 +930,7 @@ FlipcashCore/Sources/FlipcashCore/Clients/
 Multi-Currency System:
 - FlipcashCore/Sources/FlipcashCore/Models/Fiat.swift (contains Quarks struct)
 - FlipcashCore/Sources/FlipcashCore/Models/ExchangedFiat.swift
-- FlipcashCore/Sources/FlipcashCore/Models/BondingCurve.swift
+- FlipcashCore/Sources/FlipcashCore/Models/DiscreteBondingCurve.swift
 - FlipcashCore/Sources/FlipcashCore/Models/MintMetadata.swift
 
 Session & Auth:
@@ -952,10 +950,10 @@ Current Work:
 ### Key Constants
 
 ```swift
-// Bonding Curve
-BondingCurve.startPrice = 0.01      // $0.01
-BondingCurve.endPrice = 1_000_000   // $1M
-BondingCurve.maxSupply = 21_000_000 // 21M tokens
+// Discrete Bonding Curve
+DiscreteBondingCurve.stepSize = 100          // 100 tokens per step
+DiscreteBondingCurve.maxSupply = 21_000_000  // 21M tokens
+DiscreteBondingCurve.quarksPerToken = 10_000_000_000  // 10 decimals
 
 // USDC
 PublicKey.usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
