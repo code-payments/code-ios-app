@@ -16,7 +16,7 @@ public struct BorderedButton: View {
     public let action: () -> Void
     
     private var strokeColor: Color {
-        Color(r: 40, g: 56, b: 46)
+        .strokeDisabled
     }
     
     private var fillColor: Color {
@@ -83,9 +83,3 @@ public struct BorderedButton: View {
     }
 }
 
-// MARK: - Colors -
-
-private extension Color {
-    static let extraLightFill = Color(r: 12, g: 37, b: 24)
-    static let lightStroke    = Color.textSecondary.opacity(0.15)
-}

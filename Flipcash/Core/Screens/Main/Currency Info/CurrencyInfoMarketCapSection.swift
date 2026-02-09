@@ -27,8 +27,8 @@ struct CurrencyInfoMarketCapSection: View {
                 StockChart(
                     viewModel: viewModel,
                     currencyCode: currencyCode,
-                    positiveColor: .actionAlternative,
-                    negativeColor: Color(r: 228, g: 42, b: 42)
+                    positiveColor: .Sentiment.positive,
+                    negativeColor: .Sentiment.negative
                 )
             }
         }

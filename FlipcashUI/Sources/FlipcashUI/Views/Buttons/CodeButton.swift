@@ -82,7 +82,7 @@ public struct CodeButton: View {
                     HStack(spacing: 10) {
                         Image.asset(.checkmark)
                             .renderingMode(.template)
-                            .foregroundColor(.textSuccess)
+                            .foregroundColor(.textMain)
                         Text(text)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
@@ -222,6 +222,10 @@ private extension CodeButton {
                 } else {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(.white.opacity(0.2))
+                        .background {
+                            RoundedRectangle(cornerRadius: Metrics.buttonRadius)
+                                .fill(.ultraThinMaterial)
+                        }
                 }
                 
             case .subtle:
@@ -254,7 +258,7 @@ private extension CodeButton {
                 
             case .filledSecondary, .filledMediumSecondary:
                 if isDisabled {
-                    return Color(r: 19, g: 30, b: 24)
+                    return .textActionSecondaryDisabled
                 } else {
                     return .textMain
                 }

@@ -137,7 +137,7 @@ struct ScanScreen: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: session.isShowingBillEditor)
         .ignoresSafeArea(.keyboard)
         .sheet(item: $session.valuation) { valuation in
-            PartialSheet(background: .backgroundMain, canAccessBackground: true) {
+            PartialSheet(background: .clear, canAccessBackground: true) {
                 ModalCashReceived(
                     title: "You received",
                     fiat: valuation.exchangedFiat.converted,

@@ -60,7 +60,7 @@ public struct StockChart: View {
                         }
                     }
                 ),
-                accentColor: Color(r: 18, g: 42, b: 29)
+                accentColor: Color.action.opacity(0.1)
             )
                 .padding(.horizontal, 20)
         }
@@ -152,7 +152,7 @@ public struct StockChart: View {
     }
 
     private var secondaryColor: Color {
-        viewModel.isPositive ? Color(r: 17, g: 53, b: 34) : Color(r: 60, g: 37, b: 37)
+        viewModel.isPositive ? .Sentiment.positiveSecondary : .Sentiment.negativeSecondary
     }
 }
 
@@ -190,7 +190,7 @@ private struct ChartErrorView: View {
             if error != .insufficientData {
                 Button("Retry", action: onRetry)
                     .font(.appTextSmall)
-                    .foregroundStyle(Color.actionAlternative)
+                    .foregroundStyle(Color.action)
             }
         }
         .frame(height: 200)

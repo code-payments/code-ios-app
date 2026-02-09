@@ -11,31 +11,47 @@ import FlipcashCore
 public struct ValueAppreciation: View {
     public let amount: Quarks
     public let isPositive: Bool
-    
+    private let isNegligible: Bool
+    private var prefix: String {
+        guard !isNegligible else { return "" }
+        return isPositive ? "+" : "-"
+    }
+        
     public init(amount: Quarks, isPositive: Bool) {
         self.amount = amount
-        self.isPositive = isPositive
+        self.isNegligible = amount.decimalValue < 0.01
+        // Amounts smaller than one cent (e.g. 0.001) are treated as positive
+        // to avoid displaying negligible negative rounding artifacts.
+        if isNegligible {
+            self.isPositive = true
+        } else {
+            self.isPositive = isPositive
+        }
     }
     
     public var body: some View {
-        let prefix = isPositive ? "+" : "-"
+        let color = isPositive ? Color.Sentiment.positive : Color.Sentiment.negative
         
         HStack {
             Text("\(prefix)\(amount.formatted())")
+                .foregroundStyle(color)
                 .padding(4)
                 .background {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isPositive ? .actionAlternative : Color(r: 228, g: 42, b: 42))
+                        .fill(color)
                         .opacity(0.2)
                 }
-            if isPositive {
-                Text("from currency appreciation")
-            } else {
-                Text("from currency depreciation")
+            
+            Group {
+                if isPositive {
+                    Text("from currency appreciation")
+                } else {
+                    Text("from currency depreciation")
+                }
             }
+                .foregroundStyle(Color.textSecondary)
         }
             .font(.appTextSmall)
-            .foregroundStyle(isPositive ? .actionAlternative : Color(r: 228, g: 42, b: 42))
             .padding(.bottom, 30)
     }
 }
