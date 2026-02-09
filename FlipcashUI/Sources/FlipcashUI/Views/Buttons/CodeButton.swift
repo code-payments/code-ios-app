@@ -222,6 +222,7 @@ private extension CodeButton {
                 } else {
                     RoundedRectangle(cornerRadius: Metrics.buttonRadius)
                         .fill(.white.opacity(0.2))
+                        .background(.ultraThinMaterial)
                 }
                 
             case .subtle:
