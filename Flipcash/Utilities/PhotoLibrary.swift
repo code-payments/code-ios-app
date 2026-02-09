@@ -36,6 +36,7 @@ enum PhotoLibrary {
         
         let rect = CGRect.iPhone13
         let view = controller.view!
+        view.backgroundColor = .background
         view.bounds = rect
         
         let renderer = UIGraphicsImageRenderer(bounds: rect)
