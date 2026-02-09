@@ -65,11 +65,19 @@ struct ActivityTable: Sendable {
 
 struct CashLinkMetadataTable: Sendable {
     static let name = "cashLinkMetadata"
-    
+
     let table        = Table(Self.name)
     let id           = Expression <PublicKey> ("id")
     let vault        = Expression <PublicKey> ("vault")
     let canCancel    = Expression <Bool>      ("canCancel")
+}
+
+struct LimitsTable: Sendable {
+    static let name = "limits"
+
+    let table = Table(Self.name)
+    let id    = Expression <Int>  ("id")
+    let data  = Expression <Data> ("data")
 }
 
 extension Expression {
@@ -155,6 +163,15 @@ extension Database {
             })
         }
 
+        let limitsTable = LimitsTable()
+
+        try writer.transaction {
+            try writer.run(limitsTable.table.create(ifNotExists: true, withoutRowid: true) { t in
+                t.column(limitsTable.id, primaryKey: true)
+                t.column(limitsTable.data)
+            })
+        }
+
         try createIndexesIfNeeded()
     }
     
@@ -204,6 +221,20 @@ extension CurrencyCode: @retroactive Value {
 
     public var datatypeValue: String {
         rawValue
+    }
+}
+
+extension Data: @retroactive Value {
+    public static var declaredDatatype: String {
+        Blob.declaredDatatype
+    }
+
+    public static func fromDatatypeValue(_ dataValue: Blob) -> Data {
+        Data(dataValue.bytes)
+    }
+
+    public var datatypeValue: Blob {
+        Blob(bytes: [UInt8](self))
     }
 }
 
