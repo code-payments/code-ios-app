@@ -65,6 +65,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let controller = UIHostingController(rootView: screen)
         controller.view.backgroundColor = UIColor(.backgroundMain)
         window.rootViewController = controller
+        window.overrideUserInterfaceStyle = .dark
         
         window.makeKeyAndVisible()
     }
