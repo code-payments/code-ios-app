@@ -93,6 +93,12 @@ public struct BillView: View {
                 Color(r: 169, g: 155, b: 214), // #A99BD6
                 Color(r: 78,  g: 170, b: 197), // #4EAAC5
             ]
+        
+        case .badBoys, .test:
+            return [
+                Color(r: 44,  g: 44,  b: 44),  // #2C2C2C
+                Color(r: 170, g: 170, b: 170), // #AAAAAA
+            ]
 
         default:
             return [green]  // Default green
@@ -515,6 +521,8 @@ private extension PublicKey {
     static let bits = try! PublicKey(base58: "A3e8dzb1y4gqGP2cnCS3UU8dm5YNrFpZBpjjdoZdtfnB")
     static let float = try! PublicKey(base58: "5APqK9YUZupKt7rRUrpYy6WV3RPuxA71ZtKJffDUMdPP")
     static let bogey = try! PublicKey(base58: "3AhBb1fpDTp1F9hPkZjRPDejXBM9S5vfpVdvn66vLYnT")
+    static let badBoys = try! PublicKey(base58: "64dkhPKhdjc2xg3NLyDjC14wiXHLnGXHHUxJnqZVugJt")
+    static let test = try! PublicKey(base58: "2psDP3LAvbNzfvBYNMs9ieMpsD8PVzyQsKNfZrjEKoDN")
 }
 
 // MARK: - Previews -
