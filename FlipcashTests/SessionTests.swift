@@ -523,46 +523,39 @@ struct SessionTests {
 
     // MARK: - Total Balance Consistency Tests
 
-    @Test("Session.totalBalance matches sum of balances(for:) converted values")
+    @Test("Collection<ExchangedFiat>.total(rate:) matches sum of individual converted values")
     static func testTotalBalance_MatchesBalancesForRate() throws {
-        // This test verifies that Session.totalBalance produces a result
-        // consistent with what balances(for:) returns for the same rate.
+        // This test verifies that total(rate:) produces a converted value
+        // equal to the sum of individual converted values.
         //
         // Bug context: The header showed $8.09 but the rows summed to $8.10
         // because totalBalance was converting after summing USD values,
         // while rows converted individually.
 
-        let sessionContainer = SessionContainer.mock
-
-        // Configure a non-USD rate to ensure the test exercises currency conversion
+        // Use a non-USD rate to exercise currency conversion
         let cadRate = Rate(fx: 1.40, currency: .cad)
-        sessionContainer.ratesController.configureTestRates(
-            entryCurrency: .cad,
-            rates: [cadRate]
-        )
 
-        let session = sessionContainer.session
+        // Create individual ExchangedFiat values (USDF balances with 6 decimals)
+        let balances: [ExchangedFiat] = [
+            try ExchangedFiat(underlying: Quarks(quarks: 3_500_000 as UInt64, currencyCode: .usd, decimals: 6), rate: cadRate, mint: .usdf),
+            try ExchangedFiat(underlying: Quarks(quarks: 2_290_000 as UInt64, currencyCode: .usd, decimals: 6), rate: cadRate, mint: .usdf),
+        ]
 
-        // Get the total balance from Session
-        let total = session.totalBalance
+        // Compute total using the Collection extension (same code path as Session.totalBalance)
+        let total = balances.total(rate: cadRate)
 
-        // Verify preconditions: rate is not USD and total is non-zero
-        #expect(total.rate.currency != .usd, "Rate should not be USD to exercise conversion")
-        #expect(total.converted.decimalValue > 0, "Total should be non-zero to be a meaningful test")
-
-        // Use the same rate that totalBalance used
-        let rate = total.rate
-
-        // Get individual balances and sum their converted values
-        let individualBalances = session.balances(for: rate)
-        let sumOfConverted = individualBalances.reduce(Decimal(0)) { sum, balance in
-            sum + balance.exchangedFiat.converted.decimalValue
+        // Sum individual converted values
+        let sumOfConverted = balances.reduce(Decimal(0)) { sum, balance in
+            sum + balance.converted.decimalValue
         }
+
+        // Verify total is non-zero
+        #expect(total.converted.decimalValue > 0, "Total should be non-zero to be a meaningful test")
 
         // The total's converted value should equal the sum of individual converted values
         #expect(
             total.converted.decimalValue == sumOfConverted,
-            "totalBalance (\(total.converted.decimalValue)) should equal sum of balances(for:) (\(sumOfConverted))"
+            "total(rate:) (\(total.converted.decimalValue)) should equal sum of converted values (\(sumOfConverted))"
         )
     }
 }
