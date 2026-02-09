@@ -82,7 +82,7 @@ public struct CodeButton: View {
                     HStack(spacing: 10) {
                         Image.asset(.checkmark)
                             .renderingMode(.template)
-                            .foregroundColor(.textSuccess)
+                            .foregroundColor(.textMain)
                         Text(text)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
