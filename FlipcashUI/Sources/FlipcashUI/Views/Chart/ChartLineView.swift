@@ -181,11 +181,11 @@ public struct ChartLineView: View {
 // MARK: - Animatable Area Gradient
 
 /// Draws a gradient that's masked to the chart area shape and animates color changes
-private struct AnimatableAreaGradient: View {
-    let color: Color
+private struct AnimatableAreaGradient: View, Animatable {
+    var color: Color
     let dataPoints: [ChartDataPoint]
     let yAxisDomain: ClosedRange<Double>
-    
+
     var body: some View {
         // Gradient rectangle masked by the area shape
         LinearGradient(
@@ -196,6 +196,7 @@ private struct AnimatableAreaGradient: View {
             startPoint: .top,
             endPoint: .bottom
         )
+        .animation(.easeInOut(duration: 0.3), value: color)
         .mask {
             // Use a chart as the mask shape
             Chart {
@@ -213,6 +214,9 @@ private struct AnimatableAreaGradient: View {
             .chartXScale(domain: 0...1)
             .chartYScale(domain: yAxisDomain, type: .linear)
             .animation(.easeInOut(duration: 0.3), value: dataPoints)
+            // The area fills from the curve down to the Y-axis bottom, creating a vertical line at normalizedPosition = 1.0.
+            // This is a rendering artifact from the chart's plot area boundary.
+            .padding(.trailing, 1)
         }
     }
 }
