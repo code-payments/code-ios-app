@@ -10,9 +10,10 @@ import FlipcashUI
 
 struct CurrencyInfoLoadingView: View {
     var body: some View {
-        VStack {
+        Background(color: .backgroundMain) {
             Spacer()
             LoadingView(color: .textMain)
+                .frame(maxWidth: .infinity)
             Spacer()
         }
     }
