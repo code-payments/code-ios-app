@@ -33,6 +33,24 @@ final class ExternalSwapController: ObservableObject {
     /// Creates the controller with the required wallet connection dependency.
     init(walletConnection: WalletConnection) {
         self.walletConnection = walletConnection
+
+        walletConnection.onCancelled = { [weak self] in
+            guard let self else { return }
+            // Dismiss processing first so dialogs are no longer suppressed
+            self.processing = nil
+            // Defer dialog presentation so SwiftUI picks up the
+            // suppressWalletDialogs change before evaluating the binding
+            Task { @MainActor [weak self] in
+                self?.walletConnection.dialogItem = .init(
+                    style: .destructive,
+                    title: "Transaction Cancelled",
+                    subtitle: "The transaction was cancelled in your wallet",
+                    dismissable: true
+                ) {
+                    .okay(kind: .destructive)
+                }
+            }
+        }
     }
 
     /// Binding to the amount entry presentation state.

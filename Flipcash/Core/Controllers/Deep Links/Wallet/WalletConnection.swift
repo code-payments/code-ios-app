@@ -41,6 +41,9 @@ public final class WalletConnection: ObservableObject {
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
 
+    /// Called when a request is cancelled by the user in the external wallet.
+    var onCancelled: (() -> Void)?
+
     private struct PendingSwap {
         let swapId: SwapId
         let amount: ExchangedFiat
@@ -70,6 +73,8 @@ public final class WalletConnection: ObservableObject {
         if let code = url.queryItemValue(for: "errorCode") {
             if code == "4001" {
                 Analytics.walletCancel()
+                pendingSwap = nil
+                onCancelled?()
             }
             return
         }
