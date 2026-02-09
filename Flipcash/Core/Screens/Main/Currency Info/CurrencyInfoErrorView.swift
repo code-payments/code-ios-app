@@ -10,32 +10,34 @@ import FlipcashUI
 
 struct CurrencyInfoErrorView: View {
     let error: CurrencyInfoViewModel.Error
-    let onRetry: () async -> Void
+    let onAction: () -> Void
 
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
 
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 50))
-                .foregroundStyle(Color.textSecondary)
+            Image("IconExclamationCircle")
+                .resizable()
+                .frame(width: 100, height: 100)
+                .padding(24)
 
-            Text(title)
-                .font(.appTextLarge)
-                .foregroundStyle(Color.textMain)
+            // Status Text
+            VStack(spacing: 12) {
+                Text(title)
+                    .font(.appTextLarge)
+                    .foregroundStyle(Color.textMain)
 
-            Text(subtitle)
-                .font(.appTextSmall)
-                .foregroundStyle(Color.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-
+                Text(subtitle)
+                    .font(.appTextSmall)
+                    .foregroundStyle(Color.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 40)
+            
             Spacer()
 
-            CodeButton(style: .filled, title: "Try Again") {
-                Task {
-                    await onRetry()
-                }
+            CodeButton(style: .filled, title: "OK") {
+                onAction()
             }
             .padding(20)
         }
@@ -46,7 +48,7 @@ struct CurrencyInfoErrorView: View {
         case .mintNotFound:
             return "Currency Not Found"
         case .networkError:
-            return "Connection Error"
+            return "Something Went Wrong"
         }
     }
 

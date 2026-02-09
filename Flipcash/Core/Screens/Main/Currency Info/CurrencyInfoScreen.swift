@@ -12,6 +12,8 @@ import FlipcashCore
 struct CurrencyInfoScreen: View {
     @StateObject private var viewModel: CurrencyInfoViewModel
 
+    @Environment(\.dismiss) private var dismiss
+
     @State private var isShowingTransactionHistory: Bool = false
     @State private var isShowingFundingSelection: Bool = false
     @State private var isShowingBuyAmountEntry: Bool = false
@@ -139,7 +141,7 @@ struct CurrencyInfoScreen: View {
                 loadedContent(metadata: metadata)
             case .error(let error):
                 CurrencyInfoErrorView(error: error) {
-                    await viewModel.loadMintMetadata()
+                    dismiss()
                 }
             }
         }
