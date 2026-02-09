@@ -18,7 +18,9 @@ protocol SessionDelegate: AnyObject {
 @MainActor
 class Session: ObservableObject {
     
-    @Published private(set) var limits: Limits?
+    var limits: Limits? {
+        updateableLimits.value
+    }
     
     @Published var billState: BillState = .default()
     @Published var presentationState: PresentationState = .hidden(.slide)
@@ -179,7 +181,15 @@ class Session: ObservableObject {
             self?.updateStreamingMints()
         }
     }()
-    
+
+    private lazy var updateableLimits: Updateable<Limits?> = {
+        Updateable { [weak self] in
+            try? self?.database.getLimits()
+        } didSet: { [weak self] in
+            self?.objectWillChange.send()
+        }
+    }()
+
     private var cancellables: Set<AnyCancellable> = []
     
     // MARK: - Init -
@@ -196,6 +206,7 @@ class Session: ObservableObject {
         self.userID            = userID
         
         _ = updateableBalances
+        _ = updateableLimits
 
         // Ensure we have a valid token selected on initialization
         ensureValidTokenSelection()
@@ -415,12 +426,16 @@ class Session: ObservableObject {
     }
     
     private func fetchLimits() async throws {
-        limits = try await client.fetchTransactionLimits(
+        let fetchedLimits = try await client.fetchTransactionLimits(
             owner: ownerKeyPair,
             since: .todayAtMidnight()
         )
-        
-        trace(.note, components: "Daily limit updated (USD): \(limits?.sendLimitFor(currency: .usd)?.maxPerDay.decimalValue ?? -1)")
+
+        database.transaction { database in
+            try? database.insertLimits(fetchedLimits)
+        }
+
+        trace(.note, components: "Daily limit updated (USD): \(fetchedLimits.sendLimitFor(currency: .usd)?.maxPerDay.decimalValue ?? -1)")
     }
     
     private func updateLimits() {
