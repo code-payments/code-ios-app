@@ -13,7 +13,7 @@ import Foundation
 // MARK: - Test Utilities
 
 /// Precision for BigDecimal comparisons
-nonisolated(unsafe) private let testRounding = Rounding(.toNearestOrEven, 36)
+nonisolated(unsafe) private let testRounding = DiscreteBondingCurve.rounding
 
 /// Check if two BigDecimals are approximately equal within a tolerance
 private func isApproximatelyEqual(_ a: BigDecimal, _ b: BigDecimal, tolerance: BigDecimal = BigDecimal("0.0000000001")) -> Bool {
@@ -1187,6 +1187,23 @@ struct DiscreteConstantsTests {
     @Test
     func tablePrecisionValue() {
         #expect(DiscreteBondingCurve.tablePrecision == 18)
+    }
+}
+
+// MARK: - 10. Rounding Policy Tests
+
+@Suite("Discrete Bonding Curve - Rounding Policy")
+struct DiscreteRoundingPolicyTests {
+
+    @Test
+    func roundingPrecisionIsStable() {
+        let one = BigDecimal("1")
+        let three = BigDecimal("3")
+
+        let result = one.divide(three, DiscreteBondingCurve.rounding).asString(.plain)
+        let expected = "0." + String(repeating: "3", count: 50)
+
+        #expect(result == expected)
     }
 }
 
