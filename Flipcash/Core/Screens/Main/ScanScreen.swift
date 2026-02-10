@@ -367,7 +367,7 @@ struct ScanScreen: View {
                         sessionContainer: sessionContainer
                     )
                 }
-                .onChange(of: session.pendingCurrencyInfoMint) { _, mint in
+                .onChange(of: session.pendingCurrencyInfoMint, initial: true) { _, mint in
                     if mint != nil {
                         isShowingBalance = true
                     }
