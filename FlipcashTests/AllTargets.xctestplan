@@ -1,0 +1,45 @@
+{
+  "configurations" : [
+    {
+      "id" : "58506254-EA72-4991-9A2B-7AF77633620F",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Code.xcodeproj",
+      "identifier" : "9A516F792D9B12E800AF478B",
+      "name" : "Flipcash"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Code.xcodeproj",
+        "identifier" : "9A516F882D9B12EA00AF478B",
+        "name" : "FlipcashTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Code.xcodeproj",
+        "identifier" : "9A516F922D9B12EA00AF478B",
+        "name" : "FlipcashUITests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:FlipcashCore",
+        "identifier" : "FlipcashCoreTests",
+        "name" : "FlipcashCoreTests"
+      }
+    }
+  ],
+  "version" : 1
+}
