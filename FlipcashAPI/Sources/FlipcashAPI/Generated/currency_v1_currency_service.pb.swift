@@ -20,94 +20,6 @@ fileprivate struct _GeneratedWithProtocGenSwiftVersion: SwiftProtobuf.ProtobufAP
   typealias Version = _2
 }
 
-public struct Ocp_Currency_V1_GetAllRatesRequest: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  /// If timestamp is included, the returned rate will be the most recent available
-  /// exchange rate prior to the provided timestamp within the same day. Otherwise,
-  /// the latest rates will be returned.
-  public var timestamp: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _timestamp ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_timestamp = newValue}
-  }
-  /// Returns true if `timestamp` has been explicitly set.
-  public var hasTimestamp: Bool {return self._timestamp != nil}
-  /// Clears the value of `timestamp`. Subsequent reads from it will return its default value.
-  public mutating func clearTimestamp() {self._timestamp = nil}
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public init() {}
-
-  fileprivate var _timestamp: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-}
-
-public struct Ocp_Currency_V1_GetAllRatesResponse: Sendable {
-  // SwiftProtobuf.Message conformance is added in an extension below. See the
-  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
-  // methods supported on all messages.
-
-  public var result: Ocp_Currency_V1_GetAllRatesResponse.Result = .ok
-
-  /// The time the exchange rates were observed
-  public var asOf: SwiftProtobuf.Google_Protobuf_Timestamp {
-    get {return _asOf ?? SwiftProtobuf.Google_Protobuf_Timestamp()}
-    set {_asOf = newValue}
-  }
-  /// Returns true if `asOf` has been explicitly set.
-  public var hasAsOf: Bool {return self._asOf != nil}
-  /// Clears the value of `asOf`. Subsequent reads from it will return its default value.
-  public mutating func clearAsOf() {self._asOf = nil}
-
-  /// The price of 1 core mint token in different currencies, keyed on 3- or 4-
-  /// letter lowercase currency code.
-  public var rates: Dictionary<String,Double> = [:]
-
-  public var unknownFields = SwiftProtobuf.UnknownStorage()
-
-  public enum Result: SwiftProtobuf.Enum, Swift.CaseIterable {
-    public typealias RawValue = Int
-    case ok // = 0
-
-    /// No currency data is available for the requested timestamp.
-    case missingData // = 1
-    case UNRECOGNIZED(Int)
-
-    public init() {
-      self = .ok
-    }
-
-    public init?(rawValue: Int) {
-      switch rawValue {
-      case 0: self = .ok
-      case 1: self = .missingData
-      default: self = .UNRECOGNIZED(rawValue)
-      }
-    }
-
-    public var rawValue: Int {
-      switch self {
-      case .ok: return 0
-      case .missingData: return 1
-      case .UNRECOGNIZED(let i): return i
-      }
-    }
-
-    // The compiler won't synthesize support with the UNRECOGNIZED case.
-    public static let allCases: [Ocp_Currency_V1_GetAllRatesResponse.Result] = [
-      .ok,
-      .missingData,
-    ]
-
-  }
-
-  public init() {}
-
-  fileprivate var _asOf: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
-}
-
 public struct Ocp_Currency_V1_GetMintsRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -506,6 +418,22 @@ public struct Ocp_Currency_V1_Mint: @unchecked Sendable {
   /// Clears the value of `createdAt`. Subsequent reads from it will return its default value.
   public mutating func clearCreatedAt() {_uniqueStorage()._createdAt = nil}
 
+  /// Social links for this currency
+  public var socialLinks: [Ocp_Currency_V1_SocialLink] {
+    get {return _storage._socialLinks}
+    set {_uniqueStorage()._socialLinks = newValue}
+  }
+
+  /// Bill customization for this currency. Use the default if not provided
+  public var billCustomization: Ocp_Currency_V1_BillCustomization {
+    get {return _storage._billCustomization ?? Ocp_Currency_V1_BillCustomization()}
+    set {_uniqueStorage()._billCustomization = newValue}
+  }
+  /// Returns true if `billCustomization` has been explicitly set.
+  public var hasBillCustomization: Bool {return _storage._billCustomization != nil}
+  /// Clears the value of `billCustomization`. Subsequent reads from it will return its default value.
+  public mutating func clearBillCustomization() {_uniqueStorage()._billCustomization = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -633,6 +561,12 @@ public struct Ocp_Currency_V1_LaunchpadMetadata: Sendable {
 
   /// Precent fee for sells in basis points, currently hardcoded to 1%
   public var sellFeeBps: UInt32 = 0
+
+  /// The current price in USD
+  public var price: Double = 0
+
+  /// The current market capitalization in USD
+  public var marketCap: Double = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -823,91 +757,93 @@ public struct Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch: Sendab
   public init() {}
 }
 
+public struct Ocp_Currency_V1_SocialLink: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var type: Ocp_Currency_V1_SocialLink.OneOf_Type? = nil
+
+  public var website: Ocp_Currency_V1_SocialLink.Website {
+    get {
+      if case .website(let v)? = type {return v}
+      return Ocp_Currency_V1_SocialLink.Website()
+    }
+    set {type = .website(newValue)}
+  }
+
+  public var x: Ocp_Currency_V1_SocialLink.X {
+    get {
+      if case .x(let v)? = type {return v}
+      return Ocp_Currency_V1_SocialLink.X()
+    }
+    set {type = .x(newValue)}
+  }
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public enum OneOf_Type: Equatable, Sendable {
+    case website(Ocp_Currency_V1_SocialLink.Website)
+    case x(Ocp_Currency_V1_SocialLink.X)
+
+  }
+
+  public struct Website: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var url: String = String()
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public struct X: Sendable {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var username: String = String()
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+  }
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_BillCustomization: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Bill background colors (from top to bottom)
+  public var colors: [Ocp_Currency_V1_Color] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Ocp_Currency_V1_Color: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Hex colour value (e.g. "#19191A")
+  public var hex: String = String()
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "ocp.currency.v1"
-
-extension Ocp_Currency_V1_GetAllRatesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetAllRatesRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}timestamp\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularMessageField(value: &self._timestamp) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    try { if let v = self._timestamp {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
-    } }()
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Ocp_Currency_V1_GetAllRatesRequest, rhs: Ocp_Currency_V1_GetAllRatesRequest) -> Bool {
-    if lhs._timestamp != rhs._timestamp {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Ocp_Currency_V1_GetAllRatesResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
-  public static let protoMessageName: String = _protobuf_package + ".GetAllRatesResponse"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}result\0\u{3}as_of\0\u{1}rates\0")
-
-  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
-    while let fieldNumber = try decoder.nextFieldNumber() {
-      // The use of inline closures is to circumvent an issue where the compiler
-      // allocates stack space for every case branch when no optimizations are
-      // enabled. https://github.com/apple/swift-protobuf/issues/1034
-      switch fieldNumber {
-      case 1: try { try decoder.decodeSingularEnumField(value: &self.result) }()
-      case 2: try { try decoder.decodeSingularMessageField(value: &self._asOf) }()
-      case 3: try { try decoder.decodeMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufDouble>.self, value: &self.rates) }()
-      default: break
-      }
-    }
-  }
-
-  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
-    // The use of inline closures is to circumvent an issue where the compiler
-    // allocates stack space for every if/case branch local when no optimizations
-    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
-    // https://github.com/apple/swift-protobuf/issues/1182
-    if self.result != .ok {
-      try visitor.visitSingularEnumField(value: self.result, fieldNumber: 1)
-    }
-    try { if let v = self._asOf {
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
-    } }()
-    if !self.rates.isEmpty {
-      try visitor.visitMapField(fieldType: SwiftProtobuf._ProtobufMap<SwiftProtobuf.ProtobufString,SwiftProtobuf.ProtobufDouble>.self, value: self.rates, fieldNumber: 3)
-    }
-    try unknownFields.traverse(visitor: &visitor)
-  }
-
-  public static func ==(lhs: Ocp_Currency_V1_GetAllRatesResponse, rhs: Ocp_Currency_V1_GetAllRatesResponse) -> Bool {
-    if lhs.result != rhs.result {return false}
-    if lhs._asOf != rhs._asOf {return false}
-    if lhs.rates != rhs.rates {return false}
-    if lhs.unknownFields != rhs.unknownFields {return false}
-    return true
-  }
-}
-
-extension Ocp_Currency_V1_GetAllRatesResponse.Result: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0OK\0\u{1}MISSING_DATA\0")
-}
 
 extension Ocp_Currency_V1_GetMintsRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".GetMintsRequest"
@@ -1305,7 +1241,7 @@ extension Ocp_Currency_V1_StreamLiveMintDataResponse.LiveData: SwiftProtobuf.Mes
 
 extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Mint"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}decimals\0\u{1}name\0\u{1}symbol\0\u{1}description\0\u{3}image_url\0\u{3}vm_metadata\0\u{3}launchpad_metadata\0\u{3}created_at\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}address\0\u{1}decimals\0\u{1}name\0\u{1}symbol\0\u{1}description\0\u{3}image_url\0\u{3}vm_metadata\0\u{3}launchpad_metadata\0\u{3}created_at\0\u{3}social_links\0\u{3}bill_customization\0")
 
   fileprivate class _StorageClass {
     var _address: Ocp_Common_V1_SolanaAccountId? = nil
@@ -1317,6 +1253,8 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
     var _vmMetadata: Ocp_Currency_V1_VmMetadata? = nil
     var _launchpadMetadata: Ocp_Currency_V1_LaunchpadMetadata? = nil
     var _createdAt: SwiftProtobuf.Google_Protobuf_Timestamp? = nil
+    var _socialLinks: [Ocp_Currency_V1_SocialLink] = []
+    var _billCustomization: Ocp_Currency_V1_BillCustomization? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1336,6 +1274,8 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       _vmMetadata = source._vmMetadata
       _launchpadMetadata = source._launchpadMetadata
       _createdAt = source._createdAt
+      _socialLinks = source._socialLinks
+      _billCustomization = source._billCustomization
     }
   }
 
@@ -1363,6 +1303,8 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         case 7: try { try decoder.decodeSingularMessageField(value: &_storage._vmMetadata) }()
         case 8: try { try decoder.decodeSingularMessageField(value: &_storage._launchpadMetadata) }()
         case 9: try { try decoder.decodeSingularMessageField(value: &_storage._createdAt) }()
+        case 10: try { try decoder.decodeRepeatedMessageField(value: &_storage._socialLinks) }()
+        case 11: try { try decoder.decodeSingularMessageField(value: &_storage._billCustomization) }()
         default: break
         }
       }
@@ -1402,6 +1344,12 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
       try { if let v = _storage._createdAt {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
       } }()
+      if !_storage._socialLinks.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._socialLinks, fieldNumber: 10)
+      }
+      try { if let v = _storage._billCustomization {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 11)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1420,6 +1368,8 @@ extension Ocp_Currency_V1_Mint: SwiftProtobuf.Message, SwiftProtobuf._MessageImp
         if _storage._vmMetadata != rhs_storage._vmMetadata {return false}
         if _storage._launchpadMetadata != rhs_storage._launchpadMetadata {return false}
         if _storage._createdAt != rhs_storage._createdAt {return false}
+        if _storage._socialLinks != rhs_storage._socialLinks {return false}
+        if _storage._billCustomization != rhs_storage._billCustomization {return false}
         return true
       }
       if !storagesAreEqual {return false}
@@ -1480,7 +1430,7 @@ extension Ocp_Currency_V1_VmMetadata: SwiftProtobuf.Message, SwiftProtobuf._Mess
 
 extension Ocp_Currency_V1_LaunchpadMetadata: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".LaunchpadMetadata"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_config\0\u{3}liquidity_pool\0\u{1}seed\0\u{1}authority\0\u{3}mint_vault\0\u{3}core_mint_vault\0\u{3}supply_from_bonding\0\u{3}sell_fee_bps\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}currency_config\0\u{3}liquidity_pool\0\u{1}seed\0\u{1}authority\0\u{3}mint_vault\0\u{3}core_mint_vault\0\u{3}supply_from_bonding\0\u{3}sell_fee_bps\0\u{1}price\0\u{3}market_cap\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1496,6 +1446,8 @@ extension Ocp_Currency_V1_LaunchpadMetadata: SwiftProtobuf.Message, SwiftProtobu
       case 6: try { try decoder.decodeSingularMessageField(value: &self._coreMintVault) }()
       case 7: try { try decoder.decodeSingularUInt64Field(value: &self.supplyFromBonding) }()
       case 8: try { try decoder.decodeSingularUInt32Field(value: &self.sellFeeBps) }()
+      case 9: try { try decoder.decodeSingularDoubleField(value: &self.price) }()
+      case 10: try { try decoder.decodeSingularDoubleField(value: &self.marketCap) }()
       default: break
       }
     }
@@ -1530,6 +1482,12 @@ extension Ocp_Currency_V1_LaunchpadMetadata: SwiftProtobuf.Message, SwiftProtobu
     if self.sellFeeBps != 0 {
       try visitor.visitSingularUInt32Field(value: self.sellFeeBps, fieldNumber: 8)
     }
+    if self.price.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.price, fieldNumber: 9)
+    }
+    if self.marketCap.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.marketCap, fieldNumber: 10)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1542,6 +1500,8 @@ extension Ocp_Currency_V1_LaunchpadMetadata: SwiftProtobuf.Message, SwiftProtobu
     if lhs._coreMintVault != rhs._coreMintVault {return false}
     if lhs.supplyFromBonding != rhs.supplyFromBonding {return false}
     if lhs.sellFeeBps != rhs.sellFeeBps {return false}
+    if lhs.price != rhs.price {return false}
+    if lhs.marketCap != rhs.marketCap {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -1807,6 +1767,193 @@ extension Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch: SwiftProto
 
   public static func ==(lhs: Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch, rhs: Ocp_Currency_V1_VerifiedLaunchapdCurrencyReserveStateBatch) -> Bool {
     if lhs.reserveStates != rhs.reserveStates {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_SocialLink: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".SocialLink"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}website\0\u{1}x\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try {
+        var v: Ocp_Currency_V1_SocialLink.Website?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .website(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .website(v)
+        }
+      }()
+      case 2: try {
+        var v: Ocp_Currency_V1_SocialLink.X?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .x(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .x(v)
+        }
+      }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    switch self.type {
+    case .website?: try {
+      guard case .website(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    }()
+    case .x?: try {
+      guard case .x(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    }()
+    case nil: break
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_SocialLink, rhs: Ocp_Currency_V1_SocialLink) -> Bool {
+    if lhs.type != rhs.type {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_SocialLink.Website: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_SocialLink.protoMessageName + ".Website"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}url\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.url) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.url.isEmpty {
+      try visitor.visitSingularStringField(value: self.url, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_SocialLink.Website, rhs: Ocp_Currency_V1_SocialLink.Website) -> Bool {
+    if lhs.url != rhs.url {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_SocialLink.X: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Ocp_Currency_V1_SocialLink.protoMessageName + ".X"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}username\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.username) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.username.isEmpty {
+      try visitor.visitSingularStringField(value: self.username, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_SocialLink.X, rhs: Ocp_Currency_V1_SocialLink.X) -> Bool {
+    if lhs.username != rhs.username {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_BillCustomization: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".BillCustomization"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}colors\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.colors) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.colors.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.colors, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_BillCustomization, rhs: Ocp_Currency_V1_BillCustomization) -> Bool {
+    if lhs.colors != rhs.colors {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Ocp_Currency_V1_Color: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Color"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}hex\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.hex) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.hex.isEmpty {
+      try visitor.visitSingularStringField(value: self.hex, fieldNumber: 1)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Ocp_Currency_V1_Color, rhs: Ocp_Currency_V1_Color) -> Bool {
+    if lhs.hex != rhs.hex {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

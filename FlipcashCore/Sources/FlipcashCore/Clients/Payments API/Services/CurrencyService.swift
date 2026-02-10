@@ -114,11 +114,7 @@ extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryPr
     func makeStreamLiveMintDataInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_StreamLiveMintDataRequest, FlipcashAPI.Ocp_Currency_V1_StreamLiveMintDataResponse>] {
         makeInterceptors()
     }
-    
-    func makeGetAllRatesInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetAllRatesRequest, FlipcashAPI.Ocp_Currency_V1_GetAllRatesResponse>] {
-        makeInterceptors()
-    }
-    
+        
     func makeGetMintsInterceptors() -> [GRPC.ClientInterceptor<FlipcashAPI.Ocp_Currency_V1_GetMintsRequest, FlipcashAPI.Ocp_Currency_V1_GetMintsResponse>] {
         makeInterceptors()
     }
