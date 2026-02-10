@@ -204,6 +204,22 @@ struct ExchangedFiatComputeFromEnteredTests {
         }
         // Test passes as long as we don't crash
     }
+
+    @Test("Caps to token balance when computed exceeds available")
+    func capsToTokenBalance() {
+        let balanceQuarks: UInt64 = Self.quarksPerToken // 1 token
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: Decimal(5.0),
+            rate: .oneToOne,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            tokenBalanceQuarks: balanceQuarks
+        )
+
+        #expect(result != nil)
+        #expect(result?.underlying.quarks == balanceQuarks)
+    }
 }
 
 // MARK: - Collection.total Tests

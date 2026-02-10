@@ -19,12 +19,15 @@ class CurrencySellViewModel: ObservableObject {
         guard !enteredAmount.isEmpty else { return nil }
         guard let amount = NumberFormatter.decimal(from: enteredAmount) else { return nil }
         guard let supplyQuarks = currencyMetadata.supplyFromBonding else { return nil }
+        let balance = session.balance(for: currencyMetadata.mint)
 
         return ExchangedFiat.computeFromEntered(
             amount: amount,
             rate: ratesController.rateForEntryCurrency(),
             mint: currencyMetadata.mint,
-            supplyQuarks: supplyQuarks
+            supplyQuarks: supplyQuarks,
+            balance: balance?.usdf,
+            tokenBalanceQuarks: balance?.quarks
         )
     }
         

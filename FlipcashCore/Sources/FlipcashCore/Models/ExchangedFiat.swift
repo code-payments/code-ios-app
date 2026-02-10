@@ -10,6 +10,27 @@ import FlipcashAPI
 import FlipcashCoreAPI
 import BigDecimal
 
+/**
+ * Represents a monetary value bridge between an on-chain token amount and its localized
+ * fiat representation.
+ *
+ * This maps the relationship between the blockchain reality (USD value for the core mint)
+ * and the user's perception (Converted Fiat value or non-USDC token value).
+ *
+ * @property underlying The raw amount of the core mint token (always denominated in USD for USDC).
+ * @property converted The converted value of the specific token in the user's selected currency (e.g., EUR, GBP, CAD).
+ * @property rate The exchange rate used to convert between the [underlying] and the [converted].
+ * @property mint The Mint address of the token being represented.
+ *
+ * If the user wants to send, for example, $5 CAD of Jeffy, this will look like:
+ *
+ * ```
+ * underlying: (USD value amount for $5 CAD worth of Jeffy in USDC)
+ * converted: (5 CAD in Jeffy)
+ * rate: (fx determined by bonding curve for $5 CAD of Jeffy)
+ * mint: (Mint address for Jeffy)
+ * ```
+ */
 public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     
     public let underlying: Quarks
@@ -141,9 +162,54 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         return exchanged
     }
     
-    public static func computeFromEntered(amount: Foundation.Decimal, rate: Rate, mint: PublicKey, supplyQuarks: UInt64) -> ExchangedFiat? {
+    /// Computes a token valuation from a user-entered fiat amount.
+    ///
+    /// - Parameters:
+    ///   - amount: User-entered fiat amount (in `rate.currency`).
+    ///   - rate: Fiat FX rate for the entry currency.
+    ///   - mint: Target token mint.
+    ///   - supplyQuarks: Current token supply in quarks (10 decimals).
+    ///   - balance: Optional USDF-equivalent balance (6 decimals). Use this when the
+    ///     entered amount is in fiat and should be capped to the displayed USD value
+    ///     (ex: rounding differences between display and entry).
+    ///   - tokenBalanceQuarks: Optional token balance in quarks (mint decimals). Use this
+    ///     when the final computed token amount must never exceed the on-chain token
+    ///     balance (ex: sell flow where bonding-curve math/rounding can slightly exceed
+    ///     the available token balance).
+    ///
+    /// If both `balance` and `tokenBalanceQuarks` are provided, both caps are enforced:
+    /// the fiat amount is capped first, and the resulting token amount is capped second.
+    public static func computeFromEntered(
+        amount: Foundation.Decimal,
+        rate: Rate,
+        mint: PublicKey,
+        supplyQuarks: UInt64,
+        balance: Quarks? = nil,
+        tokenBalanceQuarks: UInt64? = nil
+    ) -> ExchangedFiat? {
         guard amount > 0 else {
             return nil
+        }
+
+        if let balance {
+            guard balance.currencyCode == .usd else {
+                return nil
+            }
+            guard balance.decimals == PublicKey.usdf.mintDecimals else {
+                return nil
+            }
+        }
+
+        let cappedAmount: Foundation.Decimal
+        if let balance, rate.fx > 0 {
+            let usdAmount = amount / rate.fx
+            if usdAmount > balance.decimalValue {
+                cappedAmount = balance.decimalValue * rate.fx
+            } else {
+                cappedAmount = amount
+            }
+        } else {
+            cappedAmount = amount
         }
 
         let valuation: DiscreteBondingCurve.Valuation
@@ -151,7 +217,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
 
         if mint != PublicKey.usdf {
             guard let computed = bondingCurve.tokensForValueExchange(
-                fiat: BigDecimal(amount),
+                fiat: BigDecimal(cappedAmount),
                 fiatRate: BigDecimal(rate.fx),
                 supplyQuarks: Int(supplyQuarks)
             ) else {
@@ -185,6 +251,15 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
         // We need to scale it to quarks.
         let tokenQuarks = valuation.tokens.asDecimal().scaleUpInt(decimals)
 
+        if let tokenBalanceQuarks, tokenQuarks > tokenBalanceQuarks {
+            return computeFromQuarks(
+                quarks: tokenBalanceQuarks,
+                mint: mint,
+                rate: rate,
+                supplyQuarks: supplyQuarks
+            )
+        }
+
         let exchanged = ExchangedFiat(
             underlying: Quarks(
                 quarks: tokenQuarks,
@@ -192,7 +267,7 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
                 decimals: decimals
             ),
             converted: try! Quarks(
-                fiatDecimal: amount,
+                fiatDecimal: cappedAmount,
                 currencyCode: rate.currency,
                 decimals: decimals
             ),

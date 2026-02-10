@@ -55,7 +55,8 @@ class GiveViewModel: ObservableObject {
                 amount: amount,
                 rate: rate,
                 mint: mint,
-                supplyQuarks: supplyQuarks
+                supplyQuarks: supplyQuarks,
+                balance: selectedBalance.stored.usdf
             )
             
         } else {
