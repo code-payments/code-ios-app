@@ -587,11 +587,14 @@ class Session: ObservableObject {
             throw Error.missingSupply
         }
 
+        let balance = balance(for: mint)
         guard let amountRecalculated = ExchangedFiat.computeFromEntered(
-                amount: amount.converted.decimalValue,
-                rate: ratesController.rateForEntryCurrency(),
-                mint: mint,
-                supplyQuarks: supply
+            amount: amount.converted.decimalValue,
+            rate: ratesController.rateForEntryCurrency(),
+            mint: mint,
+            supplyQuarks: supply,
+            balance: balance?.usdf,
+            tokenBalanceQuarks: balance?.quarks
         ) else {
             throw Error.unableToConvertToFiat
         }

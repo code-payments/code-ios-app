@@ -60,7 +60,8 @@ class WithdrawViewModel: ObservableObject {
                 amount: amount,
                 rate: .oneToOne, // Withdrawals are forced to usd
                 mint: mint,
-                supplyQuarks: supplyQuarks
+                supplyQuarks: supplyQuarks,
+                balance: selectedBalance.stored.usdf
             )
         } else {
             return try! ExchangedFiat(
@@ -186,7 +187,8 @@ class WithdrawViewModel: ObservableObject {
             amount: destinationMetadata.fee.decimalValue,
             rate: .oneToOne, // Fee is charged in USDC
             mint: enteredFiat.mint,
-            supplyQuarks: supplyQuarks
+            supplyQuarks: supplyQuarks,
+            balance: selectedBalance.stored.usdf
         )
     }
     

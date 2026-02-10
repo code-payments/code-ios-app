@@ -78,7 +78,7 @@ struct ExchangedFiatComputeFromEnteredTests {
     /// ensures the guard statement at line 154-160 catches these cases.
 
     // Non-USDC mint to trigger bonding curve code path
-    private let testMint = PublicKey.jeffy
+    private let testMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
 
     // Token supply uses 10 decimals: 1 token = 10^10 quarks
     private static let quarksPerToken: UInt64 = 10_000_000_000
@@ -204,6 +204,153 @@ struct ExchangedFiatComputeFromEnteredTests {
         }
         // Test passes as long as we don't crash
     }
+
+    @Test("Caps to token balance when computed exceeds available")
+    func capsToTokenBalance() {
+        let balanceQuarks: UInt64 = Self.quarksPerToken // 1 token
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: Decimal(5.0),
+            rate: .oneToOne,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            tokenBalanceQuarks: balanceQuarks
+        )
+
+        #expect(result != nil)
+        #expect(result?.underlying.quarks == balanceQuarks)
+    }
+}
+
+// MARK: - computeFromEntered Cap Tests
+
+@Suite("ExchangedFiat.computeFromEntered - Caps")
+struct ExchangedFiatComputeFromEnteredCapTests {
+
+    private let testMint: PublicKey = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+    private let testSupplyQuarks: UInt64 = 100_000 * 10_000_000_000
+
+    @Test("Caps entered amount to USDF balance")
+    func capsToUsdfBalance() throws {
+        let rate = Rate(fx: Decimal(1.4), currency: .cad)
+        let balance = try Quarks(fiatDecimal: Decimal(10.41), currencyCode: .usd, decimals: 6)
+        let enteredAmount = Decimal(20.00)
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: enteredAmount,
+            rate: rate,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            balance: balance
+        )
+
+        let cappedAmount = balance.decimalValue * rate.fx
+        let expectedConverted = try Quarks(
+            fiatDecimal: cappedAmount,
+            currencyCode: rate.currency,
+            decimals: testMint.mintDecimals
+        )
+
+        #expect(result != nil)
+        #expect(result?.converted.quarks == expectedConverted.quarks)
+    }
+
+    @Test("Invalid balance currency returns nil")
+    func invalidBalanceCurrencyReturnsNil() throws {
+        let rate = Rate(fx: Decimal(1.0), currency: .usd)
+        let balance = try Quarks(fiatDecimal: Decimal(10), currencyCode: .cad, decimals: 6)
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: Decimal(5),
+            rate: rate,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            balance: balance
+        )
+
+        #expect(result == nil)
+    }
+
+    @Test("Invalid balance decimals returns nil")
+    func invalidBalanceDecimalsReturnsNil() throws {
+        let rate = Rate(fx: Decimal(1.0), currency: .usd)
+        let balance = try Quarks(fiatDecimal: Decimal(10), currencyCode: .usd, decimals: 10)
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: Decimal(5),
+            rate: rate,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            balance: balance
+        )
+
+        #expect(result == nil)
+    }
+
+    @Test("Applies USDF cap before token cap")
+    func appliesUsdfAndTokenCaps() throws {
+        let rate = Rate(fx: Decimal(1.0), currency: .usd)
+        let balance = try Quarks(fiatDecimal: Decimal(10), currencyCode: .usd, decimals: 6)
+        let tokenBalanceQuarks: UInt64 = 10_000_000_000 // 1 token
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: Decimal(100),
+            rate: rate,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            balance: balance,
+            tokenBalanceQuarks: tokenBalanceQuarks
+        )
+
+        #expect(result != nil)
+        #expect(result?.underlying.quarks == tokenBalanceQuarks)
+        if let converted = result?.converted.decimalValue {
+            #expect(converted <= balance.decimalValue * rate.fx)
+        }
+    }
+
+    @Test("Full-balance sell never exceeds token balance")
+    func fullBalanceSellDoesNotExceedTokenBalance() throws {
+        let rate = Rate(fx: Decimal(1.4), currency: .cad)
+        let tokenBalanceQuarks: UInt64 = 2 * 10_000_000_000
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: Decimal(14.10),
+            rate: rate,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            tokenBalanceQuarks: tokenBalanceQuarks
+        )
+
+        let quarks = try #require(result?.underlying.quarks)
+        #expect(quarks <= tokenBalanceQuarks)
+    }
+
+    @Test("Zero-decimal currency respects USDF cap")
+    func zeroDecimalCurrencyRespectsCap() throws {
+        let rate = Rate(fx: Decimal(150), currency: .jpy)
+        let balance = try Quarks(fiatDecimal: Decimal(1.23), currencyCode: .usd, decimals: 6)
+        let enteredAmount = Decimal(200)
+
+        let result = ExchangedFiat.computeFromEntered(
+            amount: enteredAmount,
+            rate: rate,
+            mint: testMint,
+            supplyQuarks: testSupplyQuarks,
+            balance: balance
+        )
+
+        let cappedAmount = balance.decimalValue * rate.fx
+        let expectedConverted = try Quarks(
+            fiatDecimal: cappedAmount,
+            currencyCode: rate.currency,
+            decimals: testMint.mintDecimals
+        )
+
+        #expect(result != nil)
+        #expect(result?.converted.currencyCode == .jpy)
+        #expect(result?.converted.quarks == expectedConverted.quarks)
+    }
 }
 
 // MARK: - Collection.total Tests
@@ -213,6 +360,7 @@ struct ExchangedFiatTotalTests {
 
     private static let usdRate = Rate.oneToOne
     private static let cadRate = Rate(fx: 1.4, currency: .cad)
+    private static let bondedTestMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
 
     @Test("Total of empty collection returns zero")
     func emptyCollection() {
@@ -284,7 +432,7 @@ struct ExchangedFiatTotalTests {
         let supplyQuarks: UInt64 = 1000 * 10_000_000_000
         let bondedBalance = ExchangedFiat.computeFromQuarks(
             quarks: 50_000_000_000 as UInt64,
-            mint: .jeffy,
+            mint: Self.bondedTestMint,
             rate: Self.usdRate,
             supplyQuarks: supplyQuarks
         )
