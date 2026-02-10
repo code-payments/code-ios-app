@@ -237,7 +237,7 @@ struct CurrencyInfoScreen: View {
                             .font(.appBarButton)
                             .foregroundStyle(Color.textMain)
                         }
-
+                        
                         Text(currencyDescription)
                             .foregroundStyle(Color.textSecondary)
                             .font(.appTextSmall)

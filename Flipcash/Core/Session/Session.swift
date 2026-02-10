@@ -796,10 +796,12 @@ class Session: ObservableObject {
             secondaryAction = nil
         }
         
+        let billColors = (try? database.getMintMetadata(mint: billDescription.exchangedFiat.mint))?.metadata.billColors ?? []
+
         sendOperation     = operation
         presentationState = .visible(billDescription.received ? .pop : .slide)
         billState         = .init(
-            bill: .cash(payload, mint: billDescription.exchangedFiat.mint),
+            bill: .cash(payload, mint: billDescription.exchangedFiat.mint, billColors: billColors),
             primaryAction: primaryAction,
             secondaryAction: secondaryAction,
         )

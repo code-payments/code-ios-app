@@ -77,6 +77,8 @@ extension Database {
             m.coreMintFees,
             m.supplyFromBonding,
             m.sellFeeBps,
+            m.socialLinks,
+            m.billColors,
             m.updatedAt
         FROM
             mint m
@@ -84,9 +86,9 @@ extension Database {
             m.mint = ?
         LIMIT 1;
         """, bindings: Blob(bytes: mint.bytes))
-        
+
         let m = MintTable()
-        
+
         let mints = try statement.compactMap { row in
             StoredMintMetadata(
                 mint:              row[m.mint],
@@ -107,6 +109,8 @@ extension Database {
                 coreMintFees:      row[m.coreMintFees],
                 supplyFromBonding: row[m.supplyFromBonding],
                 sellFeeBps:        row[m.sellFeeBps],
+                socialLinks:       row[m.socialLinks],
+                billColors:        row[m.billColors],
                 updatedAt:         row[m.updatedAt]
             )
         }
@@ -164,6 +168,19 @@ extension Database {
 
     private func insert(mint: MintMetadata, date: Date) throws {
         let table = MintTable()
+
+        let socialLinksJSON: String? = {
+            guard !mint.socialLinks.isEmpty else { return nil }
+            guard let data = try? JSONEncoder().encode(mint.socialLinks) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }()
+
+        let billColorsJSON: String? = {
+            guard !mint.billColors.isEmpty else { return nil }
+            guard let data = try? JSONEncoder().encode(mint.billColors) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }()
+
         try writer.run(
             table.table.upsert(
                 table.mint              <- mint.address,
@@ -186,6 +203,9 @@ extension Database {
                 table.coreMintFees      <- mint.launchpadMetadata?.coreMintFees,
                 table.supplyFromBonding <- mint.launchpadMetadata?.supplyFromBonding,
                 table.sellFeeBps        <- mint.launchpadMetadata?.sellFeeBps,
+
+                table.socialLinks       <- socialLinksJSON,
+                table.billColors        <- billColorsJSON,
 
                 table.updatedAt         <- date,
 
