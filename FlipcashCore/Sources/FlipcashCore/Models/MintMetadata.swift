@@ -57,6 +57,9 @@ public struct MintMetadata: Equatable, Sendable {
     /// Bill customization colors as hex strings (e.g. "#19191A")
     public let billColors: [String]
 
+    /// Timestamp the currency was created
+    public let createdAt: Date?
+
     public init(
         address: PublicKey,
         decimals: Int,
@@ -67,7 +70,8 @@ public struct MintMetadata: Equatable, Sendable {
         vmMetadata: VMMetadata?,
         launchpadMetadata: LaunchpadMetadata?,
         socialLinks: [SocialLink] = [],
-        billColors: [String] = []
+        billColors: [String] = [],
+        createdAt: Date? = nil
     ) {
         self.address = address
         self.decimals = decimals
@@ -79,6 +83,7 @@ public struct MintMetadata: Equatable, Sendable {
         self.launchpadMetadata = launchpadMetadata
         self.socialLinks = socialLinks
         self.billColors = billColors
+        self.createdAt = createdAt
     }
 
     public static let usdf: MintMetadata =
@@ -231,7 +236,8 @@ extension MintMetadata {
             vmMetadata: proto.hasVmMetadata ? try VMMetadata(proto.vmMetadata) : nil,
             launchpadMetadata: proto.hasLaunchpadMetadata ? try LaunchpadMetadata(proto.launchpadMetadata) : nil,
             socialLinks: socialLinks,
-            billColors: billColors
+            billColors: billColors,
+            createdAt: proto.hasCreatedAt ? proto.createdAt.date : nil
         )
     }
     
