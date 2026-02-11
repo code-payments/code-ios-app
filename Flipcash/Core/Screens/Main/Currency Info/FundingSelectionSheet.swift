@@ -27,7 +27,7 @@ struct FundingSelectionSheet: View {
                 .padding(.vertical, 20)
 
                 if reserveBalance.quarks > 0 {
-                    CodeButton(style: .filled, title: "USDF Reserves (\(reserveBalance))") {
+                    CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
                         onSelectReserves()
                     }
                 }

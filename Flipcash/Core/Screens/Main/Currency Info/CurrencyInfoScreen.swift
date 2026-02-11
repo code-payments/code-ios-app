@@ -176,7 +176,7 @@ struct CurrencyInfoScreen: View {
     @ViewBuilder private func toolbarContent() -> some View {
         if let metadata = mintMetadata {
             if metadata.mint == .usdf {
-                Text("Cash Reserves")
+                Text("USD Reserves")
                     .font(.appBarButton)
                     .foregroundStyle(Color.textMain)
             } else {
