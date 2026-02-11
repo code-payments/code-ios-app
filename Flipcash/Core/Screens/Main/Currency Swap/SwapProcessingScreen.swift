@@ -83,6 +83,7 @@ struct SwapProcessingScreen: View {
             }
         }
         .navigationTitle(viewModel.navigationTitle)
+        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .interactiveDismissDisabled(true)
         .task {
