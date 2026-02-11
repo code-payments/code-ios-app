@@ -110,7 +110,7 @@ class SwapProcessingViewModel: ObservableObject {
             let metadata = try await client.pollSwapState(
                 swapId: swapId,
                 owner: ownerKeyPair,
-                maxAttempts: 60
+                maxAttempts: 90
             ) { [weak self] state in
                 Task { @MainActor in
                     self?.currentState = state
