@@ -116,7 +116,7 @@ class SwapProcessingViewModel: ObservableObject {
                     self?.currentState = state
                 }
             }
-            
+
             switch metadata.state {
             case .finalized:
                 setSwapDetails()
@@ -126,6 +126,10 @@ class SwapProcessingViewModel: ObservableObject {
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
                 displayState = .failed
             }
+        } catch is CancellationError {
+            // Task was cancelled (e.g., by SwiftUI during navigation
+            // transitions on iOS 18). Don't treat as failure — the view
+            // will restart the task if still visible.
         } catch {
             // Poll limit reached or other error
             displayState = .failed
