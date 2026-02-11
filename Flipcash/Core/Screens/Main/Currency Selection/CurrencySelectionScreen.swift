@@ -9,6 +9,7 @@ import SwiftUI
 import FlipcashUI
 import FlipcashCore
 
+@available(*, deprecated, renamed: "RegionSelectionScreen")
 struct CurrencySelectionScreen: View {
     
     @StateObject private var viewModel: CurrencySelectionViewModel
@@ -44,7 +45,7 @@ struct CurrencySelectionScreen: View {
                 .listStyle(.grouped)
                 .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Select Currency")
+            .navigationTitle("Select Region")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -54,7 +55,7 @@ struct CurrencySelectionScreen: View {
             .searchable(
                 text: $viewModel.searchText,
                 placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search Currencies"
+                prompt: "Search Regions"
             )
             .foregroundStyle(Color.textMain)
         }
@@ -74,7 +75,7 @@ struct CurrencySelectionScreen: View {
     
     @ViewBuilder private func recentCurrencies() -> some View {
         if !viewModel.availableRecentCurrencies.isEmpty {
-            Section(header: ListHeader("Recent Currencies")) {
+            Section(header: ListHeader("Recent Regions")) {
                 ForEach(viewModel.availableRecentCurrencies) { description in
                     currencyRow(for: description, canDelete: true)
                 }
@@ -83,7 +84,7 @@ struct CurrencySelectionScreen: View {
     }
     
     @ViewBuilder private func otherCurrencies() -> some View {
-        Section(header: ListHeader("Other Currencies")) {
+        Section(header: ListHeader("Other Regions")) {
             ForEach(viewModel.availableCurrencies) { description in
                 currencyRow(for: description)
             }

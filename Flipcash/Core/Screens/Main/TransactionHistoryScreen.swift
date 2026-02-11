@@ -57,15 +57,7 @@ struct TransactionHistoryScreen: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    CurrencyLabel(
-                        imageURL: mintMetadata.imageURL,
-                        name: mintMetadata.name,
-                        amount: nil
-                    )
-                }
-            }
+            .navigationTitle("Transaction History")
         }
         .dialog(item: $dialogItem)
     }
