@@ -201,7 +201,7 @@ extension Client {
     public func pollSwapState(
         swapId: SwapId,
         owner: KeyPair,
-        maxAttempts: Int = 60,
+        maxAttempts: Int = 90,
         onStateChange: (@Sendable (SwapState) -> Void)? = nil
     ) async throws -> SwapMetadata {
         var lastState: SwapState?
