@@ -173,11 +173,14 @@ struct BalanceScreen: View {
                     VStack {
                         header()
                             .frame(height: 60)
-                        
+
                         ValueAppreciation(amount: appreciation.amount, isPositive: appreciation.isPositive)
                             .padding(.top, 4)
                     }
-                        .padding(.vertical, 30)
+                    // iOS 18.6 and earlier: List section headers default to .textCase(.uppercase),
+                    // which propagates into child views and sheets presented from within the header.
+                    .textCase(.none)
+                    .padding(.vertical, 30)
                 } footer: {
                     if let reservesBalance {
                         cashReservesFooter(reservesBalance: reservesBalance)
