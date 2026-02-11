@@ -48,6 +48,8 @@ struct MintTable: Sendable {
     let socialLinks       = Expression <String?>    ("socialLinks")
     let billColors        = Expression <String?>    ("billColors")
 
+    let createdAt         = Expression <Date?>      ("createdAt")
+
     let updatedAt         = Expression <Date>       ("updatedAt")
 }
 
@@ -141,12 +143,17 @@ extension Database {
                 t.column(mintTable.socialLinks)
                 t.column(mintTable.billColors)
 
+                t.column(mintTable.createdAt)
+
                 t.column(mintTable.updatedAt)
             })
 
             // Migration: add socialLinks and billColors columns if they don't exist
             _ = try? writer.run(mintTable.table.addColumn(mintTable.socialLinks))
             _ = try? writer.run(mintTable.table.addColumn(mintTable.billColors))
+
+            // Migration: add createdAt column if it doesn't exist
+            _ = try? writer.run(mintTable.table.addColumn(mintTable.createdAt))
         }
         
         try writer.transaction {

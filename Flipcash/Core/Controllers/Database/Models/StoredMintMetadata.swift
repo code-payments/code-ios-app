@@ -32,13 +32,15 @@ struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
     let socialLinks: String?
     let billColors: String?
 
+    let createdAt: Date?
+
     let updatedAt: Date
 
     var id: PublicKey {
         mint
     }
 
-    init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, sellFeeBps: Int?, socialLinks: String? = nil, billColors: String? = nil, updatedAt: Date) {
+    init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, sellFeeBps: Int?, socialLinks: String? = nil, billColors: String? = nil, createdAt: Date? = nil, updatedAt: Date) {
         self.mint = mint
         self.name = name
         self.symbol = symbol
@@ -59,6 +61,7 @@ struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
         self.sellFeeBps = sellFeeBps
         self.socialLinks = socialLinks
         self.billColors = billColors
+        self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 }

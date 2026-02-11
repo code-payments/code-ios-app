@@ -79,6 +79,7 @@ extension Database {
             m.sellFeeBps,
             m.socialLinks,
             m.billColors,
+            m.createdAt,
             m.updatedAt
         FROM
             mint m
@@ -111,6 +112,7 @@ extension Database {
                 sellFeeBps:        row[m.sellFeeBps],
                 socialLinks:       row[m.socialLinks],
                 billColors:        row[m.billColors],
+                createdAt:         row[m.createdAt],
                 updatedAt:         row[m.updatedAt]
             )
         }
@@ -206,6 +208,8 @@ extension Database {
 
                 table.socialLinks       <- socialLinksJSON,
                 table.billColors        <- billColorsJSON,
+
+                table.createdAt         <- mint.createdAt,
 
                 table.updatedAt         <- date,
 

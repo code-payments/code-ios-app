@@ -237,8 +237,14 @@ struct CurrencyInfoScreen: View {
                             }
                             .font(.appBarButton)
                             .foregroundStyle(Color.textMain)
+
+                            if let createdAt = metadata.createdAt {
+                                Text("Created \(createdAt.formatted(date: .abbreviated, time: .omitted))")
+                                    .foregroundStyle(Color.textSecondary)
+                                    .font(.appTextSmall)
+                            }
                         }
-                        
+
                         Text(currencyDescription)
                             .foregroundStyle(Color.textSecondary)
                             .font(.appTextSmall)
@@ -263,6 +269,9 @@ struct CurrencyInfoScreen: View {
                                     }
                                 }
                             }
+                            .scrollIndicators(.hidden)
+                            .padding(.horizontal, -20) // Extend past the parent's padding
+                            .contentMargins(.horizontal, 20) // Inset the scroll content to match
                         }
                     }                    
 
