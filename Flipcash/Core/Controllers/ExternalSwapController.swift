@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import FlipcashCore
 import FlipcashUI
 
@@ -19,28 +20,34 @@ import FlipcashUI
 @MainActor
 final class ExternalSwapController: ObservableObject {
     /// Current processing context. When set, the processing screen should be shown.
-    @Published var processing: ExternalSwapProcessing? {
-        didSet {
-            suppressWalletDialogs = processing != nil
-        }
-    }
-
-    /// When true, wallet dialogs are suppressed while the processing screen is active.
-    @Published private(set) var suppressWalletDialogs: Bool = false
+    @Published var processing: ExternalSwapProcessing?
 
     private let walletConnection: WalletConnection
+    private var dialogObserver: AnyCancellable?
 
     /// Creates the controller with the required wallet connection dependency.
     init(walletConnection: WalletConnection) {
         self.walletConnection = walletConnection
 
+        // `WalletConnection` is a separate `ObservableObject` whose `dialogItem` changes
+        // aren't visible to views observing *this* controller. We forward its change
+        // notifications so SwiftUI knows to re-evaluate our `dialogItem` binding.
+        dialogObserver = walletConnection.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+
         walletConnection.onCancelled = { [weak self] in
             guard let self else { return }
-            // Dismiss processing first so dialogs are no longer suppressed
+
+            // Clear processing first to pop the SwapProcessingScreen. The dialog must
+            // be deferred because SwiftUI can't present a sheet while a navigation
+            // transition is animating — setting both in the same run-loop tick causes
+            // the sheet to be silently dropped.
             self.processing = nil
-            // Defer dialog presentation so SwiftUI picks up the
-            // suppressWalletDialogs change before evaluating the binding
+
             Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(500))
                 self?.walletConnection.dialogItem = .init(
                     style: .destructive,
                     title: "Transaction Cancelled",
@@ -53,19 +60,34 @@ final class ExternalSwapController: ObservableObject {
         }
     }
 
+    /// The dialog to present from `CurrencyInfoScreen`.
+    ///
+    /// This is a computed `Binding` over `walletConnection.dialogItem`. Dialogs originate from
+    /// two places — `WalletConnection` (success/error after signing) and `onCancelled`
+    /// (user cancelled in External Wallet). Both set `walletConnection.dialogItem` and this
+    /// binding surfaces it so `CurrencyInfoScreen` only needs
+    /// `.dialog(item: externalSwapController.dialogItem)`.
+    ///
+    /// **Why this works:** `WalletConnection` is a separate `ObservableObject` whose changes
+    /// aren't visible to views that observe this controller. The `dialogObserver` in `init`
+    /// forwards `WalletConnection.objectWillChange` → `self.objectWillChange` so SwiftUI
+    /// re-evaluates this binding whenever the underlying value changes — both for presentation
+    /// *and* dismissal.
+    ///
+    /// **Suppression during processing:** While `processing != nil` the getter returns `nil`
+    /// to prevent wallet dialogs from appearing over the `SwapProcessingScreen`.
+    var dialogItem: Binding<DialogItem?> {
+        Binding(
+            get: { self.processing != nil ? nil : self.walletConnection.dialogItem },
+            set: { self.walletConnection.dialogItem = $0 }
+        )
+    }
+
     /// Binding to the amount entry presentation state.
     var isShowingAmountEntry: Binding<Bool> {
         Binding(
             get: { self.walletConnection.isShowingAmountEntry },
             set: { self.walletConnection.isShowingAmountEntry = $0 }
-        )
-    }
-
-    /// Dialog binding that automatically suppresses wallet dialogs during processing.
-    var dialogItem: Binding<DialogItem?> {
-        Binding(
-            get: { self.suppressWalletDialogs ? nil : self.walletConnection.dialogItem },
-            set: { self.walletConnection.dialogItem = $0 }
         )
     }
 

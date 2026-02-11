@@ -194,14 +194,14 @@ extension Client {
     /// - Parameters:
     ///   - swapId: The swap to poll
     ///   - owner: Owner keypair for authentication
-    ///   - maxAttempts: Maximum number of poll attempts (default 60)
+    ///   - maxAttempts: Maximum number of poll attempts
     ///   - onStateChange: Optional callback for state changes (called on each poll)
     /// - Returns: Final SwapMetadata when terminal state is reached
     /// - Throws: ClientError.pollLimitReached if max attempts exceeded
     public func pollSwapState(
         swapId: SwapId,
         owner: KeyPair,
-        maxAttempts: Int = 90,
+        maxAttempts: Int,
         onStateChange: (@Sendable (SwapState) -> Void)? = nil
     ) async throws -> SwapMetadata {
         var lastState: SwapState?
