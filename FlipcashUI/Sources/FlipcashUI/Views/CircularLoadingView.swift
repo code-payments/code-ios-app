@@ -12,17 +12,20 @@ public struct CircularLoadingView: View {
     private let lineWidth: CGFloat
     private let ringColor: Color
     private let highlightColor: Color
+    private let duration: TimeInterval
 
-    @State private var isAnimating = false
+    @State private var progress: CGFloat = 0
 
     public init(
-        lineWidth: CGFloat = 3,
+        lineWidth: CGFloat = 5,
         ringColor: Color = .white.opacity(0.3),
-        highlightColor: Color = .white
+        highlightColor: Color = .white,
+        duration: TimeInterval
     ) {
         self.lineWidth = lineWidth
         self.ringColor = ringColor
         self.highlightColor = highlightColor
+        self.duration = duration
     }
 
     public var body: some View {
@@ -40,21 +43,18 @@ public struct CircularLoadingView: View {
                     .frame(width: size, height: size)
                     .position(center)
 
-                // Animated highlight segment
+                // Progress fill
                 Circle()
-                    .trim(from: 0, to: 0.25)
+                    .trim(from: 0, to: progress)
                     .stroke(highlightColor, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                     .frame(width: size, height: size)
-                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                    .rotationEffect(.degrees(-90))
                     .position(center)
             }
         }
         .onAppear {
-            withAnimation(
-                .linear(duration: 1.0)
-                .repeatForever(autoreverses: false)
-            ) {
-                isAnimating = true
+            withAnimation(.linear(duration: duration)) {
+                progress = 1.0
             }
         }
     }
@@ -63,7 +63,7 @@ public struct CircularLoadingView: View {
 #Preview {
     ZStack {
         Color.black
-        CircularLoadingView()
+        CircularLoadingView(duration: 5)
             .frame(width: 64, height: 64)
     }
 }

@@ -110,7 +110,7 @@ struct SwapStatusIcon: View {
         Group {
             switch displayState {
             case .processing:
-                CircularLoadingView(lineWidth: 5)
+                CircularLoadingView(duration: 60)
 
             case .success:
                 Image("IconCircleCheck")
