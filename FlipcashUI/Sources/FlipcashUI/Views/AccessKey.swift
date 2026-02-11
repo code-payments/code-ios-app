@@ -32,11 +32,12 @@ public struct AccessKey: View {
     
     public var body: some View {
         Rectangle()
-            .fill(Color.black)
+            .fill(Color(red: 0.85, green: 0.85, blue: 0.85))
             .aspectRatio(0.607, contentMode: .fit)
             .overlay(
                 Rectangle()
                     .foregroundColor(.clear)
+                    .frame(width: 400, height: 520)
                     .background(
                         EllipticalGradient(
                             stops: [
@@ -49,17 +50,17 @@ public struct AccessKey: View {
                     .background(
                         LinearGradient(
                             stops: [
-                                Gradient.Stop(color: Color(red: 0.22, green: 0.22, blue: 0.26), location: 0.17),
-                                Gradient.Stop(color: Color(red: 0.21, green: 0.21, blue: 0.22), location: 0.60),
-                                Gradient.Stop(color: Color(red: 0.76, green: 0.76, blue: 0.76), location: 0.81),
-                                Gradient.Stop(color: Color(red: 0.1, green: 0.1, blue: 0.1), location: 1.00),
+                                Gradient.Stop(color: Color(red: 0.1, green: 0.1, blue: 0.1), location: 0.17),
+                                Gradient.Stop(color: Color(red: 0.23, green: 0.23, blue: 0.23), location: 0.52),
+                                Gradient.Stop(color: Color(red: 0.56, green: 0.56, blue: 0.56), location: 0.70),
+                                Gradient.Stop(color: Color(red: 0.2, green: 0.2, blue: 0.2), location: 0.84),
                             ],
-                            startPoint: UnitPoint(x: 0.2, y: 0.91),
-                            endPoint: UnitPoint(x: 0.81, y: 0.11)
+                            startPoint: UnitPoint(x: -0.12, y: 1.05),
+                            endPoint: UnitPoint(x: 1.04, y: 0.08)
                         )
                     )
+                    .cornerRadius(8)
                     .blur(radius: 31)
-                    .opacity(0.29)
             )
             .overlay(
                 VStack {
@@ -69,9 +70,9 @@ public struct AccessKey: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(maxHeight: 50)
                         .foregroundStyle(Color.white)
-
+                    
                     Spacer()
-
+                    
                     QRCode(
                         string: url.absoluteString,
                         showLabel: false,
@@ -80,9 +81,9 @@ public struct AccessKey: View {
                     )
                     .aspectRatio(1, contentMode: .fit)
                     .frame(maxWidth: 145)
-
+                    
                     Spacer()
-
+                    
                     VStack {
                         ForEach(mnemonicGroups, id: \.self) { group in
                             Text(group)
@@ -90,7 +91,7 @@ public struct AccessKey: View {
                     }
                     .font(.appTextAccessKey)
                 }
-                .padding([.top, .bottom], 60)
+                    .padding([.top, .bottom], 60)
             )
             .clipped()
             .cornerRadius(10)
