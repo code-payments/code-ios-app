@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import FlipcashUI
 import FlipcashCore
 import TweetNacl
@@ -68,8 +69,12 @@ public final class WalletConnection: ObservableObject {
     }
     
     // MARK: - Receive -
-    
+
     func didReceiveURL(url: URL) {
+        // The user has returned from the external wallet — re-enable interface reset
+        // regardless of outcome (success, cancel, error).
+        UIApplication.isInterfaceResetDisabled = false
+
         if let code = url.queryItemValue(for: "errorCode") {
             if code == "4001" {
                 Analytics.walletCancel()
@@ -243,6 +248,13 @@ public final class WalletConnection: ObservableObject {
         }
     }
     
+    /// Opens the external wallet via deep link and disables interface reset while the user is away.
+    /// The flag is cleared in `didReceiveURL` when Phantom redirects back.
+    private func openExternalWallet(_ url: URL) {
+        UIApplication.isInterfaceResetDisabled = true
+        url.openWithApplication()
+    }
+
     // MARK: - Actions -
 
     func connectToPhantom() {
@@ -258,7 +270,7 @@ public final class WalletConnection: ObservableObject {
         ]
 
         Analytics.walletConnect()
-        c.url!.openWithApplication()
+        openExternalWallet(c.url!)
     }
     
     /// Uses Phantom `signAllTransactions` (replaces deprecated `signAndSendTransaction`) to sign a single
@@ -323,7 +335,7 @@ public final class WalletConnection: ObservableObject {
             }
 
             Analytics.walletRequestAmount(amount: usdf)
-            url.openWithApplication()
+            openExternalWallet(url)
             print("[WalletConnection] Requested transfer of \(usdf) USDF to \(depositAddress.base58EncodedString)")
             
         } catch {
@@ -418,7 +430,7 @@ public final class WalletConnection: ObservableObject {
         }
 
         Analytics.walletRequestAmount(amount: amount.underlying)
-        url.openWithApplication()
+        openExternalWallet(url)
         print("[WalletConnection] Requested USDC→USDF swap of \(amount.underlying) for \(token.symbol), swapId: \(swapId.publicKey.base58)")
 
         return (swapId: swapId, amount: amount)

@@ -406,6 +406,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 | Working on pools/betting code | Feature is deprecated, ignore it |
 | Adding unnecessary abstractions | Keep it simple, solve the current problem |
 | Completing a transaction without refreshing balances | Call `session.updatePostTransaction()` after any transaction completes |
+| Programmatically leaving the app without disabling interface reset | Set `UIApplication.isInterfaceResetDisabled = true` before leaving (e.g. share sheet, external wallet), clear on return. See cash link share sheet in `Session.swift` for the pattern |
 
 ---
 
