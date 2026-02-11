@@ -60,7 +60,15 @@ class OnboardingViewModel: ObservableObject {
     // MARK: - Action -
     
     func loginAction() {
-        navigateToAccountSelection()
+        let hasAccounts = sessionAuthenticator.accountManager
+            .fetchHistorical()
+            .contains { $0.deletionDate == nil }
+
+        if hasAccounts {
+            navigateToAccountSelection()
+        } else {
+            navigateToLogin()
+        }
     }
     
     func createAccountAction() {
@@ -414,7 +422,7 @@ class OnboardingViewModel: ObservableObject {
     }
 
     func navigateToLogin() {
-        path = [.accountSelection, .login]
+        path = [.login]
     }
     
     func navigateToAccessKey() {
