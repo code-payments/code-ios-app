@@ -25,7 +25,7 @@ struct BalanceScreen: View {
     @State private var selectedMint: PublicKey?
     
     private var balance: ExchangedFiat {
-        session.totalBalance
+        balances.map(\.exchangedFiat).total(rate: balanceRate)
     }
     
     private let proportion: CGFloat = 0.4
