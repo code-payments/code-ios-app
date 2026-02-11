@@ -64,7 +64,7 @@ struct SwapProcessingScreen: View {
                     .padding(20)
                 } else {
                     CodeButton(
-                        state: pushController.authorizationStatus == .authorized ? .successText("We will notify you") : .normal,
+                        state: pushController.authorizationStatus == .authorized ? .successText("We'll Notify You") : .normal,
                         style: .filled,
                         title: "Notify Me When Complete"
                     ) {
