@@ -20,7 +20,7 @@ class CurrencySellConfirmationViewModel: ObservableObject {
 
     var canDismissSheet: Bool = false
     
-    var fee: ExchangedFiat {
+    private var fee: ExchangedFiat {
         let bps: UInt64 = 100
         let underlying = Quarks(
             quarks: amount.underlying.quarks * bps / 10_000,
@@ -41,11 +41,17 @@ class CurrencySellConfirmationViewModel: ObservableObject {
         )
     }
     
+    /// Formats the fee for display, prefixing with "~" when the value is
+    /// sub-cent (e.g. "~$0.00") to indicate a non-zero but negligible fee.
+    var feeFormatted: String {
+        let prefix = fee.converted.decimalValue < 0.01 ? "~" : ""
+        return "\(prefix)\(fee.converted.formatted())"
+    }
+    
     var amountAfterFee: ExchangedFiat {
         do {
             return try amount.subtracting(fee)
         } catch {
-            // FIXME: How do we handle subtracting failures?
             return amount
         }
     }
