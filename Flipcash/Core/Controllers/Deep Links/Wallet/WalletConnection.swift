@@ -222,16 +222,9 @@ public final class WalletConnection: ObservableObject {
                         )
 
                         print("[WalletConnection] Server notified of swap funding via buy()")
-                        await MainActor.run {
-                            self.showSuccessDialog(tokenName: pending.token.name)
-                        }
-
                     } catch {
                         ErrorReporting.captureError(error, reason: "Failed to notify server of swap funding")
                         print("[WalletConnection] Failed to notify server: \(error)")
-                        await MainActor.run {
-                            self.showSomethingWentWrongDialog()
-                        }
                     }
                 } else {
                     // Regular transfer (not a swap)
