@@ -260,11 +260,8 @@ extension UINavigationController {
             return
         }
         
-        navigationBar.topItem?.backBarButtonItem = UIBarButtonItem(
-            title: "",
-            style: .plain,
-            target: nil,
-            action: nil
-        )
+        for viewController in viewControllers {
+            viewController.navigationItem.backButtonDisplayMode = .minimal
+        }
     }
 }
