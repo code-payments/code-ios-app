@@ -781,25 +781,29 @@ class Session: ObservableObject {
             self?.dismissCashBill(style: .slide)
         }
         
+        let storedMintMetadata = try? database.getMintMetadata(mint: billDescription.exchangedFiat.mint)
+
         if billDescription.received {
             Task {
                 try await Task.delay(milliseconds: 750)
                 valuation = BillValuation(
                     rendezvous: payload.rendezvous.publicKey,
                     exchangedFiat: billDescription.exchangedFiat,
-                    mintMetadata: try database.getMintMetadata(mint: billDescription.exchangedFiat.mint)
+                    mintMetadata: storedMintMetadata
                 )
             }
-            
+
             // Don't show actions for receives
             primaryAction   = nil
             secondaryAction = nil
         }
-        
+
+        let billColors = storedMintMetadata?.metadata.billColors ?? []
+
         sendOperation     = operation
         presentationState = .visible(billDescription.received ? .pop : .slide)
         billState         = .init(
-            bill: .cash(payload, mint: billDescription.exchangedFiat.mint),
+            bill: .cash(payload, mint: billDescription.exchangedFiat.mint, billColors: billColors),
             primaryAction: primaryAction,
             secondaryAction: secondaryAction,
         )

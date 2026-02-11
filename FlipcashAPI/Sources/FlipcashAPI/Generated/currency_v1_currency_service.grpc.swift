@@ -16,11 +16,6 @@ public protocol Ocp_Currency_V1_CurrencyClientProtocol: GRPCClient {
   var serviceName: String { get }
   var interceptors: Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol? { get }
 
-  func getAllRates(
-    _ request: Ocp_Currency_V1_GetAllRatesRequest,
-    callOptions: CallOptions?
-  ) -> UnaryCall<Ocp_Currency_V1_GetAllRatesRequest, Ocp_Currency_V1_GetAllRatesResponse>
-
   func getMints(
     _ request: Ocp_Currency_V1_GetMintsRequest,
     callOptions: CallOptions?
@@ -40,27 +35,6 @@ public protocol Ocp_Currency_V1_CurrencyClientProtocol: GRPCClient {
 extension Ocp_Currency_V1_CurrencyClientProtocol {
   public var serviceName: String {
     return "ocp.currency.v1.Currency"
-  }
-
-  /// GetAllRates returns the exchange rates for the core mint token against all
-  /// available currencies
-  ///
-  /// Deprecated: Use StreamLiveMintData instead
-  ///
-  /// - Parameters:
-  ///   - request: Request to send to GetAllRates.
-  ///   - callOptions: Call options.
-  /// - Returns: A `UnaryCall` with futures for the metadata, status and response.
-  public func getAllRates(
-    _ request: Ocp_Currency_V1_GetAllRatesRequest,
-    callOptions: CallOptions? = nil
-  ) -> UnaryCall<Ocp_Currency_V1_GetAllRatesRequest, Ocp_Currency_V1_GetAllRatesResponse> {
-    return self.makeUnaryCall(
-      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.getAllRates.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
-    )
   }
 
   /// GetMints gets mint account metadata by address
@@ -183,11 +157,6 @@ public protocol Ocp_Currency_V1_CurrencyAsyncClientProtocol: GRPCClient {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol? { get }
 
-  func makeGetAllRatesCall(
-    _ request: Ocp_Currency_V1_GetAllRatesRequest,
-    callOptions: CallOptions?
-  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_GetAllRatesRequest, Ocp_Currency_V1_GetAllRatesResponse>
-
   func makeGetMintsCall(
     _ request: Ocp_Currency_V1_GetMintsRequest,
     callOptions: CallOptions?
@@ -211,18 +180,6 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
 
   public var interceptors: Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol? {
     return nil
-  }
-
-  public func makeGetAllRatesCall(
-    _ request: Ocp_Currency_V1_GetAllRatesRequest,
-    callOptions: CallOptions? = nil
-  ) -> GRPCAsyncUnaryCall<Ocp_Currency_V1_GetAllRatesRequest, Ocp_Currency_V1_GetAllRatesResponse> {
-    return self.makeAsyncUnaryCall(
-      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.getAllRates.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
-    )
   }
 
   public func makeGetMintsCall(
@@ -262,18 +219,6 @@ extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
 
 @available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 extension Ocp_Currency_V1_CurrencyAsyncClientProtocol {
-  public func getAllRates(
-    _ request: Ocp_Currency_V1_GetAllRatesRequest,
-    callOptions: CallOptions? = nil
-  ) async throws -> Ocp_Currency_V1_GetAllRatesResponse {
-    return try await self.performAsyncUnaryCall(
-      path: Ocp_Currency_V1_CurrencyClientMetadata.Methods.getAllRates.path,
-      request: request,
-      callOptions: callOptions ?? self.defaultCallOptions,
-      interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? []
-    )
-  }
-
   public func getMints(
     _ request: Ocp_Currency_V1_GetMintsRequest,
     callOptions: CallOptions? = nil
@@ -342,9 +287,6 @@ public struct Ocp_Currency_V1_CurrencyAsyncClient: Ocp_Currency_V1_CurrencyAsync
 
 public protocol Ocp_Currency_V1_CurrencyClientInterceptorFactoryProtocol: Sendable {
 
-  /// - Returns: Interceptors to use when invoking 'getAllRates'.
-  func makeGetAllRatesInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_GetAllRatesRequest, Ocp_Currency_V1_GetAllRatesResponse>]
-
   /// - Returns: Interceptors to use when invoking 'getMints'.
   func makeGetMintsInterceptors() -> [ClientInterceptor<Ocp_Currency_V1_GetMintsRequest, Ocp_Currency_V1_GetMintsResponse>]
 
@@ -360,7 +302,6 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
     name: "Currency",
     fullName: "ocp.currency.v1.Currency",
     methods: [
-      Ocp_Currency_V1_CurrencyClientMetadata.Methods.getAllRates,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getMints,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.getHistoricalMintData,
       Ocp_Currency_V1_CurrencyClientMetadata.Methods.streamLiveMintData,
@@ -368,12 +309,6 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
   )
 
   public enum Methods {
-    public static let getAllRates = GRPCMethodDescriptor(
-      name: "GetAllRates",
-      path: "/ocp.currency.v1.Currency/GetAllRates",
-      type: GRPCCallType.unary
-    )
-
     public static let getMints = GRPCMethodDescriptor(
       name: "GetMints",
       path: "/ocp.currency.v1.Currency/GetMints",
@@ -398,12 +333,6 @@ public enum Ocp_Currency_V1_CurrencyClientMetadata {
 public protocol Ocp_Currency_V1_CurrencyProvider: CallHandlerProvider {
   var interceptors: Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol? { get }
 
-  /// GetAllRates returns the exchange rates for the core mint token against all
-  /// available currencies
-  ///
-  /// Deprecated: Use StreamLiveMintData instead
-  func getAllRates(request: Ocp_Currency_V1_GetAllRatesRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_GetAllRatesResponse>
-
   /// GetMints gets mint account metadata by address
   func getMints(request: Ocp_Currency_V1_GetMintsRequest, context: StatusOnlyCallContext) -> EventLoopFuture<Ocp_Currency_V1_GetMintsResponse>
 
@@ -426,15 +355,6 @@ extension Ocp_Currency_V1_CurrencyProvider {
     context: CallHandlerContext
   ) -> GRPCServerHandlerProtocol? {
     switch name {
-    case "GetAllRates":
-      return UnaryServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_GetAllRatesRequest>(),
-        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_GetAllRatesResponse>(),
-        interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? [],
-        userFunction: self.getAllRates(request:context:)
-      )
-
     case "GetMints":
       return UnaryServerHandler(
         context: context,
@@ -473,15 +393,6 @@ extension Ocp_Currency_V1_CurrencyProvider {
 public protocol Ocp_Currency_V1_CurrencyAsyncProvider: CallHandlerProvider, Sendable {
   static var serviceDescriptor: GRPCServiceDescriptor { get }
   var interceptors: Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol? { get }
-
-  /// GetAllRates returns the exchange rates for the core mint token against all
-  /// available currencies
-  ///
-  /// Deprecated: Use StreamLiveMintData instead
-  func getAllRates(
-    request: Ocp_Currency_V1_GetAllRatesRequest,
-    context: GRPCAsyncServerCallContext
-  ) async throws -> Ocp_Currency_V1_GetAllRatesResponse
 
   /// GetMints gets mint account metadata by address
   func getMints(
@@ -522,15 +433,6 @@ extension Ocp_Currency_V1_CurrencyAsyncProvider {
     context: CallHandlerContext
   ) -> GRPCServerHandlerProtocol? {
     switch name {
-    case "GetAllRates":
-      return GRPCAsyncServerHandler(
-        context: context,
-        requestDeserializer: ProtobufDeserializer<Ocp_Currency_V1_GetAllRatesRequest>(),
-        responseSerializer: ProtobufSerializer<Ocp_Currency_V1_GetAllRatesResponse>(),
-        interceptors: self.interceptors?.makeGetAllRatesInterceptors() ?? [],
-        wrapping: { try await self.getAllRates(request: $0, context: $1) }
-      )
-
     case "GetMints":
       return GRPCAsyncServerHandler(
         context: context,
@@ -566,10 +468,6 @@ extension Ocp_Currency_V1_CurrencyAsyncProvider {
 
 public protocol Ocp_Currency_V1_CurrencyServerInterceptorFactoryProtocol: Sendable {
 
-  /// - Returns: Interceptors to use when handling 'getAllRates'.
-  ///   Defaults to calling `self.makeInterceptors()`.
-  func makeGetAllRatesInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_GetAllRatesRequest, Ocp_Currency_V1_GetAllRatesResponse>]
-
   /// - Returns: Interceptors to use when handling 'getMints'.
   ///   Defaults to calling `self.makeInterceptors()`.
   func makeGetMintsInterceptors() -> [ServerInterceptor<Ocp_Currency_V1_GetMintsRequest, Ocp_Currency_V1_GetMintsResponse>]
@@ -588,7 +486,6 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
     name: "Currency",
     fullName: "ocp.currency.v1.Currency",
     methods: [
-      Ocp_Currency_V1_CurrencyServerMetadata.Methods.getAllRates,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getMints,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.getHistoricalMintData,
       Ocp_Currency_V1_CurrencyServerMetadata.Methods.streamLiveMintData,
@@ -596,12 +493,6 @@ public enum Ocp_Currency_V1_CurrencyServerMetadata {
   )
 
   public enum Methods {
-    public static let getAllRates = GRPCMethodDescriptor(
-      name: "GetAllRates",
-      path: "/ocp.currency.v1.Currency/GetAllRates",
-      type: GRPCCallType.unary
-    )
-
     public static let getMints = GRPCMethodDescriptor(
       name: "GetMints",
       path: "/ocp.currency.v1.Currency/GetMints",

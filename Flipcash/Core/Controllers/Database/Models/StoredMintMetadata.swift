@@ -29,13 +29,16 @@ struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
     let supplyFromBonding: UInt64?
     let sellFeeBps: Int?
 
+    let socialLinks: String?
+    let billColors: String?
+
     let updatedAt: Date
-    
+
     var id: PublicKey {
         mint
     }
-    
-    init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, sellFeeBps: Int?, updatedAt: Date) {
+
+    init(mint: PublicKey, name: String, symbol: String, decimals: Int, bio: String?, imageURL: URL?, vmAddress: PublicKey?, vmAuthority: PublicKey?, lockDuration: Int?, currencyConfig: PublicKey?, liquidityPool: PublicKey?, seed: PublicKey?, authority: PublicKey?, mintVault: PublicKey?, coreMintVault: PublicKey?, coreMintFees: PublicKey?, supplyFromBonding: UInt64?, sellFeeBps: Int?, socialLinks: String? = nil, billColors: String? = nil, updatedAt: Date) {
         self.mint = mint
         self.name = name
         self.symbol = symbol
@@ -54,6 +57,8 @@ struct StoredMintMetadata: Identifiable, Sendable, Equatable, Hashable {
         self.coreMintFees = coreMintFees
         self.supplyFromBonding = supplyFromBonding
         self.sellFeeBps = sellFeeBps
+        self.socialLinks = socialLinks
+        self.billColors = billColors
         self.updatedAt = updatedAt
     }
 }
@@ -98,6 +103,16 @@ extension StoredMintMetadata {
             )
         }()
         
+        let decodedSocialLinks: [SocialLink] = {
+            guard let json = socialLinks, let data = json.data(using: .utf8) else { return [] }
+            return (try? JSONDecoder().decode([SocialLink].self, from: data)) ?? []
+        }()
+
+        let decodedBillColors: [String] = {
+            guard let json = billColors, let data = json.data(using: .utf8) else { return [] }
+            return (try? JSONDecoder().decode([String].self, from: data)) ?? []
+        }()
+
         return MintMetadata(
             address: mint,
             decimals: decimals,
@@ -106,7 +121,9 @@ extension StoredMintMetadata {
             description: bio ?? "",
             imageURL: imageURL,
             vmMetadata: vmMetadata,
-            launchpadMetadata: launchpadMetadata
+            launchpadMetadata: launchpadMetadata,
+            socialLinks: decodedSocialLinks,
+            billColors: decodedBillColors
         )
     }
 }

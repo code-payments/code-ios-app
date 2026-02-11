@@ -8,6 +8,24 @@
 import Foundation
 import FlipcashAPI
 
+// MARK: - SocialLink -
+
+public enum SocialLink: Equatable, Sendable, Codable, Identifiable {
+    case website(URL)
+    case x(String)
+    
+    public var id: String {
+        switch self {
+        case .website(let url):
+            return url.absoluteString
+        case .x(let handle):
+            return handle
+        }
+    }
+}
+
+// MARK: - MintMetadata -
+
 public struct MintMetadata: Equatable, Sendable {
     /// Token mint address
     public let address: PublicKey
@@ -33,6 +51,12 @@ public struct MintMetadata: Equatable, Sendable {
     /// Present when created by the launchpad via the currency creator program
     public let launchpadMetadata: LaunchpadMetadata?
 
+    /// Social links for this currency
+    public let socialLinks: [SocialLink]
+
+    /// Bill customization colors as hex strings (e.g. "#19191A")
+    public let billColors: [String]
+
     public init(
         address: PublicKey,
         decimals: Int,
@@ -41,7 +65,9 @@ public struct MintMetadata: Equatable, Sendable {
         description: String,
         imageURL: URL?,
         vmMetadata: VMMetadata?,
-        launchpadMetadata: LaunchpadMetadata?
+        launchpadMetadata: LaunchpadMetadata?,
+        socialLinks: [SocialLink] = [],
+        billColors: [String] = []
     ) {
         self.address = address
         self.decimals = decimals
@@ -51,8 +77,10 @@ public struct MintMetadata: Equatable, Sendable {
         self.imageURL = imageURL
         self.vmMetadata = vmMetadata
         self.launchpadMetadata = launchpadMetadata
+        self.socialLinks = socialLinks
+        self.billColors = billColors
     }
-        
+
     public static let usdf: MintMetadata =
         .init(
             address: PublicKey.usdf,
@@ -132,6 +160,12 @@ public struct LaunchpadMetadata: Equatable, Sendable {
     /// Percent fee for sells in basis points (hardcoded to 1% = 100 bps)
     public let sellFeeBps: Int
 
+    /// The current price in USD
+    public let price: Double
+
+    /// The current market capitalization in USD
+    public let marketCap: Double
+
     public init(
         currencyConfig: PublicKey,
         liquidityPool: PublicKey,
@@ -141,7 +175,9 @@ public struct LaunchpadMetadata: Equatable, Sendable {
         coreMintVault: PublicKey,
         coreMintFees: PublicKey?,
         supplyFromBonding: UInt64,
-        sellFeeBps: Int
+        sellFeeBps: Int,
+        price: Double = 0,
+        marketCap: Double = 0
     ) {
         self.currencyConfig = currencyConfig
         self.liquidityPool = liquidityPool
@@ -152,6 +188,8 @@ public struct LaunchpadMetadata: Equatable, Sendable {
         self.coreMintFees = coreMintFees
         self.supplyFromBonding = supplyFromBonding
         self.sellFeeBps = sellFeeBps
+        self.price = price
+        self.marketCap = marketCap
     }
 }
 
@@ -165,6 +203,24 @@ enum MintMetadataError: Swift.Error {
 
 extension MintMetadata {
     init(_ proto: Ocp_Currency_V1_Mint) throws {
+        let socialLinks: [SocialLink] = proto.socialLinks.compactMap { link in
+            switch link.type {
+            case .website(let website):
+                guard let url = URL(string: website.url) else { return nil }
+                return .website(url)
+            case .x(let x):
+                guard !x.username.isEmpty else { return nil }
+                return .x(x.username)
+            case nil:
+                return nil
+            }
+        }
+
+        let billColors: [String] = {
+            guard proto.hasBillCustomization else { return [] }
+            return proto.billCustomization.colors.map(\.hex)
+        }()
+
         self.init(
             address: try PublicKey(proto.address.value),
             decimals: Int(proto.decimals),
@@ -173,7 +229,9 @@ extension MintMetadata {
             description: proto.description_p,
             imageURL: !proto.imageURL.isEmpty ? URL(string: proto.imageURL) : nil,
             vmMetadata: proto.hasVmMetadata ? try VMMetadata(proto.vmMetadata) : nil,
-            launchpadMetadata: proto.hasLaunchpadMetadata ? try LaunchpadMetadata(proto.launchpadMetadata) : nil
+            launchpadMetadata: proto.hasLaunchpadMetadata ? try LaunchpadMetadata(proto.launchpadMetadata) : nil,
+            socialLinks: socialLinks,
+            billColors: billColors
         )
     }
     
@@ -216,7 +274,9 @@ extension LaunchpadMetadata {
             coreMintVault: try PublicKey(proto.coreMintVault.value),
             coreMintFees: nil,
             supplyFromBonding: proto.supplyFromBonding,
-            sellFeeBps: Int(proto.sellFeeBps)
+            sellFeeBps: Int(proto.sellFeeBps),
+            price: proto.price,
+            marketCap: proto.marketCap
         )
     }
 }

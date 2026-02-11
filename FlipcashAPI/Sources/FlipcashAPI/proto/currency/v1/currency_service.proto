@@ -11,12 +11,6 @@ import "validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 service Currency {
-    // GetAllRates returns the exchange rates for the core mint token against all
-    // available currencies
-    //
-    // Deprecated: Use StreamLiveMintData instead
-    rpc GetAllRates(GetAllRatesRequest) returns (GetAllRatesResponse);
-
     // GetMints gets mint account metadata by address
     rpc GetMints(GetMintsRequest) returns (GetMintsResponse);
 
@@ -25,32 +19,6 @@ service Currency {
 
     // StreamLiveMintData streams live mint data for a set of mints
     rpc StreamLiveMintData(stream StreamLiveMintDataRequest) returns (stream StreamLiveMintDataResponse);
-}
-
-message GetAllRatesRequest {
-    // If timestamp is included, the returned rate will be the most recent available
-    // exchange rate prior to the provided timestamp within the same day. Otherwise,
-    // the latest rates will be returned.
-    google.protobuf.Timestamp timestamp = 1;
-}
-
-message GetAllRatesResponse {
-    Result result = 1;
-    enum Result {
-        OK = 0;
-
-        // No currency data is available for the requested timestamp.
-        MISSING_DATA = 1;
-    }
-
-    // The time the exchange rates were observed
-    google.protobuf.Timestamp as_of = 2 [(validate.rules).timestamp.required = true];
-
-    // The price of 1 core mint token in different currencies, keyed on 3- or 4-
-    // letter lowercase currency code.
-    map<string, double> rates = 3 [(validate.rules).map.keys.string = {
-        pattern: "^[a-z]{3,4}$"
-    }];
 }
 
 message GetMintsRequest {
@@ -189,6 +157,15 @@ message Mint {
 
     // Timestamp the currency was created
     google.protobuf.Timestamp created_at = 9 [(validate.rules).timestamp.required = true];
+
+    // Social links for this currency
+    repeated SocialLink social_links = 10 [(validate.rules).repeated = {
+        min_items: 0
+        max_items: 32 // Arbitrary
+    }];
+
+    // Bill customization for this currency. Use the default if not provided
+    BillCustomization bill_customization = 11;
 }
 
 message VmMetadata {
@@ -232,6 +209,12 @@ message LaunchpadMetadata {
 
     // Precent fee for sells in basis points, currently hardcoded to 1%
     uint32 sell_fee_bps = 8 [(validate.rules).uint32.const = 100];
+
+    // The current price in USD
+    double price = 9;
+
+    // The current market capitalization in USD
+    double market_cap = 10;
 }
 
 message HistoricalMintData {
@@ -291,5 +274,44 @@ message VerifiedLaunchapdCurrencyReserveStateBatch {
     repeated VerifiedLaunchpadCurrencyReserveState reserve_states = 2  [(validate.rules).repeated = {
         min_items: 1
         max_items: 1024 // Arbitrary
+    }];
+}
+
+message SocialLink {
+    oneof type {
+        option (validate.required) = true;
+
+        Website website = 1;
+        X       x       = 2;
+    }
+
+    message Website {
+        string url = 1 [(validate.rules).string = {
+            uri: true,
+            max_len: 2048,
+        }];
+    }
+
+    message X {
+        string username = 1 [(validate.rules).string = {
+            min_len: 1,
+            max_len: 15,
+            pattern: "^[a-zA-Z0-9_]+$",
+        }];
+    }
+}
+
+message BillCustomization {
+    // Bill background colors (from top to bottom)
+    repeated Color colors = 1 [(validate.rules).repeated = {
+        min_items: 2
+        max_items: 3
+    }];
+}
+
+message Color {
+    // Hex colour value (e.g. "#19191A")
+    string hex = 1 [(validate.rules).string = {
+        pattern: "^#[0-9a-fA-F]{6}$"
     }];
 }

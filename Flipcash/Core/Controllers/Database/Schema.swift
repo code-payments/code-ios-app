@@ -44,7 +44,10 @@ struct MintTable: Sendable {
     let supplyFromBonding = Expression <UInt64?>    ("supplyFromBonding")
     let coreMintLocked    = Expression <UInt64?>    ("coreMintLocked")
     let sellFeeBps        = Expression <Int?>       ("sellFeeBps")
-    
+
+    let socialLinks       = Expression <String?>    ("socialLinks")
+    let billColors        = Expression <String?>    ("billColors")
+
     let updatedAt         = Expression <Date>       ("updatedAt")
 }
 
@@ -119,11 +122,11 @@ extension Database {
                 t.column(mintTable.decimals)
                 t.column(mintTable.bio)
                 t.column(mintTable.imageURL)
-                
+
                 t.column(mintTable.vmAddress)
                 t.column(mintTable.vmAuthority)
                 t.column(mintTable.lockDuration)
-                
+
                 t.column(mintTable.currencyConfig)
                 t.column(mintTable.liquidityPool)
                 t.column(mintTable.seed)
@@ -134,9 +137,16 @@ extension Database {
                 t.column(mintTable.supplyFromBonding)
                 t.column(mintTable.coreMintLocked)
                 t.column(mintTable.sellFeeBps)
-                
+
+                t.column(mintTable.socialLinks)
+                t.column(mintTable.billColors)
+
                 t.column(mintTable.updatedAt)
             })
+
+            // Migration: add socialLinks and billColors columns if they don't exist
+            _ = try? writer.run(mintTable.table.addColumn(mintTable.socialLinks))
+            _ = try? writer.run(mintTable.table.addColumn(mintTable.billColors))
         }
         
         try writer.transaction {

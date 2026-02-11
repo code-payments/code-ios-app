@@ -185,6 +185,7 @@ public enum Asset: String, Sendable {
     case settings
     case camera
     case reload
+    case globus
     
     // Third-Party
     

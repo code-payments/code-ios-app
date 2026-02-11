@@ -237,11 +237,33 @@ struct CurrencyInfoScreen: View {
                             .font(.appBarButton)
                             .foregroundStyle(Color.textMain)
                         }
-
+                        
                         Text(currencyDescription)
                             .foregroundStyle(Color.textSecondary)
                             .font(.appTextSmall)
-                    }
+                        
+                        // Social Links
+                        if !isUSDF && !metadata.metadata.socialLinks.isEmpty {
+                            ScrollView(.horizontal) {
+                                HStack {
+                                    ForEach(metadata.metadata.socialLinks) { socialLink in
+                                        switch socialLink {
+                                        case .website(let url):
+                                            Button("Website") {
+                                                UIApplication.shared.open(url)
+                                            }
+                                            .buttonStyle(.icon(.globus))
+                                        case .x(let handle):
+                                            Button(handle) {
+                                                UIApplication.shared.open(URL(string: "https://x.com/\(handle)")!)
+                                            }
+                                            .buttonStyle(.icon(.twitter))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }                    
 
                     // Market Cap
                     if !isUSDF {

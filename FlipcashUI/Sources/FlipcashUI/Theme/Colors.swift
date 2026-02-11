@@ -61,6 +61,25 @@ extension Color {
             opacity: o
         )
     }
+
+    /// Initialize a Color from a hex string in `#RRGGBB` format.
+    /// Returns `nil` if the string is not a valid hex color.
+    public init?(hex: String) {
+        var hexString = hex
+        if hexString.hasPrefix("#") {
+            hexString.removeFirst()
+        }
+
+        guard hexString.count == 6, let rgb = UInt64(hexString, radix: 16) else {
+            return nil
+        }
+
+        self.init(
+            r: Double((rgb >> 16) & 0xFF),
+            g: Double((rgb >>  8) & 0xFF),
+            b: Double( rgb        & 0xFF)
+        )
+    }
 }
 
 extension LinearGradient {

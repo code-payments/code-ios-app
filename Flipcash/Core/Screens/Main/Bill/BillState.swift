@@ -58,7 +58,7 @@ extension BillState {
 extension BillState {
     enum Bill: Equatable {
 
-        case cash(CashCode.Payload, mint: PublicKey)
+        case cash(CashCode.Payload, mint: PublicKey, billColors: [String] = [])
 
         var canSwipeToDismiss: Bool {
             switch self {
@@ -68,7 +68,7 @@ extension BillState {
 
         var mint: PublicKey {
             switch self {
-            case .cash(_, let mint):
+            case .cash(_, let mint, _):
                 return mint
             }
         }
