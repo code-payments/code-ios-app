@@ -11,7 +11,7 @@ import FlipcashUI
 import FlipcashCore
 
 struct SwapProcessingScreen: View {
-    @StateObject private var viewModel: SwapProcessingViewModel
+    @State private var viewModel: SwapProcessingViewModel
     @EnvironmentObject private var client: Client
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var pushController: PushController
@@ -20,7 +20,7 @@ struct SwapProcessingScreen: View {
     // MARK: - Init -
 
     init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
-        _viewModel = StateObject(wrappedValue: SwapProcessingViewModel(
+        _viewModel = State(wrappedValue: SwapProcessingViewModel(
             swapId: swapId,
             swapType: swapType,
             mint: mint,

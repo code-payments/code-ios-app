@@ -10,15 +10,16 @@ import SwiftUI
 import FlipcashCore
 
 @MainActor
-class SwapProcessingViewModel: ObservableObject {
+@Observable
+class SwapProcessingViewModel {
 
-    // MARK: - Published State -
+    // MARK: - State -
 
-    @Published private(set) var currentState: SwapState = .created
-    @Published private(set) var displayState: DisplayState = .processing
-    @Published private(set) var isPolling: Bool = false
-    @Published private(set) var mintMetadata: StoredMintMetadata?
-    @Published private(set) var exchangedFiat: ExchangedFiat?
+    private(set) var currentState: SwapState = .created
+    private(set) var displayState: DisplayState = .processing
+    private(set) var isPolling: Bool = false
+    private(set) var mintMetadata: StoredMintMetadata?
+    private(set) var exchangedFiat: ExchangedFiat?
 
     var title: String {
         switch displayState {
@@ -26,7 +27,12 @@ class SwapProcessingViewModel: ObservableObject {
             return "Processing Your Transaction"
         case .success:
             if let exchangedFiat, let mintMetadata {
-                return "\(exchangedFiat.converted.formatted()) of \(mintMetadata.name)"
+                switch swapType {
+                case .buy:
+                    return "\(exchangedFiat.converted.formatted()) of \(mintMetadata.name)"
+                case .sell:
+                    return "\(exchangedFiat.converted.formatted()) of USD Reserves"
+                }
             }
             return "Transaction Complete"
         case .failed:
@@ -37,7 +43,7 @@ class SwapProcessingViewModel: ObservableObject {
     var subtitle: String {
         switch displayState {
         case .processing:
-            return "This usually takes just under a minute"
+            return "This usually takes about a minute"
         case .success:
             return "was just added to your Flipcash wallet"
         case .failed:
