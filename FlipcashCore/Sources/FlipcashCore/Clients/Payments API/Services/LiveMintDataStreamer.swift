@@ -195,14 +195,16 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
         case .success(let status):
             switch status.code {
             case .ok:
-                trace(.note, components: "Stream closed normally")
+                trace(.note, components: "Stream closed normally, reconnecting...")
+                reconnect()
 
             case .unavailable, .deadlineExceeded, .cancelled:
                 trace(.warning, components: "Stream closed with \(status.code), reconnecting...")
                 reconnect()
 
             default:
-                trace(.failure, components: "Stream closed with status: \(status)")
+                trace(.warning, components: "Stream closed with status: \(status), reconnecting...")
+                reconnect()
             }
 
         case .failure(let error):
