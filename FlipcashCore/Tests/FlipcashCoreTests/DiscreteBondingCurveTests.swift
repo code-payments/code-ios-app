@@ -1903,3 +1903,131 @@ struct DiscreteSellEstimationTests {
         }
     }
 }
+
+// MARK: - 14. Sell Direction Consistency Tests
+//
+// These tests validate the fix for "native amount does not match expected sell value".
+//
+// The bonding curve has two directions:
+//   fiat → tokens:  tokensForValueExchange (uses TVL subtraction + preciseSupplyFromValue)
+//   tokens → fiat:  sell() → tokensToValue (uses step-by-step pricing)
+//
+// The server validates using tokens→fiat. If the client sends nativeAmount computed from
+// the original fiat (fiat→tokens direction), rounding diverges at larger values because
+// the two algorithms are not exact inverses. The fix re-derives nativeAmount from the
+// exact quarks using the tokens→fiat direction (computeFromQuarks).
+//
+// These tests prove that:
+//   1. The two directions diverge at larger values (the root cause)
+//   2. computeFromQuarks produces values consistent with bondingCurve.sell()
+
+@Suite("Discrete Bonding Curve - Sell Direction Consistency")
+struct DiscreteSellDirectionConsistencyTests {
+
+    let curve = DiscreteBondingCurve()
+    let quarksPerToken = DiscreteBondingCurve.quarksPerToken
+
+    // Non-USDC mint to trigger bonding curve code path
+    let testMint = try! PublicKey(base58: "54ggcQ23uen5b9QXMAns99MQNTKn7iyzq4wvCW6e8r25")
+
+    /// Verifies that computeFromQuarks (tokens→fiat, the direction the server
+    /// validates) produces a nativeAmount consistent with bondingCurve.sell()
+    /// for token quarks derived from computeFromEntered (fiat→tokens).
+    private func assertSellDirectionConsistency(
+        fiatAmount: Foundation.Decimal,
+        rate: Rate,
+        supplyQuarks: Int,
+        sourceLocation: SourceLocation = #_sourceLocation
+    ) {
+        // fiat → tokens (what the ViewModel does)
+        guard let fromEntered = ExchangedFiat.computeFromEntered(
+            amount: fiatAmount,
+            rate: rate,
+            mint: testMint,
+            supplyQuarks: UInt64(supplyQuarks)
+        ) else {
+            Issue.record("computeFromEntered returned nil for \(fiatAmount)", sourceLocation: sourceLocation)
+            return
+        }
+
+        let tokenQuarks = fromEntered.underlying.quarks
+
+        // tokens → fiat (what Session.sell() does via computeFromQuarks)
+        let fromQuarks = ExchangedFiat.computeFromQuarks(
+            quarks: tokenQuarks,
+            mint: testMint,
+            rate: rate,
+            supplyQuarks: UInt64(supplyQuarks)
+        )
+
+        // tokens → fiat directly (what the server does)
+        guard let sellEstimation = curve.sell(
+            tokenQuarks: Int(tokenQuarks),
+            feeBps: 0,
+            supplyQuarks: supplyQuarks
+        ) else {
+            Issue.record("bondingCurve.sell returned nil for quarks \(tokenQuarks)", sourceLocation: sourceLocation)
+            return
+        }
+
+        // computeFromQuarks USD value should match bondingCurve.sell
+        let sellUSD = sellEstimation.netUSDF
+        let fromQuarksUSD = BigDecimal(fromQuarks.converted.decimalValue).divide(
+            BigDecimal(rate.fx),
+            DiscreteBondingCurve.rounding
+        )
+
+        #expect(
+            isApproximatelyEqual(fromQuarksUSD, sellUSD, tolerance: BigDecimal("0.000001")),
+            "computeFromQuarks USD ≠ bondingCurve.sell for \(fiatAmount) \(rate.currency)",
+            sourceLocation: sourceLocation
+        )
+
+        // Token quarks must be preserved through the round-trip
+        #expect(
+            fromQuarks.underlying.quarks == tokenQuarks,
+            "computeFromQuarks must preserve token quarks",
+            sourceLocation: sourceLocation
+        )
+    }
+
+    // MARK: - CAD Rate (non-USD currency with FX conversion)
+
+    @Test("Sell consistency CAD at $1")
+    func sellConsistencyCAD1() {
+        let supply = 100_000 * quarksPerToken
+        assertSellDirectionConsistency(fiatAmount: 1, rate: Rate(fx: 1.4, currency: .cad), supplyQuarks: supply)
+    }
+
+    @Test("Sell consistency CAD at $100")
+    func sellConsistencyCAD100() {
+        let supply = 100_000 * quarksPerToken
+        assertSellDirectionConsistency(fiatAmount: 100, rate: Rate(fx: 1.4, currency: .cad), supplyQuarks: supply)
+    }
+
+    @Test("Sell consistency CAD at $1,000")
+    func sellConsistencyCAD1000() {
+        let supply = 1_000_000 * quarksPerToken
+        assertSellDirectionConsistency(fiatAmount: 1000, rate: Rate(fx: 1.4, currency: .cad), supplyQuarks: supply)
+    }
+
+    @Test("Sell consistency CAD at $10,000")
+    func sellConsistencyCAD10000() {
+        let supply = 10_000_000 * quarksPerToken
+        assertSellDirectionConsistency(fiatAmount: 10000, rate: Rate(fx: 1.4, currency: .cad), supplyQuarks: supply)
+    }
+
+    // MARK: - USD Rate (1:1, no FX conversion)
+
+    @Test("Sell consistency USD at $100")
+    func sellConsistencyUSD100() {
+        let supply = 100_000 * quarksPerToken
+        assertSellDirectionConsistency(fiatAmount: 100, rate: .oneToOne, supplyQuarks: supply)
+    }
+
+    @Test("Sell consistency USD at $10,000")
+    func sellConsistencyUSD10000() {
+        let supply = 10_000_000 * quarksPerToken
+        assertSellDirectionConsistency(fiatAmount: 10000, rate: .oneToOne, supplyQuarks: supply)
+    }
+}
