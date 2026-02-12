@@ -582,26 +582,38 @@ class Session: ObservableObject {
             throw Error.missingVerifiedState
         }
 
-        // Recalculate amount with the supply from the streaming service
         guard let supply = verifiedState.supplyFromBonding else {
             throw Error.missingSupply
         }
 
+        // Cap token quarks to the user's actual balance
         let balance = balance(for: mint)
-        guard let amountRecalculated = ExchangedFiat.computeFromEntered(
-            amount: amount.converted.decimalValue,
-            rate: ratesController.rateForEntryCurrency(),
-            mint: mint,
-            supplyQuarks: supply,
-            balance: balance?.usdf,
-            tokenBalanceQuarks: balance?.quarks
-        ) else {
-            throw Error.unableToConvertToFiat
+        let tokenQuarks: UInt64
+        if let balanceQuarks = balance?.quarks, amount.underlying.quarks > balanceQuarks {
+            tokenQuarks = balanceQuarks
+        } else {
+            tokenQuarks = amount.underlying.quarks
         }
 
-        trace(.note, components: "selling \(amountRecalculated.converted.formatted()) of \(token.symbol)")
+        // For bonded tokens, derive the server-consistent ExchangedFiat
+        // from the token quarks using computeFromQuarks (which uses
+        // bondingCurve.sell → tokensToValue, matching server validation).
+        // For USDF, the ViewModel's amount is already correct.
+        let amountForIntent: ExchangedFiat
+        if mint != .usdf {
+            amountForIntent = ExchangedFiat.computeFromQuarks(
+                quarks: tokenQuarks,
+                mint: mint,
+                rate: ratesController.rateForEntryCurrency(),
+                supplyQuarks: supply
+            )
+        } else {
+            amountForIntent = amount
+        }
 
-        return try await client.sell(amount: amountRecalculated, verifiedState: verifiedState, in: token.metadata, owner: owner)
+        trace(.note, components: "selling \(amountForIntent.converted.formatted()) of \(token.symbol)")
+
+        return try await client.sell(amount: amountForIntent, verifiedState: verifiedState, in: token.metadata, owner: owner)
     }
     
     // MARK: - Withdrawals -
