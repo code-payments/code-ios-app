@@ -39,6 +39,7 @@ struct CurrencyInfoMarketCapSection: View {
         }
         .onChange(of: currencyCode) { _, _ in
             guard let viewModel = chartViewModel else { return }
+            updateRangeChangeCallback(for: viewModel)
             loadChartData(for: viewModel.selectedRange, into: viewModel)
         }
     }
@@ -47,12 +48,15 @@ struct CurrencyInfoMarketCapSection: View {
         let viewModel = ChartViewModel(currentValue: marketCap.doubleValue, selectedRange: .all)
         chartViewModel = viewModel
 
+        updateRangeChangeCallback(for: viewModel)
+        loadChartData(for: .all, into: viewModel)
+    }
+
+    private func updateRangeChangeCallback(for viewModel: ChartViewModel) {
         viewModel.onRangeChange = { [weak viewModel] range in
             guard let viewModel else { return }
             loadChartData(for: range, into: viewModel)
         }
-
-        loadChartData(for: .all, into: viewModel)
     }
 
     private func loadChartData(for range: ChartRange, into viewModel: ChartViewModel) {
