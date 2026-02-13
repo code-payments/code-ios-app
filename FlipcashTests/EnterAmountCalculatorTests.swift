@@ -167,7 +167,7 @@ import FlipcashCore
     @Test func maxEnterAmount_whenLimitLessThanBalance_returnsConvertedLimit() {
         let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000, convertedQuarks: 2_000_000)
         let limit = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
-        
+
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
@@ -175,10 +175,41 @@ import FlipcashCore
             transactionLimitProvider: { _ in return limit },
             rateProvider: { _ in Rate.oneToOne }
         )
-        
+
         let result = calculator.maxEnterAmount(maxBalance: balance)
         let expectedLimit = limit.converting(to: Rate.oneToOne, decimals: PublicKey.usdf.mintDecimals)
-        
+
         #expect(result == expectedLimit)
+    }
+
+    @Test func maxEnterAmount_withHighRateCurrency_doesNotOverflow() {
+        // Regression test: CLP (~950:1 USD) was causing UInt64 overflow
+        // when comparing quarks across different decimal precisions.
+        let clpRate = Rate(fx: 950, currency: .clp)
+
+        // Balance: 475,000 CLP at 6 decimals
+        let underlying = Quarks(quarks: 500_000_000 as UInt64, currencyCode: .usd, decimals: 6) // $500 USD
+        let converted = Quarks(quarks: 475_000_000_000 as UInt64, currencyCode: .clp, decimals: 6) // 475,000 CLP
+        let balance = ExchangedFiat(
+            underlying: underlying,
+            converted: converted,
+            rate: clpRate,
+            mint: .usdf
+        )
+
+        // Limit already in CLP quarks at 6 decimals (from server)
+        let limit = Quarks(quarks: 950_000_000_000 as UInt64, currencyCode: .clp, decimals: 6) // 950,000 CLP
+
+        let calculator = EnterAmountCalculator(
+            mode: .currency,
+            entryCurrency: .clp,
+            onrampCurrency: .usd,
+            transactionLimitProvider: { _ in return limit },
+            rateProvider: { _ in clpRate }
+        )
+
+        // This must not crash with arithmetic overflow
+        let result = calculator.maxEnterAmount(maxBalance: balance)
+        #expect(result == balance.converted)
     }
 }

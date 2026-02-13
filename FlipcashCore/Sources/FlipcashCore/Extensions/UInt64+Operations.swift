@@ -24,6 +24,8 @@ extension UInt64 {
 
     func scaleUp(_ d: Int) -> UInt64 {
         let factor = pow10(d)
-        return self * factor
+        let (result, overflow) = self.multipliedReportingOverflow(by: factor)
+        precondition(!overflow, "UInt64.scaleUp overflow: \(self) * 10^\(d)")
+        return result
     }
 }

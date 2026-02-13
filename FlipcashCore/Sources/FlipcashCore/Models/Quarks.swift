@@ -228,13 +228,14 @@ extension Quarks: ExpressibleByFloatLiteral {
 
 extension Quarks: Comparable {
     public static func < (lhs: Self, rhs: Self) -> Bool {
-        do {
-            let (l, r, _) = try lhs.align(with: rhs)
-            return l.quarks < r.quarks
-        } catch {
+        guard lhs.currencyCode == rhs.currencyCode else {
             assertionFailure("Attempting to compare different currency Fiat values.")
-            print(error)
             return false
         }
+
+        // Compare using Decimal to avoid UInt64 overflow when scaling
+        // quarks up to a common precision (e.g. high-rate currencies
+        // like CLP, VND, IRR can overflow UInt64 during scaleUp).
+        return lhs.decimalValue < rhs.decimalValue
     }
 }

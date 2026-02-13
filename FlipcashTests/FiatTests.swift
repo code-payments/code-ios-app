@@ -140,6 +140,50 @@ struct FiatTests {
         // Should show ¥10 (1000 quarks / 100 decimals = 10), no decimal places
         #expect(!formatted.contains("."))
     }
+
+    // MARK: - Comparison Overflow Safety -
+
+    @Test("Comparing CLP quarks across different decimal precisions does not overflow")
+    static func testComparison_CLP_doesNotOverflow() {
+        // CLP rate ~950:1 USD. Simulate a large CLP amount at 6 decimals
+        // being compared with a value at 10 decimals (bonded token).
+        // Old code would scaleUp(4) on the 6-decimal value, causing UInt64 overflow.
+        //
+        // clpAt6:  475_000_000_000_000 / 10^6  = 475,000,000 CLP
+        // clpAt10: 1_000_000_000_000_000_000 / 10^10 = 100,000,000 CLP
+        let clpAt6  = Quarks(quarks: 475_000_000_000_000 as UInt64, currencyCode: .clp, decimals: 6)
+        let clpAt10 = Quarks(quarks: 1_000_000_000_000_000_000 as UInt64, currencyCode: .clp, decimals: 10)
+
+        // This must not crash, and 100M < 475M
+        #expect(clpAt10 < clpAt6)
+    }
+
+    @Test("Comparing quarks with different decimals produces correct ordering")
+    static func testComparison_differentDecimals_correctOrdering() {
+        // 100.0 at 6 decimals
+        let a = Quarks(quarks: 100_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        // 50.0 at 10 decimals
+        let b = Quarks(quarks: 500_000_000_000 as UInt64, currencyCode: .usd, decimals: 10)
+
+        #expect(b < a) // 50 < 100
+        #expect(!(a < b))
+    }
+
+    @Test(
+        "No currency overflows when comparing a high-value quarks amount across 6 and 10 decimal precisions",
+        arguments: CurrencyCode.allCases
+    )
+    static func testComparison_allCurrencies_noOverflow(currency: CurrencyCode) {
+        // Use a very large quarks value at 6 decimals (simulating a high-rate
+        // currency converted amount near the UInt64 practical limit) and compare
+        // with a value at 10 decimals. This must never overflow.
+        let largeAt6  = Quarks(quarks: 1_000_000_000_000_000 as UInt64, currencyCode: currency, decimals: 6)
+        let largeAt10 = Quarks(quarks: 1_000_000_000_000_000 as UInt64, currencyCode: currency, decimals: 10)
+
+        // 10^15 / 10^6 = 10^9 vs 10^15 / 10^10 = 10^5
+        // So largeAt6 represents 1,000,000,000 and largeAt10 represents 100,000
+        #expect(largeAt10 < largeAt6)
+    }
 }
 
 
