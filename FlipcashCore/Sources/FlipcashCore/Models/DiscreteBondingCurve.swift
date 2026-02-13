@@ -517,7 +517,7 @@ extension DiscreteBondingCurve {
         // Calculate gross value using tokensToValue from supplyAfter
         guard let grossUSDF = tokensToValue(
             currentSupply: supplyAfter,
-            tokens: tokensToSell
+            tokens: effectiveSell
         ) else {
             return nil
         }
