@@ -386,6 +386,25 @@ extension RatesController {
 
 Place test support extensions in `FlipcashTests/TestSupport/` using the naming pattern `{Type}+TestSupport.swift`.
 
+### Regression Tests
+
+**Every crash fixed from Bugsnag (or similar) gets a dedicated regression test** in `FlipcashTests/Regressions/`.
+
+- **One file per incident:** `Regression_{bugsnag_id}.swift`
+- **Suite name includes the short ID:** `@Suite("Regression: {short_id} – {brief description}")`
+- **Reproduce the crash path**, not just the low-level fix. If the crash came through `EnterAmountCalculator`, test through `EnterAmountCalculator`.
+
+```swift
+// FlipcashTests/Regressions/Regression_698ef3b65e6cc4bb5554e13d.swift
+
+@Suite("Regression: 698ef3b – Quarks comparison overflow for high-rate currencies")
+struct Regression_698ef3b {
+
+    @Test("CLP quarks comparison across 6 and 10 decimal precisions does not overflow")
+    func quarksComparison_CLP_doesNotOverflow() { ... }
+}
+```
+
 ---
 
 ## Git & Workflow

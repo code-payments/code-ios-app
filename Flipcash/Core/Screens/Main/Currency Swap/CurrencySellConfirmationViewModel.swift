@@ -20,7 +20,7 @@ class CurrencySellConfirmationViewModel: ObservableObject {
 
     var canDismissSheet: Bool = false
     
-    private var fee: ExchangedFiat {
+    var fee: ExchangedFiat {
         let bps: UInt64 = 100
         let underlying = Quarks(
             quarks: amount.underlying.quarks * bps / 10_000,

@@ -167,7 +167,7 @@ import FlipcashCore
     @Test func maxEnterAmount_whenLimitLessThanBalance_returnsConvertedLimit() {
         let balance = Self.createExchangedFiat(underlyingQuarks: 2_000_000, convertedQuarks: 2_000_000)
         let limit = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
-        
+
         let calculator = EnterAmountCalculator(
             mode: .currency,
             entryCurrency: .usd,
@@ -175,10 +175,11 @@ import FlipcashCore
             transactionLimitProvider: { _ in return limit },
             rateProvider: { _ in Rate.oneToOne }
         )
-        
+
         let result = calculator.maxEnterAmount(maxBalance: balance)
         let expectedLimit = limit.converting(to: Rate.oneToOne, decimals: PublicKey.usdf.mintDecimals)
-        
+
         #expect(result == expectedLimit)
     }
+
 }

@@ -140,6 +140,7 @@ struct FiatTests {
         // Should show ¥10 (1000 quarks / 100 decimals = 10), no decimal places
         #expect(!formatted.contains("."))
     }
+
 }
 
 
