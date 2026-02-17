@@ -43,16 +43,17 @@ struct CurrencyInfoScreen: View {
         let zero = Quarks(quarks: zeroQuarks, currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
 
         guard let mintMetadata else { return zero }
-        let balance   = session.balance(for: mintMetadata.mint)
-        let exchanged = balance?.computeExchangedValue(with: rate)
+        guard let stored = session.balance(for: mintMetadata.mint) else { return zero }
 
+        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
         return exchanged?.converted ?? zero
     }
 
     private var reserveBalance: Quarks {
-        let balance   = session.balance(for: .usdf)
-        let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+        guard let stored = session.balance(for: .usdf) else { return 0 }
 
+        let rate = ratesController.rateForBalanceCurrency()
+        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
         return exchanged?.converted ?? 0
     }
 
@@ -197,6 +198,12 @@ struct CurrencyInfoScreen: View {
     }
 
     @ViewBuilder private func loadedContent(metadata: StoredMintMetadata) -> some View {
+        // Compute values once per body evaluation instead of on every property reference.
+        let balance = self.balance
+        let appreciation = self.appreciation
+        let marketCap = self.marketCap
+        let reserveBalance = self.reserveBalance
+
         ZStack {
             ScrollView {
                 VStack(spacing: 0) {
@@ -252,7 +259,7 @@ struct CurrencyInfoScreen: View {
                         Text(currencyDescription)
                             .foregroundStyle(Color.textSecondary)
                             .font(.appTextSmall)
-                        
+
                         // Social Links
                         if !isUSDF && !metadata.metadata.socialLinks.isEmpty {
                             ScrollView(.horizontal) {
@@ -277,7 +284,7 @@ struct CurrencyInfoScreen: View {
                             .padding(.horizontal, -20) // Extend past the parent's padding
                             .contentMargins(.horizontal, 20) // Inset the scroll content to match
                         }
-                    }                    
+                    }
 
                     // Market Cap
                     if !isUSDF {
