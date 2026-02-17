@@ -74,17 +74,24 @@ public final class LiveMintDataStreamer: @unchecked Sendable {
         trace(.note, components: "Stopped live mint data stream")
     }
 
-    /// Update the list of mints to subscribe to (restarts stream)
+    /// Update the list of mints to subscribe to.
+    /// Sends a new request on the existing stream to avoid tearing it down.
     public func updateMints(_ mints: [PublicKey]) {
         guard mints != subscribedMints else { return }
 
         subscribedMints = mints
 
-        if isStreaming {
-            // Close existing stream and reopen with new mints
-            // destroy() properly cleans up timeouts, cancels the stream, and releases references
-            streamReference?.destroy()
-            streamReference = nil
+        if isStreaming, let stream = streamReference?.stream {
+            // Send updated mint list on existing stream — no teardown needed
+            let request = Ocp_Currency_V1_StreamLiveMintDataRequest.with {
+                $0.request = .with {
+                    $0.mints = mints.map(\.solanaAccountID)
+                }
+            }
+            _ = stream.sendMessage(request)
+            trace(.note, components: "Updated mint subscription to \(mints.count) mints")
+        } else if isStreaming {
+            // No active stream — open a new one
             openStream()
         }
     }
