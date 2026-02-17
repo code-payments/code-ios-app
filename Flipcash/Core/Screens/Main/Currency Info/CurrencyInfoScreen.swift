@@ -38,11 +38,15 @@ struct CurrencyInfoScreen: View {
     }
 
     private var balance: Quarks {
-        guard let mintMetadata else { return 0 }
-        let balance   = session.balance(for: mintMetadata.mint)
-        let exchanged = balance?.computeExchangedValue(with: ratesController.rateForBalanceCurrency())
+        let rate = ratesController.rateForBalanceCurrency()
+        let zeroQuarks: UInt64 = 0
+        let zero = Quarks(quarks: zeroQuarks, currencyCode: rate.currency, decimals: PublicKey.usdf.mintDecimals)
 
-        return exchanged?.converted ?? 0
+        guard let mintMetadata else { return zero }
+        let balance   = session.balance(for: mintMetadata.mint)
+        let exchanged = balance?.computeExchangedValue(with: rate)
+
+        return exchanged?.converted ?? zero
     }
 
     private var reserveBalance: Quarks {
