@@ -24,7 +24,7 @@ class SwapProcessingViewModel {
     var title: String {
         switch displayState {
         case .processing:
-            return "Processing Your Transaction"
+            return "This Will Take a Minute"
         case .success:
             if let exchangedFiat, let mintMetadata {
                 switch swapType {
@@ -43,7 +43,7 @@ class SwapProcessingViewModel {
     var subtitle: String {
         switch displayState {
         case .processing:
-            return "This usually takes about a minute"
+            return "This transaction typically takes about a minute. You may leave the app while it completes"
         case .success:
             return "was just added to your Flipcash wallet"
         case .failed:
