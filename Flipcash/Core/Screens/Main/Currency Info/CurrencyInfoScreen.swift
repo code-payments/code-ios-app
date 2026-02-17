@@ -45,10 +45,8 @@ struct CurrencyInfoScreen: View {
         guard let mintMetadata else { return zero }
         guard let stored = session.balance(for: mintMetadata.mint) else { return zero }
 
-        // Use the pre-computed USDF value from StoredBalance.init to
-        // avoid re-running the bonding curve on the main thread.
-        let exchanged = try! ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
-        return exchanged.converted
+        let exchanged = try? ExchangedFiat(underlying: stored.usdf, rate: rate, mint: .usdf)
+        return exchanged?.converted ?? zero
     }
 
     private var reserveBalance: Quarks {
