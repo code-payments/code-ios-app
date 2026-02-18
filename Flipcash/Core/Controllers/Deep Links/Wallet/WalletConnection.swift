@@ -13,13 +13,17 @@ import TweetNacl
 import SolanaSwift
 
 @MainActor
-public final class WalletConnection: ObservableObject {
+@Observable
+public final class WalletConnection {
 
-    @Published var isShowingAmountEntry: Bool = false
+    var isShowingAmountEntry: Bool = false
 
-    @Published var dialogItem: DialogItem?
+    var dialogItem: DialogItem?
 
-    @Published private(set) var session: ConnectedWalletSession?
+    /// Current swap processing context. When set, the processing screen should be shown.
+    var processing: ExternalSwapProcessing?
+
+    private(set) var session: ConnectedWalletSession?
 
     var publicKey: FlipcashCore.PublicKey {
         box.publicKey
@@ -42,8 +46,6 @@ public final class WalletConnection: ObservableObject {
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
 
-    /// Called when a request is cancelled by the user in the external wallet.
-    var onCancelled: (() -> Void)?
 
     private struct PendingSwap {
         let swapId: SwapId
@@ -79,7 +81,23 @@ public final class WalletConnection: ObservableObject {
             if code == "4001" {
                 Analytics.walletCancel()
                 pendingSwap = nil
-                onCancelled?()
+
+                // Clear processing to pop the SwapProcessingScreen.
+                processing = nil
+
+                // Defer the dialog because SwiftUI can't present a sheet while a
+                // navigation transition is animating.
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(for: .milliseconds(500))
+                    self?.dialogItem = .init(
+                        style: .destructive,
+                        title: "Transaction Cancelled",
+                        subtitle: "The transaction was cancelled in your wallet",
+                        dismissable: true
+                    ) {
+                        .okay(kind: .destructive)
+                    }
+                }
             }
             return
         }
@@ -246,6 +264,24 @@ public final class WalletConnection: ObservableObject {
     private func openExternalWallet(_ url: URL) {
         UIApplication.isInterfaceResetDisabled = true
         url.openWithApplication()
+    }
+
+    /// Requests an external swap: builds the transaction, opens Phantom, and
+    /// sets `processing` so the view can show the processing screen.
+    func requestSwap(usdc: Quarks, mint: FlipcashCore.PublicKey, token: MintMetadata) async throws {
+        let result = try await requestUsdcToUsdfSwap(usdc: usdc, token: token)
+        processing = ExternalSwapProcessing(
+            swapId: result.swapId,
+            mint: mint,
+            amount: result.amount
+        )
+        isShowingAmountEntry = false
+    }
+
+    /// Dismisses the processing screen and clears any pending wallet dialogs.
+    func dismissProcessing() {
+        dialogItem = nil
+        processing = nil
     }
 
     // MARK: - Actions -

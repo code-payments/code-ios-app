@@ -376,10 +376,10 @@ struct SessionContainer {
     fileprivate func injectingEnvironment<SomeView>(into view: SomeView) -> some View where SomeView: View {
         view
             .environmentObject(session)
-            .environmentObject(walletConnection)
             .environmentObject(ratesController)
             .environmentObject(historyController)
             .environmentObject(pushController)
+            .environment(walletConnection)
     }
     
     @MainActor
