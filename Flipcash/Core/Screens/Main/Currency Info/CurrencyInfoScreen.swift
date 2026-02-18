@@ -331,7 +331,9 @@ struct CurrencyInfoScreen: View {
                 walletConnection.dismissProcessing()
             })
         }
-        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
+        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry, onDismiss: {
+            walletConnection.commitPendingProcessing()
+        }) {
             NavigationStack {
                 EnterWalletAmountScreen { quarks in
                     try await walletConnection.requestSwap(
