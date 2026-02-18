@@ -320,12 +320,12 @@ struct CurrencyInfoScreen: View {
                 sessionContainer: sessionContainer
             )
         }
-        .navigationDestination(item: Bindable(walletConnection).processing) { item in
+        .navigationDestination(item: Bindable(walletConnection).processing) { processing in
             SwapProcessingScreen(
-                swapId: item.swapId,
+                swapId: processing.swapId,
                 swapType: .buy,
-                mint: item.mint,
-                amount: item.amount
+                mint: processing.mint,
+                amount: processing.amount
             )
             .environment(\.dismissParentContainer, {
                 walletConnection.dismissProcessing()

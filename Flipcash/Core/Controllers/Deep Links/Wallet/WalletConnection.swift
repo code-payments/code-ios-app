@@ -82,13 +82,11 @@ public final class WalletConnection {
                 Analytics.walletCancel()
                 pendingSwap = nil
 
-                // Clear processing to pop the SwapProcessingScreen.
-                processing = nil
-
-                // Defer the dialog because SwiftUI can't present a sheet while a
-                // navigation transition is animating.
+                // Defer both the processing dismissal and the dialog so the
+                // navigation stack has time to settle after the foreground transition.
                 Task { @MainActor [weak self] in
                     try? await Task.sleep(for: .milliseconds(500))
+                    self?.processing = nil
                     self?.dialogItem = .init(
                         style: .destructive,
                         title: "Transaction Cancelled",
