@@ -320,7 +320,7 @@ struct CurrencyInfoScreen: View {
                 sessionContainer: sessionContainer
             )
         }
-        .navigationDestination(item: Bindable(walletConnection).processing) { processing in
+        .navigationDestinationCompat(item: Bindable(walletConnection).processing) { processing in
             SwapProcessingScreen(
                 swapId: processing.swapId,
                 swapType: .buy,
@@ -331,9 +331,7 @@ struct CurrencyInfoScreen: View {
                 walletConnection.dismissProcessing()
             })
         }
-        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry, onDismiss: {
-            walletConnection.commitPendingProcessing()
-        }) {
+        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
             NavigationStack {
                 EnterWalletAmountScreen { quarks in
                     try await walletConnection.requestSwap(

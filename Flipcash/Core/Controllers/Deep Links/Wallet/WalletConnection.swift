@@ -50,12 +50,6 @@ public final class WalletConnection {
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
 
-    /// Staged processing context. Committed after the amount-entry sheet
-    /// finishes dismissing to avoid a simultaneous sheet-dismiss + nav-push,
-    /// which causes a SwiftUI display-list infinite recursion (app hang).
-    private var pendingProcessing: ExternalSwapProcessing?
-
-
     private struct PendingSwap {
         let swapId: SwapId
         let amount: ExchangedFiat
@@ -90,24 +84,17 @@ public final class WalletConnection {
             if code == "4001" {
                 Analytics.walletCancel()
                 pendingSwap = nil
-                pendingProcessing = nil
 
                 if processing != nil {
-                    // Processing screen is visible — let it show the failure.
                     isProcessingCancelled = true
                 } else {
-                    // Edge case: processing screen not yet pushed (sheet still
-                    // dismissing). Fall back to a dialog.
-                    Task { @MainActor [weak self] in
-                        try? await Task.sleep(for: .milliseconds(500))
-                        self?.dialogItem = .init(
-                            style: .destructive,
-                            title: "Transaction Cancelled",
-                            subtitle: "The transaction was cancelled in your wallet",
-                            dismissable: true
-                        ) {
-                            .okay(kind: .destructive)
-                        }
+                    dialogItem = .init(
+                        style: .destructive,
+                        title: "Transaction Cancelled",
+                        subtitle: "The transaction was cancelled in your wallet",
+                        dismissable: true
+                    ) {
+                        .okay(kind: .destructive)
                     }
                 }
             }
@@ -278,14 +265,11 @@ public final class WalletConnection {
         url.openWithApplication()
     }
 
-    /// Requests an external swap: builds the transaction, opens Phantom, and
-    /// stages the processing context for after the sheet dismisses.
+    /// Requests an external swap: builds the transaction, opens Phantom,
+    /// and shows the processing screen.
     func requestSwap(usdc: Quarks, mint: FlipcashCore.PublicKey, token: MintMetadata) async throws {
         let result = try await requestUsdcToUsdfSwap(usdc: usdc, token: token)
-        // Stage — don't set `processing` yet. The sheet's onDismiss will
-        // call commitPendingProcessing() so the nav push happens after the
-        // sheet is fully dismissed, never in the same render cycle.
-        pendingProcessing = ExternalSwapProcessing(
+        processing = ExternalSwapProcessing(
             swapId: result.swapId,
             mint: mint,
             amount: result.amount
@@ -293,18 +277,9 @@ public final class WalletConnection {
         isShowingAmountEntry = false
     }
 
-    /// Moves staged processing into `processing`, triggering the nav push.
-    /// Called from the amount-entry sheet's `onDismiss`.
-    func commitPendingProcessing() {
-        guard let pending = pendingProcessing else { return }
-        pendingProcessing = nil
-        processing = pending
-    }
-
     /// Dismisses the processing screen and clears any pending wallet dialogs.
     func dismissProcessing() {
         dialogItem = nil
-        pendingProcessing = nil
         isProcessingCancelled = false
         processing = nil
     }
