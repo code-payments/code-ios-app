@@ -90,15 +90,13 @@ struct GiveScreen: View {
                     )
                 }
             }
-            .sheet(isPresented: $viewModel.isShowingDepositFlow) {
-                NavigationStack {
-                    DepositCurrencyListScreen(selectedMint: viewModel.selectedBalance?.stored.mint)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarTrailing) {
-                                ToolbarCloseButton(binding: $viewModel.isShowingDepositFlow)
-                            }
-                        }
-                }
+            .navigationDestination(item: $viewModel.depositMint) { mint in
+                CurrencyInfoScreen(
+                    mint: mint,
+                    container: viewModel.container,
+                    sessionContainer: viewModel.sessionContainer,
+                    showFundingOnAppear: true
+                )
             }
             .sheet(isPresented: $isShowingTokenSelection) {
                 SelectCurrencyScreen(

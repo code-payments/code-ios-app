@@ -169,9 +169,11 @@ public struct ExchangedFiat: Equatable, Hashable, Codable, Sendable {
     ///   - rate: Fiat FX rate for the entry currency.
     ///   - mint: Target token mint.
     ///   - supplyQuarks: Current token supply in quarks (10 decimals).
-    ///   - balance: Optional USDF-equivalent balance (6 decimals). Use this when the
-    ///     entered amount is in fiat and should be capped to the displayed USD value
-    ///     (ex: rounding differences between display and entry).
+    ///   - balance: Optional USDF-equivalent balance (6 decimals). When provided, the
+    ///     entered amount is **silently capped** to this balance. Use this in flows
+    ///     like Buy/Sell where FX rounding can cause the entered fiat to slightly
+    ///     exceed the displayed balance. Do **not** pass a balance when the flow
+    ///     should surface an insufficient-funds error instead of capping.
     ///   - tokenBalanceQuarks: Optional token balance in quarks (mint decimals). Use this
     ///     when the final computed token amount must never exceed the on-chain token
     ///     balance (ex: sell flow where bonding-curve math/rounding can slightly exceed
