@@ -67,7 +67,7 @@ struct EnterWalletAmountScreen: View {
 //                )
 //            }
         }
-        .navigationTitle("Amount to Deposit")
+        .navigationTitle("Amount to Buy")
         .navigationBarTitleDisplayMode(.inline)
     }
     
