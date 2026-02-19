@@ -313,6 +313,7 @@ struct CurrencyInfoScreen: View {
 
                     if balance.quarks > 0 {
                         CodeButton(style: .filledSecondary, title: "Sell") {
+                            Analytics.buttonTapped(name: .sell)
                             isShowingSellAmountEntry = true
                         }
                     }
@@ -382,10 +383,12 @@ struct CurrencyInfoScreen: View {
             FundingSelectionSheet(
                 reserveBalance: reserveBalance,
                 onSelectReserves: {
+                    Analytics.buttonTapped(name: .buyWithReserves)
                     isShowingBuyAmountEntry = true
                     isShowingFundingSelection = false
                 },
                 onSelectPhantom: {
+                    Analytics.buttonTapped(name: .buyWithPhantom)
                     walletConnection.connectToPhantom()
                     isShowingFundingSelection = false
                 },

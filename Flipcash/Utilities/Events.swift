@@ -26,8 +26,11 @@ extension Analytics {
         case saveAccessKey  = "Button: Save Access Key"
         case wroteAccessKey = "Button: Wrote Access Key"
         case allowCamera    = "Button: Allow Camera"
-        case allowPush      = "Button: Allow Push"
-        case skipPush       = "Button: Skip Push"
+        case allowPush        = "Button: Allow Push"
+        case skipPush         = "Button: Skip Push"
+        case buyWithReserves  = "Button: Buy With Reserves"
+        case buyWithPhantom   = "Button: Buy With Phantom"
+        case sell             = "Button: Sell"
     }
 
     enum TransferEvent: String, AnalyticsEvent {
