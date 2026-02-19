@@ -31,6 +31,7 @@ extension Analytics {
         case buyWithReserves  = "Button: Buy With Reserves"
         case buyWithPhantom   = "Button: Buy With Phantom"
         case sell             = "Button: Sell"
+        case shareTokenInfo   = "Button: Share Token Info"
     }
 
     enum TransferEvent: String, AnalyticsEvent {

@@ -157,6 +157,7 @@ struct CurrencyInfoScreen: View {
             if !isUSDF {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
+                        Analytics.buttonTapped(name: .shareTokenInfo)
                         let url = URL(string: "https://app.flipcash.com/token/\(mint.base58)")!
                         ShareSheet.present(url: url)
                     } label: {
