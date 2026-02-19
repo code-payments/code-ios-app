@@ -285,13 +285,13 @@ class OnrampViewModel: ObservableObject {
         }
         
         if origin.rawValue < Origin.phone.rawValue, !isPhoneVerified {
-            Analytics.onrampShowEnterPhone()
+            Analytics.track(event: Analytics.OnrampEvent.showEnterPhone)
             onrampPath.append(.enterPhoneNumber)
             return
         }
         
         if origin.rawValue < Origin.email.rawValue, !isEmailVerified {
-            Analytics.onrampShowEnterEmail()
+            Analytics.track(event: Analytics.OnrampEvent.showEnterEmail)
             onrampPath.append(.enterEmail)
             return
         }
@@ -308,7 +308,7 @@ class OnrampViewModel: ObservableObject {
             isShowingVerificationFlow = false
             createOrder()
         } else {
-            Analytics.onrampShowVerificationInfo()
+            Analytics.track(event: Analytics.OnrampEvent.showVerificationInfo)
             isShowingVerificationFlow = true
         }
     }
@@ -343,7 +343,7 @@ class OnrampViewModel: ObservableObject {
     func customAmountAction() {
         selectedPreset = nil
         isShowingAmountEntryScreen = true
-        Analytics.onrampEnterCustomAmount()
+        Analytics.track(event: Analytics.OnrampEvent.enterCustomAmount)
     }
     
     func customAmountEnteredAction() {
@@ -394,7 +394,7 @@ class OnrampViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 onrampPath.append(.confirmPhoneNumberCode)
                 
-                Analytics.onrampShowConfirmPhone()
+                Analytics.track(event: Analytics.OnrampEvent.showConfirmPhone)
                 
                 try await Task.delay(milliseconds: 500)
             }
@@ -502,7 +502,7 @@ class OnrampViewModel: ObservableObject {
                 try await Task.delay(milliseconds: 500)
                 onrampPath.append(.confirmEmailCode)
                 
-                Analytics.onrampShowConfirmEmail()
+                Analytics.track(event: Analytics.OnrampEvent.showConfirmEmail)
                 
                 try await Task.delay(milliseconds: 500)
             }

@@ -162,7 +162,7 @@ class GiveViewModel: ObservableObject {
     private func presentDeposit() {
         depositMint = selectedBalance?.stored.mint
         if let depositMint {
-            Analytics.tokenInfoOpenedFromGive(mint: depositMint)
+            Analytics.tokenInfoOpened(from: .openedFromGive, mint: depositMint)
         }
     }
     

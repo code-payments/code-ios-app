@@ -82,7 +82,7 @@ public final class WalletConnection {
 
         if let code = url.queryItemValue(for: "errorCode") {
             if code == "4001" {
-                Analytics.walletCancel()
+                Analytics.track(event: Analytics.WalletEvent.cancel)
                 pendingSwap = nil
 
                 if processing != nil {
@@ -212,7 +212,7 @@ public final class WalletConnection {
             let errorCount = results.count - submittedSignatures.count
 
             if errorCount == 0 {
-                Analytics.walletTransactionsSubmitted()
+                Analytics.track(event: Analytics.WalletEvent.transactionsSubmitted)
 
                 // If this was a swap transaction, notify server via buy()
                 if let pending, let firstSignature = submittedSignatures.first, let self {
@@ -250,7 +250,7 @@ public final class WalletConnection {
                     }
                 }
             } else {
-                Analytics.walletTransactionsFailed()
+                Analytics.track(event: Analytics.WalletEvent.transactionsFailed)
                 await MainActor.run {
                     self?.showSomethingWentWrongDialog()
                 }
@@ -298,7 +298,7 @@ public final class WalletConnection {
             URLQueryItem(name: "nonce",                      value: nonce)
         ]
 
-        Analytics.walletConnect()
+        Analytics.track(event: Analytics.WalletEvent.connect)
         openExternalWallet(c.url!)
     }
 

@@ -80,7 +80,7 @@ class OnboardingViewModel: ObservableObject {
         
         navigateToAccessKey()
 
-        Analytics.buttonTapped(name: .buttonCreateAccount)
+        Analytics.buttonTapped(name: .createAccount)
     }
     
     func saveToPhotosAction() {
@@ -114,7 +114,7 @@ class OnboardingViewModel: ObservableObject {
             }
         }
         
-        Analytics.buttonTapped(name: .buttonSaveAccessKey)
+        Analytics.buttonTapped(name: .saveAccessKey)
     }
     
     func wroteDownAction() {
@@ -129,7 +129,7 @@ class OnboardingViewModel: ObservableObject {
                     try await self?.completeAccountCreation()
                 }
                 
-                Analytics.buttonTapped(name: .buttonWroteAccessKey)
+                Analytics.buttonTapped(name: .wroteAccessKey)
             };
             .cancel()
         }
@@ -234,7 +234,7 @@ class OnboardingViewModel: ObservableObject {
             completeOnboardingAndLogin()
         }
         
-        Analytics.buttonTapped(name: .buttonAllowCamera)
+        Analytics.buttonTapped(name: .allowCamera)
     }
     
     func cancelPendingPurchaseAction() {
@@ -245,7 +245,7 @@ class OnboardingViewModel: ObservableObject {
         
         navigateToRoot()
         
-        Analytics.cancelPendingPurchase()
+        Analytics.track(event: Analytics.GeneralEvent.cancelPendingPurchase)
     }
     
     func allowPushPermissionsAction() {
@@ -256,13 +256,13 @@ class OnboardingViewModel: ObservableObject {
             navigateToCameraAccessScreen()
         }
         
-        Analytics.buttonTapped(name: .buttonAllowPush)
+        Analytics.buttonTapped(name: .allowPush)
     }
     
     func skipPushPermissionsAction() {
         navigateToCameraAccessScreen()
         
-        Analytics.buttonTapped(name: .buttonSkipPush)
+        Analytics.buttonTapped(name: .skipPush)
     }
     
     // MARK: - Purchase -
@@ -337,7 +337,7 @@ class OnboardingViewModel: ObservableObject {
         
         sessionAuthenticator.completeLogin(with: initializedAccount)
         
-        Analytics.track(event: .completeOnboarding)
+        Analytics.track(event: Analytics.GeneralEvent.completeOnboarding)
     }
     
     // MARK: - Pending Transactions -

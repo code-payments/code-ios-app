@@ -56,8 +56,8 @@ struct CurrencySellAmountScreen: View {
                             dismissAction()
                         })
                     }
-                case .processing(let swapId, let mint, let amount, let fee):
-                    SwapProcessingScreen(swapId: swapId, swapType: .sell, mint: mint, amount: amount, fee: fee)
+                case .processing(let swapId, let mint, let amount):
+                    SwapProcessingScreen(swapId: swapId, swapType: .sell, mint: mint, amount: amount)
                         .environment(\.dismissParentContainer, {
                             dismissAction()
                         })

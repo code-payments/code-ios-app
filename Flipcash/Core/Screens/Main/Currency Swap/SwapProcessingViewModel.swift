@@ -90,16 +90,13 @@ class SwapProcessingViewModel {
     private let swapType: SwapType
     private let mint: PublicKey
     private let amount: ExchangedFiat
-    private let fee: ExchangedFiat?
-
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat, fee: ExchangedFiat? = nil) {
+    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
         self.swapId = swapId
         self.swapType = swapType
         self.mint = mint
         self.amount = amount
-        self.fee = fee
     }
 
     // MARK: - Actions -
@@ -160,11 +157,11 @@ class SwapProcessingViewModel {
     private func trackTransaction(successful: Bool) {
         switch swapType {
         case .buyWithReserves:
-            Analytics.tokenPurchase(method: .tokenPurchaseWithReserves, exchangedFiat: amount, successful: successful)
+            Analytics.tokenPurchase(method: .purchaseWithReserves, exchangedFiat: amount, successful: successful)
         case .buyWithPhantom:
-            Analytics.tokenPurchase(method: .tokenPurchaseWithPhantom, exchangedFiat: amount, successful: successful)
+            Analytics.tokenPurchase(method: .purchaseWithPhantom, exchangedFiat: amount, successful: successful)
         case .sell:
-            Analytics.tokenSell(exchangedFiat: amount, fee: fee, successful: successful)
+            Analytics.tokenSell(exchangedFiat: amount, successful: successful)
         }
     }
 }
