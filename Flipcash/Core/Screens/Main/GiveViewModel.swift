@@ -16,7 +16,7 @@ class GiveViewModel: ObservableObject {
     @Published var actionState: ButtonState = .normal
     
     @Published var dialogItem: DialogItem?
-    @Published var isShowingDepositFlow = false
+    @Published var depositMint: PublicKey?
 
     var canGive: Bool {
         enteredFiat != nil && (enteredFiat?.underlying.quarks ?? 0) > 0
@@ -55,8 +55,7 @@ class GiveViewModel: ObservableObject {
                 amount: amount,
                 rate: rate,
                 mint: mint,
-                supplyQuarks: supplyQuarks,
-                balance: selectedBalance.stored.usdf
+                supplyQuarks: supplyQuarks
             )
             
         } else {
@@ -161,7 +160,7 @@ class GiveViewModel: ObservableObject {
     // MARK: - Navigation -
     
     private func presentDeposit() {
-        isShowingDepositFlow = true
+        depositMint = selectedBalance?.stored.mint
     }
     
     // MARK: - Errors -

@@ -74,6 +74,7 @@ struct CurrencyInfoScreen: View {
     private let ratesController: RatesController
     private let sessionContainer: SessionContainer
     private let marketCapController: MarketCapController
+    private let showFundingOnAppear: Bool
 
     private var marketCap: Quarks {
         guard let mintMetadata else { return 0 }
@@ -105,12 +106,13 @@ struct CurrencyInfoScreen: View {
 
     // MARK: - Init -
 
-    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer) {
-        self.mint              = mint
-        self.container         = container
-        self.ratesController   = sessionContainer.ratesController
-        self.session           = sessionContainer.session
-        self.sessionContainer  = sessionContainer
+    init(mint: PublicKey, container: Container, sessionContainer: SessionContainer, showFundingOnAppear: Bool = false) {
+        self.mint                = mint
+        self.container           = container
+        self.ratesController     = sessionContainer.ratesController
+        self.session             = sessionContainer.session
+        self.sessionContainer    = sessionContainer
+        self.showFundingOnAppear = showFundingOnAppear
 
         _viewModel = .init(wrappedValue: CurrencyInfoViewModel(
             mint: mint,
@@ -172,6 +174,10 @@ struct CurrencyInfoScreen: View {
                     container: container,
                     sessionContainer: sessionContainer
                 )
+            }
+
+            if showFundingOnAppear {
+                isShowingFundingSelection = true
             }
         }
     }
