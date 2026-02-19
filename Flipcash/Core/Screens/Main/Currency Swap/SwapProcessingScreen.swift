@@ -20,12 +20,13 @@ struct SwapProcessingScreen: View {
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
+    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat, fee: ExchangedFiat? = nil) {
         _viewModel = State(wrappedValue: SwapProcessingViewModel(
             swapId: swapId,
             swapType: swapType,
             mint: mint,
-            amount: amount
+            amount: amount,
+            fee: fee
         ))
     }
 

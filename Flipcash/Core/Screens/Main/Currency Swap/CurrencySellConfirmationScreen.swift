@@ -92,7 +92,7 @@ struct CurrencySellConfirmationScreen: View {
         .navigationTitle("Confirm Sale")
         .onChange(of: viewModel.pendingSwapId) { _, swapId in
             if let swapId {
-                path.append(.processing(swapId: swapId, mint: mint, amount: viewModel.amountAfterFee))
+                path.append(.processing(swapId: swapId, mint: mint, amount: viewModel.amountAfterFee, fee: viewModel.fee))
             }
         }
     }

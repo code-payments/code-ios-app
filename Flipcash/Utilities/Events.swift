@@ -220,6 +220,49 @@ extension Analytics {
     }
 }
 
+// MARK: - Token Info -
+
+extension Analytics {
+    static func tokenInfoOpenedFromDeeplink(mint: PublicKey) {
+        track(event: .tokenInfoOpenedFromDeeplink, properties: [.mint: mint.base58])
+    }
+
+    static func tokenInfoOpenedFromWallet(mint: PublicKey) {
+        track(event: .tokenInfoOpenedFromWallet, properties: [.mint: mint.base58])
+    }
+
+    static func tokenInfoOpenedFromGive(mint: PublicKey) {
+        track(event: .tokenInfoOpenedFromGive, properties: [.mint: mint.base58])
+    }
+}
+
+// MARK: - Token Transactions -
+
+extension Analytics {
+    static func tokenPurchase(method: Name, exchangedFiat: ExchangedFiat, successful: Bool, error: Error? = nil) {
+        var properties: [Property: AnalyticsValue] = [
+            .state: successful ? String.success : String.failure,
+            .mint: exchangedFiat.mint.base58,
+            .fiat: exchangedFiat.converted.doubleValue,
+            .currency: exchangedFiat.rate.currency.rawValue,
+        ]
+        track(event: method, properties: properties, error: error)
+    }
+
+    static func tokenSell(exchangedFiat: ExchangedFiat, fee: ExchangedFiat?, successful: Bool, error: Error? = nil) {
+        var properties: [Property: AnalyticsValue] = [
+            .state: successful ? String.success : String.failure,
+            .mint: exchangedFiat.mint.base58,
+            .fiat: exchangedFiat.converted.doubleValue,
+            .currency: exchangedFiat.rate.currency.rawValue,
+        ]
+        if let fee {
+            properties[.fee] = fee.converted.doubleValue
+        }
+        track(event: .tokenSell, properties: properties, error: error)
+    }
+}
+
 // MARK: - Definitions -
 
 extension Analytics {
@@ -262,6 +305,16 @@ extension Analytics {
         case walletCancel                = "Wallet: Cancel"
         
         case cancelPendingPurchase = "Cancel Pending Purchase"
+
+        // Token Info
+        case tokenInfoOpenedFromDeeplink  = "Token Info: Opened From Deeplink"
+        case tokenInfoOpenedFromWallet    = "Token Info: Opened From Wallet"
+        case tokenInfoOpenedFromGive      = "Token Info: Opened From Give"
+
+        // Token Transactions
+        case tokenPurchaseWithReserves    = "Token Purchase With Reserves"
+        case tokenPurchaseWithPhantom     = "Token Purchase With Phantom"
+        case tokenSell                    = "Token Sell"
     }
 }
 
@@ -288,6 +341,7 @@ extension Analytics {
         
         case type              = "Type"
         case error             = "Error"
+        case fee               = "Fee"
     }
 }
 

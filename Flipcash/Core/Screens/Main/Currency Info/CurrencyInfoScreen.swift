@@ -329,7 +329,7 @@ struct CurrencyInfoScreen: View {
         .navigationDestinationCompat(item: Bindable(walletConnection).processing) { processing in
             SwapProcessingScreen(
                 swapId: processing.swapId,
-                swapType: .buy,
+                swapType: .buyWithPhantom,
                 mint: processing.mint,
                 amount: processing.amount
             )

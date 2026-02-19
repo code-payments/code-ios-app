@@ -27,10 +27,9 @@ class SwapProcessingViewModel {
             return "This Will Take a Minute"
         case .success:
             if let exchangedFiat, let mintMetadata {
-                switch swapType {
-                case .buy:
+                if swapType.isBuy {
                     return "\(exchangedFiat.converted.formatted()) of \(mintMetadata.name)"
-                case .sell:
+                } else {
                     return "\(exchangedFiat.converted.formatted()) of USD Reserves"
                 }
             }
@@ -65,10 +64,9 @@ class SwapProcessingViewModel {
     var navigationTitle: String {
         switch displayState {
         case .processing:
-            switch swapType {
-            case .buy:
+            if swapType.isBuy {
                 "Purchasing \(mintMetadata?.name ?? "")"
-            case .sell:
+            } else {
                 "Selling \(mintMetadata?.name ?? "")"
             }
         case .success:
@@ -92,14 +90,16 @@ class SwapProcessingViewModel {
     private let swapType: SwapType
     private let mint: PublicKey
     private let amount: ExchangedFiat
+    private let fee: ExchangedFiat?
 
     // MARK: - Init -
 
-    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat) {
+    init(swapId: SwapId, swapType: SwapType, mint: PublicKey, amount: ExchangedFiat, fee: ExchangedFiat? = nil) {
         self.swapId = swapId
         self.swapType = swapType
         self.mint = mint
         self.amount = amount
+        self.fee = fee
     }
 
     // MARK: - Actions -
@@ -132,10 +132,13 @@ class SwapProcessingViewModel {
             switch metadata.state {
             case .finalized:
                 setSwapDetails()
+                trackTransaction(successful: true)
                 displayState = .success
             case .failed, .cancelled:
+                trackTransaction(successful: false)
                 displayState = .failed
             case .unknown, .created, .funding, .funded, .submitting, .cancelling:
+                trackTransaction(successful: false)
                 displayState = .failed
             }
         } catch is CancellationError {
@@ -153,6 +156,17 @@ class SwapProcessingViewModel {
     private func setSwapDetails() {
         exchangedFiat = amount
     }
+
+    private func trackTransaction(successful: Bool) {
+        switch swapType {
+        case .buyWithReserves:
+            Analytics.tokenPurchase(method: .tokenPurchaseWithReserves, exchangedFiat: amount, successful: successful)
+        case .buyWithPhantom:
+            Analytics.tokenPurchase(method: .tokenPurchaseWithPhantom, exchangedFiat: amount, successful: successful)
+        case .sell:
+            Analytics.tokenSell(exchangedFiat: amount, fee: fee, successful: successful)
+        }
+    }
 }
 
 // MARK: - DisplayState -
@@ -168,6 +182,14 @@ extension SwapProcessingViewModel {
 // MARK: - SwapType -
 
 enum SwapType {
-    case buy
+    case buyWithReserves
+    case buyWithPhantom
     case sell
+
+    var isBuy: Bool {
+        switch self {
+        case .buyWithReserves, .buyWithPhantom: true
+        case .sell: false
+        }
+    }
 }
