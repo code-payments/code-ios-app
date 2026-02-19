@@ -102,6 +102,12 @@ class SwapProcessingViewModel {
         self.amount = amount
     }
 
+    // MARK: - Actions -
+
+    func cancel() {
+        displayState = .failed
+    }
+
     // MARK: - Fetching -
 
     func fetchMintMetadata(session: Session) async {

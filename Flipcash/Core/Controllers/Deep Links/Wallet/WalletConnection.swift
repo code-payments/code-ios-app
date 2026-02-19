@@ -13,13 +13,21 @@ import TweetNacl
 import SolanaSwift
 
 @MainActor
-public final class WalletConnection: ObservableObject {
+@Observable
+public final class WalletConnection {
 
-    @Published var isShowingAmountEntry: Bool = false
+    var isShowingAmountEntry: Bool = false
 
-    @Published var dialogItem: DialogItem?
+    var dialogItem: DialogItem?
 
-    @Published private(set) var session: ConnectedWalletSession?
+    /// Current swap processing context. When set, the processing screen should be shown.
+    var processing: ExternalSwapProcessing?
+
+    /// Set when the user cancels in the external wallet. The processing screen
+    /// observes this to switch to the failed display state.
+    var isProcessingCancelled = false
+
+    private(set) var session: ConnectedWalletSession?
 
     var publicKey: FlipcashCore.PublicKey {
         box.publicKey
@@ -41,9 +49,6 @@ public final class WalletConnection: ObservableObject {
 
     /// Pending swap info to use when Phantom returns with signed transaction
     private var pendingSwap: PendingSwap?
-
-    /// Called when a request is cancelled by the user in the external wallet.
-    var onCancelled: (() -> Void)?
 
     private struct PendingSwap {
         let swapId: SwapId
@@ -79,7 +84,19 @@ public final class WalletConnection: ObservableObject {
             if code == "4001" {
                 Analytics.walletCancel()
                 pendingSwap = nil
-                onCancelled?()
+
+                if processing != nil {
+                    isProcessingCancelled = true
+                } else {
+                    dialogItem = .init(
+                        style: .destructive,
+                        title: "Transaction Cancelled",
+                        subtitle: "The transaction was cancelled in your wallet",
+                        dismissable: true
+                    ) {
+                        .okay(kind: .destructive)
+                    }
+                }
             }
             return
         }
@@ -248,6 +265,25 @@ public final class WalletConnection: ObservableObject {
         url.openWithApplication()
     }
 
+    /// Requests an external swap: builds the transaction, opens Phantom,
+    /// and shows the processing screen.
+    func requestSwap(usdc: Quarks, mint: FlipcashCore.PublicKey, token: MintMetadata) async throws {
+        let result = try await requestUsdcToUsdfSwap(usdc: usdc, token: token)
+        processing = ExternalSwapProcessing(
+            swapId: result.swapId,
+            mint: mint,
+            amount: result.amount
+        )
+        isShowingAmountEntry = false
+    }
+
+    /// Dismisses the processing screen and clears any pending wallet dialogs.
+    func dismissProcessing() {
+        dialogItem = nil
+        isProcessingCancelled = false
+        processing = nil
+    }
+
     // MARK: - Actions -
 
     func connectToPhantom() {
@@ -264,77 +300,6 @@ public final class WalletConnection: ObservableObject {
 
         Analytics.walletConnect()
         openExternalWallet(c.url!)
-    }
-    
-    /// Uses Phantom `signAllTransactions` (replaces deprecated `signAndSendTransaction`) to sign a single
-    /// TokenProgram.transferChecked for a USDF (SPL Token) transfer. Phantom returns signed tx; your backend/client should broadcast it.
-    func requestTransfer(usdf: Quarks) async throws {
-        guard let connectedSession = Keychain.connectedWalletSession else {
-            print("[WalletConnection] Error: no connected session")
-            return
-        }
-        
-        let depositAddress = owner.depositPublicKey
-        
-        do {
-            // 1. Build USDF transfer with ATA handling
-            let walletOwner    = try PublicKey(string: connectedSession.walletPublicKey.base58)
-            let depositAddress = try PublicKey(string: depositAddress.base58)
-            
-            let destinationExists = try await solanaClient.apiClient.checkIfAssociatedTokenAccountExists(
-                owner: depositAddress,
-                mint: PublicKey.usdfMint.base58EncodedString,
-                tokenProgramId: PublicKey.tokenProgram
-            )
-            
-            let recentBlockhash = try await solanaClient.apiClient.getLatestBlockhash(commitment: "finalized")
-            
-            var transaction = try TransactionBuilder.usdfTransfer(
-                fromOwner: walletOwner,
-                toOwner: depositAddress,
-                quarks: usdf.quarks,
-                shouldCreateTokenAccount: !destinationExists,
-                recentBlockhash: recentBlockhash
-            )
-            
-            let txEncoded = Base58.fromBytes(Array(try transaction.serialize()))
-
-            // Build the encrypted JSON
-            let payload: [String: Any] = [
-                "transactions": [txEncoded],
-                "session": connectedSession.sessionToken
-            ]
-            let payloadData = try JSONSerialization.data(withJSONObject: payload, options: [])
-
-            // Encrypt using our Box + Phantom's encryption public key from the saved session
-            let (nonce, payloadEncrypted) = try box.encryptForPhantom(
-                payload: payloadData,
-                encryptionPublicKey: connectedSession.phantomEncryptionPublicKey
-            )
-
-            // Docs: https://docs.phantom.com/phantom-deeplinks/provider-methods/signalltransactions
-            // Build Phantom signAllTransactions deeplink
-            var c = URLComponents(string: "https://phantom.app/ul/v1/signAllTransactions")!
-            c.queryItems = [
-                URLQueryItem(name: "dapp_encryption_public_key", value: publicKey.base58),
-                URLQueryItem(name: "nonce",                      value: nonce),
-                URLQueryItem(name: "redirect_link",              value: "https://app.flipcash.com/wallet/transactionSigned"),
-                URLQueryItem(name: "payload",                    value: payloadEncrypted)
-            ]
-
-            guard let url = c.url else {
-                print("[WalletConnection] Failed to construct signAllTransactions URL")
-                return
-            }
-
-            Analytics.walletRequestAmount(amount: usdf)
-            openExternalWallet(url)
-            print("[WalletConnection] Requested transfer of \(usdf) USDF to \(depositAddress.base58EncodedString)")
-            
-        } catch {
-            print("[WalletConnection] requestTransfer error: \(error)")
-            throw error
-        }
     }
 
     /// Initiates USDC→USDF swap via Phantom wallet

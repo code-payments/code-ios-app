@@ -19,7 +19,6 @@ struct CurrencyInfoScreen: View {
     @State private var isShowingBuyAmountEntry: Bool = false
     @State private var isShowingSellAmountEntry: Bool = false
     @State private var isShowingCurrencySelection: Bool = false
-    @StateObject private var externalSwapController: ExternalSwapController
 
     @ObservedObject private var session: Session
     @StateObject private var currencyBuyViewModel: CurrencyBuyViewModel
@@ -68,6 +67,8 @@ struct CurrencyInfoScreen: View {
         return (appreciationValue.converted, isPositive)
     }
 
+    @Environment(WalletConnection.self) private var walletConnection
+
     private let mint: PublicKey
     private let container: Container
     private let ratesController: RatesController
@@ -105,20 +106,16 @@ struct CurrencyInfoScreen: View {
     // MARK: - Init -
 
     init(mint: PublicKey, container: Container, sessionContainer: SessionContainer) {
-        self.mint             = mint
-        self.container        = container
-        self.ratesController  = sessionContainer.ratesController
-        self.session          = sessionContainer.session
-        self.sessionContainer = sessionContainer
+        self.mint              = mint
+        self.container         = container
+        self.ratesController   = sessionContainer.ratesController
+        self.session           = sessionContainer.session
+        self.sessionContainer  = sessionContainer
 
         _viewModel = .init(wrappedValue: CurrencyInfoViewModel(
             mint: mint,
             sessionContainer: sessionContainer
         ))
-
-        _externalSwapController = .init(
-            wrappedValue: ExternalSwapController(walletConnection: sessionContainer.walletConnection)
-        )
 
         _currencyBuyViewModel = .init(
             wrappedValue: CurrencyBuyViewModel(
@@ -323,28 +320,30 @@ struct CurrencyInfoScreen: View {
                 sessionContainer: sessionContainer
             )
         }
-        .navigationDestination(item: $externalSwapController.processing) { item in
+        .navigationDestinationCompat(item: Bindable(walletConnection).processing) { processing in
             SwapProcessingScreen(
-                swapId: item.swapId,
+                swapId: processing.swapId,
                 swapType: .buy,
-                mint: item.mint,
-                amount: item.amount
+                mint: processing.mint,
+                amount: processing.amount
             )
             .environment(\.dismissParentContainer, {
-                externalSwapController.dismissProcessing()
+                walletConnection.dismissProcessing()
             })
         }
-        .sheet(isPresented: externalSwapController.isShowingAmountEntry) {
+        .sheet(isPresented: Bindable(walletConnection).isShowingAmountEntry) {
             NavigationStack {
                 EnterWalletAmountScreen { quarks in
-                    try await externalSwapController.requestSwap(
+                    try await walletConnection.requestSwap(
                         usdc: quarks,
                         mint: metadata.mint,
                         token: metadata.metadata
                     )
                 }
                 .toolbar {
-                    ToolbarCloseButton(binding: externalSwapController.isShowingAmountEntry)
+                    ToolbarCloseButton {
+                        walletConnection.isShowingAmountEntry = false
+                    }
                 }
             }
         }
@@ -381,7 +380,7 @@ struct CurrencyInfoScreen: View {
                     isShowingFundingSelection = false
                 },
                 onSelectPhantom: {
-                    externalSwapController.connectToPhantom()
+                    walletConnection.connectToPhantom()
                     isShowingFundingSelection = false
                 },
                 onDismiss: {
@@ -389,7 +388,7 @@ struct CurrencyInfoScreen: View {
                 }
             )
         }
-        .dialog(item: externalSwapController.dialogItem)
+        .dialog(item: Bindable(walletConnection).dialogItem)
     }
 
     @ViewBuilder private func section(spacing: CGFloat = 0, @ViewBuilder builder: () -> some View) -> some View {
