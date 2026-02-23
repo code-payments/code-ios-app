@@ -65,6 +65,6 @@ extension InterceptorFactory: Flipcash_Iap_V1_IapClientInterceptorFactoryProtoco
 
 extension Flipcash_Iap_V1_IapNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

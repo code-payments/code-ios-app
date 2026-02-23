@@ -60,11 +60,10 @@ extension ClientConnection {
     public static func appConnection(host: String, port: Int) -> ClientConnection {
         .usingTLSBackedByNIOSSL(on: MultiThreadedEventLoopGroup(numberOfThreads: System.coreCount))
         .withErrorDelegate(CodeServiceErrorDelegate())
-//        .withKeepalive(
-//            .init(interval: .seconds(30), permitWithoutCalls: true)
-//        )
-//        .withConnectionIdleTimeout(.minutes(5))
-//        .withConnectionTimeout(minimum: .minutes(1))
+        // Connection-level timeouts can be set here if needed:
+        // .withConnectionTimeout(minimum: .seconds(15))
+        // .withKeepalive(.init(interval: .seconds(30), permitWithoutCalls: true))
+        // .withConnectionIdleTimeout(.minutes(5))
         .connect(host: host, port: port)
     }
 }

@@ -15,6 +15,15 @@ protocol GRPCClientType {
     init(channel: GRPCChannel)
 }
 
+extension CallOptions {
+    /// Default call options for all gRPC services. The timeout
+    /// caps individual RPCs so they fail fast on dead connections
+    /// instead of waiting for the OS-level TCP timeout (~60s).
+    static let `default` = CallOptions(
+        timeLimit: .timeout(.seconds(15))
+    )
+}
+
 class CodeService<T> where T: GRPCClientType {
     
     let channel: ClientConnection

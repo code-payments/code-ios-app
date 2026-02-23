@@ -311,7 +311,7 @@ extension InterceptorFactory: Ocp_Messaging_V1_MessagingClientInterceptorFactory
 
 extension Ocp_Messaging_V1_MessagingNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
 

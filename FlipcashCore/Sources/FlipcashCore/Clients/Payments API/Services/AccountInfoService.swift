@@ -162,6 +162,6 @@ extension InterceptorFactory: Ocp_Account_V1_AccountClientInterceptorFactoryProt
 
 extension Ocp_Account_V1_AccountNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

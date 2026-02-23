@@ -110,6 +110,7 @@ class ScanCashOperation {
                 }
             } catch {
                 trace(.warning, components: "Failed to fetch messages (attempt \(i + 1)/\(maxAttempts)): \(error)")
+                throw error
             }
         }
 

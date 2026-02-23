@@ -128,6 +128,6 @@ extension InterceptorFactory: Ocp_Currency_V1_CurrencyClientInterceptorFactoryPr
 
 extension Ocp_Currency_V1_CurrencyNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }

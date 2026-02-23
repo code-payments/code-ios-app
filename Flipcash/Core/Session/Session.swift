@@ -739,13 +739,14 @@ class Session: ObservableObject {
                     rendezvous: payload.rendezvous.publicKey,
                     fiat: payload.fiat
                 )
-                
+
                 Analytics.transfer(
                     event: .grabBill,
                     fiat: payload.fiat,
                     successful: false,
                     error: error
                 )
+                showSomethingWentWrongError()
                 completion(.failed)
             }
         }

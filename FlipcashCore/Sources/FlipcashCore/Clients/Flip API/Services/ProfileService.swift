@@ -79,6 +79,6 @@ extension InterceptorFactory: Flipcash_Profile_V1_ProfileClientInterceptorFactor
 
 extension Flipcash_Profile_V1_ProfileNIOClient: GRPCClientType {
     init(channel: GRPCChannel) {
-        self.init(channel: channel, defaultCallOptions: CallOptions(), interceptors: InterceptorFactory())
+        self.init(channel: channel, defaultCallOptions: .default, interceptors: InterceptorFactory())
     }
 }
