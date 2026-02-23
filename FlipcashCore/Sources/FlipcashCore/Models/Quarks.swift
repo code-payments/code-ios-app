@@ -22,6 +22,15 @@ public struct Quarks: Equatable, Hashable, Codable, Sendable {
         decimalValue.doubleValue
     }
     
+    /// Whether the value is large enough to display at two decimal places.
+    ///
+    /// A quark amount like `0.004` is positive but rounds to `$0.00` in the UI.
+    /// When `false`, consider showing an alternative representation (e.g. "< $0.01")
+    /// instead of a misleading "$0.00".
+    public var isDisplayable: Bool {
+        decimalValue >= 0.01
+    }
+    
     // MARK: - Init -
     
     public init(quarks: UInt64, currencyCode: CurrencyCode, decimals: Int) {
@@ -174,15 +183,14 @@ extension Quarks {
 // MARK: - Formatting -
 
 extension Quarks {
-    public func formatted(showAllDecimals: Bool = false, truncated: Bool = false, suffix: String? = nil) -> String {
-        let digits = showAllDecimals ? 6 : currencyCode.maximumFractionDigits
+    public func formatted(suffix: String? = nil) -> String {
         return NumberFormatter.fiat(
             currency: currencyCode,
-            minimumFractionDigits: digits,
-            maximumFractionDigits: digits,
-            truncated: truncated,
+            minimumFractionDigits: currencyCode.maximumFractionDigits,
+            maximumFractionDigits: currencyCode.maximumFractionDigits,
+            truncated: false,
             suffix: suffix
-        ).string(from: quarks.scaleDown(decimals))!
+        ).string(from: decimalValue)!
     }
 }
 
