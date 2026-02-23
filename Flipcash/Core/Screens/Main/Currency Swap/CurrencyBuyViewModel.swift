@@ -60,7 +60,14 @@ class CurrencyBuyViewModel: ObservableObject {
     }
         
     var canPerformAction: Bool {
-        return enteredFiat != nil
+        guard enteredFiat != nil else {
+            return false
+        }
+
+        return EnterAmountCalculator.isWithinDisplayLimit(
+            enteredAmount: enteredAmount,
+            max: maxPossibleAmount.converted
+        )
     }
     
     var screenTitle: String {
