@@ -132,6 +132,52 @@ import FlipcashCore
         #expect(calculator.maxTransactionAmount == limit)
     }
     
+    // MARK: - isWithinDisplayLimit Tests
+
+    @Test func isWithinDisplayLimit_emptyAmount_returnsFalse() {
+        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "", max: max) == false)
+    }
+
+    @Test func isWithinDisplayLimit_zeroAmount_returnsFalse() {
+        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "0", max: max) == false)
+    }
+
+    @Test func isWithinDisplayLimit_invalidAmount_returnsFalse() {
+        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "abc", max: max) == false)
+    }
+
+    @Test func isWithinDisplayLimit_amountBelowMax_returnsTrue() {
+        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "0.50", max: max) == true)
+    }
+
+    @Test func isWithinDisplayLimit_amountEqualToMax_returnsTrue() {
+        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "1.00", max: max) == true)
+    }
+
+    @Test func isWithinDisplayLimit_amountAboveMax_returnsFalse() {
+        let max = Quarks(quarks: 1_000_000 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "1.01", max: max) == false)
+    }
+
+    @Test("Amount matching the display-rounded max is allowed")
+    func isWithinDisplayLimit_roundedDisplayBoundary_returnsTrue() {
+        // 986700 quarks / 10^6 = 0.9867 USD, which formats as "$0.99" (halfUp)
+        let max = Quarks(quarks: 986_700 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "0.99", max: max) == true)
+    }
+
+    @Test("Amount above the display-rounded max is rejected")
+    func isWithinDisplayLimit_aboveRoundedDisplay_returnsFalse() {
+        // 986700 quarks formats as "$0.99", so $1.00 should be rejected
+        let max = Quarks(quarks: 986_700 as UInt64, currencyCode: .usd, decimals: 6)
+        #expect(EnterAmountCalculator.isWithinDisplayLimit(enteredAmount: "1.00", max: max) == false)
+    }
+
     // MARK: - Max Enter Amount Tests
     
     @Test func maxEnterAmount_whenRateIsNil_returnsBalance() {

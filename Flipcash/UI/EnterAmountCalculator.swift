@@ -39,8 +39,18 @@ struct EnterAmountCalculator {
         transactionLimitProvider(currency) ?? 0
     }
     
+    // MARK: - Static
+
+    static func isWithinDisplayLimit(enteredAmount: String, max: Quarks) -> Bool {
+        guard let amount = NumberFormatter.decimal(from: enteredAmount), amount > 0 else {
+            return false
+        }
+        let displayMax = NumberFormatter.decimal(from: max.formatted()) ?? 0
+        return amount <= displayMax
+    }
+
     // MARK: - Methods
-    
+
     func maxEnterAmount(maxBalance: ExchangedFiat) -> Quarks {
         guard let rate = rateProvider(maxBalance.converted.currencyCode) else {
             return maxBalance.converted

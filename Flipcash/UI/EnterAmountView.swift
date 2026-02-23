@@ -55,8 +55,21 @@ public struct EnterAmountView: View {
         self.currencySelectionAction = currencySelectionAction
     }
     
+    // MARK: - Computed -
+
+    private var isExceedingLimit: Bool {
+        guard let value = Decimal(string: enteredAmount), value > 0 else {
+            return false
+        }
+        return !actionEnabled(enteredAmount)
+    }
+
+    private var subtitleColor: Color {
+        isExceedingLimit ? .textError : .textSecondary
+    }
+
     // MARK: - Body -
-    
+
     public var body: some View {
         VStack(alignment: .center) {
             Spacer()
@@ -81,19 +94,19 @@ public struct EnterAmountView: View {
                     case .singleTransactionLimit:
                         Text("Enter up to \(calculator.maxTransactionAmount.formatted())")
                             .fixedSize()
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(subtitleColor)
                             .font(.appTextMedium)
-                        
+
                     case .balanceWithLimit(let maxBalance):
                         Text("Enter up to \(calculator.maxEnterAmount(maxBalance: maxBalance).formatted())")
                             .fixedSize()
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(subtitleColor)
                             .font(.appTextMedium)
-                        
+
                     case .custom(let text):
                         Text(text)
                             .fixedSize()
-                            .foregroundColor(.textSecondary)
+                            .foregroundColor(subtitleColor)
                             .font(.appTextMedium)
                     }
                 }
