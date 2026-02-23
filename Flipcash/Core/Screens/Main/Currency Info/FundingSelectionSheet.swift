@@ -14,7 +14,7 @@ struct FundingSelectionSheet: View {
     let onSelectReserves: () -> Void
     let onSelectPhantom: () -> Void
     let onDismiss: () -> Void
-
+    
     var body: some View {
         PartialSheet {
             VStack {
@@ -26,7 +26,7 @@ struct FundingSelectionSheet: View {
                 }
                 .padding(.vertical, 20)
 
-                if reserveBalance.quarks > 0 {
+                if reserveBalance.isDisplayable {
                     CodeButton(style: .filled, title: "USD Reserves (\(reserveBalance))") {
                         onSelectReserves()
                     }
